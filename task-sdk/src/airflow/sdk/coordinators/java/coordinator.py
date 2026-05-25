@@ -28,7 +28,7 @@ import socket
 import subprocess
 import time
 import zipfile
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 import attrs
 import structlog
@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import BundleInfo
     from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+
+    Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.java")
 
@@ -134,8 +136,12 @@ def _accept_connections(
         while len(accepted) < len(servers):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
+                for s in accepted.values():
+                    s.close()
                 raise TimeoutError("process did not connect within timeout")
             if proc.poll() is not None:
+                for s in accepted.values():
+                    s.close()
                 raise RuntimeError(f"process exited with {proc.returncode} before connecting")
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
                 log.debug("Accepting child process connection", key=(key := event.data))
@@ -170,6 +176,36 @@ class PopenTracker(ProcessTracker):
 
 
 @attrs.define(kw_only=True)
+class _ResourceTracker:
+    timeout: float
+    tracked: dict[int, socket.socket | subprocess.Popen] = attrs.field(init=False, factory=dict)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        for o in self.tracked.values():
+            match o:
+                case socket.socket():
+                    o.close()
+                case subprocess.Popen():
+                    o.terminate()
+                    try:
+                        o.wait(self.timeout)
+                    except subprocess.TimeoutExpired:
+                        o.kill()
+
+    def track(self, *objects: Tracked) -> tuple[Tracked, ...]:
+        self.tracked.update((id(o), o) for o in objects)
+        return objects
+
+    def untrack(self, *objects: Tracked) -> tuple[Tracked, ...]:
+        for o in objects:
+            self.tracked.pop(id(o), None)
+        return objects
+
+
+@attrs.define(kw_only=True)
 class _JavaActivitySubprocess(ActivitySubprocess):
     """Java task runner process."""
 
@@ -198,54 +234,57 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         **kwargs,
     ) -> Self:
         jar = _MainJar.find(jars_root, main_class)
+        with _ResourceTracker(timeout=10.0) as tracker:
+            comm_server, logs_server = tracker.track(_start_server(), _start_server())
+            stdout_r, stdout_w = tracker.track(*socket.socketpair())
+            stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-        comm_server = _start_server()
-        logs_server = _start_server()
+            proc = subprocess.Popen(
+                [
+                    java_executable,
+                    "-classpath",
+                    _calculate_classpath(jars_root),
+                    *jvm_args,
+                    jar.main_class,
+                    # Arguments to MainClass...
+                    "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
+                    "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
+                ],
+                stdout=stdout_w.makefile("wb", buffering=0).fileno(),
+                stderr=stderr_w.makefile("wb", buffering=0).fileno(),
+            )
+            tracker.track(proc)
+            log.info("Starting subprocess", pid=proc.pid)
 
-        stdout_r, stdout_w = socket.socketpair()
-        stderr_r, stderr_w = socket.socketpair()
+            socks = _accept_connections({"comm": comm_server, "logs": logs_server}, proc)
+            tracker.track(*socks.values())
 
-        comm_host, comm_port = comm_server.getsockname()
-        logs_host, logs_port = logs_server.getsockname()
+            self = cls(
+                id=what.id,
+                pid=proc.pid,
+                process=PopenTracker(proc),
+                process_log=logger or structlog.get_logger(logger_name="task").bind(),
+                start_time=time.monotonic(),
+                stdin=socks["comm"],
+                subprocess_schema_version=jar.schema_version,
+                comm_server=comm_server,
+                logs_server=logs_server,
+                stdout_w=stdout_w,
+                stderr_w=stderr_w,
+                **kwargs,
+            )
+            self._register_pipe_readers(*tracker.untrack(stdout_r, stderr_r, socks["comm"], socks["logs"]))
+            self._on_child_started(
+                ti=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                sentry_integration=sentry_integration,
+            )
 
-        proc = subprocess.Popen(
-            [
-                java_executable,
-                "-classpath",
-                _calculate_classpath(jars_root),
-                *jvm_args,
-                jar.main_class,
-                # Arguments to MainClass...
-                f"--comm={comm_host}:{comm_port}",
-                f"--logs={logs_host}:{logs_port}",
-            ],
-            stdout=stdout_w.makefile("wb", buffering=0).fileno(),
-            stderr=stderr_w.makefile("wb", buffering=0).fileno(),
-        )
-        log.info("Starting subprocess", pid=proc.pid)
-        socks = _accept_connections({"comm": comm_server, "logs": logs_server}, proc)
+            # Untrack everything left. 'self' keeps track of these and close the
+            # servers when the subprocess exits in 'wait'.
+            tracker.untrack(comm_server, logs_server, proc)
 
-        self = cls(
-            id=what.id,
-            pid=proc.pid,
-            process=PopenTracker(proc),
-            process_log=logger or structlog.get_logger(logger_name="task").bind(),
-            start_time=time.monotonic(),
-            stdin=socks["comm"],
-            subprocess_schema_version=jar.schema_version,
-            comm_server=comm_server,
-            logs_server=logs_server,
-            stdout_w=stdout_w,
-            stderr_w=stderr_w,
-            **kwargs,
-        )
-        self._register_pipe_readers(stdout_r, stderr_r, socks["comm"], socks["logs"])
-        self._on_child_started(
-            ti=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            sentry_integration=sentry_integration,
-        )
         return self
 
     def wait(self) -> int:
