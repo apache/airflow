@@ -49,7 +49,7 @@ const PartitionSchedule = ({ dagId, isLoading, pendingCount }: PartitionSchedule
 
   return (
     <>
-      <Button loading={isLoading} onClick={() => setOpen(true)} paddingInline={0} size="sm" variant="ghost">
+      <Button loading={isLoading} onClick={() => setOpen(true)} paddingInline={0} variant="ghost">
         <FiDatabase style={{ display: "inline" }} />
         {translate("pendingDagRun", { count: pendingCount })}
       </Button>
@@ -138,7 +138,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
       <Popover.Trigger asChild>
-        <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
+        <Button loading={isLoading} paddingInline={0} variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {translate("assetSchedule", { count: pendingEvents.length, total: nextRunEvents.length })}
         </Button>

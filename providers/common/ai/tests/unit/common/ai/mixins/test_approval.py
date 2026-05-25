@@ -142,6 +142,11 @@ class TestDeferForApproval:
         call_kwargs = mock_upsert.call_args[1]
         assert call_kwargs["params"] == {}
 
+    def test_raises_on_non_string_prompt(self, context):
+        op = FakeOperator(prompt=["Describe this:", object()])  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="non-string prompt"):
+            op.defer_for_approval(context, "output")
+
     @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

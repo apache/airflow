@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
 
 
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
@@ -402,9 +403,7 @@ class AwsBatchExecutor(BaseExecutor):
             all_jobs.extend(describe_workloads_response["jobs"])
         return all_jobs
 
-    def execute_async(
-        self, key: TaskInstanceKey | str, command: CommandType, queue=None, executor_config=None
-    ):
+    def execute_async(self, key: BatchJobWorkloadKey, command: CommandType, queue=None, executor_config=None):
         """Save the workload to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')

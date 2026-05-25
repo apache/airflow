@@ -108,9 +108,12 @@ run on the central Airflow instance:
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand.
 
-If your Airflow deployment uses Multi-Team mode, assign the worker to its team with
-the ``--team-name`` option so it only picks up jobs for that team. See
-:ref:`edge_executor:multi_team` for setup details and security considerations.
+If your Airflow deployment uses the experimental Multi-Team mode, assign the worker
+to its team with the ``--team-name`` option so it only picks up jobs for that team.
+The flag is a UI/REST API-level hint — the Execution API does not currently enforce
+team-based access boundaries. See :ref:`edge_executor:multi_team` for setup details
+and :doc:`apache-airflow:security/workload` (section "No team-level isolation in
+Execution API") for the security boundary.
 
 .. code-block:: bash
 

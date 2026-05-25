@@ -130,7 +130,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
 
     return (
       <>
-        <Button onClick={() => setIsModalOpen(true)} p={0} size="sm" variant="plain">
+        <Button onClick={() => setIsModalOpen(true)} p={0} variant="plain">
           <Badge colorPalette={hasMissed ? "red" : "blue"} size="sm" variant="solid">
             {hasMissed ? <FiAlertTriangle /> : <FiClock />}
             {label}

@@ -28,6 +28,7 @@ from airflow._shared.template_rendering import truncate_rendered_value
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
+    from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
@@ -105,7 +106,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = serialize_object(template_field)
 
     if len(str(serialized)) > max_length:
-        rendered = redact(str(serialized), name)
+        # Redact while still structured to preserve nested-key context (so values under
+        # documented sensitive keys such as `password`, `token`, `secret`, `api_key`
+        # are masked recursively); only stringify the redacted result for truncation.
+        rendered = redact(serialized, name)
         return truncate_rendered_value(str(rendered), max_length)
 
     return serialized
@@ -143,6 +147,32 @@ def find_registered_custom_partition_mapper(importable_string: str) -> type[Part
     with contextlib.suppress(KeyError):
         return partition_mapper_classes[importable_string]
     raise PartitionMapperNotFound(importable_string)
+
+
+class DeadlineReferenceNotRegistered(ValueError):
+    """When an unregistered custom deadline reference is being accessed."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Custom deadline reference class {self.type_string!r} is not "
+            "registered. Custom deadline references must be registered via the "
+            "`deadline_references` attribute on an AirflowPlugin."
+        )
+
+
+def find_registered_custom_deadline_reference(
+    importable_string: str,
+) -> type[DeadlineReferenceType]:
+    """Find a user-defined custom deadline reference class registered via a plugin."""
+    from airflow import plugins_manager
+
+    deadline_ref_classes = plugins_manager.get_deadline_references_plugins()
+    with contextlib.suppress(KeyError):
+        return deadline_ref_classes[importable_string]
+    raise DeadlineReferenceNotRegistered(importable_string)
 
 
 def is_core_timetable_import_path(importable_string: str) -> bool:

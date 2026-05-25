@@ -335,7 +335,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if self.deferrable and self.wait_for_completion:
             response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
             status = response["ProcessingJobStatus"]
-            if status in self.hook.failed_states:
+            if status in self.hook.processing_job_failed_states:
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)

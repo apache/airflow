@@ -20,7 +20,7 @@ import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
+import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import { Dialog } from "src/components/ui";
@@ -30,7 +30,7 @@ type Props = {
   readonly dagRun: DAGRunResponse;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly state: DAGRunPatchStates;
+  readonly state: DagRunMutableStates;
 };
 
 const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
@@ -42,7 +42,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -62,7 +62,6 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               data-testid="mark-run-as-confirm"
               loading={isPending}
               onClick={() => {

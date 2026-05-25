@@ -28,6 +28,10 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+from airflow.providers.common.ai.utils.validation import (
+    reject_sequence_with_unsupported_feature,
+    validate_prompt,
+)
 from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
@@ -86,8 +90,13 @@ class _LLMSQLDecoratedOperator(DecoratedOperator, LLMSQLQueryOperator):
 
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
-        if not isinstance(self.prompt, str) or not self.prompt.strip():
-            raise TypeError("The returned value from the @task.llm_sql callable must be a non-empty string.")
+        validate_prompt(self.prompt, decorator_name="@task.llm_sql")
+        reject_sequence_with_unsupported_feature(
+            self.prompt,
+            decorator_name="@task.llm_sql",
+            feature_name="require_approval",
+            feature_enabled=self.require_approval,
+        )
 
         self.render_template_fields(context)
         # Call LLMSQLQueryOperator.execute directly, not super().execute(),

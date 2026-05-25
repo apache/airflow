@@ -22,7 +22,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.7.17",
+    "trove-classifiers==2026.5.20.19",
 ]
 build-backend = "hatchling.build"
 
@@ -551,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.13",
+    "uv>=0.11.15",
 ]
 
 [project.urls]
@@ -1371,6 +1371,19 @@ leveldb = [
     "plyvel>=1.5.1"
 ]
 
+# Aggregate of every group the CI image installs by default. Single source of
+# truth referenced from the Dockerfiles, the image install script, and the
+# breeze constraints checker. When a provider needs to register a
+# hard-to-install extra (proprietary client, needs system libs, etc.), add a
+# dedicated [dependency-groups] entry above and include it here — no Dockerfile
+# or breeze edits required. See contributing-docs/12_provider_distributions.rst.
+ci-image = [
+    {include-group = "dev"},
+    {include-group = "docs"},
+    {include-group = "docs-gen"},
+    {include-group = "leveldb"},
+]
+
 [tool.uv]
 # Bump this only when the project actually relies on a newer uv feature/fix. It is a
 # minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
@@ -1517,18 +1530,6 @@ apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
-# Manual overrides (kept outside the auto-generated block above so the
-# update_airflow_pyproject_toml.py script doesn't clobber them).
-# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
-# (https://github.com/astral-sh/uv/issues/18708, fixed in
-# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
-# global 4-day cooldown above would otherwise block a freshly-published uv
-# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
-# pinned `required-version` floor isn't gated by the project-wide window.
-# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
-# this override is redundant and should be deleted along with the line below.
-uv = "12 hours"
-
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1667,11 +1668,6 @@ apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
-
-# Manual overrides — see the matching block under
-# `[tool.uv.exclude-newer-package]` above for rationale.
-# REMOVE BY 2026-05-01 along with the matching entry above.
-uv = "12 hours"
 
 
 [tool.uv.sources]

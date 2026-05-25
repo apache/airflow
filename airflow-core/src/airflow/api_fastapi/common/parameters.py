@@ -35,8 +35,10 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, func, not_, or_, select as sql_select, true as sql_true
+from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
+from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
@@ -72,12 +74,51 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
+    from sqlalchemy.sql.compiler import SQLCompiler
 
     from airflow.serialization.definitions.dag import SerializedDAG
 
 T = TypeVar("T")
 
 _FALLBACK_PAGE_LIMIT: int = conf.getint("api", "fallback_page_limit")
+
+
+class _MySQLCollate(FunctionElement):
+    """
+    Wraps a SQL expression so that on MySQL it is emitted with an explicit ``COLLATE`` clause.
+
+    On every other dialect the expression is passed through unchanged.
+
+    This is needed when a computed expression (e.g. a ``CASE … END`` that mixes
+    a stored ``VARCHAR`` column with a ``CAST(integer AS CHAR)``) ends up with
+    MySQL coercibility ``NONE`` because the two branches carry different implicit
+    collations.  Comparing such an expression with a bound parameter fails with
+    "Illegal mix of collations".  Wrapping the expression in an explicit
+    ``COLLATE`` gives it ``EXPLICIT`` coercibility, which MySQL accepts in all
+    comparison operators.
+    """
+
+    type = String()
+    inherit_cache = True
+
+    def __init__(self, expr: ColumnElement[Any], collation: str) -> None:
+        super().__init__(expr)
+        self.collation = collation
+
+
+@compiles(_MySQLCollate)
+def _compile_mysql_collate_default(element: _MySQLCollate, compiler: SQLCompiler, **kw: Any) -> str:
+    """Non-MySQL: render the inner expression without any COLLATE clause."""
+    (expr,) = element.clauses
+    return compiler.process(expr, **kw)
+
+
+@compiles(_MySQLCollate, "mysql")
+def _compile_mysql_collate_mysql(element: _MySQLCollate, compiler: SQLCompiler, **kw: Any) -> str:
+    """MySQL: wrap the inner expression with the requested COLLATE clause."""
+    (expr,) = element.clauses
+    inner = compiler.process(expr, **kw)
+    return f"({inner}) COLLATE {element.collation}"
 
 
 class BaseParam(OrmClause[T], ABC):
@@ -900,6 +941,44 @@ class RangeFilter(BaseParam[Range]):
         )
 
 
+class NullableDatetimeRangeFilter(RangeFilter):
+    """
+    RangeFilter for nullable datetime columns (``start_date``, ``end_date``), rewritten for index use.
+
+    ``COALESCE(column, now())`` wraps the column in a function call that prevents PostgreSQL from
+    using btree indexes, forcing sequential scans on large tables. This class emits equivalent
+    ``OR`` predicates so each branch can be satisfied by an independent index scan.
+
+    NULL semantics: ``start_date=NULL`` means the task has not started yet; ``end_date=NULL`` means
+    the task is still running. For lower bounds the NULL branch passes unconditionally — a not-yet-
+    started/ended task will eventually satisfy any past lower bound. For upper bounds the NULL branch
+    is ``col IS NULL AND now() <= x``, preserving the COALESCE(col, now()) semantics without the
+    function-wrap index penalty.
+    """
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if self.value is None:
+            return select
+
+        if self.value.lower_bound_gte:
+            x = self.value.lower_bound_gte
+            select = select.where(or_(self.attribute >= x, self.attribute.is_(None)))
+        if self.value.lower_bound_gt:
+            x = self.value.lower_bound_gt
+            select = select.where(or_(self.attribute > x, self.attribute.is_(None)))
+        if self.value.upper_bound_lte:
+            x = self.value.upper_bound_lte
+            select = select.where(or_(self.attribute <= x, and_(self.attribute.is_(None), func.now() <= x)))
+        if self.value.upper_bound_lt:
+            x = self.value.upper_bound_lt
+            select = select.where(or_(self.attribute < x, and_(self.attribute.is_(None), func.now() < x)))
+
+        return select
+
+
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
 ) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
@@ -910,17 +989,15 @@ def datetime_range_filter_factory(
         upper_bound_lt: datetime | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         attr = getattr(model, attribute_name or filter_name)
-        if filter_name in ("start_date", "end_date"):
-            attr = func.coalesce(attr, func.now())
-        return RangeFilter(
-            Range(
-                lower_bound_gte=lower_bound_gte,
-                lower_bound_gt=lower_bound_gt,
-                upper_bound_lte=upper_bound_lte,
-                upper_bound_lt=upper_bound_lt,
-            ),
-            attr,
+        range_val = Range(
+            lower_bound_gte=lower_bound_gte,
+            lower_bound_gt=lower_bound_gt,
+            upper_bound_lte=upper_bound_lte,
+            upper_bound_lt=upper_bound_lt,
         )
+        if filter_name in ("start_date", "end_date"):
+            return NullableDatetimeRangeFilter(range_val, attr)
+        return RangeFilter(range_val, attr)
 
     return depends_datetime
 
@@ -1355,6 +1432,35 @@ QueryTIMapIndexFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+# On MySQL the CASE expression that backs rendered_map_index mixes a stored
+# VARCHAR column (utf8mb4_bin, IMPLICIT) with CAST(map_index AS CHAR)
+# (utf8mb4_0900_ai_ci, IMPLICIT), which gives the whole expression NONE
+# coercibility.  Comparing it against a bound parameter then fails with
+# "Illegal mix of collations".  _MySQLCollate wraps the expression so that
+# on MySQL an explicit COLLATE clause is emitted (giving EXPLICIT coercibility);
+# on PostgreSQL and SQLite the wrapper is transparent.
+_rendered_map_index_collated = _MySQLCollate(
+    cast("ColumnElement[Any]", TaskInstance.rendered_map_index), "utf8mb4_0900_ai_ci"
+)
+
+QueryTIRenderedMapIndexPatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            _rendered_map_index_collated,
+            "rendered_map_index_pattern",
+        )
+    ),
+]
+QueryTIRenderedMapIndexPrefixPatternSearch = Annotated[
+    _PrefixSearchParam,
+    Depends(
+        prefix_search_param_factory(
+            _rendered_map_index_collated,
+            "rendered_map_index_prefix_pattern",
         )
     ),
 ]
