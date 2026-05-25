@@ -96,6 +96,7 @@ dependencies = [
     "sphinxcontrib-httpdomain>=1.8.1",
     "sphinxcontrib-jquery>=4.1",
     "sphinxcontrib-jsmath>=1.0.1",
+    "sphinxcontrib-mermaid>=1.0.0",
     "sphinxcontrib-qthelp>=1.0.3",
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
