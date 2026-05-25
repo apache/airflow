@@ -223,8 +223,8 @@ def _convert_jars_root(
     if value is None:
         return []
     if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value)]
-    return [pathlib.Path(v) for v in value]
+        return [pathlib.Path(value).expanduser()]
+    return [pathlib.Path(v).expanduser() for v in value]
 
 
 @attrs.define(kw_only=True)
