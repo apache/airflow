@@ -161,6 +161,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
+        reconnect_on_retry: bool = True,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -204,6 +205,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
 
+        self.reconnect_on_retry = reconnect_on_retry
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
@@ -223,7 +225,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         hook = self._hook
-        if hook._should_track_driver_status:
+        if hook._should_track_driver_status and self.reconnect_on_retry:
             return self.execute_resumable(context)
         hook.submit(self.application)
 
