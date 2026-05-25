@@ -91,9 +91,9 @@ bundle directory looks like:
 └── analytics
 ```
 
-(Filenames have no extension; the scanner identifies bundles by the
-trailer's magic, not by the filename. Windows is not a supported
-bundle target in v1 — see "Out of scope" below.)
+(Filenames follow OS conventions: no extension on Linux/macOS, `.exe`
+on Windows. The scanner identifies bundles by the trailer's magic,
+not by the filename.)
 
 ## Decision
 
@@ -117,12 +117,13 @@ A bundle file is laid out as:
 | metadata bytes (variable length)|   airflow-metadata.yaml content,
 |                                 |   UTF-8, length = metadata_len
 +---------------------------------+
-| trailer (32 bytes, little-endian fixed layout):                   |
+| trailer (64 bytes, little-endian fixed layout):                   |
 |   bytes  0..3  source_len    u32                                  |
 |   bytes  4..7  metadata_len  u32                                  |
 |   bytes  8..11 footer_ver    u32  (= 1)                           |
-|   bytes 12..23 reserved      12 bytes, zero                       |
-|   bytes 24..31 magic         8 bytes ASCII "AFBNDL01"             |
+|   bytes 12..43 binary_sha256 32 bytes (SHA-256 of binary region)  |
+|   bytes 44..55 reserved      12 bytes, zero                       |
+|   bytes 56..63 magic         8 bytes ASCII "AFBNDL01"             |
 +---------------------------------+   <- EOF
 ```
 
@@ -131,13 +132,20 @@ trailing ASCII digits are the footer-format version, repeated for human
 inspection (`tail -c 8 ./mybundle | xxd`); the binary `footer_ver`
 field is the source of truth for parsing.
 
+`binary_sha256` is computed over the binary region only — bytes
+`[0, source_start)` — because the hash field is itself in the trailer
+and cannot cover the bytes it occupies. It provides integrity (the
+binary region has not been truncated, corrupted, or naively edited
+between packing and exec), not authenticity (see "Out of scope" for
+how authenticity layers on top).
+
 Reader algorithm:
 
-1. Open the file. Seek to `EOF - 32`. Read 32 bytes.
-2. Compare bytes 24..31 against `AFBNDL01`. If different, the file is
+1. Open the file. Seek to `EOF - 64`. Read 64 bytes.
+2. Compare bytes 56..63 against `AFBNDL01`. If different, the file is
    not a bundle; the scanner ignores it.
 3. Parse `footer_ver`. If unknown, fail with a versioning error.
-4. Compute `metadata_start = filesize - 32 - metadata_len` and
+4. Compute `metadata_start = filesize - 64 - metadata_len` and
    `source_start  = metadata_start - source_len`.
 5. Read `metadata_len` bytes from `metadata_start` for the manifest.
 6. Read `source_len` bytes from `source_start` for the source view.
@@ -145,6 +153,12 @@ Reader algorithm:
    "(source not available)".
 7. Validate that `source_start >= 0` and that the implied "binary
    region" (bytes `[0, source_start)`) is non-empty.
+8. Compute SHA-256 over `[0, source_start)` and compare to
+   `binary_sha256`. Mismatch is a hard failure: the scanner logs and
+   skips the file, the same way it would on a magic-check failure.
+   The result is cached by `(path, inode, mtime, size)` so the
+   runtime does not re-hash on every exec; a cache miss (file
+   replaced, mtime bumped) triggers re-verification.
 
 Ordering note: source comes *before* metadata so a future
 `format_version` can introduce extra trailing blobs (e.g. signed
@@ -178,9 +192,13 @@ step:
 3. Exec the freshly built binary with `--dump-bundle-spec` to obtain
    the manifest. (No change.)
 4. **New:** read the source file's bytes; serialise the manifest to
-   YAML; append `<source><metadata><trailer>` to `<out>`.
-5. Default output path becomes `<bundleName>`, not
-   `<bundleName>.zip`.
+   YAML; compute `binary_sha256 = SHA-256(<out>)` over the entire
+   on-disk file as it stands after step 2 (which *is* the binary
+   region — nothing has been appended yet); assemble the trailer
+   with the resulting digest; append `<source><metadata><trailer>`
+   to `<out>`.
+5. Default output path becomes `<bundleName>` (or `<bundleName>.exe`
+   on Windows), not `<bundleName>.zip`.
 
 Ordering against post-build steps:
 
@@ -188,12 +206,17 @@ Ordering against post-build steps:
   has a footer either leaves the footer intact (most strip
   implementations stop at the OS-defined end of the binary) or
   truncates it; do not rely on either.
-- **Code-sign:** must run *after* append on platforms whose signature
-  covers the entire file (Linux dm-verity, macOS `codesign` for
-  post-Big-Sur notarisation flows). The signature then attests to the
-  footer's contents along with the binary, which is the property we
-  want. Windows Authenticode is incompatible with this layout; see
-  "Out of scope" below.
+- **Code-sign (optional):** the bundle format does not require OS
+  code-signing. The embedded `binary_sha256` provides integrity, and
+  Airflow's threat model treats `bundles_folder` as
+  Deployment-Manager-controlled — authenticity is a deployment-time
+  concern, not a bundle-format one. Deployment Managers who want
+  OS-enforced load gating (macOS `codesign` / `rcodesign`, Linux
+  fs-verity, IMA) layer it on top of the bundle: sign *after* the
+  footer append so the signature covers the trailer along with the
+  binary region. Windows Authenticode is incompatible with this
+  layout (see "Out of scope") but does not block Windows as a
+  bundle target.
 - **Compressors (UPX, etc.):** unsupported. UPX rewrites the file end
   to end, destroying the trailer. Bundle binaries should not be
   compressor-wrapped; this matches typical production deployment
@@ -225,14 +248,18 @@ scope for the executable provider and therefore for this ADR.
 
 The scanner currently iterates `*.zip` in `bundles_folder` and opens
 each as an archive. It now iterates *all* regular files, reads the
-last 32 bytes of each, and treats files whose magic matches as
+last 64 bytes of each, and treats files whose magic matches as
 bundles. Files without the magic are silently ignored (so a stray
-README in the directory does not fail the scan).
+README in the directory does not fail the scan). Files with matching
+magic are SHA-256-verified per the reader algorithm; a mismatch
+demotes the file back to "ignored, with an error log."
 
 The runtime no longer has to materialise an executable from an
 archive. It execs the bundle file directly, which removes the
 transient cache directory and the chmod-after-extract step from
-the spec.
+the spec. The integrity check is run by the scanner at discovery
+time and cached by `(path, inode, mtime, size)`, so the exec hot
+path does not re-hash.
 
 ## Consequences
 
@@ -243,8 +270,13 @@ the spec.
   is the deploy workflow.
 - **No drift between binary and manifest.** They are produced and
   committed in the same step and physically attached.
-- **Atomic deploy.** A partially written file fails the magic check;
-  the scanner skips it cleanly instead of seeing half a manifest.
+- **Atomic deploy.** A partially written file fails the magic or
+  `binary_sha256` check; the scanner skips it cleanly instead of
+  seeing half a manifest.
+- **Integrity built in.** `binary_sha256` catches truncation,
+  in-flight corruption, and naive tampering without any external
+  signing infrastructure. Authenticity (signed-by-trusted-identity)
+  is a separate concern that Deployment Managers can layer on top.
 - **Smaller consumer surface.** No `archive/zip` dependency, no
   per-bundle cache directory, no chmod-after-extract path, no
   external-attributes handling for the executable bit.
@@ -267,10 +299,18 @@ the spec.
   typically compress executables this way.
 - **Magic-collision handling.** A non-bundle file in
   `bundles_folder` whose last 8 bytes happen to be `AFBNDL01` would
-  be picked up as a bundle. Probability is negligible for a fixed
-  8-byte ASCII string, and the next parse step (`footer_ver` check,
-  bounds check, YAML parse) catches a false positive cleanly. Not
-  worth a checksum in v1.
+  briefly look like a bundle. Probability is negligible for a fixed
+  8-byte ASCII string, and the subsequent `footer_ver` /
+  bounds-check / SHA-256 verification rejects the collision
+  deterministically.
+- **TOCTOU between verify and `execve`.** The scanner verifies
+  `binary_sha256` at discovery time; the runtime later execs the
+  same path. In between, a write to the file would not be caught
+  until the cache key (`inode`, `mtime`, `size`) changes and the
+  scanner re-verifies. Acceptable for v1 because the threat model
+  treats `bundles_folder` as Deployment-Manager-controlled;
+  Deployment Managers who need stronger guarantees apply
+  OS-enforced load gating (fs-verity, IMA, codesign) on top.
 - **Footer format is now a wire format the SDK has to keep stable.**
   `footer_ver = 1` is the only currently defined value; future
   versions append fields after the version field but before the
@@ -279,24 +319,30 @@ the spec.
 
 ### Out of scope
 
-- Signed checksums in the footer. We rely on platform code-signing
-  (macOS `codesign`, Linux dm-verity) for tamper detection on the
-  supported targets. A bundle-level checksum could be added in a
-  future `footer_ver` if signing-free tamper detection becomes a
-  requirement.
-- **Windows as a bundle target.** Windows PE Authenticode stores the
-  signature in the certificate table referenced from the Optional
-  Header, and Microsoft's `EnableCertPaddingCheck` hardening
-  (MS13-098) rejects extra bytes past the signature. Appending the
-  bundle footer in either order relative to `signtool` produces a
-  binary that strict-mode verification rejects, so the
-  footer-after-EOF layout cannot honestly claim Windows support.
-  Supporting Windows would require a different on-disk layout (for
-  example, storing the source and manifest in a dedicated PE resource
-  section so they are inside the signed image) and is tracked
-  separately. The packer should refuse `GOOS=windows` builds in v1
-  with a clear error rather than silently producing an unsignable
-  artefact.
+- **Authenticated bundle signatures.** The footer provides integrity
+  (`binary_sha256`), not authenticity. Any deployment-time signature
+  flow that wants to attest "this bundle was produced by entity X"
+  (macOS `codesign` / `rcodesign`, Linux IMA, fs-verity policy) is
+  layered on top of the bundle file and is out of scope of this ADR.
+  A signed footer field could be added in a future `footer_ver` if
+  the SDK ever needs to ship its own trust anchor, but doing so now
+  would force key-management decisions Airflow does not currently
+  need to make.
+- **Authenticode-signed Windows bundles.** The footer-after-EOF
+  layout runs fine on Windows for *execution* — the OS loader stops
+  at the PE size-of-image, identical to ELF/Mach-O behaviour, and
+  `binary_sha256` covers the binary region the same way. What does
+  not work is layering Authenticode on top: PE Authenticode stores
+  its signature in the certificate table referenced from the
+  Optional Header, and Microsoft's `EnableCertPaddingCheck`
+  hardening (MS13-098) rejects extra bytes past the signature, so
+  `signtool` against an appended bundle (in either order) produces
+  a binary that strict-mode verification rejects. Deployment
+  Managers who need Authenticode-signed bundles on Windows must use
+  a different on-disk layout (storing source and manifest in a
+  dedicated PE resource section so they are inside the signed
+  image); that layout is tracked separately. The bundle format
+  itself supports Windows as a target.
 - Multiple source files. Only the root file (the file containing
   `func main()`) is embedded. DAGs split across multiple source
   files keep the rest of their sources outside the bundle; the UI
@@ -310,14 +356,20 @@ the spec.
 
 - The append step is `os.OpenFile(out, O_RDWR|O_APPEND, 0)` plus three
   writes (source, metadata, trailer) followed by `Close`. No mmap
-  needed.
+  needed. The packer streams the binary region through `sha256.New()`
+  once before the append to compute `binary_sha256`; the digest is
+  the only state needed across the read and write phases.
 - The executable bit on the output file is set by `go build` itself.
   The append step preserves it (we write through, not truncate).
 - The packer's existing reproducibility guarantees (sorted entries,
   fixed mtimes) reduce to "write a deterministic YAML manifest"; the
   ZIP-specific concerns (entry ordering, entry mtimes, external
-  attributes) go away.
+  attributes) go away. `binary_sha256` is deterministic by
+  construction.
 - The Python-side scanner's bundle-detection helper lives next to
-  `BundleScanner`; it reads 32 bytes per file and parses YAML for
-  matching files. Keep it tolerant of trailing whitespace or short
-  files (anything `< 32` bytes is not a bundle).
+  `BundleScanner`; it reads 64 bytes per file, parses the trailer,
+  then streams the binary region through `hashlib.sha256` to verify
+  `binary_sha256`. The verification result is cached by
+  `(path, inode, mtime, size)` so the runtime exec path does not
+  re-hash. Keep the helper tolerant of trailing whitespace or short
+  files (anything `< 64` bytes is not a bundle).
