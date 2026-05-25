@@ -168,7 +168,12 @@ decision (single flag vs. several; JSON vs. YAML; pretty vs. compact).
   any future packer (third-party CI plugin, IDE, etc.) can rely on the
   same contract; trivial to unit-test.
 - **Cons:** locks in a wire format the SDK has to keep stable; slightly
-  more code in the bundle binary than today.
+  more code in the bundle binary than today; exec-based introspection
+  requires a host-runnable binary, so cross-compile targets (and
+  `--executable` paths that hand the packer a pre-built cross-target
+  binary) force the packer to produce a host-arch sidecar purely to
+  run `--dump-bundle-spec`. See [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md)
+  for the pipeline.
 
 ### Option E: Static AST scan, no introspection
 
