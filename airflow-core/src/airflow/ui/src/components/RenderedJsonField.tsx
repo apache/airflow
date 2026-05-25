@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Flex, type FlexProps } from "@chakra-ui/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import Editor, { type OnMount } from "src/components/MonacoEditor";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
@@ -25,6 +25,8 @@ import { useMonacoTheme } from "src/context/colorMode";
 
 const MAX_HEIGHT = 300;
 const MIN_HEIGHT = 40;
+
+type EditorInstance = Parameters<OnMount>[0];
 
 type Props = {
   readonly collapsed?: boolean;
@@ -39,9 +41,12 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
   const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
   const [editorHeight, setEditorHeight] = useState(collapsed ? MIN_HEIGHT : expandedHeight);
   const [isReady, setIsReady] = useState(!collapsed);
+  const editorRef = useRef<EditorInstance | null>(null);
 
   const handleMount: OnMount = useCallback(
     (editorInstance) => {
+      editorRef.current = editorInstance;
+
       editorInstance.onDidContentSizeChange(() => {
         const contentHeight = editorInstance.getContentHeight();
 
@@ -62,6 +67,21 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
     },
     [collapsed],
   );
+
+  // Sync fold state when the `collapsed` prop changes after mount (e.g. via Expand/Collapse All).
+  // The initial fold is handled in `handleMount` to avoid the unfolded->folded flicker.
+  useEffect(() => {
+    const editor = editorRef.current;
+
+    if (editor === null || !isReady) {
+      return;
+    }
+    const action = editor.getAction(collapsed ? "editor.foldAll" : "editor.unfoldAll");
+
+    if (action) {
+      void action.run();
+    }
+  }, [collapsed, isReady]);
 
   return (
     <Flex
