@@ -41,7 +41,7 @@ from airflow.providers.databricks.utils.openlineage import (
     emit_openlineage_events_for_databricks_queries,
 )
 from airflow.providers.openlineage.conf import namespace
-from airflow.utils import timezone
+from airflow.sdk import timezone
 from airflow.utils.state import TaskInstanceState
 
 

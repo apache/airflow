@@ -27,7 +27,7 @@ from airflow.models import DAG
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
-from airflow.utils import timezone
+from airflow.sdk import timezone
 
 TASK_ID = "db-partition-sensor"
 DEFAULT_CONN_ID = "databricks_default"
