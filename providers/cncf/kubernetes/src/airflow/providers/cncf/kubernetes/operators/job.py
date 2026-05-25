@@ -411,7 +411,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 )
 
     def _cleanup_monitoring_pods(self, context: Context) -> None:
-        """Run ``post_complete_action`` on each monitoring pod from ``self.pods``.
+        """
+        Run ``post_complete_action`` on each monitoring pod from ``self.pods``.
 
         Honours ``on_finish_action`` (inherited from ``KubernetesPodOperator``)
         and runs as a side-effect: any per-pod cleanup error is logged but never
@@ -459,7 +460,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         unresolved_pods: list[tuple[str, str]] | None = None,
         event_status: str | None = None,
     ) -> None:
-        """Run ``post_complete_action`` on each pod previously resolved via the trigger event.
+        """
+        Run ``post_complete_action`` on each pod previously resolved via the trigger event.
 
         Same semantics as :meth:`_cleanup_monitoring_pods` - errors are logged
         but never mask the in-flight exception.
