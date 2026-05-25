@@ -23,7 +23,7 @@ import inspect
 import json
 import time
 from abc import ABCMeta, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -123,7 +123,8 @@ class AgentRunRequest:
     framework-neutral structure, so that :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
     has zero framework-specific imports.
 
-    :param prompt: User prompt for this invocation.
+    :param prompt: User prompt for this invocation (plain ``str`` or a multimodal
+        ``Sequence`` accepted by the backend agent's run API).
     :param output_type: Expected structured output type (default: ``str``).
     :param instructions: System-level instructions for the agent.
     :param toolsets: List of :class:`BaseToolset` instances the agent may call.
@@ -135,7 +136,7 @@ class AgentRunRequest:
         Use this escape hatch for framework-specific options.
     """
 
-    prompt: str
+    prompt: str | Sequence[Any]
     output_type: type[Any] = str
     instructions: str = ""
     toolsets: list[Any] | None = None

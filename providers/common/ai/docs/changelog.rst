@@ -25,15 +25,6 @@
 Changelog
 ---------
 
-Next release
-............
-
-Features
-^^^^^^^^
-
-* Add ``BaseAIHook`` contract with framework-agnostic ``create_agent`` / ``run_agent`` /
-  ``get_model`` interface so ``AgentOperator`` selects the agent backend via connection type.
-
 0.3.0
 .....
 
