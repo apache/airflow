@@ -272,19 +272,37 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     they're masked in both the task subprocess AND supervisor's log output.
     Works safely in both sync and async contexts.
     """
-    from contextlib import suppress
-
     from airflow.sdk._shared.secrets_masker import _secrets_masker
 
     _secrets_masker().add_mask(secret, name)
 
-    with suppress(Exception):
-        # Try to tell supervisor (only if in task execution context)
-        from airflow.sdk.execution_time import task_runner
-        from airflow.sdk.execution_time.comms import MaskSecret
+    # Mirror the mask to the supervisor so it also masks the value in any logs
+    # forwarded through it. When this fails we *must* emit a warning rather
+    # than silently swallowing the failure: when ``sending_to_supervisor=True``
+    # the local task process skips its own ``mask_logs`` processor (it relies
+    # on the supervisor doing the masking instead), so a silent IPC failure
+    # would leave the secret unmasked in supervisor-level logs.
+    from airflow.sdk.execution_time import task_runner
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
-            comms.send(MaskSecret(value=secret, name=name))
+    comms = getattr(task_runner, "SUPERVISOR_COMMS", None)
+    if comms is None:
+        # Not in a task-execution context — there is no supervisor to notify.
+        return
+
+    from airflow.sdk.execution_time.comms import MaskSecret
+
+    try:
+        comms.send(MaskSecret(value=secret, name=name))
+    except Exception:
+        # Dedicated logger so operators can grep for this signal — without a
+        # warning they'd have no way to find out the supervisor never received
+        # the registration.
+        structlog.get_logger("airflow.logging.mask_secret").warning(
+            "supervisor_mask_secret_failed",
+            secret_name=name,
+            note="Could not register secret with supervisor; secret may not be masked in supervisor-level logs.",
+            exc_info=True,
+        )
 
 
 def reset_logging():
