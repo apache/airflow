@@ -34,6 +34,7 @@ import attrs
 import structlog
 
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
@@ -62,24 +63,45 @@ def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
     return os.pathsep.join(jars)
 
 
+def _read_jar_metadata(path: pathlib.Path) -> tuple[str, str]:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            try:
+                manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
+            except KeyError:
+                log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
+                return "", ""
+            with zf.open(manifest_info) as f:
+                manifest = email.message_from_binary_file(f)
+        return manifest["Main-Class"], manifest["Airflow-SDK-Supervisor-Schema-Version"]
+    except zipfile.BadZipFile:
+        log.exception("Cannot read JAR; ignored", path=path)
+        return "", ""
+
+
+def _validate_schema_version(instance, _, value) -> str:
+    return get_schema_version_migrator().resolve_version(str(value))
+
+
 @attrs.define
 class _MainJar:
     path: pathlib.Path
     main_class: str
-    schema_version: str | None
+    schema_version: str = attrs.field(validator=_validate_schema_version)
 
     @classmethod
     def find(cls, jars_root: Sequence[pathlib.Path]) -> Self:
         for root in jars_root:
+            log.debug("Finding Main-Class JAR in directory", dir=root)
             for p in root.iterdir():
                 if p.suffix != ".jar":
                     continue
-                with zipfile.ZipFile(p) as zf:
-                    with zf.open("META-INF/MANIFEST.MF") as f:
-                        manifest = email.message_from_binary_file(f)
-                        if main_class := manifest["Main-Class"]:
-                            return cls(p, main_class, manifest.get("Airflow-SDK-Supervisor-Schema-Version"))
-        resolved_paths = os.pathsep.join(str(p.resolve()) for p in jars_root)
+                main_class, schema_version = _read_jar_metadata(p)
+                if not main_class:
+                    continue
+                log.debug("JAR located with Main-Class metadata set", path=p, main_class=main_class)
+                return cls(p, main_class, schema_version)
+        resolved_paths = os.pathsep.join(os.fspath(p.resolve()) for p in jars_root)
         raise FileNotFoundError(f"cannot find main class in {resolved_paths}")
 
 
