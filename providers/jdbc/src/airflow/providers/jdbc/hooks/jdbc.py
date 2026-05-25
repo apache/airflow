@@ -262,3 +262,74 @@ class JdbcHook(DbApiHook):
                 uri = f"{uri}?{query_string}"
 
         return uri
+
+    def get_openlineage_database_info(self, connection):
+        """
+        Return JDBC database information for OpenLineage.
+
+        Returns ``None`` when the database scheme cannot be inferred from the
+        connection's ``sqlalchemy_scheme`` extra or the JDBC URL in ``host``.
+        """
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        scheme = self._get_openlineage_scheme(connection)
+        if not scheme:
+            return None
+
+        return DatabaseInfo(
+            scheme=scheme,
+            authority=self._get_openlineage_authority(connection),
+            database=connection.schema or None,
+        )
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """Return SQL dialect inferred from the JDBC connection, or ``generic``."""
+        return self._get_openlineage_scheme(connection) or "generic"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return default schema from the connection."""
+        return self.connection.schema or None
+
+    @staticmethod
+    def _get_openlineage_scheme(connection) -> str | None:
+        """Infer scheme from ``sqlalchemy_scheme`` extra or JDBC URL prefix."""
+        raw: str | None = None
+        sqlalchemy_scheme = connection.extra_dejson.get("sqlalchemy_scheme")
+        if sqlalchemy_scheme:
+            raw = sqlalchemy_scheme.split("+")[0]
+        else:
+            host = connection.host or ""
+            if host.startswith("jdbc:"):
+                jdbc_part = host[5:]
+                for sep in ("://", ":"):
+                    if sep in jdbc_part:
+                        candidate = jdbc_part.split(sep)[0]
+                        if candidate:
+                            raw = candidate
+                        break
+
+        if not raw:
+            return None
+        # Normalize SQLAlchemy's "postgresql" to OL's canonical "postgres" so
+        # JDBC-Postgres shares a namespace with PostgresHook downstream.
+        return "postgres" if raw == "postgresql" else raw
+
+    @staticmethod
+    def _get_openlineage_authority(connection) -> str | None:
+        """Extract ``host:port`` from a JDBC URL in ``host`` or from plain ``host``/``port``."""
+        host = connection.host or ""
+        if host.startswith("jdbc:"):
+            rest = host[5:]
+            if "://" not in rest:
+                # Non-standard JDBC URL we can't reliably parse (e.g. Oracle
+                # ``thin:@host:port:sid``, H2 ``mem:test``).
+                return None
+            after = rest.split("://", 1)[1]
+            # Strip path, query string, and driver-specific option separator
+            # (e.g. SQL Server uses ``;`` for connection properties).
+            for sep in ("/", "?", ";"):
+                after = after.split(sep, 1)[0]
+            return after or None
+        if connection.port and host:
+            return f"{host}:{connection.port}"
+        return host or None
