@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
 # Db2 Provider Example DAG
 
 This directory contains example DAGs demonstrating how to use the Apache Airflow Db2 Provider.
@@ -46,6 +65,7 @@ pip install apache_airflow_providers_db2-1.0.0-py3-none-any.whl
    - **Password**: Your Db2 password
    - **Port**: 50000 (or your Db2 port)
    - **Extra**: (Optional) JSON with additional parameters:
+
      ```json
      {
        "SECURITY": "SSL",
@@ -60,6 +80,7 @@ export AIRFLOW_CONN_DB2_DEFAULT='db2://username:password@hostname:50000/database
 ```
 
 With SSL:
+
 ```bash
 export AIRFLOW_CONN_DB2_DEFAULT='db2://username:password@hostname:50000/database?SECURITY=SSL&SSLServerCertificate=/path/to/cert.arm'
 ```
@@ -198,7 +219,7 @@ Backup table: 3 records
 If you're using a different connection ID, update this line:
 
 ```python
-db2_conn_id="db2_default"  # Change to your connection ID
+db2_conn_id = "db2_default"  # Change to your connection ID
 ```
 
 #### Modify the Schedule
@@ -206,7 +227,7 @@ db2_conn_id="db2_default"  # Change to your connection ID
 To run the DAG on a schedule instead of manually:
 
 ```python
-schedule="0 0 * * *",  # Run daily at midnight
+schedule = ("0 0 * * *",)  # Run daily at midnight
 ```
 
 #### Using Db2Operator
@@ -230,16 +251,17 @@ For programmatic queries, use Db2Hook:
 ```python
 from airflow.providers.db2.hooks.db2 import Db2Hook
 
+
 @task
 def custom_db2_task():
     hook = Db2Hook(db2_conn_id="db2_default")
-    
+
     # Get multiple records
     records = hook.get_records("SELECT * FROM my_table")
-    
+
     # Get single value
     count = hook.get_first("SELECT COUNT(*) FROM my_table")[0]
-    
+
     return count
 ```
 
@@ -317,10 +339,10 @@ cleanup_task = Db2Operator(
 @task
 def analyze_data():
     hook = Db2Hook(db2_conn_id="db2_default")
-    
+
     # Execute complex query
     sql = """
-        SELECT 
+        SELECT
             department,
             COUNT(*) as count,
             AVG(salary) as avg_salary
@@ -328,11 +350,11 @@ def analyze_data():
         GROUP BY department
         HAVING COUNT(*) > 5
     """
-    
+
     results = hook.get_records(sql)
-    
+
     # Process results
     for dept, count, avg_sal in results:
         print(f"{dept}: {count} employees, avg ${avg_sal:,.2f}")
-    
+
     return results

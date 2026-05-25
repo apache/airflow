@@ -48,7 +48,7 @@ class TestDb2Operator:
         result = operator.execute(context={})
 
         assert result == [(1, "John"), (2, "Jane")]
-        mock_cursor.execute.assert_called_once_with("SELECT * FROM EMPLOYEES", None)
+        mock_cursor.execute.assert_called_once_with("SELECT * FROM EMPLOYEES")
         mock_cursor.fetchall.assert_called_once()
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()

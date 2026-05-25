@@ -71,8 +71,8 @@ Using the Db2Hook
 
     from airflow.providers.db2.hooks.db2 import Db2Hook
 
-    hook = Db2Hook(db2_conn_id='db2_default')
-    records = hook.get_records("SELECT * FROM employees WHERE dept = %s", parameters=('IT',))
+    hook = Db2Hook(db2_conn_id="db2_default")
+    records = hook.get_records("SELECT * FROM employees WHERE dept = %s", parameters=("IT",))
 
 Using with SQLExecuteQueryOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -83,12 +83,12 @@ Using with SQLExecuteQueryOperator
     from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
     from datetime import datetime
 
-    with DAG('db2_example', start_date=datetime(2024, 1, 1)) as dag:
+    with DAG("db2_example", start_date=datetime(2024, 1, 1)) as dag:
         query_task = SQLExecuteQueryOperator(
-            task_id='query_db2',
-            conn_id='db2_default',
-            sql='SELECT * FROM employees WHERE dept = %(dept)s',
-            parameters={'dept': 'IT'}
+            task_id="query_db2",
+            conn_id="db2_default",
+            sql="SELECT * FROM employees WHERE dept = %(dept)s",
+            parameters={"dept": "IT"},
         )
 
 Features

@@ -27,10 +27,10 @@ readme = "README.rst"
 license = "Apache-2.0"
 license-files = ['LICENSE', 'NOTICE']
 authors = [
-    {name="Apache Software Foundation", email="amit25parmars@gmail.com"},
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
 maintainers = [
-    {name="Apache Software Foundation", email="amit25parmars@gmail.com"},
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
 keywords = [ "airflow-provider", "db2", "airflow", "integration" ]
 classifiers = [
