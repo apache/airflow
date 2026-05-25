@@ -98,9 +98,10 @@ class BaseStateBackend(ABC):
     @abstractmethod
     def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
         """
-        Return the stored value, or None if the key does not exist.
+        Return the stored JSON encoded value string, or None if the key does not exist.
 
-        Must handle both ``TaskScope`` and ``AssetScope``.
+        Must handle both ``TaskScope`` and ``AssetScope``. The execution API calls
+        ``json.loads`` on the returned string from here, so it must be a valid JSON document.
         """
 
     @abstractmethod
@@ -114,9 +115,11 @@ class BaseStateBackend(ABC):
         session: Session | None = None,
     ) -> None:
         """
-        Write or overwrite the value for the given key.
+        Write or overwrite ``value`` for the given key.
 
-        Must handle both ``TaskScope`` and ``AssetScope``.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``value`` is always a
+        JSON encoded string (the execution API calls ``json.dumps`` before passing it
+        here); store it verbatim so ``get`` can return it unchanged.
 
         ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
         Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
@@ -149,10 +152,10 @@ class BaseStateBackend(ABC):
     @abstractmethod
     async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         """
-        Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
+        Async variant of ``get`` which returns a JSON encoded value string or None.
 
-        ``session`` is optional. If provided, implementations should use it directly.
-        If ``None``, implementations manage their own async session internally.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``session`` is used directly
+        when provided; otherwise implementations manage their own session internally.
         """
 
     @abstractmethod
@@ -166,10 +169,10 @@ class BaseStateBackend(ABC):
         session: AsyncSession | None = None,
     ) -> None:
         """
-        Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.
+        Async variant of ``set``. ``value`` is always a JSON encoded string.
 
-        ``session`` is optional. If provided, implementations should use it directly.
-        If ``None``, implementations manage their own async session internally.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``session`` is used directly
+        when provided; otherwise implementations manage their own session internally.
         """
 
     @abstractmethod

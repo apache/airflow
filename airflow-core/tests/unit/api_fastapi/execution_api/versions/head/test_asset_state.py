@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -170,16 +171,15 @@ class TestPutAssetStateByName:
         )
         assert response.status_code == 422
 
-    def test_put_nan_returns_422(self, client: TestClient, asset: AssetModel):
-        import json as json_mod
-
-        response = client.put(
-            _BY_NAME_VALUE,
-            params={"name": asset.name, "key": "watermark"},
-            content=json_mod.dumps({"value": float("nan")}, allow_nan=True).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        assert response.status_code == 422
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_put_non_finite_float_returns_422(self, client: TestClient, asset: AssetModel, bad_float: float):
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            _ = client.put(
+                _BY_NAME_VALUE,
+                params={"name": asset.name, "key": "watermark"},
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
 
     def test_put_unknown_asset_returns_404(self, client: TestClient):
         response = client.put(

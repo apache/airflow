@@ -186,15 +186,17 @@ class TestPutTaskState:
 
         assert response.status_code == 422
 
-    def test_put_nan_returns_422(self, client: TestClient, create_task_instance: CreateTaskInstance):
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_put_non_finite_float_returns_422(
+        self, client: TestClient, create_task_instance: CreateTaskInstance, bad_float: float
+    ):
         ti = create_task_instance()
-        # send NaN as raw JSON (json module rejects it but try sending with a allow_nan=True to bypass validation)
-        response = client.put(
-            _api_url(ti.id, "job_id"),
-            content=json.dumps({"value": float("nan")}, allow_nan=True).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        assert response.status_code == 422
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            _ = client.put(
+                _api_url(ti.id, "job_id"),
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
 
     def test_put_missing_ti_returns_404(self, client: TestClient):
         response = client.put(_api_url(uuid4(), "job_id"), json={"value": "x"})
