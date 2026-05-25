@@ -535,6 +535,66 @@ def _child_exec_main():
     _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
 
 
+class NeverRaised(Exception):
+    """
+    An exception type that's never raised.
+
+    This is used in :class:`_ProcessTracker` as a stand-in when an exception is
+    not supposed to be raised by an implementation.
+
+    :meta private:
+    """
+
+
+class ProcessTracker:
+    """
+    Common interface to track a process.
+
+    This protocol works for both :class:`psutil.Process` (used by the forking
+    model) and :class:`subprocess.Popen` (used by the subprocess model). A
+    custom class may also be implemented if needed in the future.
+
+    :meta private:
+    """
+
+    ProcessNotFound: type[Exception]
+    TimeoutExpired: type[Exception]
+
+    @property
+    def pid(self) -> int:
+        raise NotImplementedError
+
+    def send_signal(self, s: signal.Signals) -> None:
+        raise NotImplementedError
+
+    def wait(self, timeout: float | None) -> int:
+        raise NotImplementedError
+
+
+class PsutilTracker(ProcessTracker):
+    """
+    Process tracker backed by :class:`psutil.Process`.
+
+    :meta private:
+    """
+
+    ProcessNotFound = psutil.NoSuchProcess
+    TimeoutExpired = psutil.TimeoutExpired
+
+    def __init__(self, impl: psutil.Process) -> None:
+        self._impl = impl
+
+    @property
+    def pid(self) -> int:
+        return self._impl.pid
+
+    def send_signal(self, s: signal.Signals) -> None:
+        self._impl.send_signal(s)
+
+    def wait(self, timeout: float | None) -> int:
+        return self._impl.wait(timeout)
+
+
 def _validate_schema_version(instance, _, value) -> str | None:
     if value is None:
         return None
@@ -561,8 +621,8 @@ class WatchedSubprocess:
     decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
-    _process: psutil.Process = attrs.field(repr=False)
-    """File descriptor for request handling."""
+    _process: ProcessTracker = attrs.field(repr=False)
+    """Handler to track the process."""
 
     _subprocess_schema_version: str | None = attrs.field(default=None, validator=_validate_schema_version)
     """
@@ -680,7 +740,7 @@ class WatchedSubprocess:
         proc = cls(
             pid=pid,
             stdin=read_requests,
-            process=psutil.Process(pid),
+            process=PsutilTracker(psutil.Process(pid)),
             process_log=logger,
             start_time=time.monotonic(),
             **constructor_kwargs,
@@ -944,7 +1004,7 @@ class WatchedSubprocess:
                 if sig != escalation_path[-1]:
                     msg += "; escalating"
                 log.warning(msg, pid=self.pid, signal=sig.name)
-            except psutil.NoSuchProcess:
+            except self._process.ProcessNotFound:
                 log.debug("Process already terminated", pid=self.pid)
                 self._exit_code = -1
                 return
@@ -1022,7 +1082,7 @@ class WatchedSubprocess:
 
         try:
             self._exit_code = self._process.wait(timeout=0)
-        except psutil.TimeoutExpired:
+        except self._process.TimeoutExpired:
             if raise_on_timeout:
                 raise
         else:

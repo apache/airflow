@@ -23,6 +23,7 @@ import email
 import os
 import pathlib
 import selectors
+import signal
 import socket
 import subprocess
 import time
@@ -30,11 +31,10 @@ import zipfile
 from typing import TYPE_CHECKING, cast
 
 import attrs
-import psutil
 import structlog
 
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -109,13 +109,36 @@ def _accept_connections(
     return accepted
 
 
+class PopenTracker(ProcessTracker):
+    """
+    Process tracker backed by :class:`subprocess.Popen`.
+
+    :meta private:
+    """
+
+    ProcessNotFound = NeverRaised
+    TimeoutExpired = subprocess.TimeoutExpired
+
+    def __init__(self, impl: subprocess.Popen) -> None:
+        self._impl = impl
+
+    @property
+    def pid(self) -> int:
+        return self._impl.pid
+
+    def send_signal(self, s: signal.Signals) -> None:
+        self._impl.send_signal(s)
+
+    def wait(self, timeout: float | None) -> int:
+        return self._impl.wait(timeout)
+
+
 @attrs.define(kw_only=True)
 class _JavaActivitySubprocess(ActivitySubprocess):
     """Java task runner process."""
 
     _comm_server: socket.socket
     _logs_server: socket.socket
-    _subprocess: subprocess.Popen
 
     # Keep track of channels used to pipe subprocess stdout and stderr so we can
     # close them on exit. The "read" side is handled by _register_pipe_readers
@@ -168,11 +191,10 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         self = cls(
             id=what.id,
             pid=proc.pid,
-            process=psutil.Process(proc.pid),
+            process=PopenTracker(proc),
             process_log=logger or structlog.get_logger(logger_name="task").bind(),
             start_time=time.monotonic(),
             stdin=socks["comm"],
-            subprocess=proc,
             subprocess_schema_version=jar.schema_version,
             comm_server=comm_server,
             logs_server=logs_server,
