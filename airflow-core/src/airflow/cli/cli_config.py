@@ -1140,6 +1140,8 @@ DAGS_COMMANDS = (
             ARG_PARTITION_KEY,
             ARG_PARTITION_DATE_START,
             ARG_PARTITION_DATE_END,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
             ARG_YES,
             ARG_VERBOSE,
         ),

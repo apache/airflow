@@ -41,6 +41,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseOperator, CronPartitionTimetable, task
@@ -49,7 +50,7 @@ from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -1405,6 +1406,46 @@ class TestCliDagsClear:
         dag_command.dag_clear(args)
         assert "No matching Dag runs" in capsys.readouterr().out
         assert self._get_run_states()["part_2026_03_10"] == DagRunState.FAILED
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_only_failed_skips_non_failed_task_instances(self, parser):
+        # Explicitly set TI states so we can assert selectively.
+        # part_2026_03_10 has a FAILED DagRun; mark its single TI as FAILED.
+        # part_2026_03_08 has a SUCCESS DagRun; mark its single TI as SUCCESS.
+        with create_session() as session:
+            for run_id, ti_state in [
+                ("part_2026_03_08", TaskInstanceState.SUCCESS),
+                ("part_2026_03_10", TaskInstanceState.FAILED),
+            ]:
+                session.execute(
+                    TaskInstance.__table__.update()
+                    .where(TaskInstance.dag_id == self.DAG_ID)
+                    .where(TaskInstance.run_id == run_id)
+                    .values(state=ti_state)
+                )
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--only-failed",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # part_2026_03_10 had a FAILED TI — its run should be re-queued.
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        # part_2026_03_08 had no FAILED TI — its run state must be unchanged.
+        assert states["part_2026_03_08"] == DagRunState.SUCCESS
+        # Non-partitioned run is always untouched.
+        assert states["non_partitioned"] == DagRunState.SUCCESS
 
     def test_missing_dag_raises(self, parser):
         args = parser.parse_args(
