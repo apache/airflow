@@ -123,7 +123,7 @@ def mirror_artifact_locally(source_uri: str, doc_root: pathlib.Path) -> str:
     return f"mirrored/{filename}"
 
 
-_SWAGGER_VERSION = "5.11.0"
+_SWAGGER_VERSION = "5.32.6"
 SWAGGER_PRESENT_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-standalone-preset.js"
 SWAGGER_BUNDLE_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-bundle.js"
 SWAGGER_CSS_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui.css"
