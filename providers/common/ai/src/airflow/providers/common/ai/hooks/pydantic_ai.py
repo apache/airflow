@@ -141,7 +141,7 @@ class PydanticAIHook(BaseAIHook):
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id)
+        conn = self.get_connection(self.llm_conn_id or self.default_conn_name)
 
         extra: dict[str, Any] = conn.extra_dejson
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
@@ -271,7 +271,10 @@ class PydanticAIHook(BaseAIHook):
             if storage is not None and counter is not None:
                 from airflow.providers.common.ai.durable.caching_model import CachingModel
 
-                resolved_model = infer_model(agent.model)
+                if agent.model is None:
+                    raise ValueError("Agent model must be set when durable=True")
+                model = agent.model
+                resolved_model = infer_model(model) if isinstance(model, str) else model
                 caching_model = CachingModel(
                     resolved_model,
                     storage=storage,

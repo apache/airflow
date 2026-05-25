@@ -93,7 +93,6 @@ class TestAgentDecoratedOperator:
 
     def test_execute_accepts_sequence_prompt(self):
         """A non-empty Sequence[UserContent] return value is forwarded as-is."""
-        from pydantic_ai.messages import ImageUrl
 
         image = ImageUrl(url="https://example.com/x.png")
         prompt = ["Describe this:", image]
@@ -116,8 +115,6 @@ class TestAgentDecoratedOperator:
 
         if not AIRFLOW_V_3_1_PLUS:
             pytest.skip("enable_hitl_review requires Airflow >= 3.1.0")
-
-        from pydantic_ai.messages import ImageUrl
 
         op = _AgentDecoratedOperator(
             task_id="test",
