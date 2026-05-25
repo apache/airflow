@@ -322,7 +322,7 @@ The token flows through the execution stack as follows:
         SCH->>EXE: workload JSON<br/>(includes token)
         Note over EXE: Task waits in queue<br/>(can be minutes)
         EXE->>WRK: dispatch (workload JSON)
-        WRK->>API: POST /run<br/>Bearer: workload token
+        WRK->>API: PATCH /run<br/>Bearer: workload token
         Note over API: validates workload scope<br/>checks TI in QUEUED/RESTARTING<br/>409 if not
         API-->>WRK: 200 OK<br/>Refreshed-API-Token: execution token<br/>(scope=execution, ~10 min)
         WRK->>WRK: BearerAuth swaps to<br/>execution token
