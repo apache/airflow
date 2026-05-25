@@ -2788,30 +2788,50 @@ class TestSchedulerJob:
         dag_id = "SchedulerJobTest.test_executable_sets_external_executor_id"
         session = settings.Session()
         with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
-            EmptyOperator(task_id="dummy")
+            EmptyOperator(task_id="a_task_pre_assign")
+            EmptyOperator(task_id="b_task_regular")
 
         class PreAssigningExecutor(MockExecutor):
             pre_assigns_external_executor_id = True
+            mock_module_path = "mock.pre_assigning.executor"
+            mock_alias = "pre_assigning_executor"
 
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[PreAssigningExecutor()])
+        regular_exec = MockExecutor()
+        assert regular_exec.pre_assigns_external_executor_id is False, "Pre-condition"
+
+        pre_assigning_exec = PreAssigningExecutor()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=(regular_exec, pre_assigning_exec))
 
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("dummy", session)
-        ti.state = State.SCHEDULED
-        session.merge(ti)
+        ti_pre_assign = dr.get_task_instance("a_task_pre_assign", session)
+        ti_regular = dr.get_task_instance("b_task_regular", session)
+
+        ti_regular.state = State.SCHEDULED
+        ti_regular.executor = regular_exec.name.module_path
+        ti_pre_assign.state = State.SCHEDULED
+        ti_pre_assign.executor = pre_assigning_exec.name.module_path
         session.flush()
 
         returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        returned_tis.sort(key=lambda ti: ti.task_id)
 
-        assert len(returned_tis) == 1
+        assert len(returned_tis) == 2
+
         # In-memory object (post make_transient) should carry the UUID
+        assert returned_tis[0].id == ti_pre_assign.id
         assert returned_tis[0].external_executor_id is not None
-        UUID(returned_tis[0].external_executor_id)
+        assert UUID(returned_tis[0].external_executor_id), "is valid uuid"
 
         # DB row should also have it (the whole point — survives a crash)
-        db_value = session.scalar(select(TaskInstance.external_executor_id).where(TaskInstance.id == ti.id))
+        db_value = session.scalar(
+            select(TaskInstance.external_executor_id).where(TaskInstance.id == ti_pre_assign.id)
+        )
         assert db_value == returned_tis[0].external_executor_id
+
+        # In mixed-executor mode, only TIs routed to a pre-assigning executor get an external_executor_id.
+        assert returned_tis[1].id == ti_regular.id
+        assert returned_tis[1].external_executor_id is None
 
         session.rollback()
 

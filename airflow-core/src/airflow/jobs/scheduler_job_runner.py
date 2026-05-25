@@ -33,7 +33,22 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import CTE, and_, case, delete, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import (
+    CTE,
+    Text,
+    and_,
+    case,
+    cast as sql_cast,
+    delete,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -941,9 +956,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
