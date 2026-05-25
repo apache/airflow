@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
 from airflow.sdk._shared.state import TaskScope
@@ -1213,6 +1214,16 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.assert_called_once_with(
             ClearTaskState(ti_id=self.TI_ID, all_map_indices=True)
         )
+
+    def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
+        """datetime is not JSON-serializable; callers must use .isoformat() first."""
+        with pytest.raises(ValidationError):
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+                "watermark",
+                datetime(2026, 5, 15, tzinfo=dt_timezone.utc),
+            )
+
+        mock_supervisor_comms.send.assert_not_called()
 
 
 class TestAssetStateAccessor:

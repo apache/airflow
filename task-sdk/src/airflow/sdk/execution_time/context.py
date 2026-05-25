@@ -496,11 +496,18 @@ class TaskStateAccessor:
     # used in templates.
 
     def get(self, key: str) -> JsonValue:
-        """Return the stored value, or ``None`` if the key does not exist."""
+        """
+        Return the stored value, or ``None`` if the key does not exist.
+
+        Supported types: ``str``, ``int``, ``float``, ``bool``, ``list``, ``dict``.
+        ``datetime`` is not JSON-serializable; store it as ``value.isoformat()`` and
+        parse it back with ``datetime.fromisoformat(result)``.
+        """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskState, TaskStateResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
+
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStateResult):
