@@ -52,6 +52,41 @@ class TestBaseAIHookGetAgentHook:
             BaseAIHook.get_agent_hook("my_conn")
 
 
+class TestBaseAIHookInit:
+    def test_stores_model_id_and_conn_id(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook(llm_conn_id="my_conn", model_id="openai:gpt-5")
+        assert hook.llm_conn_id == "my_conn"
+        assert hook.model_id == "openai:gpt-5"
+
+
+class TestBaseAIHookAgentDurable:
+    def test_bind_pop_round_trip(self):
+        # Real pydantic-ai Agent is unhashable; id()-keyed storage must still work.
+        agent = object()
+        storage = MagicMock()
+        counter = MagicMock()
+
+        BaseAIHook._bind_agent_durable(agent, storage, counter)
+        assert BaseAIHook._pop_agent_durable(agent) == (storage, counter)
+        assert BaseAIHook._pop_agent_durable(agent) is None
+
+
 class TestAgentRunResult:
     def test_dataclass_fields(self):
         usage = AgentUsage(requests=1, tool_calls=2, total_tokens=10)
@@ -326,6 +361,7 @@ class TestBaseAIHookCachedCallable:
     def test_cached_callable_replays_on_hit(self):
         storage = MagicMock()
         counter = MagicMock()
+        counter.replayed_tool = 0
         counter.next_step.return_value = 1
         storage.load_tool_result.return_value = (True, "cached_value")
 
@@ -340,4 +376,5 @@ class TestBaseAIHookCachedCallable:
 
         assert result == "cached_value"
         assert calls == []
-        counter.replayed_tool += 1
+        assert counter.replayed_tool == 1
+        storage.save_tool_result.assert_not_called()

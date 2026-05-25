@@ -33,6 +33,7 @@ from airflow.providers.common.ai.utils.output_type import (
     iter_base_model_classes,
     rehydrate_pydantic_output,
 )
+from airflow.providers.common.ai.utils.validation import reject_sequence_with_unsupported_feature
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -264,6 +265,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def execute(self, context: Context) -> Any:
+        reject_sequence_with_unsupported_feature(
+            self.prompt,
+            decorator_name=type(self).__name__,
+            feature_name="enable_hitl_review",
+            feature_enabled=self.enable_hitl_review,
+        )
         self._validate_hook_capabilities()
 
         self._durable_ti = context["task_instance"] if self.durable else None
