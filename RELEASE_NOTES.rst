@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.2.2 (2026-05-26)
+Airflow 3.2.2 (2026-05-27)
 --------------------------
 
 Significant Changes
@@ -81,6 +81,15 @@ Significant Changes
 
 Bug Fixes
 ^^^^^^^^^
+
+- Correctly pre-allocate ``external_executor_id`` with multiple executors on PostgreSQL (#67388) (#67458)
+- Return raw import-error stacktrace when a Dag file has no registered Dag (#67465) (#67478)
+- UI: Fix Expand/Collapse All on XComs and Audit Log JSON cells (#67316) (#67361)
+- UI: Load Monaco workers via a same-origin Blob shim (#67352) (#67469)
+- UI: Show DAG name in browser tab title (#67169) (#67399)
+- Require ``starlette>=1.0.1`` for Host-header parsing fix and ``cadwyn>=6.1.1`` for compatibility
+  (#67326) (#67460)
+- Revoke JWT on /auth/logout regardless of auth manager logout URL (#67289) (#67362)
 - Fix deadlock in ``ti_update_state`` caused by FOR UPDATE locking dag_run (#67246) (#67264)
 - UI: Stop polling ``getLatestRunInfo`` on paused Dags with no active runs (#67249) (#67256)
 - Fail closed when supervisor IPC fails on a non-success terminal state (#66573) (#67183)
@@ -221,10 +230,13 @@ Miscellaneous
 - UI: Improve grid and ``ti_summaries`` and grid runs queries (#64034) (#67014)
 - UI: Enable queue up new tasks (#63484) (#66869)
 - Expose queueing/scheduled time in the Gantt chart (#63372) (#65016)
+- Export ``from_timestamp`` from Task SDK timezone module (#67321) (#67331)
+
 
 Doc-only Changes
 ^^^^^^^^^^^^^^^^
 
+- Refresh JWT authentication and security model docs with mermaid diagrams (#67435) (#67466)
 - Fix misleading typo in ``plugins_manager`` docs (#67101) (#67114)
 - Document supported deployment platforms in security docs (#66931) (#67017)
 - Warn against world-accessible Kerberos ccache default in docs (#66557) (#67085)
