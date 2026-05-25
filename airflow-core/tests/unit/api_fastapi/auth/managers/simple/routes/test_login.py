@@ -94,7 +94,9 @@ class TestLogin:
                 follow_redirects=False,
             )
             assert response.status_code == 307
-            assert response.headers["location"] == "/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+            assert (
+                response.headers["location"] == "/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+            )
             assert response.cookies.get("_token") is not None
 
     def test_login_all_admins_ignores_unsafe_next_url(self, test_client):
