@@ -125,15 +125,18 @@ User code does not change.
 
 ### Invocation matrix
 
-`Serve` parses flags first, then chooses a mode in this order:
+`Serve` evaluates the rows below as an ordered match: the first row
+whose trigger holds wins. Each row requires a specific positive
+trigger; there is no implicit default. If none of rows 1-4 match,
+row 5 fires.
 
-| Trigger                                                | Mode            | Behaviour |
-|--------------------------------------------------------|-----------------|-----------|
-| `--bundle-metadata`                                    | metadata-dump   | Existing flag (ADR 0001 / `server.go:37`). Prints `BundleInfo` JSON and exits. |
-| `--dump-bundle-spec`                                   | spec-dump       | Existing flag added by [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md). Prints the full bundle spec JSON (`sdk`, `dags`) used by `airflow-go-pack`. |
-| `--comm=<host:port> --logs=<host:port>`                | **coordinator** | New. Speaks the msgpack-over-IPC coordinator protocol. Both flags are required; partial use is a hard error. |
-| `AIRFLOW_BUNDLE_MAGIC_COOKIE` env var present (default) | go-plugin       | Existing behaviour. Hands off to `plugin.Serve` which performs the handshake and serves `DagBundle` gRPC to the Edge Worker. |
-| Otherwise                                              | error           | Print usage to stderr and exit non-zero. Today this case implicitly errors via go-plugin's failed handshake; we make the diagnostic explicit so authors running the binary directly get a clear message. |
+| #  | Trigger                                                | Mode            | Behaviour |
+|----|--------------------------------------------------------|-----------------|-----------|
+| 1  | `--bundle-metadata`                                    | metadata-dump   | Existing flag (ADR 0001 / `server.go:37`). Prints `BundleInfo` JSON and exits. |
+| 2  | `--dump-bundle-spec`                                   | spec-dump       | Existing flag added by [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md). Prints the full bundle spec JSON (`sdk`, `dags`) used by `airflow-go-pack`. |
+| 3  | `--comm=<host:port> --logs=<host:port>`                | **coordinator** | New. Speaks the msgpack-over-IPC coordinator protocol. Both flags are required; partial use is a hard error. |
+| 4  | `AIRFLOW_BUNDLE_MAGIC_COOKIE` env var present          | go-plugin       | Existing behaviour. Hands off to `plugin.Serve` which performs the handshake and serves `DagBundle` gRPC to the Edge Worker. |
+| 5  | none of the above                                      | error           | Print usage to stderr and exit non-zero. Today this case implicitly errors via go-plugin's failed handshake; we make the diagnostic explicit so authors running the binary directly get a clear message. |
 
 The two server modes share the same `bundlev1.BundleProvider`
 implementation and the same lazy `RegisterDags` recorder cache that
