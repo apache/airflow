@@ -709,6 +709,29 @@ class TestStructureDataEndpoint:
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
 
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_500_on_malformed_asset_expression(self, test_client):
+        """A TypeError from get_upstream_assets surfaces as a 500 with a clear message.
+
+        Without the try/except wrap, the TypeError propagates uncaught and FastAPI returns a
+        generic ``{"detail": "Internal Server Error"}`` body with no context about which Dag
+        triggered it. With the wrap, the response body identifies the Dag and version, which
+        is what an operator needs to start debugging stored-data corruption.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.ui.structure.get_upstream_assets",
+            side_effect=TypeError("Unsupported type: dict_keys(['weird-op'])"),
+        ):
+            response = test_client.get(
+                "/structure/structure_data",
+                params={"dag_id": DAG_ID, "external_dependencies": True},
+            )
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert "Malformed asset_expression" in detail
+        assert DAG_ID in detail
+        assert "Unsupported type" in detail
+
     def test_should_return_404_when_dag_version_not_found(self, test_client):
         response = test_client.get(
             "/structure/structure_data", params={"dag_id": DAG_ID, "version_number": 999}

@@ -161,9 +161,15 @@ def structure_data(
                 )
 
         if (asset_expression := serialized_dag.dag_model.asset_expression) and entry_node_ref:
-            upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
-                asset_expression, entry_node_ref["id"]
-            )
+            try:
+                upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
+                    asset_expression, entry_node_ref["id"]
+                )
+            except TypeError as e:
+                raise HTTPException(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    f"Malformed asset_expression in Dag {dag_id!r} version {version_number}: {e}",
+                ) from e
             data["nodes"] += upstream_asset_nodes
             data["edges"] += upstream_asset_edges
 
