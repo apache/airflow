@@ -10586,6 +10586,8 @@ class TestSchedulerJobQueriesCount:
     @pytest.mark.parametrize(
         ("expected_query_count", "dag_count", "task_count"),
         [
+            # Query counts increased after harvested DagRuns started materializing via `.all()`
+            # in the scheduler path, which makes this test exercise the full scheduling flow.
             (40, 1, 1),  # One DAG with one task per DAG file.
             (40, 1, 5),  # One DAG with five tasks per DAG file.
             (211, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
