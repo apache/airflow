@@ -133,11 +133,21 @@ class ResumableJobMixin:
         raise NotImplementedError
 
     def is_job_active(self, status: str) -> bool:
-        """Return True if the job is still running and can be reconnected to."""
+        """
+        Return True if the job is still running and can be reconnected to.
+
+        ``status`` is a raw string returned by the external system — not an Airflow enum.
+        Its values are backend-specific (e.g. ``"RUNNING"``, ``"Pending"``, ``"ContainerCreating"``).
+        """
         raise NotImplementedError
 
     def is_job_succeeded(self, status: str) -> bool:
-        """Return True if the job completed successfully."""
+        """
+        Return True if the job completed successfully.
+
+        ``status`` is a raw string returned by the external system — not an Airflow enum.
+        Its values are backend-specific (e.g. ``"FINISHED"``, ``"Succeeded"``).
+        """
         raise NotImplementedError
 
     def poll_until_complete(self, external_id: str, context: Context) -> None:
