@@ -1786,6 +1786,7 @@ class TestTriggererMessageTypes:
             "GetXComSequenceSlice",
             "RescheduleTask",
             "RetryTask",
+            "SetIntendedTerminalState",
             "SetRenderedFields",
             "SkipDownstreamTasks",
             "SucceedTask",
