@@ -21,10 +21,11 @@ from __future__ import annotations
 from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook, SkillSpec
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import Variable, dag, task
 
 # Requires: pip install 'apache-airflow-providers-common-ai[strands]'
 # Connection: strands_default (conn_type selects backend — e.g. strands-gemini for Google Gemini)
+# Variable: strands_skill_path — filesystem path to a skill directory (contains SKILL.md)
 
 # ---------------------------------------------------------------------------
 # 1. Basic AgentOperator with Strands
@@ -48,7 +49,7 @@ example_strands_basic()
 
 
 # ---------------------------------------------------------------------------
-# 2. AgentOperator with skills (filesystem paths)
+# 2. AgentOperator with inline skills + skills_params
 # ---------------------------------------------------------------------------
 
 
@@ -60,7 +61,15 @@ def example_strands_skills():
         prompt="Extract tables from report.pdf and summarize the findings.",
         llm_conn_id="strands_default",
         system_prompt="You are a document processing assistant.",
-        skills=["/opt/airflow/skills/pdf-processing"],
+        skills=[
+            SkillSpec(
+                name="pdf-processing",
+                description="Extract and summarize structured content from PDF documents.",
+                instructions=(
+                    "Identify tables and key sections first. Summarize findings in plain language."
+                ),
+            )
+        ],
         skills_params={"strict": True, "max_resource_files": 20},
     )
 
@@ -71,7 +80,30 @@ example_strands_skills()
 
 
 # ---------------------------------------------------------------------------
-# 3. Inline SkillSpec + SQL toolset
+# 3. AgentOperator with filesystem skill path (Airflow Variable)
+# ---------------------------------------------------------------------------
+
+
+# [START howto_operator_strands_skills_path]
+@dag(schedule=None, tags=["example"])
+def example_strands_skills_path():
+    AgentOperator(
+        task_id="research",
+        prompt="Summarize recent developments in workflow orchestration.",
+        llm_conn_id="strands_default",
+        system_prompt="You are a helpful research assistant.",
+        skills=[Variable.get("strands_skill_path")],
+        skills_params={"strict": True},
+    )
+
+
+# [END howto_operator_strands_skills_path]
+
+example_strands_skills_path()
+
+
+# ---------------------------------------------------------------------------
+# 4. Inline SkillSpec + SQL toolset
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +141,7 @@ example_strands_skill_spec()
 
 
 # ---------------------------------------------------------------------------
-# 4. Direct hook usage with AgentRunRequest
+# 5. Direct hook usage with AgentRunRequest
 # ---------------------------------------------------------------------------
 
 
@@ -136,7 +168,7 @@ example_strands_hook()
 
 
 # ---------------------------------------------------------------------------
-# 5. @task.agent decorator with Strands
+# 6. @task.agent decorator with Strands
 # ---------------------------------------------------------------------------
 
 
@@ -146,7 +178,15 @@ def example_strands_decorator():
     @task.agent(
         llm_conn_id="strands_default",
         system_prompt="You are a helpful research assistant.",
-        skills=["/opt/airflow/skills/web-research"],
+        skills=[
+            SkillSpec(
+                name="web-research",
+                description="Research topics using structured, concise summaries.",
+                instructions=(
+                    "Break the question into subtopics. Cite assumptions clearly and keep answers factual."
+                ),
+            )
+        ],
     )
     def research(question: str):
         return f"Research and answer: {question}"

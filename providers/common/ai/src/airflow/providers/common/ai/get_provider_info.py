@@ -68,6 +68,10 @@ def get_provider_info():
             {
                 "integration-name": "Strands Agents",
                 "external-doc-url": "https://strandsagents.com/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/connections/strands.rst",
+                    "/docs/apache-airflow-providers-common-ai/hooks/strands_ai.rst",
+                ],
                 "tags": ["ai"],
             },
         ],

@@ -34,6 +34,7 @@ from airflow.providers.common.ai.hooks.base import (
     DurableStats,
     SkillSpec,
     ToolSpec,
+    tool_identifier,
 )
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -474,6 +475,54 @@ class TestBaseAIHookResolveTools:
         assert result == ["converted:greet", native_tool]
 
 
+class TestToolIdentifier:
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("my-tool", "my_tool"),
+            ("my tool", "my_tool"),
+            ("ns.tool", "ns_tool"),
+            ("123-tool", "_123_tool"),
+        ],
+    )
+    def test_normalizes_to_valid_identifier(self, name, expected):
+        assert tool_identifier(name) == expected
+
+    @pytest.mark.parametrize("name", ["", "   ", "---"])
+    def test_rejects_invalid_names(self, name):
+        with pytest.raises(ValueError, match="ToolSpec.name"):
+            tool_identifier(name)
+
+
+class TestSkillSpecValidation:
+    def test_path_only(self):
+        spec = SkillSpec(path="/skills/pdf")
+        assert spec.path == "/skills/pdf"
+        assert spec.name is None
+
+    def test_inline_only(self):
+        spec = SkillSpec(name="greet", description="Greet", instructions="Say hi.")
+        assert spec.path is None
+        assert spec.name == "greet"
+
+    def test_rejects_path_with_inline_fields(self):
+        with pytest.raises(ValueError, match="cannot set 'path' together"):
+            SkillSpec(
+                path="/skills/",
+                name="greet",
+                description="Greet",
+                instructions="Say hi.",
+            )
+
+    def test_rejects_partial_inline(self):
+        with pytest.raises(ValueError, match="inline skills require"):
+            SkillSpec(name="only-name")
+
+    def test_rejects_empty_spec(self):
+        with pytest.raises(ValueError, match="must set 'path' or all of"):
+            SkillSpec()
+
+
 class TestBaseAIHookSkills:
     def test_default_capability_flags(self):
         assert BaseAIHook.supports_toolsets is False
@@ -520,8 +569,12 @@ class TestBaseAIHookSkills:
                 return spec
 
         hook = ConcreteHook.__new__(ConcreteHook)
+        with pytest.raises(ValueError, match="inline skills require"):
+            SkillSpec(name="only-name")
         with pytest.raises(ValueError, match="SkillSpec must set 'path'"):
-            hook._skill_spec_to_native(SkillSpec(name="only-name"))
+            hook._skill_spec_to_native(
+                SkillSpec(name="greet", description="Greet users", instructions="Say hello.")
+            )
 
     def test_resolve_skill_sources_from_request(self):
         class ConcreteHook(BaseAIHook):

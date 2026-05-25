@@ -167,7 +167,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "system_prompt",
         "agent_params",
         "skills",
-        "skills_params",
     )
 
     operator_extra_links = (HITLReviewLink(),)

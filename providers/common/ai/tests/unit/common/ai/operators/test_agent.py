@@ -180,7 +180,6 @@ class TestAgentOperatorTemplateFields:
             "system_prompt",
             "agent_params",
             "skills",
-            "skills_params",
         }
         assert set(AgentOperator.template_fields) == expected
 
