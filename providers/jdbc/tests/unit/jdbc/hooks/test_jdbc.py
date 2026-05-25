@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import sqlite3
@@ -464,6 +465,11 @@ class TestJdbcHook:
 
 class TestJdbcHookOpenLineage:
     """Static tests for the OpenLineage methods on JdbcHook."""
+
+    pytestmark = pytest.mark.skipif(
+        importlib.util.find_spec("airflow.providers.openlineage") is None,
+        reason="apache-airflow-providers-openlineage is not installed",
+    )
 
     @pytest.mark.parametrize(
         ("conn_params", "host", "port", "schema", "expected"),

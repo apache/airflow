@@ -5844,12 +5844,18 @@ dependencies = [
     { name = "jpype1" },
 ]
 
+[package.optional-dependencies]
+openlineage = [
+    { name = "apache-airflow-providers-openlineage" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -5861,6 +5867,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "jaydebeapi", specifier = ">=1.1.1" },
     { name = "jpype1", marker = "python_full_version >= '3.14'", specifier = ">=1.7.0" },
     { name = "jpype1", marker = "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=1.4.0,!=1.7.0" },
@@ -5872,6 +5879,7 @@ requires-dist = [
     { name = "jpype1", marker = "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')", specifier = ">=1.5.0" },
     { name = "jpype1", marker = "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')", specifier = ">=1.5.1" },
 ]
+provides-extras = ["openlineage"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5879,6 +5887,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -14453,6 +14462,11 @@ dependencies = [
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/48/a2/5d27e81d24eef64668bf702bfe0e091cc48388b4666f36e025243eb9d827/jpype1-1.7.1.tar.gz", hash = "sha256:3cd88838dc3d2d546f7eaeadaaff864e590010c15f2b6a44b6f37e60796a14b2", size = 783791, upload-time = "2026-05-06T23:55:10.664Z" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/c0/2c41dedfb65060fa05d152b3f57e7c3658c86257d92de365a3c1fcb80779/jpype1-1.7.1-1-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:6590cbdb6208e4522fd99ae5f5f4bed5de707122385bc48446a1e7d7b56357ef", size = 571509, upload-time = "2026-05-19T20:19:30.416Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/5e/5611d50222d146a060dbf22e69c4017545341ea6b289a591d5a9bdaad718/jpype1-1.7.1-1-cp311-cp311-macosx_11_0_universal2.whl", hash = "sha256:4c81ee11aee5ed938d7415877cd9c7a0cc9cbf1dac87f7eab928e641323a385b", size = 571633, upload-time = "2026-05-19T20:19:33.536Z" },
+    { url = "https://files.pythonhosted.org/packages/79/32/8b2279b12364f260111c7843bf9ede7dc442d5521d6d2ca728b3d522d445/jpype1-1.7.1-1-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:b3ddd9f9099202212a34679dfb95dda590bcfbd23289559d104e24abec9120d1", size = 569654, upload-time = "2026-05-19T20:19:36.41Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/67/5caa0de30bcb1c8786cc988144a68908e0624de20cfed470a67b1dd1f60c/jpype1-1.7.1-1-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:6d491a81281407f8a68552eb3c0e635e576e066c069268dc29a1ea27bb4778ae", size = 569800, upload-time = "2026-05-19T20:19:38.877Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/1d/9ee10b1aad9f01ea6ac6159981120eb5ace01962f9cfaa7de6b911de3eb8/jpype1-1.7.1-1-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:ace0ba1a67561358fa5b57b8e93ed8bcf16f0a8d5cba79c875089c56827adf8e", size = 569753, upload-time = "2026-05-19T20:19:41.514Z" },
     { url = "https://files.pythonhosted.org/packages/04/ff/44a6f285d4c07014cb64379b8863caaefad1cc976d36923073d097b1d461/jpype1-1.7.1-cp310-cp310-macosx_14_0_x86_64.whl", hash = "sha256:472b2f53002f5fdf118d2e6b8c6b5441d6e3ca3cf1b1bdb163442be76c8b2859", size = 375560, upload-time = "2026-05-06T23:53:48.669Z" },
     { url = "https://files.pythonhosted.org/packages/42/c5/98c5ba221de29b341298341c07ad2221beae565886d18c2e6b821928db15/jpype1-1.7.1-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:80c4c8cbab99040b8b56f28ff834e0b089aefccaabe3b472b8b43bb1e4658b86", size = 408119, upload-time = "2026-05-06T23:53:51.382Z" },
     { url = "https://files.pythonhosted.org/packages/37/3f/d3b7fd287d5bae63af0ae935b2f2c01291d18ea2e6cd706db8e4dda15354/jpype1-1.7.1-cp310-cp310-manylinux_2_24_i686.manylinux_2_28_i686.whl", hash = "sha256:9c9a08d06016afbe5391daaf843b9e76c79022181685bbb23b64cd3f9aaec30d", size = 454716, upload-time = "2026-05-06T23:53:53.937Z" },
