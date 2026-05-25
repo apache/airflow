@@ -964,7 +964,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
                             )
                     else:
                         empty_checks_count = 0
-                    
+
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
         except Exception as e:

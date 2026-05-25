@@ -439,14 +439,11 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             self._consecutive_empty_checks_count += 1
             if self._consecutive_empty_checks_count >= self.consecutive_empty_checks:
                 return True
-            else:
-                self.log.info(
-                    "Table streaming buffer is empty, but waiting for %s consecutive checks "
-                    "(current: %s)",
-                    self.consecutive_empty_checks,
-                    self._consecutive_empty_checks_count,
-                )
-                return False
-        else:
-            self._consecutive_empty_checks_count = 0
+            self.log.info(
+                "Table streaming buffer is empty, but waiting for %s consecutive checks (current: %s)",
+                self.consecutive_empty_checks,
+                self._consecutive_empty_checks_count,
+            )
             return False
+        self._consecutive_empty_checks_count = 0
+        return False

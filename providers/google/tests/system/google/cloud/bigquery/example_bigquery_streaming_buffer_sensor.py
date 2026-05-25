@@ -26,7 +26,6 @@ test can run for a long time end-to-end and is therefore opt-in: set
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 
 import pytest
