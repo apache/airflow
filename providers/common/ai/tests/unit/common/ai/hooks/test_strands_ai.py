@@ -167,7 +167,7 @@ class TestStrandsHookToolSpecToNative:
         assert wrapped.__doc__ == "Does x."
 
     def test_tool_spec_to_native_sanitises_name(self):
-        """Hyphens in tool name are replaced with underscores for Python identifiers."""
+        """Non-word characters in tool names are normalized for Python identifiers."""
         mock_strands_tool = MagicMock(side_effect=lambda fn: fn)
         spec = ToolSpec(
             name="my-tool",
@@ -186,6 +186,28 @@ class TestStrandsHookToolSpecToNative:
 
         wrapped = mock_strands_tool.call_args[0][0]
         assert wrapped.__name__ == "my_tool"
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("my tool", "my_tool"),
+            ("ns.tool", "ns_tool"),
+            ("123-tool", "_123_tool"),
+        ],
+    )
+    def test_tool_spec_to_native_sanitises_complex_names(self, name, expected):
+        mock_strands_tool = MagicMock(side_effect=lambda fn: fn)
+        spec = ToolSpec(name=name, description="desc", parameters={}, fn=lambda: None)
+        hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
+
+        with patch.dict("sys.modules", {"strands": MagicMock(tool=mock_strands_tool)}):
+            import sys
+
+            sys.modules["strands"].tool = mock_strands_tool
+            hook._tool_spec_to_native(spec)
+
+        wrapped = mock_strands_tool.call_args[0][0]
+        assert wrapped.__name__ == expected
 
 
 class TestStrandsHookCreateAndRunAgent:
@@ -302,9 +324,8 @@ class TestStrandsHookSkills:
         )
 
     def test_skill_spec_invalid_raises(self):
-        hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
-        with pytest.raises(ValueError, match="SkillSpec must set"):
-            hook._skill_spec_to_native(SkillSpec(name="only-name"))
+        with pytest.raises(ValueError, match="inline skills require"):
+            SkillSpec(name="only-name")
 
     def test_resolve_skill_sources_empty_when_not_set(self):
         hook = StrandsGeminiHook(llm_conn_id="test")

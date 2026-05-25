@@ -21,6 +21,7 @@ from __future__ import annotations
 import functools
 import inspect
 import json
+import re
 import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
@@ -33,6 +34,21 @@ _EMPTY_OBJECT_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
 
 # Attribute name for durable storage/counter bound to a framework agent instance.
 _AIRFLOW_DURABLE_ATTR = "_airflow_durable_state"
+
+
+def tool_identifier(name: str) -> str:
+    """
+    Normalize a tool name to a valid Python identifier for backend SDKs.
+
+    Replaces non-word characters and leading digits so ``inspect.signature()``-based
+    schema inference receives a valid ``__name__``.
+    """
+    if not name or not name.strip():
+        raise ValueError("ToolSpec.name must be a non-empty string.")
+    safe = re.sub(r"\W|^(?=\d)", "_", name.strip())
+    if not safe.replace("_", ""):
+        raise ValueError(f"ToolSpec.name {name!r} does not yield a valid Python identifier.")
+    return safe
 
 
 @dataclass
@@ -114,6 +130,28 @@ class SkillSpec:
     name: str | None = None
     description: str | None = None
     instructions: str | None = None
+
+    def __post_init__(self) -> None:
+        self.path = (self.path or "").strip() or None
+        self.name = (self.name or "").strip() or None
+        self.description = (self.description or "").strip() or None
+        self.instructions = (self.instructions or "").strip() or None
+
+        inline_fields = (self.name, self.description, self.instructions)
+        has_inline = any(inline_fields)
+        has_full_inline = all(inline_fields)
+
+        if self.path and has_inline:
+            raise ValueError(
+                "SkillSpec cannot set 'path' together with 'name', 'description', or 'instructions'."
+            )
+        if self.path:
+            return
+        if has_full_inline:
+            return
+        if has_inline:
+            raise ValueError("SkillSpec inline skills require 'name', 'description', and 'instructions'.")
+        raise ValueError("SkillSpec must set 'path' or all of 'name', 'description', and 'instructions'.")
 
 
 @dataclass

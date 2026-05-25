@@ -84,7 +84,15 @@ Strands Skills
 --------------
 
 When using a Strands connection (for example ``strands-gemini``), pass skill directories
-so the agent loads specialized instructions on demand via the Strands ``AgentSkills`` plugin:
+(with ``SKILL.md`` per the `Agent Skills spec <https://agentskills.io/>`__) via the
+``strands_skill_path`` Airflow Variable, or use inline
+:class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec` objects so the agent loads
+specialized instructions on demand via the Strands ``AgentSkills`` plugin:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
+    :language: python
+    :start-after: [START howto_operator_strands_skills_path]
+    :end-before: [END howto_operator_strands_skills_path]
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
     :language: python

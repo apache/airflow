@@ -28,6 +28,7 @@ from airflow.providers.common.ai.hooks.base_ai import (
     BaseAIHook,
     SkillSpec,
     ToolSpec,
+    tool_identifier,
 )
 
 
@@ -85,22 +86,20 @@ class StrandsHook(BaseAIHook):
         def tool_fn(*args: Any, **kwargs: Any) -> Any:
             return fn(*args, **kwargs)
 
-        tool_fn.__name__ = spec.name.replace("-", "_")
+        tool_fn.__name__ = tool_identifier(spec.name)
         tool_fn.__doc__ = spec.description
         return strands_tool(tool_fn)
 
     def _skill_spec_to_native(self, skill: str | SkillSpec) -> Any:
         """Convert a skill source to a Strands-native skill object or path."""
         if isinstance(skill, SkillSpec) and not skill.path:
-            if skill.name and skill.description and skill.instructions:
-                from strands import Skill
+            from strands import Skill
 
-                return Skill(
-                    name=skill.name,
-                    description=skill.description,
-                    instructions=skill.instructions,
-                )
-            raise ValueError("SkillSpec must set 'path' or all of 'name', 'description', and 'instructions'.")
+            return Skill(
+                name=skill.name,
+                description=skill.description,
+                instructions=skill.instructions,
+            )
         return super()._skill_spec_to_native(skill)
 
     def _build_skills_plugin(self, request: AgentRunRequest) -> Any | None:
@@ -165,7 +164,12 @@ class StrandsHook(BaseAIHook):
         )
 
     def test_connection(self) -> tuple[bool, str]:
-        """Validate the connection by instantiating the model (no API call)."""
+        """
+        Validate the connection by constructing the configured model client.
+
+        Does not run an agent or send a user prompt. Remote credential checks depend
+        on the installed ``strands-agents`` / ``google-genai`` version.
+        """
         try:
             self.get_model()
             return True, f"{type(self).__name__} resolved successfully."

@@ -63,12 +63,23 @@ Pass skill paths or :class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec
 ``AgentRunRequest.skills`` or ``AgentOperator.skills``. The hook attaches Strands
 ``AgentSkills`` as a plugin so the agent loads specialized instructions on demand.
 
+For filesystem skills, set the Airflow Variable ``strands_skill_path`` to a directory
+containing ``SKILL.md`` (Agent Skills spec). A sample layout ships under
+``example_dags/skills/`` in this provider package:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
+    :language: python
+    :start-after: [START howto_operator_strands_skills_path]
+    :end-before: [END howto_operator_strands_skills_path]
+
+For inline programmatic skills, use :class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec`:
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
     :language: python
     :start-after: [START howto_operator_strands_skills]
     :end-before: [END howto_operator_strands_skills]
 
-For inline programmatic skills, use :class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec`:
+Inline skills can also be combined with toolsets:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
     :language: python
