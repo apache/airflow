@@ -148,7 +148,9 @@ def dag_clear(args, session: Session = NEW_SESSION) -> None:
 
     dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
 
-    query = select(DagRun).where(DagRun.dag_id == args.dag_id)
+    query = select(DagRun.run_id, DagRun.partition_key, DagRun.partition_date).where(
+        DagRun.dag_id == args.dag_id
+    )
     if args.run_id is not None:
         query = query.where(DagRun.run_id == args.run_id)
     elif args.partition_key is not None:
@@ -161,7 +163,7 @@ def dag_clear(args, session: Session = NEW_SESSION) -> None:
             query = query.where(DagRun.partition_date <= args.partition_date_end)
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
-    runs = list(session.scalars(query).all())
+    runs = list(session.execute(query).all())
     if not runs:
         print("No matching Dag runs found.")
         return
