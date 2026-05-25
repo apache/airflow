@@ -8528,6 +8528,9 @@ mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "d
 name = "apache-airflow-shared-state"
 version = "0.0"
 source = { editable = "shared/state" }
+dependencies = [
+    { name = "pydantic" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -8538,6 +8541,7 @@ mypy = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
