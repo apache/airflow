@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """
 Example DAG demonstrating the Db2 Provider
 
@@ -13,12 +30,13 @@ Prerequisites:
    AIRFLOW_CONN_DB2_DEFAULT='db2://user:password@host:port/database'
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
 from airflow.providers.db2.hooks.db2 import Db2Hook
 from airflow.providers.db2.operators.db2 import Db2Operator
-
 
 # Default arguments for the DAG
 default_args = {
@@ -50,13 +68,13 @@ def db2_example_dag() -> None:
     def cleanup_tables():
         """Drop tables if they exist to ensure clean state."""
         hook = Db2Hook(db2_conn_id="db2_default")
-        
-        for table in ['EMPLOYEES_BACKUP', 'EMPLOYEES']:
+
+        for table in ["EMPLOYEES_BACKUP", "EMPLOYEES"]:
             try:
                 hook.run(f"DROP TABLE {table}")
                 print(f"✓ Dropped table {table}")
             except Exception as e:
-                if 'SQLSTATE=42704' in str(e):  # Table doesn't exist
+                if "SQLSTATE=42704" in str(e):  # Table doesn't exist
                     print(f"ℹ Table {table} doesn't exist, skipping")
                 else:
                     raise
@@ -96,15 +114,17 @@ def db2_example_dag() -> None:
     def query_employees():
         """Query employees and return results using Db2Hook."""
         hook = Db2Hook(db2_conn_id="db2_default")
-        
+
         # Execute query and fetch results
         sql = "SELECT employee_id, first_name, last_name, department, salary FROM employees ORDER BY employee_id"
         records = hook.get_records(sql)
-        
+
         print(f"Found {len(records)} employees:")
         for record in records:
-            print(f"  ID: {record[0]}, Name: {record[1]} {record[2]}, Dept: {record[3]}, Salary: ${record[4]:,.2f}")
-        
+            print(
+                f"  ID: {record[0]}, Name: {record[1]} {record[2]}, Dept: {record[3]}, Salary: ${record[4]:,.2f}"
+            )
+
         return len(records)
 
     # Task 4: Update employee salary using Db2Operator with parameters
@@ -123,7 +143,7 @@ def db2_example_dag() -> None:
     calculate_stats = Db2Operator(
         task_id="calculate_department_stats",
         sql="""
-            SELECT 
+            SELECT
                 department,
                 COUNT(*) as employee_count,
                 AVG(salary) as avg_salary,
@@ -140,9 +160,9 @@ def db2_example_dag() -> None:
     def display_statistics():
         """Display department statistics using Db2Hook."""
         hook = Db2Hook(db2_conn_id="db2_default")
-        
+
         sql = """
-            SELECT 
+            SELECT
                 department,
                 COUNT(*) as employee_count,
                 AVG(salary) as avg_salary,
@@ -152,9 +172,9 @@ def db2_example_dag() -> None:
             GROUP BY department
             ORDER BY department
         """
-        
+
         stats = hook.get_records(sql)
-        
+
         print("\nDepartment Statistics:")
         print("-" * 80)
         for row in stats:
@@ -171,7 +191,7 @@ def db2_example_dag() -> None:
         task_id="create_backup_table",
         sql="""
             CREATE TABLE employees_backup AS
-            (SELECT * FROM employees)
+            (SELECT * FROM TESTUSER1.employees)
             WITH DATA
         """,
         autocommit=True,  # Required for DDL statements in Db2
@@ -182,14 +202,14 @@ def db2_example_dag() -> None:
     def verify_backup():
         """Verify backup table was created successfully."""
         hook = Db2Hook(db2_conn_id="db2_default")
-        
+
         # Count records in both tables
         original_count = hook.get_first("SELECT COUNT(*) FROM employees")[0]
         backup_count = hook.get_first("SELECT COUNT(*) FROM employees_backup")[0]
-        
+
         print(f"Original table: {original_count} records")
         print(f"Backup table: {backup_count} records")
-        
+
         if original_count == backup_count:
             print("✓ Backup verified successfully!")
         else:
@@ -213,4 +233,3 @@ def db2_example_dag() -> None:
 
 # Instantiate the DAG
 dag_instance = db2_example_dag()
-
