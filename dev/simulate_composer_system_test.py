@@ -291,6 +291,13 @@ def load_example_module():
     return module
 
 
+def initialize_metadata_db() -> None:
+    """Create the metadata tables needed by the local simulation."""
+    from airflow.utils.db import initdb
+
+    initdb()
+
+
 def register_dag_bundle_and_serialize(dag) -> None:
     """Mirror what ``tests_common.test_utils.system_tests.get_test_run`` does
     so ``dag.test()`` can find a serialized Dag attached to a bundle.
@@ -328,6 +335,8 @@ def register_dag_bundle_and_serialize(dag) -> None:
 
 def main() -> int:
     print(f"loading example dag from {EXAMPLE_PATH}")
+    print("initializing metadata database")
+    initialize_metadata_db()
     with apply_patches():
         mod = load_example_module()
         speed_up_polling(mod.dag)
