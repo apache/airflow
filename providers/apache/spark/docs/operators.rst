@@ -188,7 +188,7 @@ Cluster mode crash recovery (Spark standalone)
 When running in Spark standalone cluster mode (``--deploy-mode cluster``), the Spark driver runs
 independently on the cluster. If the Airflow worker dies while the Spark job is running, the driver keeps running but
 Airflow loses track of it and the behaviour to submit a brand new job would be wasting
-the compute already done.
+the compute already done or even cause conflicts if the Spark job itself is not designed to be idempotent.
 
 Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to ``task_state`` immediately after
 submission. On retry, it reads the ID back and reconnects to the already-running driver instead of
