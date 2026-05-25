@@ -1,0 +1,3 @@
+Added support for configuring ``enableServiceLinks``.
+
+The new default is ``false`` if you previously relied on these environment variables, set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.
