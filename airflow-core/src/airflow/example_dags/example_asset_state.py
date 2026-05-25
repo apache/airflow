@@ -61,16 +61,14 @@ with DAG(
 
         now = datetime.now(tz=timezone.utc).isoformat()
         state.set("watermark", now)
-        state.set("total_runs", str(int(state.get("total_runs") or 0) + 1))
+        state.set("total_runs", (state.get("total_runs") or 0) + 1)
         state.set(
             "last_run_summary",
-            json.dumps(
-                {
-                    "rows_loaded": row_count,
-                    "prev_watermark": watermark,
-                    "completed_at": now,
-                }
-            ),
+            {
+                "rows_loaded": row_count,
+                "prev_watermark": watermark,
+                "completed_at": now,
+            },
         )
 
         print(f"Loaded {row_count} records. Watermark advanced to {now}.")
