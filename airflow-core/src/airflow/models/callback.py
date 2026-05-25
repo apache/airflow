@@ -159,7 +159,12 @@ class Callback(Base, BaseWorkload):
 
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
-            tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            filtered_kwargs = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            if filtered_kwargs:
+                # OTel requires hashable tag values; serialize the dict to a string
+                tags["kwargs"] = str(filtered_kwargs)
+            else:
+                del tags["kwargs"]
 
         prefix = self.data.get("prefix", "")
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"

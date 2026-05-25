@@ -112,7 +112,7 @@ class TestCallback:
         assert metric_info["tags"] == {
             "result": "0",
             "path": TEST_ASYNC_CALLBACK.path,
-            "kwargs": {"email": "test@example.com"},
+            "kwargs": "{'email': 'test@example.com'}",
             "dag_id": TEST_DAG_ID,
         }
 
