@@ -58,6 +58,7 @@ Bug Fixes
 Improvements
 ^^^^^^^^^^^^
 
+- Add ``airflowctl tasks states-for-dag-run`` to print task IDs and states for a DAG run (`#66175 <https://github.com/apache/airflow/issues/66175>`__)
 - Support cursor-based pagination for ``get_task_instances`` in airflowctl ``datamodels`` (#64845)
 - Expose ``is_backfillable`` property on DAG responses in airflowctl ``datamodels`` (#64644)
 - Add ``operator`` value to ``DagRunType`` in airflowctl ``datamodels`` (#63733)

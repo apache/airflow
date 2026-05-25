@@ -268,6 +268,21 @@ ARG_DAG_ID = Arg(
     help="The Dag ID of the Dag to pause or unpause",
 )
 
+ARG_TASKS_DAG_ID = Arg(
+    flags=("--dag-id",),
+    type=str,
+    required=True,
+    dest="dag_id",
+    help="DAG ID for task instance operations",
+)
+ARG_TASKS_DAG_RUN_ID = Arg(
+    flags=("--dag-run-id",),
+    type=str,
+    required=True,
+    dest="dag_run_id",
+    help="DAG run ID for task instance operations",
+)
+
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -988,6 +1003,19 @@ DAG_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="List task states for one DAG run",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_TASKS_DAG_ID,
+            ARG_TASKS_DAG_RUN_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 POOL_COMMANDS = (
     ActionCommand(
         name="import",
@@ -1036,6 +1064,11 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage Airflow Dags",
         subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Inspect and manage Airflow task instances",
+        subcommands=TASK_COMMANDS,
     ),
     GroupCommand(
         name="pools",
