@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-25T11:04:41.268816
+# This constraints file was automatically generated on 2026-05-25T13:33:21.217142
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -397,7 +397,7 @@ httplib2==0.31.2
 httpr==0.4.8
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.15.0
+huggingface_hub==1.16.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -634,7 +634,7 @@ smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.5.0
 snowflake-snowpark-python==1.51.0
-snowflake-sqlalchemy==1.9.0
+snowflake-sqlalchemy==1.10.0
 sortedcontainers==2.4.0
 soupsieve==2.8.3
 spython==0.3.14
