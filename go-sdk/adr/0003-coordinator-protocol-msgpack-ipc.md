@@ -25,6 +25,17 @@ Date: 2026-04-30
 
 Accepted.
 
+The references in this ADR to a "ZIP bundle" — the bundle-spec phrasing
+quoted in Context, and the `airflow-go-pack` output described in
+Consequences — are superseded by
+[ADR 0004](0004-self-contained-executable-bundle.md), which replaces
+the ZIP container with a self-contained executable carrying the source
+and manifest in an appended footer. The coordinator-mode protocol
+decision in this ADR is unaffected: the binary still honours
+`--comm=<addr>` / `--logs=<addr>` exactly as described, regardless of
+the container format it ships inside. Read the ZIP mentions below with
+the ADR 0004 substitution in mind.
+
 ## Context
 
 A Go SDK bundle binary today (the artefact built from
@@ -323,8 +334,9 @@ func main() { bundlev1server.Serve(&myBundle{}) }
   Python-native task runner via `ExecutableCoordinator`
   (msgpack-over-IPC). Authors do not pick a deployment shape at build
   time.
-- The bundle ZIP produced by `airflow-go-pack` (ADR 0002) becomes
-  spec-conformant
+- The bundle artefact produced by `airflow-go-pack` (ADR 0002, as
+  revised by [ADR 0004](0004-self-contained-executable-bundle.md))
+  becomes spec-conformant
   ([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
   without further changes, because the binary now honours
   `--comm=<addr>`/`--logs=<addr>` as the spec demands.
