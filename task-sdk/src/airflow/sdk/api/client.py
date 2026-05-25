@@ -1136,6 +1136,13 @@ class Client(httpx.Client):
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)
 
+        # Cap the httpx connection pool. Without an explicit value httpx defaults to 100 max
+        # connections, which is far higher than a single task subprocess ever needs (the
+        # supervisor sets ``max_connections=10`` in ``_ensure_client``). A bounded default
+        # keeps the behaviour predictable across both code paths and avoids surprise resource
+        # use under high concurrency. Callers can still override via ``Client(..., limits=...)``.
+        kwargs.setdefault("limits", httpx.Limits(max_keepalive_connections=5, max_connections=20))
+
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,

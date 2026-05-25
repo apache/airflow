@@ -123,6 +123,30 @@ class TestClient:
         )
         assert client.timeout == httpx.Timeout(120.0)
 
+    def test_default_pool_limits_are_bounded(self):
+        """The default httpx pool must be capped — not httpx's 100-connection default.
+
+        Without an explicit ``limits``, ``httpx.Client`` defaults to ``max_connections=100``
+        per instance, which is far higher than a single task subprocess ever needs and is
+        inconsistent with the supervisor's own ``_ensure_client`` (which caps at 10).
+        """
+        # Instantiate without a transport override so we can read the limits off the
+        # real transport that the Client built itself (mock transports ignore limits).
+        client = Client(base_url="test://server", token="")
+        pool = client._transport._pool
+        assert pool._max_connections == 20
+        assert pool._max_keepalive_connections == 5
+
+    def test_pool_limits_can_be_overridden(self):
+        client = Client(
+            base_url="test://server",
+            token="",
+            limits=httpx.Limits(max_keepalive_connections=2, max_connections=8),
+        )
+        pool = client._transport._pool
+        assert pool._max_connections == 8
+        assert pool._max_keepalive_connections == 2
+
     def test_error_parsing(self):
         responses = [
             httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
