@@ -106,7 +106,6 @@ apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
-uv = { timestamp = "0001-01-01T00:00:00Z", span = "PT12H" }
 apache-airflow-kubernetes-tests = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-apache-druid = false
