@@ -584,17 +584,18 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-001"]
 
-    def test_reconnect_on_retry_false_always_submits_fresh(self):
+    def test_reconnect_on_retry_false_submits_fresh_and_polls(self):
         operator = self._make_operator(reconnect_on_retry=False)
         operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-new"
         task_state = FakeTaskState({"spark_job_id": "driver-old"})
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
         operator.execute(context={"task_state": task_state})
-        # reconnect_on_retry is False, so should not attempt to reconnect and instead submit a fresh job
+        # reconnect_on_retry=False: ignores prior driver ID, submits fresh, but still polls
         operator._hook.submit.assert_called_once_with("test.jar")
-        assert polled == []
+        assert polled == ["driver-new"]
 
     @pytest.mark.parametrize(
         ("is_yarn", "is_kubernetes", "status", "expected_active", "expected_succeeded"),

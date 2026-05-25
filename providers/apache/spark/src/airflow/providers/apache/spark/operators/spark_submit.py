@@ -225,8 +225,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         hook = self._hook
-        if hook._should_track_driver_status and self.reconnect_on_retry:
-            return self.execute_resumable(context)
+        if hook._should_track_driver_status:
+            if self.reconnect_on_retry:
+                return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+            driver_id = self.submit_job(context)
+            self.poll_until_complete(driver_id, context)
+            return self.get_job_result(driver_id, context)
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:
