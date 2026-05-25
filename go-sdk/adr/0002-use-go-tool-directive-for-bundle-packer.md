@@ -67,8 +67,10 @@ options from ADR 0001, with a UX twist:
   `go tool airflow-go-pack ./pkg`. Authors who already produce their
   own binary can opt out via `--executable <path>` and skip the build
   phase. This is closer to Option B's ergonomics than the original
-  ADR 0001 sketch, but kept inside the standalone-packer shape so the
-  SDK does not own a fully general `go build` wrapper.
+  ADR 0001 sketch, but the packer never interprets `go build` flags
+  itself — arbitrary flags pass through verbatim after the `--`
+  separator, so the SDK's flag surface stays small and stable as
+  `go build` evolves.
 - **Option D (standardised introspection contract):** every bundle
   binary supports a `--dump-bundle-spec` flag that prints JSON
   containing `sdk.language`, `sdk.version`, and the full `dags` mapping.
