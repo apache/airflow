@@ -205,6 +205,10 @@ ARG_PARTITION_KEY = Arg(
     ("--partition-key",),
     help="Clear all Dag runs whose partition_key matches this exact value.",
 )
+ARG_CLEAR_RUN_ID = Arg(
+    ("--run-id",),
+    help="Clear the Dag run with this run_id.",
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -1136,7 +1140,7 @@ DAGS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_clear"),
         args=(
             ARG_DAG_ID,
-            ARG_RUN_ID,
+            ARG_CLEAR_RUN_ID,
             ARG_PARTITION_KEY,
             ARG_PARTITION_DATE_START,
             ARG_PARTITION_DATE_END,
