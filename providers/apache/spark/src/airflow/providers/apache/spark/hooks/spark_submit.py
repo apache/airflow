@@ -106,6 +106,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     conn_type = "spark"
     hook_name = "Spark"
 
+    _YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY = "yarn_resourcemanager_webapp_address"
+    _HTTP_TIMEOUT = (5, 30)  # (connect, read) seconds
+
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for Spark connection."""
@@ -879,3 +882,60 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.exception("Exception when attempting to kill Spark on K8s")
 
         self._run_post_submit_commands()
+
+    def _get_yarn_rm_base_url(self) -> str:
+        """Resolve the YARN ResourceManager webapp base URL from the Spark connection extra."""
+        try:
+            conn = self.get_connection(self._conn_id)
+        except Exception:
+            conn = None
+        raw = ""
+        if conn is not None:
+            raw = (conn.extra_dejson.get(self._YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY) or "").strip()
+        if not raw:
+            raise ValueError(
+                f"YARN ResumableJobMixin requires the Spark connection's `extra` to set "
+                f"`{self._YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY}` (e.g. `http://rm.example.com:8088`)."
+            )
+        url = raw if "://" in raw else f"http://{raw}"
+        return url.rstrip("/")
+
+    def query_yarn_application_final_status(self, application_id: str) -> str:
+        """GET ``/ws/v1/cluster/apps/{id}`` and return the ``app.finalStatus`` string."""
+        import requests
+
+        url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
+        try:
+            resp = requests.get(url, timeout=self._HTTP_TIMEOUT)
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(
+                f"YARN RM REST API request for application {application_id} failed: {exc}"
+            ) from exc
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"YARN RM REST API returned HTTP {resp.status_code} for application "
+                f"{application_id}: {resp.text[:200]}"
+            )
+        try:
+            return resp.json()["app"]["finalStatus"]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise RuntimeError(
+                f"YARN RM REST API returned unexpected payload for application "
+                f"{application_id}: {resp.text[:200]}"
+            ) from exc
+
+    def kill_yarn_application(self, application_id: str) -> None:
+        """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
+        import requests
+
+        try:
+            url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
+        except ValueError as exc:
+            self.log.warning("Cannot send YARN kill for %s: %s", application_id, exc)
+            return
+        try:
+            resp = requests.put(url, json={"state": "KILLED"}, timeout=self._HTTP_TIMEOUT)
+        except requests.exceptions.RequestException as exc:
+            self.log.warning("YARN kill request for %s failed: %s", application_id, exc)
+            return
+        self.log.info("YARN kill request for %s returned HTTP %s", application_id, resp.status_code)

@@ -226,6 +226,15 @@ connection-types:
             - string
             - 'null'
           default: '6066'
+      yarn_resourcemanager_webapp_address:
+        label: YARN ResourceManager webapp address
+        description: >-
+          Base URL of the YARN ResourceManager REST API (e.g. http://rm.example.com:8088).
+          Required when using ResumableJobMixin in YARN cluster mode.
+        schema:
+          type:
+            - string
+            - 'null'
 
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
