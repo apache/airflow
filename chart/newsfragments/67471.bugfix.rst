@@ -1,0 +1,1 @@
+Use Python's ``socket.gethostname()`` for the default Celery worker liveness probe hostname lookup instead of invoking the OS ``hostname`` binary.
