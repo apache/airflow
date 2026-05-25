@@ -195,7 +195,26 @@ func mapString(m map[string]any, key string) (string, error) {
 	return s, nil
 }
 
-// mapIntOr extracts an int value from a map, returning the default if missing.
+// mapInt extracts an int value from a map. Returns an error if the key is
+// missing or the value is not a numeric type. Use this for fields the
+// supervisor is contractually required to send (e.g. try_number); a silent
+// default would mask supervisor/runtime version-drift bugs.
+func mapInt(m map[string]any, key string) (int, error) {
+	v, ok := m[key]
+	if !ok {
+		return 0, fmt.Errorf("missing key %q", key)
+	}
+	n, err := toInt(v)
+	if err != nil {
+		return 0, fmt.Errorf("key %q: %w", key, err)
+	}
+	return n, nil
+}
+
+// mapIntOr extracts an int value from a map, returning the default when the
+// key is missing OR the value is not a numeric type. Use this only for
+// genuinely optional fields where any decoding hiccup should fall back to
+// the default; for required fields, use mapInt.
 func mapIntOr(m map[string]any, key string, def int) int {
 	v, ok := m[key]
 	if !ok {

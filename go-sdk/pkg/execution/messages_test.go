@@ -75,6 +75,7 @@ func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
 		"ti": map[string]any{
 			"id":      "550e8400-e29b-41d4-a716-446655440000",
 			"task_id": "t", "dag_id": "d", "run_id": "r",
+			"try_number": int64(1),
 		},
 		"start_date": "not-a-timestamp",
 	}
@@ -89,6 +90,7 @@ func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
 		"ti": map[string]any{
 			"id":      "550e8400-e29b-41d4-a716-446655440000",
 			"task_id": "t", "dag_id": "d", "run_id": "r",
+			"try_number": int64(1),
 		},
 		"ti_context": map[string]any{
 			"logical_date": "garbage",
@@ -99,6 +101,40 @@ func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
 	assert.Contains(t, err.Error(), "logical_date")
 }
 
+func TestDecodeStartupDetails_RequiresTryNumber(t *testing.T) {
+	// try_number is required in Python's TaskInstance model; a missing or
+	// wrong-typed value must surface as a decode error rather than silently
+	// defaulting and masking supervisor/runtime version-drift bugs.
+	t.Run("missing", func(t *testing.T) {
+		m := map[string]any{
+			"type": "StartupDetails",
+			"ti": map[string]any{
+				"id":      "550e8400-e29b-41d4-a716-446655440000",
+				"task_id": "t", "dag_id": "d", "run_id": "r",
+			},
+		}
+		_, err := decodeStartupDetails(m)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "try_number")
+	})
+
+	t.Run("wrong type", func(t *testing.T) {
+		m := map[string]any{
+			"type": "StartupDetails",
+			"ti": map[string]any{
+				"id":         "550e8400-e29b-41d4-a716-446655440000",
+				"task_id":    "t",
+				"dag_id":     "d",
+				"run_id":     "r",
+				"try_number": "1",
+			},
+		}
+		_, err := decodeStartupDetails(m)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "try_number")
+	})
+}
+
 func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	// start_date and ti_context fields are optional; omitting them must
 	// still decode cleanly (no error, zero/nil values).
@@ -107,6 +143,7 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 		"ti": map[string]any{
 			"id":      "550e8400-e29b-41d4-a716-446655440000",
 			"task_id": "t", "dag_id": "d", "run_id": "r",
+			"try_number": int64(1),
 		},
 	}
 	details, err := decodeStartupDetails(m)
@@ -211,15 +248,32 @@ func TestGetXComMsgToMapNilMapIndex(t *testing.T) {
 }
 
 func TestSetXComMsgToMap(t *testing.T) {
-	msg := SetXComMsg{
-		Key: "output", Value: 42,
-		DagID: "dag1", TaskID: "task1", RunID: "run1", MapIndex: -1,
-	}
-	m := msg.toMap()
-	assert.Equal(t, "SetXCom", m["type"])
-	assert.Equal(t, 42, m["value"])
-	_, hasMappedLength := m["mapped_length"]
-	assert.False(t, hasMappedLength)
+	t.Run("nil map_index is omitted", func(t *testing.T) {
+		// Unmapped tasks must omit map_index entirely, matching Python's
+		// SetXCom.map_index = None semantics; a -1 sentinel would conflate
+		// "unmapped" with "explicit index -1".
+		msg := SetXComMsg{
+			Key: "output", Value: 42,
+			DagID: "dag1", TaskID: "task1", RunID: "run1",
+		}
+		m := msg.toMap()
+		assert.Equal(t, "SetXCom", m["type"])
+		assert.Equal(t, 42, m["value"])
+		_, hasMapIndex := m["map_index"]
+		assert.False(t, hasMapIndex)
+		_, hasMappedLength := m["mapped_length"]
+		assert.False(t, hasMappedLength)
+	})
+
+	t.Run("non-nil map_index is emitted", func(t *testing.T) {
+		idx := 3
+		msg := SetXComMsg{
+			Key: "output", Value: 42,
+			DagID: "dag1", TaskID: "task1", RunID: "run1", MapIndex: &idx,
+		}
+		m := msg.toMap()
+		assert.Equal(t, 3, m["map_index"])
+	})
 }
 
 func TestSucceedTaskMsgToMap(t *testing.T) {
@@ -232,12 +286,29 @@ func TestSucceedTaskMsgToMap(t *testing.T) {
 	assert.Equal(t, []any{}, m["outlet_events"])
 }
 
+func TestSucceedTaskMsgToMap_PreservesSubsecondPrecision(t *testing.T) {
+	// end_date is formatted with RFC3339Nano so sub-second precision
+	// round-trips through asTime (which parses RFC3339Nano). Truncating to
+	// whole seconds would lose ordering for closely-spaced terminal events.
+	endDate := time.Date(2024, 1, 15, 10, 30, 0, 123456789, time.UTC)
+	msg := SucceedTaskMsg{EndDate: endDate}
+	m := msg.toMap()
+	assert.Equal(t, "2024-01-15T10:30:00.123456789Z", m["end_date"])
+}
+
 func TestTaskStateMsgToMap(t *testing.T) {
 	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
 	m := msg.toMap()
 	assert.Equal(t, "TaskState", m["type"])
 	assert.Equal(t, "failed", m["state"])
+}
+
+func TestTaskStateMsgToMap_PreservesSubsecondPrecision(t *testing.T) {
+	endDate := time.Date(2024, 1, 15, 10, 30, 0, 123456789, time.UTC)
+	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
+	m := msg.toMap()
+	assert.Equal(t, "2024-01-15T10:30:00.123456789Z", m["end_date"])
 }
 
 func TestTaskStateConstants_WireValues(t *testing.T) {

@@ -56,7 +56,10 @@ func decodeTaskInstanceInfo(m map[string]any) (TaskInstanceInfo, error) {
 	if err != nil {
 		return TaskInstanceInfo{}, fmt.Errorf("ti.run_id: %w", err)
 	}
-	tryNumber := mapIntOr(m, "try_number", 1)
+	tryNumber, err := mapInt(m, "try_number")
+	if err != nil {
+		return TaskInstanceInfo{}, fmt.Errorf("ti.try_number: %w", err)
+	}
 	dagVersionID := mapStringOr(m, "dag_version_id", "")
 	mapIndex := mapIntOr(m, "map_index", -1)
 	contextCarrier := mapMap(m, "context_carrier")
@@ -286,26 +289,30 @@ func (m GetXComMsg) toMap() map[string]any {
 	return result
 }
 
-// SetXComMsg is sent to set an XCom value.
+// SetXComMsg is sent to set an XCom value. MapIndex mirrors Python's
+// SetXCom.map_index (int | None): nil means "unmapped task", and is omitted
+// from the wire payload rather than encoded as a -1 sentinel.
 type SetXComMsg struct {
 	Key          string
 	Value        any
 	DagID        string
 	TaskID       string
 	RunID        string
-	MapIndex     int
+	MapIndex     *int
 	MappedLength *int
 }
 
 func (m SetXComMsg) toMap() map[string]any {
 	result := map[string]any{
-		"type":      "SetXCom",
-		"key":       m.Key,
-		"value":     m.Value,
-		"dag_id":    m.DagID,
-		"task_id":   m.TaskID,
-		"run_id":    m.RunID,
-		"map_index": m.MapIndex,
+		"type":    "SetXCom",
+		"key":     m.Key,
+		"value":   m.Value,
+		"dag_id":  m.DagID,
+		"task_id": m.TaskID,
+		"run_id":  m.RunID,
+	}
+	if m.MapIndex != nil {
+		result["map_index"] = *m.MapIndex
 	}
 	if m.MappedLength != nil {
 		result["mapped_length"] = *m.MappedLength
@@ -331,7 +338,7 @@ func (m SucceedTaskMsg) toMap() map[string]any {
 	}
 	return map[string]any{
 		"type":          "SucceedTask",
-		"end_date":      m.EndDate.UTC().Format(time.RFC3339),
+		"end_date":      m.EndDate.UTC().Format(time.RFC3339Nano),
 		"task_outlets":  taskOutlets,
 		"outlet_events": outletEvents,
 	}
@@ -360,7 +367,7 @@ func (m TaskStateMsg) toMap() map[string]any {
 	return map[string]any{
 		"type":     "TaskState",
 		"state":    string(m.State),
-		"end_date": m.EndDate.UTC().Format(time.RFC3339),
+		"end_date": m.EndDate.UTC().Format(time.RFC3339Nano),
 	}
 }
 
