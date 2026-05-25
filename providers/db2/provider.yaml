@@ -52,4 +52,4 @@ operators:
 
 connection-types:
   - hook-class-name: airflow.providers.db2.hooks.db2.Db2Hook
-    connection-type: db2
+    connection-type: Db2
