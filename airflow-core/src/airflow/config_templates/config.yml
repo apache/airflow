@@ -1805,21 +1805,14 @@ api:
     access_control_allow_origins:
       description: |
         Indicates whether the response can be shared with requesting code from the given origins.
-        Separate URLs with space.
+        Separate URLs with space. Wildcard (``*``) is not allowed: Airflow's API requires
+        credentialed CORS, which is incompatible with a wildcard origin per the CORS spec, and
+        browsers reject any response that combines the two. List exact origins instead
+        (for example ``https://airflow.mycompany.com``).
       type: string
       version_added: 2.2.0
       example: ~
       default: ""
-    access_control_allow_credentials:
-      description: |
-        Whether the FastAPI server includes the ``Access-Control-Allow-Credentials`` header on
-        CORS responses. Defaults to True to preserve existing behavior; set to False if you have
-        configured ``access_control_allow_origins`` and do not want browsers to send credentials
-        (cookies, Authorization header) with cross-origin requests.
-      type: boolean
-      version_added: 3.2.2
-      example: ~
-      default: "True"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
