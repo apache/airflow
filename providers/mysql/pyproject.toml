@@ -68,7 +68,10 @@ dependencies = [
     'mysqlclient>=2.2.5; sys_platform != "darwin"',
     'mysql-connector-python>=9.1.0; python_version < "3.12"',
     'mysql-connector-python>=9.1.0, !=9.7.0; python_version >= "3.12"',
+    # pymysql 1.2.0 changed ping() to require reconnect as a positional arg;
+    # aiomysql is not yet compatible — cap until aiomysql releases a fix
     "aiomysql>=0.2.0",
+    "pymysql>=1.0.3,<1.2",
 ]
 
 # The optional dependencies should be modified in place in the generated file

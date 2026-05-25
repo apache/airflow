@@ -75,7 +75,7 @@ connection-types:
           type:
             - string
             - 'null'
-      jwt:
+      jwt_token:
         label: JWT
         schema:
           type:

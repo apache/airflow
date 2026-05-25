@@ -25,6 +25,7 @@
   - [Project-specific URLs](#project-specific-urls)
   - [Quality-criteria marker string](#quality-criteria-marker-string)
   - [AI-attribution footer](#ai-attribution-footer)
+  - [Violations bullet format](#violations-bullet-format)
   - [Template bodies](#template-bodies)
     - [`draft`](#draft)
     - [`comment-only`](#comment-only)
@@ -34,6 +35,7 @@
     - [`reviewer-ping` (author-primary)](#reviewer-ping-author-primary)
     - [`reviewer-ping` (reviewer-re-review)](#reviewer-ping-reviewer-re-review)
     - [`mark-ready-with-ping`](#mark-ready-with-ping)
+    - [`request-author-confirmation`](#request-author-confirmation)
     - [`stale-draft-close` (triaged)](#stale-draft-close-triaged)
     - [`stale-draft-close` (untriaged)](#stale-draft-close-untriaged)
     - [`inactive-to-draft`](#inactive-to-draft)
@@ -97,6 +99,69 @@ rationale).
 _Note: This comment was drafted by an AI-assisted triage tool and may contain mistakes. Once you have addressed the points above, an Apache Airflow maintainer — a real person — will take the next look at your PR. We use this [two-stage triage process](https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated) so that our maintainers' limited time is spent where it matters most: the conversation with you._
 ```
 
+## Violations bullet format
+
+`<violations>` in the [template bodies](#template-bodies) below
+expands to a bullet list — one bullet per category of failing
+check or other violation. For this project, the bullet uses the
+**bare-category form**:
+
+```
+- :x: **<category>**. See [docs](<doc_link>).
+```
+
+- `:x:` for severity `error`, `:warning:` for severity `warning`.
+- `<category>` and `<doc_link>` are looked up in
+  [`pr-management-triage-ci-check-map.md`](pr-management-triage-ci-check-map.md)
+  (one bullet per **category**, regardless of how many individual
+  check names matched it).
+
+### Do not list individual failing job names
+
+This overrides the framework default. The triage comment must
+**not** enumerate the failing check names underneath the
+category (e.g. avoid `:x: **Kubernetes tests** — Failing:
+Kubernetes tests / K8S System:LocalExecutor-3.10-v1.30.13-false,
+Kubernetes tests / K8S System:KubernetesExecutor-3.10-...,
+(+1 more). See docs.`).
+
+The same applies to the per-category remediation snippets the
+framework's default rendering may add ("Run `prek run …`
+locally and fix anything that flags." etc.) — drop them. The
+linked doc has the steps; the bullet's job is to point at the
+**category** and the **doc URL**, nothing more.
+
+GitHub's Checks tab already shows the failing job names and
+re-running steps; repeating them in the triage comment adds
+noise without adding signal and pushes the comment past the
+size where contributors actually read it. Multiple violations
+in different categories produce multiple bullets in the same
+list; multiple failing checks in the same category produce a
+single bullet.
+
+### Non-CI violations with a useful inline payload
+
+A few violations carry a short payload that is genuinely useful
+in the bullet itself (number of unresolved threads, count of
+flagged PRs by the author, branch-behind-by-N). For those, the
+bullet may append the payload inline after the category:
+
+```
+- :x: **<category>**: <short payload>. See [docs](<doc_link>).
+```
+
+Examples permitted by this rule:
+
+- `- :x: **Unresolved review comments**: 3 thread(s). See [docs](…).`
+- `- :x: **Multiple flagged PRs**: <flagged_count> of your PRs are currently flagged for quality issues. Please focus on those before opening new ones.`
+  (already present verbatim in the [`close`](#close) template
+  body below — kept as-is.)
+
+The payload must be **one short clause**, not a list of
+job names. If you find yourself listing three or more items in
+the payload, the rule above applies — drop them and let the
+doc link do the work.
+
 ## Template bodies
 
 The framework's [`comment-templates.md`](../../.claude/skills/pr-management-triage/comment-templates.md)
@@ -145,10 +210,26 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 <ai_attribution_footer>
 ```
 
+### `review-nudge` (author-primary)
+
+```markdown
+@<author> — This PR has new commits since the last review requesting changes from <reviewer_logins>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? When you believe the threads are resolved, please mark them as resolved and ping the reviewer (<reviewer_logins>) — they'll either re-review or hand the PR back to the queue. Thanks!
+
+<ai_attribution_footer>
+```
+
 ### `review-nudge` (reviewer-re-review)
 
 ```markdown
 @<author> <reviewers> — This PR has new commits since the last review requesting changes, and the diff looks like it addresses the feedback (see <thread-links>). @<reviewers>, could you take another look when you have a chance to confirm? Thanks!
+
+<ai_attribution_footer>
+```
+
+### `reviewer-ping` (author-primary)
+
+```markdown
+@<author> — There are <N> unresolved review thread(s) on this PR from <reviewer_logins>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? When you believe the feedback is addressed, please mark the threads as resolved and ping the reviewer (<reviewer_logins>) for a final look. Thanks!
 
 <ai_attribution_footer>
 ```
@@ -169,6 +250,25 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 @<author> — Your unresolved review thread(s) from <reviewers> appear to have been addressed (post-review commits and/or in-thread replies on every thread, with the latest commit pushed after the most recent thread). I've added the `ready for maintainer review` label so the PR re-enters the maintainer review queue.
 
 <reviewers> — could you take another look when you have a chance? If you agree the feedback was addressed, please mark the threads as resolved so the queue signal stays accurate. If a thread still needs work, please reply in-line — @<author> will follow up.
+
+<ai_attribution_footer>
+```
+
+### `request-author-confirmation`
+
+The body **must** include the literal marker string
+`ready for maintainer review confirmation` verbatim — the
+framework's
+[`viewer_confirmation_request_present`](../.claude/skills/pr-management-triage/classify-and-act.md#viewer_confirmation_request_present)
+precondition searches for that exact text. Do not paraphrase
+that string when adapting the rest of the body.
+
+```markdown
+@<author> — There are <N> unresolved review thread(s) on this PR, and you have engaged with each one (post-review commits and/or in-thread replies). Could you confirm whether you believe the feedback is fully addressed and the PR is ready for maintainer review confirmation?
+
+If yes, reply here (a short "yes / ready" is fine) and an Apache Airflow maintainer will pick the PR up from the review queue on the next sweep.
+
+If you are still working on a thread, please reply with what is outstanding so the threads stay unresolved on purpose.
 
 <ai_attribution_footer>
 ```

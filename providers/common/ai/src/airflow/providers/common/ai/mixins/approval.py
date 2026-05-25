@@ -84,6 +84,15 @@ class LLMApprovalMixin:
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                "require_approval=True is not supported with a non-string prompt. "
+                "The approval review body renders the prompt as text; passing a "
+                "Sequence[UserContent] would expose object reprs (and any embedded "
+                "bytes) in the human review UI. Return a str prompt, or disable "
+                "require_approval."
+            )
+
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
         if not isinstance(output, str):
