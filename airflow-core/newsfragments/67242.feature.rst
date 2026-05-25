@@ -1,1 +1,1 @@
-Restore per-DAG run state counts on the DAG list page; click a count to jump to that DAG's runs filtered by state.
+Restore per-Dag run state counts on the Dag list page; click a count to jump to that Dag's runs filtered by state.
