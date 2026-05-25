@@ -95,7 +95,16 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             try:
                 return GCSHook(gcp_conn_id=conn_id)
             except AirflowNotFoundException:
-                pass
+                # The operator configured a ``remote_log_conn_id`` that doesn't exist. We
+                # fall back to Application Default Credentials, but the operator almost
+                # certainly didn't mean that — a misconfigured remote-log connection is a
+                # security control failure (logs going through the wrong credentials) and
+                # must be visible in the worker log.
+                self.log.warning(
+                    "remote_log_conn_id %r is not configured; falling back to Application "
+                    "Default Credentials for GCS log handler.",
+                    conn_id,
+                )
         return None
 
     @cached_property
