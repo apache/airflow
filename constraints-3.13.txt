@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-24T20:03:54.324876
+# This constraints file was automatically generated on 2026-05-25T08:27:25.693372
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -311,7 +311,7 @@ gcloud-aio-storage==9.6.4
 gcsfs==2026.4.0
 genai-prices==0.0.61
 geomet==1.1.0
-gevent==26.4.0
+gevent==26.5.0
 gitdb==4.0.12
 google-ads==31.0.0
 google-analytics-admin==0.29.0
@@ -552,9 +552,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.99.0
+pydantic-ai-slim==1.100.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.99.0
+pydantic-graph==1.100.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -692,7 +692,7 @@ websocket-client==1.8.0
 websockets==16.0
 wheel==0.47.0
 wirerope==1.0.0
-wrapt==2.1.2
+wrapt==2.2.0
 xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.391.0
