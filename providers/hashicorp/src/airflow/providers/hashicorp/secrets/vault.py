@@ -75,7 +75,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` and ``gcp`` auth_types).
     :param assume_role_kwargs: AWS assume role param.
         See AWS STS Docs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html

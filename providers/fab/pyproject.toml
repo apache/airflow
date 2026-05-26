@@ -26,7 +26,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.7.17",
+    "trove-classifiers==2026.5.20.19",
 ]
 build-backend = "hatchling.build"
 
@@ -97,10 +97,7 @@ dependencies = [
     "wtforms>=3.0",
     "cachetools>=6.0",
     "marshmallow>=3",
-
-    # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
-    # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
-    "flask_limiter>3,!=3.13",
+    "flask_limiter>3",
 ]
 
 # The optional dependencies should be modified in place in the generated file
