@@ -32,7 +32,7 @@ import msgspec
 import structlog
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 from tenacity import (
     before_log,
     retry,
@@ -721,7 +721,7 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task state value via the API server."""
         body = TaskStatePutBody(value=value, expires_at=expires_at)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
@@ -774,7 +774,9 @@ class AssetStateOperations:
             raise
         return AssetStateResponse.model_validate_json(resp.read())
 
-    def set(self, key: str, value: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+    def set(
+        self, key: str, value: JsonValue, *, name: str | None = None, uri: str | None = None
+    ) -> OKResponse:
         """Set an asset state value via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
