@@ -1566,7 +1566,10 @@ class TestTaskStateAccessorWithCustomBackend:
         # comms message has the mem:// reference, not the actual value
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(
-                ti_id=self.TI_ID, key="job_id", value=expected_ref, expires_at=frozen_dt + timedelta(days=30)
+                ti_id=self.TI_ID,
+                key="job_id",
+                value={"__var": expected_ref, "__type": "ExternalState"},
+                expires_at=frozen_dt + timedelta(days=30),
             )
         )
         # actual value is stored on the backend, reference is stored for DB
@@ -1575,7 +1578,7 @@ class TestTaskStateAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = f"mem://{self.TI_ID}/job_id"
+        ref = {"__var": f"mem://{self.TI_ID}/job_id", "__type": "ExternalState"}
         backend._actual_key_value_store["job_id"] = "app_001"
         mock_supervisor_comms.send.return_value = TaskStateResult(value=ref)
 
@@ -1629,7 +1632,11 @@ class TestAssetStateAccessorWithCustomBackend:
         expected_ref = f"mem://{self.ASSET_NAME}/watermark"
         # comms message has the mem:// reference, not the actual value
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value=expected_ref)
+            SetAssetStateByName(
+                name=self.ASSET_NAME,
+                key="watermark",
+                value={"__var": expected_ref, "__type": "ExternalState"},
+            )
         )
         # actual value is stored on the backend, reference is stored for DB
         assert backend._actual_key_value_store["watermark"] == "2026-05-01"
@@ -1637,7 +1644,7 @@ class TestAssetStateAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = f"mem://{self.ASSET_NAME}/watermark"
+        ref = {"__var": f"mem://{self.ASSET_NAME}/watermark", "__type": "ExternalState"}
         backend._actual_key_value_store["watermark"] = "2026-05-01"
         mock_supervisor_comms.send.return_value = AssetStateResult(value=ref)
 

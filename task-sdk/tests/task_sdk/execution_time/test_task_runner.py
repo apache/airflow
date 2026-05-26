@@ -5593,7 +5593,11 @@ class TestTaskInstanceStateOperations:
             value="2026-05-01", key="watermark", asset_ref="my_asset"
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStateByName(name="my_asset", key="watermark", value="mem://my_asset/watermark")
+            SetAssetStateByName(
+                name="my_asset",
+                key="watermark",
+                value={"__var": "mem://my_asset/watermark", "__type": "ExternalState"},
+            )
         )
 
     def test_task_state_set_sends_reference_via_custom_backend(
@@ -5625,7 +5629,10 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(
             SetTaskState(
-                ti_id=runtime_ti.id, key="job_id", value=ref, expires_at=frozen_dt + timedelta(days=30)
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value={"__var": ref, "__type": "ExternalState"},
+                expires_at=frozen_dt + timedelta(days=30),
             )
         )
 
