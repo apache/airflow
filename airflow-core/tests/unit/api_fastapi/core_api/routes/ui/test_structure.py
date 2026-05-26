@@ -710,13 +710,15 @@ class TestStructureDataEndpoint:
         assert response.json()["detail"] == "Dag with id not_existing was not found"
 
     @pytest.mark.usefixtures("make_dags")
-    def test_should_return_500_on_malformed_asset_expression(self, test_client):
-        """A TypeError from get_upstream_assets surfaces as a 500 with a clear message.
+    def test_should_return_400_on_malformed_asset_expression(self, test_client):
+        """A TypeError from get_upstream_assets surfaces as a 400 with a clear message.
 
+        The asset_expression ultimately comes from user-authored Dag code (via the Task SDK),
+        so a malformed expression is bad input that ended up persisted -- not a server fault.
         Without the try/except wrap, the TypeError propagates uncaught and FastAPI returns a
-        generic ``{"detail": "Internal Server Error"}`` body with no context about which Dag
-        triggered it. With the wrap, the response body identifies the Dag and version, which
-        is what an operator needs to start debugging stored-data corruption.
+        generic ``{"detail": "Internal Server Error"}`` 500 body with no context about which
+        Dag triggered it. With the wrap, the response identifies the Dag and version, which
+        is what a caller needs to fix the upstream Dag definition.
         """
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.ui.structure.get_upstream_assets",
@@ -726,7 +728,7 @@ class TestStructureDataEndpoint:
                 "/structure/structure_data",
                 params={"dag_id": DAG_ID, "external_dependencies": True},
             )
-        assert response.status_code == 500
+        assert response.status_code == 400
         detail = response.json()["detail"]
         assert "Malformed asset_expression" in detail
         assert DAG_ID in detail

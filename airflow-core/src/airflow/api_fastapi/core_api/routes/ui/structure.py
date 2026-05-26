@@ -42,7 +42,12 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 @structure_router.get(
     "/structure_data",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[
         Depends(requires_access_dag("GET")),
         Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)),
@@ -167,7 +172,7 @@ def structure_data(
                 )
             except TypeError as e:
                 raise HTTPException(
-                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status.HTTP_400_BAD_REQUEST,
                     f"Malformed asset_expression in Dag {dag_id!r} version {version_number}: {e}",
                 ) from e
             data["nodes"] += upstream_asset_nodes
