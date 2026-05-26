@@ -274,6 +274,35 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    def test_next_execution_table_no_following_schedule(self, tmp_path, stdout_capture, stderr_capture):
+        dag_id = "no_schedule_next_execution_table"
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC'), schedule=None)",
+                "task = EmptyOperator(task_id='empty_task', dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table"])
+        with stdout_capture as temp_stdout, stderr_capture as temp_stderr:
+            dag_command.dag_next_execution(args)
+
+        assert "logical_date" in temp_stdout.getvalue()
+        assert "None" in temp_stdout.getvalue()
+        assert "No following schedule can be found" in temp_stderr.getvalue()
+
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])

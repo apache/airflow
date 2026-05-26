@@ -438,13 +438,27 @@ def dag_next_execution(args) -> None:
             if dagrun_info is None:
                 break
 
+    def print_no_following_schedule_warning() -> None:
+        print(
+            "[WARN] No following schedule can be found. "
+            "This DAG may have schedule interval '@once' or `None`.",
+            file=sys.stderr,
+        )
+
     if args.table:
         if last_parsed_dag.timetable_partitioned:
             columns = ["partition_key", "partition_date", "run_after"]
         else:
             columns = ["logical_date", "data_interval.start", "data_interval.end", "run_after"]
         getters = [(c, operator.attrgetter(c)) for c in columns]
-        AirflowConsole().print_as_table([{n: f(o) for n, f in getters} for o in iter_next_dagrun_info()])
+        rows = []
+        for info in iter_next_dagrun_info():
+            if info is None:
+                print_no_following_schedule_warning()
+                rows.append({n: None for n, _ in getters})
+            else:
+                rows.append({n: f(info) for n, f in getters})
+        AirflowConsole().print_as_table(rows)
         return
 
     if args.field:
@@ -456,11 +470,7 @@ def dag_next_execution(args) -> None:
 
     for info in iter_next_dagrun_info():
         if info is None:
-            print(
-                "[WARN] No following schedule can be found. "
-                "This DAG may have schedule interval '@once' or `None`.",
-                file=sys.stderr,
-            )
+            print_no_following_schedule_warning()
             print(None)
         else:
             value = getter(info)
