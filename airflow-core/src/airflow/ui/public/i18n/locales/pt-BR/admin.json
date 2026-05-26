@@ -43,7 +43,7 @@
     },
     "nothingFound": {
       "description": "Conexões definidas via variáveis de ambiente ou gerenciadores de segredos não estão listadas aqui.",
-      "documentationLink": "Saiba mais na documentação do Airflow.",
+      "documentationLink": "Consulte a documentação do Airflow para saber mais.",
       "learnMore": "Estas são resolvidas em tempo de execução e não são visíveis na interface do usuário.",
       "title": "Nenhuma conexão encontrada!"
     },
