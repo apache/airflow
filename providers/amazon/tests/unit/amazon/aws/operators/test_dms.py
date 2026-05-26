@@ -230,7 +230,7 @@ class TestDmsModifyTaskOperator:
         assert op.cdc_start_position is None
         assert op.cdc_stop_position is None
         assert op.stop_task_before is False
-        assert op.restart_task_after is True
+        assert op.restart_task_after is False
         assert op.start_replication_task_type == "resume-processing"
 
     def test_init_raises_if_both_cdc_start_params_provided(self):
@@ -255,6 +255,7 @@ class TestDmsModifyTaskOperator:
                 task_id="modify_task",
                 replication_task_arn=self.TASK_ARN,
                 table_mappings=self.TABLE_MAPPINGS,
+                restart_task_after=True,
             )
             result = op.execute(None)
 
@@ -444,12 +445,13 @@ class TestDmsModifyTaskOperator:
                 replication_task_arn=self.TASK_ARN,
                 table_mappings=self.TABLE_MAPPINGS,
                 wait_for_completion=True,
+                restart_task_after=False,
                 waiter_delay=0,
             )
             op.execute(None)
 
             mock_modify.assert_called_once()
-            mock_start.assert_called_once()
+            mock_start.assert_not_called()
 
     def test_template_fields(self):
         op = DmsModifyTaskOperator(

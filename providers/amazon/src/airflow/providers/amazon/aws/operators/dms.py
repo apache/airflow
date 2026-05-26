@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, ClassVar
@@ -124,7 +125,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     Modifies an existing AWS DMS replication task.
 
     If the task is not already stopped, set ``stop_task_before=True`` to stop it first.
-    After modification, set ``restart_task_after=True`` to restart it automatically.
+    To restart the task after modification, set ``restart_task_after=True``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -191,7 +192,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         cdc_start_position: str | None = None,
         cdc_stop_position: str | None = None,
         stop_task_before: bool = False,
-        restart_task_after: bool = True,
+        restart_task_after: bool = False,
         start_replication_task_type: str = "resume-processing",
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -285,8 +286,6 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         boto3 waiters for replication_task_stopped and replication_task_ready both
         treat 'modifying' as a terminal failure, so a polling loop is necessary.
         """
-        import time
-
         for _ in range(self.waiter_max_attempts):
             tasks = self.hook.find_replication_tasks_by_arn(
                 replication_task_arn=self.replication_task_arn, without_settings=True
@@ -310,9 +309,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             f"after {self.waiter_max_attempts} attempts."
         )
 
-    def _wait_for_status(self, target_status: str) -> None:
-        import time
+    TERMINAL_STATES = frozenset({"failed", "stopped", "ready", "created", "deleting"})
 
+    def _wait_for_status(self, target_status: str) -> None:
         for _ in range(self.waiter_max_attempts):
             tasks = self.hook.find_replication_tasks_by_arn(
                 replication_task_arn=self.replication_task_arn, without_settings=True
@@ -323,6 +322,11 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                     "Replication task(%s) reached status '%s'.", self.replication_task_arn, status
                 )
                 return
+            if status in self.TERMINAL_STATES and status != target_status:
+                raise AirflowException(
+                    f"Replication task {self.replication_task_arn} reached terminal state '{status}' "
+                    f"while waiting for '{target_status}'."
+                )
             self.log.info(
                 "Replication task(%s) status '%s', waiting for '%s' (%ds) ...",
                 self.replication_task_arn,

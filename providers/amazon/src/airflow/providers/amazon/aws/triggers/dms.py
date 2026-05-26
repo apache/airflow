@@ -225,6 +225,11 @@ class DmsTaskStoppedTrigger(AwsBaseWaiterTrigger):
     """
     Trigger when an AWS DMS classic replication task reaches the stopped state.
 
+    Uses the ``replication_task_stopped`` boto3 waiter, which treats ``modifying`` as a terminal
+    failure. This is safe here because the trigger is only invoked after ``StopReplicationTask``
+    has been called, so the task transitions through ``stopping`` → ``stopped`` and will never
+    enter ``modifying`` while this trigger is waiting.
+
     :param replication_task_arn: The ARN of the replication task.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
