@@ -390,6 +390,8 @@ with DAG(
                 }
             ]
         },
+        restart_task_after=True,
+        start_replication_task_type="resume-processing",
     )
     # [END howto_operator_dms_modify_task]
 
@@ -450,6 +452,7 @@ with DAG(
         describe_tasks,
         await_task_start,
         stop_task,
+        modify_task,
         await_task_stop,
         # TEST TEARDOWN
         delete_task,

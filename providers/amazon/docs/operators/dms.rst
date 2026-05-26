@@ -65,7 +65,8 @@ Modify a replication task
 
 To modify an existing replication task (e.g. to update table mappings for a backfill) you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsModifyTaskOperator`.
-The task must be stopped before modification.
+Set ``stop_task_before=True`` to stop a running task automatically before modification,
+and ``restart_task_after=True`` to restart it afterwards.
 
 .. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
     :language: python

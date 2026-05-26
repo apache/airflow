@@ -123,9 +123,8 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Modifies an existing AWS DMS replication task.
 
-    The task must be in a stopped state before modification. If ``wait_for_completion``
-    is ``True`` (the default), the operator will first wait for the task to reach the
-    stopped state before applying the modification.
+    If the task is not already stopped, set ``stop_task_before=True`` to stop it first.
+    After modification, set ``restart_task_after=True`` to restart it automatically.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -140,11 +139,17 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     :param cdc_start_position: Indicates when to start CDC (checkpoint or LSN/SCN format).
         Mutually exclusive with cdc_start_time.
     :param cdc_stop_position: Indicates when to stop CDC.
-    :param wait_for_completion: If True, waits for the task to be in a stopped state before
-        modifying. If False, the caller is responsible for ensuring the task is stopped.
+    :param stop_task_before: If True, stop the task before modifying if it is not already stopped.
+    :param restart_task_after: If True, restart the task after modifying.
+    :param start_replication_task_type: Start type used when restarting the task.
+        One of 'start-replication', 'resume-processing', or 'reload-target'.
+        Defaults to 'resume-processing'. Only used when ``restart_task_after=True``.
+    :param wait_for_completion: If True, wait for the task to be stopped before modifying
+        when the task is not already in a stopped state. Requires ``stop_task_before=True``
+        or the task to already be stopping. If False, raises if the task is not stopped.
     :param deferrable: Run the operator in deferrable mode.
-    :param waiter_delay: The number of seconds to wait between retries (default: 30).
-    :param waiter_max_attempts: The maximum number of attempts to be made (default: 60).
+    :param waiter_delay: Seconds between waiter polls (default: 30).
+    :param waiter_max_attempts: Maximum waiter poll attempts (default: 60).
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -158,8 +163,6 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     """
 
     STOPPED_STATES = ("stopped", "ready", "failed", "created")
-    MODIFYING_STATES = ("modifying",)
-    STOPPABLE_STATES = ("running", "starting", "stopping")
 
     aws_hook_class = DmsHook
     template_fields: Sequence[str] = aws_template_fields(
@@ -170,6 +173,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         "cdc_start_time",
         "cdc_start_position",
         "cdc_stop_position",
+        "start_replication_task_type",
     )
     template_fields_renderers: ClassVar[dict] = {
         "table_mappings": "json",
@@ -186,6 +190,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         cdc_start_time: datetime | None = None,
         cdc_start_position: str | None = None,
         cdc_stop_position: str | None = None,
+        stop_task_before: bool = False,
+        restart_task_after: bool = True,
+        start_replication_task_type: str = "resume-processing",
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -202,17 +209,15 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         self.cdc_start_time = cdc_start_time
         self.cdc_start_position = cdc_start_position
         self.cdc_stop_position = cdc_stop_position
+        self.stop_task_before = stop_task_before
+        self.restart_task_after = restart_task_after
+        self.start_replication_task_type = start_replication_task_type
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> dict:
-        """
-        Modify AWS DMS replication task.
-
-        :return: Modified replication task dict
-        """
         tasks = self.hook.find_replication_tasks_by_arn(
             replication_task_arn=self.replication_task_arn, without_settings=True
         )
@@ -224,30 +229,31 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             "Current status of replication task(%s) is '%s'.", self.replication_task_arn, current_status
         )
 
-        if current_status in self.MODIFYING_STATES:
+        if current_status == "modifying":
+            # boto3 stopped/ready waiters treat 'modifying' as a terminal failure — use poll loop.
             if not self.wait_for_completion:
                 raise AirflowException(
-                    f"Replication task {self.replication_task_arn} is in state '{current_status}'. "
-                    f"Wait for it to return to 'ready' before modifying, or set wait_for_completion=True."
+                    f"Replication task {self.replication_task_arn} is already being modified. "
+                    f"Set wait_for_completion=True to wait for it to finish."
                 )
-            self.log.info(
-                "Replication task(%s) is currently modifying. Waiting for it to become ready.",
-                self.replication_task_arn,
-            )
-            self.hook.wait_for_task_status(
-                replication_task_arn=self.replication_task_arn,
-                status=DmsTaskWaiterStatus.READY,
-            )
+            self._wait_until_not_modifying()
         elif current_status not in self.STOPPED_STATES:
-            if not self.wait_for_completion:
+            if not self.stop_task_before:
                 raise AirflowException(
                     f"Replication task {self.replication_task_arn} is in state '{current_status}' "
-                    f"and must be stopped before modification. Set wait_for_completion=True to wait "
+                    f"and must be stopped before modification. Set stop_task_before=True to stop it "
                     f"automatically, or stop the task first."
                 )
-            self.log.info(
-                "Replication task(%s) is running. Waiting for it to stop.", self.replication_task_arn
-            )
+            if current_status == "starting":
+                # DMS rejects StopReplicationTask while the task is still starting up.
+                self.log.info(
+                    "Replication task(%s) is starting, waiting for it to reach 'running'.",
+                    self.replication_task_arn,
+                )
+                self._wait_for_status("running")
+            self.log.info("Stopping replication task(%s).", self.replication_task_arn)
+            self.hook.stop_replication_task(replication_task_arn=self.replication_task_arn)
+            self.log.info("Waiting for replication task(%s) to stop.", self.replication_task_arn)
             if self.deferrable:
                 self.defer(
                     trigger=DmsTaskStoppedTrigger(
@@ -272,6 +278,64 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         self.replication_task_arn = validated_event["replication_task_arn"]
         return self._do_modify()
 
+    def _wait_until_not_modifying(self) -> None:
+        """
+        Poll until the task leaves the 'modifying' state.
+
+        boto3 waiters for replication_task_stopped and replication_task_ready both
+        treat 'modifying' as a terminal failure, so a polling loop is necessary.
+        """
+        import time
+
+        for _ in range(self.waiter_max_attempts):
+            tasks = self.hook.find_replication_tasks_by_arn(
+                replication_task_arn=self.replication_task_arn, without_settings=True
+            )
+            status = tasks[0].get("Status", "").lower() if tasks else ""
+            if status != "modifying":
+                self.log.info(
+                    "Replication task(%s) finished modifying, current status: '%s'.",
+                    self.replication_task_arn,
+                    status,
+                )
+                return
+            self.log.info(
+                "Replication task(%s) still modifying, waiting %ds ...",
+                self.replication_task_arn,
+                self.waiter_delay,
+            )
+            time.sleep(self.waiter_delay)
+        raise AirflowException(
+            f"Replication task {self.replication_task_arn} did not finish modifying "
+            f"after {self.waiter_max_attempts} attempts."
+        )
+
+    def _wait_for_status(self, target_status: str) -> None:
+        import time
+
+        for _ in range(self.waiter_max_attempts):
+            tasks = self.hook.find_replication_tasks_by_arn(
+                replication_task_arn=self.replication_task_arn, without_settings=True
+            )
+            status = tasks[0].get("Status", "").lower() if tasks else ""
+            if status == target_status:
+                self.log.info(
+                    "Replication task(%s) reached status '%s'.", self.replication_task_arn, status
+                )
+                return
+            self.log.info(
+                "Replication task(%s) status '%s', waiting for '%s' (%ds) ...",
+                self.replication_task_arn,
+                status,
+                target_status,
+                self.waiter_delay,
+            )
+            time.sleep(self.waiter_delay)
+        raise AirflowException(
+            f"Replication task {self.replication_task_arn} did not reach status '{target_status}' "
+            f"after {self.waiter_max_attempts} attempts."
+        )
+
     def _do_modify(self) -> dict:
         result = self.hook.modify_replication_task(
             replication_task_arn=self.replication_task_arn,
@@ -283,6 +347,18 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             cdc_stop_position=self.cdc_stop_position,
         )
         self.log.info("DMS replication task(%s) has been modified.", self.replication_task_arn)
+        if self.restart_task_after:
+            # modify_replication_task is async — poll until it exits 'modifying' before restarting.
+            self._wait_until_not_modifying()
+            self.log.info(
+                "Restarting replication task(%s) with type '%s'.",
+                self.replication_task_arn,
+                self.start_replication_task_type,
+            )
+            self.hook.start_replication_task(
+                replication_task_arn=self.replication_task_arn,
+                start_replication_task_type=self.start_replication_task_type,
+            )
         return result
 
 

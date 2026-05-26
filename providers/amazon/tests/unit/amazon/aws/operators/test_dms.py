@@ -201,6 +201,9 @@ class TestDmsModifyTaskOperator:
     def _running_task(self):
         return [{"ReplicationTaskArn": self.TASK_ARN, "Status": "running"}]
 
+    def _modifying_task(self):
+        return [{"ReplicationTaskArn": self.TASK_ARN, "Status": "modifying"}]
+
     def test_init(self):
         op = DmsModifyTaskOperator(
             task_id="modify_task",
@@ -226,6 +229,9 @@ class TestDmsModifyTaskOperator:
         assert op.cdc_start_time is None
         assert op.cdc_start_position is None
         assert op.cdc_stop_position is None
+        assert op.stop_task_before is False
+        assert op.restart_task_after is True
+        assert op.start_replication_task_type == "resume-processing"
 
     def test_init_raises_if_both_cdc_start_params_provided(self):
         from datetime import datetime
@@ -238,9 +244,10 @@ class TestDmsModifyTaskOperator:
                 cdc_start_position="mysql-bin.000001:4",
             )
 
+    @mock.patch.object(DmsHook, "start_replication_task")
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
-    def test_modify_task_already_stopped(self, mock_conn, mock_find):
+    def test_modify_task_already_stopped(self, mock_conn, mock_find, mock_start):
         mock_find.return_value = self._stopped_task()
         expected = {"ReplicationTaskArn": self.TASK_ARN}
         with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected) as mock_modify:
@@ -260,25 +267,66 @@ class TestDmsModifyTaskOperator:
                 cdc_start_position=None,
                 cdc_stop_position=None,
             )
+            mock_start.assert_called_once_with(
+                replication_task_arn=self.TASK_ARN,
+                start_replication_task_type="resume-processing",
+            )
             assert result == expected
 
+    @mock.patch.object(DmsHook, "start_replication_task")
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_no_restart(self, mock_conn, mock_find, mock_start):
+        mock_find.return_value = self._stopped_task()
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                restart_task_after=False,
+            )
+            op.execute(None)
+            mock_start.assert_not_called()
+
+    @mock.patch.object(DmsHook, "start_replication_task")
+    @mock.patch.object(DmsHook, "stop_replication_task")
     @mock.patch.object(DmsHook, "wait_for_task_status")
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
-    def test_modify_task_waits_if_running(self, mock_conn, mock_find, mock_wait):
+    def test_modify_task_stop_before_and_restart_after(
+        self, mock_conn, mock_find, mock_wait, mock_stop, mock_start
+    ):
         mock_find.return_value = self._running_task()
         expected = {"ReplicationTaskArn": self.TASK_ARN}
-        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected) as mock_modify:
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
             op = DmsModifyTaskOperator(
                 task_id="modify_task",
                 replication_task_arn=self.TASK_ARN,
                 table_mappings=self.TABLE_MAPPINGS,
-                wait_for_completion=True,
+                stop_task_before=True,
+                restart_task_after=True,
+                start_replication_task_type="start-replication",
             )
             op.execute(None)
 
+            mock_stop.assert_called_once_with(replication_task_arn=self.TASK_ARN)
             mock_wait.assert_called_once()
-            mock_modify.assert_called_once()
+            mock_start.assert_called_once_with(
+                replication_task_arn=self.TASK_ARN,
+                start_replication_task_type="start-replication",
+            )
+
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_raises_if_running_and_no_stop_before(self, mock_conn, mock_find):
+        mock_find.return_value = self._running_task()
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+            stop_task_before=False,
+        )
+        with pytest.raises(AirflowException, match="must be stopped"):
+            op.execute(None)
 
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
@@ -288,9 +336,41 @@ class TestDmsModifyTaskOperator:
             task_id="modify_task",
             replication_task_arn=self.TASK_ARN,
             wait_for_completion=False,
+            stop_task_before=False,
         )
         with pytest.raises(AirflowException, match="must be stopped"):
             op.execute(None)
+
+    @mock.patch.object(DmsHook, "start_replication_task")
+    @mock.patch.object(DmsHook, "wait_for_task_status")
+    @mock.patch.object(DmsHook, "stop_replication_task")
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_starting_waits_for_running_before_stopping(
+        self, mock_conn, mock_find, mock_stop, mock_wait, mock_start
+    ):
+        starting_task = [{"ReplicationTaskArn": self.TASK_ARN, "Status": "starting"}]
+        stopped_task = self._stopped_task()
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        # execute() sees 'starting'; _wait_for_status polls twice (starting→running); then _wait_until_not_modifying sees 'stopped'
+        mock_find.side_effect = [
+            starting_task,
+            [{"ReplicationTaskArn": self.TASK_ARN, "Status": "starting"}],
+            [{"ReplicationTaskArn": self.TASK_ARN, "Status": "running"}],
+            stopped_task,
+        ]
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                table_mappings=self.TABLE_MAPPINGS,
+                stop_task_before=True,
+                restart_task_after=False,
+            )
+            op.execute(None)
+
+        mock_stop.assert_called_once_with(replication_task_arn=self.TASK_ARN)
+        mock_wait.assert_called_once()
 
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
@@ -310,6 +390,7 @@ class TestDmsModifyTaskOperator:
             task_id="modify_task",
             replication_task_arn=self.TASK_ARN,
             deferrable=True,
+            stop_task_before=True,
         )
         with pytest.raises(TaskDeferred):
             op.execute(None)
@@ -343,6 +424,32 @@ class TestDmsModifyTaskOperator:
                 cdc_start_position=None,
                 cdc_stop_position="2024-01-31:00:00:00",
             )
+
+    @mock.patch.object(DmsHook, "start_replication_task")
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_waits_if_modifying(self, mock_conn, mock_find, mock_start):
+        stopped_task = self._stopped_task()
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        # execute() sees 'modifying'; _wait_until_not_modifying polls once then sees 'stopped';
+        # _do_modify runs, then _wait_until_not_modifying inside _do_modify sees 'stopped' immediately.
+        mock_find.side_effect = [
+            self._modifying_task(),
+            stopped_task,
+            stopped_task,
+        ]
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected) as mock_modify:
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                table_mappings=self.TABLE_MAPPINGS,
+                wait_for_completion=True,
+                waiter_delay=0,
+            )
+            op.execute(None)
+
+            mock_modify.assert_called_once()
+            mock_start.assert_called_once()
 
     def test_template_fields(self):
         op = DmsModifyTaskOperator(
