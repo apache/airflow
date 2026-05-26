@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow_breeze.commands.ci_commands import (
+    _all_backport_labels_removed,
     _determine_milestone_version,
     _find_latest_milestone,
     _find_matching_milestone,
@@ -161,6 +162,68 @@ class TestShouldSkipMilestoneTagging:
 
     def test_no_skip_without_skip_labels(self):
         assert not _should_skip_milestone_tagging(["kind:feature", "area:scheduler"])
+
+    def test_skip_when_all_backport_labels_removed_during_race_window(self):
+        # Snapshot had a backport label, current has none — explicit maintainer signal.
+        assert _should_skip_milestone_tagging(
+            ["kind:bug"], snapshot_labels=["backport-to-v3-1-test", "kind:bug"]
+        )
+
+    def test_no_skip_when_backport_label_unchanged(self):
+        assert not _should_skip_milestone_tagging(
+            ["backport-to-v3-1-test", "kind:bug"],
+            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
+        )
+
+    def test_no_skip_when_backport_label_added(self):
+        # Adding a backport label is not a skip signal — the regular evaluation handles it.
+        assert not _should_skip_milestone_tagging(
+            ["backport-to-v3-1-test", "kind:bug"], snapshot_labels=["kind:bug"]
+        )
+
+    def test_no_skip_when_backport_label_replaced(self):
+        # Swapping one backport label for another is a fix, not a cancel — current
+        # state still has a backport, so the normal evaluation should run.
+        assert not _should_skip_milestone_tagging(
+            ["backport-to-v3-2-test", "kind:bug"],
+            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
+        )
+
+    def test_no_skip_when_non_backport_label_removed(self):
+        # Removing a non-backport label is irrelevant; tagging proceeds.
+        assert not _should_skip_milestone_tagging(
+            ["kind:bug"], snapshot_labels=["kind:bug", "kind:documentation"]
+        )
+
+
+class TestAllBackportLabelsRemoved:
+    """Test cases for _all_backport_labels_removed."""
+
+    def test_no_change(self):
+        labels = ["backport-to-v3-1-test", "kind:bug"]
+        assert _all_backport_labels_removed(labels, labels) == set()
+
+    def test_single_backport_fully_removed(self):
+        assert _all_backport_labels_removed(["backport-to-v3-1-test", "kind:bug"], ["kind:bug"]) == {
+            "backport-to-v3-1-test"
+        }
+
+    def test_multiple_backports_fully_removed(self):
+        assert _all_backport_labels_removed(["backport-to-v3-1-test", "backport-to-v3-2-test"], []) == {
+            "backport-to-v3-1-test",
+            "backport-to-v3-2-test",
+        }
+
+    def test_backport_replaced_returns_empty(self):
+        # When a replacement backport remains, the helper reports nothing —
+        # the regular re-evaluation should handle the new version.
+        assert _all_backport_labels_removed(["backport-to-v3-1-test"], ["backport-to-v3-2-test"]) == set()
+
+    def test_backport_added_not_reported(self):
+        assert _all_backport_labels_removed([], ["backport-to-v3-1-test"]) == set()
+
+    def test_non_backport_removal_not_reported(self):
+        assert _all_backport_labels_removed(["kind:bug"], []) == set()
 
 
 class TestGetBackportVersionFromLabels:
@@ -621,11 +684,60 @@ However, **no open milestone was found** matching: {expected_search_criteria}
         )
 
         # Snapshot still has the backport label, but the fresh issue.labels does not.
-        # The action must re-read, notice the change, and skip the milestone-set.
+        # The action must re-read, notice the change, and skip the milestone-set —
+        # treating the maintainer's removal as an explicit "don't auto-tag" signal.
         mock_issue.edit.assert_not_called()
         mock_issue.create_comment.assert_not_called()
         assert "Labels changed since workflow snapshot" in result.output
-        assert "No milestone to set after re-evaluation" in result.output
+        assert "backport labels removed during workflow window" in result.output
+        assert "backport-to-v3-2-test" in result.output
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_backport_label_removed_on_version_branch_should_skip(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """A backport label removed during the race window must take precedence
+        over the merge-to-version-branch heuristic. Without this, a PR merged to
+        a version branch would still get that branch's milestone even after a
+        maintainer explicitly removed a different backport label, because the
+        version-branch rule alone keeps producing a milestone.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        # Snapshot had backport-to-v3-2-test on a PR merged to v3-1-test; the
+        # maintainer removed the v3-2-test backport label inside the race window.
+        mock_issue.labels = [_label("kind:bug")]
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "12345",
+                "--pr-title",
+                "Fix: scheduler issue",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-2-test", "kind:bug"]),
+                "--base-branch",
+                "v3-1-test",
+                "--merged-by",
+                "testuser",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        assert "Labels changed since workflow snapshot" in result.output
+        assert "backport labels removed during workflow window" in result.output
+        assert "backport-to-v3-2-test" in result.output
         assert result.exit_code == 0
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")

@@ -1139,9 +1139,45 @@ def _has_bug_fix_indicators(title: str, labels: list[str]) -> bool:
     return False
 
 
-def _should_skip_milestone_tagging(labels: list[str]) -> bool:
-    """Check if the PR should be skipped from milestone auto-tagging."""
-    return bool(set(labels) & MILESTONE_SKIP_LABELS)
+def _all_backport_labels_removed(snapshot_labels: list[str], current_labels: list[str]) -> set[str]:
+    """Return removed ``backport-to-*`` labels when none remain on the PR.
+
+    Returns the set of ``backport-to-*`` labels present in ``snapshot_labels``
+    but absent from ``current_labels``, but only when ``current_labels``
+    contains no ``backport-to-*`` label at all. A non-empty result means a
+    maintainer fully unbackported the PR during the workflow's race window
+    (between the ``get-pr-info`` snapshot and the ``set-milestone`` step).
+    That is an explicit "don't auto-tag" signal that should override other
+    auto-tagging conditions (e.g. merge to a version branch).
+
+    Returning an empty set when *some* backport label still remains
+    preserves the label-replacement case: a maintainer swapping
+    ``backport-to-v3-1-test`` for ``backport-to-v3-2-test`` is a fix, not a
+    cancel, so the milestone should follow the new label.
+    """
+    snapshot_backports = {label for label in snapshot_labels if label.startswith("backport-to-")}
+    current_backports = {label for label in current_labels if label.startswith("backport-to-")}
+    if current_backports:
+        return set()
+    return snapshot_backports
+
+
+def _should_skip_milestone_tagging(labels: list[str], snapshot_labels: list[str] | None = None) -> bool:
+    """Check if the PR should be skipped from milestone auto-tagging.
+
+    Skip when either:
+
+    - any ``MILESTONE_SKIP_LABELS`` label is present on the PR right now, or
+    - ``snapshot_labels`` is supplied and every ``backport-to-*`` label that
+      was on the snapshot has been removed (with no replacement backport
+      label) since. The full removal is treated as an explicit "don't
+      auto-tag this PR" signal from the maintainer.
+    """
+    if set(labels) & MILESTONE_SKIP_LABELS:
+        return True
+    if snapshot_labels is not None and _all_backport_labels_removed(snapshot_labels, labels):
+        return True
+    return False
 
 
 def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | None:
@@ -1300,6 +1336,18 @@ def set_milestone(
         console_print("[info]Labels changed since workflow snapshot; re-evaluating.[/]")
         console_print(f"[info]Snapshot labels: {sorted(labels)}[/]")
         console_print(f"[info]Current labels:  {sorted(current_labels)}[/]")
+
+        # Treat a maintainer-removed backport label (with no replacement
+        # backport remaining) as an explicit "don't auto-tag" signal: it
+        # overrides any other auto-tagging condition (e.g. merge to a
+        # version branch) that might otherwise apply.
+        removed_backports = _all_backport_labels_removed(labels, current_labels)
+        if removed_backports:
+            console_print(
+                f"[info]Skipping milestone tagging - backport labels removed during workflow "
+                f"window, treated as explicit maintainer signal: {sorted(removed_backports)}[/]"
+            )
+            return
 
         if _should_skip_milestone_tagging(current_labels):
             console_print(
