@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, Input, Text, Textarea, VStack } from "@chakra-ui/react";
+import { Box, Button, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,7 @@ import {
   useTaskStateServiceListTaskStatesKey,
   useTaskStateServiceSetTaskState,
 } from "openapi/queries";
+import { JsonEditor } from "src/components/JsonEditor";
 import { Dialog, ProgressBar, toaster } from "src/components/ui";
 
 type TaskStateModalProps = {
@@ -37,6 +38,20 @@ type TaskStateModalProps = {
   readonly runId: string;
   readonly stateKey?: string;
   readonly taskId: string;
+};
+
+const isJsonValid = (val: string) => {
+  if (!val.trim()) {
+    return false;
+  }
+
+  try {
+    JSON.parse(val);
+
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const TaskStateModal = ({
@@ -54,27 +69,19 @@ const TaskStateModal = ({
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const isEditMode = mode === "edit";
+  const isValueValid = isJsonValid(value);
 
   const { data: existingState, isLoading: isFetchingExisting } = useTaskStateServiceGetTaskState(
     { dagId, dagRunId: runId, key: stateKey ?? "", mapIndex, taskId },
     undefined,
-    { enabled: isOpen && isEditMode && Boolean(stateKey) },
+    { enabled: isEditMode && Boolean(stateKey) },
   );
 
-  // Populate the form when edit-mode data arrives
   useEffect(() => {
-    if (isOpen && isEditMode && existingState !== undefined) {
+    if (isEditMode && existingState !== undefined) {
       setValue(existingState.value);
     }
-  }, [existingState, isEditMode, isOpen]);
-
-  // Reset on close
-  useEffect(() => {
-    if (!isOpen) {
-      setKey("");
-      setValue("");
-    }
-  }, [isOpen]);
+  }, [existingState, isEditMode]);
 
   const { isPending, mutate: setTaskState } = useTaskStateServiceSetTaskState({
     onError: () => {
@@ -96,12 +103,10 @@ const TaskStateModal = ({
   });
 
   const onSave = () => {
-    const resolvedKey = isEditMode ? (stateKey ?? "") : key;
-
     setTaskState({
       dagId,
       dagRunId: runId,
-      key: resolvedKey,
+      key: isEditMode ? (stateKey ?? "") : key,
       mapIndex,
       requestBody: { value },
       taskId,
@@ -113,7 +118,7 @@ const TaskStateModal = ({
     : translate("browse:taskState.add.title");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
@@ -134,17 +139,54 @@ const TaskStateModal = ({
                   <Input onChange={(event) => setKey(event.target.value)} value={key} />
                 )}
               </Box>
+
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
                   {translate("browse:value")}
                 </Text>
-                <Textarea
-                  minH="120px"
-                  onChange={(event) => setValue(event.target.value)}
-                  placeholder={translate("browse:valuePlaceholder")}
-                  resize="vertical"
-                  value={value}
-                />
+                <JsonEditor onChange={setValue} value={value} />
+              </Box>
+
+              {/* TODO: Enable when the API adds expires_at to TaskStateBody */}
+              <Box opacity={0.5} width="100%">
+                <Text fontWeight="bold" mb={2}>
+                  {translate("browse:taskState.expiresAt.label")}
+                </Text>
+                <RadioCard.Root disabled value="default">
+                  <RadioCard.Item value="default">
+                    <RadioCard.ItemHiddenInput />
+                    <RadioCard.ItemControl>
+                      <RadioCard.ItemContent>
+                        <RadioCard.ItemText>
+                          {translate("browse:taskState.expiresAt.default", { interval: "30 days" })}
+                        </RadioCard.ItemText>
+                      </RadioCard.ItemContent>
+                      <RadioCard.ItemIndicator />
+                    </RadioCard.ItemControl>
+                  </RadioCard.Item>
+                  <RadioCard.Item value="never">
+                    <RadioCard.ItemHiddenInput />
+                    <RadioCard.ItemControl>
+                      <RadioCard.ItemContent>
+                        <RadioCard.ItemText>
+                          {translate("browse:taskState.expiresAt.never")}
+                        </RadioCard.ItemText>
+                      </RadioCard.ItemContent>
+                      <RadioCard.ItemIndicator />
+                    </RadioCard.ItemControl>
+                  </RadioCard.Item>
+                  <RadioCard.Item value="custom">
+                    <RadioCard.ItemHiddenInput />
+                    <RadioCard.ItemControl>
+                      <RadioCard.ItemContent>
+                        <RadioCard.ItemText>
+                          {translate("browse:taskState.expiresAt.custom")}
+                        </RadioCard.ItemText>
+                      </RadioCard.ItemContent>
+                      <RadioCard.ItemIndicator />
+                    </RadioCard.ItemControl>
+                  </RadioCard.Item>
+                </RadioCard.Root>
               </Box>
             </VStack>
           )}
@@ -154,7 +196,7 @@ const TaskStateModal = ({
             {translate("common:modal.cancel")}
           </Button>
           <Button
-            disabled={isFetchingExisting || (!isEditMode && key === "")}
+            disabled={isFetchingExisting || !isValueValid || (!isEditMode && key === "")}
             loading={isPending}
             onClick={onSave}
           >
