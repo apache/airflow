@@ -2784,6 +2784,18 @@ export type PatchConnectionData = {
 
 export type PatchConnectionResponse = ConnectionResponse;
 
+export type GetConnectionTestData = {
+    airflowConnectionTestToken: string;
+};
+
+export type GetConnectionTestResponse = AsyncConnectionTestResponse;
+
+export type EnqueueConnectionTestData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
+
 export type GetConnectionsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -2822,18 +2834,6 @@ export type TestConnectionData = {
 };
 
 export type TestConnectionResponse = ConnectionTestResponse;
-
-export type EnqueueConnectionTestData = {
-    requestBody: ConnectionTestRequestBody;
-};
-
-export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
-
-export type GetConnectionTestData = {
-    connectionTestToken: string;
-};
-
-export type GetConnectionTestResponse = AsyncConnectionTestResponse;
 
 export type CreateDefaultConnectionsResponse = void;
 
@@ -5115,6 +5115,58 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/connections/enqueue-test': {
+        get: {
+            req: GetConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AsyncConnectionTestResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        post: {
+            req: EnqueueConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
+    };
     '/api/v2/connections': {
         get: {
             req: GetConnectionsData;
@@ -5204,60 +5256,6 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/connections/enqueue-test': {
-        post: {
-            req: EnqueueConnectionTestData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                202: ConnectionTestQueuedResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Unprocessable Entity
-                 */
-                422: HTTPExceptionResponse;
-            };
-        };
-    };
-    '/api/v2/connections/enqueue-test/{connection_test_token}': {
-        get: {
-            req: GetConnectionTestData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: AsyncConnectionTestResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

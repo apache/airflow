@@ -224,6 +224,17 @@ export const prefetchUseConnectionServiceGetConnection = (queryClient: QueryClie
   connectionId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }), queryFn: () => ConnectionService.getConnection({ connectionId }) });
 /**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseConnectionServiceGetConnectionTest = (queryClient: QueryClient, { airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) });
+/**
 * Get Connections
 * Get all connection entries.
 * @param data The data for the request.
@@ -244,17 +255,6 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
   offset?: number;
   orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }) });
-/**
-* Get Connection Test
-* Poll for the status of an enqueued connection test by its token.
-* @param data The data for the request.
-* @param data.connectionTestToken
-* @returns AsyncConnectionTestResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseConnectionServiceGetConnectionTest = (queryClient: QueryClient, { connectionTestToken }: {
-  connectionTestToken: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.

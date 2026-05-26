@@ -224,6 +224,17 @@ export const useConnectionServiceGetConnection = <TData = Common.ConnectionServi
   connectionId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey), queryFn: () => ConnectionService.getConnection({ connectionId }) as TData, ...options });
 /**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTest = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) as TData, ...options });
+/**
 * Get Connections
 * Get all connection entries.
 * @param data The data for the request.
@@ -244,17 +255,6 @@ export const useConnectionServiceGetConnections = <TData = Common.ConnectionServ
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }) as TData, ...options });
-/**
-* Get Connection Test
-* Poll for the status of an enqueued connection test by its token.
-* @param data The data for the request.
-* @param data.connectionTestToken
-* @returns AsyncConnectionTestResponse Successful Response
-* @throws ApiError
-*/
-export const useConnectionServiceGetConnectionTest = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
-  connectionTestToken: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) as TData, ...options });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
@@ -2134,6 +2134,19 @@ export const useBackfillServiceCreateBackfillDryRun = <TData = Common.BackfillSe
   requestBody: BackfillPostBody;
 }, TContext>({ mutationFn: ({ requestBody }) => BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Enqueue Connection Test
+* Enqueue a connection test for deferred execution on a worker; returns a polling token.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns ConnectionTestQueuedResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceEnqueueConnectionTest = <TData = Common.ConnectionServiceEnqueueConnectionTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.enqueueConnectionTest({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Post Connection
 * Create connection entry.
 * @param data The data for the request.
@@ -2163,19 +2176,6 @@ export const useConnectionServiceTestConnection = <TData = Common.ConnectionServ
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: ConnectionBody;
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>, ...options });
-/**
-* Enqueue Connection Test
-* Enqueue a connection test for deferred execution on a worker; returns a polling token.
-* @param data The data for the request.
-* @param data.requestBody
-* @returns ConnectionTestQueuedResponse Successful Response
-* @throws ApiError
-*/
-export const useConnectionServiceEnqueueConnectionTest = <TData = Common.ConnectionServiceEnqueueConnectionTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  requestBody: ConnectionTestRequestBody;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  requestBody: ConnectionTestRequestBody;
-}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.enqueueConnectionTest({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Default Connections
 * Create default connections.

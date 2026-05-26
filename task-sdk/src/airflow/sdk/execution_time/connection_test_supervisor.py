@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 
 import structlog
@@ -57,11 +58,30 @@ def supervise_connection_test(
             port=r.port,
             extra=r.extra,
         )
-        with TimeoutPosix(
-            seconds=timeout,
-            error_message=f"Connection test timed out after {timeout}s",
-        ):
-            success, message = conn.test_connection()
+        key = f"AIRFLOW_CONN_{r.conn_id.upper()}"
+        old_conn = os.getenv(key)
+        old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
+        os.environ[key] = conn.get_uri()
+        # Set process context to "client" so that Connection deserialization uses SDK Connection class
+        # which has from_uri() method, instead of core Connection class
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+        try:
+            with TimeoutPosix(
+                seconds=timeout,
+                error_message=f"Connection test timed out after {timeout}s",
+            ):
+                success, message = conn.test_connection()
+        finally:
+            if old_conn is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old_conn
+
+            if old_context is None:
+                del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
 
         state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
         client.connection_tests.update_state(connection_test_id, state, message)

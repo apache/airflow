@@ -121,6 +121,20 @@ class TestConnection:
         assert test_connection._password != "foo"
 
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    def test_password_setter_noop_on_falsy_value(self):
+        """Setting password to None/empty must not wipe an already-stored password."""
+        crypto.get_fernet.cache_clear()
+        test_connection = Connection(conn_type="postgres")
+        test_connection.password = "secret"
+        assert test_connection.password == "secret"
+
+        test_connection.password = None
+        assert test_connection.password == "secret"
+
+        test_connection.password = ""
+        assert test_connection.password == "secret"
+
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_extra_setter_sets_is_extra_encrypted(self):
         """Connection's ``set_extra`` override must win over FernetFieldsMixin's."""
         crypto.get_fernet.cache_clear()

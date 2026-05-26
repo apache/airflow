@@ -89,6 +89,7 @@ from airflow.models.asset import (
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
+from airflow.models.connection import Connection
 from airflow.models.connection_test import (
     ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
     DISPATCHED_STATES,
@@ -3299,7 +3300,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         for ct in pending_tests:
-            executor = self._try_to_load_executor(ct, session)
+            team_name = (
+                Connection.get_team_name(ct.connection_id, session=session) if self._multi_team else None
+            )
+            executor = self._try_to_load_executor(ct, session, team_name=team_name)
             if executor is None:
                 reason = f"No executor matches '{ct.executor}'"
                 ct.state = ConnectionTestState.FAILED

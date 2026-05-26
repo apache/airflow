@@ -69,6 +69,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.connection import Connection
 from airflow.models.connection_test import (
     ConnectionTestKey,
     ConnectionTestRequest,
@@ -10363,6 +10364,30 @@ class TestDispatchConnectionTests:
         ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == ConnectionTestState.QUEUED
         assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_resolves_team_from_connection(self, scheduler_job_runner_for_connection_tests, session):
+        """In multi-team mode the executor is loaded for the connection's team, not None."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = True
+
+        session.add(ConnectionTestRequest(conn_type="test_type", connection_id="team_conn"))
+        session.commit()
+
+        with (
+            mock.patch.object(runner, "_try_to_load_executor", return_value=None) as mock_load,
+            mock.patch.object(Connection, "get_team_name", return_value="team_a") as mock_team,
+        ):
+            runner._enqueue_connection_tests(session=session)
+
+        mock_team.assert_called_once()
+        assert mock_load.call_args.kwargs["team_name"] == "team_a"
 
     @mock.patch.dict(
         os.environ,

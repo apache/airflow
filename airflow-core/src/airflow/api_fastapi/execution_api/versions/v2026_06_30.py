@@ -26,3 +26,14 @@ class AddVariableKeysEndpoint(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (endpoint("/variables/keys", ["GET"]).didnt_exist,)
+
+
+class AddConnectionTestEndpoint(VersionChange):
+    """Add connection-tests endpoints for the async connection-test workflow."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
+        endpoint("/connection-tests/{connection_test_id}/connection", ["GET"]).didnt_exist,
+    )

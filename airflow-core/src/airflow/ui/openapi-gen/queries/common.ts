@@ -117,6 +117,12 @@ export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnect
 export const UseConnectionServiceGetConnectionKeyFn = ({ connectionId }: {
   connectionId: string;
 }, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionKey, ...(queryKey ?? [{ connectionId }])];
+export type ConnectionServiceGetConnectionTestDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTest>>;
+export type ConnectionServiceGetConnectionTestQueryResult<TData = ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionTestKey = "ConnectionServiceGetConnectionTest";
+export const UseConnectionServiceGetConnectionTestKeyFn = ({ airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestKey, ...(queryKey ?? [{ airflowConnectionTestToken }])];
 export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnections>>;
 export type ConnectionServiceGetConnectionsQueryResult<TData = ConnectionServiceGetConnectionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
@@ -127,12 +133,6 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, c
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }])];
-export type ConnectionServiceGetConnectionTestDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTest>>;
-export type ConnectionServiceGetConnectionTestQueryResult<TData = ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionTestKey = "ConnectionServiceGetConnectionTest";
-export const UseConnectionServiceGetConnectionTestKeyFn = ({ connectionTestToken }: {
-  connectionTestToken: string;
-}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestKey, ...(queryKey ?? [{ connectionTestToken }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
@@ -1037,9 +1037,9 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<type
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;
 export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfillDryRun>>;
+export type ConnectionServiceEnqueueConnectionTestMutationResult = Awaited<ReturnType<typeof ConnectionService.enqueueConnectionTest>>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.postConnection>>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.testConnection>>;
-export type ConnectionServiceEnqueueConnectionTestMutationResult = Awaited<ReturnType<typeof ConnectionService.enqueueConnectionTest>>;
 export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.createDefaultConnections>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.triggerDagRun>>;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
