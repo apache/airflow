@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 import attrs
 import structlog
 from sqlalchemy import select, update
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -1725,7 +1725,7 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     try:
         with create_session() as session:
             stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
-    except SQLAlchemyError:
+    except OperationalError:
         log.exception("Failed to emit serialized_dag.count metric")
 
 
