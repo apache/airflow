@@ -1277,6 +1277,19 @@
           "default": null,
           "title": "Partition Key"
         },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
         "note": {
           "anyOf": [
             {
@@ -4639,6 +4652,19 @@
             }
           ],
           "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
         },
         "note": {
           "anyOf": [

@@ -167,6 +167,9 @@ def setup(request, dag_maker, *, session=None):
     # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
     # verify that the filter treats | as a literal character, not an OR separator.
     dag_run1.partition_key = "2026-01-01|us"
+    # Set a real partition_date so the GET/list responses exercise the serialized
+    # (non-None) partition_date path, not just the None case.
+    dag_run1.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
@@ -317,6 +320,9 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": run.partition_key,
+        "partition_date": from_datetime_to_zulu_without_ms(run.partition_date)
+        if run.partition_date
+        else None,
     }
 
 
@@ -2371,6 +2377,7 @@ class TestTriggerDagRun:
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response.json() == expected_response_json
@@ -2601,6 +2608,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": note,
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response_2.status_code == 409
@@ -2690,6 +2698,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
             "partition_key": None,
+            "partition_date": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
