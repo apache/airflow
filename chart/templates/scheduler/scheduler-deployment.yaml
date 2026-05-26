@@ -133,7 +133,7 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.scheduler.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
-      enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- include "serviceLinks" . | nindent 6 }}
       {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) }}
       automountServiceAccountToken: false
       {{- end }}

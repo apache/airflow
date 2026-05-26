@@ -228,8 +228,11 @@
         },
         "enableServiceLinks": {
             "description": "Enable kubernetes service links.",
-            "type": "boolean",
-            "default": true,
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "default": null,
             "x-docsSection": "Kubernetes",
             "$comment": "The default will become false in Chart 2.0"
 

@@ -106,7 +106,7 @@ spec:
       hostAliases: {{- toYaml .Values.apiServer.hostAliases | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "apiServer.serviceAccountName" . }}
-      enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- include "serviceLinks" . | nindent 6 }}
       {{- if .Values.apiServer.priorityClassName }}
       priorityClassName: {{ .Values.apiServer.priorityClassName }}
       {{- end }}
