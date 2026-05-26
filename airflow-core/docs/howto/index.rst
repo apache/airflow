@@ -36,6 +36,7 @@ configuring an Airflow environment.
     notifications
     sla-to-deadlines
     deadline-alerts
+    dag-level-retry-via-callback
     set-config
     set-up-database
     operator/index

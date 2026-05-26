@@ -111,7 +111,7 @@ class TestBaseDatabricksHook:
         assert BaseDatabricksHook._parse_host(input_url) == expected_host
 
     @mock.patch("requests.post")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_get_sp_token(self, mock_post):
         mock_response = mock.Mock()
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
@@ -187,7 +187,7 @@ class TestBaseDatabricksHook:
             hook._get_sp_token(resource)
 
     @pytest.mark.asyncio
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     @mock.patch("aiohttp.ClientSession.post")
     async def test_a_get_sp_token(self, mock_post):
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
@@ -286,21 +286,21 @@ class TestBaseDatabricksHook:
             assert token == "cached_token"
             mock_post.assert_not_called()
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_valid_token_not_expired(self):
         expiry_data = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "token_type": "Bearer", "expires_on": expiry_data}
         hook = BaseDatabricksHook()
         assert hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_valid_token_expired(self):
         expiry_data = int((datetime(2025, 7, 12, 12, 0, 0) - timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "token_type": "Bearer", "expires_on": expiry_data}
         hook = BaseDatabricksHook()
         assert not hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_token_expires_within_lead_time(self):
         expires_on = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(seconds=60)).timestamp())
         token = {
@@ -311,7 +311,7 @@ class TestBaseDatabricksHook:
         hook = BaseDatabricksHook()
         assert hook._is_oauth_token_valid(token) is False
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_missing_access_token_raises_exception(self):
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"token_type": "Bearer", "expires_on": expiry_date}
@@ -319,7 +319,7 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Can't get necessary data from OAuth token"):
             hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_wrong_token_type_raises_exception(self):
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "token_type": "Basic", "expires_on": expiry_date}
@@ -327,7 +327,7 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Can't get necessary data from OAuth token"):
             hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_missing_token_type_raises_exception(self):
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "expires_on": expiry_date}
@@ -341,7 +341,7 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Can't get necessary data from OAuth token"):
             hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_custom_time_key(self):
         expiry_data = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "token_type": "Bearer", "custom_expires": expiry_data}
@@ -354,14 +354,14 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Can't get necessary data from OAuth token"):
             hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_string_expiration_time(self):
         expiry_data = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         token = {"access_token": "valid_token", "token_type": "Bearer", "expires_on": expiry_data}
         hook = BaseDatabricksHook()
         assert hook._is_oauth_token_valid(token)
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_exact_boundary_conditions(self):
         expiry_data = int((datetime(2025, 7, 12, 12, 0, 0)).timestamp())
         hook = BaseDatabricksHook()
@@ -804,7 +804,7 @@ class TestBaseDatabricksHook:
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
 
     @mock.patch("requests.get")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_check_azure_metadata_service_normal(self, mock_get):
         travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
         hook = BaseDatabricksHook()
@@ -817,7 +817,7 @@ class TestBaseDatabricksHook:
         assert int(hook._metadata_expiry) == travel_time + hook._metadata_ttl
 
     @mock.patch("requests.get")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_check_azure_metadata_service_cached(self, mock_get):
         travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
         hook = BaseDatabricksHook()
@@ -881,7 +881,7 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.get")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     async def test_a_check_azure_metadata_service_cached(self, mock_get):
         travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
         hook = BaseDatabricksHook()
@@ -953,7 +953,9 @@ class TestBaseDatabricksHook:
         ],
     )
     @mock.patch("requests.post")
-    @time_machine.travel("2025-07-12 12:00:00")  # mock current timestamp for token expiry calculation
+    @time_machine.travel(
+        "2025-07-12 12:00:00", tick=False
+    )  # mock current timestamp for token expiry calculation
     def test_get_federated_token(self, mock_post, mock_file):
         """Test Kubernetes OIDC token federation flow."""
         # Mock K8s TokenRequest API response
@@ -1023,7 +1025,7 @@ class TestBaseDatabricksHook:
         assert db_call_args[1]["data"]["scope"] == "all-apis"
         assert db_call_args[1]["data"]["client_id"] == "test-client-id"
 
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_get_federated_token_cached_valid(self):
         """Test that cached valid token is returned without fetching new one."""
         mock_conn = mock.Mock()
@@ -1288,7 +1290,7 @@ class TestBaseDatabricksHook:
 
     @mock.patch("builtins.open", mock.mock_open(read_data="projected_k8s_jwt_token"))
     @mock.patch("requests.post")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     def test_get_federated_token_with_projected_volume(self, mock_post):
         """Test end-to-end federated token flow using projected volume."""
         # Mock Databricks token exchange response
@@ -1414,7 +1416,7 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     @mock.patch("ssl.create_default_context")
     async def test_a_get_federated_token(self, _mock_ssl_ctx, mock_post):
         """Test async version of federated token exchange."""
@@ -1476,7 +1478,7 @@ class TestBaseDatabricksHook:
         assert mock_post.call_count == 2
 
     @pytest.mark.asyncio
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     async def test_a_get_federated_token_cached_valid(self):
         """Test that async version returns cached valid token without fetching new one."""
         mock_conn = mock.Mock()
@@ -1753,7 +1755,7 @@ class TestBaseDatabricksHook:
         assert call_kwargs["ssl"] is fake_ctx
 
     @pytest.mark.asyncio
-    @time_machine.travel("2025-07-12 12:00:00")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
     async def test_a_get_federated_token_with_projected_volume(self):
         """Test async end-to-end federated token flow using projected volume."""
         # Mock Databricks token exchange response

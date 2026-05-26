@@ -28,6 +28,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
+from airflow._shared.state import TaskScope
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -47,13 +48,45 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.state import get_state_backend
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
+
+
+def _clear_task_state_on_success(tis: Sequence[TI], session: Session) -> None:
+    """Clear task state rows for each TI if clear_on_success is enabled."""
+    if not conf.getboolean("state_store", "clear_on_success", fallback=False):
+        return
+    backend = get_state_backend()
+    for ti in tis:
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
+        try:
+            backend.clear(scope=scope, session=session)
+            log.info(
+                "Cleared task state on success",
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+            )
+        except Exception:
+            log.warning(
+                "Failed to clear task state on success",
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+            )
 
 
 def _validate_patch_task_instance_body(
@@ -231,6 +264,9 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
 
+    if data["new_state"] == TaskInstanceState.SUCCESS:
+        _clear_task_state_on_success(updated_tis, session)
+
     _emit_state_listener_hooks(updated_tis, data["new_state"])
 
     return updated_tis
@@ -262,6 +298,9 @@ def _patch_task_group_state(
             status.HTTP_409_CONFLICT,
             f"All task instances in the group are already in {data['new_state']} state",
         )
+
+    if data["new_state"] == TaskInstanceState.SUCCESS:
+        _clear_task_state_on_success(updated_tis, session)
 
     _emit_state_listener_hooks(updated_tis, data["new_state"])
 

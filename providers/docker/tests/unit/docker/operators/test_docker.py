@@ -818,3 +818,33 @@ class TestDockerOperator:
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{ti.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
+
+    def test_dict_mounts_are_normalized_to_mount_objects(self):
+        op = DockerOperator(
+            task_id="test",
+            image="test",
+            mounts=[
+                {"target": "/data", "source": "workspace", "type": "volume", "read_only": False},
+                Mount(target="/logs", source="logs", type="volume"),
+            ],
+        )
+        assert all(isinstance(m, Mount) for m in op.mounts)
+        assert op.mounts[0]["Target"] == "/data"
+        assert op.mounts[0]["Source"] == "workspace"
+        assert op.mounts[0]["Type"] == "volume"
+        assert op.mounts[0]["ReadOnly"] is False
+        assert op.mounts[1]["Target"] == "/logs"
+
+    @pytest.mark.db_test
+    def test_dict_mounts_are_templated(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            operator_class=DockerOperator,
+            dag_id="test",
+            task_id="test",
+            image="test",
+            mounts=[
+                {"target": "/{{task_instance.run_id}}", "source": "workspace", "type": "volume"},
+            ],
+        )
+        rendered = ti.render_templates()
+        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"

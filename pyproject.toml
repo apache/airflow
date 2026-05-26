@@ -22,7 +22,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.4.28.13",
+    "trove-classifiers==2026.5.20.19",
 ]
 build-backend = "hatchling.build"
 
@@ -551,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.8",
+    "uv>=0.11.15",
 ]
 
 [project.urls]
@@ -601,6 +601,7 @@ extend-select = [
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
+    "B015", # Useless comparison: bare `a == b` is a no-op; prepend `assert` or remove
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
@@ -628,6 +629,7 @@ extend-select = [
     "PLW2101", # Threading lock directly created in with statement has no effect
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "PLW3301", # Nested {func} calls can be flattened
+    "PLE1205", # Logging format string has too many arguments (extra args are silently dropped)
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -653,6 +655,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
+    "B008", # Do not perform function call in argument defaults (use extend-immutable-calls for FastAPI DI)
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
@@ -663,6 +666,7 @@ extend-select = [
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
+    "PTH206", # Checks for uses of .split(os.sep)
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -699,6 +703,18 @@ unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
     # In addition, it can't do anything with invalid typing annotations, protected by mypy.
     "PT022",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses function calls in argument defaults intentionally.
+# SHA256 is a stateless algorithm descriptor (cryptography library).
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Security",
+    "cryptography.hazmat.primitives.hashes.SHA256",
 ]
 
 [tool.ruff.format]
@@ -1355,6 +1371,19 @@ leveldb = [
     "plyvel>=1.5.1"
 ]
 
+# Aggregate of every group the CI image installs by default. Single source of
+# truth referenced from the Dockerfiles, the image install script, and the
+# breeze constraints checker. When a provider needs to register a
+# hard-to-install extra (proprietary client, needs system libs, etc.), add a
+# dedicated [dependency-groups] entry above and include it here — no Dockerfile
+# or breeze edits required. See contributing-docs/12_provider_distributions.rst.
+ci-image = [
+    {include-group = "dev"},
+    {include-group = "docs"},
+    {include-group = "docs-gen"},
+    {include-group = "leveldb"},
+]
+
 [tool.uv]
 # Bump this only when the project actually relies on a newer uv feature/fix. It is a
 # minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
@@ -1503,15 +1532,14 @@ apache-aurflow-docker-stack = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
-# (https://github.com/astral-sh/uv/issues/18708, fixed in
-# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
-# global 4-day cooldown above would otherwise block a freshly-published uv
-# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
-# pinned `required-version` floor isn't gated by the project-wide window.
-# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
+# Starlette 1.0.1 carries a Host-header parsing fix that prevents
+# `request.url.path` from diverging from `scope["path"]` when the Host header
+# contains characters invalid per RFC 9110 §7.2. The fix landed too recently
+# to be admitted by the global 4-day cooldown; this override lets the floor
+# bump in `airflow-core/pyproject.toml` resolve.
+# REMOVE BY 2026-05-26 — once 1.0.1 is older than the global 4-day cooldown
 # this override is redundant and should be deleted along with the line below.
-uv = "12 hours"
+starlette = "6 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1654,8 +1682,8 @@ apache-aurflow-docker-stack = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# REMOVE BY 2026-05-01 along with the matching entry above.
-uv = "12 hours"
+# REMOVE BY 2026-05-26 along with the matching entry above.
+starlette = "6 hours"
 
 
 [tool.uv.sources]

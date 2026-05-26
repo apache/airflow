@@ -200,6 +200,14 @@ def test_capacity_decode():
             TriggererJobRunner(job=job, capacity=input_str)
 
 
+@pytest.mark.parametrize("team_name", ["team_a", None])
+def test_triggerer_job_runner_stores_team_name(team_name):
+    """TriggererJobRunner stores team_name as-is (validated at CLI layer)."""
+    job = Job()
+    runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
+    assert runner.team_name == team_name
+
+
 @pytest.fixture
 def supervisor_builder(mocker, session):
     def builder(job=None):
@@ -234,6 +242,42 @@ def supervisor_builder(mocker, session):
         return proc
 
     return builder
+
+
+def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
+    """TriggerRunnerSupervisor stores team_name field."""
+    job = Job()
+    session.add(job)
+    session.flush()
+
+    import psutil
+
+    process = mocker.Mock(spec=psutil.Process, pid=99)
+    mock_stdin = mocker.Mock(spec=socket)
+
+    proc = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name="team_x",
+    )
+    assert proc.team_name == "team_x"
+
+    proc_global = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name=None,
+    )
+    assert proc_global.team_name is None
 
 
 def test_run_invokes_seams_in_order(supervisor_builder, mocker):
@@ -612,6 +656,29 @@ def test_trigger_logger_fd_closed_when_removed(session):
     trigger_runner_supervisor.kill(force=False)
 
 
+def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_supervisor):
+    """If upload_to_remote() raises during finished-trigger cleanup, the FD must still be closed.
+
+    Regression test for the file handle leak referenced in
+    https://github.com/apache/airflow/discussions/65985 — without try/finally, a failed
+    remote-log upload would skip ``factory.close()`` and leak the underlying BufferedWriter
+    for every failed upload.
+    """
+    factory = MagicMock(spec=TriggerLoggingFactory)
+    factory.upload_to_remote.side_effect = RuntimeError("simulated remote-logging failure")
+
+    jobless_supervisor.logger_cache[42] = factory
+    jobless_supervisor.running_triggers.add(42)
+
+    msg = messages.TriggerStateChanges(finished=[42])
+    jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
+
+    factory.upload_to_remote.assert_called_once()
+    factory.close.assert_called_once()
+    assert 42 not in jobless_supervisor.logger_cache
+    assert 42 not in jobless_supervisor.running_triggers
+
+
 class TestTriggerRunner:
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
@@ -752,6 +819,70 @@ class TestTriggerRunner:
 
         mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
+
+    def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
+        """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""
+        from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+        class _SharedTrigger(BaseEventTrigger):
+            def __init__(self, queue_url: str, region: str | None = None):
+                super().__init__()
+                self.queue_url = queue_url
+                self.region = region
+
+            def serialize(self):
+                return (
+                    f"{type(self).__module__}.{type(self).__qualname__}",
+                    {"queue_url": self.queue_url, "region": self.region},
+                )
+
+            def shared_stream_key(self):
+                return ("queue", self.queue_url)
+
+            @classmethod
+            async def open_shared_stream(cls, kwargs):
+                yield {"region": "us"}
+                yield {"region": "eu"}
+                # Stay alive so the manager can tear us down on unsubscribe.
+                await asyncio.Event().wait()
+
+            async def filter_shared_stream(self, shared_stream):
+                async for raw in shared_stream:
+                    if self.region is None or raw["region"] == self.region:
+                        yield TriggerEvent(raw)
+
+            async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+                yield TriggerEvent({})
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+        }
+        trigger = _SharedTrigger(queue_url="https://q", region="us")
+        trigger.task_instance = MagicMock()
+        trigger.task_instance.map_index = -1
+
+        async def _drive():
+            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+            # Wait until the "us" event has been pushed onto the outbound queue,
+            # then cancel the trigger so the test can exit deterministically.
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                if trigger_runner.events:
+                    break
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await run_task
+
+        asyncio.run(_drive())
+
+        events = list(trigger_runner.events)
+        assert len(events) == 1
+        trigger_id, event = events[0]
+        assert trigger_id == 1
+        assert event.payload == {"region": "us"}
+        # Group is torn down on unsubscribe.
+        assert trigger_runner._shared_streams._groups == {}
 
     def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""

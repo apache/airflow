@@ -110,6 +110,10 @@ structured output:
     :start-after: [START howto_decorator_llm_schema_compare]
     :end-before: [END howto_decorator_llm_schema_compare]
 
+The callable may also return a non-empty ``Sequence[UserContent]`` for
+multimodal inputs -- see
+:ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
+
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
 

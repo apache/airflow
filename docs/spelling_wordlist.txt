@@ -542,6 +542,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -815,7 +816,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -1031,6 +1034,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1121,6 +1125,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
@@ -1552,6 +1557,7 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
 STS
 subchart
@@ -1602,6 +1608,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1637,6 +1644,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1747,6 +1755,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted

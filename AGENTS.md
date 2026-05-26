@@ -46,7 +46,7 @@ automatically — load them on demand when the task requires it.
 
 ## Required deeper rules
 
-Load `CONSTITUTION.md` before making code changes or preparing a PR.
+Load CONSTITUTION.md before making code changes or preparing a PR.
 
 ## Source-of-truth docs
 
