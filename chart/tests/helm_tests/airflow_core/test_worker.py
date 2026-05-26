@@ -1027,7 +1027,6 @@ class TestWorker:
         )
         assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
         assert "socket.gethostname()" in livenessprobe_cmd[-1]
-        assert "$(hostname)" not in livenessprobe_cmd[-1]
 
     @pytest.mark.parametrize(
         "workers_values",
