@@ -1522,9 +1522,15 @@ class TriggerRunner:
                     event_stream = trigger.run()
 
                 async for event in event_stream:
-                    await self.log.ainfo(
-                        "Trigger fired event", name=self.triggers[trigger_id]["name"]
-                    )
+                    # Avoid logging the full payload at INFO — it may contain sensitive data and
+                    # inflate log storage on every execution. DEBUG is used instead so developers
+                    # can still inspect the payload when needed without.
+                    await self.log.ainfo("Trigger fired event", name=self.triggers[trigger_id]["name"])
+                    if self.log.is_enabled_for(logging.DEBUG):
+                        await self.log.adebug(
+                            "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
+                        )
+
                     self.triggers[trigger_id]["events"] += 1
                     self.events.append((trigger_id, event))
                 span.set_status(Status(StatusCode.OK))
