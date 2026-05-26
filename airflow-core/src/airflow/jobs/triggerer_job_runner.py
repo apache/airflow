@@ -1100,6 +1100,7 @@ class TriggerRunner:
         self._shared_streams = SharedStreamManager(
             log=self.log,
             max_subscriber_queue=conf.getint("triggerer", "shared_stream_subscriber_queue_size"),
+            ack_timeout=conf.getfloat("triggerer", "shared_stream_ack_timeout"),
         )
         self.blocked_main_thread_warning_threshold = conf.getfloat(
             "triggerer", "blocked_main_thread_warning_threshold"
