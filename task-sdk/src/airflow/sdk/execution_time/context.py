@@ -512,14 +512,13 @@ class TaskStateAccessor:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStateResult):
             stored = resp.value
-            # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
-            # custom backend using the reference
             backend = _get_worker_state_backend()
-            if backend is not None:
-                # serialize_task_state_to_ref always returns str by contract; stored contains the ref.
+            if backend is not None and isinstance(stored, dict) and stored.get("__type") == "ExternalState":
+                # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
+                ref = stored["__var"]
                 if TYPE_CHECKING:
-                    assert isinstance(stored, str)
-                return backend.deserialize_task_state_from_ref(stored)
+                    assert isinstance(ref, str)
+                return backend.deserialize_task_state_from_ref(ref)
             return stored
         return None
 
@@ -548,12 +547,12 @@ class TaskStateAccessor:
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
+        stored: JsonValue = value
         backend = _get_worker_state_backend()
-        stored = (
-            backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
-            if backend
-            else value
-        )
+        if backend is not None:
+            # decorate the value with a marker to indicate that it's stored externally, and include the ref to the external storage
+            ref = backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
+            stored = {"__type": "ExternalState", "__var": ref}
 
         SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
 
@@ -648,11 +647,12 @@ class AssetStateAccessor:
         if isinstance(resp, AssetStateResult):
             stored = resp.value
             backend = _get_worker_state_backend()
-            if backend is not None:
-                # serialize_asset_state_to_ref always returns str by contract; stored contains the ref.
+            if backend is not None and isinstance(stored, dict) and stored.get("__type") == "ExternalState":
+                # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
+                ref = stored["__var"]
                 if TYPE_CHECKING:
-                    assert isinstance(stored, str)
-                return backend.deserialize_asset_state_from_ref(stored)
+                    assert isinstance(ref, str)
+                return backend.deserialize_asset_state_from_ref(ref)
             return stored
         return None
 
@@ -661,15 +661,13 @@ class AssetStateAccessor:
         from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # if custom backend is configured, store the value on the custom backend, and return the reference
-        # to the stored value to store in the DB
         backend = _get_worker_state_backend()
         asset_ref = self._name or self._uri or ""
-        stored = (
-            backend.serialize_asset_state_to_ref(value=value, key=key, asset_ref=asset_ref)
-            if backend
-            else value
-        )
+        stored: JsonValue = value
+        if backend is not None:
+            # decorate the value with a marker to indicate that it's stored externally, and include the ref to the external storage
+            ref = backend.serialize_asset_state_to_ref(value=value, key=key, asset_ref=asset_ref)
+            stored = {"__type": "ExternalState", "__var": ref}
 
         msg: ToSupervisor
         if self._name:

@@ -1225,6 +1225,43 @@ class TestTaskStateAccessor:
 
         mock_supervisor_comms.send.assert_not_called()
 
+    def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
+        """Custom backend ref is wrapped in ExternalState envelope before going to DB."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStateBackend)
+        backend.serialize_task_state_to_ref.return_value = "s3://bucket/ti_123/job_id"
+
+        with (
+            patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend),
+            conf_vars({("state_store", "default_retention_days"): "0"}),
+        ):
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "spark_001")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value={"__type": "ExternalState", "__var": "s3://bucket/ti_123/job_id"},
+                expires_at=None,
+            )
+        )
+
+    def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
+        """ExternalState envelope is detected and the ref is passed to deserialize."""
+        mock_supervisor_comms.send.return_value = TaskStateResult(
+            value={"__type": "ExternalState", "__var": "s3://bucket/ti_123/job_id"}
+        )
+
+        backend = MagicMock(spec=BaseStateBackend)
+        backend.deserialize_task_state_from_ref.return_value = {"rows": 123}
+
+        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+            result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+
+        assert result == {"rows": 123}
+        backend.deserialize_task_state_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
+
 
 class TestAssetStateAccessor:
     ASSET_NAME = "debug_watcher_asset"
@@ -1316,6 +1353,41 @@ class TestAssetStateAccessor:
         AssetStateAccessor(uri=self.ASSET_URI).clear()
 
         mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))
+
+    def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
+        """Custom backend ref is wrapped in ExternalState envelope before going to DB."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStateBackend)
+        backend.serialize_asset_state_to_ref.return_value = "s3://bucket/assets/orders/watermark"
+
+        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+            AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByName(
+                name=self.ASSET_NAME,
+                key="watermark",
+                value={"__type": "ExternalState", "__var": "s3://bucket/assets/orders/watermark"},
+            )
+        )
+
+    def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
+        """ExternalState envelope is detected and the ref is passed to deserialize."""
+        mock_supervisor_comms.send.return_value = AssetStateResult(
+            value={"__type": "ExternalState", "__var": "s3://bucket/assets/orders/watermark"}
+        )
+
+        backend = MagicMock(spec=BaseStateBackend)
+        backend.deserialize_asset_state_from_ref.return_value = "2026-05-01"
+
+        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+            result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+
+        assert result == "2026-05-01"
+        backend.deserialize_asset_state_from_ref.assert_called_once_with(
+            "s3://bucket/assets/orders/watermark"
+        )
 
 
 class TestAssetStateAccessors:
