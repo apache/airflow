@@ -178,6 +178,7 @@ class TestBaseChartTest:
                 "executor": executor,
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
             },
         )
         kind_names_tuples = {
@@ -191,6 +192,7 @@ class TestBaseChartTest:
             ("NetworkPolicy", "test-basic-pgbouncer-policy"),
             ("NetworkPolicy", "test-basic-scheduler-policy"),
             ("NetworkPolicy", "test-basic-statsd-policy"),
+            ("NetworkPolicy", "test-basic-otel-collector-policy"),
             ("NetworkPolicy", "test-basic-worker-policy"),
         ]
 
