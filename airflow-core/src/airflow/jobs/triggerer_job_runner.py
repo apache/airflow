@@ -1490,9 +1490,7 @@ class TriggerRunner:
                     event_stream = trigger.run()
 
                 async for event in event_stream:
-                    await self.log.ainfo(
-                        "Trigger fired event", name=self.triggers[trigger_id]["name"]
-                    )
+                    await self.log.ainfo("Trigger fired event", name=self.triggers[trigger_id]["name"])
                     self.triggers[trigger_id]["events"] += 1
                     self.events.append((trigger_id, event))
                 span.set_status(Status(StatusCode.OK))
