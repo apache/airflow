@@ -24,7 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -132,6 +132,38 @@ class UnknownActiveBackfills(AirflowException):
 
     def __init__(self, dag_id: str):
         super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
+class InvalidPartitionWindow(ValueError):
+    """
+    Raised when the partition-date window is invalid (e.g. start is after end).
+
+    :meta private:
+    """
+
+
+class PartitionFlagsOnNonPartitionedDag(ValueError):
+    """
+    Raised when --partition-date-start / --partition-date-end are used on a non-partitioned Dag.
+
+    :meta private:
+    """
+
+
+class DateFlagsOnPartitionedDag(ValueError):
+    """
+    Raised when --from-date / --to-date are used on a partitioned Dag.
+
+    :meta private:
+    """
+
+
+class NoBackfillSelector(ValueError):
+    """
+    Raised when neither date-range flags nor partition-range flags are provided for the Dag type.
+
+    :meta private:
+    """
 
 
 class ReprocessBehavior(str, Enum):
@@ -266,6 +298,51 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
     return non_create_reason
 
 
+def _validate_partition_window(
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+) -> None:
+    """Raise ``InvalidPartitionWindow`` when start is strictly after end."""
+    if (
+        partition_date_start is not None
+        and partition_date_end is not None
+        and partition_date_start.date() > partition_date_end.date()
+    ):
+        raise InvalidPartitionWindow(
+            f"partition_date_start ({partition_date_start.date()}) must not be after "
+            f"partition_date_end ({partition_date_end.date()})."
+        )
+
+
+def _resolve_backfill_window(
+    *,
+    is_partitioned: bool,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+) -> tuple[datetime, datetime]:
+    """Validate the selector combination and return the resolved (start, end) date pair."""
+    if is_partitioned:
+        if from_date is not None or to_date is not None:
+            raise DateFlagsOnPartitionedDag(
+                "--from-date / --to-date are not valid for partitioned Dags; "
+                "use --partition-date-start / --partition-date-end instead."
+            )
+        if partition_date_start is None or partition_date_end is None:
+            raise NoBackfillSelector(
+                "Partitioned Dag requires both --partition-date-start and --partition-date-end."
+            )
+        return partition_date_start, partition_date_end
+    if partition_date_start is not None or partition_date_end is not None:
+        raise PartitionFlagsOnNonPartitionedDag(
+            "--partition-date-start / --partition-date-end are only valid for partitioned Dags."
+        )
+    if from_date is None or to_date is None:
+        raise NoBackfillSelector("Non-partitioned Dag requires both --from-date and --to-date.")
+    return from_date, to_date
+
+
 def _validate_backfill_params(
     dag: SerializedDAG,
     reverse: bool,
@@ -305,12 +382,14 @@ def _validate_backfill_params(
 def _do_dry_run(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
     dag_run_conf: dict | None = None,
+    partition_date_start: datetime | None = None,
+    partition_date_end: datetime | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -326,14 +405,32 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
-
-    dagrun_info_list = _get_info_list(
-        dag=dag,
+    is_partitioned = dag.timetable.partitioned
+    start_date, end_date = _resolve_backfill_window(
+        is_partitioned=is_partitioned,
         from_date=from_date,
         to_date=to_date,
+        partition_date_start=partition_date_start,
+        partition_date_end=partition_date_end,
+    )
+
+    _validate_partition_window(partition_date_start, partition_date_end)
+
+    _validate_backfill_params(
+        dag,
+        reverse,
+        start_date,
+        end_date,
+        reprocess_behavior,
+        dag_run_conf,
+    )
+    dagrun_info_list = _get_info_list(
+        dag=dag,
+        from_date=start_date,
+        to_date=end_date,
         reverse=reverse,
     )
+
     for info in dagrun_info_list:
         if TYPE_CHECKING:
             assert info.logical_date
@@ -533,11 +630,22 @@ def _get_info_list(
     reverse: bool,
     dag: SerializedDAG,
 ) -> list[DagRunInfo]:
-    infos = dag.iter_dagrun_infos_between(from_date, to_date)
-    now = timezone.utcnow()
-    dagrun_info_list = [
-        x for x in infos if x.partition_key or (x.data_interval and x.data_interval.end < now)
-    ]
+    if dag.timetable.partitioned:
+        # Selection axis is partition_date. Enumerate one run per partition tick in
+        # the requested calendar-date window; run_after is set to the partition_date
+        # on each yielded DagRunInfo.
+        earliest_partition_date = dag.timetable.resolve_day_bound(from_date.date())
+        latest_partition_date = dag.timetable.resolve_day_bound(to_date.date() + timedelta(days=1))
+        dagrun_info_list = list(
+            dag.timetable.iter_partition_dagrun_infos(
+                earliest_partition_date=earliest_partition_date,
+                latest_partition_date=latest_partition_date,
+            )
+        )
+    else:
+        now = timezone.utcnow()
+        infos = dag.iter_dagrun_infos_between(from_date, to_date)
+        dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
@@ -595,14 +703,16 @@ def _handle_clear_run(
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    partition_date_start: datetime | None = None,
+    partition_date_end: datetime | None = None,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -640,12 +750,30 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
-        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
+        is_partitioned = dag.timetable.partitioned
+        orm_from_date, orm_to_date = _resolve_backfill_window(
+            is_partitioned=is_partitioned,
+            from_date=from_date,
+            to_date=to_date,
+            partition_date_start=partition_date_start,
+            partition_date_end=partition_date_end,
+        )
+
+        _validate_partition_window(partition_date_start, partition_date_end)
+
+        _validate_backfill_params(
+            dag,
+            reverse,
+            orm_from_date,
+            orm_to_date,
+            reprocess_behavior,
+            dag_run_conf,
+        )
 
         br = Backfill(
             dag_id=dag_id,
-            from_date=from_date,
-            to_date=to_date,
+            from_date=orm_from_date,
+            to_date=orm_to_date,
             max_active_runs=max_active_runs,
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
@@ -658,8 +786,8 @@ def _create_backfill(
         session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
         dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
+            from_date=orm_from_date,
+            to_date=orm_to_date,
             reverse=reverse,
             dag=dag,
         )

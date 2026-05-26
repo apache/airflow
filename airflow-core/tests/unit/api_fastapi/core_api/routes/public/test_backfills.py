@@ -32,6 +32,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
@@ -836,6 +837,185 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
                     response.json().get("detail")
                     == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
+
+
+class TestCreateBackfillPartitioned(TestBackfillEndpoint):
+    """Tests for partition-date selector paths on POST /backfills and POST /backfills/dry_run."""
+
+    @pytest.mark.parametrize(
+        ("url", "extra_assertions"),
+        [
+            ("/backfills", "create"),
+            ("/backfills/dry_run", "dry_run"),
+        ],
+    )
+    def test_partitioned_dag_with_partition_dates(
+        self, session, dag_maker, test_client, url, extra_assertions
+    ):
+        """Partitioned Dag + partition_date_start/end succeeds on both routes."""
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "partition_date_start": "2026-02-18T00:00:00+00:00",
+            "partition_date_end": "2026-02-20T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 200
+        if extra_assertions == "create":
+            assert response.json() == {
+                "completed_at": mock.ANY,
+                "created_at": mock.ANY,
+                "dag_display_name": "TEST_PARTITIONED_DAG",
+                "dag_id": "TEST_PARTITIONED_DAG",
+                "dag_run_conf": None,
+                "from_date": "2026-02-18T00:00:00Z",
+                "id": mock.ANY,
+                "is_paused": False,
+                "reprocess_behavior": "none",
+                "max_active_runs": 5,
+                "to_date": "2026-02-20T00:00:00Z",
+                "updated_at": mock.ANY,
+            }
+        elif extra_assertions == "dry_run":
+            resp_json = response.json()
+            assert resp_json["total_entries"] >= 1
+            first = resp_json["backfills"][0]
+            assert "partition_key" in first
+            assert "partition_date" in first
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/backfills",
+            "/backfills/dry_run",
+        ],
+    )
+    def test_partitioned_dag_with_date_flags_returns_422(self, session, dag_maker, test_client, url):
+        """Partitioned Dag + from_date/to_date raises DateFlagsOnPartitionedDag → 422."""
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "from_date": "2026-02-18T00:00:00+00:00",
+            "to_date": "2026-02-20T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/backfills",
+            "/backfills/dry_run",
+        ],
+    )
+    def test_non_partitioned_dag_with_partition_flags_returns_422(self, session, dag_maker, test_client, url):
+        """Non-partitioned Dag + partition_date_start/end raises PartitionFlagsOnNonPartitionedDag → 422."""
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 0 * * *"):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_DAG_1",
+            "partition_date_start": "2026-02-18T00:00:00+00:00",
+            "partition_date_end": "2026-02-20T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/backfills",
+            "/backfills/dry_run",
+        ],
+    )
+    def test_no_selector_returns_422(self, session, dag_maker, test_client, url):
+        """No date or partition selectors raises NoBackfillSelector → 422."""
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 0 * * *"):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_DAG_1",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/backfills",
+            "/backfills/dry_run",
+        ],
+    )
+    def test_partition_start_after_end_returns_422(self, session, dag_maker, test_client, url):
+        """partition_date_start > partition_date_end raises InvalidPartitionWindow → 422."""
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "partition_date_start": "2026-02-20T00:00:00+00:00",
+            "partition_date_end": "2026-02-18T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/backfills",
+            "/backfills/dry_run",
+        ],
+    )
+    def test_partition_start_equals_end_returns_200(self, session, dag_maker, test_client, url):
+        """partition_date_start == partition_date_end (same day) is allowed → 200."""
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "partition_date_start": "2026-02-18T00:00:00+00:00",
+            "partition_date_end": "2026-02-18T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url=url, json=data)
+        assert response.status_code == 200
 
 
 class TestCancelBackfill(TestBackfillEndpoint):

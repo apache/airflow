@@ -626,14 +626,52 @@ export const $BackfillPostBody = {
             title: 'Dag Id'
         },
         from_date: {
-            type: 'string',
-            format: 'date-time',
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'From Date'
         },
         to_date: {
-            type: 'string',
-            format: 'date-time',
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'To Date'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start'
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End'
         },
         run_backwards: {
             type: 'boolean',
@@ -676,7 +714,7 @@ export const $BackfillPostBody = {
     },
     additionalProperties: false,
     type: 'object',
-    required: ['dag_id', 'from_date', 'to_date'],
+    required: ['dag_id'],
     title: 'BackfillPostBody',
     description: 'Object used for create backfill request.'
 } as const;

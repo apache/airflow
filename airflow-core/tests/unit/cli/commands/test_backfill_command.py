@@ -107,6 +107,8 @@ class TestCliBackfill:
             reprocess_behavior=expected_repro,
             triggering_user_name="root",
             run_on_latest_version=True,
+            partition_date_start=None,
+            partition_date_end=None,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
@@ -134,6 +136,8 @@ class TestCliBackfill:
             reprocess_behavior=None,
             run_on_latest_version=True,
             triggering_user_name="root",
+            partition_date_start=None,
+            partition_date_end=None,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
@@ -166,6 +170,8 @@ class TestCliBackfill:
             reverse=reverse,
             reprocess_behavior="none",
             session=mock.ANY,
+            partition_date_start=None,
+            partition_date_end=None,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
@@ -195,6 +201,8 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="root",
             run_on_latest_version=True,
+            partition_date_start=None,
+            partition_date_end=None,
         )
 
     def test_backfill_with_invalid_dag_run_conf(self):
@@ -241,4 +249,60 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="root",
             run_on_latest_version=True,
+            partition_date_start=None,
+            partition_date_end=None,
         )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
+    def test_cli_backfill_create_passes_partition_window_kwargs(self, mock_create):
+        """CLI flags --partition-date-start/--end are parsed and forwarded to _create_backfill."""
+        partition_start = "2026-02-18T00:00:00+00:00"
+        partition_end = "2026-02-20T00:00:00+00:00"
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--partition-date-start",
+            partition_start,
+            "--partition-date-end",
+            partition_end,
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        call_kwargs = mock_create.call_args.kwargs
+        assert call_kwargs["partition_date_start"] is not None
+        assert call_kwargs["partition_date_end"] is not None
+        assert str(call_kwargs["partition_date_start"].date()) == "2026-02-18"
+        assert str(call_kwargs["partition_date_end"].date()) == "2026-02-20"
+
+    @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
+    def test_cli_backfill_create_dry_run_includes_partition_window(self, mock_dry_run):
+        """Dry-run path forwards partition window kwargs to `_do_dry_run`."""
+        mock_dry_run.return_value = iter([])
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dry-run",
+            "--reprocess-behavior",
+            "none",
+            "--partition-date-start",
+            "2026-02-18T00:00:00+00:00",
+            "--partition-date-end",
+            "2026-02-20T00:00:00+00:00",
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        call_kwargs = mock_dry_run.call_args.kwargs
+        assert call_kwargs["partition_date_start"] is not None
+        assert call_kwargs["partition_date_end"] is not None

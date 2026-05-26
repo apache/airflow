@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
     BackfillPostBody,
@@ -51,11 +52,15 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     DagNonPeriodicScheduleException,
+    DateFlagsOnPartitionedDag,
     InvalidBackfillConf,
     InvalidBackfillDate,
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
+    InvalidPartitionWindow,
     InvalidReprocessBehavior,
+    NoBackfillSelector,
+    PartitionFlagsOnNonPartitionedDag,
     _create_backfill,
     _do_dry_run,
 )
@@ -219,7 +224,12 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            HTTP_422_UNPROCESSABLE_CONTENT,
+        ]
     ),
     dependencies=[
         Depends(action_logging()),
@@ -233,6 +243,8 @@ def create_backfill(
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
+    partition_date_start = timezone.coerce_datetime(backfill_request.partition_date_start)
+    partition_date_end = timezone.coerce_datetime(backfill_request.partition_date_end)
     resolved_run_on_latest = resolve_run_on_latest_version(
         backfill_request.run_on_latest_version,
         backfill_request.dag_id,
@@ -244,6 +256,8 @@ def create_backfill(
             dag_id=backfill_request.dag_id,
             from_date=from_date,
             to_date=to_date,
+            partition_date_start=partition_date_start,
+            partition_date_end=partition_date_end,
             max_active_runs=backfill_request.max_active_runs,
             reverse=backfill_request.run_backwards,
             dag_run_conf=backfill_request.dag_run_conf,
@@ -270,19 +284,29 @@ def create_backfill(
             detail=str(e),
         )
     except (
-        InvalidReprocessBehavior,
-        InvalidBackfillDirection,
+        DateFlagsOnPartitionedDag,
         DagNonPeriodicScheduleException,
+        InvalidBackfillConf,
         InvalidBackfillDate,
         InvalidBackfillDateRange,
-        InvalidBackfillConf,
+        InvalidBackfillDirection,
+        InvalidPartitionWindow,
+        InvalidReprocessBehavior,
+        NoBackfillSelector,
+        PartitionFlagsOnNonPartitionedDag,
     ) as e:
         raise RequestValidationError(str(e))
 
 
 @backfills_router.post(
     path="/dry_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            HTTP_422_UNPROCESSABLE_CONTENT,
+        ]
+    ),
     dependencies=[
         Depends(requires_access_backfill(method="POST")),
     ],
@@ -293,12 +317,16 @@ def create_backfill_dry_run(
 ) -> DryRunBackfillCollectionResponse:
     from_date = timezone.coerce_datetime(body.from_date)
     to_date = timezone.coerce_datetime(body.to_date)
+    partition_date_start = timezone.coerce_datetime(body.partition_date_start)
+    partition_date_end = timezone.coerce_datetime(body.partition_date_end)
 
     try:
         backfills_dry_run = _do_dry_run(
             dag_id=body.dag_id,
             from_date=from_date,
             to_date=to_date,
+            partition_date_start=partition_date_start,
+            partition_date_end=partition_date_end,
             reverse=body.run_backwards,
             reprocess_behavior=body.reprocess_behavior,
             dag_run_conf=body.dag_run_conf,
@@ -325,11 +353,15 @@ def create_backfill_dry_run(
         )
 
     except (
-        InvalidReprocessBehavior,
-        InvalidBackfillDirection,
+        DateFlagsOnPartitionedDag,
         DagNonPeriodicScheduleException,
+        InvalidBackfillConf,
         InvalidBackfillDate,
         InvalidBackfillDateRange,
-        InvalidBackfillConf,
+        InvalidBackfillDirection,
+        InvalidPartitionWindow,
+        InvalidReprocessBehavior,
+        NoBackfillSelector,
+        PartitionFlagsOnNonPartitionedDag,
     ) as e:
         raise RequestValidationError(str(e))
