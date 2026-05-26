@@ -93,30 +93,46 @@ def _validate_schema_version(instance, _, value) -> str:
 
 
 @attrs.define
-class _MainJar:
-    path: pathlib.Path
+class _JarInfo:
     main_class: str
     schema_version: str = attrs.field(validator=_validate_schema_version)
 
+    @attrs.define
+    class _Progress:
+        main_class: str | None = attrs.field(init=False, default=None)
+        schema_version: str | None = attrs.field(init=False, default=None)
+
+        def collect(self) -> _JarInfo | None:
+            if self.main_class is None or self.schema_version is None:
+                return None
+            return _JarInfo(self.main_class, self.schema_version)
+
     @classmethod
-    def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> Self:
+    def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> _JarInfo:
+        progress = cls._Progress()
         for root in roots:
-            log.debug("Finding Main-Class in directory", dir=root)
+            log.debug("Finding required JAR metadata in directory", dir=root)
             for p in root.iterdir():
                 if p.suffix != ".jar":
                     continue
                 if (metadata := _JarMetadata.from_jar(p)) is None:
                     continue
-                if not metadata.main_class:
-                    continue
-                if main_class and metadata.main_class != main_class:
-                    continue
-                log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
-                if not metadata.schema_version:
-                    raise ValueError("JAR with Main-Class found without Airflow-Supervisor-Schema-Version")
-                return cls(p, metadata.main_class, metadata.schema_version)
-        if main_class:
-            tp = "cannot find a JAR with Main-Class matching {0} in {1}"
+                if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
+                    log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
+                    progress.main_class = metadata.main_class
+                if metadata.schema_version:
+                    log.debug(
+                        "JAR located with Airflow-Supervisor-Schema-Version metadata",
+                        path=p,
+                        schema_version=metadata.schema_version,
+                    )
+                    progress.schema_version = metadata.schema_version
+                if (result := progress.collect()) is not None:
+                    return result
+        if progress.main_class is not None:
+            tp = "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in {1}"
+        elif main_class:
+            tp = "cannot find a JAR with Main-Class matching {0!r} in {1}"
         else:
             tp = "cannot find a JAR with Main-Class metadata in {1}"
         raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
@@ -240,7 +256,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         main_class: str,
         **kwargs,
     ) -> Self:
-        jar = _MainJar.find(jars_root, main_class)
+        jar = _JarInfo.find(jars_root, main_class)
         with _ResourceTracker(timeout=10.0) as tracker:
             comm_server, logs_server = tracker.track(_start_server(), _start_server())
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
