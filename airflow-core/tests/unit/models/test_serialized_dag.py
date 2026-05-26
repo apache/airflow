@@ -914,11 +914,8 @@ class TestSerializedDagModel:
         assert updated_alert.name == "updated name"
 
     def test_get_count_returns_zero_on_empty_table(self, session):
-        """get_count() returns 0 when no serialized DAGs are stored.
-
-        The autouse ``setup_test_cases`` fixture calls ``db.clear_db_serialized_dags()``
-        before this test runs, guaranteeing a known-empty starting state.
-        """
+        """get_count() returns 0 when no serialized DAGs are stored."""
+        db.clear_db_serialized_dags()
         assert SDM.get_count(session=session) == 0
 
     def test_get_count_returns_correct_value(self, dag_maker, session):
