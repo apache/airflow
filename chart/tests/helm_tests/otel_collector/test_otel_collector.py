@@ -75,8 +75,6 @@ class TestOtelCollectorCommon:
 
 
 class TestOtelCollectorResourceGating:
-    """Resource emission depends on tracesEnabled / metricsEnabled."""
-
     def test_renders_default(self):
         docs = render_chart(show_only=OTEL_TEMPLATES)
         assert len(docs) == 0
@@ -171,8 +169,6 @@ class TestOtelCollectorConfigOverride:
 
 
 class TestOtelCollectorDeployment:
-    """Deployment-level configurability."""
-
     def test_default_args(self):
         docs = render_chart(
             values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
@@ -406,8 +402,6 @@ class TestOtelCollectorDeployment:
 
 
 class TestOtelCollectorService:
-    """Service-level configurability."""
-
     def test_service_annotations(self):
         docs = render_chart(
             values={
@@ -426,8 +420,6 @@ class TestOtelCollectorService:
 
 
 class TestOtelCollectorServiceAccount:
-    """ServiceAccount-level configurability."""
-
     def test_default_create(self):
         docs = render_chart(
             values={"otelCollector": {"tracesEnabled": True}}, show_only=[SERVICE_ACCOUNT_TEMPLATE]
@@ -536,7 +528,7 @@ class TestOtelCollectorAirflowConfig:
 
     @staticmethod
     def _get_conf_section(cfg: str, name: str) -> str:
-        """Return the body of the specified section (everything until the next '[')."""
+        """Return the body of the specified section."""
         return cfg.split(f"[{name}]")[1].split("[")[0]
 
     @staticmethod
