@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSearchParams } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { tableSortKey } from "src/constants/localStorage";

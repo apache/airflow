@@ -44,7 +44,7 @@ class VariableResponse(BaseModel):
             return self
         try:
             val_dict = json.loads(self.val)
-            redacted_dict = redact(val_dict)
+            redacted_dict = redact(val_dict, self.key)
             self.val = json.dumps(redacted_dict)
             return self
         except json.JSONDecodeError:

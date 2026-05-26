@@ -64,8 +64,10 @@ class CallbackDTO(BaseModel):
 
     @property
     def key(self) -> CallbackKey:
-        """Return callback ID as key (CallbackKey = str)."""
-        return self.id
+        """Return callback ID as a CallbackKey instance."""
+        from airflow.models.callback import CallbackKey  # circular import
+
+        return CallbackKey(id=self.id)
 
 
 class ExecuteCallback(BaseDagBundleWorkload):

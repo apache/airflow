@@ -33,8 +33,14 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class TaskInstanceDTO(BaseModel):
-    """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
+class BaseTaskInstanceDTO(BaseModel):
+    """
+    Base schema for TaskInstance with the minimal fields shared by Executors and the Task SDK.
+
+    This definition is duplicated in :mod:`airflow.sdk.execution_time.workloads.task`
+    and the two are kept in sync by the ``check-task-instance-dto-sync`` prek
+    hook. Update both files together.
+    """
 
     id: uuid.UUID
     dag_version_id: uuid.UUID
@@ -48,10 +54,15 @@ class TaskInstanceDTO(BaseModel):
     queue: str
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
-    external_executor_id: str | None = Field(default=None, exclude=True)
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
+
+
+class TaskInstanceDTO(BaseTaskInstanceDTO):
+    """TaskInstanceDTO with executor-specific ``external_executor_id`` field and ``key`` property."""
+
+    external_executor_id: str | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property

@@ -269,7 +269,7 @@ class TestWaiter:
                 "MaxAttempts": 1,
             },
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
 
     @mock.patch("time.sleep")
@@ -367,3 +367,56 @@ class TestWaiter:
         finally:
             logger.setLevel(level)
         status_format_mock.assert_not_called()
+
+    @mock.patch("time.sleep")
+    def test_wait_with_retriable_throttling_error(self, mock_sleep):
+        mock_sleep.return_value = True
+        mock_waiter = mock.MagicMock()
+        throttling_error = WaiterError(
+            name="test_waiter",
+            reason="An error occurred (ThrottlingException) when calling the GetJobRun operation: Rate exceeded",
+            last_response={
+                "Error": {
+                    "Message": "Rate exceeded",
+                    "Code": "ThrottlingException",
+                }
+            },
+        )
+        mock_waiter.wait.side_effect = [throttling_error, throttling_error, True]
+        wait(
+            waiter=mock_waiter,
+            waiter_delay=123,
+            waiter_max_attempts=10,
+            args={"test_arg": "test_value"},
+            failure_message="test failure message",
+            status_message="test status message",
+            status_args=["Status.State"],
+        )
+        assert mock_waiter.wait.call_count == 3
+        mock_sleep.assert_called_with(123)
+
+    @pytest.mark.asyncio
+    async def test_async_wait_with_retriable_throttling_error(self):
+        mock_waiter = mock.MagicMock()
+        throttling_error = WaiterError(
+            name="test_waiter",
+            reason="An error occurred (ThrottlingException) when calling the GetJobRun operation: Rate exceeded",
+            last_response={
+                "Error": {
+                    "Message": "Rate exceeded",
+                    "Code": "ThrottlingException",
+                }
+            },
+        )
+        mock_waiter.wait = AsyncMock()
+        mock_waiter.wait.side_effect = [throttling_error, throttling_error, True]
+        await async_wait(
+            waiter=mock_waiter,
+            waiter_delay=0,
+            waiter_max_attempts=10,
+            args={"test_arg": "test_value"},
+            failure_message="test failure message",
+            status_message="test status message",
+            status_args=["Status.State"],
+        )
+        assert mock_waiter.wait.call_count == 3

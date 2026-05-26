@@ -235,7 +235,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
 
 
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
-    tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
+    tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
     copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")

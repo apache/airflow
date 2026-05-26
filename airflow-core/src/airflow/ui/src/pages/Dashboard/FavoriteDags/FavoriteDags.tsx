@@ -18,7 +18,7 @@
  */
 import { Box, Flex, Heading, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiStar } from "react-icons/fi";
+import { MdStarOutline } from "react-icons/md";
 
 import { useDagServiceGetDagsUi } from "openapi/queries";
 
@@ -36,7 +36,7 @@ export const FavoriteDags = () => {
   return (
     <Box>
       <Flex color="fg.muted" my={2}>
-        <FiStar />
+        <MdStarOutline />
         <Heading ml={1} size="xs">
           {translate("favorite.favoriteDags", { count: LIMIT })}
         </Heading>
