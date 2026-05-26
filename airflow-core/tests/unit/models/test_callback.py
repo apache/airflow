@@ -243,9 +243,11 @@ class TestExecutorCallback:
         from uuid import UUID
 
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
-        callback_id_str = str(callback.id)
         session.add(callback)
         session.commit()
+        # ``id`` is filled by the ``uuid6.uuid7`` default at flush time, so it
+        # is only safe to stringify *after* the commit.
+        callback_id_str = str(callback.id)
 
         assert session.get(Callback, UUID(callback_id_str)) is not None
 
