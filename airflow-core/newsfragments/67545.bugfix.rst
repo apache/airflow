@@ -1,0 +1,1 @@
+Refresh ``DagVersion.bundle_version`` when a DAG bundle is redeployed at a new SHA but the DAG file itself is unchanged. Previously the ``SerializedDagModel.write_dag`` short-circuit only compared ``dag_hash`` and ``bundle_name``, so endpoints resolving "which bundle commit produced this DAG" served stale results.
