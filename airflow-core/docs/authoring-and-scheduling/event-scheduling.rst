@@ -150,24 +150,116 @@ In other words, the savings is at the poll-loop and upstream-I/O layer, not at t
 Suitable upstreams
 ^^^^^^^^^^^^^^^^^^
 
-The shared-stream channel is **one-way** today: events flow from
-``open_shared_stream`` out to each subscriber's ``filter_shared_stream``,
-and there is no way for a subscriber to tell the producer "I accepted /
-dropped / committed this event". That restricts the pattern to upstreams
-whose consumption does **not** depend on a side effect on a handle that
-only the producer holds. Good fits:
+Good fits for the shared-stream pattern:
 
 * Idempotent / read-only reads — directory scans, polling REST APIs.
 * Subscriber-side-effect cleanup, where the trigger's per-event action
   (``unlink``, local marking, …) goes through APIs the subscriber owns
   independently of the shared producer handle.
+* Message-broker upstreams (Kafka, SQS, Pub/Sub, Azure Service Bus) where
+  the producer must commit/delete/ack after all subscribers have processed
+  the message — use the ack channel described below.
 
-Currently **not** in scope: Kafka consumers (regardless of commit mode),
-SQS with delete-on-process or visibility extension, and any source where
-progress on the producer's handle is tied to the subscriber's accept /
-reject decision. These sources need a way for the subscriber to signal
-acceptance back to the producer, which the current shared-stream API does
-not provide.
+Producer-side ack channel
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For upstreams where the producer must advance (commit, delete, or ack) only
+after all subscribers have processed an event, override
+:py:meth:`~airflow.triggers.base.BaseEventTrigger.advance_shared_stream`.
+When this hook is present, the manager enters **ack mode**:
+
+1. ``open_shared_stream`` must yield ``(event, broker_payload)`` tuples,
+   where ``broker_payload`` is whatever the producer needs later (e.g. an
+   SQS receipt handle, a Kafka offset, a Pub/Sub ack ID).
+2. Each subscriber's ``filter_shared_stream`` receives ``(event, token)``
+   pairs. The subscriber calls ``await token.ack()`` once it has accepted
+   the event, or ``await token.nack()`` to opt out.
+3. Once every subscriber in the fan-out set has called ``ack()`` (or ``nack()``,
+   or timed out), the manager calls ``advance_shared_stream(kwargs, broker_payload)``
+   — commit the offset, delete the SQS message, etc.
+
+Example — SQS-like producer:
+
+.. code-block:: python
+
+    from collections.abc import AsyncIterator
+    from typing import Any
+
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+    from airflow.triggers.shared_stream import AckToken
+
+
+    class SqsSharedTrigger(BaseEventTrigger):
+        def __init__(self, *, queue_url: str, region: str | None = None):
+            super().__init__()
+            self.queue_url = queue_url
+            self.region = region
+
+        def serialize(self):
+            return (
+                f"{type(self).__module__}.{type(self).__qualname__}",
+                {"queue_url": self.queue_url, "region": self.region},
+            )
+
+        def shared_stream_key(self):
+            return ("sqs", self.queue_url)
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs) -> AsyncIterator[Any]:
+            # Replace with a real SQS long-poll loop.
+            while True:
+                messages = await poll_sqs(kwargs["queue_url"])
+                for msg in messages:
+                    yield msg["Body"], msg["ReceiptHandle"]
+
+        @classmethod
+        async def advance_shared_stream(cls, kwargs, broker_payload) -> None:
+            # Called once all subscribers have acknowledged this message.
+            await delete_sqs_message(kwargs["queue_url"], broker_payload)
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                if self.region is None or raw.get("region") == self.region:
+                    await token.ack()
+                    yield TriggerEvent(raw)
+                else:
+                    await token.nack()
+
+        async def run(self):  # pragma: no cover
+            yield TriggerEvent({})
+
+.. warning::
+   Always call ``await token.ack()`` or ``await token.nack()`` **before**
+   ``yield``-ing the ``TriggerEvent``. If you yield first and the caller
+   abandons the generator (the common single-event case), the token is
+   never resolved and the producer will not advance until the per-event
+   timeout expires.
+
+**Snapshot-at-fan-out**: the set of subscribers that must ack a given event
+is frozen at the moment the event is broadcast. A subscriber that joins
+after the event was dispatched is not added to that event's pending set.
+
+**Per-event ack timeout**: if a subscriber has not called ``ack()`` or
+``nack()`` within ``ack_timeout`` seconds (default 5 minutes, configurable
+via ``SharedStreamManager(ack_timeout=...)``), the manager force-fails that
+subscriber's trigger. Other subscribers are not affected; once their acks
+arrive, the producer advances normally. The ack timeout is a manager-level
+safety net and does not replace any native broker session or visibility timeout.
+
+**Triggerer restart**: outstanding acks live in memory only. After a
+triggerer restart, the broker redelivers messages that were not yet
+acknowledged. Subscribers must therefore be idempotent.
+
+**nack() semantics**: ``nack()`` removes the subscriber from the pending
+ack set without triggering broker-side redeliver. If you need the broker to
+redeliver immediately (e.g. ``ChangeMessageVisibility(0)`` for SQS), do it
+inside ``advance_shared_stream`` or within the subscriber's own logic.
+
+**``shared_stream_subscriber_queue_size`` in ack mode**: the config bound
+still governs unprocessed raw events per subscriber. In ack mode the
+producer does not yield the next event until all subscribers have acknowledged it,
+so this queue is rarely near its limit; it primarily guards against burst
+delivery before a subscriber's filter runs.
 
 Verifying that sharing is active
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

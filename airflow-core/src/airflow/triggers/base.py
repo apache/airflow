@@ -264,35 +264,30 @@ class BaseEventTrigger(BaseTrigger):
       shared stream (a ``tuple`` of strings is a common choice). Triggers
       whose key compares equal share one poll.
     * :meth:`open_shared_stream` — open the shared stream and yield raw
-      events. Called once per group in the triggerer.
+      events (or ``(event, broker_payload)`` tuples when ack mode is active).
+      Called once per group in the triggerer.
     * :meth:`filter_shared_stream` — convert the shared raw stream into this
       trigger's own ``TriggerEvent`` instances, applying any per-trigger
-      filtering or transformation.
+      filtering or transformation. In ack mode, the stream yields
+      ``(event, :class:`~airflow.triggers.shared_stream.AckToken`)`` pairs;
+      call ``await token.ack()`` once the event is accepted.
 
     Triggers whose ``shared_stream_key`` returns ``None`` (the default)
     keep the existing behavior: each trigger gets its own poll loop via
     :meth:`run`.
 
-    **Suitable upstreams**
+    **Broker-advance hook (ack mode)**
 
-    The shared-stream channel is **one-way** today: events flow from the
-    producer (``open_shared_stream``) to each subscriber's
-    ``filter_shared_stream``, with no path back to tell the producer that a
-    subscriber accepted, dropped, or finished processing an event. That
-    restricts the pattern to upstreams whose consumption does **not** depend
-    on a side effect on a handle that only the producer holds:
+    Override :meth:`advance_shared_stream` to enable ack mode. The manager
+    calls this classmethod once all subscribers that were online at broadcast
+    time have called ``ack()`` (or ``nack()``, or timed out) for an event. Use it to commit,
+    delete, or ack the message on the broker. When this method is not
+    overridden, the fast path is taken: no ack tokens are issued and
+    subscribers receive raw events exactly as before.
 
-    * Idempotent / read-only reads (filesystem listings, polling REST APIs).
-    * Subscriber-side-effect cleanup, where the trigger's per-event action
-      (``unlink``, local marking, …) operates through APIs the subscriber
-      already owns, independent of the shared producer handle.
-
-    Upstreams **not** in scope include Kafka consumers (regardless of
-    commit mode), SQS with delete-on-process or visibility extension,
-    and any source where progress on the producer's handle is tied to
-    the subscriber's accept / reject decision. These sources need a way
-    for the subscriber to signal acceptance back to the producer, which
-    the current shared-stream API does not provide.
+    See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
+    including snapshot-at-fan-out semantics, per-event timeout behavior, and
+    triggerer-restart redeliver notes.
     """
 
     supports_triggerer_queue: bool = False
@@ -366,11 +361,29 @@ class BaseEventTrigger(BaseTrigger):
         ``cls`` for class-scoped state or diagnostics.
 
         Required only when :meth:`shared_stream_key` returns non-``None``.
+
+        If :meth:`advance_shared_stream` is overridden, this generator must
+        yield ``(event, broker_payload)`` tuples, where ``broker_payload``
+        is any opaque object the producer needs for the broker-side advance
+        (e.g. a Kafka offset, SQS receipt handle, Pub/Sub ack ID). Otherwise
+        yield raw events as before.
         """
         raise NotImplementedError(
             f"{cls.__name__} declares a shared_stream_key but does not implement open_shared_stream"
         )
         yield  # pragma: no cover - convince mypy this is an async iterator
+
+    @classmethod
+    async def advance_shared_stream(cls, kwargs: dict[str, Any], broker_payload: Any) -> None:
+        """
+        Advance the broker once all subscribers have acknowledged an event from ``open_shared_stream``.
+
+        Override to commit, delete, or ack on the broker (e.g. Kafka manual
+        commit, SQS delete, Pub/Sub ack). The manager detects whether this
+        method is overridden; triggers that do not override it run the fast
+        path where no ack tokens are issued and subscribers receive raw events.
+        """
+        raise NotImplementedError(f"{cls.__name__} does not implement advance_shared_stream")
 
     async def filter_shared_stream(self, shared_stream: AsyncIterator[Any]) -> AsyncIterator[TriggerEvent]:
         """
