@@ -72,9 +72,9 @@ class _VaultClient(LoggingMixin):
         (for ``token`` and ``github`` auth_type).
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
-    :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
+    :param key_id: Key ID for Authentication (for ``aws_iam`` and ``azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` and ``gcp`` auth_types).
     :param assume_role_kwargs: AWS assume role param.
         See AWS STS Docs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
@@ -83,7 +83,7 @@ class _VaultClient(LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path
@@ -171,10 +171,6 @@ class _VaultClient(LoggingMixin):
                 raise VaultError("The 'gcp' authentication type requires 'gcp_scopes'")
             if not role_id:
                 raise VaultError("The 'gcp' authentication type requires 'role_id'")
-            if not gcp_key_path and not gcp_keyfile_dict:
-                raise VaultError(
-                    "The 'gcp' authentication type requires 'gcp_key_path' or 'gcp_keyfile_dict'"
-                )
 
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
@@ -352,25 +348,43 @@ class _VaultClient(LoggingMixin):
         import json
         import time
 
-        import googleapiclient
+        # Determine service account email
+        service_account_email = getattr(credentials, "service_account_email", None) or getattr(
+            credentials, "client_email", None
+        )
 
-        if self.gcp_keyfile_dict:
-            creds = self.gcp_keyfile_dict
-        elif self.gcp_key_path:
-            with open(self.gcp_key_path) as f:
-                creds = json.load(f)
+        if service_account_email is None:
+            # Fallback for Compute Engine credentials if email is not yet populated
+            try:
+                from google.auth import compute_engine, exceptions
 
-        service_account = creds["client_email"]
+                if isinstance(credentials, compute_engine.Credentials):
+                    from google.auth import transport
 
-        # Generate a payload for subsequent "signJwt()" call
-        # Reference: https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html#google.auth.jwt.Credentials
+                    credentials.refresh(transport.requests.Request())
+                    service_account_email = getattr(credentials, "service_account_email", None)
+            except exceptions.RefreshError:
+                self.log.error("Failed to refresh Compute Engine credentials.")
+            except ImportError:
+                self.log.error("google-auth not installed, skipping credential refresh.")
+
+        if not isinstance(service_account_email, str):
+            raise VaultError(
+                f"Could not determine service account email from credentials. "
+                f"Expected string, got {type(service_account_email).__name__}"
+            )
+
+        # Generate a payload for subsequent "signJwt()" call.
+        # The 'sub' claim must be the service account email.
         now = int(time.time())
         expires = now + 900  # 15 mins in seconds, can't be longer.
-        payload = {"iat": now, "exp": expires, "sub": credentials, "aud": f"vault/{self.role_id}"}
+        payload = {"iat": now, "exp": expires, "sub": service_account_email, "aud": f"vault/{self.role_id}"}
         body = {"payload": json.dumps(payload)}
-        name = f"projects/{project_id}/serviceAccounts/{service_account}"
+        name = f"projects/{project_id}/serviceAccounts/{service_account_email}"
 
         # Perform the GCP API call
+        import googleapiclient.discovery
+
         iam = googleapiclient.discovery.build("iam", "v1", credentials=credentials)
         request = iam.projects().serviceAccounts().signJwt(name=name, body=body)
         resp = request.execute()

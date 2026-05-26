@@ -97,7 +97,7 @@ class AkeylessHook(BaseHook):
             body.cloud_id = self._get_cloud_id(access_type)
         elif access_type == "jwt":
             body.access_type = "jwt"
-            body.jwt = self._extra.get("jwt")
+            body.jwt = self._extra.get("jwt_token")
         elif access_type == "k8s":
             body.access_type = "k8s"
             body.k8s_auth_config_name = self._extra.get("k8s_auth_config_name")
@@ -211,7 +211,7 @@ class AkeylessHook(BaseHook):
             "uid_token": StringField(lazy_gettext("UID Token"), widget=BS3TextFieldWidget()),
             "gcp_audience": StringField(lazy_gettext("GCP Audience"), widget=BS3TextFieldWidget()),
             "azure_object_id": StringField(lazy_gettext("Azure Object ID"), widget=BS3TextFieldWidget()),
-            "jwt": StringField(lazy_gettext("JWT"), widget=BS3TextFieldWidget()),
+            "jwt_token": StringField(lazy_gettext("JWT"), widget=BS3TextFieldWidget()),
             "k8s_auth_config_name": StringField(
                 lazy_gettext("K8s Auth Config Name"), widget=BS3TextFieldWidget()
             ),

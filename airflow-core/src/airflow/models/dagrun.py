@@ -28,7 +28,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from opentelemetry import context, trace
+from opentelemetry import trace
+from opentelemetry.context import context
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
@@ -57,11 +58,16 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
-from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
+from airflow._shared.observability.traces import (
+    TASK_SPAN_DETAIL_LEVEL_KEY,
+    new_dagrun_trace_carrier,
+    override_ids,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -375,7 +381,9 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier()
+        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
+            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
+        )
 
         if not isinstance(partition_key, str | None):
             raise ValueError(
@@ -1073,6 +1081,13 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            # TODO: make the empty parent context optional. Default should be to
+            # nest the dag run span under the currently active parent span (by
+            # omitting `context` here); only use the empty `context.Context()` to
+            # force a root span when Airflow itself initiates the run (e.g. dag
+            # triggered via API, scheduler, or backfill). Today this forces a
+            # root span unconditionally.
+            # Tracked at https://github.com/apache/airflow/issues/67210
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
@@ -1266,7 +1281,10 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
             )
             session.flush()
-            self._emit_dagrun_span(state=self.state)
+            try:
+                self._emit_dagrun_span(state=self.state)
+            except Exception:
+                self.log.warning("Failed to emit dag run span", exc_info=True)
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
@@ -1593,6 +1611,10 @@ class DagRun(Base, LoggingMixin):
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
                     )
                     stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
+                if self.queued_at is not None:
+                    start_delay = first_start_date - self.queued_at
+                    if start_delay.total_seconds() > 0:
+                        stats.timing("dagrun.first_task_start_delay", start_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -1873,14 +1895,17 @@ class DagRun(Base, LoggingMixin):
                     tags={**self.stats_tags, "task_type": task_type},
                 )
             session.flush()
-        except IntegrityError:
+        except (IntegrityError, StaleDataError) as exc:
             self.log.info(
-                "Hit IntegrityError while creating the TIs for %s- %s",
+                "Hit %s while creating the TIs for %s- %s",
+                type(exc).__name__,
                 dag_id,
                 run_id,
                 exc_info=True,
             )
             self.log.info("Doing session rollback.")
+            # Catching StaleDataError and rolling back is sufficient here because
+            # the next scheduler loop will re-read the latest state from the DB.
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 

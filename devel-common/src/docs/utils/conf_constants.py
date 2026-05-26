@@ -86,6 +86,8 @@ BASIC_SPHINX_EXTENSIONS = [
     "removemarktransform",
     "sphinx_copybutton",
     "airflow_intersphinx",
+    "common_compat_alias",
+    "sphinxcontrib.mermaid",
     "sphinxcontrib.spelling",
     "sphinx_airflow_theme",
     "redirects",

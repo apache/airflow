@@ -25,12 +25,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775592395
+source-date-epoch: 1779138011
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.11.0
   - 2.10.4
   - 2.10.3
   - 2.10.2
@@ -69,16 +70,25 @@ integrations:
     external-doc-url: https://www.influxdata.com/
     logo: /docs/integration-logos/Influxdb.svg
     tags: [software]
+  - integration-name: InfluxDB 3
+    external-doc-url: https://www.influxdata.com/
+    tags: [software]
 
 hooks:
   - integration-name: Influxdb
     python-modules:
       - airflow.providers.influxdb.hooks.influxdb
+  - integration-name: InfluxDB 3
+    python-modules:
+      - airflow.providers.influxdb.hooks.influxdb3
 
 operators:
   - integration-name: Influxdb
     python-modules:
       - airflow.providers.influxdb.operators.influxdb
+  - integration-name: InfluxDB 3
+    python-modules:
+      - airflow.providers.influxdb.operators.influxdb3
 
 connection-types:
   - hook-class-name: airflow.providers.influxdb.hooks.influxdb.InfluxDBHook
@@ -101,6 +111,38 @@ connection-types:
           default: ''
       org:
         label: Organization Name
+        schema:
+          type:
+            - string
+            - 'null'
+          default: ''
+  - hook-class-name: airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook
+    hook-name: "InfluxDB 3"
+    connection-type: influxdb3
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - password
+      relabeling: {}
+      placeholders: {}
+    conn-fields:
+      token:
+        label: Token
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+          default: ''
+      database:
+        label: Database
+        schema:
+          type:
+            - string
+            - 'null'
+          default: ''
+      org:
+        label: Organization Name (optional)
         schema:
           type:
             - string

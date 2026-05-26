@@ -20,7 +20,13 @@ import { describe, it, expect } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { buildTaskInstanceUrl, getTaskInstanceAdditionalPath, getTaskInstanceLink } from "./links";
+import {
+  buildTaskInstanceUrl,
+  getNextHref,
+  getSafeExternalUrl,
+  getTaskInstanceAdditionalPath,
+  getTaskInstanceLink,
+} from "./links";
 
 describe("getTaskInstanceLink", () => {
   const testCases = [
@@ -282,5 +288,85 @@ describe("buildTaskInstanceUrl", () => {
         taskId: "new_task",
       }),
     ).toBe("/dags/new_dag/runs/new_run/tasks/new_task/mapped");
+  });
+});
+
+describe("getNextHref", () => {
+  // Regression tests for https://github.com/apache/airflow/issues/46533 — the
+  // "next" parameter sent to the login redirect must be a same-origin relative
+  // URL so that proxied deployments (e.g. Gitpod) don't bounce the browser
+  // back to the API server's reported origin (e.g. http://localhost:29091).
+  it.each([
+    {
+      description: "preserves pathname only",
+      expected: "/dags/my_dag",
+      input: { hash: "", pathname: "/dags/my_dag", search: "" },
+    },
+    {
+      description: "preserves pathname and search",
+      expected: "/dags/my_dag?tab=graph",
+      input: { hash: "", pathname: "/dags/my_dag", search: "?tab=graph" },
+    },
+    {
+      description: "preserves pathname, search, and hash",
+      expected: "/dags/my_dag?tab=graph#section",
+      input: { hash: "#section", pathname: "/dags/my_dag", search: "?tab=graph" },
+    },
+    {
+      description: "preserves proxied base path, search, and hash",
+      expected: "/team-a/dags/my_dag?tab=graph#section",
+      input: { hash: "#section", pathname: "/team-a/dags/my_dag", search: "?tab=graph" },
+    },
+    {
+      description: "handles root path",
+      expected: "/",
+      input: { hash: "", pathname: "/", search: "" },
+    },
+  ])("$description", ({ expected, input }) => {
+    expect(getNextHref(input)).toBe(expected);
+  });
+
+  it("does not include the origin (no http(s) prefix)", () => {
+    const result = getNextHref({ hash: "", pathname: "/dags/my_dag", search: "" });
+
+    expect(result.startsWith("http://")).toBe(false);
+    expect(result.startsWith("https://")).toBe(false);
+  });
+});
+
+describe("getSafeExternalUrl", () => {
+  describe("allows", () => {
+    const safeCases = [
+      ["http URL", "http://example.com/path"],
+      ["https URL", "https://example.com/path?q=1#anchor"],
+      ["mailto URL", "mailto:ops@example.com"],
+      ["relative absolute path", "/dags/my_dag"],
+      ["relative same-document fragment", "#section"],
+      ["relative query string", "?owner=me"],
+      ["same-origin absolute URL", `${globalThis.location.origin}/dags`],
+      ["URL with surrounding whitespace", "  https://example.com/x  "],
+    ];
+
+    it.each(safeCases)("passes through a %s", (_description, input) => {
+      expect(getSafeExternalUrl(input)).toBe(input.trim());
+    });
+  });
+
+  describe("rejects", () => {
+    const unsafeCases = [
+      ["javascript: URL", "javascript:alert(1)"],
+      ["javascript: URL with mixed case", "JavaScript:alert(1)"],
+      ["javascript: URL with leading whitespace", " javascript:alert(1)"],
+      ["data: URL", "data:text/html,<script>alert(1)</script>"],
+      ["file: URL", "file:///etc/passwd"],
+      ["vbscript: URL", "vbscript:msgbox(1)"],
+      ["ftp: URL", "ftp://example.com/file"],
+      ["empty string", ""],
+      ["whitespace-only string", "   "],
+    ];
+
+    it.each(unsafeCases)("returns undefined for a %s", (_description, input) => {
+      expect(getSafeExternalUrl(input)).toBeUndefined();
+    });
   });
 });

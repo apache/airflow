@@ -1600,7 +1600,7 @@ class TestPodTemplateFile:
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        jmespath.search("spec.containers[1].name", docs[0]) == "worker-kerberos"
+        assert jmespath.search("spec.containers[1].name", docs[0]) == "worker-kerberos"
 
         assert {
             "name": "config",

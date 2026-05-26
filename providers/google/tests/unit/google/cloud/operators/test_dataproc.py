@@ -85,6 +85,7 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
+
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
 GCP_REGION = "test-location"

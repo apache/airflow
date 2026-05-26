@@ -34,9 +34,10 @@ Example of using the GitDagBundle:
          "kwargs": {
              "subdir": "dags",
              "tracking_ref": "main",
-             "refresh_interval": 3600
-             "submodules": False,
-             "prune_dotgit_folder": True
+             "refresh_interval": 3600,
+             "submodules": false,
+             "prune_dotgit_folder": true,
+             "sparse_dirs": ["dags", "includes"]
          }
      }
     ]'
