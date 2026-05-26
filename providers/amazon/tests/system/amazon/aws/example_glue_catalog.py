@@ -20,8 +20,10 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreatePartitionOperator,
     GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
+    GlueCatalogDeleteTableOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -29,22 +31,13 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_glue_catalog"
 
 sys_test_context_task = SystemTestContextBuilder().build()
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_table(database_name: str, table_name: str):
-    """Delete the Glue table."""
-    import boto3
-
-    boto3.client("glue").delete_table(DatabaseName=database_name, Name=table_name)
 
 
 with DAG(
@@ -82,6 +75,7 @@ with DAG(
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
         },
+        "PartitionKeys": [{"Name": "dt", "Type": "string"}],
         "TableType": "EXTERNAL_TABLE",
     }
 
@@ -94,11 +88,39 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_create_table]
 
+    # [START howto_operator_glue_catalog_create_partition]
+    create_partition = GlueCatalogCreatePartitionOperator(
+        task_id="create_partition",
+        database_name=db_name,
+        table_name=table_name,
+        partition_input={
+            "Values": ["2024-01-01"],
+            "StorageDescriptor": {
+                "Columns": [{"Name": "id", "Type": "int"}],
+                "Location": "s3://test-bucket/dt=2024-01-01/",
+                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+                "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+            },
+        },
+    )
+    # [END howto_operator_glue_catalog_create_partition]
+
+    # [START howto_operator_glue_catalog_delete_table]
+    delete_table = GlueCatalogDeleteTableOperator(
+        task_id="delete_table",
+        database_name=db_name,
+        table_name=table_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_catalog_delete_table]
+
     chain(
         test_context,
         create_database,
         create_table,
-        delete_table(database_name=db_name, table_name=table_name),
+        create_partition,
+        delete_table,
         delete_database,
     )
 

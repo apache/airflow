@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Link, Text } from "@chakra-ui/react";
+import { Button, Flex, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 
 import type { DagRunAssetReference, DagRunState } from "openapi/requests/types.gen";
-import { Popover } from "src/components/ui";
+import { Popover, RouterLink } from "src/components/ui";
 
 import { StateBadge } from "../StateBadge";
 
@@ -40,17 +39,15 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
     <Flex gap={1}>
       <Text>{`${translate("triggered")} ${translate("dagRun_one")}`}: </Text>
       <StateBadge state={dagRuns[0]?.state as DagRunState} />
-      <Link asChild color="fg.info">
-        <RouterLink to={`/dags/${dagRuns[0]?.dag_id}/runs/${dagRuns[0]?.run_id}`}>
-          {dagRuns[0]?.dag_id}
-        </RouterLink>
-      </Link>
+      <RouterLink to={`/dags/${dagRuns[0]?.dag_id}/runs/${dagRuns[0]?.run_id}`}>
+        {dagRuns[0]?.dag_id}
+      </RouterLink>
     </Flex>
   ) : (
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
-        <Button size="sm" variant="outline">
+        <Button variant="outline">
           {`${dagRuns.length} ${translate("triggered")} ${translate("dagRun_other", { count: dagRuns.length })}`}
         </Button>
       </Popover.Trigger>
@@ -60,9 +57,7 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
           {dagRuns.map((dagRun) => (
             <Flex gap={1} key={dagRun.dag_id} my={2}>
               <StateBadge state={dagRun.state as DagRunState} />
-              <Link asChild color="fg.info">
-                <RouterLink to={`/dags/${dagRun.dag_id}/runs/${dagRun.run_id}`}>{dagRun.dag_id}</RouterLink>
-              </Link>
+              <RouterLink to={`/dags/${dagRun.dag_id}/runs/${dagRun.run_id}`}>{dagRun.dag_id}</RouterLink>
             </Flex>
           ))}
         </Popover.Body>

@@ -301,18 +301,18 @@ SOCKET_INFO_DESKTOP_LINUX = json.dumps(
     ("name", "expected"),
     [
         ("breeze", True),
-        ("prek", True),
-        ("docker-compose", True),
-        ("docs", True),
-        ("db", True),
-        ("providers", True),
+        ("breeze-prek", True),
+        ("docker-compose", False),
+        ("docs", False),
+        ("db", False),
+        ("providers", False),
         ("breeze-registry-abcd1234", True),
         ("breeze-backfill-deadbeef", True),
         ("breeze-run-12345678", True),
-        ("airflow-test", True),
-        ("airflow-test-providers-google", True),
-        ("constraints-3-12", True),
-        ("providers-7", True),
+        ("airflow-test", False),
+        ("airflow-test-providers-google", False),
+        ("constraints-3-12", False),
+        ("providers-7", False),
         ("my-other-project", False),
         ("airflow", False),
         ("doc", False),
@@ -349,10 +349,10 @@ def test_bring_all_compose_projects_down_filters_unknown_by_default(
 ):
     mock_discover.return_value = {"breeze", "providers-3", "my-app"}
     brought_down, skipped = bring_all_compose_projects_down()
-    assert brought_down == ["breeze", "providers-3"]
-    assert skipped == ["my-app"]
+    assert brought_down == ["breeze"]
+    assert skipped == ["my-app", "providers-3"]
     down_calls = [c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"]]
-    assert len(down_calls) == 2
+    assert len(down_calls) == 1
     for c in down_calls:
         assert "--volumes" in c.args[0]
         assert "--remove-orphans" in c.args[0]

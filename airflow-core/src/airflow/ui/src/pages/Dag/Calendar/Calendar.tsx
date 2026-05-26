@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, IconButton, Text } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -27,6 +27,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useCalendarServiceGetCalendar, useDagServiceGetDagDetails } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { IconButton } from "src/components/ui";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 
@@ -93,8 +94,6 @@ export const Calendar = () => {
               <IconButton
                 aria-label={translate("calendar.navigation.previousYear")}
                 onClick={() => setSelectedDate(selectedDate.subtract(1, "year"))}
-                size="sm"
-                variant="ghost"
               >
                 <FiChevronLeft />
               </IconButton>
@@ -118,8 +117,6 @@ export const Calendar = () => {
               <IconButton
                 aria-label={translate("calendar.navigation.nextYear")}
                 onClick={() => setSelectedDate(selectedDate.add(1, "year"))}
-                size="sm"
-                variant="ghost"
               >
                 <FiChevronRight />
               </IconButton>
@@ -129,8 +126,6 @@ export const Calendar = () => {
               <IconButton
                 aria-label={translate("calendar.navigation.previousMonth")}
                 onClick={() => setSelectedDate(selectedDate.subtract(1, "month"))}
-                size="sm"
-                variant="ghost"
               >
                 <FiChevronLeft />
               </IconButton>
@@ -168,8 +163,6 @@ export const Calendar = () => {
               <IconButton
                 aria-label={translate("calendar.navigation.nextMonth")}
                 onClick={() => setSelectedDate(selectedDate.add(1, "month"))}
-                size="sm"
-                variant="ghost"
               >
                 <FiChevronRight />
               </IconButton>

@@ -954,7 +954,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
-            "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
+            "cache_key": str(Variable.get("python_virtualenv_operator_cache_key", "")),
             "python_version": self.python_version,
             "system_site_packages": self.system_site_packages,
         }

@@ -20,22 +20,25 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
+    MwaaServerlessDeleteWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
+    MwaaServerlessStopWorkflowRunOperator,
+    MwaaServerlessUpdateWorkflowOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
+from airflow.providers.amazon.aws.sensors.mwaa_serverless import MwaaServerlessWorkflowRunSensor
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_mwaa_serverless"
@@ -57,22 +60,6 @@ systest_mwaa_serverless:
 """
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def stop_workflow_run(workflow_arn: str, run_id: str):
-    """Stop the workflow run."""
-    import boto3
-
-    boto3.client("mwaa-serverless").stop_workflow_run(WorkflowArn=workflow_arn, RunId=run_id)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_workflow(workflow_arn: str):
-    """Delete the MWAA Serverless workflow."""
-    import boto3
-
-    boto3.client("mwaa-serverless").delete_workflow(WorkflowArn=workflow_arn)
 
 
 with DAG(
@@ -106,12 +93,63 @@ with DAG(
 
     workflow_arn = create_workflow.output
 
+    # Test idempotent create (if_exists="skip" path)
+    create_workflow_again = MwaaServerlessCreateWorkflowOperator(
+        task_id="create_workflow_again",
+        workflow_name=bucket_name,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "workflow.yaml"},
+        role_arn=role_arn,
+        if_exists="skip",
+    )
+
     # [START howto_operator_mwaa_serverless_start_workflow_run]
     start_workflow = MwaaServerlessStartWorkflowRunOperator(
         task_id="start_workflow",
         workflow_arn=workflow_arn,
     )
     # [END howto_operator_mwaa_serverless_start_workflow_run]
+
+    # [START howto_sensor_mwaa_serverless_workflow_run]
+    wait_for_run = MwaaServerlessWorkflowRunSensor(
+        task_id="wait_for_run",
+        workflow_arn=workflow_arn,
+        run_id=start_workflow.output,
+        poke_interval=30,
+        timeout=600,
+    )
+    # [END howto_sensor_mwaa_serverless_workflow_run]
+
+    # [START howto_operator_mwaa_serverless_update_workflow]
+    update_workflow = MwaaServerlessUpdateWorkflowOperator(
+        task_id="update_workflow",
+        workflow_arn=workflow_arn,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "workflow.yaml"},
+        role_arn=role_arn,
+        description="Updated system test workflow",
+    )
+    # [END howto_operator_mwaa_serverless_update_workflow]
+
+    # Start a second run to test stopping
+    start_workflow_2 = MwaaServerlessStartWorkflowRunOperator(
+        task_id="start_workflow_2",
+        workflow_arn=workflow_arn,
+    )
+
+    # [START howto_operator_mwaa_serverless_stop_workflow_run]
+    stop_workflow_run = MwaaServerlessStopWorkflowRunOperator(
+        task_id="stop_workflow_run",
+        workflow_arn=workflow_arn,
+        run_id=start_workflow_2.output,
+    )
+    # [END howto_operator_mwaa_serverless_stop_workflow_run]
+
+    # [START howto_operator_mwaa_serverless_delete_workflow]
+    delete_workflow = MwaaServerlessDeleteWorkflowOperator(
+        task_id="delete_workflow",
+        workflow_arn=workflow_arn,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_mwaa_serverless_delete_workflow]
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
@@ -121,13 +159,20 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         test_context,
         create_bucket,
         upload_workflow_yaml,
         workflow_arn,
+        # TEST BODY
+        create_workflow_again,
         start_workflow,
-        stop_workflow_run(workflow_arn=workflow_arn, run_id=start_workflow.output),
-        delete_workflow(workflow_arn=workflow_arn),
+        wait_for_run,
+        update_workflow,
+        start_workflow_2,
+        stop_workflow_run,
+        # TEST TEARDOWN
+        delete_workflow,
         delete_bucket,
     )
 

@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -99,6 +100,15 @@ class Trigger(Base):
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
+    # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
+    # especially since it's eventually consistent and trigger rows are ephemeral.
+    # Without this, filtering by team requires 2-3 joins depending on trigger type.
+    # Performance testing confirmed the denormalized column avoids measurable overhead in the
+    # triggerer loop under load.
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     triggerer_job = relationship(
         "Job",
         primaryjoin="Job.id == Trigger.triggerer_id",
@@ -121,12 +131,14 @@ class Trigger(Base):
         kwargs: dict[str, Any],
         created_date: datetime.datetime | None = None,
         queue: str | None = None,
+        team_name: str | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
         self.queue = queue
+        self.team_name = team_name
 
     @property
     def kwargs(self) -> dict[str, Any]:
@@ -146,7 +158,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(kwargs)
+        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod

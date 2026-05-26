@@ -83,7 +83,7 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
   const columns = getColumns(translate, dagId);
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl" unmountOnExit>
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} scrollBehavior="inside" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <HStack>

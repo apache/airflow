@@ -27,6 +27,43 @@ Changelog
 ---------
 
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement execution_timeout semantics for AirbyteTriggerSyncOperator in deferrable mode (#64051)``
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Fix deferrable execution_timeout handling in AirbyteTriggerSyncOperator (#67382)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare providers release 2026-05-19 (#67137)``
+
+5.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make OAuth credentials optional for Airbyte OSS deployments (#64986)``
+
+Misc
+~~~~
+
+* ``Add tests for execute_complete success and error paths (#64119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 5.4.1
 .....
 

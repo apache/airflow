@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
 .. warning::
    **Breaking Change:** The default execution mode for paginated (``page_size`` + string SQL) GenericTransfer tasks has changed. Previously, these tasks always ran in deferred mode (using deferrable execution). Starting with this release, they now run synchronously by default unless you explicitly opt in to deferrable mode.
 
@@ -35,8 +38,27 @@ Changelog
 
    Review your DAGs and configuration if you rely on deferred execution for paginated GenericTransfer tasks.
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add standardized SQL check representation for listeners (#66849)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+
+1.36.0
+......
+
+Features
+~~~~~~~~
+
+* ``GenericTransfer: switch paginated mode to non-deferred default with opt-in deferral (#64321)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
 
 1.35.0
 ......
