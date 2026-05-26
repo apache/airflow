@@ -26,7 +26,13 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration, normalizeStateColorKey, normalizeStateLabelKey, renderDuration, sortStateEntries } from "src/utils";
+import {
+  getDuration,
+  normalizeStateColorKey,
+  normalizeStateLabelKey,
+  renderDuration,
+  sortStateEntries,
+} from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
