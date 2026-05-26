@@ -299,11 +299,12 @@ class JdbcHook(DbApiHook):
             raw = sqlalchemy_scheme.split("+")[0]
         else:
             host = connection.host or ""
-            if host.startswith("jdbc:"):
+            # The ``jdbc:`` prefix is case-insensitive per the JDBC spec.
+            if host.lower().startswith("jdbc:"):
                 jdbc_part = host[5:]
                 for sep in ("://", ":"):
                     if sep in jdbc_part:
-                        candidate = jdbc_part.split(sep)[0]
+                        candidate = jdbc_part.split(sep)[0].lower()
                         if candidate:
                             raw = candidate
                         break
@@ -318,17 +319,27 @@ class JdbcHook(DbApiHook):
     def _get_openlineage_authority(connection) -> str | None:
         """Extract ``host:port`` from a JDBC URL in ``host`` or from plain ``host``/``port``."""
         host = connection.host or ""
-        if host.startswith("jdbc:"):
+        # The ``jdbc:`` prefix is case-insensitive per the JDBC spec.
+        if host.lower().startswith("jdbc:"):
             rest = host[5:]
-            if "://" not in rest:
+            # Oracle thin service-name format (``jdbc:oracle:thin:@//host:1521/service``)
+            # uses ``:@//`` instead of ``://``. Handle before the ``://`` branch.
+            if "@//" in rest:
+                after = rest.split("@//", 1)[1]
+            elif "://" in rest:
+                after = rest.split("://", 1)[1]
+            else:
                 # Non-standard JDBC URL we can't reliably parse (e.g. Oracle
-                # ``thin:@host:port:sid``, H2 ``mem:test``).
+                # SID format ``thin:@host:port:sid``, H2 ``mem:test``).
                 return None
-            after = rest.split("://", 1)[1]
             # Strip path, query string, and driver-specific option separator
             # (e.g. SQL Server uses ``;`` for connection properties).
             for sep in ("/", "?", ";"):
                 after = after.split(sep, 1)[0]
+            # Strip userinfo (some drivers accept ``user:pass@host:port`` in the
+            # URL); we never want credentials leaking into the OL namespace.
+            if "@" in after:
+                after = after.rsplit("@", 1)[-1]
             return after or None
         if connection.port and host:
             return f"{host}:{connection.port}"

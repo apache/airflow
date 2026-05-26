@@ -553,6 +553,8 @@ class TestJdbcHookOpenLineage:
             # JDBC URL fallback
             ({"extra": json.dumps({})}, "jdbc:trino://h:8080/c", "trino"),
             ({"extra": json.dumps({})}, "jdbc:postgresql://h:5432/db", "postgres"),
+            # ``jdbc:`` prefix is case-insensitive; extracted dialect is lower-cased
+            ({"extra": json.dumps({})}, "JDBC:POSTGRESQL://h:5432/db", "postgres"),
             # neither path resolves -> generic fallback
             ({"extra": json.dumps({})}, "plain-host", "generic"),
             ({"extra": json.dumps({})}, "", "generic"),
@@ -589,9 +591,16 @@ class TestJdbcHookOpenLineage:
             # plain host without port falls through to host-only
             ("plain-host", None, "plain-host"),
             # Non-standard JDBC URL with no ``://`` — unparsable, returns None
-            # (Oracle thin ``thin:@host:port:sid`` and H2 ``mem:test`` formats)
+            # (Oracle thin SID ``thin:@host:port:sid`` and H2 ``mem:test`` formats)
             ("jdbc:oracle:thin:@host:1521:sid", None, None),
             ("jdbc:h2:mem:test", None, None),
+            # Oracle thin service-name format uses ``@//`` instead of ``://``
+            ("jdbc:oracle:thin:@//ora-host:1521/service", None, "ora-host:1521"),
+            # Userinfo embedded in URL (legal for several drivers) is stripped
+            # so credentials never leak into the OL namespace
+            ("jdbc:postgresql://user:pass@pg-host:5432/mydb", None, "pg-host:5432"),
+            # ``jdbc:`` prefix is case-insensitive per the JDBC spec
+            ("JDBC:postgresql://pg-host:5432/mydb", None, "pg-host:5432"),
         ],
     )
     def test_get_openlineage_authority_extraction(self, host, port, expected_authority):
