@@ -2809,13 +2809,18 @@ class TestEmitMetrics:
         assert "serialized_dag.count" in calls
         assert calls["serialized_dag.count"] == 3
 
-    def test_emit_metrics_does_not_raise_on_db_error(self):
-        """emit_metrics logs and swallows RuntimeError from get_count on DB failure."""
+    def test_emit_metrics_logs_and_swallows_db_error(self):
+        """emit_metrics logs via log.exception and swallows SQLAlchemyError from get_count."""
+        from sqlalchemy.exc import SQLAlchemyError
+
         from airflow.dag_processing.manager import emit_metrics
 
         with mock.patch(
             "airflow.dag_processing.manager.SerializedDagModel.get_count",
-            side_effect=RuntimeError("COUNT query on serialized_dag returned None - possible"),
+            side_effect=SQLAlchemyError("db failure"),
         ):
             with mock.patch("airflow.dag_processing.manager.stats"):
-                emit_metrics(parse_time=1.0, dag_file_stats=[])
+                with mock.patch("airflow.dag_processing.manager.log") as mock_log:
+                    emit_metrics(parse_time=1.0, dag_file_stats=[])
+
+        mock_log.exception.assert_called_once_with("Failed to emit serialized_dag.count metric")

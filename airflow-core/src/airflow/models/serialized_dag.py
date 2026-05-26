@@ -881,16 +881,14 @@ class SerializedDagModel(Base):
         """
         Return the total number of serialized DAGs stored in the database.
 
+        Uses ``scalar_one()`` so that a DB connectivity failure surfaces as a
+        ``SQLAlchemyError`` rather than a silent ``None`` return.  ``COUNT(*)``
+        always produces exactly one row, so ``NoResultFound`` is never raised
+        under normal conditions.
+
         :param session: ORM Session
-        :raises RuntimeError: if the database returns None for the COUNT query, which indicates
-            a transient connectivity issue rather than an empty table (COUNT always returns an int).
         """
-        result = session.scalar(select(func.count()).select_from(cls))
-        if result is None:
-            raise RuntimeError(
-                "COUNT query on serialized_dag returned None - possible database connectivity issue"
-            )
-        return result
+        return session.execute(select(func.count()).select_from(cls)).scalar_one()
 
     @classmethod
     @provide_session

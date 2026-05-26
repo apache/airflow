@@ -1571,10 +1571,13 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     stats.gauge("dag_processing.total_parse_time", parse_time)
     stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
     stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
+    # COUNT(*) on the serialized_dag table adds one DB round-trip per parse loop.
+    # On large installations this is typically fast (index scan on the PK), but
+    # we isolate the call so that a transient DB error never kills the parse loop.
     try:
         with create_session() as session:
             stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
-    except (RuntimeError, SQLAlchemyError):
+    except SQLAlchemyError:
         log.exception("Failed to emit serialized_dag.count metric")
 
 
