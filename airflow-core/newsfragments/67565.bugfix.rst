@@ -1,0 +1,1 @@
+Fix ``airflow dags next-execution --table`` when no following schedule exists.
