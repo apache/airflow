@@ -888,7 +888,7 @@ class SerializedDagModel(Base):
         result = session.scalar(select(func.count()).select_from(cls))
         if result is None:
             raise RuntimeError(
-                "COUNT query on serialized_dag returned None — possible database connectivity issue"
+                "COUNT query on serialized_dag returned None - possible database connectivity issue"
             )
         return result
 
