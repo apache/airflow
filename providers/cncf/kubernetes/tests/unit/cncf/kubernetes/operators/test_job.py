@@ -1492,6 +1492,132 @@ class TestKubernetesJobOperator:
 
         mock_post_complete_action.assert_called_once()
 
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_cleanup_error_on_success_does_not_raise(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_find_pod,
+        mock_pod_manager_prop,
+    ):
+        """A per-pod cleanup error on the success path must not surface to the caller.
+
+        Exercises the real ``post_complete_action`` against pods whose deletion
+        fails at the K8s SDK boundary. The contract: ``execute()`` returns
+        normally so the second pod's cleanup still gets a chance.
+        """
+        from kubernetes.client.rest import ApiException
+
+        mock_hook.return_value.is_job_failed.return_value = False
+        pod_1 = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-1", namespace=POD_NAMESPACE))
+        pod_1.status = k8s.V1PodStatus(phase="Succeeded", container_statuses=[])
+        pod_2 = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-2", namespace=POD_NAMESPACE))
+        pod_2.status = k8s.V1PodStatus(phase="Succeeded", container_statuses=[])
+        mock_get_pods.return_value = [pod_1, pod_2]
+        mock_find_pod.side_effect = [pod_1, pod_2]
+        mock_hook.return_value.get_pod.side_effect = lambda name, namespace: (
+            pod_1 if name == "pod-1" else pod_2
+        )
+        # First pod blows up at the SDK boundary; second one must still be deleted.
+        deleted: list[str] = []
+
+        def delete_side_effect(pod):
+            if pod.metadata.name == "pod-1":
+                raise ApiException(status=500, reason="boom")
+            deleted.append(pod.metadata.name)
+
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager.delete_pod.side_effect = delete_side_effect
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True, parallelism=2)
+        op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        assert deleted == ["pod-2"]
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(HOOK_CLASS)
+    def test_execute_complete_cleans_up_all_pods_in_parallel(self, mock_hook, mock_pod_manager_prop):
+        """Deferrable resume path runs the real cleanup for every monitoring pod.
+
+        Exercises ``execute_complete`` end-to-end with ``parallelism>1`` and
+        ``get_logs=False`` (the original leak vector). Asserts what the cluster
+        would observe: a delete call per pod, against the right ``(name, ns)``.
+        """
+        pod_1 = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-1", namespace=POD_NAMESPACE))
+        pod_1.status = k8s.V1PodStatus(phase="Succeeded", container_statuses=[])
+        pod_2 = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-2", namespace=POD_NAMESPACE))
+        pod_2.status = k8s.V1PodStatus(phase="Succeeded", container_statuses=[])
+        mock_hook.return_value.get_pod.side_effect = lambda name, namespace: (
+            pod_1 if name == "pod-1" else pod_2
+        )
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+        event = {
+            "status": "success",
+            "message": "ok",
+            "job": {"metadata": {"name": JOB_NAME, "namespace": JOB_NAMESPACE}},
+            "pod_names": ["pod-1", "pod-2"],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": None,
+        }
+
+        KubernetesJobOperator(task_id="test_task_id", get_logs=False).execute_complete(
+            context=dict(ti=mock.create_autospec(TaskInstance, instance=True)), event=event
+        )
+
+        deleted_names = sorted(
+            call.args[0].metadata.name for call in mock_pod_manager.delete_pod.call_args_list
+        )
+        assert deleted_names == ["pod-1", "pod-2"]
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.execute_deferrable"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_does_not_cleanup_when_deferring(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_execute_deferrable,
+        mock_pod_manager_prop,
+    ):
+        """A ``TaskDeferred`` on the way out of ``execute()`` must leave pods alive.
+
+        The trigger still needs to watch them; cleanup happens in
+        ``execute_complete`` on resume. We assert the absence of any delete
+        call against the SDK boundary.
+        """
+        from airflow.providers.common.compat.sdk import TaskDeferred
+
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-1", namespace=POD_NAMESPACE))
+        mock_get_pods.return_value = [pod]
+        mock_execute_deferrable.side_effect = TaskDeferred(
+            trigger=mock.MagicMock(), method_name="execute_complete"
+        )
+
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True, deferrable=True)
+        with pytest.raises(TaskDeferred):
+            op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        mock_pod_manager.delete_pod.assert_not_called()
+
 
 @pytest.mark.db_test
 @pytest.mark.execution_timeout(300)
