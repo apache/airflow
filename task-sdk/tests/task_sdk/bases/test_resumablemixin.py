@@ -16,10 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+
+if TYPE_CHECKING:
+    from pydantic import JsonValue
 
 
 class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
@@ -36,12 +41,12 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
         self._active_statuses = {"RUNNING", "PENDING"}
         self._succeeded_statuses = {"SUCCEEDED"}
 
-    def submit_job(self, context) -> str:
+    def submit_job(self, context) -> JsonValue:
         self.submitted_ids.append(self._next_id)
         return self._next_id
 
-    def get_job_status(self, external_id: str) -> str:
-        return self._status_map.get(external_id, "UNKNOWN")
+    def get_job_status(self, external_id: JsonValue) -> str:
+        return self._status_map.get(str(external_id), "UNKNOWN")
 
     def is_job_active(self, status: str) -> bool:
         return status in self._active_statuses
@@ -49,10 +54,10 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
     def is_job_succeeded(self, status: str) -> bool:
         return status in self._succeeded_statuses
 
-    def poll_until_complete(self, external_id: str, context) -> None:
-        self.polled_ids.append(external_id)
+    def poll_until_complete(self, external_id: JsonValue, context) -> None:
+        self.polled_ids.append(str(external_id))
 
-    def get_job_result(self, external_id: str, context) -> str:
+    def get_job_result(self, external_id: JsonValue, context) -> str:
         return f"result-of-{external_id}"
 
 

@@ -19,6 +19,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import Logger
 
@@ -54,10 +56,10 @@ class ResumableJobMixin:
             def execute(self, context):
                 return self.execute_resumable(context)
 
-            def submit_job(self, context) -> str:
+            def submit_job(self, context) -> JsonValue:
                 return self.hook.submit(...)
 
-            def get_job_status(self, external_id: str) -> str:
+            def get_job_status(self, external_id: JsonValue) -> str:
                 return self.hook.get_status(external_id)
 
             def is_job_active(self, status: str) -> bool:
@@ -66,10 +68,10 @@ class ResumableJobMixin:
             def is_job_succeeded(self, status: str) -> bool:
                 return status == "SUCCEEDED"
 
-            def poll_until_complete(self, external_id: str, context: Context) -> None:
+            def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
                 self.hook.poll(external_id)
 
-            def get_job_result(self, external_id: str, context: Context) -> Any:
+            def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
                 return None
     """
 
@@ -124,11 +126,11 @@ class ResumableJobMixin:
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
 
-    def submit_job(self, context: Context) -> str:
+    def submit_job(self, context: Context) -> JsonValue:
         """Submit the job to the external system. Return its external ID."""
         raise NotImplementedError
 
-    def get_job_status(self, external_id: str) -> str:
+    def get_job_status(self, external_id: JsonValue) -> str:
         """Query the external system for the current job status."""
         raise NotImplementedError
 
@@ -150,10 +152,10 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
-    def poll_until_complete(self, external_id: str, context: Context) -> None:
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         """Block until the job reaches a terminal state. Raise on failure."""
         raise NotImplementedError
 
-    def get_job_result(self, external_id: str, context: Context) -> Any:
+    def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
         """Return the job result after completion. Return None if not applicable."""
         raise NotImplementedError
