@@ -1111,6 +1111,28 @@
                         }
                     },
                     "description": "Configuration of the OTel Collector image."
+                },
+                "kubectl": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "repository": {
+                            "type": "string"
+                        },
+                        "tag": {
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "type": "string",
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
+                            "default": "IfNotPresent"
+                        }
+                    },
+                    "description": "Configuration of the kubectl image."
                 }
             }
         },
@@ -7742,6 +7764,245 @@
                             }
                         ],
                         "additionalProperties": false
+                    }
+                },
+                "rolloutRestart": {
+                    "description": "Periodic rollout restart configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable periodic rollout restart for API server deployment.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "deploymentName": {
+                            "description": "The API Server Deployment name for rollout restart.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "schedule": {
+                            "description": "CronJob schedule.",
+                            "type": "string",
+                            "default": "0 0 * * *"
+                        },
+                        "command": {
+                            "description": "Command to use when running the CronJob.",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the CronJob.",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "jobAnnotations": {
+                            "description": "Annotations on the CronJob.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "affinity": {
+                            "description": "Specify scheduling constraints.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to objects and pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "resources": {
+                            "description": "Resources for pods.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                            "default": {}
+                        },
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount credentials should be mounted.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "env": {
+                            "description": "Add additional env vars.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector"
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector"
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition.",
+                            "type": "object",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {}
+                                },
+                                "container": {
+                                    "description": "Container security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {}
+                                }
+                            }
+                        },
+                        "failedJobsHistoryLimit": {
+                            "description": "The failed jobs history limit.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "successfulJobsHistoryLimit": {
+                            "description": "The successful jobs history limit.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
                     }
                 }
             }
