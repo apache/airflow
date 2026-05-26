@@ -445,31 +445,33 @@ class TestPartitionsClear:
         clear_db_runs()
         clear_db_dags()
 
-    def test_clear_task_instances_chunks_at_boundary(self, parser, dag_maker):
-        """Exactly DR_CHUNK_SIZE runs → clear_task_instances called once with all TIs."""
-        chunk_size = 3
+    def test_clear_task_instances_chunks_at_cap(self, parser, dag_maker):
+        """2 DRs × 3 TIs/DR = 6 TIs == TI_CHUNK_SIZE → clear_task_instances called once with all 6."""
+        ti_cap = 6
         clear_db_runs()
         clear_db_dags()
         with dag_maker(
-            "dag_chunk_boundary",
+            "dag_chunk_at_cap",
             schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
             start_date=datetime(2024, 1, 1),
             catchup=True,
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        for i in range(chunk_size):
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(2):
             dag_maker.create_dagrun(
-                run_id=f"chunk_run_{i:04d}",
+                run_id=f"at_cap_run_{i:04d}",
                 state=DagRunState.SUCCESS,
                 logical_date=None,
                 partition_date=datetime(2024, 1, 1, tzinfo=pendulum.UTC) + pendulum.duration(days=i),
-                partition_key=f"chunk-key-{i:04d}",
+                partition_key=f"at-cap-key-{i:04d}",
             )
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "DR_CHUNK_SIZE", chunk_size),
+            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
             mock.patch(
                 "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
             ) as mock_cti,
@@ -480,7 +482,7 @@ class TestPartitionsClear:
                         "partitions",
                         "clear",
                         "--dag-id",
-                        "dag_chunk_boundary",
+                        "dag_chunk_at_cap",
                         "--start-date",
                         "2024-01-01",
                         "--end-date",
@@ -490,39 +492,39 @@ class TestPartitionsClear:
                 )
             )
 
-        # Exactly one call: the flush at >= DR_CHUNK_SIZE triggers mid-loop.
-        assert len(mock_cti.mock_calls) == 1
-        first_call_tis = mock_cti.mock_calls[0].args[0]
-        assert len(first_call_tis) == chunk_size  # == 3 when patched
+        # Exactly one call: 6 TIs == cap, all flushed together in the tail.
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6]
 
         clear_db_runs()
         clear_db_dags()
 
-    def test_clear_task_instances_chunks_just_over_boundary(self, parser, dag_maker):
-        """DR_CHUNK_SIZE + 1 runs → two clear_task_instances calls (first full, second tail)."""
-        chunk_size = 3
+    def test_clear_task_instances_chunks_over_cap(self, parser, dag_maker):
+        """3 DRs × 3 TIs/DR = 9 TIs > TI_CHUNK_SIZE=6 → two calls: [6, 3]."""
+        ti_cap = 6
         clear_db_runs()
         clear_db_dags()
         with dag_maker(
-            "dag_chunk_over",
+            "dag_chunk_over_cap",
             schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
             start_date=datetime(2024, 1, 1),
             catchup=True,
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        for i in range(chunk_size + 1):
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(3):
             dag_maker.create_dagrun(
-                run_id=f"over_run_{i:04d}",
+                run_id=f"over_cap_run_{i:04d}",
                 state=DagRunState.SUCCESS,
                 logical_date=None,
                 partition_date=datetime(2024, 1, 1, tzinfo=pendulum.UTC) + pendulum.duration(days=i),
-                partition_key=f"over-key-{i:04d}",
+                partition_key=f"over-cap-key-{i:04d}",
             )
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "DR_CHUNK_SIZE", chunk_size),
+            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
             mock.patch(
                 "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
             ) as mock_cti,
@@ -533,7 +535,7 @@ class TestPartitionsClear:
                         "partitions",
                         "clear",
                         "--dag-id",
-                        "dag_chunk_over",
+                        "dag_chunk_over_cap",
                         "--start-date",
                         "2024-01-01",
                         "--end-date",
@@ -543,12 +545,137 @@ class TestPartitionsClear:
                 )
             )
 
-        # Two calls: first flush at DR_CHUNK_SIZE (3 TIs), tail flush with 1 TI.
-        assert len(mock_cti.mock_calls) == 2
-        first_call_tis = mock_cti.mock_calls[0].args[0]
-        second_call_tis = mock_cti.mock_calls[1].args[0]
-        assert len(first_call_tis) == chunk_size
-        assert len(second_call_tis) == 1
+        # First slice: 6 TIs at cap; tail: 3 remaining TIs.
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6, 3]
+
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_clear_task_instances_chunks_just_under_cap(self, parser, dag_maker):
+        """1 DR × 5 TIs = 5 TIs < TI_CHUNK_SIZE=6 → one tail call with all 5."""
+        ti_cap = 6
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "dag_chunk_under_cap",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+            EmptyOperator(task_id="t4")
+            EmptyOperator(task_id="t5")
+        dag_maker.create_dagrun(
+            run_id="under_cap_run_0000",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2024, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="under-cap-key-0000",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        with (
+            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
+            mock.patch(
+                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
+            ) as mock_cti,
+        ):
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        "dag_chunk_under_cap",
+                        "--start-date",
+                        "2024-01-01",
+                        "--end-date",
+                        "2025-12-31",
+                        "--clear-task-instances",
+                    ]
+                )
+            )
+
+        # 5 TIs < cap of 6: no mid-loop flush triggered, tail sends all 5 in one call.
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [5]
+
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_clear_task_instances_chunks_mid_loop_trigger(self, parser, dag_maker):
+        """Pin mid-loop SELECT IN + slice trigger (partition_command.py L120-132).
+
+        Design: TI_CHUNK_SIZE=3, 1 dag with 2 tasks, 3 DRs (6 TIs total).
+
+        Execution trace:
+        - DR0: ti_buffer=[r0], len=1 < 3 -- no mid-loop
+        - DR1: ti_buffer=[r0, r1], len=2 < 3 -- no mid-loop
+        - DR2: ti_buffer=[r0, r1, r2], len=3 >= 3 -- mid-loop FIRES:
+            SELECT IN(r0, r1, r2) -> 6 TIs
+            ti_buffer_run_ids.clear() -> []
+            ti_carry.extend(6 TIs) -> carry len=6
+            while len>=3: slice[3] -> call #1, carry len=3
+            while len>=3: slice[3] -> call #2, carry len=0
+            while exits
+        - tail: ti_buffer empty, carry empty -- no calls
+        Expected mock_calls sizes: [3, 3]
+
+        Note: carry-across-SELECT (mid-loop leftover surviving to the next outer
+        fetch) cannot arise in a single-dag CLI invocation.  When mid-loop triggers,
+        SELECT returns tasks_per_DR * TI_CHUNK_SIZE TIs -- always a TI_CHUNK_SIZE
+        multiple -- so there is never a leftover after the inner while loop.
+        Carry leftover only arises in the tail flush, which is pinned by
+        test_clear_task_instances_chunks_over_cap.
+        """
+        ti_cap = 3
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "dag_chunk_mid_loop",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"mid_loop_run_{i:04d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime(2024, 1, 1, tzinfo=pendulum.UTC) + pendulum.duration(days=i),
+                partition_key=f"mid-loop-key-{i:04d}",
+            )
+        dag_maker.sync_dagbag_to_db()
+
+        with (
+            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
+            mock.patch(
+                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
+            ) as mock_cti,
+        ):
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        "dag_chunk_mid_loop",
+                        "--start-date",
+                        "2024-01-01",
+                        "--end-date",
+                        "2025-12-31",
+                        "--clear-task-instances",
+                    ]
+                )
+            )
+
+        # Mid-loop fires on DR2: two slices of 3 each; tail is empty.
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [3, 3]
 
         clear_db_runs()
         clear_db_dags()

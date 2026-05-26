@@ -32,7 +32,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-DR_CHUNK_SIZE = 500
+TI_CHUNK_SIZE = 500
 
 
 @cli_utils.action_cli
@@ -81,10 +81,13 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
     cleared = 0
     processed_any = False
 
-    # For --clear-task-instances: buffer run_ids, flush in DR_CHUNK_SIZE batches.
-    # task_instances is a lazy-select relationship; avoid N+1 by issuing one explicit
-    # SELECT per chunk instead of accessing run.task_instances directly.
+    # For --clear-task-instances: run_ids are buffered so that TIs are fetched with a single
+    # SELECT IN per chunk (avoiding N+1).  The fetched TIs are then flushed to
+    # clear_task_instances in slices of TI_CHUNK_SIZE, batched by TI count rather than
+    # DagRun count.  Any leftover TIs that do not fill a full slice are carried forward and
+    # combined with the next SELECT's results before the next set of slices is cut.
     ti_buffer_run_ids: list[str] = []
+    ti_carry: list[TaskInstance] = []
     tis_cleared_total = 0
     runs_for_ti_total = 0
     tis_dry_total = 0
@@ -114,21 +117,26 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             else:
                 ti_buffer_run_ids.append(run.run_id)
                 runs_for_ti_total += 1
-                if len(ti_buffer_run_ids) >= DR_CHUNK_SIZE:
+                if len(ti_buffer_run_ids) >= TI_CHUNK_SIZE:
                     chunk_tis = list(
                         session.scalars(
                             select(TaskInstance).where(TaskInstance.run_id.in_(ti_buffer_run_ids))
                         )
                     )
-                    clear_task_instances(chunk_tis, session=session)
-                    tis_cleared_total += len(chunk_tis)
                     ti_buffer_run_ids.clear()
+                    ti_carry.extend(chunk_tis)
+                    while len(ti_carry) >= TI_CHUNK_SIZE:
+                        slice_tis = ti_carry[:TI_CHUNK_SIZE]
+                        ti_carry = ti_carry[TI_CHUNK_SIZE:]
+                        clear_task_instances(slice_tis, session=session)
+                        tis_cleared_total += len(slice_tis)
 
     if not processed_any:
         print(f"No matching DagRuns found for dag_id={args.dag_id}.")
         return
 
-    # Flush the tail of the TI buffer after the loop.
+    # Flush the tail: fetch any remaining buffered run_ids, combine with carry, then
+    # cut full slices and send the final partial slice.
     if clear_tis:
         if args.dry_run:
             print(
@@ -137,11 +145,18 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             )
         else:
             if ti_buffer_run_ids:
-                chunk_tis = list(
+                tail_tis = list(
                     session.scalars(select(TaskInstance).where(TaskInstance.run_id.in_(ti_buffer_run_ids)))
                 )
-                clear_task_instances(chunk_tis, session=session)
-                tis_cleared_total += len(chunk_tis)
+                ti_carry.extend(tail_tis)
+            while len(ti_carry) >= TI_CHUNK_SIZE:
+                slice_tis = ti_carry[:TI_CHUNK_SIZE]
+                ti_carry = ti_carry[TI_CHUNK_SIZE:]
+                clear_task_instances(slice_tis, session=session)
+                tis_cleared_total += len(slice_tis)
+            if ti_carry:
+                clear_task_instances(ti_carry, session=session)
+                tis_cleared_total += len(ti_carry)
             print(
                 f"Cleared task instances on {runs_for_ti_total} "
                 f"DagRun(s) ({tis_cleared_total} task instance(s))."
