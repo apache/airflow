@@ -912,3 +912,22 @@ class TestSerializedDagModel:
 
         # The name must have been updated in the DB.
         assert updated_alert.name == "updated name"
+
+    def test_get_count_returns_zero_on_empty_table(self, session):
+        """get_count() returns 0 when no serialized DAGs are stored."""
+        assert SDM.get_count(session=session) == 0
+
+    def test_get_count_returns_correct_value(self, dag_maker, session):
+        """get_count() returns the exact number of serialized DAGs in the table."""
+        with dag_maker("dag_count_1"):
+            pass
+        with dag_maker("dag_count_2"):
+            pass
+        count = SDM.get_count(session=session)
+        assert count == 2
+
+    def test_get_count_raises_on_none_result(self, session):
+        """get_count() raises RuntimeError when session.scalar returns None (simulates DB failure)."""
+        with mock.patch.object(session, "scalar", return_value=None):
+            with pytest.raises(RuntimeError, match="COUNT query on serialized_dag returned None"):
+                SDM.get_count(session=session)

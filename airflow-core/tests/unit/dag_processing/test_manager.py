@@ -2790,3 +2790,33 @@ class TestDagFileProcessorManager:
 
         assert manager._bundle_versions["mock_bundle"] == "newhash"
         assert manager._bundle_version_data["mock_bundle"] == test_data
+
+
+class TestEmitMetrics:
+    """Tests for the emit_metrics module-level function."""
+
+    @pytest.mark.db_test
+    def test_emit_metrics_emits_serialized_dag_count(self, dag_maker, session):
+        """emit_metrics emits the serialized_dag.count gauge with the DB count."""
+        from airflow.dag_processing.manager import emit_metrics
+
+        with dag_maker("emit_count_dag"):
+            pass
+
+        with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+            emit_metrics(parse_time=1.0, dag_file_stats=[])
+
+        calls = {call[0][0]: call[0][1] for call in mock_stats.gauge.call_args_list}
+        assert "serialized_dag.count" in calls
+        assert calls["serialized_dag.count"] == 1
+
+    def test_emit_metrics_does_not_raise_on_db_error(self):
+        """emit_metrics logs and swallows RuntimeError from get_count on DB failure."""
+        from airflow.dag_processing.manager import emit_metrics
+
+        with mock.patch(
+            "airflow.dag_processing.manager.SerializedDagModel.get_count",
+            side_effect=RuntimeError("COUNT query on serialized_dag returned None"),
+        ):
+            with mock.patch("airflow.dag_processing.manager.stats"):
+                emit_metrics(parse_time=1.0, dag_file_stats=[])

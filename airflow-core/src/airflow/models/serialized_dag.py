@@ -877,6 +877,23 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_count(cls, session: Session = NEW_SESSION) -> int:
+        """
+        Return the total number of serialized DAGs stored in the database.
+
+        :param session: ORM Session
+        :raises RuntimeError: if the database returns None for the COUNT query, which indicates
+            a transient connectivity issue rather than an empty table (COUNT always returns an int).
+        """
+        result = session.scalar(select(func.count()).select_from(cls))
+        if result is None:
+            raise RuntimeError(
+                "COUNT query on serialized_dag returned None — possible database connectivity issue"
+            )
+        return result
+
+    @classmethod
+    @provide_session
     def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:

@@ -62,6 +62,7 @@ from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
@@ -89,6 +90,9 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+
+log = structlog.get_logger(__name__)
 
 
 class DagParsingStat(NamedTuple):
@@ -1566,6 +1570,11 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     stats.gauge("dag_processing.total_parse_time", parse_time)
     stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
     stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
+    try:
+        with create_session() as session:
+            stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
+    except Exception:
+        log.exception("Failed to emit serialized_dag.count metric")
 
 
 def process_parse_results(
