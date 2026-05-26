@@ -915,6 +915,8 @@ class TestSerializedDagModel:
 
     def test_get_count_returns_zero_on_empty_table(self, session):
         """get_count() returns 0 when no serialized DAGs are stored."""
+        session.execute(delete(SDM))
+        session.commit()
         assert SDM.get_count(session=session) == 0
 
     def test_get_count_returns_correct_value(self, dag_maker, session):
