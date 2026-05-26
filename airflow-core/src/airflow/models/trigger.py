@@ -61,6 +61,17 @@ _TRIGGER_ID_CLEANUP_BATCH_SIZE = 1000
 """Maximum number of task instances to lock per trigger-id cleanup batch."""
 
 
+def _locked_task_instance_ids(query: Select, batch_size: int, session: Session):
+    return session.scalars(
+        with_row_locks(
+            query.order_by(TaskInstance.id).limit(batch_size),
+            of=TaskInstance,
+            session=session,
+            skip_locked=True,
+        )
+    ).all()
+
+
 class TriggerFailureReason(str, Enum):
     """
     Reasons for trigger failures.
@@ -235,28 +246,22 @@ class Trigger(Base):
             task_instance_ids = []
             for attempt in run_with_db_retries():
                 with attempt:
-                    candidates = (
-                        select(TaskInstance.id)
-                        .where(
-                            TaskInstance.state != TaskInstanceState.DEFERRED,
-                            TaskInstance.trigger_id.is_not(None),
-                        )
-                        .order_by(TaskInstance.id)
-                        .limit(_TRIGGER_ID_CLEANUP_BATCH_SIZE)
+                    candidates = select(TaskInstance.id).where(
+                        TaskInstance.state != TaskInstanceState.DEFERRED,
+                        TaskInstance.trigger_id.is_not(None),
                     )
-                    task_instance_ids = list(
-                        session.scalars(
-                            with_row_locks(candidates, of=TaskInstance, session=session, skip_locked=True)
-                        ).all()
+                    task_instance_ids = _locked_task_instance_ids(
+                        candidates, _TRIGGER_ID_CLEANUP_BATCH_SIZE, session
                     )
-                    if task_instance_ids:
-                        session.execute(
-                            update(TaskInstance)
-                            .where(TaskInstance.id.in_(task_instance_ids))
-                            .values(trigger_id=None)
-                            .execution_options(synchronize_session=False)
-                        )
-            if len(task_instance_ids) < _TRIGGER_ID_CLEANUP_BATCH_SIZE:
+                    if not task_instance_ids:
+                        break
+                    session.execute(
+                        update(TaskInstance)
+                        .where(TaskInstance.id.in_(task_instance_ids))
+                        .values(trigger_id=None)
+                        .execution_options(synchronize_session=False)
+                    )
+            if not task_instance_ids:
                 break
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them

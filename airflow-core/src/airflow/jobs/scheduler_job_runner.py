@@ -84,7 +84,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, _locked_task_instance_ids
 from airflow.observability.metrics import stats_utils
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
@@ -2881,44 +2881,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
+        now = timezone.utcnow()
         while True:
             task_instance_ids = []
             for attempt in run_with_db_retries(max_retries, logger=self.log):
                 with attempt:
-                    now = timezone.utcnow()
-                    candidates = (
-                        select(TI.id)
-                        .where(
-                            TI.state == TaskInstanceState.DEFERRED,
-                            TI.trigger_timeout < now,
-                        )
-                        .order_by(TI.id)
-                        .limit(_TRIGGER_TIMEOUT_BATCH_SIZE)
+                    candidates = select(TI.id).where(
+                        TI.state == TaskInstanceState.DEFERRED,
+                        TI.trigger_timeout < now,
                     )
-                    task_instance_ids = list(
-                        session.scalars(
-                            with_row_locks(candidates, of=TI, session=session, skip_locked=True)
-                        ).all()
+                    task_instance_ids = _locked_task_instance_ids(
+                        candidates, _TRIGGER_TIMEOUT_BATCH_SIZE, session
                     )
-                    if task_instance_ids:
-                        result = session.execute(
-                            update(TI)
-                            .where(TI.id.in_(task_instance_ids))
-                            .values(
-                                state=TaskInstanceState.SCHEDULED,
-                                next_method=TRIGGER_FAIL_REPR,
-                                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                                scheduled_dttm=now,
-                                trigger_id=None,
-                            )
-                            .execution_options(synchronize_session=False)
+                    if not task_instance_ids:
+                        break
+                    result = session.execute(
+                        update(TI)
+                        .where(TI.id.in_(task_instance_ids))
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            next_method=TRIGGER_FAIL_REPR,
+                            next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                            scheduled_dttm=now,
+                            trigger_id=None,
                         )
-                        num_timed_out_tasks = getattr(result, "rowcount", 0)
-                        if num_timed_out_tasks:
-                            self.log.info(
-                                "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
-                            )
-            if len(task_instance_ids) < _TRIGGER_TIMEOUT_BATCH_SIZE:
+                        .execution_options(synchronize_session=False)
+                    )
+                    num_timed_out_tasks = getattr(result, "rowcount", 0)
+                    if num_timed_out_tasks:
+                        self.log.info(
+                            "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
+                        )
+            if not task_instance_ids:
                 break
 
     # [START find_and_purge_task_instances_without_heartbeats]
