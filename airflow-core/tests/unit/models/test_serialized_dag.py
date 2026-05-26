@@ -934,6 +934,8 @@ class TestSerializedDagModel:
         """get_count() lets OperationalError propagate so callers can handle DB failures."""
         from sqlalchemy.exc import OperationalError
 
-        with mock.patch.object(session, "execute", side_effect=OperationalError("db failure", None, None)):
+        with mock.patch.object(
+            session, "execute", side_effect=OperationalError("db failure", None, Exception("db failure"))
+        ):
             with pytest.raises(OperationalError):
                 SDM.get_count(session=session)
