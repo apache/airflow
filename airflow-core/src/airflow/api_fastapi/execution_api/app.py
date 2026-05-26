@@ -30,7 +30,6 @@ from cadwyn import (
 )
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -272,18 +271,10 @@ def create_task_execution_api_app() -> FastAPI:
             content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)
 
-    @app.exception_handler(SQLAlchemyError)
-    def handle_database_exceptions(request: Request, exc: SQLAlchemyError):
-        logger.exception(
-            "Database error handling request",
-            path=request.url.path,
-            method=request.method,
-            exc_info=(type(exc), exc, exc.__traceback__),
-        )
-        content: dict[str, str] = {"detail": "Database error occurred"}
-        if correlation_id := request.headers.get("correlation-id"):
-            content["correlation-id"] = correlation_id
-        return JSONResponse(status_code=500, content=content)
+    from airflow.api_fastapi.execution_api.exceptions import EXECUTION_API_ERROR_HANDLERS
+
+    for handler in EXECUTION_API_ERROR_HANDLERS:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
     return app
 
