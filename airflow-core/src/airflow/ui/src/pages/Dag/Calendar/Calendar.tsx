@@ -89,7 +89,12 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity, selectedTimezone);
+  const scale = createCalendarScale({
+    data: data?.dag_runs ?? [],
+    granularity,
+    timezoneName: selectedTimezone,
+    viewMode,
+  });
 
   if (!data && !isLoading) {
     return (

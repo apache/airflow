@@ -42,14 +42,14 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateHourlyCalendarData } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 dayjs.extend(isSameOrBefore);
 
@@ -71,7 +71,12 @@ export const HourlyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth, timezoneName);
+  const hourlyData = generateHourlyCalendarData({
+    data,
+    selectedMonth,
+    selectedYear,
+    timezoneName,
+  });
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>

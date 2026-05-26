@@ -28,8 +28,10 @@ import type {
   DailyCalendarData,
   HourlyCalendarData,
   CalendarColorMode,
-  CalendarGranularity,
   CalendarScale,
+  CalendarScaleOptions,
+  DailyCalendarDataOptions,
+  HourlyCalendarDataOptions,
   LegendItem,
 } from "./types";
 
@@ -118,11 +120,8 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   return counts;
 };
 
-export const generateDailyCalendarData = (
-  data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  timezoneName: string,
-): DailyCalendarData => {
+export const generateDailyCalendarData = (options: DailyCalendarDataOptions): DailyCalendarData => {
+  const { data, selectedYear, timezoneName } = options;
   const dailyDataMap = createDailyDataMap(data, timezoneName);
 
   const weeks = [];
@@ -149,12 +148,8 @@ export const generateDailyCalendarData = (
   return weeks;
 };
 
-export const generateHourlyCalendarData = (
-  data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  selectedMonth: number,
-  timezoneName: string,
-): HourlyCalendarData => {
+export const generateHourlyCalendarData = (options: HourlyCalendarDataOptions): HourlyCalendarData => {
+  const { data, selectedMonth, selectedYear, timezoneName } = options;
   const hourlyDataMap = createHourlyDataMap(data, timezoneName);
 
   const monthStart = dayjs().tz(timezoneName).year(selectedYear).month(selectedMonth).startOf("month");
@@ -181,11 +176,10 @@ export const generateHourlyCalendarData = (
 };
 
 export const calculateDataBounds = (
-  data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
-  timezoneName: string,
+  options: CalendarScaleOptions,
 ): { maxCount: number; minCount: number } => {
+  const { data, granularity, timezoneName, viewMode } = options;
+
   if (data.length === 0) {
     return { maxCount: 0, minCount: 0 };
   }
@@ -227,13 +221,9 @@ export const calculateDataBounds = (
   };
 };
 
-export const createCalendarScale = (
-  data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
-  timezoneName: string,
-): CalendarScale => {
-  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity, timezoneName);
+export const createCalendarScale = (options: CalendarScaleOptions): CalendarScale => {
+  const { viewMode } = options;
+  const { maxCount, minCount } = calculateDataBounds(options);
 
   // Handle empty data case
   if (maxCount === 0) {
@@ -348,14 +338,14 @@ export const createCalendarScale = (
 
   const legendItems: Array<LegendItem> = [];
 
-  uniqueThresholds.forEach((threshold, index, thresholdsArray) => {
-    const nextThreshold = thresholdsArray[index + 1];
+  for (const [index, threshold] of uniqueThresholds.entries()) {
+    const nextThreshold = uniqueThresholds[index + 1];
 
     let label: string;
 
     if (index === 0) {
       label = "0";
-    } else if (index === thresholdsArray.length - 1) {
+    } else if (index === uniqueThresholds.length - 1) {
       label = `${threshold}+`;
     } else if (nextThreshold !== undefined && threshold + 1 === nextThreshold) {
       label = threshold.toString();
@@ -371,7 +361,7 @@ export const createCalendarScale = (
       color,
       label,
     });
-  });
+  }
 
   return {
     getColor,

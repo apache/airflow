@@ -57,6 +57,25 @@ export type CalendarGranularity = "daily" | "hourly";
 
 export type CalendarColorMode = "failed" | "total";
 
+export type CalendarTimezoneOptions = {
+  readonly data: Array<CalendarTimeRangeResponse>;
+  readonly timezoneName: string;
+};
+
+export type DailyCalendarDataOptions = {
+  readonly selectedYear: number;
+} & CalendarTimezoneOptions;
+
+export type HourlyCalendarDataOptions = {
+  readonly selectedMonth: number;
+  readonly selectedYear: number;
+} & CalendarTimezoneOptions;
+
+export type CalendarScaleOptions = {
+  readonly granularity: CalendarGranularity;
+  readonly viewMode: CalendarColorMode;
+} & CalendarTimezoneOptions;
+
 export type LegendItem = {
   readonly color: string | { _dark: string; _light: string };
   readonly label: string;

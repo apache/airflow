@@ -41,14 +41,14 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateDailyCalendarData } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
@@ -66,7 +66,7 @@ export const DailyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const dailyData = generateDailyCalendarData(data, selectedYear, timezoneName);
+  const dailyData = generateDailyCalendarData({ data, selectedYear, timezoneName });
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),
