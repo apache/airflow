@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
@@ -224,7 +225,9 @@ def patch_task_state(
         )
 
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    get_state_backend().set(scope, key, body.value, expires_at=existing.expires_at, session=session)
+    get_state_backend().set(
+        scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session
+    )
 
 
 @task_state_router.delete(

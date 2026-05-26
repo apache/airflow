@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 from sqlalchemy import select
 
@@ -263,6 +265,46 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         _create_task_state(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
         assert test_client.patch(f"{BASE_URL}/job_id", json={}).status_code == 422
+
+    def test_patch_null_value_returns_422(self, test_client):
+        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
+
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_patch_non_finite_float_returns_422(self, test_client, bad_float):
+        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            test_client.patch(
+                f"{BASE_URL}/job_id",
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+
+    @pytest.mark.parametrize(
+        ("value", "expected_db"),
+        [
+            (42, "42"),
+            ("hello", '"hello"'),
+            ({"k": 1}, '{"k": 1}'),
+            ([1, 2], "[1, 2]"),
+        ],
+    )
+    def test_patch_stores_json_encoded_value(self, test_client, value, expected_db):
+        _create_task_state(self._session, "job_id", "initial", self.dag_run)
+        self._session.commit()
+        test_client.patch(f"{BASE_URL}/job_id", json={"value": value})
+        row = self._session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.run_id == RUN_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "job_id",
+            )
+        )
+        self._session.refresh(row)
+        assert row.value == expected_db
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.patch(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401

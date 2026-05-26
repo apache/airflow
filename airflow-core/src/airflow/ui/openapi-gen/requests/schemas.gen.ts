@@ -7040,9 +7040,7 @@ export const $TaskStateCollectionResponse = {
 export const $TaskStatePatchBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         }
     },
     additionalProperties: false,

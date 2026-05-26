@@ -1737,7 +1737,7 @@ export type TaskStateCollectionResponse = {
  * Request body for patching only the value of an existing task state key.
  */
 export type TaskStatePatchBody = {
-    value: string;
+    value: JsonValue;
 };
 
 /**

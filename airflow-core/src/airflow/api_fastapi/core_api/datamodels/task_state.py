@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import math
 from datetime import datetime
 from typing import Literal
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, JsonValue, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+_MAX_SERIALIZED_BYTES = 65535
 
 
 class TaskStateResponse(BaseModel):
@@ -58,4 +62,15 @@ class TaskStateBody(StrictBaseModel):
 class TaskStatePatchBody(StrictBaseModel):
     """Request body for patching only the value of an existing task state key."""
 
-    value: str = Field(max_length=65535)
+    value: JsonValue
+
+    @field_validator("value")
+    @classmethod
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("value must be a finite number; NaN and Inf are not JSON representable")
+        if len(json.dumps(v)) > _MAX_SERIALIZED_BYTES:
+            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        return v
