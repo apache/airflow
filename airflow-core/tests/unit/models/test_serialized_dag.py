@@ -919,6 +919,7 @@ class TestSerializedDagModel:
 
     def test_get_count_returns_correct_value(self, dag_maker, session):
         """get_count() returns the exact number of serialized DAGs in the table."""
+        baseline = SDM.get_count(session=session)
         with dag_maker("dag_count_1"):
             pass
         with dag_maker("dag_count_2"):
@@ -926,8 +927,7 @@ class TestSerializedDagModel:
         # dag_maker writes SerializedDagModel rows on context exit; flush to make
         # them visible within the same session before asserting.
         session.flush()
-        count = SDM.get_count(session=session)
-        assert count == 2
+        assert SDM.get_count(session=session) == baseline + 2
 
     def test_get_count_propagates_db_error(self, session):
         """get_count() lets SQLAlchemyError propagate so callers can handle DB failures."""
