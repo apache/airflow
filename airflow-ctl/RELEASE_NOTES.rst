@@ -25,7 +25,7 @@ Significant Changes
 
 - Add dags next execution command #66172 (#66188)
 - Add bulk delete Dag Runs (#67095)
-- Add `rerun_with_latest_version` config hierarchy for clear/rerun behavior (#63884)
+- Add ``rerun_with_latest_version`` config hierarchy for clear/rerun behavior (#63884)
 - feat: implement patching of task group instances in API (#62812)
 - Allow remote version check without authentication (#65099)
 - Add cursor based pagination for get_dag_runs endpoint (#65604)
@@ -33,7 +33,7 @@ Significant Changes
 - Add cursor based pagination for get_task_instances endpoint (#64845)
 - add yaml-based help texts for auto-generated airflowctl commands (#65073) (#65090)
 - Added plugins command to airflowctl (#64935) (#65001)
-- Add `is_backfillable` property to DAG API responses (#64644)
+- Add ``is_backfillable`` property to DAG API responses (#64644)
 - Add YAML-based help texts for auto-generated airflowctl commands (#65073)
 - Added plugins command to airflowctl (#64935)
 - Add DagRunType for operator (#63733)
