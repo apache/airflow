@@ -39,20 +39,6 @@ AIRFLOW_POD_TEMPLATES = [
 ]
 
 
-def _env_names(doc):
-    """Return the list of env var names from the first container of a pod spec."""
-    env = jmespath.search("spec.template.spec.containers[0].env", doc) or []
-    return [e["name"] for e in env]
-
-
-def _env_value(doc, name):
-    env = jmespath.search("spec.template.spec.containers[0].env", doc) or []
-    for entry in env:
-        if entry["name"] == name:
-            return entry.get("value")
-    return None
-
-
 class TestOtelCollectorCommon:
     def test_standard_naming(self):
         docs = render_chart(
@@ -478,11 +464,13 @@ class TestOtelCollectorAirflowEnvironment:
     @pytest.mark.parametrize("template", AIRFLOW_POD_TEMPLATES)
     def test_default_emits_traces_env_only(self, template):
         docs = render_chart(values={"otelCollector": {"tracesEnabled": True}}, show_only=[template])
-        names = _env_names(docs[0])
+        names = jmespath.search("spec.template.spec.containers[0].env | [*].name", docs[0])
+
         assert "OTEL_SERVICE_NAME" in names
         assert "OTEL_EXPORTER_OTLP_PROTOCOL" in names
         assert "OTEL_TRACES_EXPORTER" in names
         assert "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT" in names
+
         # Metrics env vars aren't present.
         assert "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT" not in names
         assert "OTEL_METRIC_EXPORT_INTERVAL" not in names
@@ -493,11 +481,13 @@ class TestOtelCollectorAirflowEnvironment:
             values={"otelCollector": {"metricsEnabled": True}},
             show_only=[template],
         )
-        names = _env_names(docs[0])
+        names = jmespath.search("spec.template.spec.containers[0].env | [*].name", docs[0])
+
         assert "OTEL_SERVICE_NAME" in names
         assert "OTEL_EXPORTER_OTLP_PROTOCOL" in names
         assert "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT" in names
         assert "OTEL_METRIC_EXPORT_INTERVAL" in names
+
         # Traces env vars aren't present.
         assert "OTEL_TRACES_EXPORTER" not in names
         assert "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT" not in names
@@ -508,15 +498,25 @@ class TestOtelCollectorAirflowEnvironment:
             values={"otelCollector": {"tracesEnabled": False, "metricsEnabled": False}},
             show_only=[template],
         )
-        names = _env_names(docs[0])
-        assert not any(n.startswith("OTEL_") for n in names)
+
+        assert (
+            jmespath.search("spec.template.spec.containers[0].env[?name.starts_with(@, 'OTEL_')]", docs[0])
+            == []
+        )
 
     def test_metric_export_interval_value(self):
         docs = render_chart(
             values={"otelCollector": {"metricsEnabled": True, "metricExportIntervalMs": 12345}},
             show_only=[AIRFLOW_POD_TEMPLATES[0]],
         )
-        assert _env_value(docs[0], "OTEL_METRIC_EXPORT_INTERVAL") == "12345"
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].env[?name=='OTEL_METRIC_EXPORT_INTERVAL'] | [0].value",
+                docs[0],
+            )
+            == "12345"
+        )
 
 
 class TestOtelCollectorAirflowConfig:
