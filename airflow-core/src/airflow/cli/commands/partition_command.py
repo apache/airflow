@@ -42,12 +42,7 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
     """Clear the partition_key and partition_date of matching DagRuns."""
     has_range = args.start_date is not None or args.end_date is not None or args.date is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
-    if selectors_used == 0:
-        raise SystemExit(
-            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
-            "(--start-date/--end-date or --date)."
-        )
-    if selectors_used > 1:
+    if selectors_used != 1:
         raise SystemExit(
             "Specify exactly one of --run-id, --partition-key, or a partition_date range "
             "(--start-date/--end-date or --date)."
