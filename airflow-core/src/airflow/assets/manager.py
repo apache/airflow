@@ -204,9 +204,12 @@ class AssetManager(LoggingMixin):
         dag_ids = [dag.dag_id for dag in dags_to_queue]
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
 
-        # Build per-consumer allow_producer_teams from the schedule reference rows.
+        # Build per-consumer allow_producer_teams and allow_global_producers from the schedule reference rows.
         dag_id_to_allow_teams: dict[str, list[str]] = {
             ref.dag_id: ref.allow_producer_teams or [] for ref in asset_model.scheduled_dags
+        }
+        dag_id_to_allow_global: dict[str, bool] = {
+            ref.dag_id: ref.allow_global_producers for ref in asset_model.scheduled_dags
         }
 
         filtered = set()
@@ -222,8 +225,9 @@ class AssetManager(LoggingMixin):
                 if source_is_api:
                     # Teamless API user can only trigger teamless consumers
                     continue
-                # Teamless DAG producer is global — triggers all consumers
-                filtered.add(dag)
+                # Teamless DAG producer — check allow_global_producers
+                if dag_id_to_allow_global.get(dag.dag_id, True):
+                    filtered.add(dag)
                 continue
 
             if consumer_team in source_teams:

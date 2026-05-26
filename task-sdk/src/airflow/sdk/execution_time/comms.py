@@ -509,7 +509,7 @@ class XComResult(XComResponse):
 
 class XComCountResponse(BaseModel):
     len: int
-    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+    type: Literal["XComCountResponse"] = "XComCountResponse"
 
 
 class XComSequenceIndexResult(BaseModel):
@@ -869,7 +869,7 @@ class GetXComCount(BaseModel):
     dag_id: str
     run_id: str
     task_id: str
-    type: Literal["GetNumberXComs"] = "GetNumberXComs"
+    type: Literal["GetXComCount"] = "GetXComCount"
 
 
 class GetXComSequenceItem(BaseModel):
@@ -923,7 +923,8 @@ class GetTaskState(BaseModel):
 class SetTaskState(BaseModel):
     ti_id: UUID
     key: str
-    value: str
+    value: JsonValue
+    expires_at: AwareDatetime | None
     type: Literal["SetTaskState"] = "SetTaskState"
 
 
@@ -954,14 +955,14 @@ class GetAssetStateByUri(BaseModel):
 class SetAssetStateByName(BaseModel):
     name: str
     key: str
-    value: str
+    value: JsonValue
     type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
 
 
 class SetAssetStateByUri(BaseModel):
     uri: str
     key: str
-    value: str
+    value: JsonValue
     type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
 
 

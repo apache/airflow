@@ -450,7 +450,7 @@ class ConnectionsOperations(BaseOperations):
         """Create a connection."""
         try:
             self.response = self.client.post(
-                "connections", json=connection.model_dump(mode="json", exclude_none=True)
+                "connections", json=connection.model_dump(mode="json", by_alias=True, exclude_none=True)
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -459,7 +459,9 @@ class ConnectionsOperations(BaseOperations):
     def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
-            self.response = self.client.patch("connections", json=connections.model_dump(mode="json"))
+            self.response = self.client.patch(
+                "connections", json=connections.model_dump(mode="json", by_alias=True)
+            )
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -487,7 +489,8 @@ class ConnectionsOperations(BaseOperations):
         """Update a connection."""
         try:
             self.response = self.client.patch(
-                f"connections/{connection.connection_id}", json=connection.model_dump(mode="json")
+                f"connections/{connection.connection_id}",
+                json=connection.model_dump(mode="json", by_alias=True),
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -499,7 +502,9 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         try:
-            self.response = self.client.post("connections/test", json=connection.model_dump(mode="json"))
+            self.response = self.client.post(
+                "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            )
             return ConnectionTestResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e

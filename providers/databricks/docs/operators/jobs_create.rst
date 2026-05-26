@@ -58,6 +58,41 @@ Currently the named parameters that ``DatabricksCreateJobsOperator`` supports ar
   - ``access_control_list``
 
 
+Forwarding Airflow Dag params as Databricks job parameters
+----------------------------------------------------------
+
+The Databricks ``api/2.2/jobs/create`` endpoint accepts a top-level ``parameters`` field
+that defines `job-level parameters
+<https://docs.databricks.com/api/workspace/jobs/create#parameters>`_ — a list of objects
+with a ``name`` (the parameter name) and a ``default`` (its default value), for example
+``[{"name": "env", "default": "prod"}]``.
+
+If ``parameters`` is not set in ``json`` and the operator's ``params`` dict is non-empty,
+each key/value pair in ``params`` is converted into one such ``{"name": key, "default":
+value}`` entry, so that Airflow Dag params can be forwarded as Databricks job parameters
+without hardcoding the API shape in ``json``. If ``json`` already contains ``parameters``,
+it is left untouched.
+
+.. code-block:: python
+
+  # Airflow Dag params (key/value pairs)
+  params = {"env": "prod", "batch_size": "100"}
+
+  create_job = DatabricksCreateJobsOperator(
+      task_id="create_job",
+      json={"name": "my-job", "tasks": [...]},
+      params=params,
+  )
+
+  # The Databricks job created/reset by the operator will have:
+  #   parameters=[
+  #       {"name": "env",        "default": "prod"},
+  #       {"name": "batch_size", "default": "100"},
+  #   ]
+  # i.e. each "<key>: <value>" in params becomes one
+  # {"name": "<key>", "default": "<value>"} entry in the job definition.
+
+
 Examples
 --------
 

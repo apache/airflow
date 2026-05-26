@@ -16,11 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import {
+  useDagRunServiceGetDagRunsKey,
+  useGridServiceGetGridRunsKey,
+  useTaskInstanceServiceGetTaskInstancesKey,
+} from "openapi/queries";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+const GRID_MUTATION_WATCHED_KEYS = new Set([
+  useTaskInstanceServiceGetTaskInstancesKey,
+  useGridServiceGetGridRunsKey,
+  useDagRunServiceGetDagRunsKey,
+]);
 
 /**
  * Streams TI summaries for all grid runs over a single HTTP connection (NDJSON).
@@ -41,6 +53,7 @@ export const useGridTiSummariesStream = ({
   runIds: Array<string>;
   states?: Array<TaskInstanceState | null | undefined>;
 }) => {
+  const queryClient = useQueryClient();
   const [summariesByRunId, setSummariesByRunId] = useState<Map<string, GridTISummaries>>(new Map());
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -123,6 +136,35 @@ export const useGridTiSummariesStream = ({
 
     return () => clearInterval(timer);
   }, [hasActiveRuns, baseRefetchInterval]);
+
+  // Re-stream whenever a mutation invalidates a grid-related query (TI states,
+  // run states, or grid structure).  Invalidation events only fire from explicit
+  // invalidateQueries() calls — never from polling intervals — so this never
+  // double-fires with the interval-based refresh above.
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      const [firstKey] = event.query.queryKey as Array<unknown>;
+
+      if (
+        event.type === "updated" &&
+        event.action.type === "invalidate" &&
+        typeof firstKey === "string" &&
+        GRID_MUTATION_WATCHED_KEYS.has(firstKey)
+      ) {
+        // Debounce: a single mutation invalidates several matching queries in one tick.
+        clearTimeout(timeoutId);
+        // eslint-disable-next-line max-nested-callbacks
+        timeoutId = setTimeout(() => setRefreshTick((tick) => tick + 1), 0);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
+  }, [queryClient]);
 
   return { summariesByRunId };
 };

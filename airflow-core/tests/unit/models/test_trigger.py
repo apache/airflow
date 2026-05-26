@@ -83,6 +83,17 @@ def clear_db(session):
     session.commit()
 
 
+def test_trigger_team_name_stored(session, testing_team):
+    trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    session.add(trigger)
+    session.flush()
+
+    loaded = session.get(Trigger, trigger.id)
+    assert loaded.team_name == "testing"
+
+
 def test_fetch_trigger_ids_with_non_task_associations(session):
     # Create triggers
     asset_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})

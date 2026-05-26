@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useRef } from "react";
 
+import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import { useMonacoTheme } from "src/context/colorMode";
 
 type JsonEditorProps = {

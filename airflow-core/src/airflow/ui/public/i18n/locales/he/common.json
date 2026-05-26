@@ -64,6 +64,11 @@
     "dagVersions": "גרסאות Dag",
     "dataIntervalEnd": "סיום מקטע נתונים",
     "dataIntervalStart": "תחילת מקטע נתונים",
+    "durationStats": {
+      "mean": "ממוצע",
+      "mode": "שכיח"
+    },
+    "expectedDuration": "משך זמן צפוי",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
     "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",

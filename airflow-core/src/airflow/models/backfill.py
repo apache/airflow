@@ -107,6 +107,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class InvalidBackfillDateRange(AirflowException):
+    """
+    Raised when from_date is after to_date in a backfill request.
+
+    :meta private:
+    """
+
+
 class InvalidBackfillConf(AirflowException):
     """
     Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
@@ -266,6 +274,16 @@ def _validate_backfill_params(
     reprocess_behavior: ReprocessBehavior | None,
     dag_run_conf: dict | None = None,
 ) -> None:
+
+    if from_date > to_date:
+        raise InvalidBackfillDateRange(
+            f"from_date ({from_date.isoformat()}) must not be after to_date ({to_date.isoformat()})."
+        )
+
+    current_time = timezone.utcnow()
+    if from_date >= current_time and to_date >= current_time:
+        raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
+
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
         if reverse is True:
@@ -277,9 +295,6 @@ def _validate_backfill_params(
                 "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    current_time = timezone.utcnow()
-    if from_date >= current_time and to_date >= current_time:
-        raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
     if dag_run_conf is not None:
         try:
             dag.params.deep_merge(dag_run_conf).validate()

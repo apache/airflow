@@ -61,6 +61,11 @@
     "dagVersions": "Dag Versionen",
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
+    "durationStats": {
+      "mean": "Mittelwert",
+      "mode": "Modus"
+    },
+    "expectedDuration": "Erwartete mittlere Laufzeit",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
     "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",

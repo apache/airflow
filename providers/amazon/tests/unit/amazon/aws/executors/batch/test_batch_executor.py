@@ -88,7 +88,7 @@ def mock_executor(set_env_vars) -> AwsBatchExecutor:
 
 @pytest.fixture(autouse=True)
 def mock_airflow_key():
-    return mock.Mock(spec=list)
+    return mock.Mock(spec=TaskInstanceKey)
 
 
 @pytest.fixture(autouse=True)
@@ -108,7 +108,7 @@ class TestBatchJobCollection:
         self.collection = BatchJobCollection()
         # Add first task
         self.first_job_id = "001"
-        self.first_airflow_key = mock.Mock(spec=tuple)
+        self.first_airflow_key = mock.Mock(spec=TaskInstanceKey)
         self.collection.add_job(
             job_id=self.first_job_id,
             airflow_workload_key=self.first_airflow_key,
@@ -119,7 +119,7 @@ class TestBatchJobCollection:
         )
         # Add second task
         self.second_job_id = "002"
-        self.second_airflow_key = mock.Mock(spec=tuple)
+        self.second_airflow_key = mock.Mock(spec=TaskInstanceKey)
         self.collection.add_job(
             job_id=self.second_job_id,
             airflow_workload_key=self.second_airflow_key,
@@ -190,7 +190,7 @@ class TestAwsBatchExecutor:
 
     def test_execute(self, mock_executor):
         """Test execution from end-to-end"""
-        airflow_key = mock.Mock(spec=tuple)
+        airflow_key = mock.Mock(spec=TaskInstanceKey)
         airflow_cmd = ["1", "2"]
 
         mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
@@ -397,7 +397,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
 
         # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
@@ -417,7 +417,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
 
         airflow_commands.append(airflow_cmd1)
@@ -480,7 +480,7 @@ class TestAwsBatchExecutor:
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
-        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.execute_async(mock.Mock(spec=TaskInstanceKey), "airflow_cmd")
         assert len(mock_executor.pending_jobs) == 1
         with pytest.raises(NoCredentialsError, match="Unable to locate credentials"):
             mock_executor.attempt_submit_jobs()
@@ -501,7 +501,10 @@ class TestAwsBatchExecutor:
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_task_retry_on_api_failure(self, _, mock_executor, caplog):
         """Test API failure retries"""
-        airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
+        airflow_keys = [
+            TaskInstanceKey("dag", "task1", "run", 1, -1),
+            TaskInstanceKey("dag", "task2", "run", 1, -1),
+        ]
         airflow_cmds = [["1", "2"], ["3", "4"]]
 
         mock_executor.execute_async(airflow_keys[0], airflow_cmds[0])
@@ -575,7 +578,7 @@ class TestAwsBatchExecutor:
         assert "No active Airflow workloads, skipping sync" in caplog.messages[0]
 
     def test_sync_client_error(self, mock_executor, caplog):
-        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.execute_async(mock.Mock(spec=TaskInstanceKey), "airflow_cmd")
         assert len(mock_executor.pending_jobs) == 1
         mock_resp = {
             "Error": {
@@ -1053,7 +1056,7 @@ class TestBatchExecutorConfig:
         )
         os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
 
-        mock_ti_key = mock.Mock(spec=tuple)
+        mock_ti_key = mock.Mock(spec=TaskInstanceKey)
         command = ["command"]
 
         executor = AwsBatchExecutor()
