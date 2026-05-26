@@ -200,6 +200,14 @@ def test_capacity_decode():
             TriggererJobRunner(job=job, capacity=input_str)
 
 
+@pytest.mark.parametrize("team_name", ["team_a", None])
+def test_triggerer_job_runner_stores_team_name(team_name):
+    """TriggererJobRunner stores team_name as-is (validated at CLI layer)."""
+    job = Job()
+    runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
+    assert runner.team_name == team_name
+
+
 @pytest.fixture
 def supervisor_builder(mocker, session):
     def builder(job=None):
@@ -234,6 +242,42 @@ def supervisor_builder(mocker, session):
         return proc
 
     return builder
+
+
+def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
+    """TriggerRunnerSupervisor stores team_name field."""
+    job = Job()
+    session.add(job)
+    session.flush()
+
+    import psutil
+
+    process = mocker.Mock(spec=psutil.Process, pid=99)
+    mock_stdin = mocker.Mock(spec=socket)
+
+    proc = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name="team_x",
+    )
+    assert proc.team_name == "team_x"
+
+    proc_global = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name=None,
+    )
+    assert proc_global.team_name is None
 
 
 def test_run_invokes_seams_in_order(supervisor_builder, mocker):
