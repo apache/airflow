@@ -57,36 +57,52 @@ def _env_value(doc, name):
     return None
 
 
+class TestOtelCollectorCommon:
+    def test_standard_naming(self):
+        docs = render_chart(
+            name="test-basic",
+            values={"useStandardNaming": True, "otelCollector": {"tracesEnabled": True}},
+            show_only=OTEL_TEMPLATES,
+        )
+
+        assert len(docs) == 4
+        assert jmespath.search("[*].[kind, metadata.name]", docs) == [
+            ["ConfigMap", "test-basic-airflow-otel-collector"],
+            ["Deployment", "test-basic-airflow-otel-collector"],
+            ["Service", "test-basic-airflow-otel-collector"],
+            ["ServiceAccount", "test-basic-airflow-otel-collector"],
+        ]
+
+
 class TestOtelCollectorResourceGating:
     """Resource emission depends on tracesEnabled / metricsEnabled."""
 
-    def test_default_renders_all_resources(self):
+    def test_renders_default(self):
         docs = render_chart(show_only=OTEL_TEMPLATES)
-        kinds = {d["kind"] for d in docs}
-        assert kinds == {"ConfigMap", "Deployment", "Service", "ServiceAccount"}
+        assert len(docs) == 0
 
-    def test_both_flags_disabled_renders_nothing(self):
+    @pytest.mark.parametrize("otel_field", ["tracesEnabled", "metricsEnabled"])
+    def test_should_render(self, otel_field):
+        docs = render_chart(values={"otelCollector": {otel_field: True}}, show_only=OTEL_TEMPLATES)
+
+        assert len(docs) == 4
+        assert jmespath.search("[*].kind", docs) == ["ConfigMap", "Deployment", "Service", "ServiceAccount"]
+
+    def test_should_not_render(self):
         docs = render_chart(
             values={"otelCollector": {"tracesEnabled": False, "metricsEnabled": False}},
             show_only=OTEL_TEMPLATES,
         )
-        assert docs == []
 
-    def test_metrics_only_renders_all_resources(self):
-        docs = render_chart(
-            values={"otelCollector": {"tracesEnabled": False, "metricsEnabled": True}},
-            show_only=OTEL_TEMPLATES,
-        )
-        kinds = {d["kind"] for d in docs}
-        assert kinds == {"ConfigMap", "Deployment", "Service", "ServiceAccount"}
+        assert docs == []
 
 
 class TestOtelCollectorDefaultConfig:
     """The chart-rendered config.yml has the default config for the otel-collector."""
 
     @staticmethod
-    def _get_config_yml(values=None):
-        docs = render_chart(values=values or {}, show_only=[CONFIGMAP_TEMPLATE])
+    def _get_config_yml():
+        docs = render_chart(values={"otelCollector": {"tracesEnabled": True}}, show_only=[CONFIGMAP_TEMPLATE])
         config_yml = jmespath.search('data."config.yml"', docs[0])
         return yaml.safe_load(config_yml)
 
@@ -114,7 +130,7 @@ class TestOtelCollectorDefaultConfig:
 class TestOtelCollectorConfigOverride:
     """`otelCollector.config` replaces the default and supports `tpl`."""
 
-    def test_override_replaces_default(self):
+    def test_override_default(self):
         override = (
             "receivers:\n"
             "  otlp:\n"
@@ -130,16 +146,15 @@ class TestOtelCollectorConfigOverride:
             "      exporters: [logging]\n"
         )
         docs = render_chart(
-            values={"otelCollector": {"config": override}},
+            values={"otelCollector": {"tracesEnabled": True, "config": override}},
             show_only=[CONFIGMAP_TEMPLATE],
         )
         rendered = yaml.safe_load(jmespath.search('data."config.yml"', docs[0]))
-        # The value is '0.0.0.0:9999' instead of the default '0.0.0.0:4318'.
         assert rendered["receivers"]["otlp"]["protocols"]["http"]["endpoint"] == "0.0.0.0:9999"
         # default `health_check` extension is gone in the override
         assert "extensions" not in rendered
 
-    def test_tpl_resolves_chart_values(self):
+    def test_override_default_tpl(self):
         override = (
             "receivers:\n"
             "  otlp:\n"
@@ -148,7 +163,7 @@ class TestOtelCollectorConfigOverride:
             "        endpoint: 0.0.0.0:{{ .Values.ports.otelCollectorOtlpHttp }}\n"
         )
         docs = render_chart(
-            values={"otelCollector": {"config": override}},
+            values={"otelCollector": {"tracesEnabled": True, "config": override}},
             show_only=[CONFIGMAP_TEMPLATE],
         )
         rendered = yaml.safe_load(jmespath.search('data."config.yml"', docs[0]))
@@ -159,7 +174,9 @@ class TestOtelCollectorDeployment:
     """Deployment-level configurability."""
 
     def test_default_args(self):
-        docs = render_chart(show_only=[DEPLOYMENT_TEMPLATE])
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "--config=/etc/otel-collector/config.yml"
         ]
@@ -167,88 +184,136 @@ class TestOtelCollectorDeployment:
     def test_args_override(self):
         custom = ["--config=/etc/otel-collector/config.yml", "--feature-gates=+foo"]
         docs = render_chart(
-            values={"otelCollector": {"args": custom}},
+            values={"otelCollector": {"tracesEnabled": True, "args": custom}},
             show_only=[DEPLOYMENT_TEMPLATE],
         )
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == custom
 
     def test_default_probes(self):
-        docs = render_chart(show_only=[DEPLOYMENT_TEMPLATE])
-        liveness = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
-        readiness = jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0])
-        assert liveness["initialDelaySeconds"] == 10
-        assert liveness["periodSeconds"] == 15
-        assert liveness["httpGet"] == {"path": "/", "port": 13133}
-        assert readiness["initialDelaySeconds"] == 10
-        assert readiness["periodSeconds"] == 15
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0]) == {
+            "initialDelaySeconds": 10,
+            "periodSeconds": 15,
+            "httpGet": {"path": "/", "port": 13133},
+        }
+
+        assert jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0]) == {
+            "initialDelaySeconds": 10,
+            "periodSeconds": 15,
+            "httpGet": {"path": "/", "port": 13133},
+        }
 
     def test_probe_overrides(self):
         docs = render_chart(
             values={
                 "otelCollector": {
+                    "tracesEnabled": True,
                     "livenessProbe": {"initialDelaySeconds": 30, "periodSeconds": 45},
                     "readinessProbe": {"initialDelaySeconds": 5, "periodSeconds": 7},
                 }
             },
             show_only=[DEPLOYMENT_TEMPLATE],
         )
-        liveness = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
-        readiness = jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0])
-        assert liveness["initialDelaySeconds"] == 30
-        assert liveness["periodSeconds"] == 45
-        assert readiness["initialDelaySeconds"] == 5
-        assert readiness["periodSeconds"] == 7
+
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0]) == {
+            "initialDelaySeconds": 30,
+            "periodSeconds": 45,
+            "httpGet": {"path": "/", "port": 13133},
+        }
+
+        assert jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0]) == {
+            "initialDelaySeconds": 5,
+            "periodSeconds": 7,
+            "httpGet": {"path": "/", "port": 13133},
+        }
 
     def test_resources_default_empty(self):
-        docs = render_chart(show_only=[DEPLOYMENT_TEMPLATE])
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     def test_resources_configurable(self):
         docs = render_chart(
             values={
                 "otelCollector": {
+                    "tracesEnabled": True,
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "256Mi"},
                         "requests": {"cpu": "100m", "memory": "128Mi"},
-                    }
+                    },
                 }
             },
             show_only=[DEPLOYMENT_TEMPLATE],
         )
-        resources = jmespath.search("spec.template.spec.containers[0].resources", docs[0])
-        assert resources == {
+
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {
             "limits": {"cpu": "200m", "memory": "256Mi"},
             "requests": {"cpu": "100m", "memory": "128Mi"},
         }
 
-    @pytest.mark.parametrize(
-        ("values", "expected"),
-        [
-            ({}, 30),
-            ({"otelCollector": {"terminationGracePeriodSeconds": 1200}}, 1200),
-        ],
-    )
-    def test_termination_grace_period_seconds(self, values, expected):
-        docs = render_chart(values=values, show_only=[DEPLOYMENT_TEMPLATE])
-        assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == expected
+    def test_termination_grace_period_seconds_default(self):
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
+        assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 30
+
+    def test_termination_grace_period_seconds_override(self):
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True, "terminationGracePeriodSeconds": 1200}},
+            show_only=[DEPLOYMENT_TEMPLATE],
+        )
+        assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 1200
+
+    def test_revision_history_limit_default(self):
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global_unset(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": None, "otelCollector": {"tracesEnabled": True}},
+            show_only=[DEPLOYMENT_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": 8, "otelCollector": {"tracesEnabled": True}},
+            show_only=[DEPLOYMENT_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
 
     @pytest.mark.parametrize(
-        ("component", "global_", "expected"),
-        [(8, 10, 8), (10, 8, 10), (8, None, 8), (None, 10, 10), (0, 10, 0), (None, 0, 0)],
+        ("local_limit", "global_limit"),
+        [
+            (8, 10),
+            (None, 8),
+            (8, None),
+        ],
     )
-    def test_revision_history_limit(self, component, global_, expected):
-        values = {"otelCollector": {}}
-        if component is not None:
-            values["otelCollector"]["revisionHistoryLimit"] = component
-        if global_ is not None:
-            values["revisionHistoryLimit"] = global_
-        docs = render_chart(values=values, show_only=[DEPLOYMENT_TEMPLATE])
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+    def test_revision_history_limit_overwrite(self, local_limit, global_limit):
+        docs = render_chart(
+            values={
+                "revisionHistoryLimit": global_limit,
+                "otelCollector": {"tracesEnabled": True, "revisionHistoryLimit": local_limit},
+            },
+            show_only=[DEPLOYMENT_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
 
     def test_scheduling_constraints(self):
         docs = render_chart(
             values={
                 "otelCollector": {
+                    "tracesEnabled": True,
                     "nodeSelector": {"diskType": "ssd"},
                     "tolerations": [{"key": "k", "operator": "Equal", "value": "v", "effect": "NoSchedule"}],
                     "affinity": {
@@ -288,10 +353,11 @@ class TestOtelCollectorDeployment:
         docs = render_chart(
             values={
                 "otelCollector": {
+                    "tracesEnabled": True,
                     "securityContexts": {
                         "pod": {"runAsUser": 2000, "fsGroup": 1000},
                         "container": {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True},
-                    }
+                    },
                 }
             },
             show_only=[DEPLOYMENT_TEMPLATE],
@@ -309,6 +375,7 @@ class TestOtelCollectorDeployment:
         docs = render_chart(
             values={
                 "otelCollector": {
+                    "tracesEnabled": True,
                     "annotations": {"deploy_anno": "deploy_value"},
                     "podAnnotations": {"pod_anno": "pod_value"},
                 }
@@ -327,7 +394,8 @@ class TestOtelCollectorDeployment:
                         "tag": "1.2.3",
                         "pullPolicy": "Always",
                     }
-                }
+                },
+                "otelCollector": {"tracesEnabled": True},
             },
             show_only=[DEPLOYMENT_TEMPLATE],
         )
@@ -342,13 +410,18 @@ class TestOtelCollectorService:
 
     def test_service_annotations(self):
         docs = render_chart(
-            values={"otelCollector": {"service": {"annotations": {"some_anno": "some_value"}}}},
+            values={
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "service": {"annotations": {"some_anno": "some_value"}},
+                }
+            },
             show_only=[SERVICE_TEMPLATE],
         )
         assert jmespath.search("metadata.annotations.some_anno", docs[0]) == "some_value"
 
     def test_service_no_annotations_block_when_unset(self):
-        docs = render_chart(show_only=[SERVICE_TEMPLATE])
+        docs = render_chart(values={"otelCollector": {"tracesEnabled": True}}, show_only=[SERVICE_TEMPLATE])
         assert "annotations" not in jmespath.search("metadata", docs[0])
 
 
@@ -356,27 +429,29 @@ class TestOtelCollectorServiceAccount:
     """ServiceAccount-level configurability."""
 
     def test_default_create(self):
-        docs = render_chart(show_only=[SERVICE_ACCOUNT_TEMPLATE])
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[SERVICE_ACCOUNT_TEMPLATE]
+        )
         assert docs[0]["kind"] == "ServiceAccount"
         assert docs[0]["automountServiceAccountToken"] is False
 
     def test_create_false_suppresses_sa(self):
         docs = render_chart(
-            values={"otelCollector": {"serviceAccount": {"create": False}}},
+            values={"otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}}},
             show_only=[SERVICE_ACCOUNT_TEMPLATE],
         )
         assert docs == []
 
     def test_create_false_deployment_uses_default_sa(self):
         docs = render_chart(
-            values={"otelCollector": {"serviceAccount": {"create": False}}},
+            values={"otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}}},
             show_only=[DEPLOYMENT_TEMPLATE],
         )
         assert jmespath.search("spec.template.spec.serviceAccountName", docs[0]) == "default"
 
     def test_custom_sa_name_propagates_to_deployment(self):
         docs = render_chart(
-            values={"otelCollector": {"serviceAccount": {"name": "my-custom-sa"}}},
+            values={"otelCollector": {"tracesEnabled": True, "serviceAccount": {"name": "my-custom-sa"}}},
             show_only=[DEPLOYMENT_TEMPLATE, SERVICE_ACCOUNT_TEMPLATE],
         )
         sa = next(d for d in docs if d["kind"] == "ServiceAccount")
@@ -386,14 +461,24 @@ class TestOtelCollectorServiceAccount:
 
     def test_automount_token_override(self):
         docs = render_chart(
-            values={"otelCollector": {"serviceAccount": {"automountServiceAccountToken": True}}},
+            values={
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"automountServiceAccountToken": True},
+                }
+            },
             show_only=[SERVICE_ACCOUNT_TEMPLATE],
         )
         assert docs[0]["automountServiceAccountToken"] is True
 
     def test_sa_annotations(self):
         docs = render_chart(
-            values={"otelCollector": {"serviceAccount": {"annotations": {"sa_anno": "sa_value"}}}},
+            values={
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"annotations": {"sa_anno": "sa_value"}},
+                }
+            },
             show_only=[SERVICE_ACCOUNT_TEMPLATE],
         )
         assert jmespath.search("metadata.annotations.sa_anno", docs[0]) == "sa_value"
@@ -404,7 +489,7 @@ class TestOtelCollectorAirflowEnvironment:
 
     @pytest.mark.parametrize("template", AIRFLOW_POD_TEMPLATES)
     def test_default_emits_traces_env_only(self, template):
-        docs = render_chart(show_only=[template])
+        docs = render_chart(values={"otelCollector": {"tracesEnabled": True}}, show_only=[template])
         names = _env_names(docs[0])
         assert "OTEL_SERVICE_NAME" in names
         assert "OTEL_EXPORTER_OTLP_PROTOCOL" in names
@@ -421,8 +506,13 @@ class TestOtelCollectorAirflowEnvironment:
             show_only=[template],
         )
         names = _env_names(docs[0])
+        assert "OTEL_SERVICE_NAME" in names
+        assert "OTEL_EXPORTER_OTLP_PROTOCOL" in names
         assert "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT" in names
         assert "OTEL_METRIC_EXPORT_INTERVAL" in names
+        # Traces env vars aren't present.
+        assert "OTEL_TRACES_EXPORTER" not in names
+        assert "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT" not in names
 
     @pytest.mark.parametrize("template", AIRFLOW_POD_TEMPLATES)
     def test_both_flags_off_emits_no_otel_env(self, template):
@@ -455,7 +545,9 @@ class TestOtelCollectorAirflowConfig:
         return jmespath.search('data."airflow.cfg"', docs[0])
 
     def test_default_traces_section_has_otel_on_true(self):
-        traces = self._get_conf_section(self._get_airflow_conf(), "traces")
+        traces = self._get_conf_section(
+            self._get_airflow_conf({"otelCollector": {"tracesEnabled": True}}), "traces"
+        )
         assert "otel_on = True" in traces
 
     def test_default_metrics_section_has_otel_off_and_statsd_on(self):
