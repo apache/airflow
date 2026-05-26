@@ -20,7 +20,7 @@
 package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.Client
-import org.apache.airflow.sdk.execution.StartupDetails
+import org.apache.airflow.sdk.execution.comm.StartupDetails
 
 /**
  * A connection registered in Airflow's connection store.
@@ -42,7 +42,7 @@ data class Connection(
   @JvmField val login: String?,
   @JvmField val password: String?,
   @JvmField val port: Int?,
-  @JvmField val extra: String?,
+  @JvmField val extra: Any?,
 )
 
 /**
@@ -75,11 +75,11 @@ class Client internal constructor(
       Connection(
         id = connId,
         type = connType,
-        host = host,
-        schema = schema,
-        login = login,
-        password = password,
-        port = port,
+        host = host as String?,
+        schema = schema as String?,
+        login = login as String?,
+        password = password as String?,
+        port = port as Int?,
         extra = extra,
       )
     }

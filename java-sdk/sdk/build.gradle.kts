@@ -17,29 +17,28 @@
  * under the License.
  */
 
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask
-import java.time.ZonedDateTime
-
 buildscript {
     repositories {
         mavenCentral()
     }
 }
 
-val airflowExecApiVersion: String by project
+val airflowSupervisorSchemaVersion: String by project
 
 plugins {
     kotlin("plugin.serialization") version "2.3.0"
-    id("org.openapi.generator") version "7.19.0"
+    id("org.jsonschema2pojo") version "1.2.2"
 }
 
-val constantsDir = layout.buildDirectory.dir("generate-constants/main/src/main/kotlin")
+// TODO: Use a hosted file instead.
+val schemaInput = rootProject.file("../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
+val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
+val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
 
 dependencies {
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
-    compileOnly("org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.1")
 
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
     implementation("com.fasterxml.jackson.core:jackson-core:2.21.1")
@@ -47,12 +46,8 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
     implementation("com.squareup:javapoet:1.13.0")
-    implementation("com.squareup.retrofit2:converter-jackson:3.0.0")
-    implementation("com.squareup.retrofit2:converter-scalars:3.0.0")
-    implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.3.3")
-    implementation("javax.ws.rs:javax.ws.rs-api:2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
@@ -64,85 +59,160 @@ dependencies {
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
-openApiGenerate {
-    generatorName = "java"
-    library = "retrofit2"
+// jsonSchema2Pojo does not accept the single JSON Schema file directly.
+// It needs a list of schema files, each containing a "$ref" pointer to
+// a $def. This task walks over all $ref items in the Supervisor Schema
+// file and generates one JSON file with $ref for each one.
+abstract class GeneratePointersTask : DefaultTask() {
+    @get:InputFile
+    abstract val schemaFile: RegularFileProperty
 
-    remoteInputSpec = "https://airflow.apache.org/schemas/execution-api/$airflowExecApiVersion.json"
-    apiPackage = "org.apache.airflow.sdk.execution.api.route"
-    modelPackage = "org.apache.airflow.sdk.execution.api.model"
-    invokerPackage = "org.apache.airflow.sdk.execution.api.client"
+    @get:OutputDirectory
+    abstract val targetDirectory: DirectoryProperty
 
-    generateApiDocumentation = false
-    generateApiTests = false
-    generateModelDocumentation = false
-    generateModelTests = false
+    @TaskAction
+    fun generate() {
+        val srcFile = schemaFile.get().asFile
+        val outDir = targetDirectory.get().asFile.also { it.mkdirs() }
 
-    // The spec on arbitrary mapping (e.g. 'extra') causes the OpenAPI generator to output JsonValue.
-    // We should probably fix the spec instead, but this should work before that.
-    // Suggested fix:
-    //   type: object
-    //   additionalProperties: true
-    schemaMappings.put("JsonValue", "java.lang.Object")
+        srcFile.copyTo(outDir.resolve(srcFile.name), overwrite = true)
 
-    additionalProperties =
-        mapOf(
-            "dateLibrary" to "java8",
-            "openApiNullable" to false,
-            "serializationLibrary" to "jackson",
-            "withXml" to false,
+        com.fasterxml.jackson.databind
+            .ObjectMapper()
+            .readTree(srcFile)
+            .path("\$defs")
+            .fieldNames()
+            .forEach { type ->
+                outDir
+                    .resolve("$type.json")
+                    .writeText("""{"${"$"}ref": "${srcFile.name}#/${"$"}defs/$type"}""" + "\n")
+            }
+    }
+}
+
+// Generate a name->class mapping of known jsonSchema2Pojo models.
+// This is needed for type discrimination in the MessagePack decoder.
+abstract class GenerateDiscriminatorTask : DefaultTask() {
+    @get:Input
+    abstract val modelPackage: Property<String>
+
+    @get:InputFile
+    abstract val schemaFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val targetDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        data class Entry(
+            val wireType: String,
+            val className: String,
         )
+
+        val entries =
+            buildList {
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(schemaFile.get().asFile)
+                    .path("\$defs")
+                    .fields()
+                    .forEach { (className, def) ->
+                        val constNode = def.path("properties").path("type").path("const")
+                        if (!constNode.isMissingNode && !constNode.isNull) {
+                            add(Entry(constNode.asText(), className))
+                        }
+                    }
+            }.sortedBy { it.className }
+
+        val outDir =
+            targetDirectory
+                .get()
+                .asFile
+                .resolve("org/apache/airflow/sdk/execution/comm")
+                .also { it.mkdirs() }
+
+        outDir.resolve("Discriminator.kt").writeText(
+            buildString {
+                appendLine("package ${modelPackage.get()}")
+                appendLine()
+                appendLine("// Maps every wire `type` discriminator string to its generated model class.")
+                appendLine("// Generated from the Supervisor Schema; do not edit by hand.")
+                appendLine("internal object Discriminator {")
+                appendLine("    val types: Map<String, Class<*>> = mapOf(")
+                entries.forEach { appendLine("        \"${it.wireType}\" to ${it.className}::class.java,") }
+                appendLine("    )")
+                appendLine("}")
+            },
+        )
+    }
+}
+
+tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
+    description = "Generate Discriminator to wire type strings to model classes"
+    schemaFile = layout.file(provider { schemaInput })
+    modelPackage = jsonSchemaPackage
+    targetDirectory = discriminatorDir
+}
+
+tasks.register<GeneratePointersTask>("generatePointers") {
+    description = "Generate pointer files for jsonSchema2Pojo"
+    schemaFile = layout.file(provider { schemaInput })
+    targetDirectory = pointersDir
+}
+
+jsonSchema2Pojo {
+    setSource(listOf(pointersDir.get().asFile))
+    targetPackage = jsonSchemaPackage
+    targetDirectory =
+        layout.buildDirectory
+            .dir("generate-resources/main/src/main/java")
+            .get()
+            .asFile
+    setAnnotationStyle("jackson")
+    dateTimeType = "java.time.OffsetDateTime"
+    generateBuilders = false
+    includeAdditionalProperties = false
+    includeConstructors = false
+    includeHashcodeAndEquals = true
+    includeJsr305Annotations = true
+    includeToString = true
+    initializeCollections = true
+    removeOldOutput = true
+    useTitleAsClassname = true
 }
 
 sourceSets {
     main {
         java.srcDir(layout.buildDirectory.dir("generate-resources/main/src/main/java"))
-        kotlin.srcDir(constantsDir)
+        kotlin.srcDir(discriminatorDir)
     }
 }
 
-abstract class GenerateConstantsTask : DefaultTask() {
-    @get:Input
-    abstract val airflowExecApiVersionProp: Property<String>
+tasks.named("generateJsonSchema2Pojo") {
+    dependsOn("generatePointers")
+}
 
-    @get:OutputDirectory
-    abstract val outputDirProp: DirectoryProperty
+tasks.named("compileJava") {
+    dependsOn("generateJsonSchema2Pojo")
+}
 
-    @TaskAction
-    fun generate() {
-        val dir = outputDirProp.get().asFile.resolve("org/apache/airflow/sdk/execution")
-        dir.mkdirs()
-        dir.resolve("BuildConstants.kt").writeText(
-            """
-            // File generated at ${ZonedDateTime.now()}
-            package org.apache.airflow.sdk.execution
+tasks.named("compileKotlin") {
+    dependsOn("generateJsonSchema2Pojo")
+    dependsOn("generateDiscriminator")
+}
 
-            const val AIRFLOW_EXEC_API_VERSION = "${airflowExecApiVersionProp.get()}"
-            """.trimIndent() + "\n",
+tasks.named("runKtlintCheckOverMainSourceSet") {
+    dependsOn("generateJsonSchema2Pojo")
+}
+
+tasks.withType<Jar> {
+    manifest {
+        attributes(
+            "Airflow-Supervisor-Schema-Version" to airflowSupervisorSchemaVersion,
         )
     }
 }
 
-tasks.register<GenerateConstantsTask>("generateConstants") {
-    description = "Generate constants to use in code from build configurations."
-    airflowExecApiVersionProp = airflowExecApiVersion
-    outputDirProp = constantsDir
-}
-
-tasks.named<JavaCompile>("compileJava") {
-    dependsOn("openApiGenerate")
-}
-
-tasks.named<KotlinCompile>("compileKotlin") {
-    dependsOn("openApiGenerate")
-    dependsOn("generateConstants")
-}
-
-tasks.named<KtLintCheckTask>("runKtlintCheckOverMainSourceSet") {
-    dependsOn("openApiGenerate")
-    dependsOn("generateConstants")
-}
-
-tasks.named<Test>("test") {
+tasks.withType<Test> {
     useJUnitPlatform()
 }

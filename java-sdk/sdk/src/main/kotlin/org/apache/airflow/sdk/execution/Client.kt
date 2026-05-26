@@ -20,9 +20,13 @@
 package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.runBlocking
-import org.apache.airflow.sdk.execution.api.model.ConnectionResponse
-import org.apache.airflow.sdk.execution.api.model.VariableResponse
-import org.apache.airflow.sdk.execution.api.model.XComResponse
+import org.apache.airflow.sdk.execution.comm.ConnectionResult
+import org.apache.airflow.sdk.execution.comm.GetConnection
+import org.apache.airflow.sdk.execution.comm.GetVariable
+import org.apache.airflow.sdk.execution.comm.GetXCom
+import org.apache.airflow.sdk.execution.comm.SetXCom
+import org.apache.airflow.sdk.execution.comm.VariableResult
+import org.apache.airflow.sdk.execution.comm.XComResult
 
 /**
  * @suppress
@@ -38,9 +42,9 @@ import org.apache.airflow.sdk.execution.api.model.XComResponse
  * constructor to exercise task logic without a live coordinator.
  */
 interface Client {
-  fun getConnection(id: String): ConnectionResponse
+  fun getConnection(id: String): ConnectionResult
 
-  fun getVariable(key: String): VariableResponse
+  fun getVariable(key: String): VariableResult
 
   fun getXCom(
     key: String,
@@ -49,7 +53,7 @@ interface Client {
     runId: String,
     mapIndex: Int? = null,
     includePriorDates: Boolean = false,
-  ): XComResponse
+  ): XComResult
 
   fun setXCom(
     key: String,
@@ -75,9 +79,15 @@ interface Client {
 class CoordinatorClient(
   val exec: CoordinatorComm,
 ) : Client {
-  override fun getConnection(id: String) = runBlocking { exec.communicate<ConnectionResponse>(GetConnection(id)) }
+  override fun getConnection(id: String) =
+    runBlocking {
+      exec.communicate<ConnectionResult>(GetConnection().apply { connId = id })
+    }
 
-  override fun getVariable(key: String) = runBlocking { exec.communicate<VariableResponse>(GetVariable(key)) }
+  override fun getVariable(key: String) =
+    runBlocking {
+      exec.communicate<VariableResult>(GetVariable().also { it.key = key })
+    }
 
   override fun setXCom(
     key: String,
@@ -88,14 +98,14 @@ class CoordinatorClient(
     mapIndex: Int,
   ) {
     val message =
-      SetXCom(
-        key = key,
-        value = value,
-        dagId = dagId,
-        taskId = taskId,
-        runId = runId,
-        mapIndex = mapIndex,
-      )
+      SetXCom().also {
+        it.key = key
+        it.value = value
+        it.dagId = dagId
+        it.taskId = taskId
+        it.runId = runId
+        it.mapIndex = mapIndex
+      }
     runBlocking { exec.communicate<Unit>(message) }
   }
 
@@ -106,16 +116,16 @@ class CoordinatorClient(
     runId: String,
     mapIndex: Int?,
     includePriorDates: Boolean,
-  ): XComResponse {
+  ): XComResult {
     val message =
-      GetXCom(
-        key = key,
-        dagId = dagId,
-        taskId = taskId,
-        runId = runId,
-        mapIndex = mapIndex,
-        includePriorDates = includePriorDates,
-      )
-    return runBlocking { exec.communicate<XComResponse>(message) }
+      GetXCom().also {
+        it.key = key
+        it.dagId = dagId
+        it.taskId = taskId
+        it.runId = runId
+        it.mapIndex = mapIndex
+        it.includePriorDates = includePriorDates
+      }
+    return runBlocking { exec.communicate<XComResult>(message) }
   }
 }

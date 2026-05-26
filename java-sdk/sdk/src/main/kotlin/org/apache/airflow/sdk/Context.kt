@@ -19,7 +19,7 @@
 
 package org.apache.airflow.sdk
 
-import org.apache.airflow.sdk.execution.StartupDetails
+import org.apache.airflow.sdk.execution.comm.StartupDetails
 
 /**
  * Identifies the Dag run that the current task instance belongs to.

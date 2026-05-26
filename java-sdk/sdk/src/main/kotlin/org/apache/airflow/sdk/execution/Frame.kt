@@ -24,13 +24,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.util.StdDateFormat
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import org.apache.airflow.sdk.execution.api.model.ConnectionResponse
-import org.apache.airflow.sdk.execution.api.model.VariableResponse
-import org.apache.airflow.sdk.execution.api.model.XComResponse
+import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.msgpack.core.MessagePack
 import java.io.ByteArrayOutputStream
-
-typealias Decoder = (Map<*, *>) -> Any
 
 object Frame {
   private val mapper =
@@ -42,42 +38,12 @@ object Frame {
       setDateFormat(StdDateFormat().withColonInTimeZone(true))
     }
 
-  private val inferredTypes =
-    mapOf(
-      ConnectionResponse::class to "ConnectionResult",
-      ErrorResponse::class to "ErrorResponse",
-      StartupDetails::class to "StartupDetails",
-      VariableResponse::class to "VariableResult",
-      XComResponse::class to "XComResult",
-    )
-
-  private val toBundleClientTypes: Map<String, Decoder> =
-    mapOf(
-      "ConnectionResult" to mapperDecoder(ConnectionResponse::class.java),
-      "ErrorResponse" to mapperDecoder(ErrorResponse::class.java),
-      "VariableResult" to mapperDecoder(VariableResponse::class.java),
-      "XComResult" to mapperDecoder(XComResponse::class.java),
-    )
-
-  val toTaskTypes: Map<String, Decoder> =
-    toBundleClientTypes +
-      mapOf(
-        "StartupDetails" to mapperDecoder(StartupDetails::class.java),
-      )
-
-  // The Java bundle process can act as either Python's DagProcessor or Task runtime, so
-  // its inbound decoder is the union of both message sets.
-  val toBundleProcessTypes: Map<String, Decoder> = toTaskTypes
-
   fun encodeRequest(
     id: Int,
     body: Any,
   ): ByteArray = encodeFrame(id, body)
 
-  fun decode(
-    bytes: ByteArray,
-    bodyTypes: Map<String, Decoder>,
-  ): IncomingFrame {
+  fun decode(bytes: ByteArray): IncomingFrame {
     val unpacker = MessagePack.newDefaultUnpacker(bytes)
     val headerSize = unpacker.unpackArrayHeader()
     check(headerSize >= 2) { "Unexpected Task SDK frame arity $headerSize" }
@@ -87,10 +53,7 @@ object Frame {
     val rawError = if (headerSize >= 3) unpacker.unpackAny() else null
     unpacker.close()
 
-    val body =
-      decodeMessage(rawError, bodyTypes = mapOf("ErrorResponse" to mapperDecoder(ErrorResponse::class.java)))
-        ?: decodeMessage(rawBody, bodyTypes)
-
+    val body = decodeMessage(rawError) ?: decodeMessage(rawBody)
     return IncomingFrame(id, body)
   }
 
@@ -120,25 +83,20 @@ object Frame {
     return payload.toByteArray()
   }
 
-  private fun decodeMessage(
-    raw: Any?,
-    bodyTypes: Map<String, Decoder>,
-  ): Any? {
+  private fun decodeMessage(raw: Any?): Any? {
     val body = raw as? Map<*, *> ?: return raw
-    val typeName = body["type"] as? String ?: return body
-    val decoder = bodyTypes[typeName] ?: error("Unsupported Task SDK message type $typeName")
-    return decoder(body)
+    return mapper.convertValue(body, Discriminator.discriminate(body) ?: return raw)
   }
-
-  private fun mapperDecoder(targetType: Class<*>): Decoder = { body -> mapper.convertValue(body, targetType) }
 
   @Suppress("UNCHECKED_CAST")
   private fun toBody(value: Any): Map<String, Any?> =
     when (value) {
       is Map<*, *> -> value as Map<String, Any?>
-      else ->
-        (mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>).also { body ->
-          inferredTypes[value::class]?.let { typeName -> body.putIfAbsent("type", typeName) }
-        }
+      else -> mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>
     }
+}
+
+private fun Discriminator.discriminate(body: Map<*, *>): Class<*>? {
+  val name = body["type"] as? String ?: return null
+  return types[name] ?: error("Unsupported supervisor message type: $name")
 }

@@ -19,20 +19,14 @@
 
 package org.apache.airflow.sdk.execution
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
-import org.apache.airflow.sdk.execution.api.model.AssetProfile
-import org.apache.airflow.sdk.execution.api.model.BundleInfo
-import org.apache.airflow.sdk.execution.api.model.TIRunContext
-import org.apache.airflow.sdk.execution.api.model.TISuccessStatePayload
-import org.apache.airflow.sdk.execution.api.model.TaskInstance
-import java.time.OffsetDateTime
+import org.apache.airflow.sdk.execution.comm.ErrorResponse
+import org.apache.airflow.sdk.execution.comm.StartupDetails
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.system.exitProcess
@@ -47,91 +41,6 @@ data class OutgoingFrame(
   val body: Any,
 )
 
-class ErrorResponse {
-  @JsonProperty("error")
-  var error: String = "" // TODO: Use enum.
-
-  @JsonProperty("detail")
-  var detail: Any? = null
-}
-
-class StartupDetails {
-  @JsonProperty("ti")
-  lateinit var ti: TaskInstance
-
-  @JsonProperty("dag_rel_path")
-  var dagRelPath: String = ""
-
-  @JsonProperty("bundle_info")
-  lateinit var bundleInfo: BundleInfo
-
-  @JsonProperty("start_date")
-  lateinit var startDate: OffsetDateTime
-
-  @JsonProperty("ti_context")
-  lateinit var tiContext: TIRunContext
-
-  @JsonProperty("sentry_integration")
-  var sentryIntegration: String = ""
-}
-
-class SucceedTask : TISuccessStatePayload {
-  constructor(
-    endDate: OffsetDateTime = OffsetDateTime.now(),
-    taskOutlets: List<AssetProfile> = emptyList(),
-    outletEvents: List<Map<String, Any?>> = emptyList(),
-  ) {
-    endDate(endDate)
-    taskOutlets(taskOutlets)
-    outletEvents(outletEvents)
-  }
-
-  val type = "SucceedTask"
-}
-
-@JsonPropertyOrder(value = ["state", "end_date", "type"])
-data class TaskState(
-  val state: String, // TODO: Use enum (failed, removed, skipped) and custom serialization.
-  @get:JsonProperty("end_date") val endDate: OffsetDateTime = OffsetDateTime.now(),
-) {
-  val type = "TaskState"
-}
-
-data class GetConnection(
-  @get:JsonProperty("conn_id") val id: String,
-) {
-  val type = "GetConnection"
-}
-
-data class GetVariable(
-  val key: String,
-) {
-  val type = "GetVariable"
-}
-
-data class GetXCom(
-  val key: String,
-  @get:JsonProperty("dag_id") val dagId: String,
-  @get:JsonProperty("task_id") val taskId: String,
-  @get:JsonProperty("run_id") val runId: String,
-  @get:JsonProperty("map_index") val mapIndex: Int? = null,
-  @get:JsonProperty("include_prior_dates") val includePriorDates: Boolean = false,
-) {
-  val type = "GetXCom"
-}
-
-data class SetXCom(
-  val key: String,
-  val value: Any,
-  @get:JsonProperty("dag_id") val dagId: String,
-  @get:JsonProperty("task_id") val taskId: String,
-  @get:JsonProperty("run_id") val runId: String,
-  @get:JsonProperty("map_index") val mapIndex: Int,
-  @get:JsonProperty("mapped_length") val mappedLength: Int? = null,
-) {
-  val type = "SetXCom"
-}
-
 @OptIn(ExperimentalAtomicApi::class)
 class CoordinatorComm(
   private val bundle: Bundle,
@@ -143,7 +52,7 @@ class CoordinatorComm(
 
     fun encode(outgoing: OutgoingFrame) = Frame.encodeRequest(outgoing.id, outgoing.body)
 
-    fun decode(bytes: ByteArray) = Frame.decode(bytes, Frame.toBundleProcessTypes)
+    fun decode(bytes: ByteArray) = Frame.decode(bytes)
   }
 
   private val nextId = AtomicInt(0)

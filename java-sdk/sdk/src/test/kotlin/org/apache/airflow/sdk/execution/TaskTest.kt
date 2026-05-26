@@ -24,10 +24,13 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
-import org.apache.airflow.sdk.execution.api.model.BundleInfo
-import org.apache.airflow.sdk.execution.api.model.DagRun
-import org.apache.airflow.sdk.execution.api.model.TIRunContext
-import org.apache.airflow.sdk.execution.api.model.TaskInstance
+import org.apache.airflow.sdk.execution.comm.BundleInfo
+import org.apache.airflow.sdk.execution.comm.DagRun
+import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.comm.SucceedTask
+import org.apache.airflow.sdk.execution.comm.TIRunContext
+import org.apache.airflow.sdk.execution.comm.TaskInstanceDTO
+import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -49,7 +52,7 @@ class TaskTest {
     val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
-    Assertions.assertEquals("removed", (result as TaskState).state)
+    Assertions.assertEquals(TaskState.State.REMOVED, (result as TaskState).state)
   }
 
   @Test
@@ -58,7 +61,7 @@ class TaskTest {
     val result = runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
-    Assertions.assertEquals("failed", (result as TaskState).state)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
   }
 
   private fun bundleWith(
@@ -73,7 +76,7 @@ class TaskTest {
   private fun startupDetails(taskId: String): StartupDetails =
     StartupDetails().also {
       it.ti =
-        TaskInstance().also { o ->
+        TaskInstanceDTO().also { o ->
           o.id = UUID.randomUUID()
           o.taskId = taskId
           o.dagId = "test_dag"
@@ -89,12 +92,13 @@ class TaskTest {
         }
       it.startDate = OffsetDateTime.parse("2026-03-31T00:00:00Z")
       it.tiContext =
-        TIRunContext().dagRun(
-          DagRun().also { o ->
-            o.dagId = "test_dag"
-            o.runId = "manual__2026-03-31T00:00:00+00:00"
-          },
-        )
+        TIRunContext().apply {
+          dagRun =
+            DagRun().apply {
+              dagId = "test_dag"
+              runId = "manual__2026-03-31T00:00:00+00:00"
+            }
+        }
       it.sentryIntegration = ""
     }
 

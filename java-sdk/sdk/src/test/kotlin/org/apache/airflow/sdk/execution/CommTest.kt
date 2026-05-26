@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk.execution
 
+import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -70,15 +71,14 @@ class CommsTest {
   @DisplayName("Should serialize all fields")
   fun shouldEncodeSucceedTask() {
     val endDate = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
-    val bytes = CoordinatorComm.encode(OutgoingFrame(3, SucceedTask(endDate)))
+    val bytes = CoordinatorComm.encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
     val actual = bytes.toHexString(HexFormat { bytes { byteSeparator = " " } })
 
     val expected =
       """
-      92 03 86 a5 73 74 61 74 65 a7 73 75 63 63 65 73 73 a8 65 6e 64 5f 64 61 74 65 b4 32 30 32 34 2d
+      92 03 85 a5 73 74 61 74 65 a7 73 75 63 63 65 73 73 a8 65 6e 64 5f 64 61 74 65 b4 32 30 32 34 2d
       31 32 2d 30 31 54 30 31 3a 30 30 3a 30 30 5a ac 74 61 73 6b 5f 6f 75 74 6c 65 74 73 90 ad 6f 75
-      74 6c 65 74 5f 65 76 65 6e 74 73 90 b2 72 65 6e 64 65 72 65 64 5f 6d 61 70 5f 69 6e 64 65 78 c0
-      a4 74 79 70 65 ab 53 75 63 63 65 65 64 54 61 73 6b
+      74 6c 65 74 5f 65 76 65 6e 74 73 90 a4 74 79 70 65 ab 53 75 63 63 65 65 64 54 61 73 6b
       """.trimIndent().replace('\n', ' ')
 
     Assertions.assertEquals(expected, actual)

@@ -22,6 +22,36 @@ package org.apache.airflow.sdk.execution
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.execution.comm.AssetProfile
+import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.comm.SucceedTask
+import org.apache.airflow.sdk.execution.comm.TaskState
+import java.time.OffsetDateTime
+
+internal object TaskResult {
+  fun success(
+    endDate: OffsetDateTime = OffsetDateTime.now(),
+    taskOutlets: List<AssetProfile> = emptyList(),
+    outletEvents: List<Map<String, Any?>> = emptyList(),
+    renderedMapIndex: String? = null,
+  ) = SucceedTask().also {
+    it.state = "success"
+    it.endDate = endDate
+    it.taskOutlets = taskOutlets
+    it.outletEvents = outletEvents
+    it.renderedMapIndex = renderedMapIndex
+  }
+
+  fun of(
+    state: TaskState.State,
+    endDate: OffsetDateTime = OffsetDateTime.now(),
+    renderedMapIndex: String? = null,
+  ) = TaskState().also {
+    it.state = state
+    it.endDate = endDate
+    it.renderedMapIndex = renderedMapIndex
+  }
+}
 
 internal object TaskRunner {
   val logger = Logger(TaskRunner::class)
@@ -31,15 +61,15 @@ internal object TaskRunner {
     request: StartupDetails,
     client: Client,
   ): Any {
-    val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskState("removed")
+    val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
     val instance = task.getDeclaredConstructor().newInstance()
     return try {
       instance.execute(Context.from(request), client)
-      SucceedTask()
+      TaskResult.success()
     } catch (e: Exception) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
-      TaskState("failed")
+      TaskResult.of(TaskState.State.FAILED)
     }
   }
 }
