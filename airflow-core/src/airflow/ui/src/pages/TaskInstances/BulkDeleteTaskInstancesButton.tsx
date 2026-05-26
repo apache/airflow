@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Stack, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { getColumns } from "src/components/ActionAccordion/columns";
+import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { Accordion, Alert, Dialog } from "src/components/ui";
+import { Accordion, Dialog } from "src/components/ui";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
@@ -39,8 +39,6 @@ const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances 
     clearSelections,
     onSuccessConfirm: onClose,
   });
-
-  const actionErrors = (data?.delete?.errors ?? []) as Array<{ error: string; status_code?: number }>;
 
   const columns = getColumns(translate);
 
@@ -119,15 +117,7 @@ const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances 
               )}
             </Box>
 
-            <ErrorAlert error={error} />
-            {actionErrors.length > 0 ? (
-              <Stack gap={2} mt={3}>
-                {actionErrors.map((actionError, index) => (
-                  // eslint-disable-next-line react/no-array-index-key -- per-entity errors have no stable id
-                  <Alert key={index} status="error" title={actionError.error} />
-                ))}
-              </Stack>
-            ) : undefined}
+            <ActionErrors actionResponse={data?.delete} error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"
