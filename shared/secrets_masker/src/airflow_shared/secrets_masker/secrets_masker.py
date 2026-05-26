@@ -569,7 +569,9 @@ class SecretsMasker(logging.Filter):
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
-            return any(s in name for s in self.sensitive_variables_fields)
+            # Normalize separators so dotted/dashed keys (Spark, Hadoop) match underscore-style fields.
+            normalized = re.sub(r"\W+", "_", name)
+            return any(s in name or s in normalized for s in self.sensitive_variables_fields)
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):
