@@ -57,7 +57,7 @@
       "title": "Conexão testada com sucesso"
     },
     "typeMeta": {
-      "error": "Falha ao recuperar Meta do Tipo de Conexão",
+      "error": "Erro ao recuperar os metadados do tipo de conexão",
       "standardFields": {
         "description": "Descrição",
         "host": "Host",
