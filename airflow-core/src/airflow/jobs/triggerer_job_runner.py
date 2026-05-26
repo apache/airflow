@@ -657,8 +657,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.capacity,
             self.health_check_threshold,
             queues=self.queues,
+            team_name=self.team_name,
         )
-        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
+        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues, team_name=self.team_name)
         self.update_triggers(set(ids))
 
     def handle_events(self):
