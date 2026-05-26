@@ -126,7 +126,6 @@ class IterableOperator(BaseOperator):
         self._operator = operator
         self.expand_input = expand_input
         self.partial_kwargs = operator.partial_kwargs or {}
-        self.partial_kwargs.pop("partition_size", None)
         self.max_workers = self.partial_kwargs.pop("task_concurrency", None) or os.cpu_count() or 1
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)

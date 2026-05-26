@@ -21,6 +21,8 @@ from collections import defaultdict
 from collections.abc import Callable
 from unittest import mock
 
+import pytest
+
 from airflow.sdk import DAG, TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.comms import (
@@ -37,7 +39,6 @@ RunTI = Callable[[DAG, str, int], TaskInstanceState]
 
 class TestPartitionedOperator:
     def test_partition_iterate(self, run_ti: RunTI, mock_supervisor_comms):
-        """Test a partitioned task which iterates on it's set of values."""
         outputs = defaultdict(list)
         numbers = list(range(10))
 
@@ -75,3 +76,55 @@ class TestPartitionedOperator:
         assert states == [TaskInstanceState.SUCCESS] * 2
         assert set(outputs["0"]) == {0, 2, 4, 6, 8}
         assert set(outputs["1"]) == {1, 3, 5, 7, 9}
+
+    @pytest.mark.parametrize(
+        "partition_size,expand_size",
+        [
+            (5, 10),  # Partitioned: size=5 for 10 items
+            (3, 3),  # Partitioned: size=3 for 3 items
+            (4, 20),  # Partitioned: size=4 for 20 items
+            (0, 5),  # Non-partitioned: size=0 (iterate all at once)
+        ],
+    )
+    def test_partition_size_preserved_through_lifecycle(self, partition_size, expand_size):
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
+        from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
+        from airflow.serialization.serialized_objects import OperatorSerialization
+
+        with DAG(dag_id=f"test_partition_{partition_size}") as dag:
+            op = EmptyOperator.partial(task_id="test_task", dag=dag).partition(size=partition_size)
+
+            expand_input = DictOfListsExpandInput({"x": list(range(expand_size))})
+            iterable_op = op._iterate(expand_input, strict=False)
+
+            # Check if partitioned or non-partitioned
+            is_partitioned = partition_size > 0
+            if is_partitioned:
+                assert isinstance(iterable_op, MappedIterableOperator)
+                mapped_op = iterable_op.delegate
+                assert iterable_op.partition_size == partition_size
+            else:
+                assert isinstance(iterable_op, IterableOperator)
+                mapped_op = iterable_op._operator
+
+            # 1. Verify partition_size is in partial_kwargs
+            assert "partition_size" in mapped_op.partial_kwargs
+            assert mapped_op.partial_kwargs["partition_size"] == partition_size
+
+            # 2. Verify partition_size is serialized (not excluded)
+            serialized = OperatorSerialization.serialize_operator(mapped_op)
+            assert "partial_kwargs" in serialized
+            assert "partition_size" in serialized["partial_kwargs"]
+            assert serialized["partial_kwargs"]["partition_size"] == partition_size
+
+            # 3. Verify partition_size survives deserialization
+            deserialized_op = OperatorSerialization.deserialize_operator(serialized)
+            assert "partition_size" in deserialized_op.partial_kwargs
+            assert deserialized_op.partial_kwargs["partition_size"] == partition_size
+
+            # 4. Verify partition_size is removed before operator instantiation (only for partitioned)
+            if is_partitioned:
+                unmapped = iterable_op.unmap({"x": 1})
+                # Verify unmapped task doesn't have partition_size attribute
+                assert not hasattr(unmapped, "partition_size")

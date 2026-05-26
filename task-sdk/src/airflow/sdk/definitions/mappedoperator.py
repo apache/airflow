@@ -762,6 +762,8 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        # Remove partition_size as it's only used for partitioned mapping metadata, not for operator init
+        kwargs.pop("partition_size", None)
         kwargs["task_id"] = self.task_id
         op = self.operator_class(**kwargs, _airflow_from_mapped=True)
         op.is_setup = is_setup
