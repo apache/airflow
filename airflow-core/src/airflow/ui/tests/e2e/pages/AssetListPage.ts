@@ -46,6 +46,7 @@ export class AssetListPage extends BasePage {
     await expect(async () => {
       await this.navigateTo("/assets");
       await this.page.waitForURL(/.*assets/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -64,17 +65,8 @@ export class AssetListPage extends BasePage {
     return name?.trim() ?? "";
   }
 
-  public async search(value: string): Promise<void> {
-    await this.searchInput.fill(value);
-    await this.waitForTableData();
-  }
-
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
-    await expect(this.rows.locator("td a").first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.locator("td a").first()).toBeVisible();
   }
 }

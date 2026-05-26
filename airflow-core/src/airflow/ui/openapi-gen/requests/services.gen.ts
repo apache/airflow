@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStatesData, ListAssetStatesResponse, ClearAssetStateData, ClearAssetStateResponse, GetAssetStateData, GetAssetStateResponse, SetAssetStateData, SetAssetStateResponse, DeleteAssetStateData, DeleteAssetStateResponse, ListTaskStatesData, ListTaskStatesResponse, ClearTaskStateData, ClearTaskStateResponse, GetTaskStateData, GetTaskStateResponse, SetTaskStateData, SetTaskStateResponse, DeleteTaskStateData, DeleteTaskStateResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -185,7 +185,7 @@ export class AssetService {
     
     /**
      * Materialize Asset
-     * Materialize an asset by triggering a DAG run that produces it.
+     * Materialize an asset by triggering a Dag run that produces it.
      * @param data The data for the request.
      * @param data.assetId
      * @param data.requestBody
@@ -293,7 +293,7 @@ export class AssetService {
     
     /**
      * Get Dag Asset Queued Events
-     * Get queued asset events for a DAG.
+     * Get queued asset events for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.before
@@ -348,7 +348,7 @@ export class AssetService {
     
     /**
      * Get Dag Asset Queued Event
-     * Get a queued asset event for a DAG.
+     * Get a queued asset event for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.assetId
@@ -378,7 +378,7 @@ export class AssetService {
     
     /**
      * Delete Dag Asset Queued Event
-     * Delete a queued asset event for a DAG.
+     * Delete a queued asset event for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.assetId
@@ -877,7 +877,7 @@ export class DagRunService {
     
     /**
      * Delete Dag Run
-     * Delete a DAG Run entry.
+     * Delete a Dag Run entry.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -904,7 +904,7 @@ export class DagRunService {
     
     /**
      * Patch Dag Run
-     * Modify a DAG Run.
+     * Modify a Dag Run.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -937,54 +937,26 @@ export class DagRunService {
     }
     
     /**
-     * Get Upstream Asset Events
-     * If dag run is asset-triggered, return the asset events that triggered it.
+     * Bulk Dag Runs
+     * Bulk delete Dag Runs.
      * @param data The data for the request.
      * @param data.dagId
-     * @param data.dagRunId
-     * @returns AssetEventCollectionResponse Successful Response
-     * @throws ApiError
-     */
-    public static getUpstreamAssetEvents(data: GetUpstreamAssetEventsData): CancelablePromise<GetUpstreamAssetEventsResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Clear Dag Run
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
      * @param data.requestBody
-     * @returns unknown Successful Response
+     * @returns BulkResponse Successful Response
      * @throws ApiError
      */
-    public static clearDagRun(data: ClearDagRunData): CancelablePromise<ClearDagRunResponse> {
+    public static bulkDagRuns(data: BulkDagRunsData): CancelablePromise<BulkDagRunsResponse> {
         return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear',
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns',
             path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId
+                dag_id: data.dagId
             },
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -992,9 +964,9 @@ export class DagRunService {
     
     /**
      * Get Dag Runs
-     * Get all DAG Runs.
+     * Get all Dag Runs.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
      *
      * Supports two pagination modes:
      *
@@ -1121,7 +1093,7 @@ export class DagRunService {
     
     /**
      * Trigger Dag Run
-     * Trigger a DAG.
+     * Trigger a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1149,8 +1121,62 @@ export class DagRunService {
     }
     
     /**
+     * Get Upstream Asset Events
+     * If dag run is asset-triggered, return the asset events that triggered it.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @returns AssetEventCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getUpstreamAssetEvents(data: GetUpstreamAssetEventsData): CancelablePromise<GetUpstreamAssetEventsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Clear Dag Run
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.requestBody
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static clearDagRun(data: ClearDagRunData): CancelablePromise<ClearDagRunResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1182,7 +1208,7 @@ export class DagRunService {
     
     /**
      * Get List Dag Runs Batch
-     * Get a list of DAG Runs.
+     * Get a list of Dag Runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1207,12 +1233,36 @@ export class DagRunService {
         });
     }
     
+    /**
+     * Get Dag Run Stats
+     * Get duration statistics for a DAG based on its historical completed runs.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @returns DagRunStatsResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagRunStats(data: GetDagRunStatsData): CancelablePromise<GetDagRunStatsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            errors: {
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
 }
 
 export class ExperimentalService {
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1389,7 +1439,7 @@ export class ConfigService {
 export class DagWarningService {
     /**
      * List Dag Warnings
-     * Get a list of DAG warnings.
+     * Get a list of Dag warnings.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.warningType
@@ -1423,7 +1473,7 @@ export class DagWarningService {
 export class DagService {
     /**
      * Get Dags
-     * Get all DAGs.
+     * Get all Dags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
@@ -1506,10 +1556,10 @@ export class DagService {
     
     /**
      * Patch Dags
-     * Patch multiple DAGs.
+     * Patch multiple Dags.
      *
-     * If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no DAGs will be
-     * matched regardless of other filters. To match all DAGs, pass a wildcard value such as
+     * If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no Dags will be
+     * matched regardless of other filters. To match all Dags, pass a wildcard value such as
      * `~` or `%` for `dag_id_pattern`.
      * @param data The data for the request.
      * @param data.requestBody
@@ -1558,7 +1608,7 @@ export class DagService {
     
     /**
      * Get Dag
-     * Get basic information about a DAG.
+     * Get basic information about a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns DAGResponse Successful Response
@@ -1583,7 +1633,7 @@ export class DagService {
     
     /**
      * Patch Dag
-     * Patch the specific DAG.
+     * Patch the specific Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1615,7 +1665,7 @@ export class DagService {
     
     /**
      * Delete Dag
-     * Delete the specific DAG.
+     * Delete the specific Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns unknown Successful Response
@@ -1640,7 +1690,7 @@ export class DagService {
     
     /**
      * Get Dag Details
-     * Get details of DAG.
+     * Get details of Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns DAGDetailsResponse Successful Response
@@ -1665,7 +1715,7 @@ export class DagService {
     
     /**
      * Favorite Dag
-     * Mark the DAG as favorite.
+     * Mark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1689,7 +1739,7 @@ export class DagService {
     
     /**
      * Unfavorite Dag
-     * Unmark the DAG as favorite.
+     * Unmark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1714,7 +1764,7 @@ export class DagService {
     
     /**
      * Get Dag Tags
-     * Get all DAG tags.
+     * Get all Dag tags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
@@ -1747,7 +1797,7 @@ export class DagService {
     
     /**
      * Get Dags
-     * Get DAGs with recent DagRun.
+     * Get Dags with recent DagRun.
      * @param data The data for the request.
      * @param data.dagRunsLimit
      * @param data.limit
@@ -1950,6 +2000,7 @@ export class ExtraLinksService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.tryNumber
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1963,7 +2014,8 @@ export class ExtraLinksService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                try_number: data.tryNumber
             },
             errors: {
                 401: 'Unauthorized',
@@ -1985,6 +2037,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.tryNumber
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1998,7 +2051,8 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                try_number: data.tryNumber
             },
             errors: {
                 401: 'Unauthorized',
@@ -2159,6 +2213,10 @@ export class TaskInstanceService {
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
      * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndex
+     * @param data.renderedMapIndexPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     * @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
@@ -2213,6 +2271,8 @@ export class TaskInstanceService {
                 operator_name_pattern: data.operatorNamePattern,
                 operator_name_prefix_pattern: data.operatorNamePrefixPattern,
                 map_index: data.mapIndex,
+                rendered_map_index_pattern: data.renderedMapIndexPattern,
+                rendered_map_index_prefix_pattern: data.renderedMapIndexPrefixPattern,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2423,7 +2483,7 @@ export class TaskInstanceService {
      * Get list of task instances.
      *
      * This endpoint allows specifying `~` as the dag_id, dag_run_id
-     * to retrieve task instances for all DAGs and DAG runs.
+     * to retrieve task instances for all Dags and Dag runs.
      *
      * Supports two pagination modes:
      *
@@ -2465,7 +2525,7 @@ export class TaskInstanceService {
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_display_name_prefix_pattern`` parameter when possible.
-     * @param data.taskDisplayNamePrefixPattern Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
+     * @param data.taskDisplayNamePrefixPattern Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
      * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -2495,6 +2555,10 @@ export class TaskInstanceService {
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
      * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndex
+     * @param data.renderedMapIndexPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     * @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
@@ -2557,6 +2621,8 @@ export class TaskInstanceService {
                 operator_name_pattern: data.operatorNamePattern,
                 operator_name_prefix_pattern: data.operatorNamePrefixPattern,
                 map_index: data.mapIndex,
+                rendered_map_index_pattern: data.renderedMapIndexPattern,
+                rendered_map_index_prefix_pattern: data.renderedMapIndexPrefixPattern,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2716,6 +2782,75 @@ export class TaskInstanceService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Group Instances
+     * Update the state of all task instances in a task group.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.groupId
+     * @param data.requestBody
+     * @param data.updateMask
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroupInstances(data: PatchTaskGroupInstancesData): CancelablePromise<PatchTaskGroupInstancesResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                group_id: data.groupId
+            },
+            query: {
+                update_mask: data.updateMask
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Group Instances Dry Run
+     * Dry-run of updating the state of all task instances in a task group.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.groupId
+     * @param data.requestBody
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroupInstancesDryRun(data: PatchTaskGroupInstancesDryRunData): CancelablePromise<PatchTaskGroupInstancesDryRunResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                group_id: data.groupId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -3396,6 +3531,325 @@ export class ProviderService {
     
 }
 
+export class AssetStateService {
+    /**
+     * List Asset States
+     * List all state entries for an asset.
+     * @param data The data for the request.
+     * @param data.assetId
+     * @param data.limit
+     * @param data.offset
+     * @returns AssetStateCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static listAssetStates(data: ListAssetStatesData): CancelablePromise<ListAssetStatesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/assets/{asset_id}/states',
+            path: {
+                asset_id: data.assetId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Clear Asset State
+     * Delete all state keys for an asset.
+     * @param data The data for the request.
+     * @param data.assetId
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static clearAssetState(data: ClearAssetStateData): CancelablePromise<ClearAssetStateResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/assets/{asset_id}/states',
+            path: {
+                asset_id: data.assetId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Asset State
+     * Get a single asset state entry.
+     * @param data The data for the request.
+     * @param data.key
+     * @param data.assetId
+     * @returns AssetStateResponse Successful Response
+     * @throws ApiError
+     */
+    public static getAssetState(data: GetAssetStateData): CancelablePromise<GetAssetStateResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
+            path: {
+                key: data.key,
+                asset_id: data.assetId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Set Asset State
+     * Set an asset state value. Creates or overwrites the key.
+     * @param data The data for the request.
+     * @param data.key
+     * @param data.assetId
+     * @param data.requestBody
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static setAssetState(data: SetAssetStateData): CancelablePromise<SetAssetStateResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
+            path: {
+                key: data.key,
+                asset_id: data.assetId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Asset State
+     * Delete a single asset state key. No-op if the key does not exist.
+     * @param data The data for the request.
+     * @param data.key
+     * @param data.assetId
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static deleteAssetState(data: DeleteAssetStateData): CancelablePromise<DeleteAssetStateResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
+            path: {
+                key: data.key,
+                asset_id: data.assetId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class TaskStateService {
+    /**
+     * List Task States
+     * List all task state entries for a task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.limit
+     * @param data.offset
+     * @returns TaskStateCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static listTaskStates(data: ListTaskStatesData): CancelablePromise<ListTaskStatesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                map_index: data.mapIndex,
+                limit: data.limit,
+                offset: data.offset
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Clear Task State
+     * Delete all task state keys for a task instance.
+     *
+     * When ``all_map_indices=true``, state is cleared for every map index of the task and
+     * the ``map_index`` parameter is ignored.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.allMapIndices
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static clearTaskState(data: ClearTaskStateData): CancelablePromise<ClearTaskStateResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                map_index: data.mapIndex,
+                all_map_indices: data.allMapIndices
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Task State
+     * Get a single task state entry.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.key
+     * @param data.mapIndex
+     * @returns TaskStateResponse Successful Response
+     * @throws ApiError
+     */
+    public static getTaskState(data: GetTaskStateData): CancelablePromise<GetTaskStateResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                key: data.key
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Set Task State
+     * Set a task state value. Creates or overwrites the key.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.key
+     * @param data.requestBody
+     * @param data.mapIndex
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static setTaskState(data: SetTaskStateData): CancelablePromise<SetTaskStateResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                key: data.key
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Task State
+     * Delete a single task state key. No-op if the key does not exist.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.key
+     * @param data.mapIndex
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static deleteTaskState(data: DeleteTaskStateData): CancelablePromise<DeleteTaskStateResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                key: data.key
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
 export class XcomService {
     /**
      * Get Xcom Entry
@@ -3509,7 +3963,7 @@ export class XcomService {
      * Get Xcom Entries
      * Get all XCom entries.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3627,7 +4081,7 @@ export class XcomService {
 export class TaskService {
     /**
      * Get Tasks
-     * Get tasks for DAG.
+     * Get tasks for Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.orderBy
@@ -3847,7 +4301,7 @@ export class VariableService {
 export class DagParsingService {
     /**
      * Reparse Dag File
-     * Request re-parsing a DAG file.
+     * Request re-parsing a Dag file.
      * @param data The data for the request.
      * @param data.fileToken
      * @returns unknown Successful Response
@@ -3900,9 +4354,9 @@ export class DagVersionService {
     
     /**
      * Get Dag Versions
-     * Get all DAG Versions.
+     * Get all Dag Versions.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.limit
@@ -4163,7 +4617,7 @@ export class DashboardService {
     
     /**
      * Dag Stats
-     * Return basic DAG stats with counts of DAGs in various states.
+     * Return basic Dag stats with counts of Dags in various states.
      * @returns DashboardDagStatsResponse Successful Response
      * @throws ApiError
      */
@@ -4179,10 +4633,10 @@ export class DashboardService {
 export class DeadlinesService {
     /**
      * Get Deadlines
-     * Get deadlines for a DAG run.
+     * Get deadlines for a Dag run.
      *
      * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
-     * DAGs and DAG runs.
+     * Dags and Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -4233,7 +4687,7 @@ export class DeadlinesService {
     
     /**
      * Get Dag Deadline Alerts
-     * Get all deadline alerts defined on a DAG.
+     * Get all deadline alerts defined on a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.limit
@@ -4415,8 +4869,9 @@ export class GridService {
      * run's task instances have been processed, so the client can render columns
      * progressively without waiting for all runs to complete.
      *
-     * The serialized Dag structure is loaded once and reused for all runs that
-     * share the same ``dag_version_id``, avoiding repeated deserialization.
+     * The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+     * (keyed by ``dag_version_id``), which avoids repeated deserialization across
+     * runs of the same version *and* across requests.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runIds
@@ -4473,7 +4928,7 @@ export class GanttService {
 export class CalendarService {
     /**
      * Get Calendar
-     * Get calendar data for a DAG including historical and planned DAG runs.
+     * Get calendar data for a Dag including historical and planned Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.granularity

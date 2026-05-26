@@ -176,6 +176,8 @@ repos:
           - "||"
           - --license-filepath
           - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --detect-license-in-X-top-lines
+          - '30'
           - --fuzzy-match-generates-todo
         files:
           (?x)
@@ -187,9 +189,7 @@ repos:
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$|
-          ^\.github/skills/pr-triage/SKILL\.md$
+          ^\.github/skills/setup-steward/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -234,6 +234,13 @@ repos:
           ^airflow-core/pyproject\.toml$|
           ^task-sdk/src/airflow/sdk/__init__\.py$|
           ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-ci-workflows-in-sync
+        name: Check ci-arm.yml and ci-amd.yml stay in sync
+        entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
+        language: python
+        files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
       - id: sync-uv-min-version-markers
@@ -287,6 +294,9 @@ repos:
         alias: blacken-docs
         additional_dependencies:
          - 'black==26.1.0'
+        exclude: >
+          (?x)
+          ^\.github/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -344,7 +354,7 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -384,13 +394,14 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.github/skills/airflow-translations/|
+          ^\.github/skills/setup-steward/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: a4727cbbcd26d7098e96b9cb738169b59711ae51  # frozen: v1.24.1
+    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -398,6 +409,37 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
+  - repo: https://github.com/lycheeverse/lychee
+    rev: 1662ec573c55eb9648db2797a66f74bcc6216d62  # frozen: nightly
+    hooks:
+      # Use the upstream `lychee-docker` variant rather than the script-based
+      # `lychee` hook because the prebuilt lychee binaries that the script
+      # downloads are linked against newer glibc than ubuntu-22.04 runners
+      # ship with (`GLIBC_2.38` / `GLIBC_2.39` not found at runtime). The
+      # docker variant runs the official `lycheeverse/lychee` image, which
+      # bundles its own libc and is portable across runners.
+      - id: lychee-docker
+        name: Check internal Markdown links with lychee (offline mode)
+        description: >-
+          Validate intra-repo links in Markdown files (relative paths, anchors,
+          and fragments) without making any HTTP requests. Auto-generated client
+          docs are excluded because they are regenerated from OpenAPI specs.
+        types: [markdown]
+        args:
+          - --offline
+          - --no-progress
+          - --root-dir
+          - .
+          - --include-fragments
+        exclude: |
+          (?x)
+          ^clients/python/|
+          ^.*/openapi-gen/|
+          ^.*/node_modules/|
+          ^\.build/|
+          ^generated/|
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -461,6 +503,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
+      - id: check-task-instance-dto-sync
+        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
+        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -469,7 +517,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.11']
+        additional_dependencies: ['ruff==0.15.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -647,7 +695,7 @@ repos:
           .*/dist/.*|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^chart/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
@@ -764,6 +812,12 @@ repos:
         name: start_date not in default_args
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
+        pass_filenames: true
+      - id: check-example-dag-tags
+        name: Check example DAGs carry the "example" tag
+        entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
         pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
@@ -884,6 +938,10 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: |
+          (?x)
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1013,6 +1071,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-airflow-core-utils-modules
+        name: Check that no new modules are added under airflow-core/src/airflow/utils
+        entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/utils/[^/]+$|^scripts/ci/prek/known_airflow_core_utils_modules\.txt$|^scripts/ci/prek/check_no_new_airflow_core_utils_modules\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1066,6 +1130,14 @@ repos:
         pass_filenames: false
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
+      - id: check-migration-patterns
+        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        entry: ./scripts/ci/prek/check_migration_patterns.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
+        require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
       ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
@@ -1081,6 +1153,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
+        require_serial: true
+      - id: generate-supervisor-schemas-snapshot
+        name: Regenerate supervisor schema snapshot
+        entry: ./scripts/ci/prek/generate_supervisor_schemas_snapshot.py
+        language: python
+        pass_filenames: false
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: check-supervisor-schemas-versions
+        name: Check supervisor schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_supervisor_schemas_versions.py
+        language: python
+        pass_filenames: true
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

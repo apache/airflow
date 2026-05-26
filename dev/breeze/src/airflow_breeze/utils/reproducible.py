@@ -134,11 +134,9 @@ def repack_deterministically(
                             entry_path.chmod(new_mode)
                         else:
                             # for symlinks on the other hand set rwx for all - to match Linux on MacOS
-                            try:
+                            # (on platforms like Linux symlink permissions cannot be changed)
+                            with contextlib.suppress(NotImplementedError):
                                 entry_path.chmod(0o777, follow_symlinks=False)
-                            except NotImplementedError:
-                                # on platforms like Linux symlink permissions cannot be changed
-                                pass
                         arcname = entry
                         if prepend_path is not None:
                             arcname = os.path.normpath(os.path.join(prepend_path, arcname))

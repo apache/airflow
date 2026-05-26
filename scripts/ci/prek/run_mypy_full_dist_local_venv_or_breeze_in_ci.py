@@ -24,7 +24,7 @@
 """Run mypy on entire folders using local virtualenv (uv) instead of breeze.
 
 Used for non-provider projects: airflow-core, task-sdk, airflow-ctl, dev, scripts,
-devel-common, airflow-ctl-tests, helm-tests, airflow-e2e-tests,
+devel-common, airflow-ctl-tests, chart/tests, airflow-e2e-tests,
 task-sdk-integration-tests, docker-tests, kubernetes-tests, shared.
 """
 
@@ -65,7 +65,7 @@ _TOP_LEVEL_ALLOWED_FOLDERS = [
     "task-sdk",
     "airflow-ctl",
     "airflow-ctl-tests",
-    "helm-tests",
+    "chart/tests",
     "airflow-e2e-tests",
     "task-sdk-integration-tests",
     "docker-tests",
@@ -83,6 +83,9 @@ ALLOWED_FOLDERS = _TOP_LEVEL_ALLOWED_FOLDERS + _SHARED_DISTS
 # Map folder(s) to the uv project to use for running mypy.
 # When multiple folders are checked together, the first folder's project is used.
 FOLDER_TO_PROJECT = {f: f for f in ALLOWED_FOLDERS}
+# `chart/tests` is not its own uv workspace member — it lives inside the
+# `chart` workspace member, which carries the merged pyproject.toml.
+FOLDER_TO_PROJECT["chart/tests"] = "chart"
 
 # Projects that ship their own [tool.mypy] configuration in their pyproject.toml;
 # mypy must be invoked with --config-file pointing at that file so those sections

@@ -335,7 +335,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if self.deferrable and self.wait_for_completion:
             response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
             status = response["ProcessingJobStatus"]
-            if status in self.hook.failed_states:
+            if status in self.hook.processing_job_failed_states:
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
@@ -2101,8 +2101,8 @@ class SageMakerConditionOperator(BaseBranchOperator):
         Cast Jinja-rendered string values to appropriate Python types.
 
         This is a compatibility shim for environments where
-        ``render_template_as_native_obj=True`` is not available at the DAG or
-        task level (e.g., YAML DAGs). Once task-level native rendering
+        ``render_template_as_native_obj=True`` is not available at the Dag or
+        task level (e.g., YAML Dags). Once task-level native rendering
         is widely supported, this method can be removed in favor of letting
         Airflow handle the casting natively.
 

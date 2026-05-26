@@ -156,6 +156,13 @@ looks like:
         # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
+        # A list of deadline reference classes that can be used as custom deadlines in Dags.
+        # Custom deadline reference classes must be registered here in order to be
+        # resolvable at scheduler-side deserialization time; classes that are not
+        # registered will raise ``DeadlineReferenceNotRegistered`` when a Dag attempts
+        # to use them.
+        deadline_references = []
+
         # A list of Listeners that plugin provides. Listeners can register to
         # listen to particular events that happen in Airflow, like
         # TaskInstance state changes. Listeners are python modules.

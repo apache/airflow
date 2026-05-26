@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from unittest import mock as async_mock
+from unittest import mock
 
 import pytest
 
+from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -35,6 +36,7 @@ OPERATION_NAME = "test_operation_name"
 OPERATION_URL = (
     f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
 )
+API_VERSION = "v1test"
 
 
 @pytest.fixture
@@ -45,11 +47,22 @@ def trigger():
         impersonation_chain=None,
         gcp_conn_id=TEST_GCP_CONN_ID,
         poke_interval=TEST_POLL_INTERVAL,
+        api_version=API_VERSION,
     )
 
 
+@pytest.fixture
+def sync_hook_mock():
+    mock_obj = mock.MagicMock(spec=CloudSQLHook)
+    with mock.patch(
+        HOOK_STR.format("CloudSQLAsyncHook.get_sync_hook"), new_callable=mock.AsyncMock
+    ) as patched_get_sync_hook:
+        patched_get_sync_hook.return_value = mock_obj
+        yield mock_obj
+
+
 class TestCloudSQLExportTrigger:
-    def test_async_export_trigger_serialization_should_execute_successfully(self, trigger):
+    def test_async_export_trigger_serialization_should_execute_successfully(self, trigger, sync_hook_mock):
         """
         Asserts that the CloudSQLExportTrigger correctly serializes its arguments
         and classpath.
@@ -62,12 +75,13 @@ class TestCloudSQLExportTrigger:
             "impersonation_chain": None,
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "poke_interval": TEST_POLL_INTERVAL,
+            "api_version": API_VERSION,
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
     async def test_async_export_trigger_on_success_should_execute_successfully(
-        self, mock_get_operation, trigger
+        self, mock_get_operation, trigger, sync_hook_mock
     ):
         """
         Tests the CloudSQLExportTrigger only fires once the job execution reaches a successful state.
@@ -89,14 +103,15 @@ class TestCloudSQLExportTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
     async def test_async_export_trigger_running_should_execute_successfully(
-        self, mock_get_operation, trigger, caplog
+        self, mock_get_operation, trigger, sync_hook_mock, caplog
     ):
         """
         Test that CloudSQLExportTrigger does not fire while a job is still running.
         """
-
+        # Ensure execution for default universe
+        sync_hook_mock.is_default_universe.return_value = True
         mock_get_operation.return_value = {
             "status": "RUNNING",
             "name": OPERATION_NAME,
@@ -114,8 +129,10 @@ class TestCloudSQLExportTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
-    async def test_async_export_trigger_error_should_execute_successfully(self, mock_get_operation, trigger):
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
+    async def test_async_export_trigger_error_should_execute_successfully(
+        self, mock_get_operation, trigger, sync_hook_mock
+    ):
         """
         Test that CloudSQLExportTrigger fires the correct event in case of an error.
         """
@@ -136,9 +153,9 @@ class TestCloudSQLExportTrigger:
         assert TriggerEvent(expected_event) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
     async def test_async_export_trigger_exception_should_execute_successfully(
-        self, mock_get_operation, trigger
+        self, mock_get_operation, trigger, sync_hook_mock
     ):
         """
         Test that CloudSQLExportTrigger fires the correct event in case of an error.
@@ -148,3 +165,28 @@ class TestCloudSQLExportTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert TriggerEvent({"status": "failed", "message": "Test exception"}) == actual
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
+    async def test_async_export_trigger_executes_successfully_in_custom_universe(
+        self, mock_async_get_op, trigger, sync_hook_mock
+    ):
+        """
+        Test non-default universe trigger correct execution.
+        """
+        sync_hook_mock.is_default_universe.return_value = False
+        sync_hook_mock.get_operation.return_value = {
+            "status": "RUNNING",
+            "name": OPERATION_NAME,
+        }
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.1)
+
+        sync_hook_mock.is_default_universe.assert_called_once()
+        sync_hook_mock.get_operation.assert_called_once_with(
+            project_id=trigger.project_id, operation_name=trigger.operation_name
+        )
+        # Verify the default universe branch not being called
+        mock_async_get_op.assert_not_called()
+        task.cancel()

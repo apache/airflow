@@ -60,6 +60,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueFilter,
     QueryTIQueueNamePatternSearch,
     QueryTIQueueNamePrefixPatternSearch,
+    QueryTIRenderedMapIndexPatternSearch,
+    QueryTIRenderedMapIndexPrefixPatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
     QueryTITaskDisplayNamePrefixPatternSearch,
@@ -94,11 +96,16 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _get_task_group_task_instances,
+    _patch_task_group_state,
     _patch_task_instance_note,
     _patch_task_instance_state,
+    _patch_ti_group_validate_request,
     _patch_ti_validate_request,
+    _reload_tis_with_rendered_fields,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
@@ -180,6 +187,8 @@ def get_mapped_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -256,6 +265,8 @@ def get_mapped_task_instances(
             operator_name_pattern,
             operator_name_prefix_pattern,
             map_index,
+            rendered_map_index_pattern,
+            rendered_map_index_prefix_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -468,6 +479,8 @@ def get_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -512,7 +525,7 @@ def get_task_instances(
     Get list of task instances.
 
     This endpoint allows specifying `~` as the dag_id, dag_run_id
-    to retrieve task instances for all DAGs and DAG runs.
+    to retrieve task instances for all Dags and Dag runs.
 
     Supports two pagination modes:
 
@@ -575,6 +588,8 @@ def get_task_instances(
         operator_name_pattern,
         operator_name_prefix_pattern,
         map_index,
+        rendered_map_index_pattern,
+        rendered_map_index_prefix_pattern,
     ]
 
     if use_cursor:
@@ -820,6 +835,8 @@ def post_clear_task_instances(
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
+    resolved_run_on_latest = resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     reset_dag_runs = body.reset_dag_runs
     dry_run = body.dry_run
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
@@ -904,7 +921,7 @@ def post_clear_task_instances(
             task_ids=task_markers_to_clear,
             run_id=dag_run_id,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -916,7 +933,7 @@ def post_clear_task_instances(
             start_date=body.start_date,
             end_date=body.end_date,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -927,7 +944,7 @@ def post_clear_task_instances(
                 task_instances,
                 session,
                 DagRunState.QUEUED if reset_dag_runs else False,
-                run_on_latest_version=body.run_on_latest_version,
+                run_on_latest_version=resolved_run_on_latest,
                 prevent_running_task=body.prevent_running_task,
             )
         except AirflowClearRunningTaskException as e:
@@ -958,6 +975,102 @@ def post_clear_task_instances(
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
+    )
+
+
+@task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="patch_task_group_instances",
+)
+def patch_task_group_instances(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    user: GetUserDep,
+    update_mask: list[str] | None = Query(None),
+) -> TaskInstanceCollectionResponse:
+    """Update the state of all task instances in a task group."""
+    dag, tis, data = _patch_ti_group_validate_request(
+        dag_id, dag_run_id, group_id, dag_bag, body, session, update_mask
+    )
+
+    response_tis = tis
+    if "new_state" in data:
+        response_tis = _patch_task_group_state(
+            group_id=group_id,
+            dag_run_id=dag_run_id,
+            dag=dag,
+            body=body,
+            data=data,
+            session=session,
+        )
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=response_tis,
+            user=user,
+            update_mask=update_mask,
+        )
+
+    response_tis = _reload_tis_with_rendered_fields(response_tis, session)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in response_tis],
+        total_entries=len(response_tis),
+    )
+
+
+@task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+    ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_group_instances_dry_run",
+)
+def patch_task_group_instances_dry_run(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Dry-run of updating the state of all task instances in a task group."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
+
+    if body.new_state:
+        tis = (
+            dag.set_task_group_state(
+                group_id=group_id,
+                run_id=dag_run_id,
+                state=body.new_state,
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
+            )
+            or []
+        )
+
+    tis = _reload_tis_with_rendered_fields(tis, session)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],
+        total_entries=len(tis),
     )
 
 
@@ -1011,7 +1124,7 @@ def patch_task_instance_dry_run(
         )
 
     # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # dag.set_task_instance_state() may return TIs without this relationship loaded.
+    # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
         tis = (

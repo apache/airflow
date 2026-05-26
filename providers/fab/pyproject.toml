@@ -22,17 +22,17 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.5.20.19",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-fab"
-version = "3.6.2"
+version = "3.6.4"
 description = "Provider package apache-airflow-providers-fab for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -77,7 +77,13 @@ dependencies = [
     # Every time we update FAB version here, please make sure that you review the classes and models in
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-    "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
+    "flask-appbuilder==5.2.1",  # Whenever updating the version, run test_fab_alignment.py to verify.
+    # Transitive via flask-appbuilder -> flask-jwt-extended; pinned here so the FAB
+    # provider keeps installing cleanly when paired with older airflow-core releases
+    # (the compat-3.0.6 matrix job) whose own pyjwt floor predates `jwt.types.Options`
+    # (added in PyJWT 2.11.0). Without this, `from jwt.types import Options` in
+    # `flask_jwt_extended.tokens` raises ImportError at module import time.
+    "pyjwt>=2.11.0",
     "flask-login>=0.6.2; python_version < '3.14'",
     "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
@@ -91,10 +97,7 @@ dependencies = [
     "wtforms>=3.0",
     "cachetools>=6.0",
     "marshmallow>=3",
-
-    # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
-    # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
-    "flask_limiter>3,!=3.13",
+    "flask_limiter>3",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -150,8 +153,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

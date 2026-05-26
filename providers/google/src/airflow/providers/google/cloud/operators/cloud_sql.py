@@ -1023,6 +1023,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
                 poke_interval=self.poke_interval,
+                api_version=self.api_version,
             ),
             method_name="execute_complete",
         )

@@ -72,6 +72,8 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
+from airflow.configuration import conf
+from airflow.exceptions import ParamValidationError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -364,6 +366,7 @@ def get_asset_events(
 def create_asset_event(
     body: CreateAssetEventsBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> AssetEventResponse:
     """Create asset events."""
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
@@ -371,11 +374,17 @@ def create_asset_event(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
     timestamp = timezone.utcnow()
 
+    api_user_teams: set[str] = set()
+    if conf.getboolean("core", "multi_team"):
+        api_user_teams = get_auth_manager().get_authorized_teams(user=user)
+
     assets_event = asset_manager.register_asset_change(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
         partition_key=body.partition_key,
+        source_is_api=True,
+        api_user_teams=api_user_teams,
         session=session,
     )
 
@@ -398,7 +407,7 @@ def materialize_asset(
     session: SessionDep,
     body: MaterializeAssetBody | None = None,
 ) -> DAGRunResponse:
-    """Materialize an asset by triggering a DAG run that produces it."""
+    """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
         session.scalars(
             select(TaskOutletAssetReference.dag_id)
@@ -409,11 +418,11 @@ def materialize_asset(
     )
 
     if (dag_id := next(dag_id_it, None)) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No DAG materializes asset with ID: {asset_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No Dag materializes asset with ID: {asset_id}")
     if next(dag_id_it, None) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"More than one DAG materializes asset with ID: {asset_id}",
+            f"More than one Dag materializes asset with ID: {asset_id}",
         )
 
     if not get_auth_manager().is_authorized_dag(
@@ -424,7 +433,7 @@ def materialize_asset(
     ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            f"User is not authorized to trigger a run for DAG: {dag_id} that materializes this asset",
+            f"User is not authorized to trigger a run for Dag: {dag_id} that materializes this asset",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -435,21 +444,24 @@ def materialize_asset(
             f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
-    params = (body or MaterializeAssetBody()).validate_context(dag)
-    return dag.create_dagrun(
-        run_id=params["run_id"],
-        logical_date=params["logical_date"],
-        data_interval=params["data_interval"],
-        run_after=params["run_after"],
-        conf=params["conf"],
-        run_type=DagRunType.ASSET_MATERIALIZATION,
-        triggered_by=DagRunTriggeredByType.REST_API,
-        triggering_user_name=user.get_name(),
-        state=DagRunState.QUEUED,
-        partition_key=params["partition_key"],
-        note=params["note"],
-        session=session,
-    )
+    try:
+        params = (body or MaterializeAssetBody()).validate_context(dag)
+        return dag.create_dagrun(
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
+            run_type=DagRunType.ASSET_MATERIALIZATION,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            triggering_user_name=user.get_name(),
+            state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
+            note=params["note"],
+            session=session,
+        )
+    except (ParamValidationError, ValueError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @assets_router.get(
@@ -562,7 +574,7 @@ def get_dag_asset_queued_events(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
-    """Get queued asset events for a DAG."""
+    """Get queued asset events for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -599,7 +611,7 @@ def get_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventResponse:
-    """Get a queued asset event for a DAG."""
+    """Get a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -702,7 +714,7 @@ def delete_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
-    """Delete a queued asset event for a DAG."""
+    """Delete a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
     )

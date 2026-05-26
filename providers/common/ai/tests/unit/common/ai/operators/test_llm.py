@@ -22,6 +22,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -59,11 +60,29 @@ class TestLLMOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "Paris is the capital of France."
-        mock_agent.run_sync.assert_called_once_with("What is the capital of France?")
+        mock_agent.run_sync.assert_called_once_with("What is the capital of France?", usage_limits=None)
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
         )
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls):
+        """``usage_limits`` is forwarded verbatim to ``agent.run_sync``."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        limits = UsageLimits(request_limit=2, output_tokens_limit=100)
+        op = LLMOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            usage_limits=limits,
+        )
+        op.execute(context=MagicMock())
+
+        mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
@@ -278,3 +297,30 @@ class TestLLMOperatorApproval:
         result = op.execute_complete({}, generated_output="original", event=event)
 
         assert result == "edited"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMOperatorMultimodalPromptGuard:
+    """LLMOperator.execute raises before agent.run_sync when require_approval is True
+    and self.prompt is not a string -- covering direct-operator construction and the
+    native template rendering escape (where a string template renders to a Sequence)."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            require_approval=True,
+        )
+        op.prompt = ["x", object()]  # simulate post-template-render value
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())
+
+        mock_agent.run_sync.assert_not_called()

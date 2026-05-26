@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -247,13 +248,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         details: DagDetails | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action on a DAG.
+        Return whether the user is authorized to perform a given action on a Dag.
 
         :param method: the method to perform
         :param user: the user to performing the action
-        :param access_entity: the kind of DAG information the authorization request is about.
-            If not provided, the authorization request is about the DAG itself
-        :param details: optional details about the DAG
+        :param access_entity: the kind of Dag information the authorization request is about.
+            If not provided, the authorization request is about the Dag itself
+        :param details: optional details about the Dag
         """
 
     @abstractmethod
@@ -564,7 +565,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
-        Get DAGs the user has access to.
+        Get Dags the user has access to.
 
         :param user: the user
         :param method: the method to filter on
@@ -604,13 +605,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         team_name: str | None = None,
     ) -> set[str]:
         """
-        Filter DAGs the user has access to.
+        Filter Dags the user has access to.
 
-        By default, check individually if the user has permissions to access the DAG.
+        By default, check individually if the user has permissions to access the Dag.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
-        :param dag_ids: the set of DAG ids
+        :param dag_ids: the set of Dag ids
         :param user: the user
         :param method: the method to filter on
         :param team_name: the name of the team associated to the Dags if Airflow environment runs in
@@ -832,6 +833,37 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
+    @staticmethod
+    def _get_jwt_audience() -> str:
+        """
+        Resolve the JWT audience from the documented ``[api_auth] jwt_audience`` option.
+
+        Falls back to the undocumented ``[api] jwt_audience`` location used by the signer in
+        earlier 3.x releases (with a deprecation warning) so deployments that set the wrong
+        section continue to work until they migrate. Returns the default ``apache-airflow``
+        when neither is configured.
+
+        :meta private:
+        """
+        if conf.has_option("api_auth", "jwt_audience"):
+            return conf.get("api_auth", "jwt_audience")
+        if conf.has_option("api", "jwt_audience"):
+            # Bug context in PR https://github.com/apache/airflow/pull/67494: the signer used to
+            # read `[api] jwt_audience` while the validator read `[api_auth] jwt_audience`, so
+            # any deployment that hit the bug set the value under `[api]`. Honour it with a
+            # deprecation warning until the fallback can be removed in a future major release.
+            warnings.warn(
+                "The `[api] jwt_audience` configuration option is deprecated and was never "
+                "documented. It was read only by the JWT signer due to a bug; the validator "
+                "always read `[api_auth] jwt_audience`. Move the value to `[api_auth] "
+                "jwt_audience` (env var `AIRFLOW__API_AUTH__JWT_AUDIENCE`). Support for the "
+                "`[api]` location will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return conf.get("api", "jwt_audience")
+        return "apache-airflow"
+
     @classmethod
     @cache
     def _get_token_signer(
@@ -848,7 +880,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return JWTGenerator(
             **get_signing_args(),
             valid_for=expiration_time_in_seconds,
-            audience=conf.get("api", "jwt_audience", fallback="apache-airflow"),
+            audience=cls._get_jwt_audience(),
         )
 
     @classmethod
@@ -862,5 +894,5 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return JWTValidator(
             **get_sig_validation_args(),
             leeway=conf.getint("api_auth", "jwt_leeway"),
-            audience=conf.get("api_auth", "jwt_audience", fallback="apache-airflow"),
+            audience=cls._get_jwt_audience(),
         )
