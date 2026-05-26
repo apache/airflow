@@ -796,7 +796,6 @@ class TestPartitionsClear:
             "2026-01-01",  # no ~
             "~2026-01-01",  # left side empty
             "2026-01-01~",  # right side empty
-            "2026-01-01~not-a-date",  # right side parse failure
         ],
     )
     def test_date_range_syntax_invalid_format(self, parser, bad_date):
@@ -805,6 +804,34 @@ class TestPartitionsClear:
                 parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, "--date", bad_date])
             )
         assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "2026-01-02T01:00:00~2026-01-02T10:00:00",  # jason's original case
+            "2026-01-02~2026-01-02T10:00:00",  # mixed: date / datetime
+            "2026-1-2~2026-01-02",  # missing zero-pad
+            "2026-01-01~not-a-date",  # right side not YYYY-MM-DD
+        ],
+    )
+    def test_date_range_syntax_rejects_non_yyyy_mm_dd(self, parser, bad_date):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, "--date", bad_date])
+            )
+        assert "--date sides must be in YYYY-MM-DD format" in str(excinfo.value.code)
+
+    @pytest.mark.parametrize(
+        ("flag", "bad_value"),
+        [
+            ("--start-date", "2026-01-02T01:00:00"),
+            ("--end-date", "2026-01-02T10:00:00"),
+            ("--start-date", "2026-1-2"),
+        ],
+    )
+    def test_start_end_date_reject_non_yyyy_mm_dd(self, parser, flag, bad_value):
+        with pytest.raises(SystemExit):
+            parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, flag, bad_value])
 
     def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
         with pytest.raises(SystemExit) as excinfo:

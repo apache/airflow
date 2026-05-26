@@ -23,8 +23,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import textwrap
 from collections.abc import Callable, Iterable
+from datetime import datetime
 from typing import NamedTuple
 
 import lazy_object_proxy
@@ -38,6 +40,15 @@ from airflow.utils.cli import ColorMode
 from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+_PARTITION_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _parse_partition_date_str(value: str) -> datetime:
+    """Strict YYYY-MM-DD parser shared by --start-date / --end-date / --date."""
+    if not _PARTITION_DATE_RE.fullmatch(value):
+        raise ValueError(f"expected date in YYYY-MM-DD format, got: {value!r}")
+    return parsedate(value)
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -1056,13 +1067,13 @@ ARG_PARTITIONS_CLEAR_DAG_ID = Arg(
 )
 ARG_PARTITIONS_CLEAR_START_DATE = Arg(
     ("-s", "--start-date"),
-    help="Only clear DagRuns whose partition_date is on or after this date",
-    type=parsedate,
+    help="Only clear DagRuns whose partition_date is on or after this date (date must be YYYY-MM-DD)",
+    type=_parse_partition_date_str,
 )
 ARG_PARTITIONS_CLEAR_END_DATE = Arg(
     ("-e", "--end-date"),
-    help="Only clear DagRuns whose partition_date is on or before this date",
-    type=parsedate,
+    help="Only clear DagRuns whose partition_date is on or before this date (date must be YYYY-MM-DD)",
+    type=_parse_partition_date_str,
 )
 ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
     ("--dry-run",),
@@ -1079,7 +1090,8 @@ ARG_PARTITIONS_CLEAR_DATE_RANGE = Arg(
     type=str,
     help=(
         "Range expressed as `a~b` (e.g. `2026-01-01~2026-01-31`); equivalent to "
-        "`--start-date a --end-date b`. Mutually exclusive with `--start-date` / `--end-date`."
+        "`--start-date a --end-date b`. Mutually exclusive with `--start-date` / `--end-date`. "
+        "Both sides must be YYYY-MM-DD."
     ),
 )
 ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(

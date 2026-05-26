@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 
-from airflow._shared.timezones.timezone import parse as parsedate
+from airflow.cli.cli_config import _parse_partition_date_str
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import cli as cli_utils
@@ -56,10 +56,10 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
             raise SystemExit("--date must be in the form 'a~b', e.g. '2026-01-01~2026-01-31'.")
         try:
-            args.start_date = parsedate(parts[0].strip())
-            args.end_date = parsedate(parts[1].strip())
+            args.start_date = _parse_partition_date_str(parts[0].strip())
+            args.end_date = _parse_partition_date_str(parts[1].strip())
         except ValueError:
-            raise SystemExit("--date must be in the form 'a~b', e.g. '2026-01-01~2026-01-31'.")
+            raise SystemExit("--date sides must be in YYYY-MM-DD format, e.g. '2026-01-01~2026-01-31'.")
 
     if args.end_date is not None:
         args.end_date = args.end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
