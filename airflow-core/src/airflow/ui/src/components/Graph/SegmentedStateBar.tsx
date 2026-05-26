@@ -19,7 +19,7 @@
 import { Box, Flex } from "@chakra-ui/react";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
-import { normalizeStateColorKey, sortStateEntries } from "src/utils";
+import { sortStateEntries } from "src/utils";
 
 type Props = {
   readonly childStates: Record<string, number> | null;
@@ -41,7 +41,7 @@ export const SegmentedStateBar = ({ childStates, fallbackState, height = "6px" }
   return (
     <Flex borderRadius="2px" height={height} mt="auto" overflow="hidden">
       {entries.map(([state, count]) => (
-        <Box bg={`${normalizeStateColorKey(state)}.solid`} flex={count} key={state} minWidth="2px" />
+        <Box bg={`${state}.solid`} flex={count} key={state} minWidth="2px" />
       ))}
     </Flex>
   );

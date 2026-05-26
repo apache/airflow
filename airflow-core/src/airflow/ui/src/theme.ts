@@ -413,6 +413,7 @@ const defaultAirflowTheme: ThemingConfig = {
       deferred: generateSemanticTokens("purple"),
       scheduled: generateSemanticTokens("zinc"),
       none: generateSemanticTokens("gray"),
+      no_status: generateSemanticTokens("gray"),
       removed: generateSemanticTokens("slate"),
       // TAILWIND 4.0 COLORS
       red: generateSemanticTokens("red"),

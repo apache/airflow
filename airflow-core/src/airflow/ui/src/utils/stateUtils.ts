@@ -41,16 +41,6 @@ export const STATE_PRIORITY: Array<string> = [
 ];
 
 /**
- * Normalize serialized task instance state keys for UI rendering.
- *
- * The grid API serializes Python None child states as the string "None".
- * The UI colour tokens use "none" and the translated label uses "no_status".
- */
-export const normalizeStateColorKey = (state: string): string => (state === "None" ? "none" : state);
-
-export const normalizeStateLabelKey = (state: string): string => (state === "None" ? "no_status" : state);
-
-/**
  * Sort child_states entries by priority (highest priority first) and filter out
  * entries with zero counts.  Unknown states are sorted to the end.
  */

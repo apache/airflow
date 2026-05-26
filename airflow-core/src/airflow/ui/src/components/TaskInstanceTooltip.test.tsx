@@ -195,9 +195,9 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
   });
 
-  it("normalizes serialized None child state in the breakdown", () => {
+  it("renders API-normalized none child state in the breakdown", () => {
     const taskInstance: LightGridTaskInstanceSummary = {
-      child_states: { None: 2, success: 1 },
+      child_states: { none: 2, success: 1 },
       max_end_date: null,
       min_start_date: null,
       state: null,
@@ -212,8 +212,8 @@ describe("TaskInstanceTooltip", () => {
       { wrapper: Wrapper },
     );
 
-    expect(screen.getByText(/2\s+common:states\.no_status/iu)).toBeInTheDocument();
-    expect(screen.queryByText(/common:states.None/iu)).toBeNull();
+    expect(screen.getByText(/2\s+common:states\.none/iu)).toBeInTheDocument();
+    expect(screen.queryByText(/^common:states\.None$/iu)).toBeNull();
     expect(screen.getByText(/1\s+common:states\.success/iu)).toBeInTheDocument();
   });
 
