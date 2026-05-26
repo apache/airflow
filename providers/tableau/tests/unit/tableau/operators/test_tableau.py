@@ -444,6 +444,28 @@ class TestTableauOperator:
             operator.execute(context={})
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_incremental_refresh_unrelated_type_error_is_raised(self, mock_tableau_hook):
+        """
+        Test that an unrelated TypeError during refresh is re-raised.
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        
+        # Simulate a different TypeError that does NOT contain the string "incremental"
+        mock_tableau_hook.server.datasources.refresh.side_effect = TypeError("Some other type error")
+
+        operator = TableauOperator(
+            blocking_refresh=False,
+            find="ds_2",
+            resource="datasources",
+            incremental_refresh=True,
+            **self.kwargs,
+        )
+
+        with pytest.raises(TypeError, match="Some other type error"):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
     def test_full_refresh_works_on_older_versions(self, mock_tableau_hook):
         """
         Test that full refresh (incremental_refresh=False) works fine on older

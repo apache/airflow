@@ -143,11 +143,13 @@ class TableauOperator(BaseOperator):
                 if self.incremental_refresh:
                     try:
                         response = method(resource_id, incremental=True)
-                    except TypeError:
-                        raise AirflowOptionalProviderFeatureException(
-                            "Incremental refresh requires tableauserverclient>=0.35. "
-                            "Please upgrade: pip install 'tableauserverclient>=0.35'"
-                        )
+                    except TypeError as e:
+                        if "incremental" in str(e):
+                            raise AirflowOptionalProviderFeatureException(
+                                "Incremental refresh requires tableauserverclient>=0.35. "
+                                "Please upgrade: pip install 'tableauserverclient>=0.35'"
+                            ) from e
+                        raise
                 else:
                     response = method(resource_id)
                 job_id = response.id
