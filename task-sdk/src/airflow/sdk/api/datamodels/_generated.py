@@ -63,28 +63,6 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
-class AssetStatePutBody(BaseModel):
-    """
-    Request body for setting an asset state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
-class AssetStateResponse(BaseModel):
-    """
-    Asset state value returned to a worker.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
 class CallbackTerminalState(str, Enum):
     """
     Terminal states a callback can transition to from RUNNING.

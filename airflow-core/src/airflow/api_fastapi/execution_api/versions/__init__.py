@@ -40,15 +40,13 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_05_11 import AddCallbackEndpoints
+from airflow.api_fastapi.execution_api.versions.v2026_06_01 import AddCallbackEndpoints
 from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
     AddAssetsByAliasEndpoint,
     AddRetryPolicyFields,
     AddStateEndpoints,
     AddTeamNameField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_04_30 import AddCallbackEndpoints
-from airflow.api_fastapi.execution_api.versions.v2026_06_16 import AddRetryPolicyFields
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import AddVariableKeysEndpoint
 
 bundle = VersionBundle(
@@ -62,7 +60,7 @@ bundle = VersionBundle(
         AddAssetsByAliasEndpoint,
     ),
     Version(
-        "2026-05-11",
+        "2026-06-01",
         AddCallbackEndpoints,
     ),
     Version(
