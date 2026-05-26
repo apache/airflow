@@ -47,11 +47,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
         SerializedAssetAlias,
@@ -60,6 +63,41 @@ if TYPE_CHECKING:
     from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
+
+
+def _compute_target_partition_date(
+    *,
+    mapper: PartitionMapper,
+    source_partition_key: str,
+    source_partition_date: datetime | None,
+) -> datetime | None:
+    """
+    Derive the consumer's ``partition_date`` from the partition mapper.
+
+    Computed once at APDR creation and stored on the row, so the consumer
+    DagRun's ``partition_date`` is locked to the mapper output at the time
+    the source event was queued — later mapper code or config changes do
+    not retroactively shift the date.
+
+    - ``IdentityMapper``: passes the source ``partition_date`` through.
+    - ``_BaseTemporalMapper`` subclasses (``StartOf*Mapper``): re-parse the
+      source key with the mapper's ``input_format`` and apply ``normalize``.
+    - All other mappers: ``None``.
+    """
+    from airflow.partition_mappers.identity import IdentityMapper
+    from airflow.partition_mappers.temporal import _BaseTemporalMapper
+
+    if isinstance(mapper, IdentityMapper):
+        return source_partition_date
+    if isinstance(mapper, _BaseTemporalMapper):
+        try:
+            return mapper.to_downstream_normalized(source_partition_key)
+        except Exception:
+            # to_downstream() already succeeded for the same input at the
+            # call site, so a failure here would indicate a custom subclass
+            # raising in `normalize`. Stay defensive.
+            return None
+    return None
 
 
 @contextmanager
@@ -253,6 +291,7 @@ class AssetManager(LoggingMixin):
         source_alias_names: Collection[str] = (),
         session: Session,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
         source_is_api: bool = False,
         api_user_teams: set[str] | None = None,
         **kwargs,
@@ -301,6 +340,7 @@ class AssetManager(LoggingMixin):
             "asset_id": asset_model.id,
             "extra": extra or {},
             "partition_key": partition_key,
+            "partition_date": partition_date,
         }
         if task_instance:
             event_kwargs.update(
@@ -365,6 +405,7 @@ class AssetManager(LoggingMixin):
                 source_map_index=asset_event.source_map_index,
                 source_aliases=[aam.to_serialized() for aam in asset_alias_models],
                 partition_key=partition_key,
+                partition_date=partition_date,
             )
         )
 
@@ -524,11 +565,10 @@ class AssetManager(LoggingMixin):
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
+            mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
             try:
                 # We'll need to catch every possible exception happen when mapping partition_key.
-                target_key = timetable.get_partition_mapper(
-                    name=asset_model.name, uri=asset_model.uri
-                ).to_downstream(partition_key)
+                target_key = mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
                     "Could not map partition key for asset in target Dag. "
@@ -564,9 +604,19 @@ class AssetManager(LoggingMixin):
                 target_keys = [target_key]
             del target_key
 
+            # Compute the target partition_date once per (mapper, source_key).
+            # to_downstream already succeeded above, so to_downstream_normalized
+            # on the same input is expected to succeed for temporal mappers.
+            target_partition_date: datetime | None = _compute_target_partition_date(
+                mapper=mapper,
+                source_partition_key=partition_key,
+                source_partition_date=event.partition_date,
+            )
+
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
+                    target_partition_date=target_partition_date,
                     target_dag=target_dag,
                     asset_id=asset_id,
                     session=session,
@@ -586,6 +636,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         target_key: str,
+        target_partition_date: datetime | None,
         target_dag: SerializedDagModel,
         asset_id: int,
         session: Session,
@@ -598,6 +649,13 @@ class AssetManager(LoggingMixin):
         This leads to the unintended outcome of having two APDRs created instead of one.
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
+
+        When an existing pending APDR is returned, its stored ``partition_date`` (set by the first
+        event that queued it) is kept. If a later event resolves to the same ``target_key`` with a
+        different ``target_partition_date`` — possible when two source assets use different
+        timezone-configured mappers that happen to format to the same string — we log a warning
+        and let the first event win, since the consumer DagRun has already been semantically
+        committed to the first datetime.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -610,6 +668,15 @@ class AssetManager(LoggingMixin):
                 .limit(1)
             )
             if latest_apdr and latest_apdr.created_dag_run_id is None:
+                if latest_apdr.partition_date != target_partition_date:
+                    log.warning(
+                        "Existing pending APDR has partition_date that differs from "
+                        "the newly computed one; keeping the first value (first-event-wins).",
+                        target_dag_id=target_dag.dag_id,
+                        target_key=target_key,
+                        existing_partition_date=latest_apdr.partition_date,
+                        incoming_partition_date=target_partition_date,
+                    )
                 cls.logger().debug(
                     "Existing APDR found for key %s dag_id %s",
                     target_key,
@@ -622,6 +689,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
+                partition_date=target_partition_date,
             )
             session.add(apdr)
             session.flush()

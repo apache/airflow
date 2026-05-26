@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING
 import attrs
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from pydantic import JsonValue
 
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
@@ -40,3 +42,4 @@ class AssetEvent:
     source_map_index: int | None
     source_aliases: list[SerializedAssetAlias]
     partition_key: str | None
+    partition_date: datetime | None = None

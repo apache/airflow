@@ -307,6 +307,7 @@ class DagRun(StrictBaseModel):
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    partition_date: UtcDateTime | None = None
     note: str | None = None
     team_name: str | None = None
 

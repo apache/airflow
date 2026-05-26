@@ -362,6 +362,7 @@ class TestDagRunDetail:
             "end_date": "2025-12-13T00:00:00Z",
             "logical_date": None,
             "partition_key": None,
+            "partition_date": None,
             "run_after": "2025-12-13T00:00:00Z",
             "run_id": "previous",
             "run_type": "manual",

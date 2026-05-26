@@ -37,6 +37,7 @@ class DagRunAssetReference(StrictBaseModel):
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     partition_key: str | None
+    partition_date: datetime | None
 
 
 class AssetEventResponse(BaseModel):
@@ -54,6 +55,7 @@ class AssetEventResponse(BaseModel):
     source_run_id: str | None = None
     source_map_index: int | None = None
     partition_key: str | None = None
+    partition_date: datetime | None = None
 
 
 class AssetEventsResponse(BaseModel):

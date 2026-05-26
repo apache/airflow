@@ -1482,6 +1482,7 @@ class TestPostAssetMaterialize(TestAssets):
             "dag_versions": mock.ANY,
             "logical_date": None,
             "partition_key": None,
+            "partition_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
             "start_date": None,

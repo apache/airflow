@@ -42,6 +42,7 @@ def test_asset_events(session):
         "source_run_id": "custom",
         "source_map_index": -1,
         "partition_key": None,
+        "partition_date": None,
     }
 
     events = [AssetEvent(id=i, timestamp=make_timestamp(i), **common) for i in (1, 2, 3)]
@@ -91,6 +92,36 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
 
 class TestGetAssetEventByAsset:
+    def test_get_by_asset_surfaces_partition_date(self, session, client, test_asset):
+        """The route must populate partition_date from the AssetEvent row."""
+        partition_date = timezone.parse("2026-05-20T01:00:00")
+        event = AssetEvent(
+            id=99,
+            asset_id=test_asset.id,
+            extra={},
+            source_dag_id="foo",
+            source_task_id="bar",
+            source_run_id="custom",
+            source_map_index=-1,
+            timestamp=datetime(2021, 1, 1, tzinfo=timezone.utc),
+            partition_key="2026-05-20T01:00:00",
+            partition_date=partition_date,
+        )
+        session.add(event)
+        session.commit()
+        try:
+            response = client.get(
+                "/execution/asset-events/by-asset",
+                params={"name": "test_get_asset_by_name", "uri": "s3://bucket/key"},
+            )
+            assert response.status_code == 200
+            [returned] = response.json()["asset_events"]
+            assert returned["partition_key"] == "2026-05-20T01:00:00"
+            assert returned["partition_date"] == "2026-05-20T01:00:00Z"
+        finally:
+            session.delete(event)
+            session.commit()
+
     @pytest.mark.parametrize(
         ("uri", "name"),
         [
@@ -124,6 +155,7 @@ class TestGetAssetEventByAsset:
                     },
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 2,
@@ -141,6 +173,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 3,
@@ -158,6 +191,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -195,6 +229,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 3,
@@ -212,6 +247,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -249,6 +285,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 2,
@@ -266,6 +303,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -308,6 +346,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -345,6 +384,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 2,
@@ -362,6 +402,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 1,
@@ -379,6 +420,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -416,6 +458,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -453,6 +496,7 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }
@@ -484,6 +528,7 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 2,
@@ -501,6 +546,7 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
                 {
                     "id": 3,
@@ -518,6 +564,7 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
+                    "partition_date": None,
                 },
             ]
         }

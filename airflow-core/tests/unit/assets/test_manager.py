@@ -239,6 +239,7 @@ class TestAssetManager:
             try:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
+                    target_partition_date=None,
                     target_dag=testing_dag,
                     asset_id=asm.id,
                     session=_session,

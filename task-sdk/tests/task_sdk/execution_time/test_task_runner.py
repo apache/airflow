@@ -1971,6 +1971,7 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
             "partition_key": dr.partition_key,
+            "partition_date": dr.partition_date,
         }
 
     def test_partition_key_in_context(self, create_runtime_ti, mock_supervisor_comms):
@@ -1996,6 +1997,39 @@ class TestRuntimeTaskInstance:
         dr.partition_key = "some-partition"
         context = runtime_ti.get_template_context()
         assert context["partition_key"] == "some-partition"
+
+    def test_partition_date_in_context(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that partition_date from dag_run is exposed in the template context."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Default: partition_date is None
+        assert context["partition_date"] is None
+
+        # Set partition_date on dag_run and verify it surfaces in context
+        partition_date = timezone.datetime(2026, 5, 20, 1, 0, 0)
+        dr.partition_date = partition_date
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"] == partition_date
+
+        # Naive datetime is coerced to tz-aware so Jinja `| ds` / `| ts` filters
+        # operate on a real awareness boundary.
+        from datetime import datetime as _datetime
+
+        dr.partition_date = _datetime(2026, 5, 20, 1, 0, 0)
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"].tzinfo is not None
 
     def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
         """Ensure lazy-loaded attributes are not resolved until accessed."""
