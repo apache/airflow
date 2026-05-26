@@ -22,16 +22,12 @@ import yaml
 from chart_utils.helm_template_generator import render_chart
 
 OTEL_TEMPLATES = [
-    "templates/configmaps/otel-collector-configmap.yaml",
-    "templates/otel-collector/otel-collector-deployment.yaml",
-    "templates/otel-collector/otel-collector-service.yaml",
-    "templates/otel-collector/otel-collector-serviceaccount.yaml",
+    (CONFIGMAP_TEMPLATE := "templates/configmaps/otel-collector-configmap.yaml"),
+    (DEPLOYMENT_TEMPLATE := "templates/otel-collector/otel-collector-deployment.yaml"),
+    (SERVICE_TEMPLATE := "templates/otel-collector/otel-collector-service.yaml"),
+    (SERVICE_ACCOUNT_TEMPLATE := "templates/otel-collector/otel-collector-serviceaccount.yaml"),
 ]
 
-DEPLOYMENT_TEMPLATE = "templates/otel-collector/otel-collector-deployment.yaml"
-SERVICE_TEMPLATE = "templates/otel-collector/otel-collector-service.yaml"
-CONFIGMAP_TEMPLATE = "templates/configmaps/otel-collector-configmap.yaml"
-SERVICE_ACCOUNT_TEMPLATE = "templates/otel-collector/otel-collector-serviceaccount.yaml"
 AIRFLOW_CONFIGMAP_TEMPLATE = "templates/configmaps/configmap.yaml"
 
 AIRFLOW_POD_TEMPLATES = [
