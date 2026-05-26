@@ -67,6 +67,22 @@ def _unlabel_event(label_name: str, actor_login: str, when: datetime) -> MagicMo
     return event
 
 
+def _issue_event(
+    event_name: str,
+    actor_login: str,
+    when: str,
+    label_name: str | None = None,
+) -> MagicMock:
+    """Build a mock shaped like a PyGithub ``IssueEvent`` for any event kind."""
+    event = MagicMock()
+    event.event = event_name
+    event.label = _label(label_name) if label_name else None
+    event.actor = MagicMock()
+    event.actor.login = actor_login
+    event.created_at = when
+    return event
+
+
 class TestParseVersionFromBranch:
     """Test cases for _parse_version_from_branch."""
 
@@ -897,4 +913,78 @@ However, **no open milestone was found** matching: {expected_search_criteria}
         mock_issue.create_comment.assert_not_called()
         assert "Skipping milestone tagging" in result.output
         assert "area:CI" in result.output
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_pr_67301_real_events_should_skip(self, mock_get_client, cli_runner, mock_github_setup):
+        """End-to-end regression test against the real ``issue.get_events()``
+        stream from PR #67301 (the incident that motivated this change).
+
+        The events below are the actual events captured from
+        ``GET /repos/apache/airflow/issues/67301/events``, trimmed to those
+        that existed BEFORE the offending ``github-actions[bot] milestoned``
+        event — that ``milestoned`` event is exactly what the new
+        live-labels + events pipeline must prevent, so it is intentionally
+        omitted from this fixture. With the fix in place, ``set-milestone``
+        must notice shahar1's ``unlabeled backport-to-v3-2-test`` 92 seconds
+        earlier and skip.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        pr_67301_events = [
+            _issue_event("labeled", "boring-cyborg[bot]", "2026-05-21T19:42:28Z", "area:providers"),
+            _issue_event("labeled", "boring-cyborg[bot]", "2026-05-21T19:42:28Z", "kind:documentation"),
+            _issue_event("labeled", "boring-cyborg[bot]", "2026-05-21T19:42:28Z", "provider:standard"),
+            _issue_event("merged", "shahar1", "2026-05-21T20:31:18Z"),
+            _issue_event("closed", "shahar1", "2026-05-21T20:31:18Z"),
+            _issue_event("labeled", "shahar1", "2026-05-21T20:31:28Z", "backport-to-v3-2-test"),
+            _issue_event("unlabeled", "shahar1", "2026-05-21T20:32:17Z", "backport-to-v3-2-test"),
+        ]
+        # Live ``issue.labels`` at the moment set-milestone would have run:
+        # backport-to-v3-2-test had just been removed, leaving these three.
+        live_labels = ["area:providers", "kind:documentation", "provider:standard"]
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label(name) for name in live_labels]
+        mock_issue.get_events.return_value = pr_67301_events
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "67301",
+                "--pr-title",
+                'fix: typo "@tash.bash" -> "@task.bash',
+                "--pr-labels",
+                # The workflow's stale snapshot from get-pr-info still saw the
+                # backport label; the new pipeline ignores this in favour of
+                # live state.
+                json.dumps(
+                    [
+                        "area:providers",
+                        "kind:documentation",
+                        "provider:standard",
+                        "backport-to-v3-2-test",
+                    ]
+                ),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "shahar1",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        plain = _plain_output(result.output)
+        assert "Skipping milestone tagging" in plain
+        assert "backport labels were removed during the PR lifecycle" in plain
+        assert "backport-to-v3-2-test" in plain
         assert result.exit_code == 0
