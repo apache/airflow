@@ -182,6 +182,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         capacity=None,
         queues: set[str] | None = None,
+        team_name: str | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -191,6 +192,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
+        self.team_name = team_name
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -241,6 +243,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
+                team_name=self.team_name,
             )
 
             # Run the main DB comms loop in this process
@@ -428,6 +431,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     job: Job | None = None
     capacity: int
     queues: set[str] | None = None
+    team_name: str | None = None
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
     runner_health_check_threshold = conf.getfloat("triggerer", "runner_health_check_threshold")
