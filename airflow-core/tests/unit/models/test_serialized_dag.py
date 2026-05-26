@@ -914,9 +914,11 @@ class TestSerializedDagModel:
         assert updated_alert.name == "updated name"
 
     def test_get_count_returns_zero_on_empty_table(self, session):
-        """get_count() returns 0 when no serialized DAGs are stored."""
-        session.execute(delete(SDM))
-        session.commit()
+        """get_count() returns 0 when no serialized DAGs are stored.
+
+        The autouse ``setup_test_cases`` fixture calls ``db.clear_db_serialized_dags()``
+        before this test runs, guaranteeing a known-empty starting state.
+        """
         assert SDM.get_count(session=session) == 0
 
     def test_get_count_returns_correct_value(self, dag_maker, session):
@@ -932,9 +934,9 @@ class TestSerializedDagModel:
         assert SDM.get_count(session=session) == baseline + 2
 
     def test_get_count_propagates_db_error(self, session):
-        """get_count() lets SQLAlchemyError propagate so callers can handle DB failures."""
-        from sqlalchemy.exc import SQLAlchemyError
+        """get_count() lets OperationalError propagate so callers can handle DB failures."""
+        from sqlalchemy.exc import OperationalError
 
-        with mock.patch.object(session, "execute", side_effect=SQLAlchemyError("db failure")):
-            with pytest.raises(SQLAlchemyError):
+        with mock.patch.object(session, "execute", side_effect=OperationalError("db failure", None, None)):
+            with pytest.raises(OperationalError):
                 SDM.get_count(session=session)
