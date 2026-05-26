@@ -2809,13 +2809,13 @@ class TestEmitMetrics:
 
     def test_emit_metrics_logs_and_swallows_db_error(self):
         """emit_metrics logs via log.exception and swallows SQLAlchemyError from get_count."""
-        from sqlalchemy.exc import SQLAlchemyError
+        from sqlalchemy.exc import OperationalError
 
         from airflow.dag_processing.manager import emit_metrics
 
         with mock.patch(
             "airflow.dag_processing.manager.SerializedDagModel.get_count",
-            side_effect=SQLAlchemyError("db failure"),
+            side_effect=OperationalError("db failure", None, None),
         ):
             with mock.patch("airflow.dag_processing.manager.stats"):
                 with mock.patch("airflow.dag_processing.manager.log") as mock_log:

@@ -881,10 +881,10 @@ class SerializedDagModel(Base):
         """
         Return the total number of serialized DAGs stored in the database.
 
-        Uses ``scalar_one()`` so that a DB connectivity failure surfaces as a
-        ``SQLAlchemyError`` rather than a silent ``None`` return.  ``COUNT(*)``
-        always produces exactly one row, so ``NoResultFound`` is never raised
-        under normal conditions.
+        Uses ``scalar_one()`` to enforce "exactly one row" semantics.
+        ``COUNT(*)`` always returns exactly one row, so ``scalar_one()`` makes
+        that contract explicit and will raise ``MultipleResultsFound`` if the
+        query shape ever changes unexpectedly.
 
         :param session: ORM Session
         """
