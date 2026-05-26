@@ -364,7 +364,11 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def ids_for_triggerer(
-        cls, triggerer_id, queues: set[str] | None = None, session: Session = NEW_SESSION
+        cls,
+        triggerer_id,
+        queues: set[str] | None = None,
+        team_name: str | None = None,
+        session: Session = NEW_SESSION,
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
         query = select(cls.id).where(cls.triggerer_id == triggerer_id)
@@ -376,6 +380,14 @@ class Trigger(Base):
         else:
             query = query.filter(cls.queue.is_(None))
 
+        # Check config instead of team_name: if multi-team is disabled after triggers were
+        # created with a team, those triggers must still be picked up instead of being orphaned.
+        if conf.getboolean("core", "multi_team"):
+            if team_name:
+                query = query.filter(cls.team_name == team_name)
+            else:
+                query = query.filter(cls.team_name.is_(None))
+
         return list(session.scalars(query).all())
 
     @classmethod
@@ -386,6 +398,7 @@ class Trigger(Base):
         capacity,
         health_check_threshold,
         queues: set[str] | None = None,
+        team_name: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -420,6 +433,7 @@ class Trigger(Base):
             capacity=capacity,
             alive_triggerer_ids=alive_triggerer_ids,
             queues=queues,
+            team_name=team_name,
             session=session,
         )
         if trigger_ids_query:
@@ -439,6 +453,7 @@ class Trigger(Base):
         alive_triggerer_ids: list[int] | Select,
         queues: set[str] | None,
         session: Session,
+        team_name: str | None = None,
     ):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
@@ -447,6 +462,7 @@ class Trigger(Base):
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
+        :param team_name: The team to filter triggers for (None = global triggerer).
         """
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
@@ -491,6 +507,14 @@ class Trigger(Base):
                 filtered_query = query.filter(cls.queue.in_(queues))
             else:
                 filtered_query = query.filter(cls.queue.is_(None))
+
+            # Check config instead of team_name: if multi-team is disabled after triggers were
+            # created with a team, those triggers must still be picked up instead of being orphaned.
+            if conf.getboolean("core", "multi_team"):
+                if team_name:
+                    filtered_query = filtered_query.filter(cls.team_name == team_name)
+                else:
+                    filtered_query = filtered_query.filter(cls.team_name.is_(None))
 
             locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
