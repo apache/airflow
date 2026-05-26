@@ -17,16 +17,94 @@
 
  .. This file is populated while releasing after cutting the release candidate. Please do not edit in PRs.
 
-airflowctl unreleased
----------------------
+airflowctl 0.1.5 (2026-05-26)
+-----------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
+- Add dags next execution command #66172 (#66188)
+- Add bulk delete Dag Runs (#67095)
+- Add `rerun_with_latest_version` config hierarchy for clear/rerun behavior (#63884)
+- feat: implement patching of task group instances in API (#62812)
+- Allow remote version check without authentication (#65099)
+- Add cursor based pagination for get_dag_runs endpoint (#65604)
+- feat: enable queue up new tasks (#63484)
+- Add cursor based pagination for get_task_instances endpoint (#64845)
+- add yaml-based help texts for auto-generated airflowctl commands (#65073) (#65090)
+- Added plugins command to airflowctl (#64935) (#65001)
+- Add `is_backfillable` property to DAG API responses (#64644)
+- Add YAML-based help texts for auto-generated airflowctl commands (#65073)
+- Added plugins command to airflowctl (#64935)
+- Add DagRunType for operator (#63733)
+- Allow direct execution from airflowctl via uvx (#64406)
 - Expose required primitive parameters of auto-generated commands as positional
   arguments instead of ``--flag`` options. Optional parameters keep the
   ``--flag`` form. Follows the dev-list lazy consensus on airflowctl parameter
-  style (see `<https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm>`_).
+  style (see `<https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm>`_) (#66768)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix airflow-ctl connections import schema handling (#67063)
+- Fix broken download URLs and variable names in airflow-ctl docs (#67046)
+- Fix airflow-ctl missing pyyaml runtime dependency (#65489)
+- Fix airflowctl dagrun list crash when --state is omitted (#65608)
+- Fix airflowctl dagrun list crash when --state is omitted (#65608)
+- Fix backfill params not overriding existing DAG run conf (#64939)
+- Fix airflow-ctl missing pyyaml runtime dependency (#65489)
+- fix: use Dag form when materializing asset (#64211) (#65303)
+- Fix CLI error handling and exit codes for failed commands(#65052) (#65097)
+- Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618) (#65096)
+- fix(cli): change is_alive default to None in jobs list (#65065) (#65091)
+- Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618)
+- fix(cli): change is_alive default to None in jobs list (#65065)
+- Fix CLI error handling and exit codes for failed commands (#65052)
+- Fix ruff on client-py (#64868)
+- Fix list-envs auth status for env names containing .json (#64677)
+- fix infinite loop for limit<0 for all list operations in airflowctl (#64582)
+- fix dagrun list limit (#64071)
+- fix: use Dag form when materializing asset (#64211)
+- Fix silent CI failures on connection import (#64416)
+- Fix variable import to correctly handle falsy values (#64362)
+
+Improvements
+^^^^^^^^^^^^
+
+- Increment version of airflowctl for RC (#67295)
+- AIP-103: Add Core API endpoints for task state and asset state (#67041)
+- Comment to not edit RELEASE_NOTES.rst manually in PRs for airflowctl (#67128)
+- Align Dag capitalization from "DAG" to "Dag" for airflow-ctl/ (#66112)
+- airflowctl: Send backfill create and dry-run payloads as JSON (#65158)
+- Use existing safe_load function in airflowctl utils to load help texts (#65841)
+- Prepare airflow-ctl 0.1.4rc3 release (#65634)
+- Cap airflow-ctl httpx dependency below 1.0 (#65607)
+- Cap airflow-ctl httpx dependency below 1.0 (#65607)
+- Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)
+- Remove dead airflow-ctl/newsfragments directory (unused by changelog tooling) (#65507)
+- Prepare airflow-ctl 0.1.4rc1 release (#65468)
+- sync airflowctl from main to v3-2-test (#65069)
+- airflow-ctl: fix variable import to correctly handle falsy values (#64362) (#64448)
+- connections import now returns non-zero exit code on failure (#64416) (#64449)
+- Run non-provider mypy checks as regular prek static check… (#64810)
+- Incorrect fallback logic (#64586)
+- Run non-provider mypy as regular prek static checks instead of separate CI jobs (#64780)
+- Clear, Mark Success/Fail and delete multiple Task Instances (#64141)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Upgrade important CI environment (#67313)
+- Upgrade important CI environment (#66843)
+- Upgrade important CI environment (#66068)
+- Bump uv to 0.11.8 to adopt uv.lock-conflict fix (#66042)
+- Upgrade important CI environment (#65933)
+- Upgrade important CI environment (#65521)
+- Upgrade important CI environment (#65525)
+- CI: Upgrade important CI environment (#64458)
+- CI: Upgrade important CI environment (#64451)
+- Add 4-day cooldown for uv dependency resolution (#64249)
+- Upgrade important CI environment (#64239)
 
 airflowctl 0.1.4 (2026-04-18)
 -----------------------------
