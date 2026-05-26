@@ -284,6 +284,26 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         return value
 
 
+_LIKE_ESCAPE_CHAR = "\\"
+
+
+def _escape_like_pattern(value: str) -> str:
+    r"""
+    Escape SQL ``LIKE`` / ``ILIKE`` metacharacters in a user-supplied value.
+
+    Use together with ``column.ilike(f"%{_escape_like_pattern(value)}%", escape="\\")`` on filter
+    parameters that intend literal substring matching (so a user-supplied ``%`` or ``_`` does not
+    widen the match beyond what the filter semantics promise). Search parameters that explicitly
+    expose wildcard semantics (see :class:`_SearchParam`) must not call this — they want the
+    metacharacters to pass through.
+    """
+    return (
+        value.replace(_LIKE_ESCAPE_CHAR, _LIKE_ESCAPE_CHAR * 2)
+        .replace("%", _LIKE_ESCAPE_CHAR + "%")
+        .replace("_", _LIKE_ESCAPE_CHAR + "_")
+    )
+
+
 class _SearchParam(BaseParam[str]):
     """
     Substring search on a column using ``ILIKE '%term%'`` (case-insensitive).
@@ -822,7 +842,10 @@ class _OwnersFilter(BaseParam[list[str]]):
         if not self.value:
             return select
 
-        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        conditions = [
+            DagModel.owners.ilike(f"%{_escape_like_pattern(owner)}%", escape=_LIKE_ESCAPE_CHAR)
+            for owner in self.value
+        ]
         return select.where(or_(*conditions))
 
     @classmethod
@@ -1108,13 +1131,19 @@ class _AssetDependencyFilter(BaseParam[str]):
     """Filter Dags by specific asset dependencies."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
+        if self.value is None:
             return select
 
+        escaped = _escape_like_pattern(self.value)
         asset_dag_subquery = (
             sql_select(DagScheduleAssetReference.dag_id)
             .join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id)
-            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .where(
+                or_(
+                    AssetModel.name.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                    AssetModel.uri.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                )
+            )
             .distinct()
         )
 
@@ -1138,16 +1167,17 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     """Filter Dag runs by consuming asset (name or URI)."""
 
     def to_orm(self, select: Select) -> Select:
-        if not self.value and self.skip_none:
+        if not self.value:
             return select
 
+        escaped = _escape_like_pattern(self.value)
         event_subquery = (
             sql_select(AssetEvent.id)
             .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
             .where(
                 or_(
-                    AssetModel.name.ilike(f"%{self.value}%"),
-                    AssetModel.uri.ilike(f"%{self.value}%"),
+                    AssetModel.name.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                    AssetModel.uri.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
                 )
             )
             .distinct()

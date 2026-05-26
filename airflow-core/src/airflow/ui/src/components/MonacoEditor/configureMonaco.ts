@@ -35,15 +35,19 @@ const loadMonacoModules = async () => {
     import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
   ]).then(([api]) => api);
 
-  // Resolve the workers as plain URLs (not Vite `?worker` constructors). In dev mode
-  // the SPA shell is served by the airflow api-server while Vite serves assets on a
-  // different origin, and `new Worker(crossOriginUrl, { type: "module" })` is rejected
-  // by the browser. Wrapping the cross-origin URL in a same-origin Blob shim that just
-  // re-imports it sidesteps the restriction (CORS still permits the inner import). In
-  // production the worker is same-origin and the shim is harmless.
+  // Resolve the bundled worker URLs (`?worker&url` runs the worker through Vite's worker
+  // pipeline — bundling all dependencies — and returns the resulting URL as a string,
+  // unlike `?url` which would treat the file as a raw asset and either inline its source
+  // as a data URL (assetsInlineLimit) or copy it without bundling its imports, leaving
+  // unresolved bare specifiers at runtime). In dev mode the SPA shell is served by the
+  // airflow api-server while Vite serves assets on a different origin, and
+  // `new Worker(crossOriginUrl, { type: "module" })` is rejected by the browser.
+  // Wrapping the cross-origin URL in a same-origin Blob shim that just re-imports it
+  // sidesteps the restriction (CORS still permits the inner import). In production the
+  // worker is same-origin and the shim is harmless.
   const workerUrls = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.worker.js?url").then((module) => module.default),
-    import("monaco-editor/esm/vs/language/json/json.worker.js?url").then((module) => module.default),
+    import("monaco-editor/esm/vs/editor/editor.worker.js?worker&url").then((module) => module.default),
+    import("monaco-editor/esm/vs/language/json/json.worker.js?worker&url").then((module) => module.default),
   ]);
 
   const languageContributions = Promise.all([
