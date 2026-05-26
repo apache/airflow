@@ -24,14 +24,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 from urllib import parse
 
-from elasticsearch import Elasticsearch
-
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch._compat import apply_compat_with
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
+    from elasticsearch import Elasticsearch
 
     from airflow.models.connection import Connection as AirflowConnection
 
@@ -171,6 +170,8 @@ class ESConnection:
         kwargs.pop("field_multi_value_leniency", None)
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
+        from elasticsearch import Elasticsearch
+
         if user and password:
             self.es = apply_compat_with(Elasticsearch(self.url, basic_auth=(user, password), **kwargs))
         else:
@@ -284,6 +285,8 @@ class ElasticsearchPythonHook(BaseHook):
 
     def _get_elastic_connection(self):
         """Return the Elasticsearch client."""
+        from elasticsearch import Elasticsearch
+
         client = apply_compat_with(Elasticsearch(self.hosts, **self.es_conn_args))
 
         return client

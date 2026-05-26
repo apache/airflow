@@ -303,7 +303,7 @@ class TestElasticsearchSQLHook:
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] == parameters
 
-    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
+    @mock.patch("elasticsearch.Elasticsearch")
     def test_execute_sql_query(self, mock_es):
         mock_es_sql_client = MagicMock()
         mock_es_sql_client.query.return_value = RESPONSE_WITHOUT_CURSOR
