@@ -929,5 +929,5 @@ class TestSerializedDagModel:
     def test_get_count_raises_on_none_result(self, session):
         """get_count() raises RuntimeError when session.scalar returns None (simulates DB failure)."""
         with mock.patch.object(session, "scalar", return_value=None):
-            with pytest.raises(RuntimeError, match="COUNT query on serialized_dag returned None"):
+            with pytest.raises(RuntimeError, match="COUNT query on serialized_dag returned None - possible"):
                 SDM.get_count(session=session)
