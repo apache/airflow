@@ -713,6 +713,53 @@ export class ConnectionService {
     }
     
     /**
+     * Get Connection Test
+     * Poll for the status of an enqueued connection test by its token (passed as a header).
+     * @param data The data for the request.
+     * @param data.airflowConnectionTestToken
+     * @returns AsyncConnectionTestResponse Successful Response
+     * @throws ApiError
+     */
+    public static getConnectionTest(data: GetConnectionTestData): CancelablePromise<GetConnectionTestResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/connections/enqueue-test',
+            headers: {
+                'Airflow-Connection-Test-Token': data.airflowConnectionTestToken
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Enqueue Connection Test
+     * Enqueue a connection test for deferred execution on a worker; returns a polling token.
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ConnectionTestQueuedResponse Successful Response
+     * @throws ApiError
+     */
+    public static enqueueConnectionTest(data: EnqueueConnectionTestData): CancelablePromise<EnqueueConnectionTestResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/connections/enqueue-test',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                409: 'Conflict',
+                422: 'Unprocessable Entity'
+            }
+        });
+    }
+    
+    /**
      * Get Connections
      * Get all connection entries.
      * @param data The data for the request.
@@ -812,53 +859,6 @@ export class ConnectionService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Enqueue Connection Test
-     * Enqueue a connection test for deferred execution on a worker; returns a polling token.
-     * @param data The data for the request.
-     * @param data.requestBody
-     * @returns ConnectionTestQueuedResponse Successful Response
-     * @throws ApiError
-     */
-    public static enqueueConnectionTest(data: EnqueueConnectionTestData): CancelablePromise<EnqueueConnectionTestResponse> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v2/connections/enqueue-test',
-            body: data.requestBody,
-            mediaType: 'application/json',
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                409: 'Conflict',
-                422: 'Unprocessable Entity'
-            }
-        });
-    }
-    
-    /**
-     * Get Connection Test
-     * Poll for the status of an enqueued connection test by its token.
-     * @param data The data for the request.
-     * @param data.connectionTestToken
-     * @returns AsyncConnectionTestResponse Successful Response
-     * @throws ApiError
-     */
-    public static getConnectionTest(data: GetConnectionTestData): CancelablePromise<GetConnectionTestResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/connections/enqueue-test/{connection_test_token}',
-            path: {
-                connection_test_token: data.connectionTestToken
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });

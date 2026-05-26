@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
@@ -190,6 +191,41 @@ class TestSuperviseConnectionTest:
             _call(connection_id="isolated_conn")
 
         assert _preset_connections.get() == before, "preset must be cleared after exception"
+
+    def test_env_var_set_during_test_and_cleaned_up(self, MockClient):
+        """AIRFLOW_CONN_<ID> is exposed during the test (for env/secrets-backend hooks) and removed after."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
+            conn_id="env_resolved_conn",
+            conn_type="http",
+            host="example.com",
+        )
+        env_key = "AIRFLOW_CONN_ENV_RESOLVED_CONN"
+        ctx_key = "_AIRFLOW_PROCESS_CONTEXT"
+        assert env_key not in os.environ
+        old_ctx = os.environ.get(ctx_key)
+        observed: dict = {}
+
+        def capture(conn_self):
+            observed["during_conn"] = os.environ.get(env_key)
+            observed["during_ctx"] = os.environ.get(ctx_key)
+            return True, "OK"
+
+        with mock.patch(
+            "airflow.sdk.definitions.connection.Connection.test_connection",
+            autospec=True,
+            side_effect=capture,
+        ):
+            _call(connection_id="env_resolved_conn")
+
+        # During the hook call: both env vars are set so env/secrets-backend resolvers find
+        # the preset and Connection.from_uri picks up the SDK Connection class.
+        assert observed["during_conn"] is not None
+        assert observed["during_conn"].startswith("http://")
+        assert observed["during_ctx"] == "client"
+        # After: both env vars are restored to their prior values (here: both unset).
+        assert env_key not in os.environ
+        assert os.environ.get(ctx_key) == old_ctx
 
     def test_preset_does_not_leak_for_other_conn_ids(self, MockClient):
         from airflow.sdk.execution_time.context import _get_connection

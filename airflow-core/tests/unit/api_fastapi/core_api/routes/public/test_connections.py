@@ -1329,13 +1329,39 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         response = test_client.post("/connections/enqueue-test", json=body)
         assert response.status_code == 202
 
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_rejects_team_name_mismatch_with_existing_connection(
+        self, test_client, session, testing_team
+    ):
+        """A test claiming a different team than the connection's owner is rejected (no cross-team write)."""
+        self.create_connection(team_name=testing_team.name)
+        body = {**self.TEST_REQUEST_BODY, "team_name": "some_other_team", "commit_on_success": True}
+
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 403
+        assert "does not match the team" in response.json()["detail"]
+        assert session.scalar(select(ConnectionTestRequest)) is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_accepts_matching_team_for_existing_connection(self, test_client, session, testing_team):
+        """A test for an existing connection is authorized against that connection's team."""
+        self.create_connection(team_name=testing_team.name)
+        body = {**self.TEST_REQUEST_BODY, "team_name": testing_team.name}
+
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 202
+
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_get_status_returns_pending(self, test_client, session):
         """GET /connections/enqueue-test/{token} returns current status."""
         post_response = test_client.post("/connections/enqueue-test", json=self.TEST_REQUEST_BODY)
         token = post_response.json()["token"]
 
-        response = test_client.get(f"/connections/enqueue-test/{token}")
+        response = test_client.get(
+            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        )
         assert response.status_code == 200
         body = response.json()
         assert body["token"] == token
@@ -1356,7 +1382,9 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         ct.result_message = "Connection successfully tested"
         session.commit()
 
-        response = test_client.get(f"/connections/enqueue-test/{token}")
+        response = test_client.get(
+            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        )
         assert response.status_code == 200
         body = response.json()
         assert body["state"] == "success"
@@ -1364,8 +1392,15 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
 
     def test_get_status_returns_404_for_invalid_token(self, test_client):
         """GET with an unknown token returns 404."""
-        response = test_client.get("/connections/enqueue-test/nonexistent-token")
+        response = test_client.get(
+            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": "nonexistent-token"}
+        )
         assert response.status_code == 404
+
+    def test_get_status_requires_token_header(self, test_client):
+        """GET without the token header is rejected (422), so the token is never in the URL."""
+        response = test_client.get("/connections/enqueue-test")
+        assert response.status_code == 422
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_get_status_unauthorized_user_does_not_leak_row(
@@ -1376,7 +1411,9 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert post_response.status_code == 202
         token = post_response.json()["token"]
 
-        response = unauthorized_test_client.get(f"/connections/enqueue-test/{token}")
+        response = unauthorized_test_client.get(
+            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        )
         assert response.status_code in (401, 403, 404)
         body = (
             response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
