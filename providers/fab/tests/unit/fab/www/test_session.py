@@ -85,8 +85,12 @@ class TestAirflowSecureCookieSessionInterface:
         # simulate Flask calling set_cookie with bytes.  patch.object replaces
         # the method on the class with a MagicMock; when called via super() the
         # mock's side_effect receives positional args WITHOUT self.
+        #
+        # session.py imports `request` via `from flask import request`, so we
+        # must patch the name in that module's namespace rather than flask.request
+        # (which is a different reference once the import has been evaluated).
         with (
-            patch("flask.request") as mock_request,
+            patch("airflow.providers.fab.www.session.request") as mock_request,
             patch.object(
                 type(interface).__mro__[2],
                 "save_session",
@@ -114,7 +118,7 @@ class TestAirflowSecureCookieSessionInterface:
         response.set_cookie = track_set_cookie
 
         with (
-            patch("flask.request") as mock_request,
+            patch("airflow.providers.fab.www.session.request") as mock_request,
             patch.object(
                 type(interface).__mro__[2],
                 "save_session",
