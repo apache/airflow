@@ -46,7 +46,7 @@ Default (files passed by prek/pre-commit):
 
 ``--all-files``:
     Walk every ``.py`` file under the project source roots
-    (``airflow-core``, ``airflow-ctl``, ``task-sdk``, ``providers``, ``shared``) —
+    (``airflow-core``, ``airflow-ctl``, ``providers``, ``shared``) —
     the same scope the pre-commit hook applies to.
 
 ``--cleanup``:
@@ -78,7 +78,7 @@ _PROVIDE_SESSION_DECORATOR = "provide_session"
 
 # Top-level directories scanned by ``--all-files`` / ``--generate``. Keep in sync with the
 # ``files:`` pattern for this hook in ``.pre-commit-config.yaml``.
-_PROJECT_SOURCE_ROOTS = ("airflow-core", "airflow-ctl", "task-sdk", "providers", "shared")
+_PROJECT_SOURCE_ROOTS = ("airflow-core", "airflow-ctl", "providers", "shared")
 
 
 def _has_provide_session_decorator(nodes: list[ast.expr]) -> bool:
@@ -158,8 +158,8 @@ class AllowlistManager:
         """Parse allowlist *text* into a ``{rel_path: count}`` mapping.
 
         Same validation rules as :meth:`load` so we can reuse parsing for the
-        on-disk allowlist *and* for the previous version fetched from git when
-        guarding against entry-removal bypasses.
+        on-disk allowlist *and* for the git-tracked version fetched from
+        ``HEAD`` when guarding against entry-removal bypasses.
         """
         result: dict[str, int] = {}
         for raw_line in text.splitlines():
@@ -330,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Check every Python file under the project source roots "
-            "(airflow-core, airflow-ctl, task-sdk, providers, shared)"
+            "(airflow-core, airflow-ctl, providers, shared)"
         ),
     )
     parser.add_argument(
@@ -369,8 +369,8 @@ def main(argv: list[str] | None = None) -> int:
     return _check_provide_session_kwargs(paths, allowlist, manager)
 
 
-def _previous_allowlist(manager: AllowlistManager) -> dict[str, int]:
-    """Return the allowlist as recorded at ``HEAD``, or an empty dict.
+def _parse_tracked_allowlist(manager: AllowlistManager) -> dict[str, int]:
+    """Return the allowlist as recorded at ``HEAD`` (the git-tracked version).
 
     Used by :func:`_expand_for_allowlist_edits` so that *removing* an entry
     cannot silently drop coverage: the previously-listed file is still
@@ -404,9 +404,9 @@ def _expand_for_allowlist_edits(
     Without this, a contributor could raise counts in
     ``known_provide_session_positional.txt`` and the hook would do no validation
     (since only the ``.txt`` file is passed), letting the loosened allowlist
-    sail through. We also union the *previous* allowlist (from ``HEAD``) so that
-    removing an entry cannot silently bypass the check for a file that still
-    has positional ``session`` arguments.
+    sail through. We also union the git-tracked allowlist (from ``HEAD``) so
+    that removing an entry cannot silently bypass the check for a file that
+    still has positional ``session`` arguments.
 
     Both sides of the allowlist-file comparison are resolved so the detection is
     robust to symlinks and unresolved inputs (the hook can be invoked with either).
@@ -417,8 +417,8 @@ def _expand_for_allowlist_edits(
 
     expanded = list(paths)
     seen = {p.resolve() for p in paths if p.suffix == ".py"}
-    previous = _previous_allowlist(manager)
-    for rel in {*allowlist, *previous}:
+    tracked = _parse_tracked_allowlist(manager)
+    for rel in {*allowlist, *tracked}:
         candidate = (REPO_ROOT / rel).resolve()
         if candidate.exists() and candidate not in seen:
             seen.add(candidate)
