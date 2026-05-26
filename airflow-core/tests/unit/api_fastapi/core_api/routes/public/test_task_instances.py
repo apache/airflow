@@ -856,10 +856,13 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
             ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
-            ({"order_by": "rendered_map_index", "limit": 100}, sorted(range(110), key=str)[:100]),
+            # Compound sort (_rendered_map_index ASC, map_index ASC): all TIs have NULL
+            # _rendered_map_index in this fixture so they all tie on the first key and
+            # are ordered by map_index integer — 0, 1, 2, ..., 99 (not lexicographic).
+            ({"order_by": "rendered_map_index", "limit": 100}, list(range(100))),
             (
                 {"order_by": "-rendered_map_index", "limit": 100},
-                sorted(range(110), key=str, reverse=True)[:100],
+                list(range(109, 9, -1)),
             ),
         ],
     )
@@ -929,6 +932,80 @@ class TestGetMappedTaskInstances:
         body = response.json()
         assert body["total_entries"] == len(expected_map_indexes)
         assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
+
+    def test_rendered_map_index_order_with_template(self, test_client, session, one_task_with_mapped_tis):
+        """Custom map_index_template labels must be sorted alphabetically."""
+        # one_task_with_mapped_tis creates 3 TIs: map_index 0, 1, 2.
+        labels = {0: "zebra", 1: "apple", 2: "mango"}
+        for map_index, label in labels.items():
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+            )
+            ti._rendered_map_index = label
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Alphabetical order: "apple" (1), "mango" (2), "zebra" (0).
+        assert [ti["map_index"] for ti in body["task_instances"]] == [1, 2, 0]
+        assert [ti["rendered_map_index"] for ti in body["task_instances"]] == [
+            "apple",
+            "mango",
+            "zebra",
+        ]
+
+    def test_rendered_map_index_order_retried_tis_not_displaced(self, test_client, session, dag_maker):
+        """
+        Retried mapped TIs (newer UUID, same map_index) must appear in map_index
+        order and not be pushed beyond the first page.
+
+        Before the fix, order_by=rendered_map_index fell through to a UUID
+        tiebreaker when _rendered_map_index was NULL.  Retried TIs received a
+        newer UUID at retry time and therefore sorted to the end of the result
+        set, falling outside LIMIT N.
+        """
+        from sqlalchemy import update as sa_update
+
+        from airflow.models.taskinstance import uuid7
+
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"retry_dag": {"success": 5, "failed": 0, "running": 0}},
+        )
+
+        # Simulate retries on map_index 1 and 3 by assigning them newer (larger)
+        # UUIDs.  In production a retry replaces the TI row with a new UUID;
+        # those newer rows previously sorted to the end when the UUID was the
+        # effective tiebreaker.
+        for map_index in [1, 3]:
+            session.execute(
+                sa_update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == "retry_dag",
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+                .values(id=uuid7())
+            )
+        session.commit()
+
+        response = test_client.get(
+            "/dags/retry_dag/dagRuns/run_retry_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 50},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # All 5 TIs must be on the first page in map_index order.
+        assert body["total_entries"] == 5
+        assert [ti["map_index"] for ti in body["task_instances"]] == [0, 1, 2, 3, 4]
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(

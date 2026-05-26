@@ -543,7 +543,10 @@ class SortParam(BaseParam[list[str]]):
     MAX_SORT_PARAMS = 10
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
+        self,
+        allowed_attrs: list[str],
+        model: Base,
+        to_replace: dict[str, str | Column | list[Column]] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -582,6 +585,16 @@ class SortParam(BaseParam[list[str]]):
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
                 if isinstance(replacement, str):
                     lstriped_orderby = replacement
+                elif isinstance(replacement, list):
+                    # Compound sort: expand the list into multiple sort entries.
+                    # Each column's ORM key becomes its attr_name so that
+                    # row_value() can read the corresponding attribute via
+                    # getattr(row, attr_name) without further to_replace lookups.
+                    is_desc = order_by_value.startswith("-")
+                    for col in replacement:
+                        col_attr_name = getattr(col, "key", attr_name)
+                        resolved.append((col_attr_name, col, is_desc))
+                    continue
                 else:
                     column = replacement
 
@@ -632,7 +645,7 @@ class SortParam(BaseParam[list[str]]):
             replacement = self.to_replace.get(name)
             if isinstance(replacement, str):
                 return getattr(row, replacement, None)
-            if replacement is not None:
+            if replacement is not None and not isinstance(replacement, list):
                 # TODO: Column-form ``to_replace`` (e.g. ``{"last_run_state": DagRun.state}``)
                 # isn't supported for cursor pagination — no endpoint that uses cursor
                 # pagination needs it today. When one does, decide how the row exposes the
@@ -644,6 +657,10 @@ class SortParam(BaseParam[list[str]]):
                     f"``{name}``. Use a string alias in ``to_replace`` or sort by a primary-model "
                     f"attribute."
                 )
+            # List-form replacements are expanded in _resolve() into individual entries
+            # each using the column's own ORM key as attr_name, so ``name`` at this point
+            # is already a concrete model attribute (e.g. ``_rendered_map_index`` or
+            # ``map_index``) — fall through to the getattr below.
         return getattr(row, name, None)
 
     def get_primary_key_column(self) -> Column:
