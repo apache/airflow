@@ -17,13 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Delete, select
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.asset import AssetModel
+from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
@@ -234,6 +239,124 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) is None
 
+    def test_set_without_expires_at_stores_null(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """set() without expires_at stores NULL — the worker is responsible for computing expiry."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at is None
+
+    def test_set_expires_at_none_stores_null(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """expires_at=None stores NULL — the key never expires regardless of global config."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at is None
+
+    def test_cleanup_removes_expired_rows(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "old_key", "old_value", session=session)
+        backend.set(scope, "new_key", "new_value", session=session)
+        session.flush()
+
+        # Backdate expires_at on old_key to simulate it having expired
+        old_row = session.scalar(
+            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "old_key")
+        )
+        assert old_row is not None
+        old_row.expires_at = timezone.utcnow() - timedelta(hours=1)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "old_key")) is None
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "new_key")) is not None
+
+    def test_cleanup_removes_expires_at_rows(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "short_lived", "value", session=session)
+        session.flush()
+
+        row = session.scalar(
+            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "short_lived")
+        )
+        assert row is not None
+        row.expires_at = timezone.utcnow() - timedelta(hours=1)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+
+        # cleaned up via expires_at, even though updated_at is recent
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "short_lived")) is None
+
+    @conf_vars({("state_store", "state_cleanup_batch_size"): "2"})
+    def test_cleanup_batches_deletes(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        """cleanup() issues one DELETE per batch, not one DELETE for all rows at once.
+
+        Verifying this is not straightforward because cleanup() creates its own internal session,
+        so we cannot simply inspect it from outside, so what we do is:
+
+        1. Patch `create_session` in the metastore module with a thin wrapper (`tracking_cs`) that
+           yields the real session but replaces `session.execute` with a spy.
+        2. The spy checks whether the statement being executed is a sqla Delete object and
+           records it if so.
+        3. After cleanup() returns, we assert that exactly ceil(<number of rows>/<batch size>).
+        """
+        import airflow.state.metastore as metastore_mod
+
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        for key in ("k1", "k2", "k3", "k4", "k5"):
+            backend.set(scope, key, "v", session=session)
+            session.flush()
+
+        session.execute(
+            TaskStateModel.__table__.update().values(expires_at=timezone.utcnow() - timedelta(hours=1))
+        )
+        session.commit()
+
+        deletes = []
+        original_cs = metastore_mod.create_session
+
+        @contextmanager
+        def tracking_cs(*args, **kwargs):
+            with original_cs(*args, **kwargs) as s:
+                orig_execute = s.execute
+
+                def tracked(stmt, *a, **kw):
+                    if isinstance(stmt, Delete):
+                        deletes.append(stmt)
+                    return orig_execute(stmt, *a, **kw)
+
+                s.execute = tracked
+                yield s
+
+        with patch.object(metastore_mod, "create_session", side_effect=tracking_cs):
+            backend.cleanup()
+
+        session.expire_all()
+
+        # batch_size=2, 5 rows -> delete runs 3 times (2+2+1)
+        assert len(deletes) == 3
+
 
 class TestMetastoreStateBackendAssetScope:
     def test_get_returns_none_for_missing_key(
@@ -305,6 +428,19 @@ class TestMetastoreStateBackendAssetScope:
         session.flush()
 
         assert backend.get(scope2, "watermark", session=session) is None
+
+    def test_cleanup_does_not_touch_asset_state(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset.id)
+        backend.set(scope, "watermark", "2026-01-01", session=session)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+        assert session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)) is not None
 
 
 @pytest.mark.asyncio(loop_scope="class")
@@ -388,6 +524,19 @@ class TestMetastoreStateBackendAsync:
             await backend.aset(scope, "job_id", "app_with_session", session=session)
             result = await backend.aget(scope, "job_id", session=session)
         assert result == "app_with_session"
+
+
+class TestStateStoreConfig:
+    def test_defaults(self):
+        assert conf.getint("state_store", "default_retention_days") == 30
+        assert conf.getint("state_store", "state_cleanup_batch_size") == 0
+
+    @conf_vars(
+        {("state_store", "default_retention_days"): "7", ("state_store", "state_cleanup_batch_size"): "50"}
+    )
+    def test_overrides(self):
+        assert conf.getint("state_store", "default_retention_days") == 7
+        assert conf.getint("state_store", "state_cleanup_batch_size") == 50
 
 
 class TestResolveStateBackend:

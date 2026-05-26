@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+0.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'LLMRetryPolicy' to common-ai provider (#65451)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update dependencies to fix dependabot alarms in providers.common.ai (#66628)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
 0.2.0
 .....
 

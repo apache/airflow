@@ -188,3 +188,13 @@ class TestAzureKeyVaultBackend:
         backend.client
         assert not mock_defaul_azure_credential.called
         mock_client_secret_credential.assert_called_once()
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_variable_returns_none_for_invalid_secret_name(self, mock_client):
+        """
+        Test that if the variable key produces an invalid Azure Key Vault secret name
+        (e.g. contains dots), the backend returns None without calling the API.
+        """
+        backend = AzureKeyVaultBackend()
+        assert backend.get_variable("SomeOperator.cache_key") is None
+        mock_client.get_secret.assert_not_called()

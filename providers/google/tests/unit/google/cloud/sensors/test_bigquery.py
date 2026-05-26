@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 from google.api_core.exceptions import NotFound
+from google.cloud.bigquery import TableReference
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
@@ -323,9 +324,15 @@ class TestBigQueryStreamingBufferEmptySensor:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.get_client.assert_called_once_with(project_id=TEST_PROJECT_ID)
-        mock_hook.return_value.get_client.return_value.get_table.assert_called_once_with(
-            f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
-        )
+        get_table_call = mock_hook.return_value.get_client.return_value.get_table
+        get_table_call.assert_called_once()
+        # ``Client.get_table`` is given a ``TableReference``, never the legacy
+        # ``project:dataset.table`` string, which the BigQuery client rejects.
+        table_ref = get_table_call.call_args.args[0]
+        assert isinstance(table_ref, TableReference)
+        assert table_ref.project == TEST_PROJECT_ID
+        assert table_ref.dataset_id == TEST_DATASET_ID
+        assert table_ref.table_id == TEST_TABLE_ID
 
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_poke_returns_false_when_buffer_present(self, mock_hook):

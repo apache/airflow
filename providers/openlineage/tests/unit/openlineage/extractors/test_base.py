@@ -436,10 +436,25 @@ def test_default_extractor_uses_different_operatorlineage_class():
 
 
 def test_default_extractor_uses_wrong_operatorlineage_class():
-    operator = OperatorWrongOperatorLineageClass(task_id="task_id")
-    # If extractor returns lineage class that can't be changed into OperatorLineage, just return
-    # empty OperatorLineage
-    assert ExtractorManager().extract_metadata(mock.MagicMock(), operator, None, None) == OperatorLineage()
+    # The hook lineage collector is a process-wide singleton; other tests in the same
+    # pytest session (e.g. providers/common/ai/.../durable/test_storage.py via
+    # ObjectStoragePath operations) populate it, and ExtractorManager.extract_metadata
+    # falls through to it when the extractor returns an unusable lineage class, leaking
+    # those datasets into this assertion. Pin a fresh collector for isolation. Durable
+    # fix (clearing the collector in teardown for tests that exercise ObjectStoragePath)
+    # is tracked at https://github.com/apache/airflow/issues/67044.
+    from airflow.providers.common.compat.sdk import HookLineageCollector
+
+    with mock.patch(
+        "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector",
+        return_value=HookLineageCollector(),
+    ):
+        operator = OperatorWrongOperatorLineageClass(task_id="task_id")
+        # If extractor returns lineage class that can't be changed into OperatorLineage,
+        # just return empty OperatorLineage
+        assert (
+            ExtractorManager().extract_metadata(mock.MagicMock(), operator, None, None) == OperatorLineage()
+        )
 
 
 def test_operator_lineage_merge_concatenates_inputs_and_outputs():

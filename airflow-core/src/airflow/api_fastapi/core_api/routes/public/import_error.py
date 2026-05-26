@@ -98,11 +98,10 @@ def get_import_error(
 
     # No Dags matched for this file -- either the file genuinely contains
     # no Dags (parse failed before any Dag was defined), or the name keys
-    # did not resolve. Redact the stacktrace rather than returning the raw
-    # error, so the response stays on the deny-by-default side of the
-    # authorization check.
+    # did not resolve. Return the raw error in this case; a proper
+    # admin-only path for unregistered files is tracked in a follow-up
+    # issue (see https://github.com/apache/airflow/issues/67461).
     if not file_dag_ids:
-        error.stacktrace = REDACTED_STACKTRACE
         return error
 
     # Can the user read any Dags in the file?
@@ -228,12 +227,11 @@ def get_import_errors(
 
         # No Dags matched for this file -- either the file genuinely has
         # no Dags yet (parse failed before any Dag was defined), or the
-        # name keys did not resolve. Redact the stacktrace before
-        # appending so the response stays on the deny-by-default side of
-        # the authorization check.
+        # name keys did not resolve. Append the raw error in this case;
+        # a proper admin-only path for unregistered files is tracked in
+        # a follow-up issue
+        # (see https://github.com/apache/airflow/issues/67461).
         if not dag_ids:
-            session.expunge(import_error)
-            import_error.stacktrace = REDACTED_STACKTRACE
             import_errors.append(import_error)
             continue
 

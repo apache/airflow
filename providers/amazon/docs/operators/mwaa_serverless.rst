@@ -96,3 +96,17 @@ To stop a running Amazon MWAA Serverless workflow run, use
     :dedent: 4
     :start-after: [START howto_operator_mwaa_serverless_stop_workflow_run]
     :end-before: [END howto_operator_mwaa_serverless_stop_workflow_run]
+
+.. _howto/operator:MwaaServerlessDeleteWorkflowOperator:
+
+Delete a Workflow
+-----------------
+
+To delete an Amazon MWAA Serverless workflow, use
+:class:`~airflow.providers.amazon.aws.operators.mwaa_serverless.MwaaServerlessDeleteWorkflowOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_mwaa_serverless_delete_workflow]
+    :end-before: [END howto_operator_mwaa_serverless_delete_workflow]

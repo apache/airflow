@@ -27,16 +27,63 @@
 Changelog
 ---------
 
-When the ``[elasticsearch] host`` config embeds credentials
-(``https://user:password@elk.example.com:9200``), the log-source label
-shown in task logs is now the host URL with the ``user:password@`` portion
-stripped. Previously the full URL (including credentials) could appear as
-a dictionary key in the task-log output when log-hits did not carry a
-``host`` field. The Elasticsearch client is still connected using the
-full URL, so authentication is unaffected.
+``ElasticsearchTaskHandler`` no longer silently registers itself as the remote
+task-log reader during ``dictConfig``. The implicit registration still happens
+for one more release but now emits an ``AirflowProviderDeprecationWarning`` and
+will be removed in a future provider release. If you ship a custom
+``[logging] logging_config_class`` module that swaps in
+``ElasticsearchTaskHandler``, set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)``
+at module scope in that module.
+
+6.5.4
+.....
+
+.. note::
+   A new ``[elasticsearch] es_compat_with`` config option lets operators pin
+   the ``compatible-with`` HTTP content-negotiation level used by the
+   Elasticsearch client. Since 6.5.1 the provider depends on
+   ``elasticsearch>=8.10,<10``, and a default install resolves to an
+   ``elasticsearch>=9`` client which unconditionally negotiates
+   ``compatible-with=9`` on every request. Elasticsearch 8.x servers reject
+   that with HTTP 400 ``media_type_header_exception`` (regression introduced
+   by #64070), breaking remote task log ingestion and the SQL/Python hooks
+   against ES 8 clusters. Setting ``es_compat_with = "8"`` rewrites the
+   client transport so every outbound request carries
+   ``compatible-with=8`` (and the matching ``+x-ndjson`` form for bulk
+   requests), restoring compatibility without dropping ES 9 support. When
+   unset, behavior is unchanged.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make _parse_raw_log resilient to malformed or non-JSON log lines by introducing best-effort parsing with a fallback structure. Add unit tests. (#66383)``
+* ``Pin compatible-with at the transport layer to keep ES 8 servers working (#66065)``
+
+Misc
+~~~~
+
+* ``Implement fetchmany support for ElasticsearchSQLCursor using an internal row buffer. (#66658)``
+* ``Adjust log message header for expandable sources (#66570)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Elasticsearch and Opensearch providers changelog.rst (#67007)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
 
 6.5.3
 .....
+
+.. note::
+  When the ``[elasticsearch] host`` config embeds credentials
+  (``https://user:password@elk.example.com:9200``), the log-source label
+  shown in task logs is now the host URL with the ``user:password@`` portion
+  stripped. Previously the full URL (including credentials) could appear as
+  a dictionary key in the task-log output when log-hits did not carry a
+  ``host`` field. The Elasticsearch client is still connected using the
+  full URL, so authentication is unaffected.
 
 Bug Fixes
 ~~~~~~~~~

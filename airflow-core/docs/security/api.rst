@@ -86,6 +86,11 @@ from scripts running in the browser.
     access_control_allow_methods = POST, GET, OPTIONS, DELETE
     access_control_allow_origins = https://exampleclientapp1.com https://exampleclientapp2.com
 
+The ``Access-Control-Allow-Credentials`` header is included by default. Set
+``access_control_allow_credentials = False`` if you have configured
+``access_control_allow_origins`` and do not want browsers to send credentials
+(cookies, ``Authorization`` header) with cross-origin requests.
+
 Page size limit
 ---------------
 
