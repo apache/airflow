@@ -128,6 +128,7 @@
     "selectDateRange": "Selecionar intervalo de datas",
     "startTime": "Hora de início"
   },
+  "generateToken": "Gerar Token",
   "logicalDate": "Data Lógica",
   "logout": "Sair",
   "logoutConfirmation": "Você está prestes a sair do aplicativo.",
@@ -171,11 +172,11 @@
   "reset": "Resetar",
   "runId": "ID da Execução",
   "runTypes": {
+    "asset_materialization": "Materialização de Asset",
     "asset_triggered": "Asset Acionado",
     "backfill": "Backfill",
     "manual": "Manual",
-    "scheduled": "Agendado",
-    "asset_materialization": "Materialização de Asset"
+    "scheduled": "Agendado"
   },
   "scroll": {
     "direction": {
@@ -296,27 +297,27 @@
       "error": "Limpeza em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
-        "title": "Limpeza em Massa de {{resourceName}} Submetida",
         "description_one": "{{count}} {{resourceName}} foi limpo com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}"
+        "description_other": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
+        "title": "Limpeza em Massa de {{resourceName}} Submetida"
       }
     },
     "bulkDelete": {
       "error": "Exclusão em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
-        "title": "Exclusão em Massa de {{resourceName}} Submetida",
         "description_one": "{{count}} {{resourceName}} foi excluído com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}"
+        "description_other": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
+        "title": "Exclusão em Massa de {{resourceName}} Submetida"
       }
     },
     "bulkUpdate": {
       "error": "Atualização em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
-        "title": "Atualização em Massa de {{resourceName}} Submetida",
         "description_one": "{{count}} {{resourceName}} foi atualizado com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}"
+        "description_other": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
+        "title": "Atualização em Massa de {{resourceName}} Submetida"
       }
     },
     "create": {
@@ -333,13 +334,17 @@
         "title": "Exclusão de {{resourceName}} Submetida"
       }
     },
+    "forbidden": {
+      "description": "Você não tem permissão para realizar esta ação.",
+      "title": "Acesso Negado"
+    },
     "import": {
       "error": "Importação de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram importados com sucesso.",
-        "title": "Importação de {{resourceName}} Submetida",
         "description_one": "{{count}} {{resourceName}} foi importado com sucesso.",
-        "description_other": "{{count}} {{resourceName}} foram importados com sucesso."
+        "description_other": "{{count}} {{resourceName}} foram importados com sucesso.",
+        "title": "Importação de {{resourceName}} Submetida"
       }
     },
     "update": {
@@ -348,11 +353,19 @@
         "description": "{{resourceName}} foi atualizado com sucesso.",
         "title": "Atualização de {{resourceName}} Submetida"
       }
-    },
-    "forbidden": {
-      "title": "Acesso Negado",
-      "description": "Você não tem permissão para realizar esta ação."
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "Token de API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Ocorreu um erro ao gerar o token. Por favor, tente novamente.",
+    "errorTitle": "Falha na Geração do Token",
+    "generate": "Gerar",
+    "selectType": "Selecione o tipo de token a ser gerado.",
+    "title": "Gerar Token",
+    "tokenExpiresIn": "Este token expira em {{duration}}.",
+    "tokenGenerated": "Seu token foi gerado.",
+    "tokenShownOnce": "Este token será exibido apenas uma vez. Copie-o agora."
   },
   "total": "Total {{state}}",
   "triggered": "Acionado",
@@ -363,18 +376,5 @@
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"
-  },
-  "generateToken": "Gerar Token",
-  "tokenGeneration": {
-    "title": "Gerar Token",
-    "apiToken": "Token de API",
-    "cliToken": "Token CLI",
-    "generate": "Gerar",
-    "selectType": "Selecione o tipo de token a ser gerado.",
-    "tokenGenerated": "Seu token foi gerado.",
-    "tokenShownOnce": "Este token será exibido apenas uma vez. Copie-o agora.",
-    "tokenExpiresIn": "Este token expira em {{duration}}.",
-    "errorTitle": "Falha na Geração do Token",
-    "errorDescription": "Ocorreu um erro ao gerar o token. Por favor, tente novamente."
   }
 }

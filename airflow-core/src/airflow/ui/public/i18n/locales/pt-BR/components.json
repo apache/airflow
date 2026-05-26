@@ -10,9 +10,11 @@
     "maxRuns": "Máximo de Execuções Ativas",
     "missingAndErroredRuns": "Execuções Faltando e com Erro",
     "missingRuns": "Execuções Faltando",
+    "overrideExistingParams": "Sobrescrever parâmetros em execuções existentes",
     "permissionDenied": "Dry run falhou: o usuário não tem permissão para criar backfills.",
     "reprocessBehavior": "Comportamento de Reprocessamento",
     "run": "Executar Backfill",
+    "scheduleNotBackfillable": "O agendamento deste Dag não suporta backfills",
     "selectDescription": "Executar este Dag para um intervalo de datas",
     "selectLabel": "Backfill",
     "title": "Executar Backfill",
@@ -26,9 +28,7 @@
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
       "startBeforeEnd": "A Data Inicial do Intervalo deve ser menor ou igual à Data Final do Intervalo."
-    },
-    "overrideExistingParams": "Sobrescrever parâmetros em execuções existentes",
-    "scheduleNotBackfillable": "O agendamento deste Dag não suporta backfills"
+    }
   },
   "banner": {
     "backfillInProgress": "Backfill em progresso",
@@ -69,8 +69,8 @@
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_other": "{{count}} arquivos",
-    "files_one": "1 arquivo"
+    "files_one": "1 arquivo",
+    "files_other": "{{count}} arquivos"
   },
   "flexibleForm": {
     "placeholder": "Selecionar Valor",
@@ -98,13 +98,19 @@
   },
   "limitedList": "+{{count}} mais",
   "limitedList.allItems": "Todos os {{count}} itens:",
+  "limitedList.allItems_one": "Todos os {{count}} itens:",
+  "limitedList.allItems_other": "Todos os {{count}} itens:",
   "limitedList.allTags_one": "Todas as etiquetas (1)",
   "limitedList.allTags_other": "Todas as etiquetas ({{count}})",
   "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
   "limitedList.clickToOpenFull": "Clique em \"+{{count}} mais\" para ver a lista completa",
+  "limitedList.clickToOpenFull_one": "Clique em \"+{{count}} mais\" para ver a lista completa",
+  "limitedList.clickToOpenFull_other": "Clique em \"+{{count}} mais\" para ver a lista completa",
   "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
   "limitedList.showingItems_one": "Mostrando 1 item",
   "limitedList.showingItems_other": "Mostrando {{count}} itens",
+  "limitedList_one": "+{{count}} mais",
+  "limitedList_other": "+{{count}} mais",
   "logs": {
     "file": "Arquivo",
     "location": "linha {{line}} em {{name}}"
@@ -166,11 +172,5 @@
     "allVersions": "Todas as versões",
     "dagVersion": "Versão do Dag",
     "versionCode": "v{{versionCode}}"
-  },
-  "limitedList_one": "+{{count}} mais",
-  "limitedList_other": "+{{count}} mais",
-  "limitedList.allItems_one": "Todos os {{count}} itens:",
-  "limitedList.allItems_other": "Todos os {{count}} itens:",
-  "limitedList.clickToOpenFull_one": "Clique em \"+{{count}} mais\" para ver a lista completa",
-  "limitedList.clickToOpenFull_other": "Clique em \"+{{count}} mais\" para ver a lista completa"
+  }
 }

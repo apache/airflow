@@ -43,10 +43,10 @@
   "extraLinks": "Links Extra",
   "grid": {
     "buttons": {
-      "resetToLatest": "Redefinir para a Última",
-      "toggleGroup": "Alternar Grupo",
       "newerRuns": "Execuções mais recentes",
-      "olderRuns": "Execuções mais antigas"
+      "olderRuns": "Execuções mais antigas",
+      "resetToLatest": "Redefinir para a Última",
+      "toggleGroup": "Alternar Grupo"
     },
     "runTypeLegend": "Legenda dos Tipos de Execução"
   },
@@ -71,14 +71,14 @@
     },
     "info": "INFO",
     "noTryNumber": "Nenhum número de tentativa",
-    "settings": "Configurações",
-    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
-    "warning": "AVISO",
     "search": {
       "matchCount": "{{current}} de {{total}}",
       "noMatches": "Nenhuma correspondência",
       "placeholder": "Pesquisar logs..."
-    }
+    },
+    "settings": "Configurações",
+    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
+    "warning": "AVISO"
   },
   "navigation": {
     "navigation": "Navegação: Shift+{{arrow}}",

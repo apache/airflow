@@ -1,5 +1,7 @@
 {
   "assetSchedule": "{{count}} de {{total}} ativos atualizados",
+  "assetSchedule_one": "{{count}} de {{total}} ativos atualizados",
+  "assetSchedule_other": "{{count}} de {{total}} ativos atualizados",
   "dagActions": {
     "delete": {
       "button": "Excluir Dag",
@@ -99,7 +101,5 @@
     },
     "placeholder": "Ordenar por"
   },
-  "unfavoriteDag": "Remover Dag dos Favoritos",
-  "assetSchedule_one": "{{count}} de {{total}} ativos atualizados",
-  "assetSchedule_other": "{{count}} de {{total}} ativos atualizados"
+  "unfavoriteDag": "Remover Dag dos Favoritos"
 }
