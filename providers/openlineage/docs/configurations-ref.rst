@@ -56,6 +56,36 @@ If you want to look at OpenLineage events without sending them anywhere, you can
     [openlineage]
     transport = {"type": "console"}
 
+OpenLineage config stored in an Airflow connection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can store OpenLineage client configuration in a Generic Airflow connection instead of putting the full JSON
+configuration directly in ``airflow.cfg``. Set ``config_conn_id`` to the connection ID and store the OpenLineage
+configuration in the connection extra as JSON.
+
+.. code-block:: ini
+
+    [openlineage]
+    config_conn_id = openlineage_default
+
+Connection extra should contain the OpenLineage client configuration:
+
+.. code-block:: json
+
+    {
+      "transport": {
+        "type": "http",
+        "url": "http://example.com:5000",
+        "auth": {"type": "airflow_connection_api_key"}
+      }
+    }
+
+For HTTP transports that require API key authentication, you can keep the token in the Airflow connection password.
+Set ``auth.type`` to ``airflow_connection_api_key``. When the config is loaded from ``config_conn_id``, the provider
+reads the API key from the same connection password by default. You can also set ``auth.conn_id`` to read the token
+from another Airflow connection. The provider resolves ``airflow_connection_api_key`` to standard OpenLineage
+``api_key`` auth before creating the OpenLineage client.
+
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
   `Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
@@ -100,9 +130,10 @@ Primary, and recommended method of configuring OpenLineage Airflow Provider is A
 As there are multiple possible ways of configuring OpenLineage, it's important to keep in mind the precedence of different configurations.
 OpenLineage Airflow Provider looks for the configuration in the following order:
 
-1. Check ``config_path`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__CONFIG_PATH environment variable)
-2. Check ``transport`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__TRANSPORT environment variable)
-3. If all the above options are missing, the OpenLineage Python client used underneath looks for configuration in the order described in `this <https://openlineage.io/docs/client/python/configuration>`_ documentation. Please note that **using Airflow configuration is encouraged** and is the only future proof solution.
+1. Check ``config_conn_id`` in ``airflow.cfg`` under ``openlineage`` section.
+2. Check ``config_path`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__CONFIG_PATH environment variable)
+3. Check ``transport`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__TRANSPORT environment variable)
+4. If all the above options are missing, the OpenLineage Python client used underneath looks for configuration in the order described in `this <https://openlineage.io/docs/client/python/configuration>`_ documentation. Please note that **using Airflow configuration is encouraged** and is the only future proof solution.
 
 
 .. _configuration_selective_enable:openlineage:
