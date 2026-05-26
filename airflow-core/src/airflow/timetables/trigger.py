@@ -465,7 +465,10 @@ class CronPartitionTimetable(CronTriggerTimetable):
         return partition_date, partition_key
 
     def _format_key(self, partition_date: DateTime) -> str:
-        return partition_date.strftime(self._key_format)
+        # partition_date is a UTC instant; format the key in the timetable timezone so the
+        # key reflects the local partition date the user reasons about (e.g. an Asia/Taipei
+        # midnight partition keys as "...T00:00:00", not the prior UTC day's "...T16:00:00").
+        return partition_date.in_timezone(self._timezone).strftime(self._key_format)
 
     def next_dagrun_info_v2(
         self,

@@ -348,6 +348,30 @@ def test_cron_trigger_next_info_with_interval():
     )
 
 
+def test_partition_key_uses_timetable_timezone():
+    """Regression: partition_key reflects the local partition date, not the UTC instant.
+
+    For an Asia/Taipei daily timetable the 2026-02-15 partition fires at Taipei
+    midnight = 2026-02-14T16:00:00Z.  partition_date stays that UTC instant, but
+    partition_key must read as the local label "2026-02-15T00:00:00" rather than
+    the UTC "2026-02-14T16:00:00".
+    """
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")
+    info = timetable.next_dagrun_info_v2(
+        last_dagrun_info=None,
+        restriction=TimeRestriction(
+            earliest=pendulum.datetime(2026, 2, 14, 12, tz="Asia/Taipei"),
+            latest=None,
+            catchup=True,
+        ),
+    )
+    assert info is not None
+    # Key formatted in the timetable timezone (the local calendar label).
+    assert info.partition_key == "2026-02-15T00:00:00"
+    # partition_date stays the UTC instant of Taipei midnight — only the key formatting changed.
+    assert info.partition_date == pendulum.datetime(2026, 2, 14, 16, 0, 0, tz="UTC")
+
+
 @pytest.mark.parametrize(
     "timetable",
     [
