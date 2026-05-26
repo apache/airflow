@@ -450,7 +450,7 @@ class TestTableauOperator:
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        
+
         # Simulate a different TypeError that does NOT contain the string "incremental"
         mock_tableau_hook.server.datasources.refresh.side_effect = TypeError("Some other type error")
 
