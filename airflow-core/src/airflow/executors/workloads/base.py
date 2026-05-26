@@ -23,7 +23,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Hashable
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer
+from pydantic import BaseModel, ConfigDict, Field
 
 from airflow.configuration import conf
 
@@ -67,13 +67,6 @@ class BundleInfo(BaseModel):
     name: str
     version: str | None = None
     version_data: dict[str, Any] | None = None
-
-    @model_serializer(mode="wrap")
-    def _serialize(self, handler: Any) -> dict[str, Any]:
-        data = handler(self)
-        if data.get("version_data") is None:
-            data.pop("version_data", None)
-        return data
 
 
 class BaseWorkloadSchema(BaseModel):
