@@ -209,119 +209,126 @@ class IterableOperator(BaseOperator):
 
         self.log.info("Running tasks with %d workers", self.max_workers)
 
-        with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=self.max_workers) as executor:
-                for task in next(chunked_tasks, []):
-                    do_xcom_push = task.do_xcom_push
-                    if task.is_async:
-                        future = executor.submit(self._run_async_operator, context, task)
-                    else:
-                        future = executor.submit(self._run_operator, context, task)
-                    futures[future] = task
+        while True:
+            with event_loop() as loop:
+                with ConcurrentExecutor(loop=loop, max_workers=self.max_workers) as executor:
+                    for task in next(chunked_tasks, []):
+                        do_xcom_push = task.do_xcom_push
+                        if task.is_async:
+                            future = executor.submit(self._run_async_operator, context, task)
+                        else:
+                            future = executor.submit(self._run_operator, context, task)
+                        futures[future] = task
 
-                while futures:
-                    futures_count = len(futures)
+                    while futures:
+                        futures_count = len(futures)
 
-                    if futures_count != prev_futures_count:
-                        self.log.info("Number of remaining futures: %s", futures_count)
-                        prev_futures_count = futures_count
+                        if futures_count != prev_futures_count:
+                            self.log.info("Number of remaining futures: %s", futures_count)
+                            prev_futures_count = futures_count
 
-                    for future in collect_futures(loop, list(futures.keys())):
-                        task = futures.pop(future)
+                        for future in collect_futures(loop, list(futures.keys())):
+                            task = futures.pop(future)
 
-                        try:
-                            if isinstance(future, asyncio.futures.Future):
-                                result = future.result()
-                            else:
-                                result = future.result(timeout=self.timeout)
+                            try:
+                                if isinstance(future, asyncio.futures.Future):
+                                    result = future.result()
+                                else:
+                                    result = future.result(timeout=self.timeout)
 
-                            self.log.debug("result: %s", result)
+                                self.log.debug("result: %s", result)
 
-                            if result is not None and task.do_xcom_push:
-                                self._xcom_push(
-                                    task=task,
-                                    value=result,
+                                if result is not None and task.do_xcom_push:
+                                    self._xcom_push(
+                                        task=task,
+                                        value=result,
+                                    )
+                            except TaskDeferred as task_deferred:
+                                operator = DecoratedDeferredAsyncOperator(
+                                    operator=task.task, task_deferred=task_deferred
                                 )
-                        except TaskDeferred as task_deferred:
-                            operator = DecoratedDeferredAsyncOperator(
-                                operator=task.task, task_deferred=task_deferred
-                            )
-                            deferred_tasks.append(
-                                self._create_mapped_task(
-                                    run_id=task.run_id,
-                                    index=task.index,
-                                    map_index=task.map_index,  # type: ignore[arg-type]
-                                    try_number=task.try_number,
-                                    operator=operator,
+                                deferred_tasks.append(
+                                    self._create_mapped_task(
+                                        run_id=task.run_id,
+                                        index=task.index,
+                                        map_index=task.map_index,  # type: ignore[arg-type]
+                                        try_number=task.try_number,
+                                        operator=operator,
+                                    )
                                 )
-                            )
-                        except asyncio.TimeoutError as e:
-                            self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                            if task.next_try_number > (self.retries or 0):
-                                exceptions.append(AirflowTaskTimeout(e))
-                            else:
-                                reschedule_date = min(reschedule_date, task.next_retry_datetime())
-                                failed_tasks.append(task)
-                        except AirflowRescheduleTaskInstanceException as e:
-                            reschedule_date = min(reschedule_date, e.reschedule_date)
-                            self.log.exception(
-                                "An exception occurred for task_id %s with index %s, it has been rescheduled at %s",
-                                task.task_id,
-                                task.index,
-                                reschedule_date,
-                            )
-                            failed_tasks.append(e.task)
-                        except Exception as e:
-                            self.log.exception(
-                                "An exception occurred for task_id %s with index %s",
-                                task.task_id,
-                                task.index,
-                            )
-                            exceptions.append(e)
+                            except asyncio.TimeoutError as e:
+                                self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                                if task.next_try_number > (self.retries or 0):
+                                    exceptions.append(AirflowTaskTimeout(e))
+                                else:
+                                    reschedule_date = min(reschedule_date, task.next_retry_datetime())
+                                    failed_tasks.append(task)
+                            except AirflowRescheduleTaskInstanceException as e:
+                                reschedule_date = min(reschedule_date, e.reschedule_date)
+                                self.log.exception(
+                                    "An exception occurred for task_id %s with index %s, it has been rescheduled at %s",
+                                    task.task_id,
+                                    task.index,
+                                    reschedule_date,
+                                )
+                                failed_tasks.append(e.task)
+                            except Exception as e:
+                                self.log.exception(
+                                    "An exception occurred for task_id %s with index %s",
+                                    task.task_id,
+                                    task.index,
+                                )
+                                exceptions.append(e)
 
-                    if len(futures) < self.max_workers:
-                        chunked_tasks = chain(list(deferred_tasks), chunked_tasks)
-                        deferred_tasks.clear()
+                        if len(futures) < self.max_workers:
+                            chunked_tasks = chain(list(deferred_tasks), chunked_tasks)
+                            deferred_tasks.clear()
 
-                        for task in next(chunked_tasks, []):
-                            if task.is_async:
-                                future = executor.submit(self._run_async_operator, context, task)
-                            else:
-                                future = executor.submit(self._run_operator, context, task)
-                            futures[future] = task
+                            for task in next(chunked_tasks, []):
+                                if task.is_async:
+                                    future = executor.submit(self._run_async_operator, context, task)
+                                else:
+                                    future = executor.submit(self._run_operator, context, task)
+                                futures[future] = task
 
-        if not failed_tasks:
-            if exceptions:
-                raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
-            if do_xcom_push:
-                from airflow.sdk.execution_time.lazy_sequence import XComIterable
+            if not failed_tasks:
+                if exceptions:
+                    raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+                if do_xcom_push:
+                    from airflow.sdk.execution_time.lazy_sequence import XComIterable
 
-                return XComIterable(
-                    task_id=self.task_id,
-                    dag_id=self.dag_id,
-                    run_id=context["run_id"],
-                    length=self._number_of_tasks,
-                    map_index=context["ti"].map_index,
+                    return XComIterable(
+                        task_id=self.task_id,
+                        dag_id=self.dag_id,
+                        run_id=context["run_id"],
+                        length=self._number_of_tasks,
+                        map_index=context["ti"].map_index,
+                    )
+                return None
+
+            # If the retry time is still in the future we defer the operator so the worker
+            # slot is released. If the retry time has already passed we immediately re-run
+            # the failed tasks without deferring.
+            if reschedule_date > timezone.utcnow():
+                # TODO: This is tricky as that import doesn't exist in Task SDK
+                from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+
+                self.defer(
+                    trigger=DateTimeTrigger(reschedule_date),
+                    method_name=self.execute_failed_tasks.__name__,
+                    kwargs={
+                        "failed_tasks": {failed_task.index for failed_task in failed_tasks},
+                        "try_number": next(iter(failed_tasks)).try_number,
+                    },
                 )
-            return None
 
-        # If the retry time is still in the future we defer the operator so the worker
-        # slot is released. If the retry time has already passed we immediately re-run
-        # the failed tasks without deferring.
-        if reschedule_date > timezone.utcnow():
-            # TODO: This is tricky as that import doesn't exist in Task SDK
-            from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-
-            self.defer(
-                trigger=DateTimeTrigger(reschedule_date),
-                method_name=self.execute_failed_tasks.__name__,
-                kwargs={
-                    "failed_tasks": {failed_task.index for failed_task in failed_tasks},
-                    "try_number": next(iter(failed_tasks)).try_number,
-                },
-            )
-
-        return self._run_tasks(context=context, tasks=list(failed_tasks))
+            # Loop back to retry failed tasks without recursion
+            tasks = list(failed_tasks)
+            failed_tasks.clear()
+            exceptions.clear()
+            reschedule_date = timezone.utcnow()
+            prev_futures_count = 0
+            chunked_tasks = batched(tasks, self.max_workers)
 
     def _run_operator(self, context: Context, task_instance: IndexedTaskInstance):
         with TaskExecutor(task_instance=task_instance) as executor:
