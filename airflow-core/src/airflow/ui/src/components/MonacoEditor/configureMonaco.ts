@@ -25,11 +25,25 @@ type MonacoEnvironment = {
 let configurationPromise: Promise<void> | undefined;
 
 const loadMonacoModules = async () => {
-  const monacoApi = import("monaco-editor/esm/vs/editor/editor.api");
+  // `editor.api` is API-only — also load the folding contribution so `editor.foldAll` /
+  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered, and the
+  // codicon styles so the gutter glyph (the `>` arrow) renders instead of an empty box.
+  // The CDN bundle used to pull these in transitively; the local ESM `editor.api` does not.
+  const monacoApi = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.api"),
+    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
+    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
+  ]).then(([api]) => api);
 
-  const workerConstructors = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.worker?worker").then((module) => module.default),
-    import("monaco-editor/esm/vs/language/json/json.worker?worker").then((module) => module.default),
+  // Resolve the workers as plain URLs (not Vite `?worker` constructors). In dev mode
+  // the SPA shell is served by the airflow api-server while Vite serves assets on a
+  // different origin, and `new Worker(crossOriginUrl, { type: "module" })` is rejected
+  // by the browser. Wrapping the cross-origin URL in a same-origin Blob shim that just
+  // re-imports it sidesteps the restriction (CORS still permits the inner import). In
+  // production the worker is same-origin and the shim is harmless.
+  const workerUrls = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.worker.js?url").then((module) => module.default),
+    import("monaco-editor/esm/vs/language/json/json.worker.js?url").then((module) => module.default),
   ]);
 
   const languageContributions = Promise.all([
@@ -37,13 +51,21 @@ const loadMonacoModules = async () => {
     import("monaco-editor/esm/vs/language/json/monaco.contribution"),
   ]);
 
-  const [monaco, [editorWorker, jsonWorker]] = await Promise.all([
+  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
     monacoApi,
-    workerConstructors,
+    workerUrls,
     languageContributions,
   ]);
 
-  return { editorWorker, jsonWorker, monaco };
+  return { editorWorkerUrl, jsonWorkerUrl, monaco };
+};
+
+const createWorkerFromUrl = (workerUrl: string): Worker => {
+  const absoluteUrl = new URL(workerUrl, import.meta.url).href;
+  const shim = `import ${JSON.stringify(absoluteUrl)};`;
+  const blobUrl = URL.createObjectURL(new Blob([shim], { type: "text/javascript" }));
+
+  return new Worker(blobUrl, { type: "module" });
 };
 
 export const configureMonaco = () => {
@@ -52,10 +74,10 @@ export const configureMonaco = () => {
   }
 
   configurationPromise = loadMonacoModules()
-    .then(({ editorWorker, jsonWorker, monaco }) => {
+    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco }) => {
       Reflect.set(globalThis, "MonacoEnvironment", {
         getWorker: (_moduleId: string, label: string) =>
-          label === "json" ? new jsonWorker() : new editorWorker(),
+          createWorkerFromUrl(label === "json" ? jsonWorkerUrl : editorWorkerUrl),
       } satisfies MonacoEnvironment);
 
       loader.config({ monaco });

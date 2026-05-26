@@ -25,7 +25,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_hook_pydantic_ai_basic]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_pydantic_ai_hook():
     @task
     def generate_summary(text: str) -> str:
@@ -43,7 +43,7 @@ example_pydantic_ai_hook()
 
 
 # [START howto_hook_pydantic_ai_structured_output]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_pydantic_ai_structured_output():
     @task
     def generate_sql(prompt: str) -> dict:
@@ -68,7 +68,7 @@ example_pydantic_ai_structured_output()
 
 
 # [START howto_task_with_toolsets]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_task_with_toolsets():
     """Use toolsets directly in a @task function without AgentOperator."""
 

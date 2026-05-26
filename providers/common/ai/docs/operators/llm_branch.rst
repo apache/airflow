@@ -64,6 +64,10 @@ returns the prompt string; all other parameters are passed to the operator:
     :start-after: [START howto_decorator_llm_branch]
     :end-before: [END howto_decorator_llm_branch]
 
+The callable may also return a non-empty ``Sequence[UserContent]`` for
+multimodal inputs -- see
+:ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
+
 With multiple branches:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py
