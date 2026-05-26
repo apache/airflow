@@ -923,11 +923,16 @@ class TestSerializedDagModel:
             pass
         with dag_maker("dag_count_2"):
             pass
+        # dag_maker writes SerializedDagModel rows on context exit; flush to make
+        # them visible within the same session before asserting.
+        session.flush()
         count = SDM.get_count(session=session)
         assert count == 2
 
-    def test_get_count_raises_on_none_result(self, session):
-        """get_count() raises RuntimeError when session.scalar returns None (simulates DB failure)."""
-        with mock.patch.object(session, "scalar", return_value=None):
-            with pytest.raises(RuntimeError, match="COUNT query on serialized_dag returned None - possible"):
+    def test_get_count_propagates_db_error(self, session):
+        """get_count() lets SQLAlchemyError propagate so callers can handle DB failures."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with mock.patch.object(session, "execute", side_effect=SQLAlchemyError("db failure")):
+            with pytest.raises(SQLAlchemyError):
                 SDM.get_count(session=session)
