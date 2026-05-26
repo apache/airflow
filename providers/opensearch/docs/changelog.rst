@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+``OpensearchTaskHandler`` no longer silently registers itself as the remote
+task-log reader during ``dictConfig``. The implicit registration still happens
+for one more release but now emits an ``AirflowProviderDeprecationWarning`` and
+will be removed in a future provider release. If you ship a custom
+``[logging] logging_config_class`` module that swaps in ``OpensearchTaskHandler``,
+set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at module scope in that
+module. See the OpenSearch provider's logging guide for the updated override
+example.
+
+1.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Adjust log message header for expandable sources (#66570)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix elasticsearch and opensearch providers changelog.rst (#67007)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
 
 1.9.1
 .....

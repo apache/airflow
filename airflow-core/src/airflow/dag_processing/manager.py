@@ -50,7 +50,10 @@ from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.dag_processing.bundles.base import (
+    BundleUsageTrackingManager,
+    unpack_bundle_version,
+)
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -241,6 +244,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
+    _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -770,7 +774,10 @@ class DagFileProcessorManager(LoggingMixin):
             if bundle.supports_versioning:
                 # we will also check the version of the bundle to see if another DAG processor has seen
                 # a new version
-                pre_refresh_version = self._bundle_versions.get(bundle.name) or bundle.get_current_version()
+                pre_refresh_version = self._bundle_versions.get(bundle.name)
+                # Use `is None` (not falsy) so an empty-string version is treated as a valid cached value.
+                if pre_refresh_version is None:
+                    pre_refresh_version, _ = unpack_bundle_version(bundle.get_current_version(), bundle)
                 current_version_matches_db = pre_refresh_version == bundle_state.version
             else:
                 # With no versioning, it always "matches"
@@ -801,7 +808,9 @@ class DagFileProcessorManager(LoggingMixin):
                 # We can short-circuit the rest of this if (1) bundle was seen before by
                 # this dag processor and (2) the version of the bundle did not change
                 # after refreshing it
-                version_after_refresh = bundle.get_current_version()
+                version_after_refresh, version_data_after_refresh = unpack_bundle_version(
+                    bundle.get_current_version(), bundle
+                )
                 if previously_seen and pre_refresh_version == version_after_refresh:
                     self.log.debug(
                         "Bundle %s version not changed after refresh: %s",
@@ -817,6 +826,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.info("Version changed for %s, new version: %s", bundle.name, version_after_refresh)
             else:
                 version_after_refresh = None
+                version_data_after_refresh = None
 
             # Persistence failure must not skip file scanning (bundle is already refreshed locally).
             # _bundle_versions is only advanced on success to stay consistent with the DB.
@@ -826,6 +836,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception("Error persisting state for bundle %s", bundle.name)
             else:
                 self._bundle_versions[bundle.name] = version_after_refresh
+                self._bundle_version_data[bundle.name] = version_data_after_refresh
 
             found_files = {
                 DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
@@ -1126,6 +1137,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
                     bundle_version=self._bundle_versions[file.bundle_name],
+                    version_data=self._bundle_version_data.get(file.bundle_name),
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
@@ -1157,6 +1169,7 @@ class DagFileProcessorManager(LoggingMixin):
         *,
         bundle_name: str,
         bundle_version: str | None,
+        version_data: dict | None,
         parsing_result: DagFileParsingResult,
         run_duration: float,
         relative_fileloc: str | None,
@@ -1183,6 +1196,7 @@ class DagFileProcessorManager(LoggingMixin):
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,

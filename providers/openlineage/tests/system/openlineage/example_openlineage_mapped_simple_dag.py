@@ -34,23 +34,9 @@ try:
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.models import Variable
-from airflow.providers.standard.operators.python import PythonOperator
 
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
-
-
-def check_events_number_func():
-    for event_type in ("start", "complete"):
-        events = Variable.get(
-            key=f"openlineage_mapped_simple_dag.add_one.event.{event_type}", deserialize_json=True
-        )
-        if len(events) != 2:
-            raise ValueError(
-                f"Expected exactly 2 {event_type.upper()} events for task `add_one`, got {len(events)}"
-            )
-
 
 DAG_ID = "openlineage_mapped_simple_dag"
 
@@ -73,17 +59,16 @@ with DAG(
 
     added_values = add_one.expand(x=[1, 2])
 
-    check_events_number = PythonOperator(
-        task_id="check_events_number", python_callable=check_events_number_func
-    )
-
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        allow_duplicate_events_regex="openlineage_mapped_simple_dag.add_one.event.(start|complete)",
+        event_count_assertions={
+            "openlineage_mapped_simple_dag.add_one.event.start": "==2",
+            "openlineage_mapped_simple_dag.add_one.event.complete": "==2",
+        },
     )
 
-    sum_it(added_values) >> check_events_number >> check_events
+    sum_it(added_values) >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Depends, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.routes.public.asset_state import asset_state_router
 from airflow.api_fastapi.core_api.routes.public.assets import assets_router
 from airflow.api_fastapi.core_api.routes.public.auth import auth_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
@@ -45,15 +46,21 @@ from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
 from airflow.api_fastapi.core_api.routes.public.pools import pools_router
 from airflow.api_fastapi.core_api.routes.public.providers import providers_router
 from airflow.api_fastapi.core_api.routes.public.task_instances import task_instances_router
+from airflow.api_fastapi.core_api.routes.public.task_state import task_state_router
 from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
+from airflow.api_fastapi.core_api.security import get_user
 
 public_router = AirflowRouter(prefix="/api/v2")
 
-# Router with common attributes for all routes
+# Router-level Depends(get_user) makes authentication the default for every route below.
+# Individual routes still declare their own GetUserDep / requires_access_* dependencies for
+# fine-grained authorization; the router-level dependency is the defense-in-depth backstop
+# that prevents a future route from accidentally being added without an auth check.
 authenticated_router = AirflowRouter(
+    dependencies=[Depends(get_user)],
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 
@@ -74,6 +81,8 @@ authenticated_router.include_router(job_router)
 authenticated_router.include_router(plugins_router)
 authenticated_router.include_router(pools_router)
 authenticated_router.include_router(providers_router)
+authenticated_router.include_router(asset_state_router)
+authenticated_router.include_router(task_state_router)
 authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_router)
 authenticated_router.include_router(tasks_router)

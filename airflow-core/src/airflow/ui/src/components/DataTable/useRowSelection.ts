@@ -72,9 +72,23 @@ export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T
     setSelectedRows(new Map());
   };
 
+  const deselectKeys = (keys: Array<string>) => {
+    if (keys.length === 0) {
+      return;
+    }
+    setSelectedRows((prev) => {
+      const newMap = new Map(prev);
+
+      keys.forEach((key) => newMap.delete(key));
+
+      return newMap;
+    });
+  };
+
   return {
     allRowsSelected,
     clearSelections,
+    deselectKeys,
     handleRowSelect,
     handleSelectAll,
     selectedRows,

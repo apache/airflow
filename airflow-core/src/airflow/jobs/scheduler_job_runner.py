@@ -32,11 +32,14 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from sqlalchemy import (
     CTE,
+    Text,
     and_,
     case,
+    cast as sql_cast,
     delete,
     exists,
     func,
@@ -85,7 +88,7 @@ from airflow.models.asset import (
 )
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
-from airflow.models.callback import Callback, CallbackType, ExecutorCallback
+from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -632,7 +635,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .select_from(ranked_query)
                 .join(
                     TI,
@@ -954,9 +956,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
@@ -1212,7 +1214,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         The method handles several key scenarios:
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
-        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
+           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
+           pre-deferral worker exit does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
 
@@ -1232,7 +1236,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
-        callback_keys_with_events: list[str] = []
+        callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
@@ -1257,16 +1261,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
-            else:
-                # Callback event (key is string UUID)
+            elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
+            else:
+                cls.logger().error("Unknown workload key type in event buffer: %r", key)
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, callback_id)
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1362,12 +1367,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            # There are two scenarios why the same TI with the same try_number is queued
-            # after executor is finished with it:
+            # There are multiple scenarios why the same TI with the same try_number looks queued or
+            # waiting after the executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
             # - in this case we should mark it as failed here.
             # 2) the TI has been requeued after getting deferred - in this case either our executor has it
             # or the TI is queued by another job. Either ways we should not fail it.
+            # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1381,6 +1388,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
+                or (
+                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
+                    # executor success from the defer exit for the same try_number.
+                    ti.state == TaskInstanceState.SCHEDULED
+                    and state == TaskInstanceState.SUCCESS
+                    and ti.next_method is not None
+                )
             )
 
             if ti_queued and not ti_requeued:

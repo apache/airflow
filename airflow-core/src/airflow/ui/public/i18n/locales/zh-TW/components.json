@@ -121,8 +121,8 @@
       "placeHolder": "選擇團隊"
     }
   },
-  "toggleCardView": "顯示卡片視圖",
-  "toggleTableView": "顯示表格視圖",
+  "toggleCardView": "顯示卡片檢視",
+  "toggleTableView": "顯示表格檢視",
   "triggerDag": {
     "button": "觸發",
     "dataInterval": "資料區間",

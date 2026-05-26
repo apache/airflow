@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -74,7 +75,7 @@ def get_task_state(
                 "message": f"Task state key {key!r} not found",
             },
         )
-    return TaskStateResponse(value=value)
+    return TaskStateResponse(value=json.loads(value))
 
 
 @router.put("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -86,7 +87,7 @@ def set_task_state(
 ) -> None:
     """Set a task state key, creating or updating the row."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().set(scope, key, body.value, session=session)
+    get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
