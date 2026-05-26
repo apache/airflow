@@ -805,34 +805,6 @@ class TestPartitionsClear:
             )
         assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
 
-    @pytest.mark.parametrize(
-        "bad_date",
-        [
-            "2026-01-02T01:00:00~2026-01-02T10:00:00",  # jason's original case
-            "2026-01-02~2026-01-02T10:00:00",  # mixed: date / datetime
-            "2026-1-2~2026-01-02",  # missing zero-pad
-            "2026-01-01~not-a-date",  # right side not YYYY-MM-DD
-        ],
-    )
-    def test_date_range_syntax_rejects_non_yyyy_mm_dd(self, parser, bad_date):
-        with pytest.raises(SystemExit) as excinfo:
-            partition_command.clear(
-                parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, "--date", bad_date])
-            )
-        assert "--date sides must be in YYYY-MM-DD format" in str(excinfo.value.code)
-
-    @pytest.mark.parametrize(
-        ("flag", "bad_value"),
-        [
-            ("--start-date", "2026-01-02T01:00:00"),
-            ("--end-date", "2026-01-02T10:00:00"),
-            ("--start-date", "2026-1-2"),
-        ],
-    )
-    def test_start_end_date_reject_non_yyyy_mm_dd(self, parser, flag, bad_value):
-        with pytest.raises(SystemExit):
-            parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, flag, bad_value])
-
     def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(
@@ -887,3 +859,171 @@ class TestPartitionsClear:
         assert run_1.partition_key == "2026-01-01T00:00:00"
         run_3 = _get_run("part_run_3")
         assert run_3.partition_key == "2026-01-03T00:00:00"
+
+    def test_clear_with_datetime_end_date_no_clamp(self, parser, dag_maker):
+        """--end-date with an ISO datetime is NOT clamped; runs after that point are excluded."""
+        dag_maker.create_dagrun(
+            run_id="part_run_h10",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 10, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T10:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="part_run_h15",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 15, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T15:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--end-date",
+                    "2026-01-02T10:00:00",
+                ]
+            )
+        )
+
+        # 10:00 is within the boundary (<=), must be cleared.
+        run_h10 = _get_run("part_run_h10")
+        assert run_h10.partition_key is None
+        assert run_h10.partition_date is None
+        # 15:00 exceeds the un-clamped 10:00 boundary, must be untouched.
+        run_h15 = _get_run("part_run_h15")
+        assert run_h15.partition_key == "2026-01-02T15:00:00"
+
+    def test_clear_with_date_only_end_date_clamps_to_end_of_day(self, parser, dag_maker):
+        """--end-date with a date-only value clamps to 23:59:59; mid-day runs are included."""
+        dag_maker.create_dagrun(
+            run_id="part_run_h11",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 11, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T11:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--end-date",
+                    "2026-01-02",
+                ]
+            )
+        )
+
+        # 11:00 on 2026-01-02 is within the clamped boundary (23:59:59.999999).
+        run_h11 = _get_run("part_run_h11")
+        assert run_h11.partition_key is None
+        assert run_h11.partition_date is None
+
+    def test_clear_hourly_window_via_start_end_date(self, parser, dag_maker):
+        """ISO datetime --start-date / --end-date selects only runs within the exact window."""
+        dag_maker.create_dagrun(
+            run_id="part_run_h02",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 2, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T02:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="part_run_h05",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 5, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T05:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="part_run_h11b",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 11, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T11:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--start-date",
+                    "2026-01-02T03:00:00",
+                    "--end-date",
+                    "2026-01-02T10:00:00",
+                ]
+            )
+        )
+
+        # 02:00 is before the window start — untouched.
+        run_h02 = _get_run("part_run_h02")
+        assert run_h02.partition_key == "2026-01-02T02:00:00"
+        # 05:00 is inside [03:00, 10:00] — cleared.
+        run_h05 = _get_run("part_run_h05")
+        assert run_h05.partition_key is None
+        assert run_h05.partition_date is None
+        # 11:00 is after the window end — untouched.
+        run_h11b = _get_run("part_run_h11b")
+        assert run_h11b.partition_key == "2026-01-02T11:00:00"
+
+    def test_clear_via_date_range_with_datetime_endpoints(self, parser, dag_maker):
+        """--date with ISO datetime endpoints does not clamp the right side."""
+        dag_maker.create_dagrun(
+            run_id="part_run_h02b",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 2, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T02:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="part_run_h05b",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 5, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T05:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="part_run_h11c",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 11, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T11:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--date",
+                    "2026-01-02T03:00:00~2026-01-02T10:00:00",
+                ]
+            )
+        )
+
+        # 02:00 is before window start — untouched.
+        run_h02b = _get_run("part_run_h02b")
+        assert run_h02b.partition_key == "2026-01-02T02:00:00"
+        # 05:00 is inside [03:00, 10:00] — cleared.
+        run_h05b = _get_run("part_run_h05b")
+        assert run_h05b.partition_key is None
+        assert run_h05b.partition_date is None
+        # 11:00 is after un-clamped 10:00 end — untouched.
+        run_h11c = _get_run("part_run_h11c")
+        assert run_h11c.partition_key == "2026-01-02T11:00:00"
