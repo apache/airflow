@@ -31,7 +31,7 @@ import { Accordion, Dialog } from "src/components/ui";
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedDagRuns: Array<DAGRunResponse>;
 };
 
@@ -58,11 +58,11 @@ const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
   },
 ];
 
-const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
+const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkDeleteDagRuns({
-    clearSelections,
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 

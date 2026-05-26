@@ -28,15 +28,15 @@ import { Accordion, Dialog } from "src/components/ui";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedTaskInstances: Array<TaskInstanceResponse>;
 };
 
-const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances }: Props) => {
+const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkTaskInstances({
-    clearSelections,
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 

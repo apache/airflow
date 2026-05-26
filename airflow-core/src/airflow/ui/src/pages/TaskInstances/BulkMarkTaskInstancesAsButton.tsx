@@ -33,18 +33,18 @@ import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedTaskInstances: Array<TaskInstanceResponse>;
 };
 
-const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances }: Props) => {
+const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<TaskInstanceState>("success");
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
   const [note, setNote] = useState<string | null>(null);
   const { bulkAction, data, error, isPending, reset } = useBulkTaskInstances({
-    clearSelections,
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 

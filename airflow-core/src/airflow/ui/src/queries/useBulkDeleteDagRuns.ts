@@ -31,11 +31,11 @@ import { toaster } from "src/components/ui";
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly onSuccessConfirm: VoidFunction;
 };
 
-export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => {
+export const useBulkDeleteDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const affectedDagIds = useRef<Set<string>>(new Set());
   const { t: translate } = useTranslation(["common", "dags"]);
@@ -71,7 +71,7 @@ export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Prop
         }),
         type: "success",
       });
-      clearSelections();
+      deselectKeys(successKeys);
     }
 
     // Per-entity failures (status 200 with items in ``errors``) keep the dialog open
