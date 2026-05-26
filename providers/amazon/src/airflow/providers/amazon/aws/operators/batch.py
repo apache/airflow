@@ -342,8 +342,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     def _persist_links(
         self,
         context: Context,
-        job_description: dict | None = None,
-    ) -> dict:
+        job_description: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Persist job definition and queue links for UI display.
 
@@ -392,9 +392,6 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         :param context: Task context
         """
-        if not self.do_xcom_push:
-            return
-
         if not context or "ti" not in context:
             return
 

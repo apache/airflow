@@ -161,9 +161,7 @@ class TestBatchOperator:
         self.batch.job_id = None
         self.batch.waiters = None  # use default wait
         get_job_all_awslogs_info_mock.return_value = []
-        # Enable xcom push so _persist_cloudwatch_link actually runs
-        self.batch.do_xcom_push = True
-        # Use a real dict so "ti" in context works correctly
+        # Use a real dict so "ti" in context works correctly for link persistence
         context = {"ti": mock.MagicMock()}
 
         self.batch.execute(context)
