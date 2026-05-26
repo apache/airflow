@@ -16,149 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { TaskInstancesPage } from "tests/e2e/pages/TaskInstancesPage";
-import { waitForServerReady } from "tests/e2e/utils/health";
+import { test } from "tests/e2e/fixtures/task-instances-data";
 
 test.describe("Task Instances Page", () => {
   test.setTimeout(60_000);
 
-  let taskInstancesPage: TaskInstancesPage;
-  const testDagId = testConfig.testDag.id;
+  // taskInstancesData is triggered once per worker via beforeEach.
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- triggers worker-scoped data fixture
+  test.beforeEach(async ({ taskInstancesData: _data }) => {});
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
-    const timestamp = Date.now();
-
-    // Wait for server to be responsive before making API calls
-    await waitForServerReady(page);
-
-    // Wait for Dag to be parsed before making API calls
-    await expect
-      .poll(
-        async () => {
-          const response = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId}`, {
-            timeout: 30_000,
-          });
-
-          return response.ok();
-        },
-        { intervals: [2000], timeout: 60_000 },
-      )
-      .toBe(true);
-
-    // Create first DAG run for success state
-    const runId1 = `test_ti_success_${timestamp}`;
-    const logicalDate1 = new Date(timestamp).toISOString();
-    const triggerResponse1 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId1,
-        logical_date: logicalDate1,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 30_000,
-    });
-
-    expect(triggerResponse1.ok()).toBeTruthy();
-
-    // Get all task instances for the first run
-    const tasksResponse1 = await page.request.get(
-      `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runId1}/taskInstances`,
-      { timeout: 30_000 },
-    );
-
-    expect(tasksResponse1.ok()).toBeTruthy();
-
-    const tasksData1 = (await tasksResponse1.json()) as {
-      task_instances: Array<{ task_id: string }>;
-    };
-
-    // Mark all tasks as success
-    for (const task of tasksData1.task_instances) {
-      const patchResponse = await page.request.patch(
-        `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runId1}/taskInstances/${task.task_id}`,
-        {
-          data: JSON.stringify({ new_state: "success" }),
-          headers: { "Content-Type": "application/json" },
-          timeout: 30_000,
-        },
-      );
-
-      expect(patchResponse.ok()).toBeTruthy();
-    }
-
-    // Create second DAG run for failed state
-    const runId2 = `test_ti_failed_${timestamp}`;
-    const logicalDate2 = new Date(timestamp + 60_000).toISOString();
-    const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId2,
-        logical_date: logicalDate2,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 30_000,
-    });
-
-    expect(triggerResponse2.ok()).toBeTruthy();
-
-    // Get all task instances for the second run
-    const tasksResponse2 = await page.request.get(
-      `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runId2}/taskInstances`,
-      { timeout: 30_000 },
-    );
-
-    expect(tasksResponse2.ok()).toBeTruthy();
-
-    const tasksData2 = (await tasksResponse2.json()) as {
-      task_instances: Array<{ task_id: string }>;
-    };
-
-    // Mark all tasks as failed
-    for (const task of tasksData2.task_instances) {
-      const patchResponse = await page.request.patch(
-        `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runId2}/taskInstances/${task.task_id}`,
-        {
-          data: JSON.stringify({ new_state: "failed" }),
-          headers: { "Content-Type": "application/json" },
-          timeout: 30_000,
-        },
-      );
-
-      expect(patchResponse.ok()).toBeTruthy();
-    }
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    taskInstancesPage = new TaskInstancesPage(page);
-  });
-
-  test.fixme("verify task instances table displays data", async () => {
+  test("verify task instances table displays data", async ({ taskInstancesPage }) => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyTaskInstancesExist();
   });
 
-  test.fixme("verify task details display correctly", async () => {
+  test("verify task details display correctly", async ({ taskInstancesPage }) => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyTaskDetailsDisplay();
   });
 
-  test("verify filtering by failed state", async () => {
+  test("verify filtering by failed state", async ({ taskInstancesData, taskInstancesPage }) => {
     await taskInstancesPage.navigate();
-    await taskInstancesPage.verifyStateFiltering("Failed");
+    await taskInstancesPage.verifyStateFiltering("Failed", taskInstancesData.dagId);
   });
 
-  test.fixme("verify filtering by success state", async () => {
+  test("verify filtering by success state", async ({ taskInstancesData, taskInstancesPage }) => {
     await taskInstancesPage.navigate();
-    await taskInstancesPage.verifyStateFiltering("Success");
+    await taskInstancesPage.verifyStateFiltering("Success", taskInstancesData.dagId);
   });
 });

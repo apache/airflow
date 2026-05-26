@@ -93,7 +93,7 @@ jobs:
       disable-airflow-repo-cache: "false"
 
   build-and-publish-registry:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Build & Publish Registry"
     needs: [build-ci-image]
     runs-on: ubuntu-latest
@@ -115,6 +115,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
+          # Tags drive the phantom-version filter in extract_metadata.py
+          # (only versions with a real `providers-<id>/<ver>` tag are
+          # treated as released). Without this, the filter silently
+          # falls back to `versions[0]` and ships phantom versions.
+          fetch-tags: true
 
       - name: "Prepare breeze & CI image"
         uses: ./.github/actions/prepare_breeze_and_image
@@ -133,7 +138,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -176,11 +181,20 @@ jobs:
       - name: "Extract registry data (breeze)"
         env:
           PROVIDER: ${{ inputs.provider }}
+          DESTINATION: ${{ inputs.destination }}
         run: |
+          # Staging dispatches preview unreleased providers (maintainers want to
+          # verify newly-bumped versions look right before tagging). Live builds
+          # filter them so the production registry never ships pointers to
+          # non-existent PyPI releases / GitHub tags / docs pages.
+          ALLOW_UNRELEASED=""
+          if [[ "${DESTINATION}" == "staging" ]]; then
+            ALLOW_UNRELEASED="--allow-unreleased"
+          fi
           if [[ -n "${PROVIDER}" ]]; then
-            breeze registry extract-data --python 3.12 --provider "${PROVIDER}"
+            breeze registry extract-data --python 3.12 --provider "${PROVIDER}" ${ALLOW_UNRELEASED}
           else
-            breeze registry extract-data --python 3.12
+            breeze registry extract-data --python 3.12 ${ALLOW_UNRELEASED}
           fi
 
       # --- Incremental: merge new data with existing ---
@@ -217,12 +231,12 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
         with:
-          version: 9
+          version: 10
 
       - name: "Setup Node.js"
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: 24
           cache: 'pnpm'
@@ -239,12 +253,58 @@ jobs:
         run: pnpm build
 
       - name: "Upload registry artifact"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: registry-site
           path: registry/_site
           retention-days: 7
           if-no-files-found: error
+
+      - name: "Verify build emitted expected content"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: |
+          # Guard against silent no-op syncs. `aws s3 sync` exits 0 when the
+          # source dir is missing or empty, so without this a partial build
+          # (e.g. extract_metadata.py errored mid-run) would report green
+          # while uploading nothing or stale state. Mirrors the per-provider
+          # guard in the "Sync backfilled version pages to S3" step in
+          # registry-backfill.yml.
+          if [[ -n "${PROVIDER}" ]]; then
+            # Incremental: verify each target provider's pages and versions JSON exist.
+            for pid in ${PROVIDER}; do
+              LOCAL_PROV_DIR="registry/_site/providers/${pid}/"
+              LOCAL_API_DIR="registry/_site/api/providers/${pid}/"
+              LOCAL_VERSIONS_JSON="${LOCAL_API_DIR}versions.json"
+              if [ ! -d "${LOCAL_PROV_DIR}" ] || [ -z "$(ls -A "${LOCAL_PROV_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_PROV_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -d "${LOCAL_API_DIR}" ] || [ -z "$(ls -A "${LOCAL_API_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_API_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -s "${LOCAL_VERSIONS_JSON}" ]; then
+                echo "::error::${LOCAL_VERSIONS_JSON} missing or empty -- aborting sync."
+                exit 1
+              fi
+            done
+          else
+            # Full build: verify the top-level homepage and provider listing.
+            if [ ! -s "registry/_site/index.html" ]; then
+              echo "::error::Full build did not emit registry/_site/index.html -- aborting sync."
+              exit 1
+            fi
+            if [ ! -s "registry/_site/api/providers.json" ]; then
+              echo "::error::registry/_site/api/providers.json missing or empty -- aborting sync."
+              exit 1
+            fi
+            API_PROVIDERS_DIR="registry/_site/api/providers/"
+            if [ ! -d "${API_PROVIDERS_DIR}" ] || [ -z "$(ls -A "${API_PROVIDERS_DIR}" 2>/dev/null)" ]; then
+              echo "::error::${API_PROVIDERS_DIR} is missing or empty -- aborting sync."
+              exit 1
+            fi
+          fi
 
       - name: "Sync registry to S3"
         env:

@@ -37,6 +37,8 @@ airflowctl
 AirflowException
 airflowignore
 ajax
+Akeyless
+akeyless
 aks
 AlertApi
 alertPolicies
@@ -104,6 +106,7 @@ astroid
 Async
 async
 asyncio
+asyncssh
 athena
 Atlassian
 atlassian
@@ -112,6 +115,7 @@ attr
 attrs
 au
 auditability
+auditable
 Auth
 auth
 authenticator
@@ -158,6 +162,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -205,6 +210,7 @@ camelCase
 Cancelled
 cancelled
 Cancelling
+cancelling
 cas
 Cassandra
 cassandra
@@ -511,6 +517,7 @@ dttm
 dtypes
 du
 duckdb
+dumpable
 dunder
 dup
 durable
@@ -535,6 +542,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -652,6 +660,7 @@ formatter
 formatters
 forwardability
 forwardable
+fpr
 fqdn
 frontend
 fs
@@ -776,6 +785,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -806,7 +816,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -817,6 +829,7 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
 integrations
 ints
@@ -917,6 +930,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -1020,6 +1034,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1110,6 +1125,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
@@ -1133,6 +1149,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1194,6 +1211,7 @@ pooler
 Popen
 positionally
 POSIX
+posix
 postfix
 Postgres
 postgres
@@ -1218,6 +1236,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
@@ -1279,6 +1298,7 @@ pytest
 pythonic
 PythonOperator
 pythonpath
+pyvespa
 pywinrm
 Qdrant
 qdrant
@@ -1290,6 +1310,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1348,6 +1369,7 @@ responder
 reStructuredText
 resultset
 resumable
+retryable
 Reusability
 rfc
 rmse
@@ -1375,6 +1397,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1384,6 +1407,7 @@ salesforce
 samesite
 saml
 sandboxed
+sandboxing
 sanitization
 sas
 Sasl
@@ -1503,8 +1527,7 @@ srv
 ssc
 ssd
 SSHClient
-sshtunnel
-SSHTunnelForwarder
+SSHTunnel
 ssl
 sslcert
 sslkey
@@ -1534,6 +1557,7 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
 STS
 subchart
@@ -1584,6 +1608,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1619,6 +1644,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1728,6 +1754,8 @@ unpause
 unpaused
 unpausing
 unpredicted
+unsanitized
+unscoped
 untestable
 untransformed
 untrusted
@@ -1775,6 +1803,8 @@ venv
 venvs
 Vertica
 vertica
+Vespa
+vespa
 videointelligence
 views
 virtualenv
@@ -1832,6 +1862,7 @@ Xiaodong
 xlarge
 xml
 xpath
+XSS
 xyz
 yaml
 Yandex

@@ -218,6 +218,13 @@ class Timetable(Protocol):
     instead of the traditional logic based on logical dates and data intervals.
     """
 
+    partitioned_at_runtime: bool = False
+    """Whether this timetable defers partition selection to task runtime.
+
+    *True* for :class:`~airflow.timetables.simple.PartitionAtRuntime`;
+    downstream code can branch on this flag instead of using ``isinstance``.
+    """
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         """

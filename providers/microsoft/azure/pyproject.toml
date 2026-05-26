@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.1.0"
+version = "13.3.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -62,7 +62,9 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
     "adlfs>=2023.10.0",
-    "azure-batch>=8.0.0",
+    # azure-batch 15.x is a full rewrite of the Azure SDK (track 2) that removes BatchServiceClient, batch_auth,
+    # and the other references in AzureBatchHook. Lifting the upper bound cap needs a full hook rewrite.
+    "azure-batch>=8.0.0,<15.0.0",
     "azure-cosmos>=4.6.0",
     "azure-mgmt-cosmosdb>=3.0.0",
     "azure-datalake-store>=0.0.45",
@@ -77,9 +79,8 @@ dependencies = [
     "azure-synapse-spark>=0.2.0",
     "azure-synapse-artifacts>=0.17.0",
     "azure-storage-file-datalake>=12.9.1",
-    # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
     # azure-kusto-data 5.0.0 pins requests to a specific version which makes resolving dependencies harder
-    "azure-kusto-data>=4.1.0,!=4.6.0,!=5.0.0",
+    "azure-kusto-data>=4.1.0,!=5.0.0",
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-compute>=33.0.0",
@@ -154,8 +155,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -167,3 +168,15 @@ provider_info = "airflow.providers.microsoft.azure.get_provider_info:get_provide
 
 [tool.flit.module]
 name = "airflow.providers.microsoft.azure"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/microsoft/__init__.py",
+    "tests/",
+]

@@ -48,7 +48,7 @@ from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
-from airflow_breeze.utils.console import console_print, get_stderr_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 from airflow_breeze.utils.path_utils import (
@@ -116,7 +116,7 @@ def autocomplete(force: bool):
     """
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get("SHELL")
-    detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
+    detected_shell = None if detected_shell is None else Path(detected_shell).name
     if detected_shell not in ["bash", "zsh", "fish"]:
         console_print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
         sys.exit(1)
@@ -352,8 +352,6 @@ def get_command_hash_dict() -> dict[str, str]:
     hashes: dict[str, str] = {}
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
-        if get_verbose():
-            get_stderr_console().print(the_context_dict)
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):

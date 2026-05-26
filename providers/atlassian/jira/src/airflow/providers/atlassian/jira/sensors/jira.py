@@ -52,7 +52,7 @@ class JiraSensor(BaseSensorOperator):
         if result_processor is not None:
             self.result_processor = result_processor
         self.method_name = method_name
-        self.method_params = method_params
+        self.method_params = method_params or {}
 
     def poke(self, context: Context) -> Any:
         hook = JiraHook(jira_conn_id=self.jira_conn_id)

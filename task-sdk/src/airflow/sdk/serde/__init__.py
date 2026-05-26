@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.serialization import (
     CLASSNAME,
     DATA,
@@ -332,8 +332,10 @@ def _match_glob(classname: str):
 @functools.cache
 def _match_regexp(classname: str):
     """Check if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    # fullmatch (not match) so a pattern like ``airflow\.models\.Variable`` cannot also admit
+    # ``airflow.models.Variable_Malicious`` — re.match only anchors at the start of the string.
     patterns = _get_regexp_patterns()
-    return any(p.match(classname) is not None for p in patterns)
+    return any(p.fullmatch(classname) is not None for p in patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
@@ -375,10 +377,12 @@ def _register():
     _deserializers.clear()
     _stringifiers.clear()
 
-    stats_factory = stats_utils.get_stats_factory(Stats)
-    Stats.initialize(factory=stats_factory)
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
-    with Stats.timer("serde.load_serializers") as timer:
+    with stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")
         for _, module_name, _ in iter_namespace(serializers_module):
             module = import_module(module_name)
@@ -388,7 +392,6 @@ def _register():
                     raise AttributeError(
                         f"duplicate {s_qualname} for serialization in {module} and {_serializers[s_qualname]}"
                     )
-                log.debug("registering %s for serialization", s_qualname)
                 _serializers[s_qualname] = module
             for deserializers in getattr(module, "deserializers", ()):
                 d_qualname = deserializers if isinstance(deserializers, str) else qualname(deserializers)
@@ -396,7 +399,6 @@ def _register():
                     raise AttributeError(
                         f"duplicate {d_qualname} for deserialization in {module} and {_deserializers[d_qualname]}"
                     )
-                log.debug("registering %s for deserialization", d_qualname)
                 _deserializers[d_qualname] = module
                 _extra_allowed.add(d_qualname)
             for stringifiers in getattr(module, "stringifiers", ()):
@@ -405,10 +407,15 @@ def _register():
                     raise AttributeError(
                         f"duplicate {c_qualname} for stringifiers in {module} and {_stringifiers[c_qualname]}"
                     )
-                log.debug("registering %s for stringifying", c_qualname)
                 _stringifiers[c_qualname] = module
 
-    log.debug("loading serializers took %.3f ms", timer.duration)
+    log.debug(
+        "registered serializers=[%s] deserializers=[%s] stringifiers=[%s] in %.3f ms",
+        ", ".join(sorted(_serializers)),
+        ", ".join(sorted(_deserializers)),
+        ", ".join(sorted(_stringifiers)),
+        timer.duration,
+    )
 
 
 @functools.cache

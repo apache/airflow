@@ -11,8 +11,11 @@
     "maxRuns": "Nombre maximum d'exécutions actives",
     "missingAndErroredRuns": "Exécutions manquantes et en erreur",
     "missingRuns": "Exécutions manquantes",
+    "overrideExistingParams": "Remplacer les paramètres sur les exécutions existantes",
+    "permissionDenied": "Échec de l'exécution à blanc : l'utilisateur n'a pas l'autorisation de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
+    "scheduleNotBackfillable": "La planification de ce Dag ne prend pas en charge les rattrapages",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
     "title": "Lancer un rattrapage",
@@ -22,7 +25,6 @@
         "title": "Rattrapage généré"
       }
     },
-    "tooltip": "Le rattrapage nécessite une planification",
     "unpause": "Réactiver {{dag_display_name}} lors du déclenchement",
     "validation": {
       "datesRequired": "Les dates de début et de fin de l'intervalle de données doivent être renseignées.",
@@ -45,13 +47,18 @@
     "invalidJson": "Format JSON invalide : {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "{{count}} erreurs",
     "error_one": "1 erreur",
-    "error_other": "{{count}} erreurs",
     "errorAndWarning": "1 erreur et {{warningText}}",
     "warning_many": "{{count}} avertissements",
     "warning_one": "1 avertissement",
     "warning_other": "{{count}} avertissements"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Format de date invalide.",
+      "invalidTimeFormat": "Format d'heure invalide.",
+      "startBeforeEnd": "La date/heure de début doit être antérieure à la date/heure de fin"
+    }
   },
   "durationChart": {
     "duration": "Durée (secondes)",
@@ -92,7 +99,8 @@
     "taskCount_many": "{{count}} tâches",
     "taskCount_one": "{{count}} tâche",
     "taskCount_other": "{{count}} tâches",
-    "taskGroup": "Groupe de tâches"
+    "taskGroup": "Groupe de tâches",
+    "zoomToTask": "Zoomer sur la tâche sélectionnée"
   },
   "limitedList": "+{{count}} supplémentaires",
   "limitedList.allItems": "Tous les {{count}} éléments :",
@@ -114,22 +122,40 @@
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
   "taskTries": "Essais de tâche",
+  "taskTryPlaceholder": "Essai de tâche",
+  "team": {
+    "selector": {
+      "helperText": "Optionnel. Restreindre l'utilisation à une équipe spécifique.",
+      "label": "Équipe",
+      "placeHolder": "Sélectionner une équipe"
+    }
+  },
   "toggleCardView": "Afficher en mode cartes",
   "toggleTableView": "Afficher en mode tableau",
   "triggerDag": {
     "button": "Déclencher",
+    "dataInterval": "Intervalle de données",
+    "dataIntervalAuto": "Déduit de la date logique et du calendrier",
+    "dataIntervalManual": "Spécifier manuellement",
+    "intervalEnd": "Fin",
+    "intervalStart": "Début",
     "loading": "Chargement des informations du Dag...",
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
+    "manualRunDenied": "Les exécutions manuelles ne sont pas autorisées pour ce Dag",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
     "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",
     "title": "Déclencher un Dag",
     "toaster": {
+      "error": {
+        "title": "Échec du déclenchement du Dag"
+      },
       "success": {
         "description": "L'exécution du Dag a été déclenchée avec succès.",
         "title": "Dag déclenché"
       }
     },
+    "triggerAgainWithConfig": "Déclencher à nouveau avec cette configuration",
     "unpause": "Réactiver {{dagDisplayName}} lors du déclenchement"
   },
   "trimText": {
@@ -145,6 +171,7 @@
     "versionId": "ID de version"
   },
   "versionSelect": {
+    "allVersions": "Toutes les versions",
     "dagVersion": "Version du Dag",
     "versionCode": "v{{versionCode}}"
   }

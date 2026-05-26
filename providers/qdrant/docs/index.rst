@@ -70,7 +70,7 @@ apache-airflow-providers-qdrant package
 `Qdrant <https://qdrant.tech/documentation>`__
 
 
-Release: 1.5.4
+Release: 1.5.5
 
 Provider package
 ----------------
@@ -123,5 +123,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-qdrant 1.5.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-qdrant 1.5.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-qdrant 1.5.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-qdrant 1.5.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qdrant-1.5.5-py3-none-any.whl.sha512>`__)

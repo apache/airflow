@@ -16,8 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
-from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -29,7 +28,9 @@ import uuid6
 from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from airflow._shared.observability.metrics.stats import Stats
+# Re-exporting as _accepts_context for backward compatibility
+from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import CallbackFetchMethod
@@ -38,7 +39,16 @@ from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
-CallbackKey = str  # Callback keys are str(UUID)
+
+@dataclass(frozen=True, slots=True)
+class CallbackKey:
+    """Distinct key type for callbacks, preventing any bare string from passing isinstance checks."""
+
+    id: str
+
+    def __str__(self) -> str:
+        return self.id
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -51,16 +61,6 @@ log = structlog.get_logger(__name__)
 
 ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
-
-
-def _accepts_context(callback: Callable) -> bool:
-    """Check if callback accepts a 'context' parameter or **kwargs."""
-    try:
-        sig = inspect.signature(callback)
-    except (ValueError, TypeError):
-        return True
-    params = sig.parameters
-    return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 class CallbackType(str, Enum):
@@ -231,7 +231,7 @@ class TriggererCallback(Callback):
             if status in TERMINAL_STATES:
                 self.trigger = None
                 self.output = event.payload.get(PAYLOAD_BODY_KEY)
-                Stats.incr(**self.get_metric_info(status, self.output))
+                stats.incr(**self.get_metric_info(status, self.output))
 
             session.add(self)
         else:

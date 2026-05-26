@@ -25,11 +25,14 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
 type Props = {
   readonly onClose: () => void;
@@ -55,8 +58,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-
   const [note, setNote] = useState<string | null>(null);
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -76,6 +77,21 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   );
 
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
+
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedDagVersionNumber: taskInstance.dag_version_number,
+    // Fall back to legacy heuristic when grid summary has no version (older API).
+    useLatestBundleVersionAsFallback: true,
+  });
+
+  // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
+  // differ" heuristic still applies when neither DAG-level nor global config is set.
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
+    fallback: dagVersionsDiffer,
+  });
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -106,18 +122,15 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     total_entries: 0,
   };
 
-  const shouldShowBundleVersionOption =
-    dagDetails?.bundle_version !== null && dagDetails?.bundle_version !== "";
-
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
                 {translate("dags:runAndTaskActions.clear.title", {
-                  type: translate("taskInstance", { count: affectedTasks.total_entries }),
+                  type: translate("taskInstance", { count: affectedTasks.total_entries ?? 0 }),
                 })}
                 :
               </strong>{" "}
@@ -160,11 +173,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
-            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+            {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
+            gap={3}
+            justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
             mt={3}
           >
-            {shouldShowBundleVersionOption ? (
+            {shouldShowRunOnLatestOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
                 onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
@@ -173,7 +187,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
               loading={isPending}
               onClick={() => {

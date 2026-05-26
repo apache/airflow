@@ -60,6 +60,11 @@
     "dagVersions": "डैग संस्करण",
     "dataIntervalEnd": "डेटा अंतराल अंत",
     "dataIntervalStart": "डेटा अंतराल प्रारंभ",
+    "durationStats": {
+      "mean": "माध्य",
+      "mode": "बहुलक"
+    },
+    "expectedDuration": "अपेक्षित अवधि",
     "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
     "mappedPartitionKey": "मैप्ड पार्टीशन कुंजी",
     "partitionKey": "पार्टीशन कुंजी",

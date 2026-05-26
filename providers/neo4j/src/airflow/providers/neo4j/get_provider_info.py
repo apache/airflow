@@ -46,6 +46,10 @@ def get_provider_info():
             {"integration-name": "Neo4j", "python-modules": ["airflow.providers.neo4j.sensors.neo4j"]}
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.neo4j.hooks.neo4j.Neo4jHook", "connection-type": "neo4j"}
+            {
+                "hook-class-name": "airflow.providers.neo4j.hooks.neo4j.Neo4jHook",
+                "hook-name": "Neo4j",
+                "connection-type": "neo4j",
+            }
         ],
     }

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, VStack } from "@chakra-ui/react";
+import { VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
@@ -30,7 +30,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -73,11 +75,9 @@ const taskInstanceColumns = ({
   {
     accessorKey: "subject",
     cell: ({ row: { original } }: HITLRow) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-          <TruncatedText text={original.subject} />
-        </RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+        <TruncatedText text={original.subject} />
+      </RouterLink>
     ),
     header: translate("subject"),
   },
@@ -87,11 +87,9 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
-                <TruncatedText text={original.task_instance.dag_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+              <TruncatedText text={original.task_instance.dag_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("common:dagId"),
@@ -103,13 +101,11 @@ const taskInstanceColumns = ({
         {
           accessorKey: "run_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink
-                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
-              >
-                <TruncatedText text={original.task_instance.dag_run_id} />
-              </RouterLink>
-            </Link>
+            <RouterLink
+              to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+            >
+              <TruncatedText text={original.task_instance.dag_run_id} />
+            </RouterLink>
           ),
           header: translate("common:dagRunId"),
         },
@@ -129,11 +125,12 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-                <TruncatedText text={original.task_instance.task_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink
+              fontWeight="bold"
+              to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+            >
+              <TruncatedText text={original.task_instance.task_display_name} />
+            </RouterLink>
           ),
           header: translate("common:taskId"),
         },
@@ -181,7 +178,7 @@ export const HITLTaskInstances = () => {
   const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
-  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
+  const mapIndexParam = searchParams.get(MAP_INDEX);
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
   const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
   const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
@@ -189,16 +186,29 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
+  const dagIdArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_DISPLAY_NAME_PATTERN,
+    value: dagIdPattern,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PATTERN,
+    value: taskIdPattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       bodySearch,
       createdAtGte,
       createdAtLte,
       dagId: dagId ?? "~",
-      dagIdPattern,
+      ...dagIdArg,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: mapIndexParam === null ? undefined : parseInt(mapIndexParam, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
       respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
@@ -209,7 +219,7 @@ export const HITLTaskInstances = () => {
       state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
       subjectSearch,
       taskId,
-      taskIdPattern,
+      ...taskIdArg,
     },
     undefined,
     {
@@ -218,8 +228,7 @@ export const HITLTaskInstances = () => {
       refetchInterval: (query) => {
         const hasDeferredWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) =>
-              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+            (detail: HITLDetail) => detail.responded_at === null && detail.task_instance.state === "deferred",
           ),
         );
 

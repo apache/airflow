@@ -25,6 +25,7 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -35,7 +36,7 @@ from structlog.processors import CallsiteParameter
 from airflow_shared.logging import structlog as structlog_module
 from airflow_shared.logging.structlog import configure_logging
 
-# We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
 
 PY_3_11 = sys.version_info >= (3, 11)
@@ -512,6 +513,14 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
         sys.excepthook = original
 
 
+def test_init_log_folder_does_not_raise_on_permission_error():
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        # Must not raise — CLI commands like `airflow db migrate` rely on this.
+        init_log_folder("/tmp/blocked", 0o775)
+
+
 class TestWarningsInterceptor:
     @pytest.fixture(autouse=True)
     def reset(self):
@@ -623,3 +632,99 @@ class TestShowwarning:
                 _showwarning("some warning", UserWarning, "foo.py", 1)
 
         mock_get_logger.assert_called_once_with("py.warnings")
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "message", "args", "expected_event"),
+    [
+        # dict passed as positional %s arg — should use positional formatting, not named
+        pytest.param(
+            logging.getLogger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="stdlib-dict-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="structlog-dict-positional",
+        ),
+        # named substitution with dict should still work
+        pytest.param(
+            logging.getLogger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="stdlib-dict-named",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="structlog-dict-named",
+        ),
+        # simple non-dict positional arg
+        pytest.param(
+            logging.getLogger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="stdlib-simple-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="structlog-simple-positional",
+        ),
+        # no args
+        pytest.param(
+            logging.getLogger,
+            "message",
+            (),
+            "message",
+            id="stdlib-no-args",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message",
+            (),
+            "message",
+            id="structlog-no-args",
+        ),
+    ],
+)
+def test_dict_positional_arg_formatting(structlog_config, get_logger, message, args, expected_event):
+    """Regression test for dict args passed as positional log arguments (GitHub issue #62201)."""
+    with structlog_config(json_output=True) as bio:
+        logger = get_logger("my.logger")
+        logger.warning(message, *args)
+
+    written = json.load(bio)
+    assert written["event"] == expected_event
+
+
+def test_named_bytes_logger_preserves_name():
+    """
+    structlog 26.1.0 (hynek/structlog#786) gives ``BytesLogger`` its own ``name``
+    slot and sets ``self.name`` in ``__init__``; older releases do not. This test
+    runs against whichever version is installed and pins the contract that the
+    supplied name survives construction on both.
+    """
+    from airflow_shared.logging.structlog import NamedBytesLogger
+
+    assert NamedBytesLogger("my.logger").name == "my.logger"
+    assert NamedBytesLogger().name is None
+
+
+def test_named_write_logger_preserves_name():
+    """Same contract for NamedWriteLogger in case structlog mirrors #786 for WriteLogger."""
+    from airflow_shared.logging.structlog import NamedWriteLogger
+
+    assert NamedWriteLogger("my.logger").name == "my.logger"
+    assert NamedWriteLogger().name is None

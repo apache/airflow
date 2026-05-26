@@ -16,84 +16,63 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
+import { Box, Code, VStack } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type JSX, useLayoutEffect, useRef, useCallback, useEffect } from "react";
+import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar, Tooltip } from "src/components/ui";
-import { getMetaKey } from "src/utils";
+import { ProgressBar } from "src/components/ui";
+import type { ParsedLogEntry } from "src/queries/useLogs";
 
-import { scrollToBottom, scrollToTop } from "./utils";
+import { HighlightedText } from "./HighlightedText";
+import { ScrollToButton } from "./ScrollToButton";
+import { useLogGroups } from "./useLogGroups";
+import { getHighlightColor, scrollToBottom, scrollToTop } from "./utils";
 
 export type TaskLogContentProps = {
+  readonly currentMatchLineIndex?: number;
   readonly error: unknown;
+  readonly expanded: boolean;
   readonly isLoading: boolean;
   readonly logError: unknown;
-  readonly parsedLogs: Array<JSX.Element | string | undefined>;
+  readonly parsedLogs: Array<ParsedLogEntry>;
+  readonly searchMatchIndices?: Set<number>;
+  readonly searchQuery?: string;
   readonly wrap: boolean;
 };
 
 // How close to the bottom (in px) before we consider the user "at the bottom"
 const SCROLL_BOTTOM_THRESHOLD = 100;
 
-const ScrollToButton = ({
-  direction,
-  onClick,
-}: {
-  readonly direction: "bottom" | "top";
-  readonly onClick: () => void;
-}) => {
-  const { t: translate } = useTranslation("common");
-
-  return (
-    <Tooltip
-      closeDelay={100}
-      content={translate("scroll.tooltip", {
-        direction: translate(`scroll.direction.${direction}`),
-        hotkey: `${getMetaKey()}+${direction === "bottom" ? "↓" : "↑"}`,
-      })}
-      openDelay={100}
-    >
-      <IconButton
-        _ltr={{
-          left: "auto",
-          right: 4,
-        }}
-        _rtl={{
-          left: 4,
-          right: "auto",
-        }}
-        aria-label={translate(`scroll.direction.${direction}`)}
-        bg="bg.panel"
-        bottom={direction === "bottom" ? 4 : 14}
-        onClick={onClick}
-        position="absolute"
-        rounded="full"
-        size="xs"
-        variant="outline"
-      >
-        {direction === "bottom" ? <FiChevronDown /> : <FiChevronUp />}
-      </IconButton>
-    </Tooltip>
-  );
-};
-
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
+export const TaskLogContent = ({
+  currentMatchLineIndex,
+  error,
+  expanded,
+  isLoading,
+  logError,
+  parsedLogs,
+  searchMatchIndices,
+  searchQuery,
+  wrap,
+}: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
-  // Track whether user is at the bottom so we don't hijack their scroll position
-  // if they scrolled up to read something
+  const {
+    expandedGroups,
+    originalToVisibleIndex,
+    toggleGroup,
+    visibleCurrentMatchIndex,
+    visibleItems,
+    visibleSearchMatchIndices,
+  } = useLogGroups({ currentMatchLineIndex, expanded, parsedLogs, searchMatchIndices });
+
   const isAtBottomRef = useRef<boolean>(true);
-  // Track previous log count to detect new lines arriving
-  const prevLogCountRef = useRef<number>(0);
+  const prevVisibleCountRef = useRef<number>(0);
 
   const rowVirtualizer = useVirtualizer({
-    count: parsedLogs.length,
+    count: visibleItems.length,
     estimateSize: () => 20,
     getScrollElement: () => parentRef.current,
     overscan: 10,
@@ -101,18 +80,15 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
 
   const contentHeight = rowVirtualizer.getTotalSize();
   const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
-  const showScrollButtons = parsedLogs.length > 1 && contentHeight > containerHeight;
+  const showScrollButtons = visibleItems.length > 1 && contentHeight > containerHeight;
 
-  // Check if user is near the bottom on scroll
   const handleScroll = useCallback(() => {
     const el = parentRef.current;
 
     if (!el) {
       return;
     }
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-
-    isAtBottomRef.current = distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD;
+    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
   }, []);
 
   useEffect(() => {
@@ -123,41 +99,46 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     return () => el?.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  // Auto-scroll to bottom when:
-  // 1. Logs first load (prevLogCount was 0)
-  // 2. New lines arrive AND user was already at the bottom
   useLayoutEffect(() => {
-    if (parsedLogs.length === 0) {
+    if (visibleItems.length === 0) {
       return;
     }
-
-    const isFirstLoad = prevLogCountRef.current === 0;
-    const hasNewLines = parsedLogs.length > prevLogCountRef.current;
+    const isFirstLoad = prevVisibleCountRef.current === 0;
+    const hasNewLines = visibleItems.length > prevVisibleCountRef.current;
 
     if ((isFirstLoad || (hasNewLines && isAtBottomRef.current)) && !location.hash) {
-      rowVirtualizer.scrollToIndex(parsedLogs.length - 1, { align: "end" });
+      rowVirtualizer.scrollToIndex(visibleItems.length - 1, { align: "end" });
     }
-
-    prevLogCountRef.current = parsedLogs.length;
-  }, [parsedLogs.length, rowVirtualizer]);
+    prevVisibleCountRef.current = visibleItems.length;
+  }, [visibleItems.length, rowVirtualizer]);
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
-      rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
+      const hashVisibleIndex = originalToVisibleIndex.get(Number(hash) - 1);
+
+      if (hashVisibleIndex !== undefined) {
+        rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
+      }
     }
-  }, [isLoading, rowVirtualizer, hash, parsedLogs]);
+    // React Compiler auto-memoizes; safe to include in deps
+  }, [isLoading, rowVirtualizer, hash, visibleItems, originalToVisibleIndex]);
+
+  useLayoutEffect(() => {
+    if (visibleCurrentMatchIndex !== undefined && !isLoading) {
+      rowVirtualizer.scrollToIndex(Math.min(visibleCurrentMatchIndex + 3, visibleItems.length - 1));
+    }
+    // React Compiler auto-memoizes; safe to include in deps
+  }, [visibleCurrentMatchIndex, isLoading, rowVirtualizer, visibleItems]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
-    if (parsedLogs.length === 0) {
+    if (visibleItems.length === 0) {
       return;
     }
-
     const el = rowVirtualizer.scrollElement ?? parentRef.current;
 
     if (!el) {
       return;
     }
-
     if (to === "top") {
       isAtBottomRef.current = false;
       scrollToTop({ element: el, virtualizer: rowVirtualizer });
@@ -185,9 +166,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         width="100%"
       >
         <Code
-          css={{
-            "& *::selection": { bg: "blue.emphasized" },
-          }}
+          css={{ "& *::selection": { bg: "blue.emphasized" } }}
           data-testid="virtualized-list"
           display="block"
           overflowX="auto"
@@ -200,29 +179,103 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
             h={`${rowVirtualizer.getTotalSize()}px`}
             position="relative"
           >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => (
-              <Box
-                _ltr={{ left: 0, right: "auto" }}
-                _rtl={{ left: "auto", right: 0 }}
-                bgColor={
-                  Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
-                }
-                data-index={virtualRow.index}
-                data-testid={`virtualized-item-${virtualRow.index}`}
-                key={virtualRow.key}
-                position="absolute"
-                ref={rowVirtualizer.measureElement}
-                top={0}
-                transform={`translateY(${virtualRow.start}px)`}
-                width={wrap ? "100%" : "max-content"}
-              >
-                {parsedLogs[virtualRow.index] ?? undefined}
-              </Box>
-            ))}
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = visibleItems[virtualRow.index];
+
+              if (!item) {
+                return undefined;
+              }
+
+              const { entry, originalIndex } = item;
+              const isGroupHeader = entry.group?.type === "header";
+              const groupLevel = entry.group?.level ?? 0;
+              const indent = entry.group ? groupLevel * 4 + (isGroupHeader ? 0 : 4) : 0;
+
+              if (isGroupHeader && entry.group) {
+                const isExpanded = expandedGroups.has(entry.group.id);
+
+                return (
+                  <Box
+                    _ltr={{ left: 0, right: "auto" }}
+                    _rtl={{ left: "auto", right: 0 }}
+                    bgColor={getHighlightColor({
+                      currentMatchLineIndex: visibleCurrentMatchIndex,
+                      hash,
+                      index: virtualRow.index,
+                      searchMatchIndices: visibleSearchMatchIndices,
+                    })}
+                    cursor="pointer"
+                    data-index={virtualRow.index}
+                    data-testid={`group-header-${virtualRow.index}`}
+                    key={virtualRow.key}
+                    onClick={() => entry.group && toggleGroup(entry.group.id)}
+                    pl={indent}
+                    position="absolute"
+                    ref={rowVirtualizer.measureElement}
+                    top={0}
+                    transform={`translateY(${virtualRow.start}px)`}
+                    width={wrap ? "100%" : "max-content"}
+                  >
+                    <Box
+                      as="span"
+                      color="fg.info"
+                      data-testid={`summary-${typeof entry.element === "string" ? entry.element : ""}`}
+                    >
+                      <Box
+                        as="span"
+                        display="inline-block"
+                        mr={1}
+                        transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
+                        transition="transform 0.15s"
+                      >
+                        {"\u25B6"}
+                      </Box>
+                      {visibleSearchMatchIndices?.has(virtualRow.index) ? (
+                        <HighlightedText query={searchQuery}>
+                          {typeof entry.element === "string" ? entry.element : undefined}
+                        </HighlightedText>
+                      ) : (
+                        entry.element
+                      )}
+                    </Box>
+                  </Box>
+                );
+              }
+
+              return (
+                <Box
+                  _ltr={{ left: 0, right: "auto" }}
+                  _rtl={{ left: "auto", right: 0 }}
+                  bgColor={getHighlightColor({
+                    currentMatchLineIndex: visibleCurrentMatchIndex,
+                    hash,
+                    index: virtualRow.index,
+                    searchMatchIndices: visibleSearchMatchIndices,
+                  })}
+                  data-index={virtualRow.index}
+                  data-original-index={originalIndex}
+                  data-testid={`virtualized-item-${virtualRow.index}`}
+                  key={virtualRow.key}
+                  pl={indent}
+                  position="absolute"
+                  ref={rowVirtualizer.measureElement}
+                  top={0}
+                  transform={`translateY(${virtualRow.start}px)`}
+                  width={wrap ? "100%" : "max-content"}
+                >
+                  {visibleSearchMatchIndices?.has(virtualRow.index) ? (
+                    <HighlightedText query={searchQuery}>
+                      {typeof entry.element === "string" ? entry.element : (entry.element ?? undefined)}
+                    </HighlightedText>
+                  ) : (
+                    (entry.element ?? undefined)
+                  )}
+                </Box>
+              );
+            })}
           </VStack>
         </Code>
       </Box>
-
       {showScrollButtons ? (
         <>
           <ScrollToButton direction="top" onClick={() => handleScrollTo("top")} />

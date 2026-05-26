@@ -31,6 +31,7 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
 import { CardList } from "src/components/DataTable/CardList";
@@ -38,7 +39,7 @@ import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { ProgressBar, Pagination, Toaster } from "src/components/ui";
+import { IconButton, ProgressBar, Pagination, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
@@ -52,9 +53,11 @@ type DataTableProps<TData> = {
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
   readonly modelName: string;
+  readonly nextCursor?: string | null;
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
+  readonly previousCursor?: string | null;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly showDisplayToggle?: boolean;
   readonly showRowCountHeading?: boolean;
@@ -76,9 +79,11 @@ export const DataTable = <TData,>({
   isFetching,
   isLoading,
   modelName,
+  nextCursor,
   noRowsMessage,
   onDisplayToggleChange,
   onStateChange,
+  previousCursor,
   showDisplayToggle,
   showRowCountHeading = true,
   skeletonCount = 10,
@@ -148,7 +153,13 @@ export const DataTable = <TData,>({
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
-  const hasPagination = initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
+  const hasNext = nextCursor !== undefined && nextCursor !== null;
+  const hasPrevious = previousCursor !== undefined && previousCursor !== null;
+  const hasCursorPagination = hasNext || hasPrevious;
+  const hasOffsetPagination =
+    !hasCursorPagination &&
+    initialState?.pagination !== undefined &&
+    (pageIndex !== 0 || rows.length !== total);
 
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
@@ -158,7 +169,7 @@ export const DataTable = <TData,>({
     [modelName, translate],
   );
   const showRowCount = Boolean(
-    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+    showRowCountHeading && !hasCursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
   const noRowsModelName = translateModelName(0);
 
@@ -190,7 +201,7 @@ export const DataTable = <TData,>({
           </Text>
         )}
       </Box>
-      {hasPagination ? (
+      {hasOffsetPagination ? (
         <Pagination.Root
           count={rowCount}
           my={2}
@@ -205,6 +216,37 @@ export const DataTable = <TData,>({
             <Pagination.NextTrigger data-testid="next" />
           </HStack>
         </Pagination.Root>
+      ) : undefined}
+      {/* Pagination.Root is designed for offset-based pagination and requires count/page/pageSize.
+          Cursor pagination doesn't have these values, and passing fake values causes
+          incorrect disabled styling on the triggers. Use plain IconButtons instead. */}
+      {hasCursorPagination && initialState ? (
+        <HStack my={2}>
+          <IconButton
+            aria-label="Previous page"
+            data-testid="prev"
+            disabled={!hasPrevious}
+            onClick={() => {
+              if (onStateChange && previousCursor !== undefined && previousCursor !== null) {
+                onStateChange({ ...initialState, cursor: previousCursor });
+              }
+            }}
+          >
+            <HiChevronLeft />
+          </IconButton>
+          <IconButton
+            aria-label="Next page"
+            data-testid="next"
+            disabled={!hasNext}
+            onClick={() => {
+              if (onStateChange && nextCursor !== undefined && nextCursor !== null) {
+                onStateChange({ ...initialState, cursor: nextCursor });
+              }
+            }}
+          >
+            <HiChevronRight />
+          </IconButton>
+        </HStack>
       ) : undefined}
     </Box>
   );

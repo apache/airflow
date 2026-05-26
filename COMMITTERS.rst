@@ -283,10 +283,11 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 New PMC Member Onboarding steps
 -------------------------------
 
-1.  Familiarise yourself with `<PMC Responsibilities>https://community.apache.org/pmc/responsibilities.html`_
+1.  Familiarise yourself with `PMC Responsibilities <https://community.apache.org/pmc/responsibilities.html>`_
 2.  Subscribe to the private mailing list: ``private@airflow.apache.org``. Do this by sending an empty email to
     ``private-subscribe@airflow.apache.org`` and following the instructions in the automated response you'll receive.
 3.  Ask another PMC member to add you to ``#pmc-private`` channel on slack
 4.  Make a PR in https://github.com/apache/airflow-site to move your data from the ``landing-pages/site/data/committers.json``
     to the ``landing-pages/site/data/pmc.json``. if more than one PMC member was added, coordinate with the others
-    to make a single PR for everyone.
+    to make a single PR for everyone. In the same PR, post an entry in
+    `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.

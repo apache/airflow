@@ -95,9 +95,26 @@ def get_provider_info():
                 "how-to-guide": "/docs/apache-airflow-providers-teradata/operators/s3_to_teradata.rst",
             },
         ],
+        "asset-uris": [
+            {
+                "schemes": ["teradata"],
+                "handler": "airflow.providers.teradata.assets.teradata.sanitize_uri",
+                "factory": "airflow.providers.teradata.assets.teradata.create_asset",
+                "to_openlineage_converter": "airflow.providers.teradata.assets.teradata.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["teradata"],
+                "handler": "airflow.providers.teradata.assets.teradata.sanitize_uri",
+                "factory": "airflow.providers.teradata.assets.teradata.create_asset",
+                "to_openlineage_converter": "airflow.providers.teradata.assets.teradata.convert_asset_to_openlineage",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.teradata.hooks.teradata.TeradataHook",
+                "hook-name": "Teradata",
                 "connection-type": "teradata",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port"],

@@ -10,9 +10,11 @@
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",
     "missingRuns": "누락된 실행",
-    "permissionDenied": "드라이 런 실패 : 백필 생성 권한이 없습니다. ",
+    "overrideExistingParams": "기존 실행의 매개변수 덮어쓰기",
+    "permissionDenied": "드라이 런 실패: 백필 생성 권한이 없습니다.",
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
+    "scheduleNotBackfillable": "이 Dag의 스케줄은 백필을 지원하지 않습니다.",
     "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
     "selectLabel": "백필",
     "title": "백필 실행",
@@ -22,7 +24,6 @@
         "title": "백필 생성됨"
       }
     },
-    "tooltip": "백필에는 일정이 필요합니다.",
     "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
@@ -61,8 +62,8 @@
     "duration": "기간 (초)",
     "lastDagRun_one": "마지막 Dag 실행",
     "lastDagRun_other": "마지막 {{count}}개 Dag 실행",
-    "lastTaskInstance_one": "마지막 작업 인스턴스",
-    "lastTaskInstance_other": "마지막 {{count}}개 작업 인스턴스",
+    "lastTaskInstance_one": "마지막 태스크 인스턴스",
+    "lastTaskInstance_other": "마지막 {{count}}개 태스크 인스턴스",
     "queuedDuration": "대기열 대기 시간",
     "runAfter": "실행 후",
     "runDuration": "실행 기간"
@@ -89,9 +90,10 @@
     "downloadImageError": "그래프 이미지를 다운로드하지 못했습니다.",
     "downloadImageErrorTitle": "다운로드 실패",
     "otherDagRuns": "+다른 Dag 실행",
-    "taskCount_one": "{{count}}개 작업",
-    "taskCount_other": "{{count}}개 작업",
-    "taskGroup": "작업 그룹"
+    "taskCount_one": "{{count}}개 태스크",
+    "taskCount_other": "{{count}}개 태스크",
+    "taskGroup": "태스크 그룹",
+    "zoomToTask": "선택된 태스크로 확대"
   },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",
@@ -110,8 +112,8 @@
   "sortedAscending": "오름차순 정렬됨",
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",
-  "taskTries": "작업 시도 횟수",
-  "taskTryPlaceholder": "작업 시도 선택",
+  "taskTries": "태스크 시도 횟수",
+  "taskTryPlaceholder": "태스크 시도 선택",
   "team": {
     "selector": {
       "helperText": "선택 사항. 특정 팀으로 사용을 제한합니다.",

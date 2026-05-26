@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -32,8 +33,14 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class TaskInstanceDTO(BaseModel):
-    """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
+class BaseTaskInstanceDTO(BaseModel):
+    """
+    Base schema for TaskInstance with the minimal fields shared by Executors and the Task SDK.
+
+    This definition is duplicated in :mod:`airflow.sdk.execution_time.workloads.task`
+    and the two are kept in sync by the ``check-task-instance-dto-sync`` prek
+    hook. Update both files together.
+    """
 
     id: uuid.UUID
     dag_version_id: uuid.UUID
@@ -50,6 +57,12 @@ class TaskInstanceDTO(BaseModel):
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
+
+
+class TaskInstanceDTO(BaseTaskInstanceDTO):
+    """TaskInstanceDTO with executor-specific ``external_executor_id`` field and ``key`` property."""
+
+    external_executor_id: str | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property
@@ -72,6 +85,24 @@ class ExecuteTask(BaseDagBundleWorkload):
     sentry_integration: str = ""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """Return the TaskInstanceKey for this workload."""
+        return self.ti.key
+
+    @property
+    def display_name(self) -> str:
+        """Return the task instance ID as a display name."""
+        return str(self.ti.id)
+
+    @property
+    def success_state(self) -> TaskInstanceState:
+        return TaskInstanceState.SUCCESS
+
+    @property
+    def failure_state(self) -> TaskInstanceState:
+        return TaskInstanceState.FAILED
 
     @classmethod
     def make(

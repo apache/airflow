@@ -21,13 +21,14 @@ from __future__ import annotations
 from datetime import timedelta
 
 from pydantic import BaseModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_llm_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_operator():
     LLMOperator(
         task_id="summarize",
@@ -43,7 +44,7 @@ example_llm_operator()
 
 
 # [START howto_operator_llm_structured]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_structured():
     class Entities(BaseModel):
         names: list[str]
@@ -64,7 +65,7 @@ example_llm_operator_structured()
 
 
 # [START howto_operator_llm_agent_params]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_agent_params():
     LLMOperator(
         task_id="creative_writing",
@@ -81,7 +82,7 @@ example_llm_operator_agent_params()
 
 
 # [START howto_decorator_llm]
-@dag
+@dag(tags=["example"])
 def example_llm_decorator():
     @task.llm(llm_conn_id="pydanticai_default", system_prompt="Summarize concisely.")
     def summarize(text: str):
@@ -96,7 +97,7 @@ example_llm_decorator()
 
 
 # [START howto_decorator_llm_structured]
-@dag
+@dag(tags=["example"])
 def example_llm_decorator_structured():
     class Entities(BaseModel):
         names: list[str]
@@ -118,8 +119,32 @@ def example_llm_decorator_structured():
 example_llm_decorator_structured()
 
 
+# [START howto_operator_llm_usage_limits]
+@dag(tags=["example"])
+def example_llm_operator_usage_limits():
+    LLMOperator(
+        task_id="capped_summary",
+        prompt="Summarize the attached design doc in three bullet points.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a concise technical reviewer.",
+        # Fail the task if the run exceeds 5 model requests, 4_000 input
+        # tokens, or 1_000 output tokens.  Useful for guardrails on shared
+        # connections or untrusted prompts.
+        usage_limits=UsageLimits(
+            request_limit=5,
+            input_tokens_limit=4_000,
+            output_tokens_limit=1_000,
+        ),
+    )
+
+
+# [END howto_operator_llm_usage_limits]
+
+example_llm_operator_usage_limits()
+
+
 # [START howto_operator_llm_approval]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_approval():
 
     LLMOperator(

@@ -30,9 +30,8 @@
 
 | Version | Build Status                                                                                                                                                    |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Main    | [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg)](https://github.com/apache/airflow/actions)                 |
-| 3.x     | [![GitHub Build 3.2](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions) |
-| 2.x     | [![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)       |
+| Main    | [![Tests AMD main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions/workflows/ci-amd.yml) [![Tests ARM main](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg)](https://github.com/apache/airflow/actions/workflows/ci-arm.yml) |
+| 3.x     | [![Tests AMD 3.2](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions/workflows/ci-amd.yml) [![Tests ARM 3.2](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions/workflows/ci-arm.yml) |
 
 
 
@@ -69,6 +68,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
+- [Agent-assisted contribution (apache-steward)](#agent-assisted-contribution-apache-steward)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -98,14 +98,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.2)      |
-|------------|------------------------------------|------------------------|------------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
-| Platform   | AMD64/ARM64                        | AMD64/ARM64            | AMD64/ARM64(\*)              |
-| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33 | 1.26, 1.27, 1.28, 1.29, 1.30 |
-| PostgreSQL | 14, 15, 16, 17, 18                 | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16           |
-| MySQL      | 8.0, 8.4, Innovation               | 8.0, 8.4, Innovation   | 8.0, Innovation              |
-| SQLite     | 3.15.0+                            | 3.15.0+                | 3.15.0+                      |
+|            | Main version (dev)                 | Stable version (3.2.0)              | Stable version (2.11.2)      |
+|------------|------------------------------------|-------------------------------------|------------------------------|
+| Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13, 3.14        | 3.10, 3.11, 3.12             |
+| Platform   | AMD64/ARM64                        | AMD64/ARM64                         | AMD64/ARM64(\*)              |
+| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35  | 1.26, 1.27, 1.28, 1.29, 1.30 |
+| PostgreSQL | 14, 15, 16, 17, 18                 | 14, 15, 16, 17, 18                  | 12, 13, 14, 15, 16           |
+| MySQL      | 8.0, 8.4, Innovation               | 8.0, 8.4, Innovation                | 8.0, Innovation              |
+| SQLite     | 3.15.0+                            | 3.15.0+                             | 3.15.0+                      |
 
 \* Experimental
 
@@ -171,15 +171,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.1.8' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.10.txt"
+pip install 'apache-airflow==3.2.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.2.0/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.1.8' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.2.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.2.0/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check
@@ -293,7 +293,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State               | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|---------------------|-----------------|-----------------------|------------------|
-| 3         | 3.1.8                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.2.1                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | Limited maintenance | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL                 | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL                 | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
@@ -431,6 +431,39 @@ If you can't wait to contribute, and want to get started asap, check out the [co
 Official Docker (container) images for Apache Airflow are described in [images](https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md).
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Agent-assisted contribution (apache-steward)
+
+This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+framework via a snapshot mechanism. The framework provides
+maintainer-facing PR-management skills (`pr-management-triage`,
+`pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
+that are exposed as agent skills in agent harnesses such as Claude Code.
+
+The framework is **not** vendored — it lives as a gitignored snapshot
+under `.apache-steward/`, fetched on demand from the version pinned in
+the committed [`.apache-steward.lock`](.apache-steward.lock). The only
+framework artefact committed to this repo is the `setup-steward` skill
+at [`.github/skills/setup-steward/`](.github/skills/setup-steward/);
+everything else is a gitignored symlink the setup skill wires up.
+
+A fresh clone needs the snapshot populated before any framework skill
+is invocable. In your agent harness, run:
+
+```text
+/setup-steward
+```
+
+(or follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+to fetch the snapshot per the committed lock, scaffold the gitignored
+symlinks, and install the post-checkout hook that re-creates them on
+each worktree checkout.
+
+Adopter-specific modifications to framework workflows live in
+[`.apache-steward-overrides/`](.apache-steward-overrides/) (committed) —
+never edit the snapshot directly. Framework changes go via PR to
+[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 
 ## Voting Policy

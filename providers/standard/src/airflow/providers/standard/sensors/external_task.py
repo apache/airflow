@@ -197,7 +197,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
 
-        self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        self.allowed_states: list[str] = (
+            list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        )
         self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []
 

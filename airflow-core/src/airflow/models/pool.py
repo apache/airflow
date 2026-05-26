@@ -128,6 +128,7 @@ class Pool(Base):
         slots: int,
         description: str,
         include_deferred: bool,
+        *,
         session: Session = NEW_SESSION,
     ) -> Pool:
         """Create a pool with given parameters or update it if it already exists."""
@@ -143,12 +144,11 @@ class Pool(Base):
             pool.description = description
             pool.include_deferred = include_deferred
 
-        session.commit()
         return pool
 
     @staticmethod
     @provide_session
-    def delete_pool(name: str, session: Session = NEW_SESSION) -> Pool:
+    def delete_pool(name: str, *, session: Session = NEW_SESSION) -> Pool:
         """Delete pool by a given name."""
         if name == Pool.DEFAULT_POOL_NAME:
             raise AirflowException(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
@@ -158,7 +158,6 @@ class Pool(Base):
             raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
         session.delete(pool)
-        session.commit()
 
         return pool
 

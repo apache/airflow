@@ -53,6 +53,10 @@ TEST_VARIABLE_KEY5 = "nested_dictionary_variable"
 TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key", "next_again": {"token": "some_token"}}}}'
 TEST_VARIABLE_DESCRIPTION5 = "Variable with a nested sensitive key"
 
+TEST_VARIABLE_KEY6 = "db_password"
+TEST_VARIABLE_VALUE6 = '{"config": "actual_secret"}'
+TEST_VARIABLE_DESCRIPTION6 = "Variable with a sensitive key name and JSON value with non-sensitive inner keys"
+
 TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
 TEST_VARIABLE_VALUE4 = "test_variable_value"
 TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
@@ -115,6 +119,13 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_KEY6,
+        value=TEST_VARIABLE_VALUE6,
+        description=TEST_VARIABLE_DESCRIPTION6,
+        session=session,
+    )
+
 
 @provide_session
 def _create_team(session) -> None:
@@ -143,13 +154,13 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 6
+        assert len(variables) == 7
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 4
+        assert len(variables) == 5
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
@@ -232,6 +243,16 @@ class TestGetVariable(TestVariableEndpoint):
                     "team_name": None,
                 },
             ),
+            (
+                TEST_VARIABLE_KEY6,
+                {
+                    "key": TEST_VARIABLE_KEY6,
+                    "value": '{"config": "***"}',
+                    "description": TEST_VARIABLE_DESCRIPTION6,
+                    "is_encrypted": True,
+                    "team_name": None,
+                },
+            ),
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
@@ -263,7 +284,7 @@ class TestGetVariables(TestVariableEndpoint):
             # Filters
             (
                 {},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -271,14 +292,15 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
-            ({"limit": 1}, 6, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 6, [TEST_VARIABLE_KEY2]),
+            ({"limit": 1}, 7, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 7, [TEST_VARIABLE_KEY2]),
             # Sort
             (
                 {"order_by": "id"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -286,12 +308,14 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             (
                 {"order_by": "-id"},
-                6,
+                7,
                 [
+                    TEST_VARIABLE_KEY6,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
@@ -302,8 +326,9 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "key"},
-                6,
+                7,
                 [
+                    TEST_VARIABLE_KEY6,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY2,
@@ -314,7 +339,7 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "-key"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
@@ -322,12 +347,13 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             # Search
             (
                 {"variable_key_pattern": "~"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -335,9 +361,11 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
+            ({"variable_key_prefix_pattern": "test_variable_search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
     )
     def test_should_respond_200(
@@ -521,6 +549,21 @@ class TestPatchVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client):
+        body = {
+            "key": TEST_VARIABLE_KEY,
+            "value": "The new value",
+            "description": "The new description",
+            "team_name": "test_team",
+        }
+        response = test_client.patch(f"/variables/{TEST_VARIABLE_KEY}", json=body)
+        assert response.status_code == 422
+        assert (
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
+        )
+
     @pytest.mark.enable_redact
     def test_patch_with_update_mask_description_only(self, test_client, session):
         """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
@@ -685,6 +728,21 @@ class TestPostVariable(TestVariableEndpoint):
                 }
             ]
         }
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
+        body = {
+            "key": "new variable key",
+            "value": "new variable value",
+            "description": "new variable description",
+            "team_name": "test_team",
+        }
+        response = test_client.post("/variables", json=body)
+        assert response.status_code == 422
+        assert (
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
+        )
 
     @pytest.mark.parametrize(
         "body",
@@ -1366,3 +1424,55 @@ class TestBulkVariables(TestVariableEndpoint):
             },
         )
         assert response.status_code == 403
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_bulk_rejects_team_name_when_multi_team_is_disabled(self, test_client):
+        actions = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {
+                            "key": "var_1",
+                            "value": "value_1",
+                            "description": "description",
+                        },
+                        {
+                            "key": "var_2",
+                            "value": "value_2",
+                            "description": "description_2",
+                            "team_name": "test_team",
+                        },
+                    ],
+                },
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "key": "var_3",
+                            "value": "value_3",
+                            "description": "updated_description",
+                            "team_name": "test_team",
+                        },
+                        {
+                            "key": "var_4",
+                            "value": "value_4",
+                            "description": "updated_description_2",
+                        },
+                    ],
+                },
+            ]
+        }
+        response = test_client.patch("/variables", json=actions)
+
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+
+        assert all(
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in err["msg"]
+            for err in detail
+        ), f"Unexpected errors in detail: {detail}"
+
+        expected_error_keys = {err["input"]["key"] for err in detail}
+        assert sorted(expected_error_keys) == ["var_2", "var_3"]

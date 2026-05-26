@@ -249,7 +249,7 @@ class TestGitHook:
         hook = GitHook(git_conn_id="git_with_proxy")
         with hook.configure_hook_env():
             cmd = hook.env["GIT_SSH_COMMAND"]
-            assert 'ProxyCommand="ssh -W %h:%p bastion.example.com"' in cmd
+            assert "ProxyCommand='ssh -W %h:%p bastion.example.com'" in cmd
 
     def test_known_hosts_file(self, create_connection_without_db):
         create_connection_without_db(

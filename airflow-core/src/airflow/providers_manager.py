@@ -26,7 +26,7 @@ import json
 import logging
 import traceback
 import warnings
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
@@ -243,6 +243,15 @@ class HookInfo(NamedTuple):
     dialects: list[str] = []
 
 
+class ConnectionTypeHookUIMetadata(NamedTuple):
+    """Hook metadata for one connection type (connection UI); ``field_behaviour`` is standard fields."""
+
+    connection_type: str
+    hook_name: str
+    hook_class_name: str | None
+    field_behaviour: dict | None
+
+
 class ConnectionFormWidgetInfo(NamedTuple):
     """Connection Form Widget information."""
 
@@ -413,6 +422,8 @@ class ProvidersManager(LoggingMixin):
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        # Keeps hook display names read from provider.yaml (hook-name field)
+        self._hook_name_dict: dict[str, str] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -979,6 +990,9 @@ class ProvidersManager(LoggingMixin):
                 if not connection_type or not hook_class_name:
                     continue
 
+                if hook_name := conn_config.get("hook-name"):
+                    self._hook_name_dict[connection_type] = hook_name
+
                 if conn_fields := conn_config.get("conn-fields"):
                     self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
 
@@ -1348,6 +1362,45 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict
+
+    def iter_connection_type_hook_ui_metadata(self) -> Iterator[ConnectionTypeHookUIMetadata]:
+        """
+        Yield hook metadata per connection type for the connection UI.
+
+        Does not import hook classes.
+        """
+        self.initialize_providers_hooks()
+        all_types = frozenset(self._hooks_lazy_dict) | frozenset(self._hook_provider_dict)
+        for conn_type in sorted(all_types):
+            raw_entry = self._hooks_lazy_dict._raw_dict.get(conn_type)
+            provider_entry = self._hook_provider_dict.get(conn_type)
+            if isinstance(raw_entry, HookInfo):
+                hook_name = raw_entry.hook_name
+                hook_class_name = raw_entry.hook_class_name
+            elif provider_entry:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = provider_entry.hook_class_name
+            else:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = None
+            yield ConnectionTypeHookUIMetadata(
+                connection_type=conn_type,
+                hook_name=hook_name,
+                hook_class_name=hook_class_name,
+                field_behaviour=self._field_behaviours.get(conn_type),
+            )
+
+    @property
+    def _connection_form_widgets_from_metadata(self) -> dict[str, ConnectionFormWidgetInfo]:
+        """Return connection form widgets from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._connection_form_widgets
+
+    @property
+    def _field_behaviours_from_metadata(self) -> dict[str, dict]:
+        """Return field behaviour dicts from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._field_behaviours
 
     @property
     def dialects(self) -> MutableMapping[str, DialectInfo]:

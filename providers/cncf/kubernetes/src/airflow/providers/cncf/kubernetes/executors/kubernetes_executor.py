@@ -681,22 +681,114 @@ class KubernetesExecutor(BaseExecutor):
         del tis_to_flush_by_key[ti_key]
         self.running.add(ti_key)
 
+    def _alive_other_scheduler_job_ids(self) -> set[int]:
+        """
+        Return job IDs of every SchedulerJob that is currently alive — excluding self.
+
+        "Alive" means ``Job.state == RUNNING`` AND its ``latest_heartbeat`` is
+        within ``[scheduler] scheduler_health_check_threshold``.
+
+        Used by ``_adopt_completed_pods`` to scope cross-scheduler pod
+        adoption to pods owned by no-longer-alive schedulers (#66396).
+        With a single scheduler the returned set is always empty — the
+        original "exclude self only" behavior is preserved. With multiple
+        schedulers each one only adopts pods whose owning scheduler is gone,
+        eliminating the relabel-thrash that PR #61839 introduced.
+
+        Returns an empty set on any DB error so the caller falls back to
+        the pre-#61839 "exclude self only" selector — a transient DB issue
+        must not break completed-pod cleanup.
+        """
+        if TYPE_CHECKING:
+            assert self.scheduler_job_id
+
+        try:
+            self_id = int(self.scheduler_job_id)
+        except (TypeError, ValueError):
+            # Tests sometimes set scheduler_job_id to a non-numeric string.
+            # In production it's always Job.id (int), but be defensive.
+            return set()
+
+        try:
+            from datetime import timedelta
+
+            from sqlalchemy import select
+
+            from airflow.jobs.job import Job
+            from airflow.utils import timezone
+            from airflow.utils.session import create_session
+            from airflow.utils.state import JobState
+
+            timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
+            cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+            with create_session() as session:
+                # Iterate the scalar cursor straight into the set so we never
+                # materialize an intermediate list — keeps the memory
+                # footprint flat regardless of how many sibling schedulers
+                # are alive
+                return {
+                    jid
+                    for jid in session.scalars(
+                        select(Job.id).where(
+                            Job.job_type == "SchedulerJob",
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat >= cutoff,
+                            Job.id != self_id,
+                        )
+                    )
+                }
+        except Exception as exc:
+            self.log.warning(
+                "Could not query alive SchedulerJobs for completed-pod adoption "
+                "scoping: %s. Falling back to exclude-self-only.",
+                exc,
+            )
+            return set()
+
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pods so that the KubernetesJobWatcher can delete them.
+        Patch completed pods owned by no-longer-alive schedulers so this scheduler's watcher can delete them.
+
+        Originally this method patched every Succeeded pod that did not carry
+        THIS scheduler's ``airflow-worker`` label. With multi-scheduler
+        deployments that caused thrashing — every scheduler relabeled every
+        other scheduler's completed pods on each interval tick, fighting over
+        ownership and burning kube-API and watcher cycles (see #66396).
+
+        The fix scopes the selector to also exclude pods owned by every
+        currently-alive sibling scheduler. With one scheduler, behavior is
+        unchanged (no siblings → original "exclude self only" selector). With
+        multiple schedulers, each one only adopts pods whose owning scheduler
+        is gone — preserving the original goal of #61839 (cleanup after a
+        scheduler restart) without the multi-scheduler regression.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+        self_label = self._make_safe_label_value(self.scheduler_job_id)
+        excluded_labels = sorted(
+            {
+                self_label,
+                *(self._make_safe_label_value(str(jid)) for jid in self._alive_other_scheduler_job_ids()),
+            }
+        )
+
+        if len(excluded_labels) == 1:
+            # Equality-based selector — preserves the pre-fix label_selector
+            # exactly when no sibling scheduler is alive, so single-scheduler
+            # deployments see no behavior change.
+            worker_filter = f"airflow-worker!={excluded_labels[0]}"
+        else:
+            # Set-based requirement: K8s parses `notin (a,b,c)` as "label
+            # value is none of these". Mixed with the surrounding
+            # equality-based requirements via comma separator.
+            worker_filter = f"airflow-worker notin ({','.join(excluded_labels)})"
+
         query_kwargs = {
             "field_selector": "status.phase=Succeeded",
-            "label_selector": (
-                "kubernetes_executor=True,"
-                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
-            ),
+            "label_selector": (f"kubernetes_executor=True,{worker_filter},{POD_EXECUTOR_DONE_KEY}!=True"),
         }
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
@@ -707,7 +799,7 @@ class KubernetesExecutor(BaseExecutor):
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
+                    body={"metadata": {"labels": {"airflow-worker": self_label}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)

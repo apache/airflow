@@ -155,11 +155,16 @@ class TestGKEHookClient:
     def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
+    @mock.patch(GKE_STRING.format("GKEHook.get_client_options"))
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
-    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
+    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.gke_hook.get_cluster_manager_client()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
 
@@ -321,14 +326,17 @@ class TestGKEHook:
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
+    @mock.patch(GKE_STRING.format("GKEHook.get_client_options"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
-    def test_get_client(self, mock_get_credentials, mock_client):
+    def test_get_client(self, mock_get_credentials, mock_client, mock_get_client_options):
         self.gke_hook._client = None
         self.gke_hook.get_cluster_manager_client()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
+            credentials=mock_get_credentials.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
 
     def test_get_operation(self):

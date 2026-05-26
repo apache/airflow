@@ -37,6 +37,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/document_loader.rst",
                 ],
                 "tags": ["ai"],
             },
@@ -50,6 +51,20 @@ def get_provider_info():
                 "external-doc-url": "https://modelcontextprotocol.io/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "LangChain",
+                "external-doc-url": "https://python.langchain.com/",
+                "tags": ["ai"],
+            },
+            {
+                "integration-name": "LlamaIndex",
+                "external-doc-url": "https://docs.llamaindex.ai/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst",
+                ],
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -57,6 +72,14 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+            {
+                "integration-name": "LangChain",
+                "python-modules": ["airflow.providers.common.ai.hooks.langchain"],
+            },
+            {
+                "integration-name": "LlamaIndex",
+                "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
+            },
         ],
         "plugins": [
             {
@@ -64,9 +87,24 @@ def get_provider_info():
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
             }
         ],
+        "config": {
+            "common.ai": {
+                "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
+                "options": {
+                    "durable_cache_path": {
+                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task\nexecution writes a single JSON file under this path containing its\ncached model responses and tool results, so that on retry the agent\ncan replay completed steps instead of re-issuing LLM calls and tool\ninvocations. The file is deleted on successful task completion.\n\nRequired when ``durable=True`` is used. Any scheme supported by\n``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,\n``gs://``, ``azure://``, ...).\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "file:///tmp/airflow_durable_cache",
+                        "default": "",
+                    }
+                },
+            }
+        },
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
+                "hook-name": "Pydantic AI",
                 "connection-type": "pydanticai",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -83,6 +121,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
+                "hook-name": "Pydantic AI (Azure OpenAI)",
                 "connection-type": "pydanticai-azure",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -104,6 +143,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
+                "hook-name": "Pydantic AI (AWS Bedrock)",
                 "connection-type": "pydanticai-bedrock",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
@@ -165,6 +205,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
+                "hook-name": "Pydantic AI (Google Vertex AI)",
                 "connection-type": "pydanticai-vertex",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
@@ -211,6 +252,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
+                "hook-name": "MCP Server",
                 "connection-type": "mcp",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -235,6 +277,55 @@ def get_provider_info():
                     },
                 },
             },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
+                "hook-name": "LangChain",
+                "connection-type": "langchain",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Chat Model",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small, cohere:embed-english-v3.0).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
+                "hook-name": "LlamaIndex",
+                "connection-type": "llamaindex",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                    },
+                },
+                "conn-fields": {
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Default LlamaIndex embedding model name (e.g. text-embedding-3-small). The OpenAI default; for other vendors pass a pre-built BaseEmbedding instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "llm_model": {
+                        "label": "LLM Model",
+                        "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "operators": [
             {
@@ -246,6 +337,9 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
                     "airflow.providers.common.ai.operators.llm_schema_compare",
+                    "airflow.providers.common.ai.operators.document_loader",
+                    "airflow.providers.common.ai.operators.llamaindex_embedding",
+                    "airflow.providers.common.ai.operators.llamaindex_retrieval",
                 ],
             }
         ],

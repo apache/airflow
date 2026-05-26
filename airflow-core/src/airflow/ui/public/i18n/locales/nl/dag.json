@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Reset naar laatste",
       "toggleGroup": "Groepen omschakelen"
-    }
+    },
+    "runTypeLegend": "Run type legenda"
   },
   "header": {
     "buttons": {
@@ -72,6 +73,12 @@
   "navigation": {
     "navigation": "Navigatie: {{arrow}}",
     "toggleGroup": "Groep in-/uitklappen: Spatie"
+  },
+  "notFound": {
+    "back": "Ga terug",
+    "backToDags": "Terug naar Dags",
+    "message": "De Dag \"{{dagId}}\" bestaat niet.",
+    "title": "Dag niet gevonden"
   },
   "overview": {
     "buttons": {
@@ -115,11 +122,28 @@
     "graphDirection": {
       "label": "Richting van de grafiek"
     },
+    "showVersionIndicator": {
+      "label": "Toon versie-indicator",
+      "options": {
+        "hideAll": "Verberg alles",
+        "showAll": "Toon alles",
+        "showBundleVersion": "Toon Bundle versie",
+        "showDagVersion": "Toon Dag versie"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Actief filter",
       "clearFilter": "Filter wissen",
       "clickTask": "Klik op een taak om deze als filterbasis te selecteren",
+      "depth": "Diepte",
+      "direction": "Richting",
       "label": "Filter",
+      "mode": "Modus",
+      "modeTooltip": "Statische mode houdt de huidige weergave bij bij het navigeren naar verschillende taken, terwijl Traverse mode automatisch het actieve filter bijwerkt naar de geselecteerde taak voor eenvoudigere DAG-traversal.",
+      "modes": {
+        "static": "Statisch",
+        "traverse": "Traverse"
+      },
       "options": {
         "both": "Zowel upstream als downstream",
         "downstream": "Downstream",

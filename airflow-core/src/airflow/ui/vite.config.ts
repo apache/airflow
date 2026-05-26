@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import react from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { defineConfig } from "vitest/config";
 
@@ -28,10 +29,9 @@ export default defineConfig({
     exclude: ["@guanmingchiu/sqlparser-ts"], // WASM package needs to be excluded from pre-bundling
   },
   plugins: [
-    react({
-      babel: {
-        plugins: ["babel-plugin-react-compiler"],
-      },
+    react(),
+    babel({
+      presets: [reactCompilerPreset()],
     }),
     // Replace the directory to work with the flask plugin generation
     {
@@ -39,11 +39,25 @@ export default defineConfig({
       transformIndexHtml: (html) =>
         html.replace(`src="./assets/`, `src="./static/assets/`).replace(`href="/`, `href="./`),
     },
-    cssInjectedByJsPlugin(),
+    // Keep Monaco's codicon CSS as a real CSS file (rather than inlined into JS).
+    // The codicon stylesheet references `codicon.ttf` with a CSS-relative URL — when
+    // it gets inlined into a `<style>` tag the URL resolves against the page origin
+    // (the api-server) instead of the asset directory and the font fails to load.
+    // Keeping the CSS as an emitted file lets the browser resolve the URL relative
+    // to the stylesheet's own location (`/static/assets/`). Vite still chunks it so
+    // it only loads on the routes that pull Monaco in.
+    cssInjectedByJsPlugin({
+      cssAssetsFilterFunction: (asset: { fileName: string }) => !asset.fileName.includes("codicon"),
+    }),
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
     cors: true, // Only used by the dev server.
+    // The dev SPA shell is served by the airflow api-server (a different origin), so
+    // Vite must emit fully-qualified URLs — otherwise asset paths (notably worker
+    // module URLs) resolve against the api-server origin and 404. The `dev` script
+    // pins this port via --strictPort.
+    origin: "http://localhost:5173",
     proxy: {
       "/hitl-review": {
         changeOrigin: true,

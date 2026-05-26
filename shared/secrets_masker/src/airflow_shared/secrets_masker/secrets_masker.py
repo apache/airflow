@@ -54,8 +54,11 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "access_token",
         "api_key",
         "apikey",
+        "auth_header",
         "authorization",
+        "bearer",
         "connection_string",
+        "dsn",
         "passphrase",
         "passwd",
         "password",
@@ -64,9 +67,11 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "proxy_password",
         "proxies",
         "secret",
+        "service_account",
+        "service_key",
         "token",
         "keyfile_dict",
-        "service_account",
+        "webhook_url",
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
@@ -344,14 +349,18 @@ class SecretsMasker(logging.Filter):
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
     ) -> Redacted:
-        # Avoid spending too much effort on redacting on deeply nested
-        # structures. This also avoid infinite recursion if a structure has
-        # reference to self.
-        if depth > max_depth:
-            return item
         try:
+            # Key-name-based redaction is unbounded by depth — sensitive keys
+            # must fail closed at any nesting level. The depth cutoff below is
+            # only used to bound the work of pattern-based string masking and
+            # to terminate recursion through self-referential iterables.
             if name and self.should_hide_value_for_key(name):
                 return self._redact_all(item, depth, max_depth, replacement=replacement)
+            # Always walk dicts so deeper sensitive keys are still caught;
+            # JSON-loaded payloads cannot be self-referential, and any
+            # in-memory cycle hits Python's own recursion limit and is caught
+            # by the except clause below (which fails closed via
+            # "<redaction-failed>").
             if isinstance(item, dict):
                 to_return = {
                     dict_key: self._redact(
@@ -360,6 +369,10 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
+            # Avoid spending too much effort on pattern-based masking of
+            # deeply nested non-dict structures.
+            if depth > max_depth:
+                return item
             if isinstance(item, Enum):
                 return self._redact(
                     item=item.value, name=name, depth=depth, max_depth=max_depth, replacement=replacement

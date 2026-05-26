@@ -120,7 +120,8 @@
       "includeDeferred": "Incloure diferides",
       "nameMaxLength": "El nom pot contenir un màxim de 256 caràcters",
       "nameRequired": "El nom és obligatori",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Utilitza -1 per a slots il·limitats."
     },
     "noPoolsFound": "No s'han trobat pools",
     "pool_one": "Pool",

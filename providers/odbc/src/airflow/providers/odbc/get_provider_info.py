@@ -37,6 +37,10 @@ def get_provider_info():
         ],
         "hooks": [{"integration-name": "ODBC", "python-modules": ["airflow.providers.odbc.hooks.odbc"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.odbc.hooks.odbc.OdbcHook", "connection-type": "odbc"}
+            {
+                "hook-class-name": "airflow.providers.odbc.hooks.odbc.OdbcHook",
+                "hook-name": "ODBC",
+                "connection-type": "odbc",
+            }
         ],
     }

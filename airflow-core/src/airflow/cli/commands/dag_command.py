@@ -37,6 +37,7 @@ from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -46,13 +47,19 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.utils.cli import (
+    get_bagged_dag,
+    get_db_dag,
+    suppress_logs_and_warning,
+    validate_dag_bundle_arg,
+)
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -113,6 +120,77 @@ def dag_delete(args) -> None:
             raise AirflowException(err)
     else:
         print("Cancelled")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def dag_clear(args, session: Session = NEW_SESSION) -> None:
+    """Clear Dag runs selected by run_id, partition_key, or a partition_date window."""
+    has_range = args.partition_date_start is not None or args.partition_date_end is not None
+    selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
+    if selectors_used == 0:
+        raise SystemExit(
+            "One of --run-id, --partition-key, or --partition-date-start / --partition-date-end "
+            "must be provided."
+        )
+    if selectors_used > 1:
+        raise SystemExit(
+            "--run-id, --partition-key, and --partition-date-start / --partition-date-end are "
+            "mutually exclusive; provide exactly one selector."
+        )
+    if (
+        args.partition_date_start is not None
+        and args.partition_date_end is not None
+        and args.partition_date_start > args.partition_date_end
+    ):
+        raise SystemExit("--partition-date-start must be on or before --partition-date-end.")
+
+    dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
+
+    query = select(DagRun.run_id, DagRun.partition_key, DagRun.partition_date).where(
+        DagRun.dag_id == args.dag_id
+    )
+    if args.run_id is not None:
+        query = query.where(DagRun.run_id == args.run_id)
+    elif args.partition_key is not None:
+        query = query.where(DagRun.partition_key == args.partition_key)
+    else:
+        query = query.where(DagRun.partition_date.is_not(None))
+        if args.partition_date_start is not None:
+            query = query.where(DagRun.partition_date >= args.partition_date_start)
+        if args.partition_date_end is not None:
+            query = query.where(DagRun.partition_date <= args.partition_date_end)
+    query = query.order_by(DagRun.partition_date, DagRun.run_id)
+
+    runs = list(session.execute(query).all())
+    if not runs:
+        print("No matching Dag runs found.")
+        return
+
+    run_ids = [run.run_id for run in runs]
+    if not args.yes:
+        listing = "\n".join(
+            f"  {run.run_id}  partition_key={run.partition_key}  partition_date={run.partition_date}"
+            for run in runs
+        )
+        question = (
+            f"You are about to clear {len(runs)} Dag run(s) of {args.dag_id!r}:\n"
+            f"{listing}\n\nAre you sure? [y/n]"
+        )
+        if not ask_yesno(question):
+            print("Cancelled, nothing was cleared.")
+            return
+
+    cleared = 0
+    for run_id in run_ids:
+        cleared += dag.clear(
+            run_id=run_id,
+            only_failed=args.only_failed,
+            only_running=args.only_running,
+            session=session,
+        )
+    print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
 
 
 @cli_utils.action_cli
@@ -262,6 +340,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "timetable_summary": core_timetable.summary,
         "timetable_description": core_timetable.description,
         "timetable_partitioned": core_timetable.partitioned,
+        "timetable_periodic": core_timetable.periodic,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
@@ -275,6 +354,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
         "allowed_run_types": dag.allowed_run_types,
+        "is_backfillable": core_timetable.periodic
+        and (dag.allowed_run_types is None or DagRunType.BACKFILL_JOB in dag.allowed_run_types),
     }
 
 
@@ -736,4 +817,7 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
             continue
         bundle.initialize()
         dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
-        sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)
+        version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+        sync_bag_to_db(
+            dag_bag, bundle.name, bundle_version=version, version_data=version_data, session=session
+        )
