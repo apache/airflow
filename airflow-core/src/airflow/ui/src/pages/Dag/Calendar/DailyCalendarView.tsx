@@ -37,7 +37,12 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -49,12 +54,19 @@ type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly scale: CalendarScale;
   readonly selectedYear: number;
+  readonly timezone: string;
   readonly viewMode?: CalendarColorMode;
 };
 
-export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total" }: Props) => {
+export const DailyCalendarView = ({
+  data,
+  scale,
+  selectedYear,
+  timezone: timezoneName,
+  viewMode = "total",
+}: Props) => {
   const { t: translate } = useTranslation("dag");
-  const dailyData = generateDailyCalendarData(data, selectedYear);
+  const dailyData = generateDailyCalendarData(data, selectedYear, timezoneName);
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),
@@ -73,9 +85,9 @@ export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total
         <Box display="flex" gap={0.5}>
           {dailyData.map((week, index) => (
             <Box key={`month-${week[0]?.date ?? index}`} position="relative" width="14px">
-              {Boolean(week[0] && dayjs(week[0].date).date() <= 7) && (
+              {Boolean(week[0] && dayjs(week[0].date).tz(timezoneName).date() <= 7) && (
                 <Text color="fg.muted" fontSize="2xs" left="0" position="absolute" top="-20px">
-                  {dayjs(week[0]?.date).format("MMM")}
+                  {dayjs(week[0]?.date).tz(timezoneName).format("MMM")}
                 </Text>
               )}
             </Box>
@@ -104,7 +116,7 @@ export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total
           {dailyData.map((week, weekIndex) => (
             <Box display="flex" flexDirection="column" gap={0.5} key={`week-${week[0]?.date ?? weekIndex}`}>
               {week.map((day) => {
-                const dayDate = dayjs(day.date);
+                const dayDate = dayjs(day.date).tz(timezoneName);
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {

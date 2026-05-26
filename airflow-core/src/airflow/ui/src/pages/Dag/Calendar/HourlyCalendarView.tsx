@@ -38,7 +38,12 @@
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -53,6 +58,7 @@ type Props = {
   readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
+  readonly timezone: string;
   readonly viewMode?: CalendarColorMode;
 };
 
@@ -61,10 +67,11 @@ export const HourlyCalendarView = ({
   scale,
   selectedMonth,
   selectedYear,
+  timezone: timezoneName,
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
+  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth, timezoneName);
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>
@@ -106,11 +113,12 @@ export const HourlyCalendarView = ({
           <Box width="40px" />
           <Box display="flex" gap={0.5}>
             {hourlyData.days.map((day, index) => {
-              const dayOfWeek = dayjs(day.day).day();
+              const dayDate = dayjs(day.day).tz(timezoneName);
+              const dayOfWeek = dayDate.day();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
               const dateFontSize = "2xs";
               const dayNameFontSize = "2xs";
-              const dayName = dayjs(day.day).format("dd").charAt(0);
+              const dayName = dayDate.format("dd").charAt(0);
 
               return (
                 <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="14px">
@@ -121,7 +129,7 @@ export const HourlyCalendarView = ({
                     lineHeight="1"
                     textAlign="center"
                   >
-                    {dayjs(day.day).format("D")}
+                    {dayDate.format("D")}
                   </Text>
                   <Text
                     color={isWeekend ? "red.400" : "gray.500"}
@@ -168,7 +176,7 @@ export const HourlyCalendarView = ({
                   const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
                   const emptyData = {
                     counts: emptyCounts,
-                    date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
+                    date: `${dayjs(day.day).tz(timezoneName).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
                     runs: [],
                   };
 
@@ -185,7 +193,7 @@ export const HourlyCalendarView = ({
 
                 const formattedHourData = {
                   ...hourData,
-                  date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
+                  date: `${dayjs(day.day).tz(timezoneName).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
                 };
 
                 return (
