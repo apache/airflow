@@ -291,7 +291,7 @@ spec:
                 {{- else }}
                 - sh
                 - -c
-                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(hostname)
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(python -c 'import socket; print(socket.gethostname())')
                 {{- end }}
           {{- end }}
           ports:
