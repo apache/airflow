@@ -54,7 +54,7 @@ class TestNeo4jHookConn:
 
             assert uri == expected_uri
 
-    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    @mock.patch("neo4j.GraphDatabase")
     def test_run_with_schema(self, mock_graph_database):
         connection = Connection(
             conn_type="neo4j", login="login", password="password", host="host", schema="schema"
@@ -79,7 +79,7 @@ class TestNeo4jHookConn:
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 
-    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    @mock.patch("neo4j.GraphDatabase")
     def test_run_with_schema_and_params(self, mock_graph_database):
         connection = Connection(
             conn_type="neo4j", login="login", password="password", host="host", schema="schema"
@@ -105,7 +105,7 @@ class TestNeo4jHookConn:
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 
-    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    @mock.patch("neo4j.GraphDatabase")
     def test_run_without_schema(self, mock_graph_database):
         connection = Connection(
             conn_type="neo4j", login="login", password="password", host="host", schema=None
@@ -130,7 +130,7 @@ class TestNeo4jHookConn:
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 
-    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    @mock.patch("neo4j.GraphDatabase")
     def test_run_without_schema_and_params(self, mock_graph_database):
         connection = Connection(
             conn_type="neo4j", login="login", password="password", host="host", schema=None
@@ -171,7 +171,7 @@ class TestNeo4jHookConn:
             ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, False, None),
         ],
     )
-    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase.driver")
+    @mock.patch("neo4j.GraphDatabase.driver")
     def test_encrypted_provided(
         self, mock_graph_database, conn_extra, should_provide_encrypted, expected_encrypted
     ):

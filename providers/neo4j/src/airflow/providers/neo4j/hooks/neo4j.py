@@ -22,14 +22,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from neo4j import Driver, GraphDatabase
-
 try:
     from airflow.sdk.bases.hook import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
+    from neo4j import Driver
+
     from airflow.models import Connection
 
 # Default Neo4j port
@@ -77,6 +77,8 @@ class Neo4jHook(BaseHook):
         :param uri: URI string for connection.
         :return: Neo4j Driver instance.
         """
+        from neo4j import GraphDatabase
+
         parsed_uri = urlsplit(uri)
         kwargs: dict[str, Any] = {}
         if parsed_uri.scheme in ["bolt", "neo4j"]:
