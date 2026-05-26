@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-26T04:35:34.917487
+# This constraints file was automatically generated on 2026-05-26T15:18:20.805450
 # via `uv pip install --resolution highest` for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -396,7 +396,7 @@ humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.4
-ibmcloudant==0.11.6
+ibmcloudant==0.11.7
 idna==3.16
 ijson==3.4.0.post0
 immutabledict==4.3.1
@@ -460,7 +460,7 @@ microsoft-kiota-serialization-json==1.10.1
 microsoft-kiota-serialization-text==1.10.1
 mistune==3.2.1
 mmh3==5.2.1
-more-itertools==11.0.2
+more-itertools==11.1.0
 msal-extensions==1.3.1
 msal==1.36.0
 msgpack==1.1.2
@@ -549,9 +549,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.100.0
+pydantic-ai-slim==1.101.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.100.0
+pydantic-graph==1.101.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -688,7 +688,7 @@ websocket-client==1.8.0
 websockets==16.0
 wheel==0.47.0
 wirerope==1.0.0
-wrapt==2.2.0
+wrapt==2.2.1
 xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.391.0
