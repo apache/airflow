@@ -69,7 +69,6 @@
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_one": "1 arquivo",
     "files_other": "{{count}} arquivos"
   },
   "flexibleForm": {
@@ -98,19 +97,13 @@
   },
   "limitedList": "+{{count}} mais",
   "limitedList.allItems": "Todos os {{count}} itens:",
-  "limitedList.allItems_one": "Todos os {{count}} itens:",
-  "limitedList.allItems_other": "Todos os {{count}} itens:",
   "limitedList.allTags_one": "Todas as etiquetas (1)",
   "limitedList.allTags_other": "Todas as etiquetas ({{count}})",
   "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
   "limitedList.clickToOpenFull": "Clique em \"+{{count}} mais\" para ver a lista completa",
-  "limitedList.clickToOpenFull_one": "Clique em \"+{{count}} mais\" para ver a lista completa",
-  "limitedList.clickToOpenFull_other": "Clique em \"+{{count}} mais\" para ver a lista completa",
   "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
   "limitedList.showingItems_one": "Mostrando 1 item",
   "limitedList.showingItems_other": "Mostrando {{count}} itens",
-  "limitedList_one": "+{{count}} mais",
-  "limitedList_other": "+{{count}} mais",
   "logs": {
     "file": "Arquivo",
     "location": "linha {{line}} em {{name}}"

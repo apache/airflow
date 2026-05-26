@@ -82,7 +82,8 @@
   },
   "navigation": {
     "navigation": "Navegação: Shift+{{arrow}}",
-    "toggleGroup": "Alternar grupo: Espaço"
+    "toggleGroup": "Alternar grupo: Espaço",
+    "openGraphFilters": "Filtros de Tarefa: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "Voltar",
@@ -108,6 +109,10 @@
       "showLogs": "Mostrar Logs",
       "title": "Logs Recentes de Tarefas Falhadas",
       "viewFullLogs": "Ver logs completos"
+    },
+    "deadlines": {
+      "showAll": "Mostrar Tudo",
+      "title": "Prazos"
     }
   },
   "panel": {
@@ -160,6 +165,16 @@
         "upstream": "Upstream"
       },
       "selectedTask": "Tarefa selecionada"
+    },
+    "graphFilters": {
+      "clearFilters": "Limpar Filtros",
+      "durationGte": "Duração mínima (s)",
+      "durationGteHint": "Para tarefas mapeadas, mede o tempo total em todas as instâncias",
+      "mapIndex": "Índice de mapa mín.",
+      "mapIndexHint": "Mostra tarefas mapeadas expandidas até pelo menos este índice",
+      "selectStatus": "Selecionar status",
+      "selectTaskGroup": "Selecionar grupo de tarefas",
+      "title": "Filtros de Tarefa"
     }
   },
   "paramsFailed": "Falha ao carregar parâmetros",
@@ -196,5 +211,31 @@
   "taskGroups": {
     "collapseAll": "Recolher todos os grupos de tarefas",
     "expandAll": "Expandir todos os grupos de tarefas"
+  },
+  "deadlineAlerts": {
+    "completionRule": "Deve concluir em {{interval}} de {{reference}}",
+    "count_one": "{{count}} prazo",
+    "count_other": "{{count}} prazos",
+    "referenceType": {
+      "AverageRuntimeDeadline": "tempo médio de execução",
+      "DagRunLogicalDateDeadline": "data lógica",
+      "DagRunQueuedAtDeadline": "tempo em fila"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Real",
+    "expected": "Esperado",
+    "finishedEarly": "Concluído {{duration}} antes do prazo",
+    "finishedLate": "Concluído {{duration}} após o prazo",
+    "label": "Prazo",
+    "met": "Atendido",
+    "missed": "Perdido",
+    "missedCount_one": "{{count}} Prazo Perdido",
+    "missedCount_other": "{{count}} Prazos Perdidos",
+    "mixedCount": "{{missedCount}} Perdidos, {{upcomingCount}} Próximos",
+    "stillRunning": "Ainda em execução",
+    "upcoming": "Próximo",
+    "upcomingCount_one": "{{count}} Prazo Próximo",
+    "upcomingCount_other": "{{count}} Prazos Próximos"
   }
 }

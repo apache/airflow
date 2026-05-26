@@ -68,7 +68,12 @@
     "runType": "Tipo de Execução",
     "sourceAssetEvent": "Evento de Asset de Origem",
     "triggeredBy": "Acionado por",
-    "triggeringUser": "Nome do Usuário que Disparou"
+    "triggeringUser": "Nome do Usuário que Disparou",
+    "durationStats": {
+      "mean": "Média",
+      "mode": "Moda"
+    },
+    "expectedDuration": "Duração Esperada"
   },
   "dagRun_one": "Execução do Dag",
   "dagRun_other": "Execuções do Dag",
@@ -126,7 +131,8 @@
     "runAfterFrom": "Executar Depois De",
     "runAfterTo": "Executar Depois Para",
     "selectDateRange": "Selecionar intervalo de datas",
-    "startTime": "Hora de início"
+    "startTime": "Hora de início",
+    "searchAsset": "Buscar Asset"
   },
   "generateToken": "Gerar Token",
   "logicalDate": "Data Lógica",
@@ -270,7 +276,8 @@
       "latestHeartbeat": "Último heartbeat do Trigger",
       "title": "Informações do Trigger"
     },
-    "unixname": "Nome do Unix"
+    "unixname": "Nome do Unix",
+    "renderedMapIndex": "Índice de Mapa Renderizado"
   },
   "taskInstance_one": "Instância de Tarefa",
   "taskInstance_other": "Instâncias de Tarefa",
@@ -297,8 +304,6 @@
       "error": "Limpeza em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
-        "description_one": "{{count}} {{resourceName}} foi limpo com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
         "title": "Limpeza em Massa de {{resourceName}} Submetida"
       }
     },
@@ -306,8 +311,6 @@
       "error": "Exclusão em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
-        "description_one": "{{count}} {{resourceName}} foi excluído com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
         "title": "Exclusão em Massa de {{resourceName}} Submetida"
       }
     },
@@ -315,8 +318,6 @@
       "error": "Atualização em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
-        "description_one": "{{count}} {{resourceName}} foi atualizado com sucesso. Chave: {{keys}}",
-        "description_other": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
         "title": "Atualização em Massa de {{resourceName}} Submetida"
       }
     },
@@ -334,16 +335,10 @@
         "title": "Exclusão de {{resourceName}} Submetida"
       }
     },
-    "forbidden": {
-      "description": "Você não tem permissão para realizar esta ação.",
-      "title": "Acesso Negado"
-    },
     "import": {
       "error": "Importação de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram importados com sucesso.",
-        "description_one": "{{count}} {{resourceName}} foi importado com sucesso.",
-        "description_other": "{{count}} {{resourceName}} foram importados com sucesso.",
         "title": "Importação de {{resourceName}} Submetida"
       }
     },
@@ -376,5 +371,25 @@
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"
+  },
+  "consumingAsset": "Asset Consumidor",
+  "errors": {
+    "forbidden": {
+      "description": "Você não tem permissão para realizar esta ação.",
+      "title": "Acesso Negado"
+    }
+  },
+  "search": {
+    "advanced": {
+      "description": "Corresponder em qualquer parte do valor (busca por substring). Mais lento em deployments grandes porque não consegue usar índice de banco de dados.",
+      "title": "Corresponder em qualquer parte"
+    }
+  },
+  "selected": "Selecionado",
+  "taskGroup_one": "Grupo de Tarefas",
+  "taskGroup_other": "Grupos de Tarefas",
+  "validation": {
+    "mustBeAtLeast": "Deve ser no mínimo {{min}}.",
+    "mustBeValidNumber": "Deve ser um número válido."
   }
 }

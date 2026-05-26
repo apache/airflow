@@ -1,7 +1,5 @@
 {
   "assetSchedule": "{{count}} de {{total}} ativos atualizados",
-  "assetSchedule_one": "{{count}} de {{total}} ativos atualizados",
-  "assetSchedule_other": "{{count}} de {{total}} ativos atualizados",
   "dagActions": {
     "delete": {
       "button": "Excluir Dag",
@@ -28,9 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nenhuma tarefa encontrada.",
-      "title": "Tarefas Afetadas: {{count}}",
-      "title_one": "Tarefa Afetada: {{count}}",
-      "title_other": "Tarefas Afetadas: {{count}}"
+      "title": "Tarefas Afetadas: {{count}}"
     },
     "clear": {
       "button": "Limpar {{type}}",
@@ -73,6 +69,11 @@
       "queueNew": "Enfileirar novas tarefas",
       "runOnLatestVersion": "Executar com a versão mais recente do pacote",
       "upstream": "Upstream"
+    },
+    "clearAllMapped": {
+      "button": "Limpar Todas as Tarefas Mapeadas",
+      "buttonTooltip": "Pressione shift+c para limpar todas as instâncias de tarefa mapeadas",
+      "title": "Limpar Todas as Instâncias de Tarefa Mapeadas"
     }
   },
   "search": {
