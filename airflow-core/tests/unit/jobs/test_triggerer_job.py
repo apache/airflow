@@ -907,6 +907,96 @@ class TestTriggerRunner:
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
+    def test_shared_stream_ack_mode_integration(self, session) -> None:
+        """A BaseEventTrigger whose producer factory is overridden advances after all acks."""
+        from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+        from airflow.triggers.shared_stream import SharedStreamProducer
+
+        advanced: list[Any] = []
+        # Container lets _drive() write trigger_runner back for post-run assertions.
+        state: dict[str, Any] = {}
+
+        class _AckSharedProducer(SharedStreamProducer):
+            async def open_stream(self):
+                yield {"region": "us"}, "receipt-handle-1"
+                # Stay alive so the manager can tear us down on unsubscribe.
+                await asyncio.Event().wait()
+
+            async def advance(self, broker_payload, outcome):
+                advanced.append(broker_payload)
+                state["advance_called"].set()
+
+        class _AckSharedTrigger(BaseEventTrigger):
+            def __init__(self, queue_url: str, region: str | None = None):
+                super().__init__()
+                self.queue_url = queue_url
+                self.region = region
+
+            def serialize(self):
+                return (
+                    f"{type(self).__module__}.{type(self).__qualname__}",
+                    {"queue_url": self.queue_url, "region": self.region},
+                )
+
+            def shared_stream_key(self):
+                return ("ack-queue", self.queue_url)
+
+            @classmethod
+            def create_shared_stream_producer(cls, kwargs):
+                return _AckSharedProducer()
+
+            async def filter_shared_stream(self, shared_stream):
+                async for raw, token in shared_stream:
+                    if self.region is None or raw["region"] == self.region:
+                        await token.ack()
+                        yield TriggerEvent(raw)
+                    else:
+                        await token.nack()
+
+            async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+                yield TriggerEvent({})
+
+        async def _drive():
+            advance_called = asyncio.Event()
+            state["advance_called"] = advance_called
+
+            trigger_runner = TriggerRunner()
+            trigger_runner.triggers = {
+                1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+            }
+            trigger = _AckSharedTrigger(queue_url="https://ack-q", region="us")
+            trigger.task_instance = MagicMock()
+            trigger.task_instance.map_index = -1
+            state["trigger_runner"] = trigger_runner
+
+            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+            # Wait until advance has fired — unambiguous signal that ack round-trip completed.
+            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+            # Advance is dispatched from the pump task, so it can run while run_trigger is
+            # still suspended between yielding the event and appending it to the outbound
+            # queue. Wait for the event to land before cancelling, like the non-ack test above.
+            for _ in range(100):
+                if trigger_runner.events:
+                    break
+                await asyncio.sleep(0.01)
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await run_task
+
+        asyncio.run(_drive())
+        trigger_runner = state["trigger_runner"]
+
+        events = list(trigger_runner.events)
+        assert len(events) == 1
+        trigger_id, event = events[0]
+        assert trigger_id == 1
+        assert event.payload == {"region": "us"}
+
+        # The producer's advance must have been called with the broker_payload.
+        assert advanced == ["receipt-handle-1"], "producer.advance must be called after the subscriber acks"
+        # Group is torn down on unsubscribe.
+        assert trigger_runner._shared_streams._groups == {}
+
     def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
         trigger_runner = TriggerRunner()

@@ -150,24 +150,180 @@ In other words, the savings is at the poll-loop and upstream-I/O layer, not at t
 Suitable upstreams
 ^^^^^^^^^^^^^^^^^^
 
-The shared-stream channel is **one-way** today: events flow from
-``open_shared_stream`` out to each subscriber's ``filter_shared_stream``,
-and there is no way for a subscriber to tell the producer "I accepted /
-dropped / committed this event". That restricts the pattern to upstreams
-whose consumption does **not** depend on a side effect on a handle that
-only the producer holds. Good fits:
+Good fits for the shared-stream pattern:
 
 * Idempotent / read-only reads — directory scans, polling REST APIs.
 * Subscriber-side-effect cleanup, where the trigger's per-event action
   (``unlink``, local marking, …) goes through APIs the subscriber owns
   independently of the shared producer handle.
+* Message-broker upstreams (Kafka, SQS, Pub/Sub, Azure Service Bus) where
+  the producer must commit/delete/ack after all subscribers have processed
+  the message — use the ack channel described below.
 
-Currently **not** in scope: Kafka consumers (regardless of commit mode),
-SQS with delete-on-process or visibility extension, and any source where
-progress on the producer's handle is tied to the subscriber's accept /
-reject decision. These sources need a way for the subscriber to signal
-acceptance back to the producer, which the current shared-stream API does
-not provide.
+Producer-side ack channel
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For upstreams where the producer must advance (commit, delete, or ack) only
+after all subscribers have processed an event, override
+:py:meth:`~airflow.triggers.base.BaseEventTrigger.create_shared_stream_producer`
+to return a :py:class:`~airflow.triggers.shared_stream.SharedStreamProducer`.
+When this factory is overridden, the manager enters **ack mode**:
+
+1. The manager calls ``create_shared_stream_producer(kwargs)`` once per
+   shared-stream group. The returned producer owns the broker connection for
+   the lifetime of one poll; open the connection lazily inside
+   ``open_stream``, not in the factory.
+2. The producer's ``open_stream`` yields ``(event, broker_payload)`` tuples,
+   where ``broker_payload`` is whatever the producer needs later (e.g. an
+   SQS receipt handle, a Kafka offset, a Pub/Sub ack ID).
+3. Each subscriber's ``filter_shared_stream`` receives ``(event, token)``
+   pairs. The subscriber calls ``await token.ack()`` once it has accepted
+   the event, or ``await token.nack()`` to opt out.
+4. Once every subscriber in the fan-out set has resolved an event (by
+   ``ack()``, ``nack()``, unsubscribing, timing out, or overflowing its
+   queue), the manager calls
+   ``await producer.advance(broker_payload, outcome)`` — commit the offset,
+   delete the SQS message, etc. The ``outcome`` is an
+   :py:class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
+   per-event counts of how the subscribers resolved.
+
+**Ordering guarantee**: advance calls are dispatched strictly in event
+order — ``advance`` for event N is awaited only after event N-1's
+``advance`` returned (or failed and was logged). When the poll ends, the
+manager calls ``await producer.aclose()`` once, best-effort.
+
+Example — SQS-like producer:
+
+.. code-block:: python
+
+    from collections.abc import AsyncIterator
+    from typing import Any
+
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+    from airflow.triggers.shared_stream import AdvanceOutcome, SharedStreamProducer
+
+
+    class SqsSharedStreamProducer(SharedStreamProducer):
+        def __init__(self, queue_url: str):
+            self.queue_url = queue_url
+            self.client = None
+
+        async def open_stream(self) -> AsyncIterator[tuple[Any, Any]]:
+            # Open the connection here, not in the trigger's factory.
+            self.client = await create_sqs_client()
+            while True:
+                messages = await poll_sqs(self.client, self.queue_url)
+                for msg in messages:
+                    yield msg["Body"], msg["ReceiptHandle"]
+
+        async def advance(self, broker_payload: Any, outcome: AdvanceOutcome) -> None:
+            # Called once all subscribers have resolved this message.
+            if outcome.is_clean:
+                await delete_sqs_message(self.client, self.queue_url, broker_payload)
+            # Otherwise leave the message for the visibility timeout to redeliver.
+
+        async def aclose(self) -> None:
+            if self.client is not None:
+                await self.client.close()
+
+
+    class SqsSharedTrigger(BaseEventTrigger):
+        def __init__(self, *, queue_url: str, region: str | None = None):
+            super().__init__()
+            self.queue_url = queue_url
+            self.region = region
+
+        def serialize(self):
+            return (
+                f"{type(self).__module__}.{type(self).__qualname__}",
+                {"queue_url": self.queue_url, "region": self.region},
+            )
+
+        def shared_stream_key(self):
+            return ("sqs", self.queue_url)
+
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs) -> SqsSharedStreamProducer:
+            return SqsSharedStreamProducer(kwargs["queue_url"])
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                if self.region is None or raw.get("region") == self.region:
+                    await token.ack()
+                    yield TriggerEvent(raw)
+                else:
+                    await token.nack()
+
+        async def run(self):  # pragma: no cover
+            yield TriggerEvent({})
+
+Example — Kafka cumulative commit. A Kafka commit acknowledges every offset
+up to the committed one, so it is only safe if no later event can be
+committed while an earlier one is still pending. The ordering guarantee
+above provides exactly that, which makes ``commit(offset + 1)`` correct:
+
+.. code-block:: python
+
+    class KafkaSharedStreamProducer(SharedStreamProducer):
+        def __init__(self, topic: str):
+            self.topic = topic
+            self.consumer = None
+
+        async def open_stream(self):
+            self.consumer = await create_kafka_consumer(self.topic)
+            async for message in self.consumer:
+                yield message.value, message.offset
+
+        async def advance(self, broker_payload, outcome):
+            # Advance calls arrive in event order, so this cumulative commit
+            # can never skip past an event that is still pending.
+            await self.consumer.commit(broker_payload + 1)
+
+        async def aclose(self):
+            if self.consumer is not None:
+                await self.consumer.stop()
+
+.. warning::
+   Always call ``await token.ack()`` or ``await token.nack()`` **before**
+   ``yield``-ing the ``TriggerEvent``. If you yield first and the caller
+   abandons the generator (the common single-event case), the token is
+   never resolved and the producer will not advance until the per-event
+   timeout expires.
+
+**Snapshot-at-fan-out**: the set of subscribers that must ack a given event
+is frozen at the moment the event is broadcast. A subscriber that joins
+after the event was dispatched is not added to that event's pending set.
+
+**Per-event ack timeout**: if a subscriber has not called ``ack()`` or
+``nack()`` within the ack timeout (default 5 minutes, configurable via the
+``[triggerer] shared_stream_ack_timeout`` config option), the manager force-fails that
+subscriber's trigger. Other subscribers are not affected; once their acks
+arrive, the producer advances normally. The ack timeout is a manager-level
+safety net and does not replace any native broker session or visibility timeout.
+From the subscriber's perspective the force-fail surfaces as an ``AckTimeout``
+(importable from ``airflow.triggers.shared_stream``) raised by the
+``shared_stream`` iterator inside ``filter_shared_stream``. Letting it propagate
+is fine — the trigger fails through the standard trigger-failure path; catch it
+only if the subscriber needs to run cleanup before failing.
+
+**Triggerer restart**: outstanding acks live in memory only. After a
+triggerer restart, the broker redelivers messages that were not yet
+acknowledged. Subscribers must therefore be idempotent.
+
+**nack() semantics**: ``nack()`` removes the subscriber from the pending
+ack set and is counted in the ``nacked`` field of the event's
+``AdvanceOutcome``. What that means for the broker is the producer's
+decision inside ``advance`` — commit anyway, skip the commit, or trigger an
+immediate redeliver (e.g. ``ChangeMessageVisibility(0)`` for SQS).
+
+**``shared_stream_subscriber_queue_size`` in ack mode**: the config bound
+still governs unprocessed raw events per subscriber. The manager does
+**not** wait for outstanding acks before pulling the next upstream event;
+back-pressure is queue-bound — a subscriber whose queue is full is
+force-failed. The queue primarily guards against burst delivery before a
+subscriber's filter runs. Broker advances, by contrast, are dispatched
+strictly in event order: an event whose acks are still pending delays the
+advance of every later event, with the ack timeout bounding that wait.
 
 Verifying that sharing is active
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
