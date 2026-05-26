@@ -39,7 +39,12 @@ allprojects {
         }
         sourceCompatibility = JavaVersion.VERSION_11
     }
-    kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_11 } }
+    kotlin {
+        compilerOptions {
+            // If this is changed, also change "Setup Java" in codeql-analysis.yml.
+            jvmTarget = JvmTarget.JVM_11
+        }
+    }
 
     configure<SpotlessExtension> {
         java {
