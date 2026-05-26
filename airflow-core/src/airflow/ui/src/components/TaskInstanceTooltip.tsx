@@ -26,7 +26,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration, renderDuration, sortStateEntries } from "src/utils";
+import { getDuration, normalizeStateColorKey, normalizeStateLabelKey, renderDuration, sortStateEntries } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
@@ -138,7 +138,7 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
                   {childEntries.map(([state, count]) => (
                     <HStack gap={2} key={state}>
                       <Box
-                        bg={`${state}.solid`}
+                        bg={`${normalizeStateColorKey(state)}.solid`}
                         border="1px solid"
                         borderColor="border.emphasized"
                         borderRadius="2px"
@@ -146,7 +146,7 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
                         width="10px"
                       />
                       <Text fontSize="xs">
-                        {count} {translate(`common:states.${state}`)}
+                        {count} {translate(`common:states.${normalizeStateLabelKey(state)}`)}
                       </Text>
                     </HStack>
                   ))}
