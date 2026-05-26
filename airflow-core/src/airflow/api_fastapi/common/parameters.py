@@ -543,12 +543,17 @@ class SortParam(BaseParam[list[str]]):
     MAX_SORT_PARAMS = 10
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
+        self,
+        allowed_attrs: list[str],
+        model: Base,
+        to_replace: dict[str, str | Column] | None = None,
+        secondary_sort: dict[str, Column] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
         self.model = model
         self.to_replace = to_replace
+        self.secondary_sort: dict[str, Column] = secondary_sort or {}
         self._cached_resolution: list[tuple[str, ColumnElement, bool]] | None = None
 
     def set_value(self, value: list[str] | None) -> Self:
@@ -611,10 +616,13 @@ class SortParam(BaseParam[list[str]]):
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
         resolved = self._resolve()
-        if reversed:
-            columns = [col.asc() if is_desc else col.desc() for _, col, is_desc in resolved]
-        else:
-            columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
+        columns = []
+        for attr_name, col, is_desc in resolved:
+            effective_desc = not is_desc if reversed else is_desc
+            columns.append(col.desc() if effective_desc else col.asc())
+            secondary = self.secondary_sort.get(attr_name)
+            if secondary is not None:
+                columns.append(secondary.desc() if effective_desc else secondary.asc())
         return select.order_by(None).order_by(*columns)
 
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:

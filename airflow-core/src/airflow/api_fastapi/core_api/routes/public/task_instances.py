@@ -216,6 +216,7 @@ def get_mapped_task_instances(
                     "logical_date": DagRun.logical_date,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    "rendered_map_index": "map_index",
                 },
             ).dynamic_depends(default="map_index")
         ),
@@ -508,6 +509,7 @@ def get_task_instances(
                     "run_after": DagRun.run_after,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    "rendered_map_index": "map_index",
                 },
             ).dynamic_depends(default="map_index")
         ),
