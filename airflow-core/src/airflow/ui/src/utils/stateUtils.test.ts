@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { sortStateEntries } from "./stateUtils";
+import { getDisplayState, sortStateEntries } from "./stateUtils";
 
 describe("sortStateEntries", () => {
   it("returns empty array for null input", () => {
@@ -93,5 +93,64 @@ describe("sortStateEntries", () => {
 
   it("returns empty array when all counts are zero", () => {
     expect(sortStateEntries({ failed: 0, running: 0, success: 0 })).toEqual([]);
+  });
+
+  it('sorts the serialized no-status key "None" after all known states', () => {
+    // STATE_PRIORITY deliberately excludes "None" so the broken render path
+    // for that key (tokenless slice / untranslated label — tracked at
+    // https://github.com/apache/airflow/issues/67541) appears in the least
+    // prominent position in the segmented bar and tooltip breakdown.
+    expect(sortStateEntries({ None: 1, success: 5 })).toEqual([
+      ["success", 5],
+      ["None", 1],
+    ]);
+    expect(sortStateEntries({ failed: 2, None: 1, running: 3 })).toEqual([
+      ["failed", 2],
+      ["running", 3],
+      ["None", 1],
+    ]);
+  });
+});
+
+describe("getDisplayState", () => {
+  it("prefers running over queued for groups (overrides backend agg_state)", () => {
+    expect(getDisplayState({ queued: 1, running: 5 }, "queued")).toBe("running");
+  });
+
+  it("falls back to the provided state when child_states is null", () => {
+    expect(getDisplayState(null, "running")).toBe("running");
+  });
+
+  it("falls back to the provided state when child_states is undefined", () => {
+    expect(getDisplayState(undefined, "success")).toBe("success");
+  });
+
+  it("falls back to the provided state when all child counts are zero", () => {
+    expect(getDisplayState({ queued: 0, running: 0 }, "scheduled")).toBe("scheduled");
+  });
+
+  it("picks the highest-priority terminal state when only terminal children present", () => {
+    expect(getDisplayState({ failed: 1, success: 3 }, "success")).toBe("failed");
+  });
+
+  it("returns null when child_states is empty and fallbackState is null", () => {
+    expect(getDisplayState(null, null)).toBeNull();
+  });
+
+  it("returns null when child_states contains only the serialized no-status key", () => {
+    expect(getDisplayState({ None: 1 }, "success")).toBeNull();
+  });
+
+  it("returns null when no-status children sit alongside terminal states", () => {
+    // Backend semantics: incomplete work (None) outranks success/skipped/removed.
+    expect(getDisplayState({ None: 1, success: 5 }, "success")).toBeNull();
+  });
+
+  it("still lets failure outrank no-status children", () => {
+    expect(getDisplayState({ failed: 1, None: 1, success: 1 }, "success")).toBe("failed");
+  });
+
+  it("still lets running outrank no-status children", () => {
+    expect(getDisplayState({ None: 1, running: 5 }, "queued")).toBe("running");
   });
 });

@@ -195,6 +195,70 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
   });
 
+  it("prefers dominant active child state over agg_state for groups", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: { queued: 1, running: 5 },
+      max_end_date: null,
+      min_start_date: "2025-01-01T00:00:00Z",
+      state: "queued",
+      task_display_name: "Group Task",
+      task_id: "group_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    // State line + 1 breakdown row for `running` → 2 matches;
+    // only breakdown row for `queued` → 1 match. Reverting the fix flips these counts.
+    expect(screen.getAllByText(/states\.running/iu)).toHaveLength(2);
+    expect(screen.getAllByText(/states\.queued/iu)).toHaveLength(1);
+  });
+
+  it("falls back to taskInstance.state on the State line when child_states is null", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: null,
+      max_end_date: null,
+      min_start_date: "2025-01-01T00:00:00Z",
+      state: "running",
+      task_display_name: "My Task",
+      task_id: "my_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/states\.running/iu)).toBeInTheDocument();
+  });
+
+  it("prefers failed over success on the State line when only terminal children present", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: { failed: 1, success: 3 },
+      max_end_date: "2025-01-01T02:00:00Z",
+      min_start_date: "2025-01-01T00:00:00Z",
+      state: "success",
+      task_display_name: "Group Task",
+      task_id: "group_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getAllByText(/states\.failed/iu)).toHaveLength(2);
+    expect(screen.getAllByText(/states\.success/iu)).toHaveLength(1);
+  });
+
   it("shows run ID when provided explicitly for grid summaries", () => {
     const taskInstance: LightGridTaskInstanceSummary = {
       child_states: null,

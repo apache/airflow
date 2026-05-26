@@ -19,6 +19,7 @@
 import type { Node as ReactFlowNode } from "@xyflow/react";
 
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import { getDisplayState } from "src/utils";
 
 export const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -29,8 +30,14 @@ export const nodeColor = (
     return "";
   }
 
-  if (taskInstance?.state !== undefined && !isOpen) {
-    return `var(--chakra-colors-${taskInstance.state}-solid)`;
+  if (taskInstance !== undefined && !isOpen) {
+    // Match the main node / badge / filter on displayState so the MiniMap
+    // does not paint a different colour than the node it represents.
+    const displayState = getDisplayState(taskInstance.child_states, taskInstance.state);
+
+    if (displayState !== undefined && displayState !== null) {
+      return `var(--chakra-colors-${displayState}-solid)`;
+    }
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {

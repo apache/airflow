@@ -26,7 +26,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration, renderDuration, sortStateEntries } from "src/utils";
+import { getDisplayState, getDuration, renderDuration, sortStateEntries } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
@@ -53,6 +53,11 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
       ? sortStateEntries(taskInstance.child_states)
       : [];
 
+  const displayState = getDisplayState(
+    taskInstance !== undefined && "child_states" in taskInstance ? taskInstance.child_states : null,
+    taskInstance?.state,
+  );
+
   return taskInstance === undefined && !hasTooltip ? (
     children
   ) : (
@@ -68,8 +73,8 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               </Text>
               <Text>
                 {translate("state")}:{" "}
-                {taskInstance.state
-                  ? translate(`common:states.${taskInstance.state}`)
+                {displayState
+                  ? translate(`common:states.${displayState}`)
                   : translate("common:states.no_status")}
               </Text>
               {"dag_run_id" in taskInstance || (runId !== undefined && runId !== null && runId !== "") ? (
@@ -135,6 +140,9 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               ) : undefined}
               {childEntries.length > 0 ? (
                 <VStack align="start" gap={1} ps={2}>
+                  {/* Serialized no-status key "None" yields a tokenless swatch
+                      and an untranslated `common:states.None` label here;
+                      tracked at https://github.com/apache/airflow/issues/67541 */}
                   {childEntries.map(([state, count]) => (
                     <HStack gap={2} key={state}>
                       <Box

@@ -171,6 +171,59 @@ describe("useGraphFilteredNodes", () => {
     expect(result.current?.[0]?.data.isFiltered).toBe(true);
   });
 
+  it("state filter: keeps a group containing any child whose state is selected", () => {
+    const node = makeNode({
+      taskInstance: {
+        child_states: { queued: 1, running: 5 },
+        dag_version_number: undefined,
+        max_end_date: null,
+        min_start_date: null,
+        // Backend agg_state returns "queued" and getDisplayState returns
+        // "running"; the filter must reflect membership ("the group contains
+        // queued work") rather than the dominant rendering.
+        state: "queued",
+        task_display_name: "group_a",
+        task_id: "group_a",
+      },
+    });
+    const runningFilter: GraphFilterValues = { ...noFilters, selectedStates: ["running"] };
+    const queuedFilter: GraphFilterValues = { ...noFilters, selectedStates: ["queued"] };
+    const failedFilter: GraphFilterValues = { ...noFilters, selectedStates: ["failed"] };
+
+    const runningResult = renderHook(() => useGraphFilteredNodes([node], runningFilter));
+    const queuedResult = renderHook(() => useGraphFilteredNodes([node], queuedFilter));
+    const failedResult = renderHook(() => useGraphFilteredNodes([node], failedFilter));
+
+    expect(runningResult.result.current?.[0]?.data.isFiltered).toBe(false);
+    expect(queuedResult.result.current?.[0]?.data.isFiltered).toBe(false);
+    expect(failedResult.result.current?.[0]?.data.isFiltered).toBe(true);
+  });
+
+  it('state filter: normalizes the serialized no-status child key "None" to "none"', () => {
+    const node = makeNode({
+      taskInstance: {
+        child_states: { None: 2, success: 1 },
+        dag_version_number: undefined,
+        max_end_date: null,
+        min_start_date: null,
+        state: null,
+        task_display_name: "group_a",
+        task_id: "group_a",
+      },
+    });
+    const noneFilter: GraphFilterValues = { ...noFilters, selectedStates: ["none"] };
+    const successFilter: GraphFilterValues = { ...noFilters, selectedStates: ["success"] };
+    const runningFilter: GraphFilterValues = { ...noFilters, selectedStates: ["running"] };
+
+    const noneResult = renderHook(() => useGraphFilteredNodes([node], noneFilter));
+    const successResult = renderHook(() => useGraphFilteredNodes([node], successFilter));
+    const runningResult = renderHook(() => useGraphFilteredNodes([node], runningFilter));
+
+    expect(noneResult.result.current?.[0]?.data.isFiltered).toBe(false);
+    expect(successResult.result.current?.[0]?.data.isFiltered).toBe(false);
+    expect(runningResult.result.current?.[0]?.data.isFiltered).toBe(true);
+  });
+
   it("mapIndex filter: filters a non-mapped node when mapIndex is set", () => {
     const node = makeNode({ isMapped: false });
     const filters: GraphFilterValues = { ...noFilters, mapIndex: 0 };

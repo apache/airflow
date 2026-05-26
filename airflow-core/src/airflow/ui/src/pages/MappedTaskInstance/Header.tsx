@@ -26,7 +26,7 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { getDisplayState, getDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();
@@ -68,7 +68,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
           />
         }
         icon={<MdOutlineTask />}
-        state={taskInstance.state}
+        state={getDisplayState(taskInstance.child_states, taskInstance.state)}
         stats={stats}
         subTitle={<Time datetime={taskInstance.min_start_date} />}
         title={`${taskInstance.task_display_name} [${taskCount}]`}

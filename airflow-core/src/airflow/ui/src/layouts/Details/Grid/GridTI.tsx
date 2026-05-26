@@ -23,6 +23,7 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useHover } from "src/context/hover";
+import { getDisplayState } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 type Props = {
@@ -65,6 +66,8 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
   const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
   const isHovered = hoveredTaskId === taskId;
 
+  const displayState = getDisplayState(instance.child_states, instance.state);
+
   return (
     <Flex
       alignItems="center"
@@ -100,7 +103,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
             <Badge
               alignItems="center"
               borderRadius={4}
-              colorPalette={instance.state ?? "none"}
+              colorPalette={displayState ?? "none"}
               data-testid="task-state-badge"
               display="flex"
               height="14px"
@@ -110,7 +113,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
               variant="solid"
               width="14px"
             >
-              <StateIcon size={10} state={instance.state} />
+              <StateIcon size={10} state={displayState} />
             </Badge>
           </Link>
         </Box>

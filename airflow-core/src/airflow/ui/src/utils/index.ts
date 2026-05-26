@@ -25,4 +25,4 @@ export { useContainerWidth } from "./useContainerWidth";
 export { useDocumentTitle } from "./useDocumentTitle";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
 export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+export { STATE_PRIORITY, getDisplayState, sortStateEntries } from "./stateUtils";

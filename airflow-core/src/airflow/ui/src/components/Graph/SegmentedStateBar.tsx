@@ -41,6 +41,8 @@ export const SegmentedStateBar = ({ childStates, fallbackState, height = "6px" }
   return (
     <Flex borderRadius="2px" height={height} mt="auto" overflow="hidden">
       {entries.map(([state, count]) => (
+        // Serialized no-status key "None" yields a tokenless slice here;
+        // tracked at https://github.com/apache/airflow/issues/67541
         <Box bg={`${state}.solid`} flex={count} key={state} minWidth="2px" />
       ))}
     </Flex>
