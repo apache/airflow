@@ -15,24 +15,57 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG for demonstrating the usage of event driven scheduling using assets and triggers.
+Example Dag for event-driven scheduling using Assets and AssetWatchers.
+
+Three watchers demonstrate the two trigger patterns in one place:
+
+* The first watcher uses ``FileDeleteTrigger`` for a single specific path —
+  one watcher, one independent poll loop in the triggerer.
+* The other two use ``DirectoryFileDeleteTrigger`` with a matching
+  ``shared_stream_key`` of ``("directory-scan", directory, poke_interval)``;
+  the triggerer runs **one** directory listing loop for the pair and
+  broadcasts the result to both. Each still fires only for its own filename.
+
+The Dag runs when any of the three watchers' assets is updated. Touch
+``/tmp/test``, ``/tmp/region-flags/us.flag``, or ``/tmp/region-flags/eu.flag``
+to trigger a run.
 """
 
 from __future__ import annotations
 
-from airflow.providers.standard.triggers.file import FileDeleteTrigger
+from airflow.providers.standard.triggers.file import (
+    DirectoryFileDeleteTrigger,
+    FileDeleteTrigger,
+)
 from airflow.sdk import DAG, Asset, AssetWatcher, chain, task
 
-file_path = "/tmp/test"
+# Independent single-file watcher — has its own poll loop in the triggerer.
+single_file_trigger = FileDeleteTrigger(filepath="/tmp/test")
+single_file_asset = Asset(
+    "example_asset",
+    watchers=[AssetWatcher(name="test_asset_watcher", trigger=single_file_trigger)],
+)
 
-trigger = FileDeleteTrigger(filepath=file_path)
-asset = Asset("example_asset", watchers=[AssetWatcher(name="test_asset_watcher", trigger=trigger)])
+# Shared-stream watchers — same directory + poke interval, so the triggerer
+# runs one scan for both. Each watcher's ``filter_shared_stream`` matches on
+# its own filename and ``unlink``s the flag file as a subscriber-side effect.
+us_trigger = DirectoryFileDeleteTrigger(directory="/tmp/region-flags", filename="us.flag", poke_interval=5.0)
+eu_trigger = DirectoryFileDeleteTrigger(directory="/tmp/region-flags", filename="eu.flag", poke_interval=5.0)
+us_asset = Asset(
+    "region_us_flag",
+    watchers=[AssetWatcher(name="us_flag_watcher", trigger=us_trigger)],
+)
+eu_asset = Asset(
+    "region_eu_flag",
+    watchers=[AssetWatcher(name="eu_flag_watcher", trigger=eu_trigger)],
+)
 
 
 with DAG(
     dag_id="example_asset_with_watchers",
-    schedule=[asset],
+    schedule=[single_file_asset, us_asset, eu_asset],
     catchup=False,
+    tags=["example"],
 ):
 
     @task

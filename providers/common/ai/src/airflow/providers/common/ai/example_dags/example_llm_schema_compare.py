@@ -24,7 +24,7 @@ from airflow.providers.common.sql.config import DataSourceConfig
 
 
 # [START howto_operator_llm_schema_compare_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_schema_compare_basic():
     LLMSchemaCompareOperator(
         task_id="detect_schema_drift",
@@ -41,7 +41,7 @@ example_llm_schema_compare_basic()
 
 
 # [START howto_operator_llm_schema_compare_full]
-@dag
+@dag(tags=["example"])
 def example_llm_schema_compare_full_context():
     LLMSchemaCompareOperator(
         task_id="detect_schema_drift",
@@ -62,7 +62,7 @@ example_llm_schema_compare_full_context()
 
 
 # [START howto_operator_llm_schema_compare_datasource]
-@dag
+@dag(tags=["example"])
 def example_llm_schema_compare_with_object_storage():
     s3_source = DataSourceConfig(
         conn_id="aws_default",
@@ -87,7 +87,7 @@ example_llm_schema_compare_with_object_storage()
 
 
 # [START howto_decorator_llm_schema_compare]
-@dag
+@dag(tags=["example"])
 def example_llm_schema_compare_decorator():
     @task.llm_schema_compare(
         llm_conn_id="pydanticai_default",
@@ -106,7 +106,7 @@ example_llm_schema_compare_decorator()
 
 
 # [START howto_operator_llm_schema_compare_conditional]
-@dag
+@dag(tags=["example"])
 def example_llm_schema_compare_conditional():
     @task.llm_schema_compare(
         llm_conn_id="pydanticai_default",
