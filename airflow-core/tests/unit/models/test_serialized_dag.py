@@ -585,6 +585,48 @@ class TestSerializedDagModel:
         # There should now be two versions of the DAG
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
 
+    def test_new_dag_version_created_when_bundle_version_changes_and_hash_unchanged(self, dag_maker, session):
+        """Test that new dag_version is created if bundle_version changes but DAG is unchanged.
+
+        Regression test: previously the write_dag short-circuit ignored bundle_version, so a
+        bundle redeploy with the same DAG file would not refresh DagVersion.bundle_version and
+        downstream consumers (dag-source endpoint, task instance history) would resolve to the
+        wrong bundle commit.
+        """
+        bundle_name = "test_bundle"
+        with dag_maker("test_dag_update_bundle_version", bundle_name=bundle_name) as dag:
+            EmptyOperator(task_id="task1")
+
+        dag_maker.create_dagrun(run_id="test_run")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+        )
+        session.commit()
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+
+        # Write the same DAG (no changes) but with a new bundle_version
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+        )
+        session.commit()
+
+        assert did_write is True
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        latest = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == dag.dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert latest.bundle_version == "v2"
+
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
         test_data = {

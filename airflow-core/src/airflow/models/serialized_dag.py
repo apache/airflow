@@ -685,6 +685,7 @@ class SerializedDagModel(Base):
             serialized_dag_hash == new_serialized_dag.dag_hash
             and dag_version
             and dag_version.bundle_name == bundle_name
+            and dag_version.bundle_version == bundle_version
         ):
             if name_updated:
                 # The serialized DAG itself is unchanged, but deadline alert name(s) were
