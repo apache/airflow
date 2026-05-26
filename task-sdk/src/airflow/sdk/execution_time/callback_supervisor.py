@@ -230,10 +230,10 @@ class CallbackSubprocess(WatchedSubprocess):
 
     def wait(self) -> int:
         """
-        Wait for the callback subprocess to complete.
+        Wait for the callback subprocess to complete, then upload logs to remote storage.
 
-        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating,
-        task API state management, or log uploading.
+        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating
+        or task API state management.
         """
         if self._exit_code is not None:
             return self._exit_code
@@ -244,7 +244,20 @@ class CallbackSubprocess(WatchedSubprocess):
             self.selector.close()
 
         self._exit_code = self._exit_code if self._exit_code is not None else 1
+
+        self._upload_logs()
+
         return self._exit_code
+
+    def _upload_logs(self):
+        from airflow.sdk.execution_time.supervisor import _remote_logging_conn
+        from airflow.sdk.log import upload_to_remote
+
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log)
+        except Exception:
+            log.exception("Failed to upload callback logs to remote storage", id=self.id, pid=self.pid)
 
     def _monitor_subprocess(self):
         """
@@ -305,14 +318,16 @@ class CallbackSubprocess(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
-def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
+def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO]:
     """Configure file-based logging for the callback subprocess."""
+    from airflow.sdk.execution_time.supervisor import _remote_logging_conn
     from airflow.sdk.log import init_log_file, logging_processors
 
     log_file = init_log_file(log_path)
     log_file_descriptor: BinaryIO = log_file.open("ab")
     underlying_logger = structlog.BytesLogger(log_file_descriptor)
-    processors = logging_processors(json_output=True)
+    with _remote_logging_conn(client):
+        processors = logging_processors(json_output=True)
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="callback").bind()
 
     return logger, log_file_descriptor
@@ -348,14 +363,13 @@ def supervise_callback(
 
     logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path)
-    else:
-        # When no log file is requested, still use a callback-specific logger
-        # so logs are clearly separated from task logs.
-        logger = structlog.get_logger(logger_name="callback").bind()
 
     with _ensure_client(server, token, client=client) as client:
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
+        else:
+            logger = structlog.get_logger(logger_name="callback").bind()
+
         try:
             process = CallbackSubprocess.start(
                 id=id,

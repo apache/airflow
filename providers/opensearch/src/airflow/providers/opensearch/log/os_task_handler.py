@@ -853,8 +853,11 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Emit structured task logs to stdout and/or write them directly to OpenSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
         local_loc = path if path.is_absolute() else self.base_log_folder.joinpath(path)
         if not local_loc.is_file():

@@ -224,18 +224,20 @@ def relative_path_from_logger(logger) -> Path | None:
     return Path(fname).relative_to(base_log_folder)
 
 
-def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
+def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
     raw_logger = getattr(logger, "_logger")
     # Dedicated logger for remote-upload visibility — operators relying on
     # remote log handlers need a way to see when those handlers fail to load
     # or fail to upload.
     upload_log = structlog.get_logger("airflow.logging.remote")
 
+    ti_id = str(ti.id) if ti else None
+
     handler = load_remote_log_handler()
     if not handler:
         upload_log.warning(
             "remote_log_handler_unavailable",
-            ti_id=str(ti.id),
+            ti_id=ti_id,
             note="Remote log handler could not be loaded; logs will be available locally only.",
         )
         return
@@ -245,7 +247,7 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     except Exception as exc:
         upload_log.warning(
             "remote_log_path_resolution_failed",
-            ti_id=str(ti.id),
+            ti_id=ti_id,
             exc_info=exc,
         )
         return
@@ -258,7 +260,7 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     except Exception as exc:
         upload_log.warning(
             "remote_log_upload_failed",
-            ti_id=str(ti.id),
+            ti_id=ti_id,
             log_relative_path=log_relative_path,
             exc_info=exc,
         )
