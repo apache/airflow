@@ -64,6 +64,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 if TYPE_CHECKING:
     from github import Github
+    from github.IssueEvent import IssueEvent
     from github.Repository import Issue, Milestone, Repository
 
 
@@ -1014,46 +1015,37 @@ def upgrade(
 #
 # Skip-decision pipeline
 # ----------------------
-# :func:`_should_skip_milestone_tagging` is the single interface that decides
-# whether milestone auto-tagging should be skipped for a PR. The full pipeline
-# the ``set_milestone`` command runs is:
+# After fetching the PR (so the ``Issue`` is in scope), the ``set-milestone``
+# command runs these three checks IN ORDER and stops on the first one that
+# returns "skip":
 #
-# 1. **Static skip on snapshot labels.** Before any GitHub API call, ask
-#    ``_should_skip_milestone_tagging(snapshot_labels)``. This handles the
-#    ``MILESTONE_SKIP_LABELS`` set (e.g. ``area:CI``) cheaply.
-# 2. **Milestone-already-set guard.** Fetch the issue; if it already has a
-#    milestone, leave it alone.
-# 3. **Race-window re-evaluation.** Re-read live labels from the freshly
-#    fetched issue. If they differ from ``snapshot_labels``, gather the
-#    GitHub-events attribution for any fully-removed ``backport-to-*``
-#    labels and ask ``_should_skip_milestone_tagging`` again with the
-#    snapshot, current labels, and actor info. The function applies these
-#    checks in order:
+# 1. **Milestone-already-set guard** (in ``set_milestone``): if
+#    ``issue.milestone`` is non-null, leave the existing milestone alone and
+#    exit.
+# 2. **GitHub events evaluation** (:func:`_should_skip_milestone_tagging`):
+#    if any ``unlabeled`` event in ``issue.get_events()`` removed a
+#    ``backport-to-*`` label AND no ``backport-to-*`` label remains on the
+#    PR, treat the removal as an explicit "don't auto-tag" signal and skip.
+#    GitHub repo settings restrict label changes to committers/triagers, so
+#    the actor's permission is NOT re-verified here — the change is
+#    implicitly authorised.
+# 3. **Static skip labels** (:func:`_should_skip_milestone_tagging`): if any
+#    ``MILESTONE_SKIP_LABELS`` label is currently on the PR, skip.
 #
-#    a. ``MILESTONE_SKIP_LABELS`` present on current labels → skip.
-#    b. Every ``backport-to-*`` label from ``snapshot_labels`` is now
-#       absent (no replacement backport remains) AND the unlabel actor is
-#       not positively identified as lacking write access → skip; treat
-#       the removal as an explicit "don't auto-tag" maintainer signal.
-#    c. Same removal pattern but the unlabel actor is positively a
-#       non-maintainer (bot / external contributor) → do **not** skip;
-#       a warning is logged and normal evaluation continues.
-#    d. Otherwise → do not skip.
+# The events check is intentionally ordered before the static-label check so
+# that an explicit maintainer "unbackport" overrides every other condition,
+# including the merge-to-version-branch heuristic that
+# :func:`_determine_milestone_version` would otherwise apply.
 #
 # Inputs the decision uses
 # ------------------------
-# - ``labels`` — the labels currently on the PR (or the snapshot, when the
-#   function is called as a cheap pre-flight check before any API call).
-# - ``snapshot_labels`` — the labels captured by the workflow's
-#   ``get-pr-info`` job, used to detect race-window changes.
-# - ``unlabel_actor_login`` — GitHub login of the user who most recently
-#   removed a ``backport-to-*`` label, resolved via
-#   :func:`_get_latest_backport_unlabel_actor`.
-# - ``unlabel_actor_has_write_access`` — tri-state result from
-#   :func:`_actor_has_write_access` (``True`` write/admin, ``False`` other,
-#   ``None`` lookup failed). ``False`` is the only value that defers the
-#   skip; ``True`` / ``None`` both treat the removal as a maintainer signal
-#   so transient API failures never silently disable the skip.
+# - ``labels`` — the labels currently on the PR (live from ``issue.labels``,
+#   fetched fresh by the caller; the workflow's ``--pr-labels`` snapshot is
+#   no longer consulted for the decision).
+# - ``events`` — the issue events stream from ``issue.get_events()``,
+#   fetched fresh by the caller. Pass ``None`` to disable the events check
+#   (e.g. when the events fetch failed and only the static check should
+#   run).
 #
 # All milestone helpers log via :func:`console_print` with the workflow's
 # Rich console; callers do not need to add their own skip-related log lines.
@@ -1191,166 +1183,85 @@ def _has_bug_fix_indicators(title: str, labels: list[str]) -> bool:
     return False
 
 
-def _all_backport_labels_removed(snapshot_labels: list[str], current_labels: list[str]) -> set[str]:
-    """Return removed ``backport-to-*`` labels when none remain on the PR.
+def _get_removed_backport_labels_from_events(events: Iterable[IssueEvent]) -> set[str]:
+    """Return ``backport-to-*`` labels that appear in any ``unlabeled`` event.
 
-    Returns the set of ``backport-to-*`` labels present in ``snapshot_labels``
-    but absent from ``current_labels``, but only when ``current_labels``
-    contains no ``backport-to-*`` label at all. A non-empty result means a
-    maintainer fully unbackported the PR during the workflow's race window
-    (between the ``get-pr-info`` snapshot and the ``set-milestone`` step).
-    That is an explicit "don't auto-tag" signal that should override other
-    auto-tagging conditions (e.g. merge to a version branch).
+    Scans the issue events stream for ``unlabeled`` events on ``backport-to-*``
+    labels and returns the set of label names that were removed at any point
+    in the PR's lifecycle. The actor is intentionally NOT checked: GitHub
+    repo settings restrict label changes to users with write or triage
+    access, so any ``unlabeled`` event is implicitly authorised.
 
-    Returning an empty set when *some* backport label still remains
-    preserves the label-replacement case: a maintainer swapping
-    ``backport-to-v3-1-test`` for ``backport-to-v3-2-test`` is a fix, not a
-    cancel, so the milestone should follow the new label.
+    Combined with the live ``backport-to-*`` labels still on the PR, this is
+    enough to distinguish:
+
+    - Full removal (event present, no current backport) → skip signal.
+    - Replacement (event present, different current backport) → no skip;
+      the caller's regular evaluation picks up the new label.
+    - No removal (no event) → no skip.
     """
-    snapshot_backports = {label for label in snapshot_labels if label.startswith("backport-to-")}
-    current_backports = {label for label in current_labels if label.startswith("backport-to-")}
-    if current_backports:
-        return set()
-    return snapshot_backports
+    return {
+        event.label.name
+        for event in events
+        if getattr(event, "event", None) == "unlabeled"
+        and getattr(getattr(event, "label", None), "name", "").startswith("backport-to-")
+    }
 
 
 def _should_skip_milestone_tagging(
     labels: list[str],
-    snapshot_labels: list[str] | None = None,
-    *,
-    unlabel_actor_login: str | None = None,
-    unlabel_actor_has_write_access: bool | None = None,
+    events: Iterable[IssueEvent] | None = None,
 ) -> bool:
     """Decide whether milestone auto-tagging should be skipped for the PR.
 
-    Single decision point for the ``set-milestone`` command. Applies the
-    following checks IN ORDER and short-circuits on the first hit. Each
-    skip / defer outcome logs its own reason via ``console_print``; callers
-    only need to react to the boolean return.
+    Single decision point for the ``set-milestone`` command, covering
+    checks 2 and 3 of the pipeline documented in the module-level comment
+    above. Check 1 (milestone-already-set guard) is handled separately in
+    :func:`set_milestone` because it operates on ``issue.milestone`` rather
+    than labels. Applies the checks IN ORDER and short-circuits on the
+    first hit; each skip outcome emits its own ``console_print`` info log
+    so callers only need to react to the boolean return.
 
-    1. ``MILESTONE_SKIP_LABELS`` present on ``labels`` → **skip** (info
-       log). This is independent of the snapshot and is cheap enough to
-       use as a pre-flight check before any GitHub API call.
-    2. ``snapshot_labels`` supplied AND every ``backport-to-*`` label that
-       was on the snapshot is now absent from ``labels`` (no replacement
-       backport remains) — i.e. a maintainer fully unbackported the PR
-       during the workflow's race window. The GitHub-events inputs then
-       decide attribution:
+    1. **GitHub events evaluation** (when ``events`` is supplied). If any
+       ``unlabeled`` event in ``events`` removed a ``backport-to-*`` label
+       AND ``labels`` contains no ``backport-to-*`` label now, treat the
+       removal as an explicit "don't auto-tag" signal and skip. Pure label
+       replacement (e.g. ``backport-to-v3-1-test`` swapped for
+       ``backport-to-v3-2-test``) leaves a backport on the PR and does NOT
+       trigger the skip — the caller's regular evaluation picks up the new
+       label. The unlabel actor's permission is NOT re-verified: GitHub
+       repo settings already restrict label changes to committers/triagers.
+    2. **Static skip labels.** If any ``MILESTONE_SKIP_LABELS`` label is
+       in ``labels``, skip.
+    3. Otherwise, do not skip.
 
-       - ``unlabel_actor_has_write_access`` is ``False`` (positively
-         identified as a non-maintainer such as a bot or external
-         contributor) → **do not skip**; a warning is logged and the
-         caller falls through to normal evaluation. This is the only
-         value that defers; ``True`` / ``None`` both treat the removal
-         as a maintainer signal so transient permission-API failures
-         never silently disable the skip.
-       - Otherwise (write/admin actor, unknown actor, or unknown
-         permission) → **skip** with attribution in the info log.
-    3. Otherwise → **do not skip**.
+    The events check is ordered first so that an explicit unbackport
+    overrides every other condition, including the merge-to-version-branch
+    heuristic that :func:`_determine_milestone_version` would otherwise
+    apply.
 
-    Partial replacement (snapshot had ``backport-to-v3-1-test``, current
-    has ``backport-to-v3-2-test``) is intentionally NOT a skip signal:
-    :func:`_all_backport_labels_removed` returns an empty set in that
-    case, so the caller's regular re-evaluation picks up the new label.
-
-    :param labels: Labels currently on the PR (or the snapshot, when used
-        as a pre-flight check before any API call).
-    :param snapshot_labels: Labels captured by the workflow's
-        ``get-pr-info`` job, used to detect race-window changes. Pass
-        ``None`` to disable race-window checks (e.g. the pre-flight call).
-    :param unlabel_actor_login: GitHub login of the user who most recently
-        removed a ``backport-to-*`` label, from
-        :func:`_get_latest_backport_unlabel_actor`. Only used when the
-        snapshot/current diff triggers check 2.
-    :param unlabel_actor_has_write_access: Tri-state from
-        :func:`_actor_has_write_access`. Only used when check 2 fires.
+    :param labels: Labels currently on the PR (live, from ``issue.labels``).
+    :param events: Issue events stream (live, from ``issue.get_events()``).
+        Pass ``None`` to disable the events check — e.g. when the events
+        fetch failed and only the static skip-label check should run.
     """
+    if events is not None:
+        removed_backports = _get_removed_backport_labels_from_events(events)
+        current_backports = {label for label in labels if label.startswith("backport-to-")}
+        if removed_backports and not current_backports:
+            console_print(
+                f"[info]Skipping milestone tagging - backport labels were removed during the "
+                f"PR lifecycle and no replacement remains, treated as explicit "
+                f"maintainer/triager signal: {sorted(removed_backports)}[/]"
+            )
+            return True
+
     skip_labels_present = set(labels) & MILESTONE_SKIP_LABELS
     if skip_labels_present:
         console_print(f"[info]Skipping milestone tagging - PR has skip label(s): {skip_labels_present}[/]")
         return True
 
-    if snapshot_labels is None:
-        return False
-
-    removed = _all_backport_labels_removed(snapshot_labels, labels)
-    if not removed:
-        return False
-
-    if unlabel_actor_has_write_access is False:
-        console_print(
-            f"[warning]Backport labels {sorted(removed)} were removed by "
-            f"@{unlabel_actor_login}, who lacks write access. Ignoring removal signal and "
-            f"continuing with normal evaluation.[/]"
-        )
-        return False
-
-    if unlabel_actor_login and unlabel_actor_has_write_access:
-        attribution = f" by maintainer @{unlabel_actor_login}"
-    elif unlabel_actor_login:
-        attribution = f" by @{unlabel_actor_login}, permission unknown"
-    else:
-        attribution = ", actor unknown"
-    console_print(
-        f"[info]Skipping milestone tagging - backport labels removed during workflow "
-        f"window{attribution}, treated as explicit maintainer signal: {sorted(removed)}[/]"
-    )
-    return True
-
-
-def _get_latest_backport_unlabel_actor(issue: Issue, removed_backports: set[str]) -> str | None:
-    """Return the login of the user who most recently unlabeled a removed backport label.
-
-    Scans the issue's events for ``unlabeled`` events whose label matches one
-    of ``removed_backports`` and returns the actor login of the most recent
-    such event. Returns ``None`` when the events cannot be fetched or no
-    matching event is found.
-
-    Used to attribute the unbackport action to a specific user so the skip
-    log line can name them, and so we can defer to the regular evaluation
-    when the unlabel was performed by a non-maintainer (see
-    :func:`_actor_has_write_access`).
-    """
-    try:
-        events = issue.get_events()
-    except Exception as e:
-        console_print(f"[warning]Could not fetch issue events for attribution: {e}[/]")
-        return None
-
-    latest_actor: str | None = None
-    latest_when = None
-    for event in events:
-        if getattr(event, "event", None) != "unlabeled":
-            continue
-        label = getattr(event, "label", None)
-        if not label or getattr(label, "name", None) not in removed_backports:
-            continue
-        actor = getattr(event, "actor", None)
-        actor_login = getattr(actor, "login", None)
-        when = getattr(event, "created_at", None)
-        if when is None or actor_login is None:
-            continue
-        if latest_when is None or when > latest_when:
-            latest_when = when
-            latest_actor = actor_login
-    return latest_actor
-
-
-def _actor_has_write_access(repo: Repository, login: str) -> bool | None:
-    """Check whether ``login`` has write/admin access on ``repo``.
-
-    Returns ``True`` for ``write``/``admin``, ``False`` for everything else
-    that the API resolves, and ``None`` when the lookup itself fails (rate
-    limit, network error, unknown user). The tri-state lets the caller
-    distinguish "positively a non-maintainer" from "unknown" so that an API
-    blip never silently disables the skip.
-    """
-    try:
-        permission = repo.get_collaborator_permission(login)
-    except Exception as e:
-        console_print(f"[warning]Could not check repository permission for @{login}: {e}[/]")
-        return None
-    return permission in ("admin", "write")
+    return False
 
 
 def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | None:
@@ -1449,27 +1360,18 @@ def set_milestone(
     console_print(f"[info]Base branch: {base_branch}[/]")
     console_print(f"[info]Merged by: {merged_by}[/]")
 
-    # Parse labels from JSON
+    # The workflow's ``--pr-labels`` snapshot is logged for diagnostic visibility
+    # but is no longer used in the decision: live labels and live events are
+    # fetched fresh below. See the milestone-helpers module-level comment for
+    # the full skip-decision pipeline.
     try:
-        labels = json.loads(pr_labels)
+        snapshot_labels = json.loads(pr_labels)
     except json.JSONDecodeError:
         console_print(f"[warning]Could not parse labels JSON: {pr_labels}[/]")
-        labels = []
+        snapshot_labels = []
+    console_print(f"[info]Workflow snapshot labels (diagnostic only): {snapshot_labels}[/]")
 
-    console_print(f"[info]Labels: {labels}[/]")
-
-    # Cheap pre-flight: skip on static MILESTONE_SKIP_LABELS before any API call.
-    # (See the milestone-helpers module-level note for the full decision pipeline.)
-    if _should_skip_milestone_tagging(labels):
-        return
-
-    # Determine which milestone to use
-    version, reason = _determine_milestone_version(labels, pr_title, base_branch)
-    if version is None:
-        console_print(f"[info]No milestone to set: {reason}[/]")
-        return
-
-    # Initialize GitHub client and get repository
+    # Initialize GitHub client and get repository.
     try:
         gh = _get_github_client(github_token)
         repo: Repository = gh.get_repo(github_repository)
@@ -1477,7 +1379,7 @@ def set_milestone(
         console_print(f"[error]Failed to connect to GitHub: {e}[/]")
         return
 
-    # Double check whether the PR already has a milestone set - if so, we don't want to override it
+    # Step 1: milestone-already-set guard — don't override an existing milestone.
     try:
         issue: Issue = repo.get_issue(pr_number)
         if issue.milestone is not None:
@@ -1492,53 +1394,34 @@ def set_milestone(
         console_print(f"[error]Failed to check existing milestone: {e}[/]")
         return
 
-    # Re-read labels from the freshly-fetched issue to close the race between
-    # the workflow's initial label snapshot (taken by the get-pr-info job a
-    # couple of minutes ago) and the actual milestone-set step. Maintainers
-    # sometimes add and remove a backport label inside that window; honour
-    # the latest state, not the stale snapshot.
+    # Pull live labels and events. Both feed the skip-decision function below
+    # (events → check 2, labels → check 3) and ``labels`` also feeds
+    # ``_determine_milestone_version`` once the skip pipeline lets the PR
+    # through.
     try:
-        current_labels = [label.name for label in issue.labels]
+        labels = [label.name for label in issue.labels]
     except Exception as e:
-        console_print(f"[warning]Could not re-read PR labels; falling back to snapshot decision: {e}[/]")
-        current_labels = labels
+        console_print(f"[warning]Could not read live PR labels; falling back to snapshot: {e}[/]")
+        labels = snapshot_labels
+    console_print(f"[info]Live labels: {sorted(labels)}[/]")
 
-    if set(current_labels) != set(labels):
-        console_print("[info]Labels changed since workflow snapshot; re-evaluating.[/]")
-        console_print(f"[info]Snapshot labels: {sorted(labels)}[/]")
-        console_print(f"[info]Current labels:  {sorted(current_labels)}[/]")
+    events: list | None
+    try:
+        events = list(issue.get_events())
+    except Exception as e:
+        console_print(f"[warning]Could not fetch issue events; skipping events check: {e}[/]")
+        events = None
 
-        # Resolve the GitHub-events attribution for any fully-removed
-        # ``backport-to-*`` labels so the unified skip-decision function
-        # can defer to non-maintainer removals (e.g. by a bot) while still
-        # treating maintainer removals as a "don't auto-tag" signal that
-        # overrides the merge-to-version-branch heuristic.
-        removed_backports = _all_backport_labels_removed(labels, current_labels)
-        actor_login: str | None = None
-        actor_has_write_access: bool | None = None
-        if removed_backports:
-            actor_login = _get_latest_backport_unlabel_actor(issue, removed_backports)
-            if actor_login is not None:
-                actor_has_write_access = _actor_has_write_access(repo, actor_login)
+    # Steps 2 and 3 of the pipeline: events-based unbackport signal, then
+    # static skip labels. The function logs its own reason when it returns True.
+    if _should_skip_milestone_tagging(labels, events=events):
+        return
 
-        if _should_skip_milestone_tagging(
-            current_labels,
-            snapshot_labels=labels,
-            unlabel_actor_login=actor_login,
-            unlabel_actor_has_write_access=actor_has_write_access,
-        ):
-            return
-
-        new_version, new_reason = _determine_milestone_version(current_labels, pr_title, base_branch)
-        if (new_version, new_reason) != (version, reason):
-            console_print(
-                f"[info]Determination changed after re-read: was ({version}, {reason!r}); "
-                f"now ({new_version}, {new_reason!r}). Using current labels.[/]"
-            )
-            version, reason = new_version, new_reason
-            if version is None:
-                console_print(f"[info]No milestone to set after re-evaluation: {reason}[/]")
-                return
+    # Determine which milestone to use from the live labels.
+    version, reason = _determine_milestone_version(labels, pr_title, base_branch)
+    if version is None:
+        console_print(f"[info]No milestone to set: {reason}[/]")
+        return
 
     major, minor = version
     milestone_prefix = _get_milestone_prefix(major, minor)

@@ -24,17 +24,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow_breeze.commands.ci_commands import (
-    _actor_has_write_access,
-    _all_backport_labels_removed,
     _determine_milestone_version,
     _find_latest_milestone,
     _find_matching_milestone,
     _get_backport_version_from_labels,
-    _get_latest_backport_unlabel_actor,
     _get_mention,
     _get_milestone_not_found_comment,
     _get_milestone_notification_comment,
     _get_milestone_prefix,
+    _get_removed_backport_labels_from_events,
     _has_bug_fix_indicators,
     _parse_milestone_version,
     _parse_version_from_backport_label,
@@ -180,171 +178,87 @@ class TestShouldSkipMilestoneTagging:
             ["area:CI"],
         ],
     )
-    def test_skip_with_skip_labels(self, labels):
-        assert _should_skip_milestone_tagging(labels)
+    def test_skip_with_static_skip_labels(self, labels):
+        assert _should_skip_milestone_tagging(labels, events=[])
 
-    def test_no_skip_without_skip_labels(self):
-        assert not _should_skip_milestone_tagging(["kind:feature", "area:scheduler"])
+    def test_no_skip_without_static_skip_labels(self):
+        assert not _should_skip_milestone_tagging(["kind:feature", "area:scheduler"], events=[])
 
-    def test_skip_when_all_backport_labels_removed_during_race_window(self):
-        # Snapshot had a backport label, current has none — explicit maintainer signal.
-        assert _should_skip_milestone_tagging(
-            ["kind:bug"], snapshot_labels=["backport-to-v3-1-test", "kind:bug"]
-        )
+    def test_skip_when_backport_unlabeled_with_no_replacement(self):
+        # Events show backport removal, no backport on PR now → skip (check 2).
+        events = [
+            _unlabel_event(
+                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
+            )
+        ]
+        assert _should_skip_milestone_tagging(["kind:bug"], events=events)
 
-    def test_no_skip_when_backport_label_unchanged(self):
-        assert not _should_skip_milestone_tagging(
-            ["backport-to-v3-1-test", "kind:bug"],
-            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
-        )
+    def test_no_skip_when_backport_replaced(self):
+        # Events show backport-to-v3-1 removal but v3-2 remains on the PR → no skip.
+        # The caller's regular evaluation will pick up the new label.
+        events = [
+            _unlabel_event(
+                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
+            )
+        ]
+        assert not _should_skip_milestone_tagging(["backport-to-v3-2-test", "kind:bug"], events=events)
 
-    def test_no_skip_when_backport_label_added(self):
-        # Adding a backport label is not a skip signal — the regular evaluation handles it.
-        assert not _should_skip_milestone_tagging(
-            ["backport-to-v3-1-test", "kind:bug"], snapshot_labels=["kind:bug"]
-        )
+    def test_no_skip_when_no_removal_event(self):
+        # No unlabeled events at all — current backport label drives the decision elsewhere.
+        assert not _should_skip_milestone_tagging(["backport-to-v3-1-test", "kind:bug"], events=[])
 
-    def test_no_skip_when_backport_label_replaced(self):
-        # Swapping one backport label for another is a fix, not a cancel — current
-        # state still has a backport, so the normal evaluation should run.
-        assert not _should_skip_milestone_tagging(
-            ["backport-to-v3-2-test", "kind:bug"],
-            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
-        )
+    def test_no_skip_when_unrelated_label_removed(self):
+        events = [
+            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
+        ]
+        assert not _should_skip_milestone_tagging(["kind:bug"], events=events)
 
-    def test_no_skip_when_non_backport_label_removed(self):
-        # Removing a non-backport label is irrelevant; tagging proceeds.
-        assert not _should_skip_milestone_tagging(
-            ["kind:bug"], snapshot_labels=["kind:bug", "kind:documentation"]
-        )
+    def test_events_check_takes_precedence_over_static_labels(self):
+        # Both check 2 (events) and check 3 (static label) would fire here;
+        # the function returns True on the first one — events — and never logs
+        # the static-label reason.
+        events = [
+            _unlabel_event(
+                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
+            )
+        ]
+        assert _should_skip_milestone_tagging(["area:CI"], events=events)
 
-    def test_skip_when_backport_removed_by_maintainer(self):
-        # Removal attributed to a write-access user → skip (check 2b).
-        assert _should_skip_milestone_tagging(
-            ["kind:bug"],
-            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
-            unlabel_actor_login="alice",
-            unlabel_actor_has_write_access=True,
-        )
-
-    def test_skip_when_backport_removed_actor_permission_unknown(self):
-        # Permission lookup failed (None) → still skip (safe default).
-        assert _should_skip_milestone_tagging(
-            ["kind:bug"],
-            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
-            unlabel_actor_login="alice",
-            unlabel_actor_has_write_access=None,
-        )
-
-    def test_no_skip_when_backport_removed_by_non_maintainer(self):
-        # Removal positively attributed to a non-maintainer (bot) → defer.
-        assert not _should_skip_milestone_tagging(
-            ["kind:bug"],
-            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
-            unlabel_actor_login="some-bot",
-            unlabel_actor_has_write_access=False,
-        )
-
-    def test_skip_label_check_takes_precedence_over_backport_removal(self):
-        # Check 1 (static skip labels) wins over check 2 — even when a
-        # non-maintainer was the unlabeler, the area:CI label still skips.
-        assert _should_skip_milestone_tagging(
-            ["area:CI"],
-            snapshot_labels=["backport-to-v3-1-test"],
-            unlabel_actor_login="some-bot",
-            unlabel_actor_has_write_access=False,
-        )
+    def test_events_none_disables_events_check(self):
+        # When events is None (fetch failed), only the static label check runs.
+        assert not _should_skip_milestone_tagging(["kind:bug"], events=None)
+        assert _should_skip_milestone_tagging(["area:CI"], events=None)
 
 
-class TestGetLatestBackportUnlabelActor:
-    """Test cases for _get_latest_backport_unlabel_actor."""
+class TestGetRemovedBackportLabelsFromEvents:
+    """Test cases for _get_removed_backport_labels_from_events."""
 
-    def test_returns_latest_actor_for_matching_unlabel(self):
-        issue = MagicMock()
-        issue.get_events.return_value = [
+    def test_returns_all_unlabel_events_for_backports(self):
+        events = [
             _unlabel_event(
                 "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
             ),
-            _unlabel_event("backport-to-v3-1-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=timezone.utc)),
-            _unlabel_event(
-                "backport-to-v3-1-test", "carol", datetime(2026, 5, 23, 13, 0, tzinfo=timezone.utc)
-            ),
+            _unlabel_event("backport-to-v3-2-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=timezone.utc)),
         ]
-        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) == "bob"
-
-    def test_ignores_unrelated_label_events(self):
-        issue = MagicMock()
-        issue.get_events.return_value = [
-            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)),
-        ]
-        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
-
-    def test_ignores_non_unlabeled_events(self):
-        issue = MagicMock()
-        labeled_event = MagicMock()
-        labeled_event.event = "labeled"
-        labeled_event.label = _label("backport-to-v3-1-test")
-        labeled_event.actor = MagicMock()
-        labeled_event.actor.login = "alice"
-        labeled_event.created_at = datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-        issue.get_events.return_value = [labeled_event]
-        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
-
-    def test_returns_none_when_events_fetch_raises(self):
-        issue = MagicMock()
-        issue.get_events.side_effect = RuntimeError("rate limited")
-        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
-
-
-class TestActorHasWriteAccess:
-    """Test cases for _actor_has_write_access."""
-
-    @pytest.mark.parametrize("permission", ["admin", "write"])
-    def test_returns_true_for_write_or_admin(self, permission):
-        repo = MagicMock()
-        repo.get_collaborator_permission.return_value = permission
-        assert _actor_has_write_access(repo, "alice") is True
-
-    @pytest.mark.parametrize("permission", ["read", "none", "triage"])
-    def test_returns_false_for_other_permissions(self, permission):
-        repo = MagicMock()
-        repo.get_collaborator_permission.return_value = permission
-        assert _actor_has_write_access(repo, "bot-user") is False
-
-    def test_returns_none_when_lookup_raises(self):
-        repo = MagicMock()
-        repo.get_collaborator_permission.side_effect = RuntimeError("rate limited")
-        assert _actor_has_write_access(repo, "alice") is None
-
-
-class TestAllBackportLabelsRemoved:
-    """Test cases for _all_backport_labels_removed."""
-
-    def test_no_change(self):
-        labels = ["backport-to-v3-1-test", "kind:bug"]
-        assert _all_backport_labels_removed(labels, labels) == set()
-
-    def test_single_backport_fully_removed(self):
-        assert _all_backport_labels_removed(["backport-to-v3-1-test", "kind:bug"], ["kind:bug"]) == {
-            "backport-to-v3-1-test"
-        }
-
-    def test_multiple_backports_fully_removed(self):
-        assert _all_backport_labels_removed(["backport-to-v3-1-test", "backport-to-v3-2-test"], []) == {
+        assert _get_removed_backport_labels_from_events(events) == {
             "backport-to-v3-1-test",
             "backport-to-v3-2-test",
         }
 
-    def test_backport_replaced_returns_empty(self):
-        # When a replacement backport remains, the helper reports nothing —
-        # the regular re-evaluation should handle the new version.
-        assert _all_backport_labels_removed(["backport-to-v3-1-test"], ["backport-to-v3-2-test"]) == set()
+    def test_ignores_unrelated_label_unlabel_events(self):
+        events = [
+            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
+        ]
+        assert _get_removed_backport_labels_from_events(events) == set()
 
-    def test_backport_added_not_reported(self):
-        assert _all_backport_labels_removed([], ["backport-to-v3-1-test"]) == set()
+    def test_ignores_non_unlabeled_events(self):
+        labeled = MagicMock()
+        labeled.event = "labeled"
+        labeled.label = _label("backport-to-v3-1-test")
+        assert _get_removed_backport_labels_from_events([labeled]) == set()
 
-    def test_non_backport_removal_not_reported(self):
-        assert _all_backport_labels_removed(["kind:bug"], []) == set()
+    def test_empty_events(self):
+        assert _get_removed_backport_labels_from_events([]) == set()
 
 
 class TestGetBackportVersionFromLabels:
@@ -510,9 +424,17 @@ class TestSetMilestoneCommand:
         ],
     )
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_skip_label_should_skip(self, mock_get_client, base_branch, skip_label, cli_runner):
+    def test_skip_label_should_skip(
+        self, mock_get_client, base_branch, skip_label, cli_runner, mock_github_setup
+    ):
         """When PR has a skip label, milestone tagging should be skipped."""
         from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label(skip_label)]
+        mock_issue.get_events.return_value = []
+        mock_get_client.return_value = mock_gh
 
         result = cli_runner.invoke(
             ci_group,
@@ -533,13 +455,23 @@ class TestSetMilestoneCommand:
             ],
         )
 
-        mock_get_client.assert_not_called()
-        assert "Skipping milestone tagging" in result.output
+        mock_issue.edit.assert_not_called()
+        plain = _plain_output(result.output)
+        assert "Skipping milestone tagging" in plain
+        assert skip_label in plain
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_main_branch_without_backport_label_should_skip(self, mock_get_client, cli_runner):
+    def test_main_branch_without_backport_label_should_skip(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
         """When PR is merged to main without backport label, milestone tagging should be skipped."""
         from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label("kind:feature")]
+        mock_issue.get_events.return_value = []
+        mock_get_client.return_value = mock_gh
 
         result = cli_runner.invoke(
             ci_group,
@@ -560,7 +492,7 @@ class TestSetMilestoneCommand:
             ],
         )
 
-        mock_get_client.assert_not_called()
+        mock_issue.edit.assert_not_called()
         assert "No milestone to set" in result.output
 
     @pytest.mark.parametrize(
@@ -768,19 +700,26 @@ However, **no open milestone was found** matching: {expected_search_criteria}
         assert "No open milestone found" in result.output
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_backport_label_removed_after_snapshot_should_skip(
+    def test_backport_unlabeled_with_no_replacement_should_skip(
         self, mock_get_client, cli_runner, mock_github_setup
     ):
-        """If a backport label is removed between the workflow snapshot and the action,
-        the action must re-read labels from the issue and honour the current state —
-        skip milestone-set when the only signal that triggered it (the backport label)
-        is gone. Regression test for PR #67301 race.
+        """If an ``unlabeled`` event for a ``backport-to-*`` label exists on the
+        PR and no ``backport-to-*`` label remains, the action must skip the
+        milestone-set. Regression test for PR #67301 race; the events stream
+        is now the single source of truth for the unbackport signal.
         """
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
         mock_issue.labels = [_label("kind:documentation")]
+        mock_issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-2-test",
+                "shahar1",
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+            ),
+        ]
         mock_get_client.return_value = mock_gh
 
         result = cli_runner.invoke(
@@ -804,33 +743,35 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             ],
         )
 
-        # Snapshot still has the backport label, but the fresh issue.labels does not.
-        # The action must re-read, notice the change, and skip the milestone-set —
-        # treating the maintainer's removal as an explicit "don't auto-tag" signal.
         mock_issue.edit.assert_not_called()
         mock_issue.create_comment.assert_not_called()
-        assert "Labels changed since workflow snapshot" in result.output
-        assert "backport labels removed during workflow window" in result.output
-        assert "backport-to-v3-2-test" in result.output
+        plain = _plain_output(result.output)
+        assert "Skipping milestone tagging" in plain
+        assert "backport labels were removed during the PR lifecycle" in plain
+        assert "backport-to-v3-2-test" in plain
         assert result.exit_code == 0
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_backport_label_removed_on_version_branch_should_skip(
+    def test_backport_unlabeled_on_version_branch_should_skip(
         self, mock_get_client, cli_runner, mock_github_setup
     ):
-        """A backport label removed during the race window must take precedence
-        over the merge-to-version-branch heuristic. Without this, a PR merged to
-        a version branch would still get that branch's milestone even after a
-        maintainer explicitly removed a different backport label, because the
-        version-branch rule alone keeps producing a milestone.
+        """A backport-label removal recorded in the issue events must take
+        precedence over the merge-to-version-branch heuristic. Without this, a
+        PR merged to a version branch would still get that branch's milestone
+        even after a maintainer/triager explicitly removed the backport label.
         """
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
-        # Snapshot had backport-to-v3-2-test on a PR merged to v3-1-test; the
-        # maintainer removed the v3-2-test backport label inside the race window.
         mock_issue.labels = [_label("kind:bug")]
+        mock_issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-2-test",
+                "testuser",
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+            ),
+        ]
         mock_get_client.return_value = mock_gh
 
         result = cli_runner.invoke(
@@ -856,132 +797,30 @@ However, **no open milestone was found** matching: {expected_search_criteria}
 
         mock_issue.edit.assert_not_called()
         mock_issue.create_comment.assert_not_called()
-        assert "Labels changed since workflow snapshot" in result.output
-        assert "backport labels removed during workflow window" in result.output
-        assert "backport-to-v3-2-test" in result.output
-        assert result.exit_code == 0
-
-    @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_skip_log_attributes_maintainer_who_unlabeled(
-        self, mock_get_client, cli_runner, mock_github_setup
-    ):
-        """When the issue-events scan identifies a write-access user as the
-        actor of the ``unlabeled`` event for the removed backport label, that
-        login must appear in the skip log line so reviewers can audit who
-        cancelled the auto-tag.
-        """
-        from airflow_breeze.commands.ci_commands import ci_group
-
-        mock_gh, mock_repo, mock_issue = mock_github_setup
-        mock_issue.milestone = None
-        mock_issue.labels = [_label("kind:documentation")]
-        mock_issue.get_events.return_value = [
-            _unlabel_event(
-                "backport-to-v3-2-test",
-                "shahar1",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
-            ),
-        ]
-        mock_repo.get_collaborator_permission.return_value = "write"
-        mock_get_client.return_value = mock_gh
-
-        result = cli_runner.invoke(
-            ci_group,
-            [
-                "set-milestone",
-                "--pr-number",
-                "67301",
-                "--pr-title",
-                "fix: typo",
-                "--pr-labels",
-                json.dumps(["backport-to-v3-2-test", "kind:documentation"]),
-                "--base-branch",
-                "main",
-                "--merged-by",
-                "shahar1",
-                "--github-token",
-                "fake-token",
-                "--github-repository",
-                "apache/airflow",
-            ],
-        )
-
-        mock_issue.edit.assert_not_called()
-        mock_issue.create_comment.assert_not_called()
-        mock_repo.get_collaborator_permission.assert_called_once_with("shahar1")
         plain = _plain_output(result.output)
-        assert "by maintainer @shahar1" in plain
-        assert "backport labels removed during workflow window" in plain
+        assert "Skipping milestone tagging" in plain
+        assert "backport labels were removed during the PR lifecycle" in plain
+        assert "backport-to-v3-2-test" in plain
         assert result.exit_code == 0
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_backport_removal_by_non_maintainer_should_fall_through(
-        self, mock_get_client, cli_runner, mock_github_setup
-    ):
-        """If the issue-events scan identifies a user without write access
-        (e.g. a bot or external contributor) as the ``unlabeled`` actor, the
-        removal must NOT be treated as a maintainer signal. The action falls
-        back to normal evaluation. On main with no current backport that
-        means "no milestone to set" — still no edit, but for a different,
-        non-attributed reason.
+    def test_backport_label_replaced_should_use_current(self, mock_get_client, cli_runner, mock_github_setup):
+        """When the events show one backport label removed but another
+        ``backport-to-*`` remains on the PR (e.g. someone swapped the version
+        target), the action must use the current label, not skip.
         """
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
-        mock_issue.labels = [_label("kind:documentation")]
-        mock_issue.get_events.return_value = [
-            _unlabel_event(
-                "backport-to-v3-2-test",
-                "some-bot",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
-            ),
-        ]
-        mock_repo.get_collaborator_permission.return_value = "read"
-        mock_get_client.return_value = mock_gh
-
-        result = cli_runner.invoke(
-            ci_group,
-            [
-                "set-milestone",
-                "--pr-number",
-                "67301",
-                "--pr-title",
-                "fix: typo",
-                "--pr-labels",
-                json.dumps(["backport-to-v3-2-test", "kind:documentation"]),
-                "--base-branch",
-                "main",
-                "--merged-by",
-                "shahar1",
-                "--github-token",
-                "fake-token",
-                "--github-repository",
-                "apache/airflow",
-            ],
-        )
-
-        mock_issue.edit.assert_not_called()
-        plain = _plain_output(result.output)
-        assert "Ignoring removal signal" in plain
-        assert "@some-bot" in plain
-        assert "No milestone to set after re-evaluation" in plain
-        assert result.exit_code == 0
-
-    @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_backport_label_changed_after_snapshot_should_use_current(
-        self, mock_get_client, cli_runner, mock_github_setup
-    ):
-        """If the backport label is replaced with a different version between
-        snapshot and action (e.g. someone fixes the version target), the action
-        must re-determine the version using the current label, not the stale one.
-        """
-        from airflow_breeze.commands.ci_commands import ci_group
-
-        mock_gh, mock_repo, mock_issue = mock_github_setup
-        mock_issue.milestone = None
-        # Fresh state: now targets v3-2-test, not v3-1-test.
         mock_issue.labels = [_label("backport-to-v3-2-test"), _label("kind:bug")]
+        mock_issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-1-test",
+                "testuser",
+                datetime(2026, 5, 23, 20, 30, 0, tzinfo=timezone.utc),
+            ),
+        ]
         mock_milestone = MagicMock()
         mock_milestone.title = "Airflow 3.2.3"
         mock_milestone.number = 140
@@ -1013,23 +852,24 @@ However, **no open milestone was found** matching: {expected_search_criteria}
         )
 
         mock_issue.edit.assert_called_once_with(milestone=mock_milestone)
-        assert "Labels changed since workflow snapshot" in result.output
-        assert "Determination changed after re-read" in result.output
         assert "Airflow 3.2.3" in captured_comments[0]
         assert "backport label targeting v3-2-test" in captured_comments[0]
         assert result.exit_code == 0
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_skip_label_added_after_snapshot_should_skip(
+    def test_skip_label_present_on_live_labels_should_skip(
         self, mock_get_client, cli_runner, mock_github_setup
     ):
-        """A skip label added after the snapshot must also halt the action."""
+        """A skip label present on the live labels (regardless of what the
+        workflow snapshot had) must halt the action via check 3 of the
+        pipeline.
+        """
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
-        # Snapshot had no skip label; fresh state added area:CI.
         mock_issue.labels = [_label("backport-to-v3-1-test"), _label("area:CI")]
+        mock_issue.get_events.return_value = []
         mock_get_client.return_value = mock_gh
 
         result = cli_runner.invoke(
