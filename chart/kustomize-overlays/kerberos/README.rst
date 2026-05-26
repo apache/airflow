@@ -89,7 +89,7 @@ For a quick test, you can also just substitute the placeholders inline:
 
 .. code-block:: bash
 
-    kustomize build chart/kustomize-overlays/kerberos | \
+    kubectl kustomize chart/kustomize-overlays/kerberos | \
       sed -e 's/RELEASE-NAME/airflow/g' -e 's/NAMESPACE/airflow/g' | \
       kubectl apply -n airflow -f -
 
@@ -168,11 +168,7 @@ To run the smoke test locally:
 
 .. code-block:: bash
 
-    breeze k8s setup-env
-    breeze k8s create-cluster
-    breeze k8s configure-cluster
-    breeze k8s build-k8s-image --rebuild-base-image  # first time only
-    breeze k8s upload-k8s-image                      # load into kind nodes
+    breeze k8s deploy-cluster --rebuild-base-image
     breeze k8s deploy-airflow
     breeze k8s smoke-test-overlay kerberos --promote-status
 
