@@ -218,6 +218,43 @@ class TestShouldSkipMilestoneTagging:
             ["kind:bug"], snapshot_labels=["kind:bug", "kind:documentation"]
         )
 
+    def test_skip_when_backport_removed_by_maintainer(self):
+        # Removal attributed to a write-access user → skip (check 2b).
+        assert _should_skip_milestone_tagging(
+            ["kind:bug"],
+            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
+            unlabel_actor_login="alice",
+            unlabel_actor_has_write_access=True,
+        )
+
+    def test_skip_when_backport_removed_actor_permission_unknown(self):
+        # Permission lookup failed (None) → still skip (safe default).
+        assert _should_skip_milestone_tagging(
+            ["kind:bug"],
+            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
+            unlabel_actor_login="alice",
+            unlabel_actor_has_write_access=None,
+        )
+
+    def test_no_skip_when_backport_removed_by_non_maintainer(self):
+        # Removal positively attributed to a non-maintainer (bot) → defer.
+        assert not _should_skip_milestone_tagging(
+            ["kind:bug"],
+            snapshot_labels=["backport-to-v3-1-test", "kind:bug"],
+            unlabel_actor_login="some-bot",
+            unlabel_actor_has_write_access=False,
+        )
+
+    def test_skip_label_check_takes_precedence_over_backport_removal(self):
+        # Check 1 (static skip labels) wins over check 2 — even when a
+        # non-maintainer was the unlabeler, the area:CI label still skips.
+        assert _should_skip_milestone_tagging(
+            ["area:CI"],
+            snapshot_labels=["backport-to-v3-1-test"],
+            unlabel_actor_login="some-bot",
+            unlabel_actor_has_write_access=False,
+        )
+
 
 class TestGetLatestBackportUnlabelActor:
     """Test cases for _get_latest_backport_unlabel_actor."""
