@@ -132,6 +132,7 @@ from airflow.sdk.execution_time.context import (
     TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    airflow_context_vars_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -1979,7 +1980,7 @@ def _send_error_email_notification(
 
 @detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
-    """Execute Task (optionally with a Timeout) and push Xcom results."""
+    """Execute Task (optionally with a Timeout) and push XCom results."""
     task = ti.task
     execute = task.execute
 
@@ -2005,7 +2006,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     ctx.run(ExecutorSafeguard.tracker.set, task)
 
     # Export context in os.environ to make it available for operators to use.
+    # Use thread-safe context variable storage to avoid race conditions in concurrent execution.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    # Also update os.environ for backward compatibility with code that reads env vars directly.
+    # The context variable (below) provides thread-safe access without race conditions.
     os.environ.update(airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
@@ -2028,14 +2032,17 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
+            # Run task in timeout wrapper with thread-safe context variable storage
+            with airflow_context_vars_context(airflow_context_vars):
+                with timeout(timeout_seconds):
+                    result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             task.on_kill()
             raise
     else:
-        result = ctx.run(execute, context=context)
+        # Run task with thread-safe context variable storage
+        with airflow_context_vars_context(airflow_context_vars):
+            result = ctx.run(execute, context=context)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)

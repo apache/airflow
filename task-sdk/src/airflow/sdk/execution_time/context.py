@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import contextvars
 import functools
 import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
@@ -113,7 +114,12 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
     },
 }
 
-
+# Thread-safe storage for airflow context variables.
+# This stores the AIRFLOW_CTX_* environment variables per-thread/per-context,
+# allowing concurrent task execution without environment variable race conditions.
+_airflow_context_vars: contextvars.ContextVar[dict[str, str] | None] = contextvars.ContextVar(
+    "_airflow_context_vars", default=None
+)
 log = structlog.get_logger(logger_name="task")
 
 #: Pass as ``retention`` to ``task_state.set()`` to store a key that never expires,
@@ -122,6 +128,46 @@ log = structlog.get_logger(logger_name="task")
 NEVER_EXPIRE: timedelta = timedelta.max
 
 T = TypeVar("T")
+
+
+@contextlib.contextmanager
+def airflow_context_vars_context(env_vars: dict[str, str]):
+    """
+    Context manager to set airflow context variables thread-safely.
+
+    This provides a thread-safe way to make airflow context variables (AIRFLOW_CTX_*)
+    available during task execution without causing race conditions in concurrent
+    execution scenarios (e.g., IterableOperator with ConcurrentExecutor).
+
+    :param env_vars: Dictionary of airflow context variables (e.g., AIRFLOW_CTX_DAG_ID)
+    """
+    token = _airflow_context_vars.set(env_vars)
+    try:
+        yield
+    finally:
+        _airflow_context_vars.reset(token)
+
+
+def get_airflow_context_var(key: str, default: str | None = None) -> str | None:
+    """
+    Get an airflow context variable (thread-safe).
+
+    Retrieves from the thread-local context first, then falls back to os.environ
+    for backward compatibility with code that directly reads environment variables.
+
+    :param key: The variable name (e.g., "AIRFLOW_CTX_DAG_ID")
+    :param default: Default value if not found
+    :return: The variable value or default
+    """
+    import os
+
+    # First, try to get from context var (thread-safe)
+    context_vars = _airflow_context_vars.get()
+    if context_vars and key in context_vars:
+        return context_vars[key]
+
+    # Fall back to os.environ for backward compatibility
+    return os.environ.get(key, default)
 
 
 def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Connection:
