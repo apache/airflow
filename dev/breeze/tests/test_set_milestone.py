@@ -17,16 +17,20 @@
 from __future__ import annotations
 
 import json
+import re
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow_breeze.commands.ci_commands import (
+    _actor_has_write_access,
     _all_backport_labels_removed,
     _determine_milestone_version,
     _find_latest_milestone,
     _find_matching_milestone,
     _get_backport_version_from_labels,
+    _get_latest_backport_unlabel_actor,
     _get_mention,
     _get_milestone_not_found_comment,
     _get_milestone_notification_comment,
@@ -38,12 +42,31 @@ from airflow_breeze.commands.ci_commands import (
     _should_skip_milestone_tagging,
 )
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain_output(output: str) -> str:
+    """Strip ANSI color codes and collapse whitespace so wrap-tolerant substring
+    asserts don't trip over Rich's color escapes or soft line wraps."""
+    return " ".join(_ANSI_ESCAPE_RE.sub("", output).split())
+
 
 def _label(name: str) -> MagicMock:
     """Build a mock that quacks like a PyGithub ``Label`` for ``issue.labels``."""
     m = MagicMock()
     m.name = name
     return m
+
+
+def _unlabel_event(label_name: str, actor_login: str, when: datetime) -> MagicMock:
+    """Build a mock that quacks like a PyGithub IssueEvent for an ``unlabeled`` event."""
+    event = MagicMock()
+    event.event = "unlabeled"
+    event.label = _label(label_name)
+    event.actor = MagicMock()
+    event.actor.login = actor_login
+    event.created_at = when
+    return event
 
 
 class TestParseVersionFromBranch:
@@ -194,6 +217,67 @@ class TestShouldSkipMilestoneTagging:
         assert not _should_skip_milestone_tagging(
             ["kind:bug"], snapshot_labels=["kind:bug", "kind:documentation"]
         )
+
+
+class TestGetLatestBackportUnlabelActor:
+    """Test cases for _get_latest_backport_unlabel_actor."""
+
+    def test_returns_latest_actor_for_matching_unlabel(self):
+        issue = MagicMock()
+        issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
+            ),
+            _unlabel_event("backport-to-v3-1-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=timezone.utc)),
+            _unlabel_event(
+                "backport-to-v3-1-test", "carol", datetime(2026, 5, 23, 13, 0, tzinfo=timezone.utc)
+            ),
+        ]
+        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) == "bob"
+
+    def test_ignores_unrelated_label_events(self):
+        issue = MagicMock()
+        issue.get_events.return_value = [
+            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)),
+        ]
+        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
+
+    def test_ignores_non_unlabeled_events(self):
+        issue = MagicMock()
+        labeled_event = MagicMock()
+        labeled_event.event = "labeled"
+        labeled_event.label = _label("backport-to-v3-1-test")
+        labeled_event.actor = MagicMock()
+        labeled_event.actor.login = "alice"
+        labeled_event.created_at = datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
+        issue.get_events.return_value = [labeled_event]
+        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
+
+    def test_returns_none_when_events_fetch_raises(self):
+        issue = MagicMock()
+        issue.get_events.side_effect = RuntimeError("rate limited")
+        assert _get_latest_backport_unlabel_actor(issue, {"backport-to-v3-1-test"}) is None
+
+
+class TestActorHasWriteAccess:
+    """Test cases for _actor_has_write_access."""
+
+    @pytest.mark.parametrize("permission", ["admin", "write"])
+    def test_returns_true_for_write_or_admin(self, permission):
+        repo = MagicMock()
+        repo.get_collaborator_permission.return_value = permission
+        assert _actor_has_write_access(repo, "alice") is True
+
+    @pytest.mark.parametrize("permission", ["read", "none", "triage"])
+    def test_returns_false_for_other_permissions(self, permission):
+        repo = MagicMock()
+        repo.get_collaborator_permission.return_value = permission
+        assert _actor_has_write_access(repo, "bot-user") is False
+
+    def test_returns_none_when_lookup_raises(self):
+        repo = MagicMock()
+        repo.get_collaborator_permission.side_effect = RuntimeError("rate limited")
+        assert _actor_has_write_access(repo, "alice") is None
 
 
 class TestAllBackportLabelsRemoved:
@@ -738,6 +822,113 @@ However, **no open milestone was found** matching: {expected_search_criteria}
         assert "Labels changed since workflow snapshot" in result.output
         assert "backport labels removed during workflow window" in result.output
         assert "backport-to-v3-2-test" in result.output
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_skip_log_attributes_maintainer_who_unlabeled(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """When the issue-events scan identifies a write-access user as the
+        actor of the ``unlabeled`` event for the removed backport label, that
+        login must appear in the skip log line so reviewers can audit who
+        cancelled the auto-tag.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label("kind:documentation")]
+        mock_issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-2-test",
+                "shahar1",
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+            ),
+        ]
+        mock_repo.get_collaborator_permission.return_value = "write"
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "67301",
+                "--pr-title",
+                "fix: typo",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-2-test", "kind:documentation"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "shahar1",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        mock_repo.get_collaborator_permission.assert_called_once_with("shahar1")
+        plain = _plain_output(result.output)
+        assert "by maintainer @shahar1" in plain
+        assert "backport labels removed during workflow window" in plain
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_backport_removal_by_non_maintainer_should_fall_through(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """If the issue-events scan identifies a user without write access
+        (e.g. a bot or external contributor) as the ``unlabeled`` actor, the
+        removal must NOT be treated as a maintainer signal. The action falls
+        back to normal evaluation. On main with no current backport that
+        means "no milestone to set" — still no edit, but for a different,
+        non-attributed reason.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label("kind:documentation")]
+        mock_issue.get_events.return_value = [
+            _unlabel_event(
+                "backport-to-v3-2-test",
+                "some-bot",
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+            ),
+        ]
+        mock_repo.get_collaborator_permission.return_value = "read"
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "67301",
+                "--pr-title",
+                "fix: typo",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-2-test", "kind:documentation"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "shahar1",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        plain = _plain_output(result.output)
+        assert "Ignoring removal signal" in plain
+        assert "@some-bot" in plain
+        assert "No milestone to set after re-evaluation" in plain
         assert result.exit_code == 0
 
     @patch("airflow_breeze.commands.ci_commands._get_github_client")

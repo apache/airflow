@@ -1180,6 +1180,61 @@ def _should_skip_milestone_tagging(labels: list[str], snapshot_labels: list[str]
     return False
 
 
+def _get_latest_backport_unlabel_actor(issue: Issue, removed_backports: set[str]) -> str | None:
+    """Return the login of the user who most recently unlabeled a removed backport label.
+
+    Scans the issue's events for ``unlabeled`` events whose label matches one
+    of ``removed_backports`` and returns the actor login of the most recent
+    such event. Returns ``None`` when the events cannot be fetched or no
+    matching event is found.
+
+    Used to attribute the unbackport action to a specific user so the skip
+    log line can name them, and so we can defer to the regular evaluation
+    when the unlabel was performed by a non-maintainer (see
+    :func:`_actor_has_write_access`).
+    """
+    try:
+        events = issue.get_events()
+    except Exception as e:
+        console_print(f"[warning]Could not fetch issue events for attribution: {e}[/]")
+        return None
+
+    latest_actor: str | None = None
+    latest_when = None
+    for event in events:
+        if getattr(event, "event", None) != "unlabeled":
+            continue
+        label = getattr(event, "label", None)
+        if not label or getattr(label, "name", None) not in removed_backports:
+            continue
+        actor = getattr(event, "actor", None)
+        actor_login = getattr(actor, "login", None)
+        when = getattr(event, "created_at", None)
+        if when is None or actor_login is None:
+            continue
+        if latest_when is None or when > latest_when:
+            latest_when = when
+            latest_actor = actor_login
+    return latest_actor
+
+
+def _actor_has_write_access(repo: Repository, login: str) -> bool | None:
+    """Check whether ``login`` has write/admin access on ``repo``.
+
+    Returns ``True`` for ``write``/``admin``, ``False`` for everything else
+    that the API resolves, and ``None`` when the lookup itself fails (rate
+    limit, network error, unknown user). The tri-state lets the caller
+    distinguish "positively a non-maintainer" from "unknown" so that an API
+    blip never silently disables the skip.
+    """
+    try:
+        permission = repo.get_collaborator_permission(login)
+    except Exception as e:
+        console_print(f"[warning]Could not check repository permission for @{login}: {e}[/]")
+        return None
+    return permission in ("admin", "write")
+
+
 def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | None:
     """Find the first backport label and extract version from it."""
     for label in labels:
@@ -1340,14 +1395,34 @@ def set_milestone(
         # Treat a maintainer-removed backport label (with no replacement
         # backport remaining) as an explicit "don't auto-tag" signal: it
         # overrides any other auto-tagging condition (e.g. merge to a
-        # version branch) that might otherwise apply.
+        # version branch) that might otherwise apply. Cross-check the
+        # issue events to attribute the unlabel action; if the actor is
+        # positively identified as lacking write access (e.g. a bot or
+        # external contributor), fall through to normal evaluation rather
+        # than treating the change as a maintainer signal.
         removed_backports = _all_backport_labels_removed(labels, current_labels)
         if removed_backports:
-            console_print(
-                f"[info]Skipping milestone tagging - backport labels removed during workflow "
-                f"window, treated as explicit maintainer signal: {sorted(removed_backports)}[/]"
-            )
-            return
+            actor_login = _get_latest_backport_unlabel_actor(issue, removed_backports)
+            is_maintainer = _actor_has_write_access(repo, actor_login) if actor_login is not None else None
+            if is_maintainer is False:
+                console_print(
+                    f"[warning]Backport labels {sorted(removed_backports)} were removed by "
+                    f"@{actor_login}, who lacks write access. Ignoring removal signal and "
+                    f"continuing with normal evaluation.[/]"
+                )
+            else:
+                if actor_login and is_maintainer:
+                    attribution = f" by maintainer @{actor_login}"
+                elif actor_login:
+                    attribution = f" by @{actor_login}, permission unknown"
+                else:
+                    attribution = ", actor unknown"
+                console_print(
+                    f"[info]Skipping milestone tagging - backport labels removed during workflow "
+                    f"window{attribution}, treated as explicit maintainer signal: "
+                    f"{sorted(removed_backports)}[/]"
+                )
+                return
 
         if _should_skip_milestone_tagging(current_labels):
             console_print(
