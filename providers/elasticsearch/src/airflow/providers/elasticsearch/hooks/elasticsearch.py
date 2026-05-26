@@ -170,6 +170,7 @@ class ESConnection:
         kwargs.pop("field_multi_value_leniency", None)
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
+
         from elasticsearch import Elasticsearch
 
         if user and password:
