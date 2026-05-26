@@ -68,7 +68,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
-from airflow.models.callback import ExecutorCallback
+from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -705,7 +705,7 @@ class TestSchedulerJob:
         session.flush()
 
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[callback.id] = (event_state, None)
+        executor.event_buffer[CallbackKey(id=str(callback.id))] = (event_state, None)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
@@ -747,7 +747,7 @@ class TestSchedulerJob:
 
         failure_message = "supervisor crashed before reporting state"
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[callback.id] = (CallbackState.FAILED, failure_message)
+        executor.event_buffer[CallbackKey(id=str(callback.id))] = (CallbackState.FAILED, failure_message)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
