@@ -1571,17 +1571,16 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     stats.gauge("dag_processing.total_parse_time", parse_time)
     stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
     stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
-    # COUNT(*) on the serialized_dag table adds one DB round-trip per parse loop.
-    # This can be expensive on large deployments; throttling this metric is a
-    # straightforward follow-up if the round-trip becomes a bottleneck.
-    # On failure, an error counter is incremented so dashboards can alert on
+    # Gated by config so large deployments can opt out of the extra DB round-trip.
+    # On failure an error counter is incremented so dashboards can alert on
     # missing samples rather than silently showing a stale last value.
-    try:
-        with create_session() as session:
-            stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
-    except SQLAlchemyError:
-        log.exception("Failed to emit serialized_dag.count metric")
-        stats.incr("serialized_dag.count_error")
+    if conf.getboolean("scheduler", "emit_serialized_dag_count_metric", fallback=True):
+        try:
+            with create_session() as session:
+                stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
+        except SQLAlchemyError:
+            log.exception("Failed to emit serialized_dag.count metric")
+            stats.incr("serialized_dag.count_error")
 
 
 def process_parse_results(

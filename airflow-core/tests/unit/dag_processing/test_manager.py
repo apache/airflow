@@ -2799,11 +2799,12 @@ class TestEmitMetrics:
         """emit_metrics emits the serialized_dag.count gauge with the value from get_count."""
         from airflow.dag_processing.manager import emit_metrics
 
-        with mock.patch(
-            "airflow.dag_processing.manager.SerializedDagModel.get_count", return_value=3
-        ):
-            with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
-                emit_metrics(parse_time=1.0, dag_file_stats=[])
+        with mock.patch("airflow.dag_processing.manager.create_session"):
+            with mock.patch(
+                "airflow.dag_processing.manager.SerializedDagModel.get_count", return_value=3
+            ):
+                with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+                    emit_metrics(parse_time=1.0, dag_file_stats=[])
 
         mock_stats.gauge.assert_any_call("serialized_dag.count", 3)
 
@@ -2813,13 +2814,14 @@ class TestEmitMetrics:
 
         from airflow.dag_processing.manager import emit_metrics
 
-        with mock.patch(
-            "airflow.dag_processing.manager.SerializedDagModel.get_count",
-            side_effect=SQLAlchemyError("db failure"),
-        ):
-            with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
-                with mock.patch("airflow.dag_processing.manager.log") as mock_log:
-                    emit_metrics(parse_time=1.0, dag_file_stats=[])
+        with mock.patch("airflow.dag_processing.manager.create_session"):
+            with mock.patch(
+                "airflow.dag_processing.manager.SerializedDagModel.get_count",
+                side_effect=SQLAlchemyError("db failure"),
+            ):
+                with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+                    with mock.patch("airflow.dag_processing.manager.log") as mock_log:
+                        emit_metrics(parse_time=1.0, dag_file_stats=[])
 
         mock_log.exception.assert_called_once_with("Failed to emit serialized_dag.count metric")
         mock_stats.incr.assert_called_once_with("serialized_dag.count_error")
