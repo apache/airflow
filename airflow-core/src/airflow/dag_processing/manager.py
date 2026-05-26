@@ -1572,8 +1572,10 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
     stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
     # COUNT(*) on the serialized_dag table adds one DB round-trip per parse loop.
-    # On large installations this is typically fast (index scan on the PK), but
-    # we isolate the call so that a transient DB error never kills the parse loop.
+    # This can be expensive on large deployments (query plan is DB-dependent and
+    # may involve a full table scan).  The call is isolated so that a transient
+    # DB error never kills the parse loop; throttling this metric in the future
+    # is a straightforward follow-up if the round-trip becomes a bottleneck.
     try:
         with create_session() as session:
             stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))

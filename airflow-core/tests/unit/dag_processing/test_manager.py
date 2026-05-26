@@ -2805,9 +2805,7 @@ class TestEmitMetrics:
             with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
                 emit_metrics(parse_time=1.0, dag_file_stats=[])
 
-        calls = {call[0][0]: call[0][1] for call in mock_stats.gauge.call_args_list}
-        assert "serialized_dag.count" in calls
-        assert calls["serialized_dag.count"] == 3
+        mock_stats.gauge.assert_any_call("serialized_dag.count", 3)
 
     def test_emit_metrics_logs_and_swallows_db_error(self):
         """emit_metrics logs via log.exception and swallows SQLAlchemyError from get_count."""
