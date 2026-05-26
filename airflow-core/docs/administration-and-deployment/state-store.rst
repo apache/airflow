@@ -165,26 +165,6 @@ Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
-``clear()`` map-index semantics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For a :class:`~airflow.sdk.state.TaskScope`, ``clear()`` receives ``all_map_indices=False`` by default. When ``False``, delete only rows where ``map_index`` matches the scope's value (``-1`` for non-mapped tasks). When ``True``, drop the ``map_index`` filter entirely and wipe state for all mapped instances of the task.
-
-.. code-block:: python
-
-    def clear(self, scope, *, all_map_indices=False, session=None):
-        if scope == TaskScope():
-            query = self._task_table.delete().where(
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-            )
-            if not all_map_indices:
-                query = query.where(map_index=scope.map_index)
-            query.execute(session)
-        elif scope == AssetScope():
-            ... # all_map_indices has no effect for asset scope
-
 Configure the class via ``[state_store] backend``:
 
 .. code-block:: ini
@@ -250,8 +230,8 @@ Example skeleton:
             return s3_key
 
         def deserialize_task_state_from_ref(self, stored):
-            obj = s3_client.get_object(Bucket=BUCKET, Key=stored)
-            return obj["Body"].read().decode()
+            s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
+            return s3_object["Body"].read().decode()
 
         def serialize_asset_state_to_ref(self, *, value, key, asset_ref):
             s3_key = self._asset_ref(asset_ref, key)
@@ -259,10 +239,9 @@ Example skeleton:
             return s3_key
 
         def deserialize_asset_state_from_ref(self, stored):
-            obj = s3_client.get_object(Bucket=BUCKET, Key=stored)
-            return obj["Body"].read().decode()
+            s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
+            return s3_object["Body"].read().decode()
 
-        # Implement the remaining abstract methods (get, set, delete, clear,
-        # aget, aset, adelete, aclear) as pass-throughs or delegating to the
-        # default MetastoreStateBackend for the DB side.
+        # Implement the remaining abstract methods as pass-throughs or delegating to the
+        # default MetastoreStateBackend for the DB side
         ...
