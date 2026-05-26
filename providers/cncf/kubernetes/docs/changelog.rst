@@ -48,7 +48,6 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix monitoring-pod leak in KubernetesJobOperator (#67333)``
 * ``Fix deferrable KubernetesPodOperator trigger_reentry crash when pod is GC'd before re-entry (#66716)``
 * ``Fix: Add latency + status metrics around pod API calls (#66806)``
 * ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
