@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.2.2 (2026-05-27)
+Airflow 3.2.2 (2026-05-29)
 --------------------------
 
 Significant Changes
@@ -81,7 +81,8 @@ Significant Changes
 
 Bug Fixes
 ^^^^^^^^^
-
+- Fix ``Callback.handle_event`` triggerer crash when OpenTelemetry metrics receive dict typed tag values (#67527) (#67529)
+- UI: Rewrite ``modulepreload hrefs`` to the api-server static path (#67548) (#67556)
 - Correctly pre-allocate ``external_executor_id`` with multiple executors on PostgreSQL (#67388) (#67458)
 - Return raw import-error stacktrace when a Dag file has no registered Dag (#67465) (#67478)
 - UI: Fix Expand/Collapse All on XComs and Audit Log JSON cells (#67316) (#67361)
