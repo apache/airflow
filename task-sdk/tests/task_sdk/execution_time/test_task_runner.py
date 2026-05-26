@@ -2259,8 +2259,9 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
 
-        with patch.object(XCom, "get_one", return_value=None), patch.object(
-            XCom, "get_all", return_value=None
+        with (
+            patch.object(XCom, "get_one", return_value=None),
+            patch.object(XCom, "get_all", return_value=None),
         ):
             result = runtime_ti.xcom_pull(
                 key="key",
@@ -2293,7 +2294,6 @@ class TestRuntimeTaskInstance:
             assert result is None
 
     def test_get_param_from_context(
-
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
         """Test that a params can be retrieved from context."""
