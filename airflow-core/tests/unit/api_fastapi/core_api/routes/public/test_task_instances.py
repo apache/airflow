@@ -933,6 +933,29 @@ class TestGetMappedTaskInstances:
         assert body["total_entries"] == len(expected_map_indexes)
         assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
 
+    def test_rendered_map_index_order_without_template_numeric(self, test_client, session, dag_maker):
+        """map_index values beyond 9 must sort numerically, not lexicographically.
+
+        Without the compound sort the SQL expression falls back to
+        CAST(map_index AS String), producing "0","1","10","11","2"... instead
+        of 0, 1, 2, ..., 10, 11.
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"numeric_order_dag": {"success": 12, "failed": 0, "running": 0}},
+        )
+
+        response = test_client.get(
+            "/dags/numeric_order_dag/dagRuns/run_numeric_order_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 20},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Numeric order: 0, 1, 2, ..., 11.
+        # Lexicographic order would be: 0, 1, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9.
+        assert [ti["map_index"] for ti in body["task_instances"]] == list(range(12))
+
     def test_rendered_map_index_order_with_template(self, test_client, session, one_task_with_mapped_tis):
         """Custom map_index_template labels must be sorted alphabetically."""
         # one_task_with_mapped_tis creates 3 TIs: map_index 0, 1, 2.
@@ -961,15 +984,14 @@ class TestGetMappedTaskInstances:
             "zebra",
         ]
 
-    def test_rendered_map_index_order_retried_tis_not_displaced(self, test_client, session, dag_maker):
+    def test_rendered_map_index_order_stable_regardless_of_uuid_order(self, test_client, session, dag_maker):
         """
-        Retried mapped TIs (newer UUID, same map_index) must appear in map_index
-        order and not be pushed beyond the first page.
+        Results must be ordered by integer map_index regardless of UUID insertion order.
 
-        Before the fix, order_by=rendered_map_index fell through to a UUID
-        tiebreaker when _rendered_map_index was NULL.  Retried TIs received a
-        newer UUID at retry time and therefore sorted to the end of the result
-        set, falling outside LIMIT N.
+        The compound sort ([_rendered_map_index, map_index]) makes the integer
+        map_index the effective tiebreaker when no map_index_template is set.
+        This verifies that even when UUIDs are assigned out of map_index order
+        (as happens during retries), the response is still sorted 0, 1, 2, ...
         """
         from sqlalchemy import update as sa_update
 
@@ -981,10 +1003,9 @@ class TestGetMappedTaskInstances:
             dags={"retry_dag": {"success": 5, "failed": 0, "running": 0}},
         )
 
-        # Simulate retries on map_index 1 and 3 by assigning them newer (larger)
-        # UUIDs.  In production a retry replaces the TI row with a new UUID;
-        # those newer rows previously sorted to the end when the UUID was the
-        # effective tiebreaker.
+        # Assign newer (larger) UUIDs to map_index 1 and 3, simulating retry
+        # ordering where some TIs received their UUIDs after others.  The sort
+        # result must still follow integer map_index order, not UUID order.
         for map_index in [1, 3]:
             session.execute(
                 sa_update(TaskInstance)
