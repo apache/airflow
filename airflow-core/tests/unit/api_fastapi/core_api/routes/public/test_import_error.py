@@ -410,6 +410,38 @@ class TestGetImportErrors:
         response = unauthorized_test_client.get("/importErrors")
         assert response.status_code == 403
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_total_entries_counts_distinct_import_errors_when_file_has_multiple_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        testing_dag_bundle,
+        session,
+    ):
+        dag_models = [
+            DagModel(
+                fileloc=FILENAME1,
+                relative_fileloc=FILENAME1,
+                dag_id=f"dag_id{i}",
+                is_paused=False,
+                bundle_name=BUNDLE_NAME,
+            )
+            for i in range(1, 4)
+        ]
+        session.add_all(dag_models)
+        session.commit()
+
+        readable_dag_ids = {dag_model.dag_id for dag_model in dag_models}
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, readable_dag_ids)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"filename_pattern": FILENAME1})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert [import_error["filename"] for import_error in response_json["import_errors"]] == [FILENAME1]
+
     @pytest.mark.parametrize(
         ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),
         [
