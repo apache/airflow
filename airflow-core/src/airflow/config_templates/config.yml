@@ -1773,7 +1773,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: ""
+      default: ~
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
