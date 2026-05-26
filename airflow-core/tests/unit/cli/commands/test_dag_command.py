@@ -272,14 +272,17 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
-    def test_next_execution_table_with_no_schedule(self, tmp_path, capsys):
+    def test_next_execution_table_with_no_schedule(self, tmp_path, stdout_capture, stderr_capture):
         dag_id = "future_schedule_none_table"
         file_content = os.linesep.join(
             [
                 "from airflow import DAG",
                 "from airflow.providers.standard.operators.empty import EmptyOperator",
                 "from datetime import timedelta; from pendulum import today",
-                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=5), schedule=None, catchup=True)",
+                (
+                    f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=5), "
+                    "schedule=None, catchup=True)"
+                ),
                 "task = EmptyOperator(task_id='empty_task',dag=dag)",
             ]
         )
@@ -290,24 +293,32 @@ class TestCliDags:
             clear_db_dags()
             parse_and_sync_to_db(tmp_path, include_examples=False)
 
-        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table"])
-        dag_command.dag_next_execution(args)
-        captured = capsys.readouterr()
+        with stdout_capture as temp_stdout:
+            with stderr_capture as temp_stderr:
+                args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table"])
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+                err = temp_stderr.getvalue()
 
-        assert captured.out == ""
-        assert "[WARN] No following schedule can be found." in captured.err
+        assert out == ""
+        assert "[WARN] No following schedule can be found." in err
 
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
-    def test_next_execution_table_with_once_and_multiple_executions(self, tmp_path, capsys):
+    def test_next_execution_table_with_once_and_multiple_executions(
+        self, tmp_path, stdout_capture, stderr_capture
+    ):
         dag_id = "past_schedule_once_table"
         file_content = os.linesep.join(
             [
                 "from airflow import DAG",
                 "from airflow.providers.standard.operators.empty import EmptyOperator",
                 "from datetime import timedelta; from pendulum import today",
-                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5), schedule='@once', catchup=True)",
+                (
+                    f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5), "
+                    "schedule='@once', catchup=True)"
+                ),
                 "task = EmptyOperator(task_id='empty_task',dag=dag)",
             ]
         )
@@ -318,14 +329,17 @@ class TestCliDags:
             clear_db_dags()
             parse_and_sync_to_db(tmp_path, include_examples=False)
 
-        args = self.parser.parse_args(
-            ["dags", "next-execution", dag_id, "--table", "--num-executions", "2"]
-        )
-        dag_command.dag_next_execution(args)
-        captured = capsys.readouterr()
+        with stdout_capture as temp_stdout:
+            with stderr_capture as temp_stderr:
+                args = self.parser.parse_args(
+                    ["dags", "next-execution", dag_id, "--table", "--num-executions", "2"]
+                )
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+                err = temp_stderr.getvalue()
 
-        assert dec_27.isoformat() in captured.out
-        assert "[WARN] No following schedule can be found." in captured.err
+        assert str(dec_27) in out
+        assert "[WARN] No following schedule can be found." in err
 
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
