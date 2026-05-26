@@ -218,14 +218,25 @@ def get_import_errors(
     )
     total_entries = session.scalar(select(func.count()).select_from(import_error_ids_stmt.subquery())) or 0
 
-    # Paginate the import errors query
-    import_errors_select, _ = paginated_select(
-        statement=filtered_import_errors_stmt,
+    # Paginate distinct import error IDs first so limit/offset apply to
+    # import error objects, not to the joined Dag rows.
+    paginated_import_error_ids_select, _ = paginated_select(
+        statement=import_error_ids_stmt,
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
         return_total_entries=False,
+    )
+    paginated_import_error_ids = paginated_import_error_ids_select.subquery()
+
+    # Fetch all joined Dag rows for the paginated import error IDs before
+    # grouping, so each returned import error still has the full Dag set.
+    import_errors_select = apply_filters_to_select(
+        statement=filtered_import_errors_stmt.where(
+            ParseImportError.id.in_(select(paginated_import_error_ids.c.id))
+        ),
+        filters=[order_by],
     )
     import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
         session.execute(import_errors_select), itemgetter(0)

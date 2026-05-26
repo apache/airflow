@@ -433,14 +433,17 @@ class TestGetImportErrors:
 
         readable_dag_ids = {dag_model.dag_id for dag_model in dag_models}
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, readable_dag_ids)
-        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
+            mock_get_auth_manager, True
+        )
 
-        response = test_client.get("/importErrors", params={"filename_pattern": FILENAME1})
+        response = test_client.get("/importErrors", params={"filename_pattern": FILENAME1, "limit": 1})
 
         assert response.status_code == 200
         response_json = response.json()
         assert response_json["total_entries"] == 1
         assert [import_error["filename"] for import_error in response_json["import_errors"]] == [FILENAME1]
+        assert len(mock_batch_is_authorized_dag.call_args.args[0]) == 3
 
     @pytest.mark.parametrize(
         ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),
