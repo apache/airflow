@@ -1382,16 +1382,17 @@ def set_milestone(
     # Step 1: milestone-already-set guard — don't override an existing milestone.
     try:
         issue: Issue = repo.get_issue(pr_number)
-        if issue.milestone is not None:
-            console_print(
-                f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
-            )
-            return
     except UnknownObjectException:
         console_print(f"[error]PR #{pr_number} not found when checking existing milestone[/]")
         return
     except Exception as e:
         console_print(f"[error]Failed to check existing milestone: {e}[/]")
+        return
+
+    if issue.milestone is not None:
+        console_print(
+            f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
+        )
         return
 
     # Pull live labels and events. Both feed the skip-decision function below
