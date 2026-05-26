@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
 from airflow.providers.tableau.operators.tableau import TableauOperator
 
@@ -59,37 +59,25 @@ class TestTableauOperator:
             "method": "refresh",
         }
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_workbooks(self, mock_tableau_hook, mock_inspect):
+    def test_execute_workbooks(self, mock_tableau_hook):
         """
-        Test Execute Workbooks - mocks signature with incremental support
+        Test Execute Workbooks
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(blocking_refresh=False, find="wb_2", resource="workbooks", **self.kwargs)
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_workbooks_blocking(self, mock_tableau_hook, mock_inspect):
+    def test_execute_workbooks_blocking(self, mock_tableau_hook):
         """
         Test execute workbooks blocking
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_signed_in = [False]
 
         def mock_hook_enter():
@@ -118,7 +106,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -136,37 +124,25 @@ class TestTableauOperator:
         with pytest.raises(AirflowException):
             operator.execute({})
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_datasources(self, mock_tableau_hook, mock_inspect):
+    def test_execute_datasources(self, mock_tableau_hook):
         """
         Test Execute datasources
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(blocking_refresh=False, find="ds_2", resource="datasources", **self.kwargs)
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_datasources_blocking(self, mock_tableau_hook, mock_inspect):
+    def test_execute_datasources_blocking(self, mock_tableau_hook):
         """
         Test execute datasources blocking
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_signed_in = [False]
 
         def mock_hook_enter():
@@ -191,7 +167,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -302,17 +278,11 @@ class TestTableauOperator:
         operator = TableauOperator(resource="tasks", find=resource_id, method="run", task_id="t", dag=None)
         assert operator._get_resource_id(Mock()) == resource_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_datasources_incremental_refresh(self, mock_tableau_hook, mock_inspect):
+    def test_execute_datasources_incremental_refresh(self, mock_tableau_hook):
         """
         Test execute datasources with incremental refresh
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(
@@ -328,17 +298,11 @@ class TestTableauOperator:
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=True)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_datasources_full_refresh(self, mock_tableau_hook, mock_inspect):
+    def test_execute_datasources_full_refresh(self, mock_tableau_hook):
         """
         Test execute datasources with full refresh (default behavior)
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(
@@ -351,20 +315,14 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_workbooks_incremental_refresh(self, mock_tableau_hook, mock_inspect):
+    def test_execute_workbooks_incremental_refresh(self, mock_tableau_hook):
         """
         Test execute workbooks with incremental refresh
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(
@@ -380,17 +338,11 @@ class TestTableauOperator:
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=True)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_workbooks_full_refresh(self, mock_tableau_hook, mock_inspect):
+    def test_execute_workbooks_full_refresh(self, mock_tableau_hook):
         """
         Test execute workbooks with full refresh (default behavior)
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(
@@ -403,20 +355,14 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_execute_datasources_incremental_refresh_blocking(self, mock_tableau_hook, mock_inspect):
+    def test_execute_datasources_incremental_refresh_blocking(self, mock_tableau_hook):
         """
         Test execute datasources with incremental refresh blocking
         """
-        # Mock the inspect.signature to indicate incremental parameter is supported
-        mock_sig = Mock()
-        mock_sig.parameters = {"incremental": Mock()}
-        mock_inspect.signature.return_value = mock_sig
-
         mock_signed_in = [False]
 
         def mock_hook_enter():
@@ -473,23 +419,18 @@ class TestTableauOperator:
         assert "incremental_refresh parameter is set to True but method is 'delete'" in caplog.text
         assert "This parameter only applies to 'refresh' operations" in caplog.text
 
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_refresh_without_incremental_support_incremental_true(
-        self, mock_tableau_hook, mock_inspect, caplog
-    ):
+    def test_incremental_refresh_unsupported_version_raises(self, mock_tableau_hook):
         """
-        Test that when incremental parameter is not supported but incremental_refresh=True,
-        a warning is logged and the method is called without the parameter.
+        Test that AirflowOptionalProviderFeatureException is raised when incremental_refresh=True
+        but the installed tableauserverclient does not support the incremental parameter.
         """
-        # Mock the inspect.signature to indicate incremental parameter is NOT supported
-        # (simulating older tableauserverclient versions)
-        mock_sig = Mock()
-        mock_sig.parameters = {}  # No incremental parameter
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        # Simulate older tableauserverclient that doesn't accept incremental kwarg
+        mock_tableau_hook.server.datasources.refresh.side_effect = TypeError(
+            "refresh() got an unexpected keyword argument 'incremental'"
+        )
 
         operator = TableauOperator(
             blocking_refresh=False,
@@ -499,32 +440,15 @@ class TestTableauOperator:
             **self.kwargs,
         )
 
-        job_id = operator.execute(context={})
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="tableauserverclient>=0.35"):
+            operator.execute(context={})
 
-        # Verify that refresh was called WITHOUT the incremental parameter
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
-        assert job_id == mock_tableau_hook.server.datasources.refresh.return_value.id
-
-        # Verify that a warning was logged
-        assert (
-            "incremental_refresh is True but the installed tableauserverclient version does not support the incremental parameter"
-            in caplog.text
-        )
-        assert "Incremental refresh requires tableauserverclient>=0.37" in caplog.text
-        assert "Falling back to full refresh" in caplog.text
-
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_refresh_without_incremental_support_incremental_false(self, mock_tableau_hook, mock_inspect):
+    def test_full_refresh_works_on_older_versions(self, mock_tableau_hook):
         """
-        Test that when incremental parameter is not supported but incremental_refresh=False,
-        no warning is logged and the method is called without the parameter.
+        Test that full refresh (incremental_refresh=False) works fine on older
+        tableauserverclient versions since the incremental kwarg is not passed.
         """
-        # Mock the inspect.signature to indicate incremental parameter is NOT supported
-        mock_sig = Mock()
-        mock_sig.parameters = {}  # No incremental parameter
-        mock_inspect.signature.return_value = mock_sig
-
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
 
@@ -541,35 +465,3 @@ class TestTableauOperator:
         # Verify that refresh was called WITHOUT the incremental parameter
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert job_id == mock_tableau_hook.server.datasources.refresh.return_value.id
-
-    @patch("airflow.providers.tableau.operators.tableau.inspect")
-    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
-    def test_refresh_with_signature_inspection_error(self, mock_tableau_hook, mock_inspect, caplog):
-        """
-        Test that when inspect.signature raises an error, incremental parameter is not passed.
-        """
-        # Mock inspect.signature to raise an error (safer default for compatibility)
-        mock_inspect.signature.side_effect = ValueError("Cannot inspect signature")
-
-        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
-        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-
-        operator = TableauOperator(
-            blocking_refresh=False,
-            find="ds_2",
-            resource="datasources",
-            incremental_refresh=True,
-            **self.kwargs,
-        )
-
-        job_id = operator.execute(context={})
-
-        # Verify that refresh was called WITHOUT the incremental parameter (safer default)
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
-        assert job_id == mock_tableau_hook.server.datasources.refresh.return_value.id
-
-        # Verify that a warning was logged
-        assert (
-            "incremental_refresh is True but the installed tableauserverclient version does not support the incremental parameter"
-            in caplog.text
-        )

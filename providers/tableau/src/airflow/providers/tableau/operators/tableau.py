@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from tableauserverclient import JobItem
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+)
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
@@ -137,26 +140,15 @@ class TableauOperator(BaseOperator):
                     raise ValueError("Tableau tasks.run returned no JobItem in response")
                 job_id = job_items[0].id
             elif self.method == "refresh":
-                # For refresh operations, pass incremental_refresh parameter if supported.
-                # The incremental parameter was added in tableauserverclient v0.37.
-                # We check the method signature to ensure compatibility with older versions.
-                try:
-                    sig = inspect.signature(method)
-                    supports_incremental = "incremental" in sig.parameters
-                except (ValueError, TypeError):
-                    # If we can't inspect, assume it's not supported (safer default)
-                    supports_incremental = False
-
-                if supports_incremental:
-                    response = method(resource_id, incremental=self.incremental_refresh)
-                else:
-                    if self.incremental_refresh:
-                        self.log.warning(
-                            "incremental_refresh is True but the installed tableauserverclient version "
-                            "does not support the incremental parameter. "
-                            "Incremental refresh requires tableauserverclient>=0.37. "
-                            "Falling back to full refresh."
+                if self.incremental_refresh:
+                    try:
+                        response = method(resource_id, incremental=True)
+                    except TypeError:
+                        raise AirflowOptionalProviderFeatureException(
+                            "Incremental refresh requires tableauserverclient>=0.35. "
+                            "Please upgrade: pip install 'tableauserverclient>=0.35'"
                         )
+                else:
                     response = method(resource_id)
                 job_id = response.id
             else:
