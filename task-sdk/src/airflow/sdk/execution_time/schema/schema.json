@@ -317,6 +317,9 @@
       "type": "object"
     },
     "AssetStateResult": {
+      "$defs": {
+        "JsonValue": {}
+      },
       "additionalProperties": false,
       "description": "Response to GetAssetState; wraps the generated API response for supervisor to worker comms.",
       "properties": {
@@ -327,8 +330,7 @@
           "type": "string"
         },
         "value": {
-          "title": "Value",
-          "type": "string"
+          "$ref": "#/$defs/JsonValue"
         }
       },
       "required": [
@@ -4549,6 +4551,9 @@
       "type": "object"
     },
     "SetAssetStateByName": {
+      "$defs": {
+        "JsonValue": {}
+      },
       "properties": {
         "key": {
           "title": "Key",
@@ -4565,8 +4570,7 @@
           "type": "string"
         },
         "value": {
-          "title": "Value",
-          "type": "string"
+          "$ref": "#/$defs/JsonValue"
         }
       },
       "required": [
@@ -4578,6 +4582,9 @@
       "type": "object"
     },
     "SetAssetStateByUri": {
+      "$defs": {
+        "JsonValue": {}
+      },
       "properties": {
         "key": {
           "title": "Key",
@@ -4594,8 +4601,7 @@
           "type": "string"
         },
         "value": {
-          "title": "Value",
-          "type": "string"
+          "$ref": "#/$defs/JsonValue"
         }
       },
       "required": [
@@ -4653,6 +4659,9 @@
       "type": "object"
     },
     "SetTaskState": {
+      "$defs": {
+        "JsonValue": {}
+      },
       "properties": {
         "expires_at": {
           "anyOf": [
@@ -4682,8 +4691,7 @@
           "type": "string"
         },
         "value": {
-          "title": "Value",
-          "type": "string"
+          "$ref": "#/$defs/JsonValue"
         }
       },
       "required": [
@@ -5773,6 +5781,9 @@
       "type": "object"
     },
     "TaskStateResult": {
+      "$defs": {
+        "JsonValue": {}
+      },
       "additionalProperties": false,
       "description": "Response to GetTaskState; wraps the generated API response for supervisor to worker comms.",
       "properties": {
@@ -5783,8 +5794,7 @@
           "type": "string"
         },
         "value": {
-          "title": "Value",
-          "type": "string"
+          "$ref": "#/$defs/JsonValue"
         }
       },
       "required": [

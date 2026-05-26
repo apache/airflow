@@ -69,6 +69,11 @@ class _LLMFileAnalysisDecoratedOperator(DecoratedOperator, LLMFileAnalysisOperat
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.prompt = self.python_callable(*self.op_args, **kwargs)
+        # The string-only check is intentional here: the operator builds
+        # request.user_content from prompt + files (see LLMFileAnalysisOperator.execute),
+        # so multimodal inputs are supplied via the `files` parameter, not the prompt
+        # itself. The other common.ai decorators accept Sequence[UserContent] because
+        # they pass self.prompt straight to Agent.run_sync.
         if not isinstance(self.prompt, str) or not self.prompt.strip():
             raise TypeError(
                 "The returned value from the @task.llm_file_analysis callable must be a non-empty string."

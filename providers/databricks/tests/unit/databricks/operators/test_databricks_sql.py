@@ -20,13 +20,17 @@ from __future__ import annotations
 import json
 import os
 from collections import namedtuple
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from databricks.sql.types import Row
 
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
+from airflow.providers.databricks.operators.databricks_sql import (
+    DatabricksSqlOperator,
+    _get_airflow_query_tags,
+)
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
@@ -453,3 +457,162 @@ def test_parse_gcs_path():
     bucket, object_name = op._parse_gcs_path("gs://my-bucket/path/to/file.parquet")
     assert bucket == "my-bucket"
     assert object_name == "path/to/file.parquet"
+
+
+class TestDatabricksSqlOperatorQueryTags:
+    """Tests for query tags support in DatabricksSqlOperator."""
+
+    def test_get_airflow_query_tags_returns_empty_dict_without_task_instance(self):
+        """_get_airflow_query_tags must return {} when context has no 'ti' key."""
+        result = _get_airflow_query_tags({})
+        assert result == {}
+
+    def test_get_query_tags_with_none_context_returns_custom_tags_only(self):
+        """When context is None, only custom tags are returned (no Airflow tags)."""
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1",
+            query_tags={"custom_tag": "custom_value"},
+        )
+        result = op._get_query_tags(None)
+        assert result == {"custom_tag": "custom_value"}
+
+    def test_get_query_tags_with_none_context_and_no_custom_tags_returns_none(self):
+        """When context is None and no custom tags, None is returned."""
+        op = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1")
+        result = op._get_query_tags(None)
+        assert result is None
+
+    def test_get_query_tags_with_disabled_airflow_tags(self):
+        """When include_airflow_query_tags=False, only custom tags are returned."""
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1",
+            query_tags={"custom_tag": "val"},
+            include_airflow_query_tags=False,
+        )
+        mock_context = {"ti": object()}
+        result = op._get_query_tags(mock_context)
+        assert result == {"custom_tag": "val"}
+
+    def test_get_query_tags_with_airflow_context(self):
+        """When context is provided and include_airflow_query_tags=True, Airflow tags are included."""
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1",
+            query_tags={"custom_tag": "custom_value"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.run_id = "test_run"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+        mock_context = {"ti": mock_ti}
+
+        result = op._get_query_tags(mock_context)
+
+        assert result is not None
+        assert result["airflow_dag_id"] == "test_dag"
+        assert result["airflow_task_id"] == "test_task"
+        assert result["airflow_run_id"] == "test_run"
+        assert result["airflow_try_number"] == "1"
+        assert result["airflow_map_index"] == "-1"
+        assert result["custom_tag"] == "custom_value"
+
+    def test_execute_sets_query_tags_on_hook(self):
+        """execute() sets query_tags on the hook before delegating to SQLExecuteQueryOperator."""
+        with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as mock_cls:
+            mock_hook = mock_cls.return_value
+            mock_hook.run.return_value = []
+            mock_hook.descriptions = [[]]
+
+            op = DatabricksSqlOperator(
+                task_id=TASK_ID,
+                sql="SELECT 1",
+                query_tags={"env": "test"},
+                include_airflow_query_tags=False,
+            )
+
+            op.execute(None)
+
+            assert mock_hook.query_tags == {"env": "test"}
+
+    def test_custom_tags_override_airflow_tags_on_key_collision(self):
+        """Custom query_tags override Airflow tags when the same key is used."""
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1",
+            query_tags={"airflow_dag_id": "overridden"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "original_dag"
+        mock_ti.task_id = "task"
+        mock_ti.run_id = "run"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+        mock_context = {"ti": mock_ti}
+
+        result = op._get_query_tags(mock_context)
+
+        assert result is not None
+        assert result["airflow_dag_id"] == "overridden"
+
+
+class TestDatabricksCopyIntoOperatorQueryTags:
+    """Tests for query tags support in DatabricksCopyIntoOperator."""
+
+    def _make_op(self, **kwargs):
+        from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
+
+        return DatabricksCopyIntoOperator(
+            task_id=TASK_ID,
+            table_name="test_table",
+            file_location="s3://bucket/path",
+            file_format="CSV",
+            **kwargs,
+        )
+
+    def test_get_query_tags_with_none_context_returns_custom_tags_only(self):
+        op = self._make_op(query_tags={"custom": "value"})
+        result = op._get_query_tags(None)
+        assert result == {"custom": "value"}
+
+    def test_get_query_tags_with_none_context_and_no_custom_tags_returns_none(self):
+        op = self._make_op()
+        result = op._get_query_tags(None)
+        assert result is None
+
+    def test_get_query_tags_with_airflow_context(self):
+        op = self._make_op(query_tags={"env": "staging"})
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "copy_dag"
+        mock_ti.task_id = "copy_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 2
+        mock_ti.map_index = 0
+        mock_context = {"ti": mock_ti}
+
+        result = op._get_query_tags(mock_context)
+
+        assert result is not None
+        assert result["airflow_dag_id"] == "copy_dag"
+        assert result["airflow_task_id"] == "copy_task"
+        assert result["env"] == "staging"
+
+    def test_execute_sets_query_tags_on_hook(self):
+        from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
+
+        with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as mock_cls:
+            mock_hook = mock_cls.return_value
+            op = DatabricksCopyIntoOperator(
+                task_id=TASK_ID,
+                table_name="test_table",
+                file_location="s3://bucket/path",
+                file_format="CSV",
+                query_tags={"env": "prod"},
+                include_airflow_query_tags=False,
+            )
+            op.execute(None)
+
+            assert mock_hook.query_tags == {"env": "prod"}
