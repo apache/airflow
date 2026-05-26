@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 from sqlalchemy import select
 
@@ -54,7 +56,7 @@ def _create_task_state(session, key: str, value: str, dag_run: DagRun) -> None:
         task_id=TASK_ID,
         map_index=-1,
         key=key,
-        value=value,
+        value=json.dumps(value),
     )
     session.add(row)
     session.flush()
@@ -114,7 +116,7 @@ class TestListTaskState(TestTaskStateEndpoint):
             task_id=TASK_ID,
             map_index=0,
             key="job_id",
-            value="mapped_app",
+            value=json.dumps("mapped_app"),
         )
         self._session.add(row)
         self._session.commit()
@@ -191,6 +193,18 @@ class TestSetTaskState(TestTaskStateEndpoint):
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={}).status_code == 422
 
+    def test_null_value_returns_422(self, test_client):
+        assert test_client.put(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
+
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_float_returns_422(self, test_client, bad_float):
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            test_client.put(
+                f"{BASE_URL}/job_id",
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+
     def test_oversized_value_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={"value": "x" * 65536}).status_code == 422
 
@@ -205,6 +219,41 @@ class TestSetTaskState(TestTaskStateEndpoint):
         bad_url = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/nonexistent_task/states/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        ("value", "expected_db"),
+        [
+            (42, "42"),
+            ("hello", '"hello"'),
+            ({"k": 1}, '{"k": 1}'),
+            ([1, 2], "[1, 2]"),
+        ],
+    )
+    def test_put_stores_json_encoded_value(self, test_client, value, expected_db):
+        test_client.put(f"{BASE_URL}/k", json={"value": value})
+        row = self._session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.run_id == RUN_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "k",
+            )
+        )
+        assert row is not None
+        assert row.value == expected_db
+
+    @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
+    def test_core_api_write_read_roundtrip(self, test_client, value):
+        """Core API write then Core API read returns the same native value."""
+        test_client.put(f"{BASE_URL}/k", json={"value": value})
+        assert test_client.get(f"{BASE_URL}/k").json()["value"] == value
+
+    @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
+    def test_worker_write_core_api_read_roundtrip(self, test_client, value):
+        """Worker write (json.dumps in DB) then Core API read returns native value."""
+        _create_task_state(self._session, "k", value, self.dag_run)
+        self._session.commit()
+        assert test_client.get(f"{BASE_URL}/k").json()["value"] == value
 
     def test_key_with_slash_is_supported(self, test_client):
         response = test_client.put(f"{BASE_URL}/workflow/step_1", json={"value": "v"})
@@ -266,7 +315,7 @@ class TestClearTaskState(TestTaskStateEndpoint):
                 task_id=TASK_ID,
                 map_index=map_index,
                 key="job_id",
-                value=f"app_{map_index}",
+                value=json.dumps(f"app_{map_index}"),
             )
             self._session.add(row)
         self._session.commit()
