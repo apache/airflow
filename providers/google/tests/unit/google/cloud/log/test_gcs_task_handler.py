@@ -546,18 +546,14 @@ class TestGCSTaskHandler:
         )
         self.gcs_task_handler.close()
 
-        mock_blob.from_string.assert_has_calls(
-            [
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().download_as_bytes(),
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().upload_from_string(
-                    "MESSAGE\n",
-                    content_type="text/plain",
-                ),
-            ],
-            any_order=False,
+        # Fail-closed contract: when reading the existing blob fails for a reason other than
+        # "object does not exist", the handler must not overwrite the remote log with only
+        # the new content. Expect the read attempt but no upload.
+        mock_blob.from_string.assert_called_once_with(
+            "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
+        mock_blob.from_string.return_value.download_as_bytes.assert_called_once()
+        mock_blob.from_string.return_value.upload_from_string.assert_not_called()
 
     @pytest.mark.parametrize(
         ("delete_local_copy", "expected_existence_of_local_copy"),
