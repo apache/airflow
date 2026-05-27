@@ -239,18 +239,29 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) is None
 
-    def test_set_populates_expires_at(
+    def test_set_without_expires_at_stores_null(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
-        """set() always populates expires_at so cleanup has a single pass."""
+        """set() without expires_at stores NULL — the worker is responsible for computing expiry."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.flush()
 
         row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
         assert row is not None
-        assert row.expires_at is not None
-        assert row.expires_at > row.updated_at
+        assert row.expires_at is None
+
+    def test_set_expires_at_none_stores_null(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """expires_at=None stores NULL — the key never expires regardless of global config."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at is None
 
     def test_cleanup_removes_expired_rows(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun

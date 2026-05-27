@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess
 import sys
+import time
+from subprocess import PIPE, STDOUT, Popen
 
 import pytest
 import requests
@@ -34,6 +38,65 @@ from airflowctl_tests.constants import (
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
+
+# XCom add/edit/delete race against task execution: when the target task transitions to
+# RUNNING, the execution API tells the worker to clear every XCom key currently stored
+# for that task instance (see `xcom_keys_to_clear` in
+# airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py). Any
+# XCom the test just added through airflowctl is wiped, and the next xcom edit/delete
+# command then fails with "XCom doesn't exist". Waiting for the Dag run to reach a
+# terminal state means the task has already run (and won't run again), so user-added
+# XComs survive the rest of the xcom commands.
+_XCOM_TARGET_PATTERN = re.compile(r'^xcom\s+(?:add|get|list|edit|delete)\s+(\S+)\s+"(manual__[^"]+)"')
+_DAG_RUN_TERMINAL_STATES = frozenset({"success", "failed"})
+
+
+def _airflowctl_dag_run_state(dag_id: str, dag_run_id: str, env_vars: dict, skip_login: bool) -> str | None:
+    """Return the current state of a Dag run via airflowctl, or None if unparsable."""
+    host_envs = os.environ.copy()
+    host_envs.update(env_vars)
+
+    get_cmd = f'airflowctl dagrun get {dag_id} "{dag_run_id}" -o json'
+    if not skip_login:
+        get_cmd = f"airflowctl {LOGIN_COMMAND} && {get_cmd}"
+
+    proc = Popen(get_cmd.encode(), stdout=PIPE, stderr=STDOUT, shell=True, env=host_envs)
+    try:
+        out, _ = proc.communicate(timeout=20)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return None
+    out_str = out.decode()
+    if LOGIN_OUTPUT in out_str:
+        out_str = out_str.split(f"{LOGIN_OUTPUT}\n", 1)[-1].strip()
+    start, end = out_str.find("{"), out_str.rfind("}")
+    if start == -1 or end == -1:
+        return None
+    try:
+        return json.loads(out_str[start : end + 1]).get("state")
+    except json.JSONDecodeError:
+        return None
+
+
+def _wait_for_dag_run_terminal_state(
+    dag_id: str,
+    dag_run_id: str,
+    env_vars: dict,
+    skip_login: bool,
+    timeout: int = 60,
+) -> None:
+    """Block until the Dag run reaches success/failed, or raise TimeoutError."""
+    deadline = time.monotonic() + timeout
+    last_state: str | None = None
+    while time.monotonic() < deadline:
+        last_state = _airflowctl_dag_run_state(dag_id, dag_run_id, env_vars, skip_login)
+        if last_state in _DAG_RUN_TERMINAL_STATES:
+            return
+        time.sleep(1)
+    raise TimeoutError(
+        f"Dag run {dag_id}/{dag_run_id} did not reach terminal state in {timeout}s "
+        f"(last seen state: {last_state})"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -56,9 +119,6 @@ def run_command():
     """Fixture that provides a helper to run airflowctl commands."""
 
     def _run_command(command: str, env_vars: dict, skip_login: bool = False) -> str:
-        import os
-        from subprocess import PIPE, STDOUT, Popen
-
         host_envs = os.environ.copy()
         host_envs.update(env_vars)
 
@@ -69,6 +129,12 @@ def run_command():
             run_cmd = f"airflowctl {LOGIN_COMMAND} && {command_from_config}"
         else:
             run_cmd = command_from_config
+
+        # See `_XCOM_TARGET_PATTERN` above for why xcom commands have to wait for the
+        # Dag run to be terminal before running.
+        xcom_match = _XCOM_TARGET_PATTERN.match(command)
+        if xcom_match:
+            _wait_for_dag_run_terminal_state(xcom_match.group(1), xcom_match.group(2), env_vars, skip_login)
 
         console.print(f"[yellow]Running command: {command}")
 
@@ -262,7 +328,10 @@ def docker_compose_up(tmp_path_factory):
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Initialize Docker client
-    _CtlTestState.docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+    _CtlTestState.docker_client = DockerClient(
+        compose_files=[str(tmp_docker_compose_file)],
+        compose_project_name="breeze-airflowctl-test",
+    )
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

@@ -81,7 +81,7 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -130,7 +130,6 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({

@@ -20,6 +20,7 @@ from enum import Enum
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
@@ -71,18 +72,46 @@ class TestLLMBranchDecoratedOperator:
 
     @pytest.mark.parametrize(
         "return_value",
-        [42, "", "   ", None],
-        ids=["non-string", "empty", "whitespace", "none"],
+        [42, "", "   ", None, b"bytes", bytearray(b"x"), [], ()],
+        ids=["non-string", "empty", "whitespace", "none", "bytes", "bytearray", "empty-list", "empty-tuple"],
     )
     def test_execute_raises_on_invalid_prompt(self, return_value):
-        """TypeError when the callable returns a non-string or blank string."""
+        """TypeError when the callable returns an unsupported prompt shape."""
         op = _LLMBranchDecoratedOperator(
             task_id="test",
             python_callable=lambda: return_value,
             llm_conn_id="my_llm",
         )
-        with pytest.raises(TypeError, match="non-empty string"):
+        with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_accepts_sequence_prompt(self, mock_hook_cls, mock_do_branch):
+        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
+        downstream_enum = Enum("DownstreamTasks", {"positive": "positive"})
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.positive)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_do_branch.return_value = "positive"
+
+        image = ImageUrl(url="https://example.com/x.png")
+        prompt = ["Route based on this image:", image]
+
+        def my_prompt():
+            return prompt
+
+        op = _LLMBranchDecoratedOperator(
+            task_id="test",
+            python_callable=my_prompt,
+            llm_conn_id="my_llm",
+        )
+        op.downstream_task_ids = {"positive"}
+        op.execute(context={})
+
+        assert op.prompt == prompt
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
