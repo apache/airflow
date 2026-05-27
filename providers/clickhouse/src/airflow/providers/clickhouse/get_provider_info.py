@@ -82,6 +82,11 @@ def get_provider_info():
                         "schema": {"type": ["object", "string", "null"]},
                         "description": 'ClickHouse session-level settings as a JSON object, e.g. {"max_execution_time": 60, "max_threads": 4}. These are merged with any session_settings passed to the hook constructor, with the constructor argument taking precedence on conflicting keys.\n',
                     },
+                    "client_kwargs": {
+                        "label": "Client kwargs (JSON)",
+                        "schema": {"type": ["object", "string", "null"]},
+                        "description": 'Additional keyword arguments forwarded to clickhouse_connect.get_client() as a JSON object, e.g. {"http_proxy": "http://proxy:8080"}. Hook-managed keys (host, port, username, password, database, secure, verify, client_name, settings) are ignored.\n',
+                    },
                 },
             }
         ],
