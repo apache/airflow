@@ -124,7 +124,7 @@ NEVER_EXPIRE: timedelta = timedelta.max
 _EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
 
 
-def _wrap_external_ref(ref: str) -> dict[str, str]:
+def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
     return {_EXTERNAL_STATE_REF_KEY: ref}
 
 
@@ -567,7 +567,7 @@ class TaskStateAccessor:
         if backend is not None:
             ref: str = backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
-            stored = _wrap_external_ref(ref)  # type: ignore[assignment]
+            stored = _wrap_external_ref(ref)
 
         SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
 
@@ -688,7 +688,7 @@ class AssetStateAccessor:
         stored: JsonValue = value
         if backend is not None:
             ref = backend.serialize_asset_state_to_ref(value=value, key=key, asset_ref=asset_ref)
-            stored = _wrap_external_ref(ref)  # type: ignore[assignment]
+            stored = _wrap_external_ref(ref)
 
         msg: ToSupervisor
         if self._name:
