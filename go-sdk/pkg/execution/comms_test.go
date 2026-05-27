@@ -51,7 +51,7 @@ func TestCoordinatorCommReadMessage(t *testing.T) {
 
 	frame, err := comm.ReadMessage()
 	require.NoError(t, err)
-	assert.Equal(t, 0, frame.ID)
+	assert.Equal(t, int64(0), frame.ID)
 	assert.Equal(t, "StartupDetails", frame.Body["type"])
 }
 
@@ -69,7 +69,7 @@ func TestCoordinatorCommSendRequest(t *testing.T) {
 
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
-	assert.Equal(t, 5, frame.ID)
+	assert.Equal(t, int64(5), frame.ID)
 	assert.Equal(t, "GetVariable", frame.Body["type"])
 	assert.Equal(t, "test_key", frame.Body["key"])
 }
@@ -159,14 +159,14 @@ func TestApiErrorFormat(t *testing.T) {
 }
 
 // encodeResponseFrame encodes a 3-element response frame for testing.
-func encodeResponseFrame(t *testing.T, id int, body, errBody map[string]any) []byte {
+func encodeResponseFrame(t *testing.T, id int64, body, errBody map[string]any) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
 
 	require.NoError(t, enc.EncodeArrayLen(3))
-	require.NoError(t, enc.EncodeInt(int64(id)))
+	require.NoError(t, enc.EncodeInt(id))
 	require.NoError(t, enc.Encode(body))
 	require.NoError(t, enc.Encode(errBody))
 	return buf.Bytes()
@@ -197,7 +197,7 @@ func TestCoordinatorCommCommunicateConcurrentOutOfOrder(t *testing.T) {
 	// verify the response matches the request.
 	supervisorDone := make(chan error, 1)
 	go func() {
-		ids := make([]int, 0, N)
+		ids := make([]int64, 0, N)
 		for i := 0; i < N; i++ {
 			frame, err := readFrame(reqR)
 			if err != nil {
@@ -300,7 +300,7 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 	// registered its waiter (Communicate registers before it calls
 	// SendRequest), so the test can sequence id allocation deterministically
 	// instead of relying on sleeps.
-	reqIDs := make(chan int, 2)
+	reqIDs := make(chan int64, 2)
 	go func() {
 		for i := 0; i < 2; i++ {
 			frame, err := readFrame(reqR)
@@ -491,7 +491,7 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 	// Report the caller's allocated request id as soon as the supervisor sees
 	// its frame on the wire. By then Communicate has registered its waiter,
 	// so we can safely send the stray frame and then the matching response.
-	reqIDs := make(chan int, 1)
+	reqIDs := make(chan int64, 1)
 	go func() {
 		if frame, err := readFrame(reqR); err == nil {
 			reqIDs <- frame.ID
@@ -648,6 +648,91 @@ func TestCoordinatorCommCommunicateContextCancelled(t *testing.T) {
 		"pending map should be empty after ctx cancellation, got %d entries",
 		pendingLen,
 	)
+}
+
+// TestCoordinatorCommCommunicateCancelDuringSend verifies that Communicate
+// returns when ctx is cancelled while the request write is still blocked.
+// The caller must escape with ctx.Err() and its waiter must be cleaned up;
+// the send goroutine is allowed to remain parked on the wedged writer (it
+// would otherwise corrupt the stream if force-unblocked mid-frame).
+func TestCoordinatorCommCommunicateCancelDuringSend(t *testing.T) {
+	respR, respW := io.Pipe()
+	t.Cleanup(func() {
+		respR.Close()
+		respW.Close()
+	})
+
+	writer := newBlockingWriter()
+	t.Cleanup(writer.release)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(respR, writer, logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := comm.Communicate(ctx, map[string]any{"type": "GetVariable"})
+		errCh <- err
+	}()
+
+	// Wait until the goroutine has actually entered the blocked Write so the
+	// cancel below targets the in-flight send, not the pre-write ctx check.
+	writer.waitForWrite(t)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("Communicate did not return while the request write was blocked")
+	}
+
+	comm.mu.Lock()
+	pendingLen := len(comm.pending)
+	comm.mu.Unlock()
+	assert.Equal(t, 0, pendingLen,
+		"pending map should be empty after ctx cancellation during send")
+}
+
+// blockingWriter blocks every Write call until release() is called. It is used
+// to simulate a stalled coordinator socket so a cancelled Communicate has to
+// unblock the caller via context handling rather than the writer completing.
+type blockingWriter struct {
+	once    sync.Once
+	release func()
+	gate    chan struct{}
+	entered chan struct{}
+}
+
+func newBlockingWriter() *blockingWriter {
+	w := &blockingWriter{
+		gate:    make(chan struct{}),
+		entered: make(chan struct{}),
+	}
+	w.release = func() {
+		w.once.Do(func() { close(w.gate) })
+	}
+	return w
+}
+
+func (w *blockingWriter) Write(p []byte) (int, error) {
+	select {
+	case <-w.entered:
+	default:
+		close(w.entered)
+	}
+	<-w.gate
+	return len(p), nil
+}
+
+func (w *blockingWriter) waitForWrite(t *testing.T) {
+	t.Helper()
+	select {
+	case <-w.entered:
+	case <-time.After(time.Second):
+		t.Fatal("blockingWriter.Write was never called")
+	}
 }
 
 // TestCoordinatorCommCommunicateContextAlreadyDone verifies that a Communicate

@@ -57,17 +57,15 @@ func translateApiError(err error, code string, sentinel error, key string) error
 // CoordinatorClient implements sdk.Client by communicating with the Airflow supervisor
 // over the comm socket using msgpack-framed IPC instead of HTTP.
 type CoordinatorClient struct {
-	comm    *CoordinatorComm
-	details *StartupDetails
+	comm *CoordinatorComm
 }
 
 var _ sdk.Client = (*CoordinatorClient)(nil)
 
 // NewCoordinatorClient creates a new client backed by the comm socket.
-func NewCoordinatorClient(comm *CoordinatorComm, details *StartupDetails) *CoordinatorClient {
+func NewCoordinatorClient(comm *CoordinatorComm) *CoordinatorClient {
 	return &CoordinatorClient{
-		comm:    comm,
-		details: details,
+		comm: comm,
 	}
 }
 
@@ -157,14 +155,12 @@ func (c *CoordinatorClient) GetConnection(
 		Path: result.Schema,
 	}
 
-	if result.Login != "" {
-		login := result.Login
-		conn.Login = &login
-	}
-	if result.Password != "" {
-		password := result.Password
-		conn.Password = &password
-	}
+	// Pass the *string straight through so an explicitly empty credential
+	// (distinct from "no credential set") survives the coordinator hop and
+	// reaches sdk.Connection's URI-building code the same way it does in the
+	// HTTP-backed SDK.
+	conn.Login = result.Login
+	conn.Password = result.Password
 	if result.Extra != "" {
 		conn.Extra = map[string]any{}
 		if err := json.Unmarshal([]byte(result.Extra), &conn.Extra); err != nil {
@@ -220,18 +216,15 @@ func (c *CoordinatorClient) PushXCom(
 	key string,
 	value any,
 ) error {
-	mapIndex := -1
-	if ti.MapIndex != nil && *ti.MapIndex != -1 {
-		mapIndex = *ti.MapIndex
-	}
-
 	msg := SetXComMsg{
-		Key:      key,
-		Value:    value,
-		DagID:    ti.DagId,
-		TaskID:   ti.TaskId,
-		RunID:    ti.RunId,
-		MapIndex: mapIndex,
+		Key:    key,
+		Value:  value,
+		DagID:  ti.DagId,
+		TaskID: ti.TaskId,
+		RunID:  ti.RunId,
+	}
+	if ti.MapIndex != nil && *ti.MapIndex != -1 {
+		msg.MapIndex = ti.MapIndex
 	}
 
 	_, err := c.comm.Communicate(ctx, msg.toMap())

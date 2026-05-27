@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -42,7 +43,7 @@ func TestCoordinatorClientGetVariableEnvOverride(t *testing.T) {
 	// to assert *no* IO occurred by failing if anything is read or written.
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(assertNoReadReader{t: t}, assertNoWriteWriter{t: t}, logger)
-	client := NewCoordinatorClient(comm, nil)
+	client := NewCoordinatorClient(comm)
 
 	val, err := client.GetVariable(context.Background(), "my_key")
 	require.NoError(t, err)
@@ -65,7 +66,7 @@ func TestCoordinatorClientGetVariableNoEnvOverride(t *testing.T) {
 	var requestBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-	client := NewCoordinatorClient(comm, nil)
+	client := NewCoordinatorClient(comm)
 
 	val, err := client.GetVariable(context.Background(), "my_key")
 	require.NoError(t, err)
@@ -125,7 +126,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-			client := NewCoordinatorClient(comm, nil)
+			client := NewCoordinatorClient(comm)
 
 			err := tc.call(client)
 			require.Error(t, err)
@@ -151,7 +152,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-	client := NewCoordinatorClient(comm, nil)
+	client := NewCoordinatorClient(comm)
 
 	_, err := client.GetVariable(context.Background(), "any_key")
 	require.Error(t, err)
@@ -160,6 +161,112 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	var apiErr *ApiError
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+}
+
+// TestCoordinatorClientGetConnectionPreservesEmptyCredentials verifies the
+// coordinator client forwards an explicitly empty login/password as a
+// pointer-to-"" on sdk.Connection rather than nil. Connections that use
+// empty credentials intentionally (e.g. a default-blank password) would
+// otherwise fall back to "no login set" URI behaviour.
+func TestCoordinatorClientGetConnectionPreservesEmptyCredentials(t *testing.T) {
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{
+		"type":     "ConnectionResult",
+		"conn_id":  "c",
+		"login":    "",
+		"password": "",
+	}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+	client := NewCoordinatorClient(comm)
+
+	conn, err := client.GetConnection(context.Background(), "c")
+	require.NoError(t, err)
+	require.NotNil(t, conn.Login, "explicit empty-string login must round-trip as &\"\"")
+	assert.Equal(t, "", *conn.Login)
+	require.NotNil(t, conn.Password, "explicit empty-string password must round-trip as &\"\"")
+	assert.Equal(t, "", *conn.Password)
+}
+
+// TestCoordinatorClientGetConnectionAbsentCredentials verifies the
+// coordinator client leaves sdk.Connection's Login/Password as nil when the
+// supervisor omits or sends null for those fields.
+func TestCoordinatorClientGetConnectionAbsentCredentials(t *testing.T) {
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{
+		"type":    "ConnectionResult",
+		"conn_id": "c",
+	}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+	client := NewCoordinatorClient(comm)
+
+	conn, err := client.GetConnection(context.Background(), "c")
+	require.NoError(t, err)
+	assert.Nil(t, conn.Login, "absent login must remain nil")
+	assert.Nil(t, conn.Password, "absent password must remain nil")
+}
+
+// TestCoordinatorClientPushXComMapIndex verifies the SetXCom frame omits
+// map_index for unmapped task instances and propagates a real index when the
+// task is dynamically mapped. Sending the -1 sentinel on the wire would be
+// silently treated as a separate map element by the supervisor.
+func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
+	mapped := -1
+	dynamic := 3
+
+	tests := []struct {
+		name            string
+		mapIndex        *int
+		wantHasMapIndex bool
+		wantMapIndexVal int
+	}{
+		{name: "nil map_index is omitted", mapIndex: nil, wantHasMapIndex: false},
+		{name: "-1 map_index is omitted", mapIndex: &mapped, wantHasMapIndex: false},
+		{
+			name:            "non-negative map_index is sent",
+			mapIndex:        &dynamic,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 3,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm)
+
+			ti := api.TaskInstance{
+				DagId:    "d",
+				RunId:    "r",
+				TaskId:   "t",
+				MapIndex: tc.mapIndex,
+			}
+			require.NoError(t, client.PushXCom(context.Background(), ti, "k", "v"))
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, "SetXCom", sent.Body["type"])
+			if tc.wantHasMapIndex {
+				require.Contains(t, sent.Body, "map_index")
+				// msgpack decodes small ints as int8.
+				assert.EqualValues(t, tc.wantMapIndexVal, sent.Body["map_index"])
+			} else {
+				assert.NotContains(t, sent.Body, "map_index",
+					"map_index must be omitted for unmapped task instances")
+			}
+		})
+	}
 }
 
 // assertNoReadReader fails the test on any Read call.

@@ -51,7 +51,7 @@ type CoordinatorComm struct {
 
 	// Multiplexer state. mu protects every field below.
 	mu      sync.Mutex
-	pending map[int]chan frameResult
+	pending map[int64]chan frameResult
 	started bool
 	readErr error
 }
@@ -73,7 +73,7 @@ func NewCoordinatorComm(reader io.Reader, writer io.Writer, logger *slog.Logger)
 		reader:  reader,
 		writer:  writer,
 		logger:  logger,
-		pending: make(map[int]chan frameResult),
+		pending: make(map[int64]chan frameResult),
 	}
 }
 
@@ -101,7 +101,7 @@ func (c *CoordinatorComm) ReadMessage() (IncomingFrame, error) {
 
 // SendRequest writes a request frame (2-element [id, body]) to the supervisor.
 // Concurrent calls are serialised so frames are never interleaved on the wire.
-func (c *CoordinatorComm) SendRequest(id int, body map[string]any) error {
+func (c *CoordinatorComm) SendRequest(id int64, body map[string]any) error {
 	payload, err := encodeRequest(id, body)
 	if err != nil {
 		return fmt.Errorf("encoding request: %w", err)
@@ -128,7 +128,7 @@ func (c *CoordinatorComm) Communicate(
 		return nil, err
 	}
 
-	id := int(c.nextID.Add(1) - 1)
+	id := c.nextID.Add(1) - 1
 	ch := make(chan frameResult, 1)
 
 	// Register the waiter under the same lock the dispatcher uses, and before
@@ -147,11 +147,32 @@ func (c *CoordinatorComm) Communicate(
 	c.pending[id] = ch
 	c.mu.Unlock()
 
-	if err := c.SendRequest(id, body); err != nil {
+	// Run the send in a goroutine so ctx cancellation can interrupt a blocked
+	// write. We deliberately do not touch the underlying connection on cancel
+	// (no SetWriteDeadline, no Close): manipulating the stream mid-write would
+	// either poison future writes with a stale deadline or risk a partial
+	// length-prefixed frame on the wire. Instead, we let the send goroutine
+	// run to completion in the background. If it eventually succeeds the
+	// supervisor's response has no waiter and is discarded by the dispatcher;
+	// if it fails the dispatcher will surface the error to other callers.
+	sendErr := make(chan error, 1)
+	go func() {
+		sendErr <- c.SendRequest(id, body)
+	}()
+
+	select {
+	case err := <-sendErr:
+		if err != nil {
+			c.mu.Lock()
+			delete(c.pending, id)
+			c.mu.Unlock()
+			return nil, err
+		}
+	case <-ctx.Done():
 		c.mu.Lock()
 		delete(c.pending, id)
 		c.mu.Unlock()
-		return nil, err
+		return nil, ctx.Err()
 	}
 
 	var result frameResult
@@ -173,29 +194,34 @@ func (c *CoordinatorComm) Communicate(
 	}
 	frame := result.frame
 
-	// Check for error in the third element of a response frame.
-	if frame.Err != nil {
-		errResp := decodeErrorResponse(frame.Err)
-		if errResp != nil {
-			return nil, &ApiError{
-				Err:    errResp.Error,
-				Detail: errResp.Detail,
-			}
-		}
-	}
-
-	// Also check if the body itself is an ErrorResponse.
-	if frame.Body != nil {
-		if typ, _ := frame.Body["type"].(string); typ == "ErrorResponse" {
-			errResp := decodeErrorResponse(frame.Body)
-			return nil, &ApiError{
-				Err:    errResp.Error,
-				Detail: errResp.Detail,
-			}
+	// An error reply can arrive in two shapes: the third element of a 3-tuple
+	// response frame, or the body of a 2-tuple frame whose "type" is
+	// "ErrorResponse". Pick whichever the supervisor used and decode once.
+	if errMap := errMapFromFrame(frame); errMap != nil {
+		errResp := decodeErrorResponse(errMap)
+		return nil, &ApiError{
+			Err:    errResp.Error,
+			Detail: errResp.Detail,
 		}
 	}
 
 	return frame.Body, nil
+}
+
+// errMapFromFrame returns the error-shaped map carried by a response frame, or
+// nil if the frame is not an error reply. The supervisor may surface an error
+// either as the dedicated third element of a 3-tuple frame (frame.Err) or as
+// the body of a 2-tuple frame whose "type" is "ErrorResponse".
+func errMapFromFrame(f IncomingFrame) map[string]any {
+	if f.Err != nil {
+		return f.Err
+	}
+	if f.Body != nil {
+		if typ, _ := f.Body["type"].(string); typ == "ErrorResponse" {
+			return f.Body
+		}
+	}
+	return nil
 }
 
 // readLoop is the dispatcher: it reads frames from the comm socket and routes
