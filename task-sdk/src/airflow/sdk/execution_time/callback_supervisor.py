@@ -251,7 +251,7 @@ class CallbackSubprocess(WatchedSubprocess):
         """Read the callback_execution_timeout config value."""
         from airflow.sdk.configuration import conf
 
-        return conf.getint("deadlines", "callback_execution_timeout", fallback=0)
+        return conf.getint("callbacks", "callback_execution_timeout", fallback=0)
 
     def _monitor_subprocess(self):
         """
@@ -260,7 +260,7 @@ class CallbackSubprocess(WatchedSubprocess):
         A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating
         or timeout handling, just process output monitoring and stuck-socket cleanup.
 
-        If ``[deadlines] callback_execution_timeout`` is set to a positive value, the subprocess
+        If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
         is killed after that many seconds.
         """
         timeout = self._get_callback_execution_timeout()
