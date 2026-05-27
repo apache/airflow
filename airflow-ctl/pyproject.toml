@@ -79,7 +79,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.20.19",
+    "trove-classifiers==2026.5.22.10",
 ]
 build-backend = "hatchling.build"
 
@@ -148,7 +148,7 @@ dev = [
     "apache-airflow-devel-common",
 ]
 codegen = [
-    "datamodel-code-generator[http]==0.33.0",
+    "datamodel-code-generator[http]==0.57.0",
     "apache-airflow-devel-common"
 ]
 
