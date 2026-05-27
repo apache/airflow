@@ -592,7 +592,7 @@ class SortParam(BaseParam[list[str]]):
                     # getattr(row, attr_name) without further to_replace lookups.
                     is_desc = order_by_value.startswith("-")
                     for col in replacement:
-                        col_attr_name = getattr(col, "key", attr_name)
+                        col_attr_name = col.key
                         resolved.append((col_attr_name, col, is_desc))
                     continue
                 else:
