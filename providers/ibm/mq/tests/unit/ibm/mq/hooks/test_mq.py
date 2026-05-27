@@ -221,6 +221,53 @@ class TestIBMMQHook:
         )
         mock_queue.put.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("open_options_attr", "use_explicit_open_options"),
+        [
+            pytest.param("MQOO_OUTPUT", False, id="default_output"),
+            pytest.param("MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"),
+        ],
+    )
+    @patch("ibmmq.connect")
+    @patch("ibmmq.Queue")
+    async def test_aproduce_with_custom_open_options(
+        self, mock_queue_class, mock_connect, mock_get_connection, patch_sync_to_async,
+        open_options_attr, use_explicit_open_options
+    ):
+        """Test that aproduce correctly passes open_options to produce."""
+        import ibmmq
+
+        mock_qmgr = MagicMock()
+        mock_connect.return_value = mock_qmgr
+
+        mock_queue = MagicMock()
+        mock_queue_class.return_value = mock_queue
+
+        # Calculate the expected open_options value
+        open_options_values = [
+            getattr(ibmmq.CMQC, opt.strip())
+            for opt in open_options_attr.split("|")
+        ]
+        expected_open_options = reduce(operator.or_, open_options_values)
+
+        if use_explicit_open_options:
+            await self.hook.aproduce(
+                queue_name="QUEUE1",
+                payload="payload",
+                open_options=expected_open_options
+            )
+        else:
+            await self.hook.aproduce(queue_name="QUEUE1", payload="payload")
+            # When not specified, should default to MQOO_OUTPUT
+            expected_open_options = ibmmq.CMQC.MQOO_OUTPUT
+
+        mock_connect.assert_called_once()
+        # Verify Queue was called with the expected open_options
+        call_args = mock_queue_class.call_args
+        actual_open_options = call_args[0][2]  # Third positional argument is open_options
+        assert actual_open_options == expected_open_options
+        mock_queue.put.assert_called_once()
+
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
     async def test_aconsume_connection_broken(
@@ -439,6 +486,60 @@ class TestIBMMQHook:
         call_args = mock_sync_to_async.call_args
         assert call_args[1].get("thread_sensitive") is False
         assert call_args[0][0] == self.hook.produce
+
+
+    @pytest.mark.parametrize(
+        ("open_options_attr", "use_explicit_open_options"),
+        [
+             pytest.param("MQOO_OUTPUT", False, id="default_output"),
+             pytest.param("MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"),
+        ],
+    )
+    @patch("ibmmq.connect")
+    @patch("ibmmq.Queue")
+    def test_produce_with_custom_open_options(
+        self, mock_queue_class, mock_connect, mock_base_get_connection,
+        open_options_attr, use_explicit_open_options
+    ):
+        """Test that produce correctly uses custom open_options when opening queue."""
+        import ibmmq
+
+        mock_qmgr = MagicMock()
+        mock_connect.return_value = mock_qmgr
+
+        mock_queue = MagicMock()
+        mock_queue_class.return_value = mock_queue
+
+        # Calculate the expected open_options value
+        open_options_values = [
+            getattr(ibmmq.CMQC, opt.strip())
+            for opt in open_options_attr.split("|")
+        ]
+        expected_open_options = reduce(operator.or_, open_options_values)
+
+        conn = mq_connection()
+        if use_explicit_open_options:
+            self.hook.produce(
+                connection=conn,
+                queue_name="QUEUE1",
+                payload="test payload",
+                open_options=expected_open_options
+            )
+        else:
+            self.hook.produce(
+                connection=conn,
+                queue_name="QUEUE1",
+                payload="test payload"
+            )
+            # When not specified, should default to MQOO_OUTPUT
+            expected_open_options = ibmmq.CMQC.MQOO_OUTPUT
+
+        mock_connect.assert_called_once()
+        # Verify Queue was called with the expected open_options
+        call_args = mock_queue_class.call_args
+        actual_open_options = call_args[0][2]  # Third positional argument is open_options
+        assert actual_open_options == expected_open_options
+        mock_queue.put.assert_called_once()
 
 
 class TestIBMMQConsumer:

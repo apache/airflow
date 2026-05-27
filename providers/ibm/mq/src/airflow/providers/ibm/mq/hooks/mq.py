@@ -541,7 +541,9 @@ class IBMMQHook(BaseHook):
             await asyncio.sleep(backoff)
             backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)
 
-    async def aproduce(self, queue_name: str, payload: str) -> None:
+    async def aproduce(
+        self, queue_name: str, payload: str, open_options: int | None = None
+    ) -> None:
         """
         Asynchronous version of :meth:`produce`.
 
@@ -553,18 +555,32 @@ class IBMMQHook(BaseHook):
         :param queue_name: Name of the IBM MQ queue to which the message should be sent.
         :param payload: Message payload to send. The payload will be encoded as UTF-8
             before being placed on the queue.
+        :param open_options: Integer bitmask of ``MQOO_*`` open options for the queue.
+            If not provided, defaults to ``MQOO_OUTPUT``.
         :return: None
         """
         connection = await get_async_connection(self.conn_id)
-        await sync_to_async(self.produce, thread_sensitive=False)(connection, queue_name, payload)
+        await sync_to_async(self.produce, thread_sensitive=False)(
+            connection, queue_name, payload, open_options
+        )
 
     def produce(
         self,
         connection: Connection,
         queue_name: str,
         payload: str,
+        open_options: int | None = None,
     ) -> None:
-        """Blocking implementation of :meth:`aproduce`."""
+        """
+        Blocking implementation of :meth:`aproduce`.
+
+        :param connection: Airflow connection object.
+        :param queue_name: Name of the IBM MQ queue to which the message should be sent.
+        :param payload: Message payload to send. The payload will be encoded as UTF-8
+            before being placed on the queue.
+        :param open_options: Integer bitmask of ``MQOO_*`` open options for the queue.
+            If not provided, defaults to ``MQOO_OUTPUT``.
+        """
         import ibmmq
 
         od = ibmmq.OD()
@@ -575,9 +591,12 @@ class IBMMQHook(BaseHook):
         md.CodedCharSetId = 1208
         md.Encoding = ibmmq.CMQC.MQENC_NATIVE
 
+        if open_options is None:
+            open_options = ibmmq.CMQC.MQOO_OUTPUT
+
         try:
             with self.get_conn(connection=connection) as conn:
-                q = ibmmq.Queue(conn, od, ibmmq.CMQC.MQOO_OUTPUT)
+                q = ibmmq.Queue(conn, od, open_options)
                 try:
                     q.put(payload.encode("utf-8"), md)
                 finally:
