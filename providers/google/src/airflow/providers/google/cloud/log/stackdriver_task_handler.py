@@ -35,9 +35,9 @@ from urllib.parse import urlencode
 import attrs
 from google.cloud import logging as gcp_logging
 from google.cloud.logging import Resource
-from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
+from google.cloud.logging.handlers.transports import BackgroundThreadTransport
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
-from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
+from google.cloud.logging_v2.types import ListLogEntriesRequest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
@@ -56,6 +56,8 @@ if not AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     import structlog.typing
     from google.auth.credentials import Credentials
+    from google.cloud.logging.handlers.transports import Transport
+    from google.cloud.logging_v2.types import ListLogEntriesResponse
 
     from airflow.models import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI

@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import PublisherOptions
@@ -51,6 +51,7 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
     from google.cloud.pubsub_v1.types import (

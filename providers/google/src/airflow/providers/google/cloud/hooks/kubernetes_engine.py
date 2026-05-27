@@ -26,7 +26,7 @@ from collections.abc import AsyncGenerator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
@@ -50,6 +50,7 @@ from airflow.providers.google.common.hooks.base_google import (
 
 if TYPE_CHECKING:
     import google.auth.credentials
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
 
 OPERATIONAL_POLL_INTERVAL = 15

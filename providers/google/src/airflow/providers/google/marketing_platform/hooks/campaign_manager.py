@@ -22,13 +22,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from googleapiclient import http
+    from googleapiclient.discovery import Resource
 
 
 class GoogleCampaignManagerHook(GoogleBaseHook):

@@ -26,8 +26,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
@@ -45,7 +45,9 @@ from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.devtools.cloudbuild_v1.types import RepoSource
 
     from airflow.providers.common.compat.sdk import Context
 

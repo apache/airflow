@@ -44,7 +44,7 @@ from urllib.parse import quote_plus
 import httpx
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # Number of retries - used by googleapiclient method calls to perform retries
@@ -71,6 +71,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
+    from googleapiclient.discovery import Resource
     from requests import Session
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook

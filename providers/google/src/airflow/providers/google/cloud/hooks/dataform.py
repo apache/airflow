@@ -20,23 +20,24 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataform_v1beta1 import DataformClient
-from google.cloud.dataform_v1beta1.types import (
-    CompilationResult,
-    InstallNpmPackagesResponse,
-    Repository,
-    WorkflowInvocation,
-    Workspace,
-    WriteFileResponse,
-)
+from google.cloud.dataform_v1beta1.types import WorkflowInvocation
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.cloud.dataform_v1beta1.services.dataform.pagers import QueryWorkflowInvocationActionsPager
+    from google.cloud.dataform_v1beta1.types import (
+        CompilationResult,
+        InstallNpmPackagesResponse,
+        Repository,
+        Workspace,
+        WriteFileResponse,
+    )
 
 
 class DataformHook(GoogleBaseHook):

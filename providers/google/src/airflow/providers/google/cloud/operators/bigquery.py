@@ -28,10 +28,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
 from google.api_core.exceptions import Conflict
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.routine import Routine
-from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
+from google.cloud.bigquery.table import RowIterator, Table, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
@@ -65,8 +65,10 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
+    from google.cloud.bigquery.table import TableListItem
 
     from airflow.providers.common.compat.sdk import Context
 

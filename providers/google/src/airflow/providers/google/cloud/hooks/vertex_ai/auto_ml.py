@@ -23,15 +23,11 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform import (
     AutoMLForecastingTrainingJob,
     AutoMLImageTrainingJob,
     AutoMLTabularTrainingJob,
-    AutoMLTextTrainingJob,
-    AutoMLVideoTrainingJob,
-    datasets,
-    models,
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 
@@ -42,8 +38,10 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
+    from google.cloud.aiplatform import AutoMLTextTrainingJob, AutoMLVideoTrainingJob, datasets, models
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
     from google.cloud.aiplatform_v1.types import TrainingPipeline
 

@@ -20,13 +20,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 from googleapiclient.errors import Error as GoogleApiClientError
-from googleapiclient.http import HttpRequest, MediaFileUpload
+from googleapiclient.http import MediaFileUpload
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from googleapiclient.discovery import Resource
+    from googleapiclient.http import HttpRequest
 
 
 class GoogleDriveHook(GoogleBaseHook):

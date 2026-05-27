@@ -26,7 +26,7 @@ import google.api_core.exceptions
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.instance import Instance
-from google.cloud.bigtable.table import ClusterState, Table
+from google.cloud.bigtable.table import Table
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     import enum
 
     from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
+    from google.cloud.bigtable.table import ClusterState
 
 
 class BigtableHook(GoogleBaseHook):

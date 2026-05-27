@@ -29,18 +29,9 @@ from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import pubsub_v1
-from google.cloud.pubsub_v1.types import (
-    DeadLetterPolicy,
-    Duration,
-    ExpirationPolicy,
-    MessageStoragePolicy,
-    PushConfig,
-    ReceivedMessage,
-    RetryPolicy,
-    SchemaSettings,
-)
+from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
@@ -51,7 +42,17 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.pubsub_v1.types import (
+        DeadLetterPolicy,
+        Duration,
+        ExpirationPolicy,
+        MessageStoragePolicy,
+        PushConfig,
+        RetryPolicy,
+        SchemaSettings,
+    )
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage

@@ -23,7 +23,7 @@ from collections.abc import MutableMapping, MutableSequence, Sequence
 from typing import TYPE_CHECKING, cast
 
 from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import DatasetIm
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.cloud.translate_v3.types import (
         BatchDocumentInputConfig,

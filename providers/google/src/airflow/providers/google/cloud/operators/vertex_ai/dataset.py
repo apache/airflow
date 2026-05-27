@@ -23,8 +23,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.aiplatform_v1.types import Dataset
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
@@ -32,7 +32,9 @@ from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, 
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.types import ExportDataConfig, ImportDataConfig
     from google.protobuf.field_mask_pb2 import FieldMask
 
     from airflow.providers.common.compat.sdk import Context

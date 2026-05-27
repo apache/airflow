@@ -33,21 +33,15 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,
-    Job,
-    JobState,
     JobsV1Beta3AsyncClient,
     JobView,
     ListJobMessagesRequest,
     MessagesV1Beta3AsyncClient,
     MetricsV1Beta3AsyncClient,
 )
-from google.cloud.dataflow_v1beta3.types import (
-    GetJobMetricsRequest,
-    JobMessageImportance,
-    JobMetrics,
-)
+from google.cloud.dataflow_v1beta3.types import GetJobMetricsRequest, JobMessageImportance
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
@@ -72,9 +66,12 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from google.cloud.dataflow_v1beta3 import Job, JobState
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+    from google.cloud.dataflow_v1beta3.types import JobMetrics
     from google.protobuf.timestamp_pb2 import Timestamp
+    from googleapiclient.discovery import Resource
 
 
 # This is the default location

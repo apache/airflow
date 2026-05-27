@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import (
         CustomContainerTrainingJob,

@@ -20,10 +20,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from googleapiclient.discovery import Resource
 
 
 class GoogleDiscoveryApiHook(GoogleBaseHook):

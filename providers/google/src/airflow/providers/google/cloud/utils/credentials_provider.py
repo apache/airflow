@@ -25,12 +25,13 @@ import os
 import tempfile
 from collections.abc import Collection, Generator, Sequence
 from contextlib import ExitStack, contextmanager
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 import google.auth
 import google.oauth2.service_account
 from google.auth import impersonated_credentials
-from google.auth.credentials import AnonymousCredentials, Credentials
+from google.auth.credentials import AnonymousCredentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -40,6 +41,9 @@ from airflow.providers.google.cloud.utils.external_token_supplier import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
 
 log = logging.getLogger(__name__)
 

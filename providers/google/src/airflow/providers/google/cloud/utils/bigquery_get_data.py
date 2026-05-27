@@ -19,10 +19,12 @@ from __future__ import annotations
 import itertools
 from typing import TYPE_CHECKING
 
-from google.cloud.bigquery.table import Row, RowIterator
+from google.cloud.bigquery.table import RowIterator
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from google.cloud.bigquery.table import Row
 
     from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
     from airflow.sdk.types import Logger

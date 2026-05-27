@@ -19,12 +19,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
+from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import AsyncBiqQueryDataTransferServiceHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from google.cloud.bigquery_datatransfer_v1 import TransferRun
 
 
 class BigQueryDataTransferRunTrigger(BaseTrigger):

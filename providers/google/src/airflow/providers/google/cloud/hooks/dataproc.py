@@ -27,19 +27,16 @@ from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import ServerError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerAsyncClient,
     BatchControllerClient,
-    Cluster,
     ClusterControllerAsyncClient,
     ClusterControllerClient,
-    Job,
     JobControllerAsyncClient,
     JobControllerClient,
     JobStatus,
-    WorkflowTemplate,
     WorkflowTemplateServiceAsyncClient,
     WorkflowTemplateServiceClient,
 )
@@ -50,11 +47,13 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.operation_async import AsyncOperation
     from google.api_core.operations_v1.operations_client import OperationsClient
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
+    from google.cloud.dataproc_v1 import Cluster, Job, WorkflowTemplate
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval

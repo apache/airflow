@@ -24,21 +24,17 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.vision_v1 import (
-    AnnotateImageRequest,
-    Image,
-    Product,
-    ProductSet,
-    ReferenceImage,
-)
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.vision_v1 import ProductSet, ReferenceImage
 
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.vision_v1 import AnnotateImageRequest, Image, Product
     from google.protobuf.field_mask_pb2 import FieldMask
 
     from airflow.providers.common.compat.sdk import Context

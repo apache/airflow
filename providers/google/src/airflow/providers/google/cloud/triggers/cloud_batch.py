@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from google.cloud.batch_v1 import Job, JobStatus
+from google.cloud.batch_v1 import JobStatus
 
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from google.cloud.batch_v1 import Job
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 

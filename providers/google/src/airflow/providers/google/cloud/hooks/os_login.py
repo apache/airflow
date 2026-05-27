@@ -27,14 +27,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.oslogin_v1 import OsLoginServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse
 
 
 class OSLoginHook(GoogleBaseHook):

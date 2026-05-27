@@ -23,26 +23,18 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dlp_v2.types import (
-    ByteContentItem,
-    ContentItem,
-    DeidentifyConfig,
     DeidentifyContentResponse,
     DeidentifyTemplate,
     DlpJob,
-    InspectConfig,
     InspectContentResponse,
-    InspectJobConfig,
     InspectTemplate,
     JobTrigger,
     ListInfoTypesResponse,
-    RedactImageRequest,
     RedactImageResponse,
     ReidentifyContentResponse,
-    RiskAnalysisJobConfig,
     StoredInfoType,
-    StoredInfoTypeConfig,
 )
 
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
@@ -63,7 +55,18 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.dlp_v2.types import (
+        ByteContentItem,
+        ContentItem,
+        DeidentifyConfig,
+        InspectConfig,
+        InspectJobConfig,
+        RedactImageRequest,
+        RiskAnalysisJobConfig,
+        StoredInfoTypeConfig,
+    )
     from google.protobuf.field_mask_pb2 import FieldMask
 
     from airflow.providers.common.compat.sdk import Context

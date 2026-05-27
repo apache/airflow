@@ -26,7 +26,7 @@ from typing import (
 )
 
 from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
@@ -38,6 +38,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.cloud.translate_v3.services.translation_service import pagers
     from google.cloud.translate_v3.types import (
