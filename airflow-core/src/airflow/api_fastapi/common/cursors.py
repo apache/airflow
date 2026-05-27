@@ -44,12 +44,31 @@ def _b64url_decode_padded(token: str) -> bytes:
 
 
 def _nonstrict_bound(col: ColumnElement, value: Any, is_desc: bool) -> ColumnElement[bool]:
-    """Inclusive range edge on the leading column at each nesting level (``>=`` / ``<=``)."""
+    """
+    Inclusive range edge on the leading column at each nesting level (``>=`` / ``<=``).
+
+    When *value* is ``None`` the column is nullable and the cursor sits at a
+    NULL boundary.  ``col IS NULL`` is used instead of ``col >= NULL`` (which
+    SQLAlchemy rejects and SQL evaluates as UNKNOWN).
+    """
+    if value is None:
+        return col.is_(None)
     return col <= value if is_desc else col >= value
 
 
 def _strict_bound(col: ColumnElement, value: Any, is_desc: bool) -> ColumnElement[bool]:
-    """Strict inequality for ``or_`` branches (``<`` / ``>``)."""
+    """
+    Strict inequality for ``or_`` branches (``<`` / ``>``).
+
+    When *value* is ``None`` the cursor is at a NULL boundary.  The only rows
+    that can be "strictly after" a NULL are non-NULL rows (regardless of
+    whether the database sorts NULLs first or last), so ``col IS NOT NULL`` is
+    used.  When the surrounding ``_nonstrict_bound`` already constrains
+    ``col IS NULL``, this branch evaluates to FALSE and the inner keyset
+    predicate takes over — which is the correct behaviour.
+    """
+    if value is None:
+        return col.is_not(None)
     return col < value if is_desc else col > value
 
 
