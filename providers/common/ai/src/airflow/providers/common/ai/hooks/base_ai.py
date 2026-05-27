@@ -31,11 +31,8 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 _EMPTY_OBJECT_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
 
-# Durable storage/counter pairs keyed by ``id(agent)``.
-# pydantic-ai ``Agent`` is not hashable, so ``WeakKeyDictionary`` cannot be used.
-# ``create_agent`` and ``run_agent`` run synchronously in the same task, so ``id()``
-# is stable until ``_pop_agent_durable`` removes the entry.
-_AGENT_DURABLE: dict[int, tuple[Any, Any]] = {}
+# Attribute name for durable storage/counter bound to a framework agent instance.
+_AIRFLOW_DURABLE_ATTR = "_airflow_durable_state"
 
 
 @dataclass
@@ -232,6 +229,9 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         to the agent via :meth:`_bind_agent_durable` so that :meth:`run_agent`
         can retrieve and clean them up.
 
+        Implementations must call :meth:`validate_run_request` at the start of
+        this method before any agent construction or durable initialisation.
+
         :param request: All parameters needed to configure the agent.
         :returns: Framework-native agent object, ready to be passed to :meth:`run_agent`.
         """
@@ -263,6 +263,29 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
             by any enabled logging / caching shims.
         """
 
+    def validate_run_request(self, request: AgentRunRequest) -> None:
+        """
+        Raise if *request* uses features this hook implementation does not support.
+
+        Hook implementations call this at the start of :meth:`create_agent`.
+        """
+        hook_name = type(self).__name__
+        conn_id = self.llm_conn_id or "unknown"
+        if request.toolsets and not self.supports_toolsets:
+            raise ValueError(
+                f"toolsets are not supported for connection {conn_id!r} (conn_type resolves to {hook_name}). "
+            )
+        if request.usage_limits is not None and not self.supports_usage_limits:
+            raise ValueError(
+                f"usage_limits are not supported for connection {conn_id!r} "
+                f"(conn_type resolves to {hook_name})."
+            )
+        if request.durable_context is not None and not self.supports_durable:
+            raise ValueError(
+                f"durable execution requires a hook that supports durable caching; "
+                f"got {hook_name} for connection {conn_id!r}."
+            )
+
     def _init_durable(self, ctx: DurableContext) -> tuple[Any, Any]:
         """
         Create and return a ``DurableStorage`` / ``DurableStepCounter`` pair for *ctx*.
@@ -285,12 +308,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     @staticmethod
     def _bind_agent_durable(agent: Any, storage: Any, counter: Any) -> None:
         """Associate *storage* and *counter* with *agent* until :meth:`run_agent` completes."""
-        _AGENT_DURABLE[id(agent)] = (storage, counter)
+        setattr(agent, _AIRFLOW_DURABLE_ATTR, (storage, counter))
 
     @staticmethod
     def _pop_agent_durable(agent: Any) -> tuple[Any, Any] | None:
         """Remove and return durable state bound to *agent*, if any."""
-        return _AGENT_DURABLE.pop(id(agent), None)
+        state = getattr(agent, _AIRFLOW_DURABLE_ATTR, None)
+        if state is None:
+            return None
+        delattr(agent, _AIRFLOW_DURABLE_ATTR)
+        return state
 
     def _resolve_tools(
         self,

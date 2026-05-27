@@ -221,26 +221,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         }
         return BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def _validate_hook_capabilities(self) -> None:
-        """Raise if operator options are incompatible with the resolved agent hook."""
-        hook = self.llm_hook
-        if self.toolsets and not hook.supports_toolsets:
-            raise ValueError(
-                f"toolsets are not supported for connection {self.llm_conn_id!r} "
-                f"(conn_type resolves to {type(hook).__name__}). "
-                "Use a connection type with toolset support (e.g. pydanticai, pydanticai-bedrock)."
-            )
-        if self.usage_limits is not None and not hook.supports_usage_limits:
-            raise ValueError(
-                f"usage_limits are not supported for connection {self.llm_conn_id!r} "
-                f"(conn_type resolves to {type(hook).__name__})."
-            )
-        if self.durable and not hook.supports_durable:
-            raise ValueError(
-                f"durable=True requires a hook that supports durable execution; got {type(hook).__name__} "
-                f"for connection {self.llm_conn_id!r}."
-            )
-
     def _build_request(self, *, prompt: str, message_history: Any = None) -> AgentRunRequest:
         """Build an :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunRequest` from operator config."""
         durable_context: DurableContext | None = None
@@ -271,8 +251,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             feature_name="enable_hitl_review",
             feature_enabled=self.enable_hitl_review,
         )
-        self._validate_hook_capabilities()
-
         self._durable_ti = context["task_instance"] if self.durable else None
 
         request = self._build_request(prompt=self.prompt)
