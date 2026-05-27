@@ -5671,7 +5671,7 @@ class TestTargetDateInTemplateContext:
         ti_context = make_ti_context(dag_id=dag_id)
         ti_context.dag_run.target_date = date(2025, 3, 31)
 
-        what = StartupDetails(
+        what = StartupDetails.model_construct(
             ti=TaskInstance(
                 id=uuid7(),
                 task_id="op",
@@ -5711,7 +5711,7 @@ class TestTargetDateInTemplateContext:
         ti_context = make_ti_context(dag_id=dag_id)
         ti_context.dag_run.target_date = date(2025, 3, 31)
 
-        what = StartupDetails(
+        what = StartupDetails.model_construct(
             ti=TaskInstance(
                 id=uuid7(),
                 task_id="op_with_target_date",
@@ -5743,7 +5743,7 @@ class TestTargetDateInTemplateContext:
         # logical_date defaults to "2024-12-01T01:00:00Z" in make_ti_context; target_date is not set
         ti_context = make_ti_context(dag_id=dag_id)
 
-        what = StartupDetails(
+        what = StartupDetails.model_construct(
             ti=TaskInstance(
                 id=uuid7(),
                 task_id="op_no_target_date",

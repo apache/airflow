@@ -35,6 +35,23 @@ def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     return dag
 
 
+def _make_startup(ti_kwargs, ti_context, **overrides):
+    """Build a StartupDetails using model_construct (matches real supervisor behaviour)."""
+    return StartupDetails.model_construct(
+        ti=TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            **ti_kwargs,
+        ),
+        bundle_info=FAKE_BUNDLE,
+        dag_rel_path="",
+        ti_context=ti_context,
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+        **overrides,
+    )
+
+
 class TestTargetDateInTemplateContext:
     def test_fallback_to_logical_date(self, mocked_parse, make_ti_context, mock_supervisor_comms):
         """When target_date is None the context should fall back to logical_date.date()."""
@@ -44,20 +61,9 @@ class TestTargetDateInTemplateContext:
 
         ti_context = make_ti_context(dag_id=dag_id)
 
-        what = StartupDetails(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="op",
-                dag_id=dag_id,
-                run_id="test_run",
-                try_number=1,
-                dag_version_id=uuid7(),
-            ),
-            bundle_info=FAKE_BUNDLE,
-            dag_rel_path="",
+        what = _make_startup(
+            ti_kwargs=dict(task_id="op", dag_id=dag_id, run_id="test_run", try_number=1),
             ti_context=ti_context,
-            start_date=timezone.utcnow(),
-            sentry_integration="",
         )
         ti = mocked_parse(what, dag_id, task)
         context = ti.get_template_context()
@@ -73,20 +79,9 @@ class TestTargetDateInTemplateContext:
         ti_context = make_ti_context(dag_id=dag_id)
         ti_context.dag_run.target_date = date(2025, 3, 31)
 
-        what = StartupDetails(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="op",
-                dag_id=dag_id,
-                run_id="test_run",
-                try_number=1,
-                dag_version_id=uuid7(),
-            ),
-            bundle_info=FAKE_BUNDLE,
-            dag_rel_path="",
+        what = _make_startup(
+            ti_kwargs=dict(task_id="op", dag_id=dag_id, run_id="test_run", try_number=1),
             ti_context=ti_context,
-            start_date=timezone.utcnow(),
-            sentry_integration="",
         )
         ti = mocked_parse(what, dag_id, task)
         context = ti.get_template_context()
@@ -107,20 +102,9 @@ class TestTargetDateInTemplateContext:
         ti_context = make_ti_context(dag_id=dag_id)
         ti_context.dag_run.target_date = date(2025, 3, 31)
 
-        what = StartupDetails(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="op_with_callable",
-                dag_id=dag_id,
-                run_id="test_run",
-                try_number=1,
-                dag_version_id=uuid7(),
-            ),
-            bundle_info=FAKE_BUNDLE,
-            dag_rel_path="",
+        what = _make_startup(
+            ti_kwargs=dict(task_id="op_with_callable", dag_id=dag_id, run_id="test_run", try_number=1),
             ti_context=ti_context,
-            start_date=timezone.utcnow(),
-            sentry_integration="",
         )
         ti = mocked_parse(what, dag_id, task)
         context = ti.get_template_context()
@@ -136,20 +120,9 @@ class TestTargetDateInTemplateContext:
         ti_context.dag_run.target_date = None
         ti_context.dag_run.logical_date = None
 
-        what = StartupDetails(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="op",
-                dag_id=dag_id,
-                run_id="test_run",
-                try_number=1,
-                dag_version_id=uuid7(),
-            ),
-            bundle_info=FAKE_BUNDLE,
-            dag_rel_path="",
+        what = _make_startup(
+            ti_kwargs=dict(task_id="op", dag_id=dag_id, run_id="test_run", try_number=1),
             ti_context=ti_context,
-            start_date=timezone.utcnow(),
-            sentry_integration="",
         )
         ti = mocked_parse(what, dag_id, task)
         context = ti.get_template_context()
