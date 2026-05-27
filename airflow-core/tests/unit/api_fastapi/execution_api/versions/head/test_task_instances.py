@@ -1472,6 +1472,62 @@ class TestTIUpdateState:
         assert ti_db.state == TaskInstanceState.SUCCESS
         assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
 
+    def test_ti_update_state_swallow_asset_registration_commit_failure(
+        self, client, session, create_task_instance
+    ):
+        asset = AssetModel(
+            id=44,
+            name="commit-fail-asset",
+            uri="s3://bucket/commit-fail-asset",
+            group="asset",
+            extra={},
+        )
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_asset_registration_commit_failure",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        real_commit = Session.commit
+        commit_count = 0
+        failed_asset_commit = False
+
+        def fail_second_commit(session):
+            nonlocal commit_count, failed_asset_commit
+            commit_count += 1
+            if commit_count == 2:
+                failed_asset_commit = True
+                raise RuntimeError("simulated asset registration commit failure")
+            return real_commit(session)
+
+        with mock.patch("airflow.api_fastapi.common.db.common.Session.commit", fail_second_commit):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [
+                        {
+                            "name": "commit-fail-asset",
+                            "uri": "s3://bucket/commit-fail-asset",
+                            "type": "Asset",
+                        }
+                    ],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}: {response.text}"
+        assert failed_asset_commit
+        session.expire_all()
+        ti_db = session.get(TaskInstance, ti.id)
+        assert ti_db is not None
+        assert ti_db.state == TaskInstanceState.SUCCESS
+        assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
+
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
         Test that a database error is handled correctly when updating the Task Instance state.
