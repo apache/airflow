@@ -5092,7 +5092,7 @@ requires-dist = [
     { name = "cachetools", specifier = ">=6.0" },
     { name = "flask", specifier = ">=2.2.1" },
     { name = "flask-appbuilder", specifier = "==5.2.1" },
-    { name = "flask-limiter", specifier = ">3,!=3.13" },
+    { name = "flask-limiter", specifier = ">3" },
     { name = "flask-login", marker = "python_full_version < '3.14'", specifier = ">=0.6.2" },
     { name = "flask-login", marker = "python_full_version >= '3.14'", specifier = ">=0.6.3" },
     { name = "flask-session", specifier = ">=0.8.0" },
@@ -6043,7 +6043,7 @@ requires-dist = [
     { name = "azure-datalake-store", specifier = ">=0.0.45" },
     { name = "azure-identity", specifier = ">=1.3.1" },
     { name = "azure-keyvault-secrets", specifier = ">=4.1.0" },
-    { name = "azure-kusto-data", specifier = ">=4.1.0,!=4.6.0,!=5.0.0" },
+    { name = "azure-kusto-data", specifier = ">=4.1.0,!=5.0.0" },
     { name = "azure-mgmt-compute", specifier = ">=33.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.1.0" },
     { name = "azure-mgmt-containerregistry", specifier = ">=8.0.0" },
@@ -7659,7 +7659,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "tableauserverclient", specifier = ">=0.27,!=0.39" },
+    { name = "tableauserverclient", specifier = ">=0.27" },
 ]
 
 [package.metadata.requires-dev]

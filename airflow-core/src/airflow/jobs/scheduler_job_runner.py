@@ -651,6 +651,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                .options(selectinload(TI.dag_version))
             )
 
             query = query.limit(max_tis)

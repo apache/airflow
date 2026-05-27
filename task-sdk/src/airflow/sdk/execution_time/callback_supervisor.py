@@ -201,6 +201,7 @@ class CallbackSubprocess(WatchedSubprocess):
                     bundle = DagBundlesManager().get_bundle(
                         name=bundle_info.name,
                         version=bundle_info.version,
+                        version_data=bundle_info.version_data,
                     )
                     bundle.initialize()
                     if (bundle_path := str(bundle.path)) not in sys.path:
