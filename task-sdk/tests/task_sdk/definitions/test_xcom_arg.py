@@ -344,7 +344,7 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     mock_supervisor_comms.send.side_effect = xcom_get
 
     # Run "pull_one" and "pull_all".
-    assert run_ti(dag, "pull_all", None) == TaskInstanceState.SUCCESS
+    assert run_ti(dag, "pull_all", -1) == TaskInstanceState.SUCCESS
     assert all_results == ["a", "b", "c", 1, 2]
 
     states = [run_ti(dag, "pull_one", map_index) for map_index in range(5)]
