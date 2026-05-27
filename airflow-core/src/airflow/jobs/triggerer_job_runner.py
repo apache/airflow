@@ -1266,6 +1266,7 @@ class TriggerRunner:
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
                 from airflow.sdk.definitions.asset import AssetUniqueKey
 
+                # If we only want asset_states, we can just remove this line!
                 trigger_instance.watched_assets = [
                     AssetUniqueKey(name=name, uri=uri) for name, uri in workload.watched_assets.items()
                 ]
