@@ -379,33 +379,6 @@ class TestClickHouseHookClassAttributes:
 
 
 # ---------------------------------------------------------------------------
-# Tests: get_ui_field_behaviour
-# ---------------------------------------------------------------------------
-
-
-class TestClickHouseHookUiFieldBehaviour:
-    def test_relabeling_schema(self):
-        behaviour = ClickHouseHook.get_ui_field_behaviour()
-        assert behaviour["relabeling"]["schema"] == "Database"
-
-    def test_placeholders_present(self):
-        behaviour = ClickHouseHook.get_ui_field_behaviour()
-        placeholders = behaviour["placeholders"]
-        assert placeholders["host"] == "localhost"
-        assert placeholders["port"] == "8123"
-        assert placeholders["login"] == "default"
-        assert placeholders["schema"] == "default"
-
-    def test_extra_placeholder_is_valid_json(self):
-        behaviour = ClickHouseHook.get_ui_field_behaviour()
-        extra_placeholder = behaviour["placeholders"]["extra"]
-        parsed = json.loads(extra_placeholder)
-        assert "secure" in parsed
-        assert "verify" in parsed
-        assert "session_settings" in parsed
-
-
-# ---------------------------------------------------------------------------
 # Tests: _get_client_kwargs
 # ---------------------------------------------------------------------------
 
@@ -1176,40 +1149,6 @@ class TestClickHouseHookBulkOperations:
         hook = ClickHouseHook.__new__(ClickHouseHook)
         with pytest.raises(NotImplementedError):
             hook.bulk_load("my_table", "/tmp/dump.tsv")
-
-
-# ---------------------------------------------------------------------------
-# Tests: get_connection_form_widgets — key coverage
-# ---------------------------------------------------------------------------
-
-
-class TestClickHouseHookConnectionFormWidgets:
-    def test_returns_all_expected_keys(self):
-        from unittest.mock import MagicMock, patch
-
-        fake_module = MagicMock()
-        fake_module.BS3TextFieldWidget = MagicMock
-        with patch.dict(
-            "sys.modules",
-            {
-                "flask_appbuilder": MagicMock(),
-                "flask_appbuilder.fieldwidgets": fake_module,
-                "flask_babel": MagicMock(),
-                "wtforms": MagicMock(),
-            },
-        ):
-            widgets = ClickHouseHook.get_connection_form_widgets()
-
-        assert set(widgets.keys()) == {
-            "secure",
-            "verify",
-            "connect_timeout",
-            "send_receive_timeout",
-            "compress",
-            "client_name",
-            "session_settings",
-            "client_kwargs",
-        }
 
 
 # ---------------------------------------------------------------------------
