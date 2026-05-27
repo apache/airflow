@@ -20,7 +20,9 @@ package execution
 import (
 	"bytes"
 	"encoding/binary"
+	"strconv"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -156,6 +158,30 @@ func TestDecodeFrameRejectsNonMapError(t *testing.T) {
 	_, err := decodeFrame(buf.Bytes())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error element: expected map")
+}
+
+// TestWriteFrameRejectsOversizedPayload pins the guard at the top of
+// writeFrame against the rename/refactor that previously dropped its
+// coverage. The guard only inspects len(payload) before doing any allocation
+// or read of payload bytes, so we hand it a fake-length slice built with
+// unsafe.Slice (one real byte of backing storage, length > MaxFrameSize)
+// rather than allocating 4 GiB of real memory.
+//
+// The matching read-side guard at the top of readFrame is dead code with
+// MaxFrameSize pinned at the uint32 maximum (payloadLen is uint32, so
+// payloadLen > MaxFrameSize is never true) and cannot be exercised without
+// modifying production code; it remains as defense-in-depth in case
+// MaxFrameSize is ever lowered.
+func TestWriteFrameRejectsOversizedPayload(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("requires 64-bit int to construct a slice longer than MaxFrameSize")
+	}
+	var backing byte
+	payload := unsafe.Slice(&backing, uint64(MaxFrameSize)+1)
+
+	err := writeFrame(&bytes.Buffer{}, payload)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds max")
 }
 
 func TestRoundTripMultipleFrames(t *testing.T) {
