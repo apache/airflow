@@ -329,7 +329,7 @@ def get_dag_run_state_counts(
 ) -> DAGsRunStateCountsCollectionResponse:
     """Return per-Dag DagRun state counts (zero-filled) for the Dag list page."""
     permitted_dag_ids = readable_dags_filter.value or set()
-    requested_dag_ids = [dag_id for dag_id in dict.fromkeys(dag_ids) if dag_id in permitted_dag_ids]
+    requested_dag_ids = list(set(dag_ids) & permitted_dag_ids)
     counts_by_dag: dict[str, dict[DagRunState, int]] = {
         dag_id: {state: 0 for state in DagRunState} for dag_id in requested_dag_ids
     }
