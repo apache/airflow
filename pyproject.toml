@@ -1541,8 +1541,9 @@ apache-aurflow-docker-stack = false
 # this override is redundant and should be deleted along with the line below.
 starlette = "6 hours"
 
-# TEMP, remove prior merge
-swagger-plugin-for-sphinx = "2 hours"
+# REMOVE BY 2026-05-31 — once 7.1.0 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+swagger-plugin-for-sphinx = "8 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1688,8 +1689,8 @@ apache-aurflow-docker-stack = false
 # REMOVE BY 2026-05-26 along with the matching entry above.
 starlette = "6 hours"
 
-# TEMP, remove prior merge
-swagger-plugin-for-sphinx = "2 hours"
+# REMOVE BY 2026-05-31 along with the matching entry above.
+swagger-plugin-for-sphinx = "8 hours"
 
 
 [tool.uv.sources]

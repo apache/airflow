@@ -95,7 +95,7 @@ extensions.append(SPHINX_SWAGGER_EXTENSION)
 swagger_present_uri = SWAGGER_PRESENT_URI
 swagger_bundle_uri = SWAGGER_BUNDLE_URI
 swagger_css_uri = SWAGGER_CSS_URI
-swagger_mirror_external_resources = True
+swagger_mirror_external_resources = True  # Ensure we embed external resources prevent tracking
 
 extensions.extend(
     [
