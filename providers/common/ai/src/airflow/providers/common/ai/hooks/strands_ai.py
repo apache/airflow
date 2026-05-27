@@ -22,6 +22,9 @@ import functools
 from abc import abstractmethod
 from typing import Any
 
+from strands import Agent, AgentSkills, Skill, tool as strands_tool
+from strands.models.gemini import GeminiModel
+
 from airflow.providers.common.ai.hooks.base_ai import (
     AgentRunRequest,
     AgentRunResult,
@@ -67,16 +70,6 @@ class StrandsHook(BaseAIHook):
 
     def _tool_spec_to_native(self, spec: ToolSpec) -> Any:
         """Convert a :class:`~airflow.providers.common.ai.hooks.base_ai.ToolSpec` to a Strands tool."""
-        try:
-            from strands import tool as strands_tool
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(
-                "The 'strands-agents' package is required for StrandsHook. "
-                "Install it with: pip install 'apache-airflow-providers-common-ai[strands]'"
-            ) from e
-
         fn = spec.fn
 
         # Strands infers tool name from __name__ and description from __doc__.
@@ -93,8 +86,6 @@ class StrandsHook(BaseAIHook):
     def _skill_spec_to_native(self, skill: str | SkillSpec) -> Any:
         """Convert a skill source to a Strands-native skill object or path."""
         if isinstance(skill, SkillSpec) and not skill.path:
-            from strands import Skill
-
             return Skill(
                 name=skill.name,
                 description=skill.description,
@@ -108,30 +99,12 @@ class StrandsHook(BaseAIHook):
         if not sources:
             return None
 
-        try:
-            from strands import AgentSkills
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(
-                "The 'strands-agents' package is required for Strands skills. "
-                "Install it with: pip install 'apache-airflow-providers-common-ai[strands]'"
-            ) from e
-
         skills_arg: Any = sources[0] if len(sources) == 1 else sources
         return AgentSkills(skills=skills_arg, **dict(request.skills_params or {}))
 
     def create_agent(self, request: AgentRunRequest) -> Any:
         """Build a Strands ``Agent`` from *request*."""
-        try:
-            from strands import Agent
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(
-                "The 'strands-agents' package is required for StrandsHook. "
-                "Install it with: pip install 'apache-airflow-providers-common-ai[strands]'"
-            ) from e
+        self.validate_run_request(request)
 
         native_tools: list[Any] = []
         if request.toolsets:
@@ -222,16 +195,6 @@ class StrandsGeminiHook(StrandsHook):
         2. **Default resolution** — delegates to the Google GenAI client, which reads
            ``GOOGLE_API_KEY`` from the environment when no key is provided.
         """
-        try:
-            from strands.models.gemini import GeminiModel
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(
-                "The 'strands-agents[gemini]' extra is required for StrandsGeminiHook. "
-                "Install it with: pip install 'apache-airflow-providers-common-ai[strands]'"
-            ) from e
-
         conn = self.get_connection(self.llm_conn_id)
         extra: dict[str, Any] = conn.extra_dejson
         model_id: str = self.model_id or extra.get("model", "")
