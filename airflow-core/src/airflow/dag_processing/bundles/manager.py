@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import warnings
-from typing import TYPE_CHECKING
+from collections import defaultdict
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select, update
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -30,14 +33,41 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
 _example_dag_bundle_name = "example_dags"
+
+# Chunk size for the one-time startup repair of unconfigured bundles.
+_REASSIGN_BATCH_SIZE = 1000
+
+
+def _best_bundle_for_fileloc(
+    fileloc: str, descending_bundle_paths: dict[str, Path]
+) -> tuple[str, str] | None:
+    """
+    Return ``(bundle_name, relative_fileloc)`` for the first bundle whose path contains ``fileloc``.
+
+    ``descending_bundle_paths`` must be sorted by path length descending so
+    the deepest bundle wins when paths overlap.
+
+    Returns ``None`` when ``fileloc`` is not under any bundle's path.
+    """
+    file_path = Path(os.path.normpath(fileloc))
+    for name, path in descending_bundle_paths.items():
+        try:
+            relative = file_path.relative_to(os.path.normpath(path))
+        except ValueError:
+            continue
+        if relative.is_absolute() or os.pardir in relative.parts:
+            continue
+        return name, str(relative)
+    return None
 
 
 class _ExternalBundleConfig(BaseModel):
@@ -294,6 +324,192 @@ class DagBundlesManager(LoggingMixin):
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
+
+        # Airflow sets autoflush=False, so subsequent reads in the same session
+        # need an explicit flush to see ORM-side bundle state changes.
+        session.flush()
+
+    def reassign_dags_with_unconfigured_bundles(self) -> int:
+        """
+        Reassign Dags pointing at unconfigured bundles to a configured one.
+
+        Side effect of the ``0082_3_1_0_make_bundle_name_not_nullable``
+        migration (#63323): legacy rows get ``bundle_name='dags-folder'``
+        and NULL ``relative_fileloc``, which raises ``Requested bundle
+        '{name}' is not configured.`` at trigger time when the deployment
+        uses a custom bundle.
+
+        Each legacy-candidate row (NULL ``relative_fileloc`` and no
+        ``DagVersion``) is routed to the most-specific configured bundle
+        whose path contains its ``fileloc``, writing ``relative_fileloc``
+        atomically. Rows whose ``fileloc`` is under no configured bundle
+        are left untouched -- writing ``bundle_name`` without a verified
+        ``relative_fileloc`` would produce a row task workers cannot
+        execute -- and instead self-heal via the normal staleness
+        lifecycle: ``sync_bundles_to_db`` deactivates the old bundle, the
+        stale-scan marks the row stale, and the next successful parse
+        from any configured bundle resets everything via
+        ``update_dag_parsing_results_in_db``. No manual ``airflow dags
+        reserialize`` is required.
+
+        Multi-team-safe because a bundle path belongs to at most one team.
+        Each chunk runs in its own internally-owned transaction so the
+        row-lock window stays bounded and no caller-provided session is
+        committed.
+
+        :return: Number of Dags reassigned.
+        """
+        # Import here to avoid circular import
+        # (manager -> dag -> dagrun -> taskinstance -> dag_version -> manager)
+        from airflow.models.dag import DagModel
+        from airflow.models.dag_version import DagVersion
+
+        # Fast-skip once any 3.x parse cycle has run. DagVersion is written
+        # only by the parse path, and that path overwrites both bundle_name
+        # and relative_fileloc on every parse (see
+        # ``DagModelOperation.update_dags``), so any legacy row whose file
+        # is under a configured bundle self-heals at the next parse and any
+        # row whose file is under no configured bundle self-heals via the
+        # staleness lifecycle -- reassign has no work the parse path will
+        # not do itself. The probe is an index hit on dag_version's PK
+        # vs. a sequential scan of dag (no index on relative_fileloc).
+        with create_session() as session:
+            if session.scalar(select(DagVersion.id).limit(1)) is not None:
+                return 0
+
+        with create_session() as session:
+            if not (active_bundle_paths := self._resolve_active_bundle_paths(session=session)):
+                self.log.info(
+                    "No active Dag bundles with resolvable paths; skipping reassignment of Dags "
+                    "with unconfigured bundles."
+                )
+                return 0
+
+        # Chunked UPDATEs ordered by dag_id, one transaction per chunk; repaired
+        # rows drop out of the predicate because writing relative_fileloc
+        # makes the IS NULL clause false.
+        #
+        # Legacy-candidate predicate (rows never parsed in 3.x): NULL
+        # relative_fileloc (the 0082 migration leaves it NULL) AND NOT EXISTS
+        # DagVersion (the parse path writes DagModel.bundle_name before the
+        # DagVersion). Equivalent under that invariant; both stated as
+        # defense in depth and repeated on the UPDATE itself as a CAS guard
+        # so a concurrent parser write wins the race.
+        movements: dict[tuple[str | None, str], int] = defaultdict(int)
+        total_reassigned = 0
+        total_backfilled = 0
+        total_skipped = 0
+        last_dag_id: str | None = None
+
+        while True:
+            with create_session() as session:
+                query = (
+                    select(DagModel.dag_id, DagModel.bundle_name, DagModel.fileloc)
+                    .where(
+                        DagModel.relative_fileloc.is_(None),
+                        ~exists().where(DagVersion.dag_id == DagModel.dag_id),
+                    )
+                    .order_by(DagModel.dag_id)
+                    .limit(_REASSIGN_BATCH_SIZE)
+                )
+                if last_dag_id is not None:
+                    query = query.where(DagModel.dag_id > last_dag_id)
+
+                if not (chunk := session.execute(query).all()):
+                    break
+                last_dag_id = chunk[-1].dag_id
+
+            # Route every legacy row by fileloc, not just those on
+            # unconfigured bundles, so a migration-assigned dags-folder
+            # row whose file lives under a different configured bundle
+            # gets relocated instead of stranded. Classify as skip
+            # (no match), backfill (match == current bundle), or
+            # reassign (match != current bundle).
+            chunk_updates: list[tuple[str, str | None, str, str]] = []
+            for row in chunk:
+                match = _best_bundle_for_fileloc(row.fileloc, active_bundle_paths) if row.fileloc else None
+                if match is None:
+                    total_skipped += 1
+                    continue
+                target, relative = match
+                chunk_updates.append((row.dag_id, row.bundle_name, target, relative))
+
+            if not chunk_updates:
+                continue
+
+            with create_session() as session:
+                # create_session commits on context exit, bounding the
+                # row-lock window to one chunk.
+                for dag_id, prev_bundle, target, relative in chunk_updates:
+                    result = cast(
+                        "CursorResult",
+                        session.execute(
+                            update(DagModel)
+                            .where(
+                                DagModel.dag_id == dag_id,
+                                DagModel.relative_fileloc.is_(None),
+                                ~exists().where(DagVersion.dag_id == DagModel.dag_id),
+                            )
+                            .values(relative_fileloc=relative, bundle_name=target)
+                            .execution_options(synchronize_session=False)
+                        ),
+                    )
+
+                    if result.rowcount:
+                        # Rowcount is the source of truth for whether the CAS actually fired
+                        if target == prev_bundle:
+                            total_backfilled += 1
+                        else:
+                            movements[(prev_bundle, target)] += 1
+                            total_reassigned += 1
+                    else:
+                        self.log.debug("Skipping repair for Dag '%s': lost race to parser.", dag_id)
+
+        for (prev, target), n in sorted(movements.items(), key=lambda item: (str(item[0][0]), item[0][1])):
+            self.log.info(
+                "Reassigning %d Dag(s) from unconfigured bundle '%s' to '%s'",
+                n,
+                prev,
+                target,
+            )
+
+        if total_backfilled:
+            self.log.info("Backfilled relative_fileloc for %d legacy Dag(s).", total_backfilled)
+
+        if total_skipped:
+            self.log.warning(
+                "Skipped %d legacy Dag(s) whose fileloc is not under any configured bundle; "
+                "they will be marked stale until a matching bundle is added to "
+                "dag_bundle_config_list and the next parse restores them.",
+                total_skipped,
+            )
+
+        return total_reassigned
+
+    def _resolve_active_bundle_paths(self, *, session: Session) -> dict[str, Path]:
+        """
+        Return resolved absolute paths for configured-and-active bundles.
+
+        A bundle is "configured-and-active" when it is both in the manager's
+        config and persisted as ``active=True`` in ``dag_bundle`` -- bundles
+        missing from ``dag_bundle`` are excluded so they can't trigger an FK
+        violation if used as a reassignment target.
+
+        The returned dict is ``{name: absolute_path}`` ordered by path length
+        descending so the most specific bundle wins in
+        ``_best_bundle_for_fileloc``.
+        """
+        active_db_names = set(
+            session.scalars(select(DagBundleModel.name).where(DagBundleModel.active.is_(True)))
+        )
+
+        active_bundle_paths: dict[str, Path] = {}
+        for bundle in self.get_all_dag_bundles():
+            if bundle.name not in active_db_names:
+                continue
+            active_bundle_paths[bundle.name] = bundle.path
+
+        return dict(sorted(active_bundle_paths.items(), key=lambda item: len(str(item[1])), reverse=True))
 
     @staticmethod
     def _extract_template_params(bundle_instance: BaseDagBundle) -> dict:

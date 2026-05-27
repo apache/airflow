@@ -297,7 +297,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager.sync_bundles_to_db()
+        dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -427,6 +429,7 @@ class DagFileProcessorManager(LoggingMixin):
         ).where(~DagModel.is_stale)
         dags_parsed = session.execute(query)
 
+        stuck_legacy_rows = 0
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
@@ -437,6 +440,12 @@ class DagFileProcessorManager(LoggingMixin):
                     dag.bundle_name,
                 )
                 to_deactivate.add(dag.dag_id)
+                continue
+            # Legacy 0082-migration row the startup repair could not route.
+            # Path(None) would crash the file-based check below; skip and count
+            # so it can be surfaced after the loop.
+            if dag.relative_fileloc is None:
+                stuck_legacy_rows += 1
                 continue
             # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
             # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
@@ -462,6 +471,15 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
             if deactivated:
                 self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+
+        if stuck_legacy_rows:
+            # Surface how many legacy rows the startup repair could not route;
+            # each one keeps raising "Requested bundle is not configured." until
+            # a matching bundle is added to dag_bundle_config_list.
+            self.log.info(
+                "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
+                stuck_legacy_rows,
+            )
 
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
