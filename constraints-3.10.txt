@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-27T11:07:16.617476
+# This constraints file was automatically generated on 2026-05-27T13:40:29.514778
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -95,6 +95,7 @@ amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
+apache-airflow-providers-airbyte==5.5.0
 apache-airflow-providers-akeyless==0.1.0
 apache-airflow-providers-alibaba==3.3.8
 apache-airflow-providers-amazon==9.29.0
@@ -128,6 +129,7 @@ apache-airflow-providers-common-messaging==2.0.3
 apache-airflow-providers-common-sql==2.0.0
 apache-airflow-providers-databricks==7.15.0
 apache-airflow-providers-datadog==3.10.4
+apache-airflow-providers-dbt-cloud==4.9.0
 apache-airflow-providers-dingding==3.9.4
 apache-airflow-providers-discord==3.12.3
 apache-airflow-providers-docker==4.5.6
