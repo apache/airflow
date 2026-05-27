@@ -24,6 +24,7 @@ import itertools
 import operator
 import re
 import weakref
+from collections.abc import Callable
 from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
@@ -120,6 +121,7 @@ class SerializedDAG:
     render_template_as_native_obj: bool = False
     start_date: datetime.datetime | None = None
     tags: set[str] = attrs.field(factory=set)
+    target_date: datetime.date | Callable[..., datetime.date] | None = None
     template_searchpath: tuple[str, ...] | None = None
 
     # These are set dynamically during deserialization.
