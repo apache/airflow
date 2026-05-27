@@ -23,7 +23,7 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-clickhouse
+Package apache-airflow-providers-clickhousedb
 ------------------------------------------------------
 
 `ClickHouse <https://clickhouse.com/>`__

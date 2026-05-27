@@ -63,22 +63,22 @@ def _build_client_name(custom: str | None = None) -> str:
 
     Format (no custom label)::
 
-        apache-airflow/<airflow_version> apache-airflow-providers-clickhouse/<provider_version>
+        apache-airflow/<airflow_version> apache-airflow-providers-clickhousedb/<provider_version>
 
     Format (with the ``client_name`` extra field set to ``"my-pipeline"``)::
 
-        apache-airflow/<airflow_version> apache-airflow-providers-clickhouse/<provider_version> (my-pipeline)
+        apache-airflow/<airflow_version> apache-airflow-providers-clickhousedb/<provider_version> (my-pipeline)
 
     The ``clickhouse_connect`` library appends its own token and OS information, so
     the full ``User-Agent`` looks like::
 
-        apache-airflow/X.Y.Z apache-airflow-providers-clickhouse/X.Y.Z
+        apache-airflow/X.Y.Z apache-airflow-providers-clickhousedb/X.Y.Z
         clickhouse-connect/X.Y.Z (lv:py/X.Y.Z; mode:sync; os:linux)
     """
     import airflow
     from airflow.providers.clickhouse import __version__ as provider_version
 
-    name = f"apache-airflow/{airflow.__version__} apache-airflow-providers-clickhouse/{provider_version}"
+    name = f"apache-airflow/{airflow.__version__} apache-airflow-providers-clickhousedb/{provider_version}"
     if custom:
         name = f"{name} ({custom.strip()})"
     return name
