@@ -509,3 +509,33 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists")
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_false(self, mock_imaplib, mock_exists, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        # Mock os.path.exists to simulate existing files: test1.csv, test1_1.csv exist, but test1_2.csv does not.
+        mock_exists.side_effect = [True, True, False]
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        # Expected file path after increments: test_directory/test1_2.csv (using OS-specific separator, but the test normally mocks out the write logic, so we just check what open was called with)
+        called_path = mock_open_method.call_args[0][0]
+        assert "test1_2.csv" in called_path
+
+    @patch(open_string, new_callable=mock_open)
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists")
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_true(self, mock_imaplib, mock_exists, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=True)
+
+        # os.path.exists should not be called since overwrite_file=True
+        mock_exists.assert_not_called()
+        
+        called_path = mock_open_method.call_args[0][0]
+        assert called_path.endswith("test1.csv")
