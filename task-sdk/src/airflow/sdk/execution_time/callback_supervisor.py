@@ -359,8 +359,9 @@ def supervise_callback(
     with _ensure_client(server, token, client=client) as client:
         # Mark the callback as RUNNING via the API. This is the single endpoint
         # that accepts a workload-scoped token; it returns a fresh execution
-        # token via the Refreshed-API-Token header which the Client's response
-        # hook adopts automatically for the rest of the run.
+        # token via the Refreshed-API-Token header
+        # If this API call fails, the callback fails and stays QUEUED, but the
+        # scheduler's _process_executor_events converts it to a failed state.
         client.callbacks.start(id)
 
         terminal_state = CallbackTerminalState.FAILED

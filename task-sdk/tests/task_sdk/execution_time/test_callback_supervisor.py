@@ -328,6 +328,21 @@ class TestSuperviseCallback:
         assert kwargs["state"] == "failed"
         assert "RuntimeError" in kwargs["output"]
 
+    def test_callbacks_start_failure_propagates_and_does_not_call_finish(self, mocker):
+        cb_id = str(uuid4())
+        client = self._make_mock_client(mocker)
+        client.callbacks.start.side_effect = RuntimeError("API unreachable")
+
+        with pytest.raises(RuntimeError, match="API unreachable"):
+            supervise_callback(
+                id=cb_id,
+                callback_path="tests.fake.callback",
+                callback_kwargs={},
+                token="workload-token",
+                client=client,
+            )
+        client.callbacks.finish.assert_not_called()
+
     def test_finish_failure_is_swallowed(self, mocker):
         """If the terminal-state report fails, supervisor must still propagate the run result."""
         cb_id = str(uuid4())
