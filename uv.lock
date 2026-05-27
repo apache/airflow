@@ -5847,12 +5847,18 @@ dependencies = [
     { name = "jpype1" },
 ]
 
+[package.optional-dependencies]
+openlineage = [
+    { name = "apache-airflow-providers-openlineage" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -5864,6 +5870,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "jaydebeapi", specifier = ">=1.1.1" },
     { name = "jpype1", marker = "python_full_version >= '3.14'", specifier = ">=1.7.0" },
     { name = "jpype1", marker = "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=1.4.0,!=1.7.0" },
@@ -5875,6 +5882,7 @@ requires-dist = [
     { name = "jpype1", marker = "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')", specifier = ">=1.5.0" },
     { name = "jpype1", marker = "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')", specifier = ">=1.5.1" },
 ]
+provides-extras = ["openlineage"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5882,6 +5890,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
