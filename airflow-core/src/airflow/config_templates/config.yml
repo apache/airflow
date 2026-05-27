@@ -1767,6 +1767,22 @@ api:
       type: string
       example: ~
       default: ""
+    ssl_ca_file:
+      description: |
+        Path to the SSL CA file for the api server. Defaults to None.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    ssl_cert_reqs:
+      description: |
+        Enable ssl certificate verification on the api server.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
+        Valid options are 'none', 'optional' or 'required'
+      version_added: ~
+      type: string
+      example: "required"
+      default: "none"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1885,6 +1901,13 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    client_use_public_certs:
+      description: |
+        Enable loading of public CA certificates from certifi into the client SSL context.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -2004,6 +2027,43 @@ workers:
       type: integer
       example: ~
       default: "60"
+sdk:
+  description: Settings for non-Python SDK runtime coordination
+  options:
+    coordinators:
+      description: |
+        JSON object mapping of coordinator keys to coordinator definitions.
+
+        Each value is an object with ``classpath`` and optional ``kwargs``.
+        ``classpath`` is resolved via ``import_string`` and constructed with
+        ``kwargs`` on first use.  Entries are
+        independent instances, so the same ``classpath`` can be configured
+        multiple times under different names with different ``kwargs`` (for
+        example, two ``JavaCoordinator`` instances pinned to different JDK
+        versions).
+      version_added: 3.3.0
+      type: string
+      example: |
+        {
+          "jdk-17": {
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+          }
+        }
+      default: ~
+    queue_to_coordinator:
+      description: |
+        JSON mapping of queue names to a coordinator key from
+        ``[sdk] coordinators``.
+
+        This mapping is checked to route a task to a configured coordinator
+        instance based on its queue.  An entry in this mapping is needed if
+        tasks of a queue should be handled by a custom coordinator instead of
+        the default Python task-running mechanism.
+      version_added: 3.3.0
+      type: string
+      example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
