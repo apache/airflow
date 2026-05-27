@@ -142,16 +142,6 @@ type MarkdownCodeElementProps = {
 const hasDisplayMath = (children: Options["children"]): boolean =>
   typeof children === "string" && children.includes("$$");
 
-const extractText = (child: ReactNode): string => (typeof child === "string" ? child : "");
-
-const extractTextContent = (children: MarkdownCodeElementProps["children"]): string => {
-  if (Array.isArray(children)) {
-    return children.map(extractText).join("");
-  }
-
-  return extractText(children);
-};
-
 const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
 
 // Factory function for the pre component that needs style
@@ -168,11 +158,14 @@ const createPreComponent =
     const { children: codeChildren, className } = codeElement.props;
     const match = /language-(?<lang>[-\w]+)/u.exec(className ?? "");
     const language = match?.groups?.lang;
-const codeText = Array.isArray(codeChildren)
-  ? codeChildren.join("")
-  : (codeChildren ?? "");
 
-const childString = String(codeText).replace(/\n$/u, "");
+    const codeText = Array.isArray(codeChildren)
+      ? codeChildren.map((child) => (typeof child === "string" ? child : "")).join("")
+      : typeof codeChildren === "string"
+        ? codeChildren
+        : "";
+
+    const childString = codeText.replace(/\n$/u, "");
 
     if (language === "mermaid") {
       return <MarkdownMermaid chart={childString} fallbackStyle={style} />;
