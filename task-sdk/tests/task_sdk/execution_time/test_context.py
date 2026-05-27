@@ -96,6 +96,7 @@ from airflow.sdk.execution_time.context import (
     _convert_variable_result_to_variable,
     _get_connection,
     _process_connection_result_conn,
+    _wrap_external_ref,
     context_to_airflow_vars,
     set_current_context,
 )
@@ -1226,7 +1227,7 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.assert_not_called()
 
     def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
-        """Custom backend ref is wrapped in ExternalState envelope before going to DB."""
+        """Custom backend ref is wrapped in external state marker before going to DB."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         backend = MagicMock(spec=BaseStateBackend)
@@ -1242,15 +1243,15 @@ class TestTaskStateAccessor:
             SetTaskState(
                 ti_id=self.TI_ID,
                 key="job_id",
-                value={"__type": "ExternalState", "__var": "s3://bucket/ti_123/job_id"},
+                value=_wrap_external_ref("s3://bucket/ti_123/job_id"),
                 expires_at=None,
             )
         )
 
     def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
-        """ExternalState envelope is detected and the ref is passed to deserialize."""
+        """External state marker is detected and the ref is passed to deserialize."""
         mock_supervisor_comms.send.return_value = TaskStateResult(
-            value={"__type": "ExternalState", "__var": "s3://bucket/ti_123/job_id"}
+            value=_wrap_external_ref("s3://bucket/ti_123/job_id")
         )
 
         backend = MagicMock(spec=BaseStateBackend)
@@ -1355,7 +1356,7 @@ class TestAssetStateAccessor:
         mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))
 
     def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
-        """Custom backend ref is wrapped in ExternalState envelope before going to DB."""
+        """Custom backend ref is wrapped in external state marker before going to DB."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         backend = MagicMock(spec=BaseStateBackend)
@@ -1368,14 +1369,14 @@ class TestAssetStateAccessor:
             SetAssetStateByName(
                 name=self.ASSET_NAME,
                 key="watermark",
-                value={"__type": "ExternalState", "__var": "s3://bucket/assets/orders/watermark"},
+                value=_wrap_external_ref("s3://bucket/assets/orders/watermark"),
             )
         )
 
     def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
-        """ExternalState envelope is detected and the ref is passed to deserialize."""
+        """External state marker is detected and the ref is passed to deserialize."""
         mock_supervisor_comms.send.return_value = AssetStateResult(
-            value={"__type": "ExternalState", "__var": "s3://bucket/assets/orders/watermark"}
+            value=_wrap_external_ref("s3://bucket/assets/orders/watermark")
         )
 
         backend = MagicMock(spec=BaseStateBackend)
@@ -1568,7 +1569,7 @@ class TestTaskStateAccessorWithCustomBackend:
             SetTaskState(
                 ti_id=self.TI_ID,
                 key="job_id",
-                value={"__var": expected_ref, "__type": "ExternalState"},
+                value=_wrap_external_ref(expected_ref),
                 expires_at=frozen_dt + timedelta(days=30),
             )
         )
@@ -1578,7 +1579,7 @@ class TestTaskStateAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = {"__var": f"mem://{self.TI_ID}/job_id", "__type": "ExternalState"}
+        ref = _wrap_external_ref(f"mem://{self.TI_ID}/job_id")
         backend._actual_key_value_store["job_id"] = "app_001"
         mock_supervisor_comms.send.return_value = TaskStateResult(value=ref)
 
@@ -1635,7 +1636,7 @@ class TestAssetStateAccessorWithCustomBackend:
             SetAssetStateByName(
                 name=self.ASSET_NAME,
                 key="watermark",
-                value={"__var": expected_ref, "__type": "ExternalState"},
+                value=_wrap_external_ref(expected_ref),
             )
         )
         # actual value is stored on the backend, reference is stored for DB
@@ -1644,7 +1645,7 @@ class TestAssetStateAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = {"__var": f"mem://{self.ASSET_NAME}/watermark", "__type": "ExternalState"}
+        ref = _wrap_external_ref(f"mem://{self.ASSET_NAME}/watermark")
         backend._actual_key_value_store["watermark"] = "2026-05-01"
         mock_supervisor_comms.send.return_value = AssetStateResult(value=ref)
 

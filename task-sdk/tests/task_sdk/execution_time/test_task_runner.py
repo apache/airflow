@@ -153,6 +153,7 @@ from airflow.sdk.execution_time.context import (
     TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _wrap_external_ref,
 )
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
@@ -5596,7 +5597,7 @@ class TestTaskInstanceStateOperations:
             SetAssetStateByName(
                 name="my_asset",
                 key="watermark",
-                value={"__var": "mem://my_asset/watermark", "__type": "ExternalState"},
+                value=_wrap_external_ref("mem://my_asset/watermark"),
             )
         )
 
@@ -5631,7 +5632,7 @@ class TestTaskInstanceStateOperations:
             SetTaskState(
                 ti_id=runtime_ti.id,
                 key="job_id",
-                value={"__var": ref, "__type": "ExternalState"},
+                value=_wrap_external_ref(ref),
                 expires_at=frozen_dt + timedelta(days=30),
             )
         )

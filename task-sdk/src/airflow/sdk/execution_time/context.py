@@ -121,6 +121,17 @@ log = structlog.get_logger(logger_name="task")
 #: Example: ``context["task_state"].set("job_id", job_id, retention=NEVER_EXPIRE)``
 NEVER_EXPIRE: timedelta = timedelta.max
 
+_EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
+
+
+def _wrap_external_ref(ref: str) -> dict[str, str]:
+    return {_EXTERNAL_STATE_REF_KEY: ref}
+
+
+def _unwrap_external_ref(stored: dict) -> str | None:
+    return stored.get(_EXTERNAL_STATE_REF_KEY)
+
+
 T = TypeVar("T")
 
 
@@ -513,12 +524,16 @@ class TaskStateAccessor:
         if isinstance(resp, TaskStateResult):
             stored = resp.value
             backend = _get_worker_state_backend()
-            if backend is not None and isinstance(stored, dict) and stored.get("__type") == "ExternalState":
+            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
-                ref = stored["__var"]
-                if TYPE_CHECKING:
-                    assert isinstance(ref, str)
                 return backend.deserialize_task_state_from_ref(ref)
+            if backend is not None:
+                log.warning(
+                    "Task state key %r was not written through the configured state backend — returning raw "
+                    "stored value. To use the backend, ensure the task that wrote this key had the same "
+                    "backend configured.",
+                    key,
+                )
             return stored
         return None
 
@@ -547,12 +562,12 @@ class TaskStateAccessor:
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
-        stored: JsonValue = value
         backend = _get_worker_state_backend()
+        stored: JsonValue = value
         if backend is not None:
-            # decorate the value with a marker to indicate that it's stored externally, and include the ref to the external storage
-            ref = backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
-            stored = {"__type": "ExternalState", "__var": ref}
+            ref: str = backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
+            # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
+            stored = _wrap_external_ref(ref)  # type: ignore[assignment]
 
         SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
 
@@ -647,12 +662,17 @@ class AssetStateAccessor:
         if isinstance(resp, AssetStateResult):
             stored = resp.value
             backend = _get_worker_state_backend()
-            if backend is not None and isinstance(stored, dict) and stored.get("__type") == "ExternalState":
+            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
-                ref = stored["__var"]
-                if TYPE_CHECKING:
-                    assert isinstance(ref, str)
                 return backend.deserialize_asset_state_from_ref(ref)
+            if backend is not None:
+                log.warning(
+                    "Asset state key %r for asset %r was not written through the configured state backend — "
+                    "returning raw stored value. To use the backend, ensure the task that wrote this key had "
+                    "the same backend configured.",
+                    key,
+                    self._name or self._uri,
+                )
             return stored
         return None
 
@@ -661,13 +681,14 @@ class AssetStateAccessor:
         from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # if custom backend is configured, store the value on the custom backend, and return the reference
+        # to the stored value to store in the DB
         backend = _get_worker_state_backend()
         asset_ref = self._name or self._uri or ""
         stored: JsonValue = value
         if backend is not None:
-            # decorate the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             ref = backend.serialize_asset_state_to_ref(value=value, key=key, asset_ref=asset_ref)
-            stored = {"__type": "ExternalState", "__var": ref}
+            stored = _wrap_external_ref(ref)  # type: ignore[assignment]
 
         msg: ToSupervisor
         if self._name:
