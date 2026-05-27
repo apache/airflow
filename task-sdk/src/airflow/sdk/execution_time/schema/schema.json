@@ -3582,7 +3582,7 @@
     "StartupDetails": {
       "properties": {
         "ti": {
-          "$ref": "#/$defs/TaskInstance"
+          "$ref": "#/$defs/TaskInstanceDTO"
         },
         "dag_rel_path": {
           "title": "Dag Rel Path",
@@ -3815,6 +3815,164 @@
         "ti"
       ],
       "title": "TaskCallbackRequest",
+      "type": "object"
+    },
+    "TaskInstance": {
+      "description": "Schema for TaskInstance model with minimal required fields needed for Runtime.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "try_number": {
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "dag_version_id": {
+          "format": "uuid",
+          "title": "Dag Version Id",
+          "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hostname"
+        },
+        "context_carrier": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Carrier"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "dag_id",
+        "run_id",
+        "try_number",
+        "dag_version_id"
+      ],
+      "title": "TaskInstance",
+      "type": "object"
+    },
+    "TaskInstanceDTO": {
+      "description": "Task SDK TaskInstanceDTO.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "dag_version_id": {
+          "format": "uuid",
+          "title": "Dag Version Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "try_number": {
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "pool_slots": {
+          "title": "Pool Slots",
+          "type": "integer"
+        },
+        "queue": {
+          "title": "Queue",
+          "type": "string"
+        },
+        "priority_weight": {
+          "title": "Priority Weight",
+          "type": "integer"
+        },
+        "parent_context_carrier": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Context Carrier"
+        },
+        "context_carrier": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Carrier"
+        }
+      },
+      "required": [
+        "id",
+        "dag_version_id",
+        "task_id",
+        "dag_id",
+        "run_id",
+        "try_number",
+        "pool_slots",
+        "queue",
+        "priority_weight"
+      ],
+      "title": "TaskInstanceDTO",
       "type": "object"
     },
     "TaskInstanceState": {
@@ -4695,77 +4853,6 @@
         "max_tries"
       ],
       "title": "TIRunContext",
-      "type": "object"
-    },
-    "TaskInstance": {
-      "description": "Schema for TaskInstance model with minimal required fields needed for Runtime.",
-      "properties": {
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "task_id": {
-          "title": "Task Id",
-          "type": "string"
-        },
-        "dag_id": {
-          "title": "Dag Id",
-          "type": "string"
-        },
-        "run_id": {
-          "title": "Run Id",
-          "type": "string"
-        },
-        "try_number": {
-          "title": "Try Number",
-          "type": "integer"
-        },
-        "dag_version_id": {
-          "format": "uuid",
-          "title": "Dag Version Id",
-          "type": "string"
-        },
-        "map_index": {
-          "default": -1,
-          "title": "Map Index",
-          "type": "integer"
-        },
-        "hostname": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Hostname"
-        },
-        "context_carrier": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Context Carrier"
-        }
-      },
-      "required": [
-        "id",
-        "task_id",
-        "dag_id",
-        "run_id",
-        "try_number",
-        "dag_version_id"
-      ],
-      "title": "TaskInstance",
       "type": "object"
     },
     "VariableResponse": {
