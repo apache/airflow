@@ -566,9 +566,17 @@ class TaskGroup(DAGNode):
                         # We are already going to visit that TG
                         break
                 else:
-                    acyclic = True
-                    del graph_unsorted[node.node_id]
-                    graph_sorted.append(node)
+                    # When list-based deps (e.g. `[b0, b1] >> a`) are used between TaskGroups,
+                    # only upstream_group_ids is populated (not upstream_task_ids), so upstream_list
+                    # is empty and the task-level check above won't block the node. Check group-level
+                    # upstreams explicitly to handle this case.
+                    for group_id in getattr(node, "upstream_group_ids", ()):
+                        if group_id in graph_unsorted:
+                            break
+                    else:
+                        acyclic = True
+                        del graph_unsorted[node.node_id]
+                        graph_sorted.append(node)
 
             if not acyclic:
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")

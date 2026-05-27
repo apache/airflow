@@ -1117,6 +1117,28 @@ def test_topological_group_dep():
     ]
 
 
+def test_topological_group_dep_list_syntax():
+    """List-based deps (`[b0, b1] >> a`) must produce the same topological order as individual deps."""
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_list_dep", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup("a") as tg_a:
+            EmptyOperator(task_id="task")
+
+        groups = []
+        for x in range(3):
+            with TaskGroup(f"b_{x}") as tg_b:
+                EmptyOperator(task_id="task")
+            groups.append(tg_b)
+
+        groups >> tg_a  # list-based dep — previously produced wrong order
+
+    top_level = dag.task_group.topological_sort()
+    ids = [node.node_id for node in top_level]
+    a_idx = ids.index("a")
+    b_idxs = [ids.index(f"b_{x}") for x in range(3)]
+    assert all(b < a_idx for b in b_idxs), f"Expected all b_x before a in topological order, got: {ids}"
+
+
 def test_task_group_arrow_with_setup_group():
     with DAG(dag_id="setup_group_teardown_group") as dag:
         with TaskGroup("group_1") as g1:
