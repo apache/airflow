@@ -17,9 +17,14 @@
  * under the License.
  */
 
-import React, { useRef, useEffect, useState } from "react";
-import { Code } from "@chakra-ui/react";
-import { useOffsetTop } from "src/utils";
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useEffect,
+  useState,
+} from "react";
+import { Box, Code } from "@chakra-ui/react";
 
 interface Props {
   parsedLogs: string;
@@ -35,27 +40,63 @@ const LogBlock = ({
   setUnfoldedLogGroup,
 }: Props) => {
   const [autoScroll, setAutoScroll] = useState(true);
+  const [logHeight, setLogHeight] = useState<number>();
 
   const logBoxRef = useRef<HTMLPreElement>(null);
-  const offsetTop = useOffsetTop(logBoxRef);
+
+  const resizeLogBlock = useCallback(() => {
+    requestAnimationFrame(() => {
+      const logBox = logBoxRef.current;
+      if (!logBox) return;
+
+      const footerHeight =
+        parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
+      const viewportHeight =
+        window.visualViewport?.height ?? window.innerHeight;
+      const { top } = logBox.getBoundingClientRect();
+
+      setLogHeight(Math.max(0, viewportHeight - top - footerHeight));
+    });
+  }, []);
 
   const scrollToBottom = () => {
-    if (logBoxRef.current) {
-      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      if (logBoxRef.current) {
+        logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+      }
+    });
   };
+
+  useLayoutEffect(() => {
+    window.addEventListener("resize", resizeLogBlock);
+    window.visualViewport?.addEventListener("resize", resizeLogBlock);
+
+    return () => {
+      window.removeEventListener("resize", resizeLogBlock);
+      window.visualViewport?.removeEventListener("resize", resizeLogBlock);
+    };
+  }, [resizeLogBlock]);
+
+  useLayoutEffect(() => {
+    resizeLogBlock();
+  }, [resizeLogBlock, wrap]);
 
   useEffect(() => {
     // Always scroll to bottom when wrap or tryNumber change
-    if (offsetTop) scrollToBottom();
-  }, [wrap, tryNumber, offsetTop]);
+    if (logBoxRef.current) scrollToBottom();
+  }, [wrap, tryNumber]);
+
+  useEffect(() => {
+    // Preserve tailing behavior on resize without pulling users away from earlier logs.
+    if (autoScroll && logBoxRef.current) scrollToBottom();
+  }, [autoScroll, logHeight]);
 
   useEffect(() => {
     // When logs change, only scroll if autoScroll is enabled
-    if (autoScroll && offsetTop) scrollToBottom();
-  }, [parsedLogs, autoScroll, offsetTop]);
+    if (autoScroll && logBoxRef.current) scrollToBottom();
+  }, [parsedLogs, autoScroll]);
 
-  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const onScroll = (e: React.UIEvent<HTMLPreElement>) => {
     if (e.currentTarget) {
       const { scrollTop, offsetHeight, scrollHeight } = e.currentTarget;
       // Enable autoscroll if we've scrolled to the bottom of the logs
@@ -99,22 +140,27 @@ const LogBlock = ({
   };
 
   return (
-    <Code
-      ref={logBoxRef}
-      onScroll={onScroll}
-      onClick={onClick}
-      maxHeight={`calc(100% - ${offsetTop}px)`}
-      overflowY="auto"
-      p={3}
-      display="block"
-      whiteSpace={wrap ? "pre-wrap" : "pre"}
-      border="1px solid"
-      borderRadius={3}
-      borderColor="blue.500"
-    >
-      {/* eslint-disable-next-line react/no-danger */}
-      <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
-    </Code>
+    <Box flex={1} minH={0} overflow="hidden">
+      <Code
+        as="pre"
+        ref={logBoxRef}
+        onScroll={onScroll}
+        onClick={onClick}
+        height={logHeight === undefined ? "100%" : `${logHeight}px`}
+        maxHeight={logHeight === undefined ? "100%" : `${logHeight}px`}
+        overflowY="auto"
+        overflowX={wrap ? "hidden" : "auto"}
+        p={3}
+        display="block"
+        whiteSpace={wrap ? "pre-wrap" : "pre"}
+        border="1px solid"
+        borderRadius={3}
+        borderColor="blue.500"
+      >
+        {/* eslint-disable-next-line react/no-danger */}
+        <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
+      </Code>
+    </Box>
   );
 };
 

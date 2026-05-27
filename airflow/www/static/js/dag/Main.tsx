@@ -201,11 +201,18 @@ const Main = () => {
       flex={1}
       height={`calc(100vh - ${footerHeight + headerHeight}px)`}
       maxHeight={`calc(100vh - ${footerHeight + headerHeight}px)`}
-      minHeight="750px"
+      minH={0}
       overflow="hidden"
       position="relative"
+      display="flex"
+      flexDirection="column"
     >
-      <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
+      <Accordion
+        allowToggle
+        index={accordionIndexes}
+        borderTopWidth={0}
+        flexShrink={0}
+      >
         <AccordionItem
           sx={{
             // Override chakra-collapse so our dropdowns still work
@@ -224,7 +231,7 @@ const Main = () => {
           </AccordionPanel>
         </AccordionItem>
       </Accordion>
-      <Flex height="100%">
+      <Flex flex={1} minH={0}>
         {isLoading || isEmpty(groups) ? (
           <Spinner />
         ) : (
@@ -233,6 +240,7 @@ const Main = () => {
               minWidth={isGridCollapsed ? collapsedWidth : minPanelWidth}
               ref={gridRef}
               height="100%"
+              minH={0}
               width={isGridCollapsed ? collapsedWidth : gridWidth}
               position="relative"
             >
@@ -273,6 +281,7 @@ const Main = () => {
               zIndex={1}
               bg="white"
               height="100%"
+              minH={0}
             >
               <Details
                 openGroupIds={openGroupIds}
