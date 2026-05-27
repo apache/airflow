@@ -573,7 +573,7 @@ def _create_ti_state_update_query_and_update_state(
                 ti.end_date = ti_patch_payload.end_date
                 ti.set_duration()
                 if ti_patch_payload.rendered_map_index is not None:
-                    ti.rendered_map_index = ti_patch_payload.rendered_map_index
+                    ti._rendered_map_index = ti_patch_payload.rendered_map_index
                 ti.prepare_db_for_next_try(session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
