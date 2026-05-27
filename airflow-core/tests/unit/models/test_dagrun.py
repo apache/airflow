@@ -3884,3 +3884,23 @@ class TestDagRunTracing:
             assert spans[0].name == f"dag_run.{dr.dag_id}"
         else:
             assert len(spans) == 0
+
+    @pytest.mark.db_test
+    def test_context_carrier_includes_detail_level_from_conf(self, dag_maker):
+        """DagRun created with TASK_SPAN_DETAIL_LEVEL_KEY in conf should encode the level in trace state."""
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        from airflow._shared.observability.traces import (
+            TASK_SPAN_DETAIL_LEVEL_KEY,
+            get_task_span_detail_level,
+        )
+
+        with dag_maker("test_tracing_detail_level"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(conf={TASK_SPAN_DETAIL_LEVEL_KEY: 2})
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        from opentelemetry import trace
+
+        span = trace.get_current_span(ctx)
+        assert get_task_span_detail_level(span) == 2

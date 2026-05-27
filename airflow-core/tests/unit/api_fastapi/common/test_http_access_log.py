@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 import structlog
 import structlog.testing
 from starlette.applications import Starlette
@@ -23,7 +24,29 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from airflow.api_fastapi.common.http_access_log import _HEALTH_PATHS, HttpAccessLogMiddleware
+from airflow._shared.secrets_masker import _secrets_masker
+from airflow.api_fastapi.common.http_access_log import (
+    _HEALTH_PATHS,
+    HttpAccessLogMiddleware,
+    _redact_query_string,
+)
+
+
+@pytest.fixture
+def _password_sensitive_field():
+    """Register ``password`` as a sensitive field name on the module-level masker.
+
+    Production initialises this list from ``DEFAULT_SENSITIVE_FIELDS`` via
+    ``settings.mask_secret``; unit tests run without that initialisation, so we
+    populate the field explicitly for the redaction tests.
+    """
+    masker = _secrets_masker()
+    original = masker.sensitive_variables_fields
+    masker.sensitive_variables_fields = list(set(original) | {"password"})
+    try:
+        yield
+    finally:
+        masker.sensitive_variables_fields = original
 
 
 def _make_app(raise_exc: bool = False) -> Starlette:
@@ -130,3 +153,34 @@ def test_non_http_scope_not_logged():
 
 def test_health_paths_constant():
     assert "/api/v2/monitor/health" in _HEALTH_PATHS
+
+
+@pytest.mark.enable_redact
+def test_redact_query_string_masks_value_by_sensitive_key_name(_password_sensitive_field):
+    """A key flagged sensitive by ``secrets_masker`` has its value replaced with ``***``."""
+    redacted = _redact_query_string("password=topsecret&safe=value")
+    assert "topsecret" not in redacted
+    assert "safe=value" in redacted
+
+
+def test_redact_query_string_leaves_safe_pairs_untouched():
+    assert _redact_query_string("page=2&limit=50") == "page=2&limit=50"
+
+
+def test_redact_query_string_handles_empty_and_blank_values():
+    assert _redact_query_string("") == ""
+    # Blank values should be preserved so log readers still see the key was present.
+    assert _redact_query_string("flag=&other=x") == "flag=&other=x"
+
+
+@pytest.mark.enable_redact
+def test_logs_redact_sensitive_query_param(_password_sensitive_field):
+    """Integration: a request with `?password=secret` is logged with the value masked."""
+    with structlog.testing.capture_logs() as logs:
+        client = TestClient(_make_app(), raise_server_exceptions=False)
+        client.get("/?password=topsecret&keep=ok")
+
+    assert len(logs) == 1
+    query = logs[0]["query"]
+    assert "topsecret" not in query
+    assert "keep=ok" in query

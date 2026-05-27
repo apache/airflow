@@ -2786,6 +2786,17 @@ triggerer:
       type: boolean
       example: ~
       default: "False"
+    shared_stream_subscriber_queue_size:
+      description: |
+        Per-subscriber buffer size for shared-stream triggers (triggers that opt into a shared poll loop
+        via ``BaseEventTrigger.shared_stream_key``). Each subscribing trigger keeps an in-memory queue of
+        raw events produced by the shared poll; if a slow subscriber fills its queue, only that subscriber
+        fails, sibling subscribers are unaffected. Increase if a slow subscriber must tolerate bursts from
+        a fast upstream.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1024"
 kerberos:
   description: ~
   options:
