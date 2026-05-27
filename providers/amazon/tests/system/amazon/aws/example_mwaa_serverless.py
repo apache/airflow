@@ -20,8 +20,10 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
+    MwaaServerlessDeleteWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
     MwaaServerlessStopWorkflowRunOperator,
+    MwaaServerlessUpdateWorkflowOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -35,9 +37,8 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_mwaa_serverless"
@@ -45,7 +46,7 @@ DAG_ID = "example_mwaa_serverless"
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
 
-# Valid MWAA Serverless YAML: tasks as mapping, FQN operators, flat parameters.
+# Quick workflow - checks for a key that exists, completes immediately
 WORKFLOW_YAML = """\
 systest_mwaa_serverless:
   schedule: null
@@ -58,16 +59,23 @@ systest_mwaa_serverless:
       bucket_key: workflow.yaml
 """
 
+# Long-running workflow - waits for a key that never arrives, used to test stopping
+STOPPABLE_WORKFLOW_YAML = """\
+systest_mwaa_serverless_stoppable:
+  schedule: null
+  description: "System test: long-running workflow for stop testing"
+  tasks:
+    wait_for_stop:
+      task_id: wait_for_stop
+      operator: airflow.providers.amazon.aws.sensors.s3.S3KeySensor
+      bucket_name: {bucket}
+      bucket_key: never_exists.txt
+      poke_interval: 30
+      timeout: 600
+      soft_fail: true
+"""
+
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_workflow(workflow_arn: str):
-    """Delete the MWAA Serverless workflow."""
-    import boto3
-
-    boto3.client("mwaa-serverless").delete_workflow(WorkflowArn=workflow_arn)
-
 
 with DAG(
     dag_id=DAG_ID,
@@ -89,6 +97,13 @@ with DAG(
         data=WORKFLOW_YAML.format(bucket=bucket_name),
     )
 
+    upload_stoppable_workflow_yaml = S3CreateObjectOperator(
+        task_id="upload_stoppable_workflow_yaml",
+        s3_bucket=bucket_name,
+        s3_key="stoppable_workflow.yaml",
+        data=STOPPABLE_WORKFLOW_YAML.format(bucket=bucket_name),
+    )
+
     # [START howto_operator_mwaa_serverless_create_workflow]
     create_workflow = MwaaServerlessCreateWorkflowOperator(
         task_id="create_workflow",
@@ -99,6 +114,15 @@ with DAG(
     # [END howto_operator_mwaa_serverless_create_workflow]
 
     workflow_arn = create_workflow.output
+
+    # Test idempotent create (if_exists="skip" path)
+    create_workflow_again = MwaaServerlessCreateWorkflowOperator(
+        task_id="create_workflow_again",
+        workflow_name=bucket_name,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "workflow.yaml"},
+        role_arn=role_arn,
+        if_exists="skip",
+    )
 
     # [START howto_operator_mwaa_serverless_start_workflow_run]
     start_workflow = MwaaServerlessStartWorkflowRunOperator(
@@ -117,7 +141,18 @@ with DAG(
     )
     # [END howto_sensor_mwaa_serverless_workflow_run]
 
-    # Start a second run to test stopping
+    # [START howto_operator_mwaa_serverless_update_workflow]
+    update_workflow = MwaaServerlessUpdateWorkflowOperator(
+        task_id="update_workflow",
+        workflow_arn=workflow_arn,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "stoppable_workflow.yaml"},
+        role_arn=role_arn,
+        description="Updated to stoppable workflow for stop testing",
+    )
+    # [END howto_operator_mwaa_serverless_update_workflow]
+
+    # Start a second run to test stopping - this uses the stoppable workflow
+    # that will keep running until explicitly stopped
     start_workflow_2 = MwaaServerlessStartWorkflowRunOperator(
         task_id="start_workflow_2",
         workflow_arn=workflow_arn,
@@ -131,6 +166,14 @@ with DAG(
     )
     # [END howto_operator_mwaa_serverless_stop_workflow_run]
 
+    # [START howto_operator_mwaa_serverless_delete_workflow]
+    delete_workflow = MwaaServerlessDeleteWorkflowOperator(
+        task_id="delete_workflow",
+        workflow_arn=workflow_arn,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_mwaa_serverless_delete_workflow]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -139,15 +182,20 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         test_context,
         create_bucket,
-        upload_workflow_yaml,
+        [upload_workflow_yaml, upload_stoppable_workflow_yaml],
         workflow_arn,
+        # TEST BODY
+        create_workflow_again,
         start_workflow,
         wait_for_run,
+        update_workflow,
         start_workflow_2,
         stop_workflow_run,
-        delete_workflow(workflow_arn=workflow_arn),
+        # TEST TEARDOWN
+        delete_workflow,
         delete_bucket,
     )
 

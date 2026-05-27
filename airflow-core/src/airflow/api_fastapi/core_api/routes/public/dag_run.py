@@ -76,11 +76,13 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
+    DagRunMutableStates,
     DAGRunPatchBody,
-    DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
     TriggerDAGRunPostBody,
@@ -96,9 +98,12 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
+    requires_access_dag_run_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -130,7 +135,6 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     return dag_run
 
 
@@ -151,7 +155,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a Dag Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
-    deletable_states = {s.value for s in DAGRunPatchStates}
+    deletable_states = {s.value for s in DagRunMutableStates}
 
     if dag_run is None:
         raise HTTPException(
@@ -219,16 +223,19 @@ def patch_dag_run(
     for attr_name, attr_value_raw in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
-            if attr_value == DAGRunPatchStates.SUCCESS:
+            if attr_value == DagRunMutableStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
                 except Exception:
                     log.exception("error calling listener")
-            elif attr_value == DAGRunPatchStates.QUEUED:
+
+            # TODO AIP-103: https://github.com/apache/airflow/issues/66755
+            # Handle clearing states for all task instances in a dagrun when cleared
+            elif attr_value == DagRunMutableStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
-            elif attr_value == DAGRunPatchStates.FAILED:
+            elif attr_value == DagRunMutableStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
@@ -247,6 +254,19 @@ def patch_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
     return final_dag_run
+
+
+@dag_run_router.patch(
+    "",
+    dependencies=[Depends(requires_access_dag_run_bulk()), Depends(action_logging())],
+)
+def bulk_dag_runs(
+    request: BulkBody[BulkDAGRunBody],
+    session: SessionDep,
+    dag_id: str,
+) -> BulkResponse:
+    """Bulk delete Dag Runs."""
+    return BulkDagRunService(session=session, request=request, dag_id=dag_id).handle_request()
 
 
 @dag_run_router.get(
@@ -314,6 +334,8 @@ def clear_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
+    resolved_run_on_latest = resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     if body.dry_run:
         if body.only_new:
             # Determine "new" tasks by TI existence: a task is new when the latest Dag
@@ -360,7 +382,7 @@ def clear_dag_run(
         task_ids=None,
         only_new=body.only_new,
         only_failed=body.only_failed,
-        run_on_latest_version=body.run_on_latest_version,
+        run_on_latest_version=resolved_run_on_latest,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -597,10 +619,10 @@ def trigger_dag_run(
     else:
         triggered_by = DagRunTriggeredByType.REST_API
 
-    try:
-        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-        params = body.validate_context(dag)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    params = body.validate_context(dag)
 
+    try:
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -614,14 +636,14 @@ def trigger_dag_run(
             partition_key=params["partition_key"],
             session=session,
         )
+    except (ParamValidationError, ValueError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
-        dag_run_note = body.note
-        if dag_run_note:
-            current_user_id = user.get_id()
-            dag_run.note = (dag_run_note, current_user_id)
-        return dag_run
-    except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    dag_run_note = body.note
+    if dag_run_note:
+        current_user_id = user.get_id()
+        dag_run.note = (dag_run_note, current_user_id)
+    return dag_run
 
 
 @dag_run_router.get(

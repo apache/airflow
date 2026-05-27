@@ -28,7 +28,6 @@ from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.sqlparser import SQLParser
 from airflow.providers.openlineage.utils.sql_hook_lineage import (
     _get_hook_conn_id,
-    _resolve_namespace,
     emit_lineage_from_sql_extras,
 )
 
@@ -67,51 +66,12 @@ class TestGetHookConnId:
         assert _get_hook_conn_id(hook) is None
 
 
-class TestResolveNamespace:
-    def test_from_ol_database_info(self):
-        hook = mock.MagicMock()
-        connection = mock.MagicMock()
-        hook.get_connection.return_value = connection
-        database_info = mock.MagicMock()
-        hook.get_openlineage_database_info.return_value = database_info
-
-        with mock.patch(
-            "airflow.providers.openlineage.utils.sql_hook_lineage.SQLParser.create_namespace",
-            return_value="postgres://host:5432/mydb",
-        ) as mock_create_ns:
-            result = _resolve_namespace(hook, "my_conn")
-
-        hook.get_connection.assert_called_once_with("my_conn")
-        hook.get_openlineage_database_info.assert_called_once_with(connection)
-        mock_create_ns.assert_called_once_with(database_info)
-        assert result == "postgres://host:5432/mydb"
-
-    def test_returns_none_when_no_namespace_available(self):
-        hook = mock.MagicMock()
-        hook.__class__.__name__ = "SomeUnknownHook"
-        hook.get_connection.side_effect = Exception("no method")
-
-        with mock.patch.dict("sys.modules"):
-            result = _resolve_namespace(hook, "my_conn")
-
-        assert result is None
-
-    def test_returns_none_when_no_conn_id(self):
-        hook = mock.MagicMock()
-        hook.__class__.__name__ = "SomeUnknownHook"
-
-        with mock.patch.dict("sys.modules"):
-            result = _resolve_namespace(hook, None)
-
-        assert result is None
-
-
 class TestEmitLineageFromSqlExtras:
     @pytest.fixture(autouse=True)
     def _patch_deps(self):
         with (
             mock.patch(f"{_MODULE}._get_hook_conn_id", return_value="my_conn") as mock_conn_id,
-            mock.patch(f"{_MODULE}._resolve_namespace") as mock_ns,
+            mock.patch(f"{_MODULE}.SQLParser.create_namespace") as mock_ns,
             mock.patch(f"{_MODULE}.get_openlineage_facets_with_sql") as mock_facets_fn,
             mock.patch(f"{_MODULE}._create_ol_event_pair") as mock_build,
             mock.patch(f"{_MODULE}.get_openlineage_listener") as mock_listener,
@@ -142,6 +102,7 @@ class TestEmitLineageFromSqlExtras:
         )
         assert result is None
         self.mock_build.assert_not_called()
+        self.mock_facets_fn.assert_not_called()
         self.mock_listener.assert_not_called()
 
     def test_single_query_delegates_to_create_ol_event_pair(self):
@@ -278,7 +239,6 @@ class TestEmitLineageFromSqlExtras:
     def test_job_id_only_extra_is_processed(self):
         """An extra with only job_id (no SQL text) still builds and emits an event pair."""
         self.mock_conn_id.return_value = None
-        self.mock_ns.return_value = "ns"
         self.mock_facets_fn.return_value = None
         mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
 
@@ -287,9 +247,10 @@ class TestEmitLineageFromSqlExtras:
             sql_extras=[_make_extra(sql="", job_id="external-123")],
         )
 
+        # conn_id is None → namespace cannot be resolved → no externalQuery facet
         self.mock_build.assert_called_once()
         call = self.mock_build.call_args
-        assert call.kwargs["run_facets"]["externalQuery"].externalQueryId == "external-123"
+        assert "externalQuery" not in call.kwargs["run_facets"]
         assert "sql" not in call.kwargs["job_facets"]
 
     def test_parser_run_facets_preserved_over_external_query(self):
@@ -312,3 +273,29 @@ class TestEmitLineageFromSqlExtras:
 
         call = self.mock_build.call_args
         assert call.kwargs["run_facets"]["externalQuery"] is parser_ext_query
+
+    def test_different_hooks_same_conn_id_get_separate_db_info(self):
+        """Two hooks sharing a conn_id but returning different database info are cached separately."""
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        hook_a = mock.MagicMock()
+        hook_b = mock.MagicMock()
+
+        db_info_a = mock.MagicMock()
+        db_info_b = mock.MagicMock()
+        hook_a.get_openlineage_database_info.return_value = db_info_a
+        hook_b.get_openlineage_database_info.return_value = db_info_b
+
+        self.mock_conn_id.return_value = "same_conn"
+        self.mock_ns.side_effect = lambda db_info: f"ns_{id(db_info)}"
+        self.mock_facets_fn.return_value = OperatorLineage()
+
+        extras = [
+            _make_extra(sql="SELECT 1", hook=hook_a),
+            _make_extra(sql="SELECT 2", hook=hook_b),
+        ]
+        emit_lineage_from_sql_extras(task_instance=mock_ti, sql_extras=extras)
+
+        # Both hooks should have had get_openlineage_database_info called
+        hook_a.get_openlineage_database_info.assert_called_once()
+        hook_b.get_openlineage_database_info.assert_called_once()

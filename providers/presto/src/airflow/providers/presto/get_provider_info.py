@@ -46,6 +46,22 @@ def get_provider_info():
                 "python-module": "airflow.providers.presto.transfers.gcs_to_presto",
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["presto"],
+                "handler": "airflow.providers.presto.assets.presto.sanitize_uri",
+                "factory": "airflow.providers.presto.assets.presto.create_asset",
+                "to_openlineage_converter": "airflow.providers.presto.assets.presto.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["presto"],
+                "handler": "airflow.providers.presto.assets.presto.sanitize_uri",
+                "factory": "airflow.providers.presto.assets.presto.create_asset",
+                "to_openlineage_converter": "airflow.providers.presto.assets.presto.convert_asset_to_openlineage",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.presto.hooks.presto.PrestoHook",

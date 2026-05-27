@@ -35,9 +35,9 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.12",
+    "ruff==0.15.14",
     "semver>=3.0.2",
-    "typer-slim>=0.15.1",
+    "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
@@ -96,6 +96,7 @@ dependencies = [
     "sphinxcontrib-httpdomain>=1.8.1",
     "sphinxcontrib-jquery>=4.1",
     "sphinxcontrib-jsmath>=1.0.1",
+    "sphinxcontrib-mermaid>=1.0.0",
     "sphinxcontrib-qthelp>=1.0.3",
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
@@ -112,7 +113,7 @@ dependencies = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     "apache-airflow-mypy",
-    "mypy==1.20.2",
+    "mypy==2.1.0",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",

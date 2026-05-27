@@ -24,12 +24,12 @@ It uses the imaplib library that is already integrated in python 3.
 from __future__ import annotations
 
 import email
-import email.header
 import imaplib
 import os
 import re
 import ssl
 from collections.abc import Iterable
+from email.header import decode_header, make_header
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -302,13 +302,13 @@ class ImapHook(BaseHook):
         return os.path.islink(name)
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return "../" in name
+        return f"..{os.sep}" in name
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
             local_output_directory + name
-            if local_output_directory.endswith("/")
-            else local_output_directory + "/" + name
+            if local_output_directory.endswith(os.sep)
+            else local_output_directory + os.sep + name
         )
 
     def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
@@ -392,18 +392,15 @@ class MailPart:
     @staticmethod
     def _decode_filename(filename: str | None) -> str | None:
         """
-        Decode an RFC 2047 MIME-encoded filename into a Unicode string.
+        Decode a filename that may contain RFC 2047 encoded segments.
 
-        :param filename: The raw filename, possibly RFC 2047 encoded.
-        :returns: The decoded Unicode filename, or None if the input is None.
+        :param filename: The filename extracted from the email part. It may contain
+            plain text, RFC 2047 encoded text, or a mix of both.
+        :returns: The decoded Unicode filename, or the original value if decoding fails.
         """
         if filename is None:
-            return None
-        decoded_parts = email.header.decode_header(filename)
-        return "".join(
-            part.decode(encoding or "utf-8") if isinstance(part, bytes) else part
-            for part, encoding in decoded_parts
-        )
+            return ""
+        return str(make_header(decode_header(filename)))
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """

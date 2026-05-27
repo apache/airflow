@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-16"
+API_VERSION: Final[str] = "2026-06-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -61,28 +61,6 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
-
-
-class AssetStatePutBody(BaseModel):
-    """
-    Request body for setting an asset state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
-class AssetStateResponse(BaseModel):
-    """
-    Asset state value returned to a worker.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
 
 
 class ConnectionResponse(BaseModel):
@@ -177,6 +155,14 @@ class HITLUser(BaseModel):
 
     id: Annotated[str, Field(title="Id")]
     name: Annotated[str, Field(title="Name")]
+
+
+class HTTPExceptionResponse(BaseModel):
+    """
+    HTTPException Model used for error response.
+    """
+
+    detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -375,7 +361,8 @@ class TaskStatePutBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
 class TaskStateResponse(BaseModel):
@@ -386,7 +373,7 @@ class TaskStateResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
 
 
 class TaskStatesResponse(BaseModel):
@@ -440,6 +427,18 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
     input: Annotated[Any | None, Field(title="Input")] = None
     ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
+
+
+class VariableKeysResponse(BaseModel):
+    """
+    Variable keys schema for list responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    keys: Annotated[list[str], Field(title="Keys")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariablePostBody(BaseModel):
@@ -581,6 +580,28 @@ class AssetResponse(BaseModel):
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+
+
+class AssetStatePutBody(BaseModel):
+    """
+    Request body for setting an asset state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateResponse(BaseModel):
+    """
+    Asset state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
 
 
 class HITLDetailRequest(BaseModel):

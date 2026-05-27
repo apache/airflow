@@ -8643,7 +8643,7 @@
                 "tracesEnabled": {
                     "description": "Send Airflow traces to the OTel Collector. Sets `[traces] otel_on` in the rendered Airflow config and deploys the collector when either `tracesEnabled` or `metricsEnabled` is true.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "metricsEnabled": {
                     "description": "Send Airflow metrics to the OTel Collector. Sets `[metrics] otel_on` in the rendered Airflow config and forces `[metrics] statsd_on` to False because Airflow can only export metrics to one backend at a time.",

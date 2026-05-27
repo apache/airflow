@@ -52,7 +52,7 @@ a ``INSTALL`` file containing details on how you can build and install airflowct
 Release integrity
 '''''''''''''''''
 
-`PGP signatures KEYS <https://downloads.apache.org/airflowctl/KEYS>`__
+`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`__
 
 It is essential that you verify the integrity of the downloaded files using the PGP or SHA signatures.
 The PGP signatures can be verified using GPG or PGP. Please download the KEYS as well as the asc
@@ -144,14 +144,14 @@ and SHA sum files with the script below:
         #!/bin/bash
         airflowctl_version="{{ airflowctl_version }}"
         ctl_download_dir="$(mktemp -d)"
-        pip download --no-deps "apache-airflow-ctl==${airflowctl_version}" --dest "${airflow_download_dir}"
-        curl "https://downloads.apache.org/airflowctl/${airflowctl_version}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.asc" \
-            -L -o "${airflowctl_download_dir}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.asc"
-        curl "https://downloads.apache.org/airflow/${airflowctl_version}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.sha512" \
-            -L -o "${airflowctl_download_dir}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.sha512"
+        pip download --no-deps "apache-airflow-ctl==${airflowctl_version}" --dest "${ctl_download_dir}"
+        curl "https://downloads.apache.org/airflow/airflow-ctl/${airflowctl_version}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.asc" \
+            -L -o "${ctl_download_dir}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.asc"
+        curl "https://downloads.apache.org/airflow/airflow-ctl/${airflowctl_version}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.sha512" \
+            -L -o "${ctl_download_dir}/apache_airflow_ctl-${airflowctl_version}-py3-none-any.whl.sha512"
         echo
-        echo "Please verify files downloaded to ${airflowctl_download_dir}"
-        ls -la "${airflowctl_download_dir}"
+        echo "Please verify files downloaded to ${ctl_download_dir}"
+        ls -la "${ctl_download_dir}"
         echo
 
 Once you verify the files following the instructions from previous chapter you can remove the temporary

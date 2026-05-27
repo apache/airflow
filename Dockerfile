@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.9
+ARG AIRFLOW_UV_VERSION=0.11.16
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -1048,8 +1048,11 @@ function install_airflow_and_providers_from_docker_context_files(){
         install_airflow_core_distribution=("apache-airflow-core==${AIRFLOW_VERSION}")
     fi
 
-    # Find Provider/TaskSDK/CTL distributions in docker-context files
-    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,airflowctl}*.{whl,tar.gz} 2>/dev/null || true)
+    # Find Provider/TaskSDK/CTL distributions in docker-context files.
+    # NOTE: the ctl wheel is named ``apache_airflow_ctl-*.whl`` (distribution
+    # ``apache-airflow-ctl``), not ``apache_airflow_airflowctl-*.whl`` — the
+    # glob must say ``ctl``, not ``airflowctl``.
+    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,ctl}*.{whl,tar.gz} 2>/dev/null || true)
     echo
     echo "${COLOR_BLUE}Found provider distributions in docker-context-files folder: ${airflow_distributions[*]}${COLOR_RESET}"
     echo
@@ -1228,8 +1231,8 @@ function install_from_sources() {
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+        uv sync --all-packages --resolution highest --group ci-image \
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
         set +x
@@ -1241,8 +1244,8 @@ function install_from_sources() {
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        if ! uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+        if ! uv sync --all-packages --frozen --group ci-image \
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python; then
             set +x
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
@@ -1257,8 +1260,8 @@ function install_from_sources() {
             echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv sync without --frozen).${COLOR_RESET}"
             echo
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            uv sync --all-packages --group ci-image \
+                ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
                 --no-python-downloads --no-managed-python
             set +x
         fi

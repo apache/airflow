@@ -21,7 +21,7 @@
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
-    "auditLog": "審計日誌",
+    "auditLog": "稽核日誌",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
@@ -61,6 +61,11 @@
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
+    "durationStats": {
+      "mean": "平均值",
+      "mode": "眾數"
+    },
+    "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
     "partitionKey": "資產分區鍵",
@@ -75,8 +80,8 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagWarnings": "Dag 警告 / 錯誤",
-  "defaultToGraphView": "預設使用圖形視圖",
-  "defaultToGridView": "預設使用網格視圖",
+  "defaultToGraphView": "預設使用圖形檢視",
+  "defaultToGridView": "預設使用網格檢視",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -278,6 +283,7 @@
     "priorityWeight": "優先權權重",
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
+    "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
     "triggerer": {
       "assigned": "指派的觸發者",

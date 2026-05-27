@@ -78,6 +78,35 @@ To delete an Amazon S3 Vectors vector bucket, use
     :start-after: [START howto_operator_s3vectors_delete_vector_bucket]
     :end-before: [END howto_operator_s3vectors_delete_vector_bucket]
 
+.. _howto/operator:S3VectorsPutVectorsOperator:
+
+Put Vectors
+-----------
+
+To insert vectors into an Amazon S3 Vectors index, use
+:class:`~airflow.providers.amazon.aws.operators.s3_vectors.S3VectorsPutVectorsOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_vectors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3vectors_put_vectors]
+    :end-before: [END howto_operator_s3vectors_put_vectors]
+
+
+.. _howto/operator:S3VectorsQueryVectorsOperator:
+
+Query Vectors
+-------------
+
+To query vectors by similarity in an Amazon S3 Vectors index, use
+:class:`~airflow.providers.amazon.aws.operators.s3_vectors.S3VectorsQueryVectorsOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_vectors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3vectors_query_vectors]
+    :end-before: [END howto_operator_s3vectors_query_vectors]
+
 Reference
 ---------
 

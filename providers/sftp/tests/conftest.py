@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from asyncssh import SFTPClient, SSHClientConnection
@@ -39,11 +39,20 @@ def sftp_hook_mocked() -> Generator[tuple[SFTPHookAsync, SFTPClient], Any, None]
 
     sftp_client_mock = AsyncMock(spec=SFTPClient)
     sftp_client_mock.readdir.return_value = []
+    # asyncssh's SFTPClient.open() is decorated to be both awaitable and async-context-
+    # manageable; the production code uses ``async with sftp.open(...) as remote_file``,
+    # so the mock must return a context manager from a *synchronous* call. The spec
+    # auto-makes it an AsyncMock (call → coroutine); override it with a sync MagicMock.
+    sftp_client_mock.open = MagicMock()
 
-    client_connection_mock = AsyncMock(spec=SSHClientConnection)
-    sftp_cm_mock = client_connection_mock.start_sftp_client.return_value
+    # asyncssh's start_sftp_client() has the same shape — production uses it as
+    # ``async with ssh_conn.start_sftp_client() as sftp:``. Same override pattern.
+    sftp_cm_mock = MagicMock()
     sftp_cm_mock.__aenter__ = AsyncMock(return_value=sftp_client_mock)
     sftp_cm_mock.__aexit__ = AsyncMock(return_value=None)
+
+    client_connection_mock = AsyncMock(spec=SSHClientConnection)
+    client_connection_mock.start_sftp_client = MagicMock(return_value=sftp_cm_mock)
 
     with patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn") as mock_get_conn:
         mock_get_conn.return_value.__aenter__.return_value = client_connection_mock
