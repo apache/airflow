@@ -46,6 +46,11 @@ _TRANSIENT_REASON_NAMES = frozenset(
         "MQRC_CONNECTION_QUIESCING",
     }
 )
+# Sentinel values used when the wrapped exception is not an MQMIError and
+# therefore doesn't expose MQ completion/reason codes. Using -1 (instead of 0)
+# avoids colliding with a legitimate MQ reason/completion code of 0 and
+# allows downstream consumers (logs, Sentry tags) to distinguish non-MQ errors.
+_NON_MQ_SENTINEL: int = -1
 
 
 class IBMMQError(Exception):
@@ -58,6 +63,10 @@ class IBMMQError(Exception):
 
     :param reason: The integer MQ reason code (e.g. ``MQRC_CONNECTION_BROKEN``).
     :param comp: The integer MQ completion code.
+    :note: When ``reason``/``comp`` equal ``_NON_MQ_SENTINEL`` (``-1``), the
+        error was not produced by an ``ibmmq.MQMIError`` and no MQ codes are
+        available (for example ``ibmmq.PYIFError`` or a wrapped
+        ``ConnectionError``).
     :param transient: Whether this error is considered transient (eligible for retry).
     :param message: Human-readable description of the error.
     """
@@ -237,8 +246,8 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
             ) from e
         except ibmmq.PYIFError as e:
             raise IBMMQError(
-                reason=0,
-                comp=0,
+                reason=_NON_MQ_SENTINEL,
+                comp=_NON_MQ_SENTINEL,
                 transient=False,
                 message=str(e),
             ) from e
@@ -246,8 +255,8 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
             # _connect() wraps ibmmq.MQMIError as ConnectionError; treat as transient
             # so aconsume retries with backoff instead of killing the trigger.
             raise IBMMQError(
-                reason=0,
-                comp=0,
+                reason=_NON_MQ_SENTINEL,
+                comp=_NON_MQ_SENTINEL,
                 transient=True,
                 message=str(e),
             ) from e

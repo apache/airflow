@@ -35,6 +35,7 @@ from airflow.providers.ibm.mq.hooks.mq import (
     IBMMQConsumer,
     IBMMQError,
     IBMMQHook,
+    _NON_MQ_SENTINEL,
 )
 
 MQ_PAYLOAD = """RFH x"MQSTR    <mcd><Msd>jms_map</Msd></mcd>   <jms><Dst>topic://localhost/topic</Dst><Tms>1772121947476</Tms><Dlv>2</Dlv><Uci dt='bin.hex'>414D5143514D49413030542020202069774D7092F81057</Uci></jms>L<usr><XMSC_CLIENT_ID>local</XMSC_CLIENT_ID><release>26.01.00</release></usr> 4<mqps><Top>topic</Top></mqps>  {}"""
@@ -894,19 +895,33 @@ class TestIBMMQConsumer:
     @patch("ibmmq.GMO")
     @patch("ibmmq.MD")
     @patch("ibmmq.OD")
-    def test_consume_wraps_connection_error_as_ibmmq_error(
-        self, mock_od, mock_md, mock_gmo, consumer, mock_hook
+    @pytest.mark.parametrize(
+        ("exc_type", "expected_transient"),
+        [
+            pytest.param("connection", True, id="connection_error_is_transient"),
+            pytest.param("pyif", False, id="pyif_error_not_transient"),
+        ],
+    )
+    def test_consume_wraps_non_mq_exceptions_as_ibmmq_error(
+        self, mock_od, mock_md, mock_gmo, consumer, mock_hook, exc_type, expected_transient
     ):
-        connection_error = ConnectionError("host unavailable")
-        mock_hook.get_conn.side_effect = connection_error
+        import ibmmq
+
+        if exc_type == "connection":
+            side_exc = ConnectionError("host unavailable")
+        else:
+            # ibmmq.PYIFError is a non-MQ exception from the C extension
+            side_exc = ibmmq.PYIFError("pyif failure")
+
+        mock_hook.get_conn.side_effect = side_exc
 
         with pytest.raises(IBMMQError) as exc_info:
             consumer.consume("QUEUE1", 0.1, threading.Event())
 
-        assert exc_info.value.reason == 0
-        assert exc_info.value.comp == 0
-        assert exc_info.value.transient is True
-        assert str(exc_info.value) == "host unavailable"
+        assert exc_info.value.reason == _NON_MQ_SENTINEL
+        assert exc_info.value.comp == _NON_MQ_SENTINEL
+        assert exc_info.value.transient is expected_transient
+        assert str(exc_info.value) == str(side_exc)
 
     @patch("ibmmq.Queue")
     @patch("ibmmq.GMO")
