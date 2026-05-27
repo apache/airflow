@@ -371,9 +371,7 @@ def clear_dag_run(
                     TaskInstance.state.in_([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])
                 )
             if body.only_skipped:
-                ti_query = ti_query.where(
-                    TaskInstance.state == TaskInstanceState.SKIPPED
-                )
+                ti_query = ti_query.where(TaskInstance.state == TaskInstanceState.SKIPPED)
             task_instances = list(session.scalars(ti_query))
 
         return ClearTaskInstanceCollectionResponse(
