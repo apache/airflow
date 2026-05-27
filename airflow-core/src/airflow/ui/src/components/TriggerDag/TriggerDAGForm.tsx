@@ -70,43 +70,35 @@ const TriggerDAGForm = ({
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
-  const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
+  const defaultValues = {
+    conf: "",
+    dagRunId: "",
+    dataIntervalEnd: "",
+    dataIntervalMode: "auto",
+    dataIntervalStart: "",
+    // Default logical date to now, show it in the selected timezone.
+    // For partitioned Dags, logical date is not applicable.
+    logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
+    note: "",
+    partitionKey: undefined,
+  };
+
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
-    defaultValues: {
-      conf,
-      dagRunId: "",
-      dataIntervalEnd: "",
-      dataIntervalMode: "auto",
-      dataIntervalStart: "",
-      // Default logical date to now, show it in the selected timezone.
-      // For partitioned Dags, logical date is not applicable.
-      logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
-      note: "",
-      partitionKey: undefined,
-    },
+    defaultValues,
+    resetOptions: { keepDirtyValues: true },
+    values: { ...defaultValues, conf },
   });
 
-  // Pre-fill form when prefillConfig is provided (priority over conf)
-  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
+  // Pre-fill conf when triggering again; reset dirty state when modal closes
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
 
-      reset({
-        conf: confString,
-        dagRunId: "",
-        dataIntervalEnd: "",
-        dataIntervalMode: "auto",
-        dataIntervalStart: "",
-        logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
-        note: "",
-        partitionKey: undefined,
-      });
       // Also update the param store to keep it in sync.
       // Wait until we have the initial params so section ordering stays consistent.
       if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
@@ -115,9 +107,8 @@ const TriggerDAGForm = ({
         }
         setConf(confString);
       }
-      setHasAppliedPrefill(true);
     } else if (!open) {
-      setHasAppliedPrefill(false);
+      reset();
     }
   }, [
     prefillConfig,
@@ -127,15 +118,7 @@ const TriggerDAGForm = ({
     initialParamsDict.paramsDict,
     initialParamDict,
     setInitialParamDict,
-    isPartitioned,
   ]);
-
-  // Automatically reset form when conf is fetched
-  useEffect(() => {
-    if (conf && open && (!prefillConfig || hasAppliedPrefill)) {
-      reset((prevValues) => ({ ...prevValues, conf }));
-    }
-  }, [conf, hasAppliedPrefill, open, prefillConfig, reset]);
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
