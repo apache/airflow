@@ -31,10 +31,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.sdk import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.dataflow import DataflowJobMetricsOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or "test-project"
