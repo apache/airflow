@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import threading
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
@@ -370,6 +371,50 @@ class IBMMQHook(BaseHook):
         self.open_options = open_options
 
     @classmethod
+    @requires_ibmmq
+    def parse_open_options(cls, value) -> int:
+        """
+        Parse MQ open-options from allowed formats into an integer bitmask.
+
+        Accepts:
+        - int (returned as-is)
+        - numeric string (decimal or hex, e.g., "2" or "0x10")
+        - single symbol name from ``ibmmq.CMQC`` (e.g., "MQOO_INPUT_SHARED")
+        - pipe- or comma-separated symbols (e.g. "MQOO_INPUT_SHARED | MQOO_FAIL_IF_QUIESCING")
+
+        Raises ValueError on unknown symbol tokens and TypeError for unsupported types.
+        """
+        if value is None:
+            return ibmmq.CMQC.MQOO_INPUT_SHARED
+
+        if isinstance(value, int):
+            return value
+
+        if isinstance(value, str):
+            s = value.strip()
+            # Try numeric literal first (decimal or hex)
+            try:
+                if s.startswith(("0x", "0X")):
+                    return int(s, 16)
+                return int(s)
+            except ValueError:
+                pass
+
+            tokens = [t.strip() for t in re.split(r"\s*(?:\||,)\s*", s) if t.strip()]
+            if not tokens:
+                raise ValueError("Empty open_options string")
+
+            result = 0
+            for tok in tokens:
+                if hasattr(ibmmq.CMQC, tok):
+                    result |= getattr(ibmmq.CMQC, tok)
+                else:
+                    raise ValueError(f"Unknown MQ open option token: {tok}")
+            return result
+
+        raise TypeError("open_options must be an int or string of MQOO_* tokens")
+
+    @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for IBM MQ Connection."""
         return {
@@ -416,15 +461,21 @@ class IBMMQHook(BaseHook):
         ]
 
     def get_open_options(self, queue_name: str) -> int | None:
-        if self.open_options is not None:
-            flag_names = self.get_open_options_flags(self.open_options)
+        # Prefer a resolved value set by ``get_conn`` during the connection
+        # context; fall back to the instance attribute if present.
+        open_options_val = getattr(self, "_resolved_open_options", None)
+        if open_options_val is None:
+            open_options_val = self.open_options
+
+        if open_options_val is not None:
+            flag_names = self.get_open_options_flags(open_options_val)
             self.log.info(
                 "Opening MQ queue '%s' with open_options=%s (%s)",
                 queue_name,
-                self.open_options,
+                open_options_val,
                 ", ".join(flag_names),
             )
-        return self.open_options
+        return open_options_val
 
     @staticmethod
     @requires_ibmmq
@@ -470,12 +521,21 @@ class IBMMQHook(BaseHook):
         if not channel:
             raise ValueError("channel must be set in Connection extra config or hook init")
 
+        # Resolve open_options without mutating the hook instance so the
+        # connection remains idempotent across calls. The temporary resolved
+        # value is stored on the instance for the duration of the context
+        # manager and removed afterward.
         if self.open_options is None:
-            self.open_options = getattr(
-                ibmmq.CMQC,
-                config.get("open_options", self.default_open_options),
-                ibmmq.CMQC.MQOO_INPUT_SHARED,
-            )
+            config_value = config.get("open_options", self.default_open_options)
+            # Use the class-level parser so callers (and tests) can reuse the
+            # logic without importing a module-private helper.
+            resolved_open_options = type(self).parse_open_options(config_value)
+        else:
+            resolved_open_options = self.open_options
+
+        # Store the resolved value temporarily for get_open_options to pick up
+        # while inside the connection context.
+        self._resolved_open_options = resolved_open_options
 
         csp = ibmmq.CSP()
         csp.CSPUserId = connection.login
@@ -486,6 +546,10 @@ class IBMMQHook(BaseHook):
         try:
             yield conn
         finally:
+            # Remove the temporary resolved value so the hook instance is
+            # unchanged after the context exits.
+            with suppress(Exception):
+                delattr(self, "_resolved_open_options")
             with suppress(Exception):
                 conn.disconnect()
 

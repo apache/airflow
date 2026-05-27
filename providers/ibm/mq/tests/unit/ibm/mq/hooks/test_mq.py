@@ -22,6 +22,7 @@ import operator
 import threading
 from functools import reduce
 from itertools import count
+from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -41,8 +42,15 @@ from airflow.providers.ibm.mq.hooks.mq import (
 MQ_PAYLOAD = """RFH x"MQSTR    <mcd><Msd>jms_map</Msd></mcd>   <jms><Dst>topic://localhost/topic</Dst><Tms>1772121947476</Tms><Dlv>2</Dlv><Uci dt='bin.hex'>414D5143514D49413030542020202069774D7092F81057</Uci></jms>L<usr><XMSC_CLIENT_ID>local</XMSC_CLIENT_ID><release>26.01.00</release></usr> 4<mqps><Top>topic</Top></mqps>  {}"""
 
 
-def mq_connection():
+def mq_connection(open_options: Any = None):
     """Create a test MQ connection object."""
+    import json
+
+    extra: dict[str, Any] = {"queue_manager": "QM1", "channel": "DEV.APP.SVRCONN"}
+
+    if open_options is not None:
+        extra["open_options"] = open_options
+
     return Connection(
         conn_id="mq_conn",
         conn_type="ibmmq",
@@ -50,7 +58,7 @@ def mq_connection():
         login="user",
         password="pass",
         port=1414,
-        extra='{"queue_manager": "QM1", "channel": "DEV.APP.SVRCONN"}',
+        extra=json.dumps(extra),
     )
 
 
@@ -157,6 +165,33 @@ class TestIBMMQHook:
             mock_base_get_connection.assert_called_once_with("mq_conn")
 
     @pytest.mark.parametrize(
+        ("open_options", "expect_exception", "expected_resolved"),
+        [
+            (3, False, 3),
+            ("MQOO_INPUT_EXCLSUVE", True, None),
+        ],
+    )
+    def test_get_conn_resolves_or_errors_based_on_connection_extra(self, open_options, expect_exception, expected_resolved):
+        hook = IBMMQHook(open_options=None)
+        mock_conn = MagicMock()
+
+        with patch.object(hook, "_connect", return_value=mock_conn) as mock_connect:
+            if expect_exception:
+                with pytest.raises(ValueError):
+                    hook.get_conn(connection=mq_connection(open_options=open_options))
+                assert hook.open_options is None
+            else:
+                with hook.get_conn(connection=mq_connection(open_options=open_options)):
+                    assert hasattr(hook, "_resolved_open_options")
+                    assert getattr(hook, "_resolved_open_options") == expected_resolved
+
+                assert not hasattr(hook, "_resolved_open_options")
+                assert hook.open_options is None
+
+        mock_connect.assert_called_once()
+        mock_conn.disconnect.assert_called_once()
+
+    @pytest.mark.parametrize(
         ("open_options_attr", "expected_flags"),
         [
             ("MQOO_INPUT_EXCLUSIVE", ["MQOO_INPUT_EXCLUSIVE"]),
@@ -177,6 +212,33 @@ class TestIBMMQHook:
         flags = IBMMQHook.get_open_options_flags(combined_options)
 
         assert flags == expected_flags
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (None, 2),
+            (3, 3),
+            ("0x10", 0x10),
+            ("42", 42),
+            ("MQOO_INPUT_SHARED", 2),
+            ("MQOO_INPUT_SHARED | MQOO_FAIL_IF_QUIESCING", 2 | 8192),
+            ("MQOO_INPUT_SHARED, MQOO_FAIL_IF_QUIESCING", 2 | 8192),
+            ("   MQOO_INPUT_SHARED   |   MQOO_FAIL_IF_QUIESCING  ", 2 | 8192),
+        ],
+    )
+    def test_parse_open_options_accepts_expected_formats(self, value, expected):
+        result = IBMMQHook.parse_open_options(value)
+        assert result == expected
+
+    @pytest.mark.parametrize("bad_value", ["", "UNKNOWN_FLAG", [1, 2]])
+    def test_parse_open_options_rejects_invalid_inputs(self, bad_value):
+        if isinstance(bad_value, list):
+            with pytest.raises(TypeError):
+                IBMMQHook.parse_open_options(bad_value)
+            return
+
+        with pytest.raises(ValueError):
+            IBMMQHook.parse_open_options(bad_value)
 
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
