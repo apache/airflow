@@ -33,6 +33,7 @@ from pydantic import (
 )
 
 from airflow.sdk.definitions._internal.templater import Templater
+from airflow.sdk.execution_time.context import AssetStateAccessors
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -303,6 +304,7 @@ class BaseEventTrigger(BaseTrigger):
 
         # Injected by the triggerer before run() is called; mirrors how trigger_id is set
         self.watched_assets: list[AssetUniqueKey] | None = None
+        self.asset_states: AssetStateAccessors | None = None
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:

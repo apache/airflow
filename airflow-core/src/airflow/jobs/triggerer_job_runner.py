@@ -1270,6 +1270,14 @@ class TriggerRunner:
                     AssetUniqueKey(name=name, uri=uri) for name, uri in workload.watched_assets.items()
                 ]
 
+                # aip-103: Reconstruct AssetStateAccessors from watched_assets
+                from airflow.sdk.definitions.asset import Asset
+                from airflow.sdk.execution_time.context import AssetStateAccessors
+
+                trigger_instance.asset_states = AssetStateAccessors(
+                    inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
+
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance, workload.timeout_after, context),
