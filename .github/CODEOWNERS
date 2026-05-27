@@ -120,7 +120,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /dev/breeze/tests/test_publish_registry_versions.py @kaxil
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 /dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496 @jedcunningham @ephraimbuddy @choo121600 @vatsrahul1001
 /dev/mypy/ @hussein-awala
 /dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
