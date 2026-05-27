@@ -37,6 +37,7 @@ import { Tasks } from "src/pages/Dag/Tasks";
 import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
+import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
@@ -124,6 +125,10 @@ export const routerConfig = [
       {
         element: <Asset />,
         path: "assets/:assetId",
+      },
+      {
+        element: <Deadlines />,
+        path: "deadlines",
       },
       {
         element: <Events />,
