@@ -68,7 +68,7 @@ def get_provider_info():
         ],
         "hooks": [
             {
-                "integration-name": "Base Hook",
+                "integration-name": "Common AI",
                 "python-modules": ["airflow.providers.common.ai.hooks.base_ai"],
             },
             {
