@@ -46,7 +46,7 @@ Default (files passed by prek/pre-commit):
 
 ``--all-files``:
     Walk every ``.py`` file under the project source roots
-    (``airflow-core``, ``airflow-ctl``, ``providers``, ``shared``) —
+    (``airflow-core``, ``providers``, ``shared``) —
     the same scope the pre-commit hook applies to.
 
 ``--cleanup``:
@@ -78,7 +78,7 @@ _PROVIDE_SESSION_DECORATOR = "provide_session"
 
 # Top-level directories scanned by ``--all-files`` / ``--generate``. Keep in sync with the
 # ``files:`` pattern for this hook in ``.pre-commit-config.yaml``.
-_PROJECT_SOURCE_ROOTS = ("airflow-core", "airflow-ctl", "providers", "shared")
+_PROJECT_SOURCE_ROOTS = ("airflow-core", "providers", "shared")
 
 
 def _has_provide_session_decorator(nodes: list[ast.expr]) -> bool:
@@ -328,10 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--all-files",
         action="store_true",
-        help=(
-            "Check every Python file under the project source roots "
-            "(airflow-core, airflow-ctl, providers, shared)"
-        ),
+        help=("Check every Python file under the project source roots (airflow-core, providers, shared)"),
     )
     parser.add_argument(
         "--cleanup",
