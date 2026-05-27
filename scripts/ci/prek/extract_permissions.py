@@ -125,7 +125,7 @@ def _extract_router_prefix(tree: ast.Module) -> str:
         if call_name != "AirflowRouter":
             continue
         for kw in call.keywords:
-            if kw.arg == "prefix" and isinstance(kw.value, ast.Constant):
+            if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
                 return kw.value.value
     return ""
 
@@ -162,7 +162,7 @@ def _extract_method_arg(call_node: ast.Call) -> str:
     for kw in call_node.keywords:
         if kw.arg == "method":
             val = kw.value
-            if isinstance(val, ast.Constant):
+            if isinstance(val, ast.Constant) and isinstance(val.value, str):
                 return val.value.upper()
             return ast.unparse(val).strip("\"'").upper()
 
@@ -312,6 +312,8 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 entity = _extract_entity_arg(inner)
                 resource = _build_resource_label(fn_name, entity)
                 permission = entity if fn_name == "requires_access_view" else method
+                if not isinstance(permission, str):
+                    raise ValueError(f"Could not resolve required permission for {fn_name} in {path.name}")
 
                 results.append(
                     PermissionEntry(
