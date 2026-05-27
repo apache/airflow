@@ -401,7 +401,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 04a94ec45c8e92de281e3cc55754eb6d9db526a1  # frozen: v1.25.1
+    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -410,7 +410,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: 1662ec573c55eb9648db2797a66f74bcc6216d62  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script

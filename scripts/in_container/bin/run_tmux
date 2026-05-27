@@ -70,13 +70,13 @@ if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
     # IPv4 and IPv6 host ports into the container). The default `0.0.0.0` binds IPv4 only.
     if [[ ${BREEZE_DEBUG_APISERVER} == "true" ]]; then
         tmux set-option -p @airflow_component "API Server(Debug Mode)"
-        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_APISERVER_PORT} --wait-for-client -m airflow api-server --host '::' -d" C-m
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_APISERVER_PORT} --wait-for-client -m airflow api-server --host '' -d" C-m
     else
   tmux set-option -p @airflow_component "API Server"
     if [[ ${DEV_MODE=} == "true" ]]; then
-        tmux send-keys "airflow api-server --host '::' -d" C-m
+        tmux send-keys "airflow api-server --host '' -d" C-m
     else
-        tmux send-keys "airflow api-server --host '::'" C-m
+        tmux send-keys "airflow api-server --host ''" C-m
     fi
     fi
 else
