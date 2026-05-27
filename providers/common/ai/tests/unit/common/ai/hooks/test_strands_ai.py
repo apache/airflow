@@ -17,19 +17,39 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
+from strands import Agent as StrandsAgent
+from strands.models.gemini import GeminiModel
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
     AgentRunResult,
     BaseAIHook,
+    BaseToolset,
     SkillSpec,
     ToolSpec,
 )
 from airflow.providers.common.ai.hooks.strands_ai import StrandsGeminiHook, StrandsHook
+
+STRANDS_AI = "airflow.providers.common.ai.hooks.strands_ai"
+
+
+@pytest.fixture
+def strands_agent():
+    return create_autospec(StrandsAgent, instance=True)
+
+
+@pytest.fixture
+def gemini_model():
+    return MagicMock(spec=GeminiModel)
+
+
+@pytest.fixture
+def gemini_hook() -> StrandsGeminiHook:
+    return StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
 
 
 class TestStrandsHookContract:
@@ -53,6 +73,14 @@ class TestStrandsHookContract:
     def test_conn_type(self):
         assert StrandsGeminiHook.conn_type == "strands-gemini"
 
+    def test_hook_name(self):
+        assert "Gemini" in StrandsGeminiHook.hook_name
+
+    def test_ui_field_behaviour(self):
+        behaviour = StrandsGeminiHook.get_ui_field_behaviour()
+        assert "host" in behaviour["hidden_fields"]
+        assert behaviour["relabeling"]["password"] == "API Key"
+
 
 class TestStrandsGeminiHookInit:
     def test_default_conn_id(self):
@@ -67,51 +95,102 @@ class TestStrandsGeminiHookInit:
 
 
 class TestStrandsGeminiHookGetModel:
-    @patch("strands.models.gemini.GeminiModel")
-    @patch("airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook.get_connection")
-    def test_get_model_with_api_key(self, mock_get_connection, mock_gemini_model_cls):
-        mock_get_connection.return_value = Connection(
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_get_model_with_api_key(self, mock_gemini_model_cls):
+        conn = Connection(
             conn_id="test",
             conn_type="strands-gemini",
             password="google-api-key",
             extra=json.dumps({"model": "gemini-2.5-flash"}),
         )
-
-        mock_gemini_model = MagicMock()
+        mock_gemini_model = MagicMock(spec=GeminiModel)
         mock_gemini_model_cls.return_value = mock_gemini_model
 
         hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
-        result = hook.get_model()
+        with patch.object(hook, "get_connection", return_value=conn):
+            result = hook.get_model()
 
         assert result is mock_gemini_model
+        assert hook._resolved_model_id == "gemini-2.5-flash"
         mock_gemini_model_cls.assert_called_once_with(
             model_id="gemini-2.5-flash",
             client_args={"api_key": "google-api-key"},
         )
 
-    @patch("strands.models.gemini.GeminiModel")
-    @patch("airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook.get_connection")
-    def test_get_model_with_env_auth(self, mock_get_connection, mock_gemini_model_cls):
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_get_model_with_env_auth(self, mock_gemini_model_cls):
         """No explicit API key — delegates to GOOGLE_API_KEY env var via Gemini client."""
-        mock_get_connection.return_value = Connection(
+        conn = Connection(
             conn_id="test",
             conn_type="strands-gemini",
             extra=json.dumps({"model": "gemini-2.5-flash", "params": {"temperature": 0.5}}),
         )
-        mock_gemini_model = MagicMock()
-        mock_gemini_model_cls.return_value = mock_gemini_model
+        mock_gemini_model_cls.return_value = MagicMock(spec=GeminiModel)
 
         hook = StrandsGeminiHook(llm_conn_id="test")
-        hook.get_model()
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_model()
+
+        call_kwargs = mock_gemini_model_cls.call_args.kwargs
+        assert call_kwargs == {"model_id": "gemini-2.5-flash", "params": {"temperature": 0.5}}
+        assert "client_args" not in call_kwargs
+
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_get_model_with_api_key_and_params(self, mock_gemini_model_cls):
+        conn = Connection(
+            conn_id="test",
+            conn_type="strands-gemini",
+            password="google-api-key",
+            extra=json.dumps(
+                {"model": "gemini-2.5-flash", "params": {"temperature": 0.7, "max_output_tokens": 2048}}
+            ),
+        )
+        mock_gemini_model_cls.return_value = MagicMock(spec=GeminiModel)
+
+        hook = StrandsGeminiHook(llm_conn_id="test")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_model()
 
         mock_gemini_model_cls.assert_called_once_with(
             model_id="gemini-2.5-flash",
-            params={"temperature": 0.5},
+            client_args={"api_key": "google-api-key"},
+            params={"temperature": 0.7, "max_output_tokens": 2048},
         )
 
-    @patch("airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook.get_connection")
-    def test_get_model_raises_when_no_model(self, mock_get_connection):
-        mock_get_connection.return_value = Connection(
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_get_model_with_model_from_extra(self, mock_gemini_model_cls):
+        conn = Connection(
+            conn_id="test",
+            conn_type="strands-gemini",
+            extra=json.dumps({"model": "gemini-2.5-flash"}),
+        )
+        mock_gemini_model = MagicMock(spec=GeminiModel)
+        mock_gemini_model_cls.return_value = mock_gemini_model
+
+        hook = StrandsGeminiHook(llm_conn_id="test")
+        with patch.object(hook, "get_connection", return_value=conn):
+            result = hook.get_model()
+
+        assert result is mock_gemini_model
+        mock_gemini_model_cls.assert_called_once_with(model_id="gemini-2.5-flash")
+
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_model_id_param_overrides_extra(self, mock_gemini_model_cls):
+        conn = Connection(
+            conn_id="test",
+            conn_type="strands-gemini",
+            extra=json.dumps({"model": "gemini-2.0-flash"}),
+        )
+        mock_gemini_model_cls.return_value = MagicMock(spec=GeminiModel)
+
+        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_model()
+
+        mock_gemini_model_cls.assert_called_once_with(model_id="gemini-2.5-flash")
+
+    def test_get_model_raises_when_no_model(self):
+        conn = Connection(
             conn_id="test",
             conn_type="strands-gemini",
             extra=json.dumps({}),
@@ -119,28 +198,48 @@ class TestStrandsGeminiHookGetModel:
         hook = StrandsGeminiHook(llm_conn_id="test")
 
         with (
-            patch.dict(
-                "sys.modules",
-                {"strands": MagicMock(), "strands.models": MagicMock(), "strands.models.gemini": MagicMock()},
-            ),
+            patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(ValueError, match="No model specified"),
         ):
             hook.get_model()
 
-    def test_get_model_raises_on_missing_strands(self):
-        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
-        with patch.dict(
-            "sys.modules", {"strands": None, "strands.models": None, "strands.models.gemini": None}
-        ):
-            with pytest.raises(AirflowOptionalProviderFeatureException, match="strands-agents"):
-                hook.get_model()
+class TestStrandsGeminiHookTestConnection:
+    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    def test_successful_connection(self, mock_gemini_model_cls):
+        conn = Connection(
+            conn_id="test",
+            conn_type="strands-gemini",
+            extra=json.dumps({"model": "gemini-2.5-flash"}),
+        )
+        mock_gemini_model_cls.return_value = MagicMock(spec=GeminiModel)
+
+        hook = StrandsGeminiHook(llm_conn_id="test")
+        with patch.object(hook, "get_connection", return_value=conn):
+            success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "StrandsGeminiHook resolved successfully."
+
+    def test_failed_connection_no_model(self):
+        conn = Connection(
+            conn_id="test",
+            conn_type="strands-gemini",
+            extra=json.dumps({}),
+        )
+        hook = StrandsGeminiHook(llm_conn_id="test")
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            success, message = hook.test_connection()
+
+        assert success is False
+        assert "No model specified" in message
 
 
 class TestStrandsHookToolSpecToNative:
-    def test_tool_spec_to_native_wraps_fn_as_strands_tool(self):
-        mock_strands_tool = MagicMock(side_effect=lambda fn: fn)
+    @patch(f"{STRANDS_AI}.strands_tool", autospec=True)
+    def test_tool_spec_to_native_wraps_fn_as_strands_tool(self, mock_strands_tool):
+        mock_strands_tool.side_effect = lambda fn: fn
 
         def my_fn(x: int) -> str:
             """Does x."""
@@ -154,149 +253,132 @@ class TestStrandsHookToolSpecToNative:
         )
 
         hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
-
-        with patch.dict("sys.modules", {"strands": MagicMock(tool=mock_strands_tool)}):
-            import sys
-
-            sys.modules["strands"].tool = mock_strands_tool
-            hook._tool_spec_to_native(spec)
+        result = hook._tool_spec_to_native(spec)
 
         mock_strands_tool.assert_called_once()
         wrapped = mock_strands_tool.call_args[0][0]
         assert wrapped.__name__ == "my_fn"
         assert wrapped.__doc__ == "Does x."
-
-    def test_tool_spec_to_native_sanitises_name(self):
-        """Non-word characters in tool names are normalized for Python identifiers."""
-        mock_strands_tool = MagicMock(side_effect=lambda fn: fn)
-        spec = ToolSpec(
-            name="my-tool",
-            description="desc",
-            parameters={},
-            fn=lambda: None,
-        )
-
-        hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
-
-        with patch.dict("sys.modules", {"strands": MagicMock(tool=mock_strands_tool)}):
-            import sys
-
-            sys.modules["strands"].tool = mock_strands_tool
-            hook._tool_spec_to_native(spec)
-
-        wrapped = mock_strands_tool.call_args[0][0]
-        assert wrapped.__name__ == "my_tool"
+        assert wrapped(42) == "42"
+        assert result is wrapped
 
     @pytest.mark.parametrize(
         ("name", "expected"),
         [
+            ("my-tool", "my_tool"),
             ("my tool", "my_tool"),
             ("ns.tool", "ns_tool"),
             ("123-tool", "_123_tool"),
         ],
     )
-    def test_tool_spec_to_native_sanitises_complex_names(self, name, expected):
-        mock_strands_tool = MagicMock(side_effect=lambda fn: fn)
+    @patch(f"{STRANDS_AI}.strands_tool", autospec=True)
+    def test_tool_spec_to_native_sanitises_names(self, mock_strands_tool, name, expected):
+        mock_strands_tool.side_effect = lambda fn: fn
         spec = ToolSpec(name=name, description="desc", parameters={}, fn=lambda: None)
         hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
 
-        with patch.dict("sys.modules", {"strands": MagicMock(tool=mock_strands_tool)}):
-            import sys
-
-            sys.modules["strands"].tool = mock_strands_tool
-            hook._tool_spec_to_native(spec)
+        hook._tool_spec_to_native(spec)
 
         wrapped = mock_strands_tool.call_args[0][0]
         assert wrapped.__name__ == expected
 
 
 class TestStrandsHookCreateAndRunAgent:
-    def test_create_agent_builds_strands_agent(self):
-        mock_agent_cls = MagicMock()
-        mock_model = MagicMock()
-
-        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
-
-        with (
-            patch.object(hook, "get_model", return_value=mock_model),
-            patch.dict("sys.modules", {"strands": MagicMock(Agent=mock_agent_cls)}),
-        ):
-            import sys
-
-            sys.modules["strands"].Agent = mock_agent_cls
-
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_builds_strands_agent(self, mock_agent_cls, gemini_hook, gemini_model):
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
             request = AgentRunRequest(prompt="hello")
-            agent = hook.create_agent(request)
+            agent = gemini_hook.create_agent(request)
 
         mock_agent_cls.assert_called_once()
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["model"] is gemini_model
+        assert kwargs["tools"] == []
+        assert "system_prompt" not in kwargs
         assert agent is mock_agent_cls.return_value
 
-    def test_run_agent_returns_agent_run_result(self):
-        mock_response = MagicMock()
-        mock_response.__str__ = MagicMock(return_value="the answer")
-        mock_agent_instance = MagicMock(return_value=mock_response)
-
-        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
-        hook._resolved_model_id = "gemini-2.5-flash"
-
-        request = AgentRunRequest(prompt="hello")
-        result = hook.run_agent(mock_agent_instance, request)
-
-        assert isinstance(result, AgentRunResult)
-        assert result.output == "the answer"
-        assert result.model_name == "gemini-2.5-flash"
-        mock_agent_instance.assert_called_once_with("hello")
-
-    def test_create_agent_passes_instructions_as_system_prompt(self):
-        mock_agent_cls = MagicMock()
-        mock_agent_cls.return_value = MagicMock(return_value=MagicMock(__str__=lambda s: "ok"))
-        mock_model = MagicMock()
-
-        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
-
-        with (
-            patch.object(hook, "get_model", return_value=mock_model),
-            patch.dict("sys.modules", {"strands": MagicMock(Agent=mock_agent_cls)}),
-        ):
-            import sys
-
-            sys.modules["strands"].Agent = mock_agent_cls
-
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_passes_instructions_as_system_prompt(
+        self, mock_agent_cls, gemini_hook, gemini_model
+    ):
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
             request = AgentRunRequest(prompt="q", instructions="Be concise.")
-            hook.create_agent(request)
+            gemini_hook.create_agent(request)
 
         _, kwargs = mock_agent_cls.call_args
-        assert kwargs.get("system_prompt") == "Be concise."
+        assert kwargs["system_prompt"] == "Be concise."
 
-    def test_create_agent_resolves_toolsets(self):
-        mock_agent_cls = MagicMock()
-        mock_model = MagicMock()
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_forwards_agent_params(self, mock_agent_cls, gemini_hook, gemini_model):
+        callback_handler = MagicMock()
 
-        hook = StrandsGeminiHook(llm_conn_id="test", model_id="gemini-2.5-flash")
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
+            request = AgentRunRequest(
+                prompt="q",
+                agent_params={"callback_handler": callback_handler, "record_direct_tool_call": True},
+            )
+            gemini_hook.create_agent(request)
 
-        from airflow.providers.common.ai.hooks.base import BaseToolset
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["callback_handler"] is callback_handler
+        assert kwargs["record_direct_tool_call"] is True
 
+    @patch(f"{STRANDS_AI}.strands_tool", autospec=True)
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_resolves_toolsets(
+        self, mock_agent_cls, mock_strands_tool, gemini_hook, gemini_model
+    ):
+        mock_strands_tool.side_effect = lambda fn: fn
         spec = ToolSpec(name="t", description="d", parameters={}, fn=lambda: None)
 
         class MyToolset(BaseToolset):
             def as_tools(self):
                 return [spec]
 
-        with (
-            patch.object(hook, "get_model", return_value=mock_model),
-            patch.object(hook, "_tool_spec_to_native", return_value="native_tool") as mock_native,
-            patch.dict("sys.modules", {"strands": MagicMock(Agent=mock_agent_cls)}),
-        ):
-            import sys
-
-            sys.modules["strands"].Agent = mock_agent_cls
-
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
             request = AgentRunRequest(prompt="q", toolsets=[MyToolset()], enable_tool_logging=False)
-            hook.create_agent(request)
+            gemini_hook.create_agent(request)
 
-        mock_native.assert_called_once()
+        mock_strands_tool.assert_called_once()
         _, kwargs = mock_agent_cls.call_args
-        assert kwargs.get("tools") == ["native_tool"]
+        native_tool = mock_strands_tool.call_args[0][0]
+        assert kwargs["tools"] == [native_tool]
+        assert native_tool.__name__ == "t"
+
+    def test_create_agent_rejects_usage_limits(self, gemini_hook):
+        with pytest.raises(ValueError, match="usage_limits are not supported"):
+            gemini_hook.create_agent(AgentRunRequest(prompt="hi", usage_limits=MagicMock()))
+
+    def test_create_agent_rejects_durable_context(self, gemini_hook):
+        with pytest.raises(ValueError, match="durable execution requires"):
+            gemini_hook.create_agent(AgentRunRequest(prompt="hi", durable_context=MagicMock()))
+
+    def test_run_agent_returns_agent_run_result(self, gemini_hook, strands_agent):
+        mock_response = MagicMock()
+        mock_response.configure_mock(**{"__str__.return_value": "the answer"})
+        strands_agent.return_value = mock_response
+
+        gemini_hook._resolved_model_id = "gemini-2.5-flash"
+
+        request = AgentRunRequest(prompt="hello")
+        result = gemini_hook.run_agent(strands_agent, request)
+
+        assert isinstance(result, AgentRunResult)
+        assert result.output == "the answer"
+        assert result.model_name == "gemini-2.5-flash"
+        assert result.usage is None
+        assert result.tool_names is None
+        assert result.message_history is None
+        strands_agent.assert_called_once_with("hello")
+
+    def test_run_agent_falls_back_to_hook_model_id(self, gemini_hook, strands_agent):
+        strands_agent.return_value = MagicMock(__str__=lambda self: "ok")
+
+        request = AgentRunRequest(prompt="hello")
+        result = gemini_hook.run_agent(strands_agent, request)
+
+        assert result.model_name == "gemini-2.5-flash"
+        strands_agent.assert_called_once_with("hello")
 
 
 class TestStrandsHookSkills:
@@ -305,16 +387,13 @@ class TestStrandsHookSkills:
         assert hook._skill_spec_to_native("./skills/pdf-processing") == "./skills/pdf-processing"
         assert hook._skill_spec_to_native(SkillSpec(path="./skills/")) == "./skills/"
 
-    def test_skill_spec_inline_becomes_strands_skill(self):
+    @patch(f"{STRANDS_AI}.Skill", autospec=True)
+    def test_skill_spec_inline_becomes_strands_skill(self, mock_skill_cls):
         hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
         spec = SkillSpec(name="greet", description="Greet users", instructions="Say hello.")
-        mock_skill_cls = MagicMock(return_value="native-skill")
+        mock_skill_cls.return_value = "native-skill"
 
-        with patch.dict("sys.modules", {"strands": MagicMock(Skill=mock_skill_cls)}):
-            import sys
-
-            sys.modules["strands"].Skill = mock_skill_cls
-            result = hook._skill_spec_to_native(spec)
+        result = hook._skill_spec_to_native(spec)
 
         assert result == "native-skill"
         mock_skill_cls.assert_called_once_with(
@@ -323,99 +402,102 @@ class TestStrandsHookSkills:
             instructions="Say hello.",
         )
 
-    def test_skill_spec_invalid_raises(self):
-        with pytest.raises(ValueError, match="inline skills require"):
-            SkillSpec(name="only-name")
-
-    def test_resolve_skill_sources_empty_when_not_set(self):
-        hook = StrandsGeminiHook(llm_conn_id="test")
+    def test_resolve_skill_sources_empty_when_not_set(self, gemini_hook):
         request = AgentRunRequest(prompt="q")
-        assert hook._resolve_skill_sources(request) == []
+        assert gemini_hook._resolve_skill_sources(request) == []
 
-    @patch("airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook.get_connection")
-    def test_create_agent_attaches_agentskills_plugin(self, mock_get_connection):
-        mock_get_connection.return_value = Connection(
-            conn_id="test",
-            conn_type="strands-gemini",
-            extra=json.dumps({}),
+    def test_build_skills_plugin_returns_none_when_no_skills(self, gemini_hook):
+        request = AgentRunRequest(prompt="q")
+        assert gemini_hook._build_skills_plugin(request) is None
+
+    @patch(f"{STRANDS_AI}.AgentSkills", autospec=True)
+    def test_build_skills_plugin_forwards_skills_params(self, mock_plugin_cls, gemini_hook):
+        mock_plugin_cls.return_value = "skills-plugin"
+
+        request = AgentRunRequest(
+            prompt="q",
+            skills=["./skills/"],
+            skills_params={"strict": True, "max_resource_files": 5},
         )
-        mock_agent_cls = MagicMock()
-        mock_plugin_cls = MagicMock(return_value="skills-plugin")
-        hook = StrandsGeminiHook(llm_conn_id="test")
+        result = gemini_hook._build_skills_plugin(request)
 
-        with (
-            patch.object(hook, "get_model", return_value=MagicMock()),
-            patch.dict(
-                "sys.modules", {"strands": MagicMock(Agent=mock_agent_cls, AgentSkills=mock_plugin_cls)}
-            ),
-        ):
-            import sys
-
-            sys.modules["strands"].Agent = mock_agent_cls
-            sys.modules["strands"].AgentSkills = mock_plugin_cls
-
-            request = AgentRunRequest(prompt="q", skills=["./skills/"])
-            hook.create_agent(request)
-
-        mock_plugin_cls.assert_called_once_with(skills="./skills/")
-        _, kwargs = mock_agent_cls.call_args
-        assert kwargs["plugins"] == ["skills-plugin"]
-
-    @patch("airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook.get_connection")
-    def test_create_agent_merges_existing_plugins(self, mock_get_connection):
-        mock_get_connection.return_value = Connection(
-            conn_id="test",
-            conn_type="strands-gemini",
-            extra=json.dumps({}),
-        )
-        mock_agent_cls = MagicMock()
-        mock_plugin_cls = MagicMock(return_value="skills-plugin")
-        hook = StrandsGeminiHook(llm_conn_id="test")
-
-        with (
-            patch.object(hook, "get_model", return_value=MagicMock()),
-            patch.dict(
-                "sys.modules", {"strands": MagicMock(Agent=mock_agent_cls, AgentSkills=mock_plugin_cls)}
-            ),
-        ):
-            import sys
-
-            sys.modules["strands"].Agent = mock_agent_cls
-            sys.modules["strands"].AgentSkills = mock_plugin_cls
-
-            request = AgentRunRequest(
-                prompt="q",
-                skills=["./skills/"],
-                agent_params={"plugins": ["existing-plugin"]},
-            )
-            hook.create_agent(request)
-
-        _, kwargs = mock_agent_cls.call_args
-        assert kwargs["plugins"] == ["existing-plugin", "skills-plugin"]
-
-    def test_build_skills_plugin_forwards_skills_params(self):
-        mock_plugin_cls = MagicMock(return_value="skills-plugin")
-        hook = StrandsGeminiHook(llm_conn_id="test")
-
-        with patch.dict("sys.modules", {"strands": MagicMock(AgentSkills=mock_plugin_cls)}):
-            import sys
-
-            sys.modules["strands"].AgentSkills = mock_plugin_cls
-
-            request = AgentRunRequest(
-                prompt="q",
-                skills=["./skills/"],
-                skills_params={"strict": True, "max_resource_files": 5},
-            )
-            hook._build_skills_plugin(request)
-
+        assert result == "skills-plugin"
         mock_plugin_cls.assert_called_once_with(
             skills="./skills/",
             strict=True,
             max_resource_files=5,
         )
 
-    def test_skill_spec_path_uses_base_helper(self):
-        hook = StrandsGeminiHook.__new__(StrandsGeminiHook)
-        assert hook._skill_spec_to_native("./skills/") == "./skills/"
-        assert hook._skill_spec_to_native(SkillSpec(path="./skills/")) == "./skills/"
+    @patch(f"{STRANDS_AI}.AgentSkills", autospec=True)
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_attaches_agentskills_plugin(
+        self, mock_agent_cls, mock_plugin_cls, gemini_hook, gemini_model
+    ):
+        mock_plugin_cls.return_value = "skills-plugin"
+
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
+            request = AgentRunRequest(prompt="q", skills=["./skills/"])
+            gemini_hook.create_agent(request)
+
+        mock_plugin_cls.assert_called_once_with(skills="./skills/")
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["plugins"] == ["skills-plugin"]
+
+    @patch(f"{STRANDS_AI}.AgentSkills", autospec=True)
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_attaches_agentskills_plugin_multiple_sources(
+        self, mock_agent_cls, mock_plugin_cls, gemini_hook, gemini_model
+    ):
+        """When multiple skill sources are given they are passed as a list."""
+        mock_plugin_cls.return_value = "skills-plugin"
+
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
+            request = AgentRunRequest(prompt="q", skills=["./skills/a/", "./skills/b/"])
+            gemini_hook.create_agent(request)
+
+        mock_plugin_cls.assert_called_once_with(skills=["./skills/a/", "./skills/b/"])
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["plugins"] == ["skills-plugin"]
+
+    @patch(f"{STRANDS_AI}.Skill", autospec=True)
+    @patch(f"{STRANDS_AI}.AgentSkills", autospec=True)
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_resolves_inline_skill_spec(
+        self, mock_agent_cls, mock_plugin_cls, mock_skill_cls, gemini_hook, gemini_model
+    ):
+        mock_skill_cls.return_value = "inline-native-skill"
+        mock_plugin_cls.return_value = "skills-plugin"
+
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
+            request = AgentRunRequest(
+                prompt="q",
+                skills=[SkillSpec(name="greet", description="Greet users", instructions="Say hello.")],
+            )
+            gemini_hook.create_agent(request)
+
+        mock_skill_cls.assert_called_once_with(
+            name="greet",
+            description="Greet users",
+            instructions="Say hello.",
+        )
+        mock_plugin_cls.assert_called_once_with(skills="inline-native-skill")
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["plugins"] == ["skills-plugin"]
+
+    @patch(f"{STRANDS_AI}.AgentSkills", autospec=True)
+    @patch(f"{STRANDS_AI}.Agent", autospec=True)
+    def test_create_agent_merges_existing_plugins(
+        self, mock_agent_cls, mock_plugin_cls, gemini_hook, gemini_model
+    ):
+        mock_plugin_cls.return_value = "skills-plugin"
+
+        with patch.object(gemini_hook, "get_model", return_value=gemini_model):
+            request = AgentRunRequest(
+                prompt="q",
+                skills=["./skills/"],
+                agent_params={"plugins": ["existing-plugin"]},
+            )
+            gemini_hook.create_agent(request)
+
+        _, kwargs = mock_agent_cls.call_args
+        assert kwargs["plugins"] == ["existing-plugin", "skills-plugin"]
