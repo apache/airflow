@@ -24,7 +24,6 @@ import logging
 import os
 import pathlib
 import re
-from pathlib import Path
 from typing import Any
 
 from docs.utils.conf_constants import (
@@ -55,7 +54,6 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
     get_rst_filepath_from_path,
-    mirror_artifact_locally,
     skip_util_classes_extension,
 )
 from packaging.version import Version, parse as parse_version
@@ -94,9 +92,10 @@ extensions = BASIC_SPHINX_EXTENSIONS
 
 extensions.append(SPHINX_SWAGGER_EXTENSION)
 
-swagger_present_uri = mirror_artifact_locally(SWAGGER_PRESENT_URI, Path(__file__).parent)
-swagger_bundle_uri = mirror_artifact_locally(SWAGGER_BUNDLE_URI, Path(__file__).parent)
-swagger_css_uri = mirror_artifact_locally(SWAGGER_CSS_URI, Path(__file__).parent)
+swagger_present_uri = SWAGGER_PRESENT_URI
+swagger_bundle_uri = SWAGGER_BUNDLE_URI
+swagger_css_uri = SWAGGER_CSS_URI
+swagger_mirror_external_resources = True
 
 extensions.extend(
     [

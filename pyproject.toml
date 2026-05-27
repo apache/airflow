@@ -1541,6 +1541,9 @@ apache-aurflow-docker-stack = false
 # this override is redundant and should be deleted along with the line below.
 starlette = "6 hours"
 
+# TEMP, remove prior merge
+swagger-plugin-for-sphinx = "2 hours"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1684,6 +1687,9 @@ apache-aurflow-docker-stack = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # REMOVE BY 2026-05-26 along with the matching entry above.
 starlette = "6 hours"
+
+# TEMP, remove prior merge
+swagger-plugin-for-sphinx = "2 hours"
 
 
 [tool.uv.sources]

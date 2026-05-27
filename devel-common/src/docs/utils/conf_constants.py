@@ -22,7 +22,6 @@ import re
 import sys
 from collections import defaultdict
 from typing import Any
-from urllib import request
 
 from packaging.version import Version, parse as parse_version
 
@@ -101,27 +100,6 @@ BASIC_SPHINX_EXTENSIONS = [
 # Properties for Swagger OpenAPI generation:
 # See https://github.com/SAP/swagger-plugin-for-sphinx
 SPHINX_SWAGGER_EXTENSION = "swagger_plugin_for_sphinx"
-
-
-def mirror_artifact_locally(source_uri: str, doc_root: pathlib.Path) -> str:
-    """
-    Mirror (Swagger UI or other) artifacts locally to avoid relying on external CDNs.
-
-    Note: This is not needed if https://github.com/SAP/swagger-plugin-for-sphinx/issues/508
-          is implemented and the mirroring can be just a feature flag in the plugin itself.
-
-    :param source_uri: The original URI of the Swagger UI artifact.
-    :param doc_root: The root path of the documentation.
-    :return: The local URI of the mirrored Swagger UI artifact.
-    """
-    filename = pathlib.Path(source_uri).name
-    local_path = doc_root / "static" / "mirrored" / filename
-    if not local_path.exists():
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        request.urlretrieve(source_uri, local_path)
-
-    return f"mirrored/{filename}"
-
 
 _SWAGGER_VERSION = "5.32.6"
 SWAGGER_PRESENT_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-standalone-preset.js"

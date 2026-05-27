@@ -63,7 +63,6 @@ from docs.utils.conf_constants import (
     get_html_theme_options,
     get_intersphinx_mapping,
     get_rst_epilogue,
-    mirror_artifact_locally,
 )
 from sphinx_exts.provider_yaml_utils import load_package_data
 
@@ -130,11 +129,11 @@ PROVIDER_PACKAGES_WITH_API_REFERENCE = [
 
 if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_API_REFERENCE:
     extensions.append(SPHINX_SWAGGER_EXTENSION)
-    _DOCS_TARGET_ROOT_PATH = SPHINX_DESIGN_STATIC_PATH.parent
 
-    swagger_present_uri = mirror_artifact_locally(SWAGGER_PRESENT_URI, _DOCS_TARGET_ROOT_PATH)
-    swagger_bundle_uri = mirror_artifact_locally(SWAGGER_BUNDLE_URI, _DOCS_TARGET_ROOT_PATH)
-    swagger_css_uri = mirror_artifact_locally(SWAGGER_CSS_URI, _DOCS_TARGET_ROOT_PATH)
+    swagger_present_uri = SWAGGER_PRESENT_URI
+    swagger_bundle_uri = SWAGGER_BUNDLE_URI
+    swagger_css_uri = SWAGGER_CSS_URI
+    swagger_mirror_external_resources = True
 
 extensions.append("autoapi.extension")
 
