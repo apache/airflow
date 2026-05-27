@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-26T15:18:42.823061
+# This constraints file was automatically generated on 2026-05-27T04:33:28.979055
 # via `uv pip install --resolution highest` for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -260,7 +260,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.1
 cloudpickle==3.1.1
-cohere==5.21.1
+cohere==7.0.0
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
@@ -423,7 +423,7 @@ jeepney==0.9.0
 jiter==0.15.0
 jmespath==1.1.0
 joblib==1.5.3
-joserfc==1.6.5
+joserfc==1.6.7
 jpype1==1.7.1
 jsonpath-ng==1.8.0
 jsonpath-python==1.1.6
@@ -530,8 +530,8 @@ pinecone==9.0.1
 pinotdb==5.7.0
 platformdirs==4.9.6
 pluggy==1.6.0
-polars-runtime-32==1.40.1
-polars==1.40.1
+polars-runtime-32==1.41.0
+polars==1.41.0
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -554,9 +554,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.101.0
+pydantic-ai-slim==1.102.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.101.0
+pydantic-graph==1.102.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
