@@ -665,6 +665,26 @@ class TestSparkSubmitOperatorResumable:
 
         assert all(":6066/" in url for url in captured_urls), "REST API must use port 6066, not the RPC port"
 
+    def test_get_job_status_ha_tries_next_master_on_success_false(self):
+        """success:false from m1 (e.g. HA recovery in progress) should fall through to m2."""
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        bad_response = MagicMock()
+        bad_response.json.return_value = {"success": False, "message": "Driver not found"}
+        good_response = MagicMock()
+        good_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+
+        def side_effect(url, timeout):
+            if "m1" in url:
+                return bad_response
+            return good_response
+
+        with mock.patch("requests.get", side_effect=side_effect):
+            assert operator.get_job_status("driver-001") == "RUNNING"
+
     def test_get_job_status_ha_raises_when_all_masters_unreachable(self):
         operator = self._make_operator()
         hook = self._make_hook(should_track=True)
@@ -694,3 +714,23 @@ class TestSparkSubmitOperatorResumable:
 
         assert len(captured_urls) == 1
         assert captured_urls[0].startswith("https://")
+
+    def test_poll_until_complete_runs_post_submit_on_failure(self):
+        """post_submit_commands must run even when the driver exits with a failure status."""
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://myhost:7077"}
+        hook._driver_status = "FAILED"
+
+        def simulate_failed_tracking():
+            hook._driver_status = "FAILED"
+
+        hook._start_driver_status_tracking = mock.MagicMock(side_effect=simulate_failed_tracking)
+        post_submit_called = []
+        hook._run_post_submit_commands = mock.MagicMock(side_effect=lambda: post_submit_called.append(True))
+        operator._hook = hook
+
+        with pytest.raises(RuntimeError, match="FAILED"):
+            operator.poll_until_complete("driver-001", {})
+
+        assert post_submit_called, "_run_post_submit_commands must be called even on driver failure"

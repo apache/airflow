@@ -110,6 +110,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
     """
 
+    # Generic key used across all Spark deployment modes (standalone driver ID,
+    # YARN application ID, K8s driver pod name).
+    external_id_key = "spark_job_id"
+
     template_fields: Sequence[str] = (
         "application",
         "conf",
@@ -211,10 +215,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
-    # Generic key used across all Spark deployment modes (standalone driver ID,
-    # YARN application ID, K8s driver pod name).
-    external_id_key = "spark_job_id"
-
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
         self.conf = self.conf or {}
@@ -274,8 +274,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             try:
                 status = self._fetch_driver_status(url, external_id)
                 return status
-            except RuntimeError:
-                raise
             except Exception as e:
                 self.log.warning("Could not reach Spark master %s: %s", host, e)
                 last_exc = e
@@ -332,13 +330,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             raise NotImplementedError("K8s poll not yet implemented")
         self.log.info("Polling driver %s until completion", external_id)
         self._hook._driver_id = external_id
-        self._hook._driver_status = "SUBMITTED"
-        self._hook._start_driver_status_tracking()
-        if self._hook._driver_status != "FINISHED":
-            raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
-        # Run post-submit commands here instead of in the hook so they fire after the job
-        # finishes, not immediately after spark-submit returns the driver ID.
-        self._hook._run_post_submit_commands()
+        try:
+            self._hook._start_driver_status_tracking()
+            if self._hook._driver_status != "FINISHED":
+                raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
+        finally:
+            # post-submit commands must fire whether the job succeeded or failed.
+            self._hook._run_post_submit_commands()
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
         return None
