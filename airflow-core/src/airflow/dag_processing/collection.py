@@ -1035,7 +1035,11 @@ class AssetModelOperation(NamedTuple):
             )
 
     def add_asset_trigger_references(
-        self, assets: dict[tuple[str, str], AssetModel], *, session: Session
+        self,
+        assets: dict[tuple[str, str], AssetModel],
+        *,
+        team_name: str | None = None,
+        session: Session,
     ) -> None:
         from airflow.serialization.encoders import encode_trigger
 
@@ -1107,7 +1111,9 @@ class AssetModelOperation(NamedTuple):
                 trigger
                 for trigger in [
                     Trigger(
-                        classpath=triggers[trigger_hash]["classpath"], kwargs=triggers[trigger_hash]["kwargs"]
+                        classpath=triggers[trigger_hash]["classpath"],
+                        kwargs=triggers[trigger_hash]["kwargs"],
+                        team_name=team_name,
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

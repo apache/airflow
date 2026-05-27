@@ -2952,6 +2952,62 @@ def test_defer_task_try_number_increment_on_state(
     assert ti.try_number == expected_try_number, msg
 
 
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("multi_team_enabled", "has_team"),
+    [
+        pytest.param("True", True, id="multi-team-enabled-with-team"),
+        pytest.param("True", False, id="multi-team-enabled-no-team"),
+        pytest.param("False", True, id="multi-team-disabled"),
+    ],
+)
+def test_defer_task_populates_trigger_team_name(
+    create_task_instance, session, testing_dag_bundle, testing_team, multi_team_enabled, has_team
+):
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    from tests_common.test_utils.config import conf_vars
+
+    bundle = session.get(DagBundleModel, "testing")
+    team = session.get(Team, "testing")
+    if has_team:
+        if team not in bundle.teams:
+            bundle.teams.append(team)
+    else:
+        bundle.teams = []
+    session.flush()
+
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel as DM
+
+    ti = create_task_instance(
+        dag_id="test_defer_team",
+        task_id="op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+            trigger_kwargs={"moment": "2024-01-01"},
+        ),
+        session=session,
+    )
+    session.execute(update(DM).where(DM.dag_id == "test_defer_team").values(bundle_name="testing"))
+    session.flush()
+
+    with conf_vars({("core", "multi_team"): multi_team_enabled}):
+        ti.defer_task(session=session)
+
+    trigger = session.scalars(select(Trigger)).one()
+    if multi_team_enabled == "True" and has_team:
+        assert trigger.team_name == "testing"
+    else:
+        assert trigger.team_name is None
+
+
 class TestTaskInstanceRelationships:
     @pytest.mark.parametrize(
         "attr",

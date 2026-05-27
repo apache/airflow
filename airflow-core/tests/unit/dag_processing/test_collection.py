@@ -230,6 +230,53 @@ class TestAssetModelOperation:
         assert len(asset_model.triggers) == expected_num_triggers
 
     @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("use_team", "expected"),
+        [
+            pytest.param(True, "testing", id="with-team"),
+            pytest.param(False, None, id="no-team"),
+        ],
+    )
+    def test_add_asset_trigger_references_populates_team_name(
+        self, dag_maker, session, testing_team, use_team, expected
+    ):
+        asset = Asset(
+            "test_trigger_team_asset",
+            watchers=[AssetWatcher(name="watcher", trigger=FileDeleteTrigger(mock.Mock()))],
+        )
+
+        with dag_maker(dag_id="test_trigger_team_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        # Use raw DagModelOperation (not dag_maker's bulk_write_to_db) to control team_name
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_stale = False
+        orm_dags[dag.dag_id].is_paused = False
+        session.flush()
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        # Clear any triggers created by dag_maker's bulk_write_to_db
+        session.execute(delete(Trigger))
+        for asset_model in orm_assets.values():
+            asset_model.watchers = []
+        session.flush()
+
+        team_name = testing_team.name if use_team else None
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert len(triggers) == 1
+        assert triggers[0].team_name == expected
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):
         """Trigger hash from the DAG-parsed path must equal the hash computed
         from the DB-stored Trigger row.  A mismatch causes the scheduler to

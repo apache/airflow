@@ -1718,9 +1718,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 self.trigger_timeout = None
 
+            team_name: str | None = None
+            if conf.getboolean("core", "multi_team"):
+                from airflow.models.dag import DagModel
+
+                team_name = DagModel.get_team_name(self.dag_id, session=session)
+
             trigger_row = Trigger(
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
+                team_name=team_name,
             )
 
             # First, make the trigger entry

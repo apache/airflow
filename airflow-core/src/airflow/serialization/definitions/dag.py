@@ -36,6 +36,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -220,7 +221,11 @@ class SerializedDAG:
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()  # Activation is needed when we add trigger references.
 
-        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        team_name: str | None = None
+        if airflow_conf.getboolean("core", "multi_team"):
+            team_name = DagBundleModel.get_team_name(bundle_name, session=session)
+
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
         session.flush()
 
