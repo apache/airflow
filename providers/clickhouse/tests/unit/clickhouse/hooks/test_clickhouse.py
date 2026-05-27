@@ -556,7 +556,7 @@ class TestClickHouseHookClientKwargsFromExtra:
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_invalid_client_kwargs_string_raises(self, mock_get_connection):
-        """Malformed JSON string in client_kwargs raises JSONDecodeError."""
+        """Malformed JSON string in client_kwargs raises ValueError with a clear message."""
         conn = Connection(
             conn_id="ch_bad_client_kwargs",
             conn_type="clickhouse",
@@ -566,7 +566,7 @@ class TestClickHouseHookClientKwargsFromExtra:
         mock_get_connection.return_value = conn
         hook = ClickHouseHook(clickhouse_conn_id="ch_bad_client_kwargs")
 
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(ValueError, match="Invalid JSON in extra.client_kwargs"):
             hook._get_client_kwargs()
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
@@ -655,7 +655,7 @@ class TestClickHouseHookSessionSettings:
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_invalid_session_settings_string_raises(self, mock_get_connection):
-        """Malformed JSON string in session_settings raises JSONDecodeError."""
+        """Malformed JSON string in session_settings raises ValueError with a clear message."""
         conn = Connection(
             conn_id="clickhouse_bad_json",
             conn_type="clickhouse",
@@ -665,7 +665,7 @@ class TestClickHouseHookSessionSettings:
         mock_get_connection.return_value = conn
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_bad_json")
 
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(ValueError, match="Invalid JSON in extra.session_settings"):
             hook._get_client_kwargs()
 
 
