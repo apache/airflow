@@ -453,6 +453,46 @@ class TestDmsModifyTaskOperator:
             mock_modify.assert_called_once()
             mock_start.assert_not_called()
 
+    @mock.patch.object(DmsHook, "start_replication_task")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_execute_complete_success(self, mock_conn, mock_start):
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected) as mock_modify:
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                table_mappings=self.TABLE_MAPPINGS,
+                restart_task_after=True,
+                start_replication_task_type="resume-processing",
+            )
+            success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
+            with mock.patch.object(op, "_wait_until_not_modifying"):
+                result = op.execute_complete({}, success_event)
+
+            mock_modify.assert_called_once_with(
+                replication_task_arn=self.TASK_ARN,
+                table_mappings=self.TABLE_MAPPINGS,
+                migration_type=None,
+                replication_task_settings=None,
+                cdc_start_time=None,
+                cdc_start_position=None,
+                cdc_stop_position=None,
+            )
+            mock_start.assert_called_once_with(
+                replication_task_arn=self.TASK_ARN,
+                start_replication_task_type="resume-processing",
+            )
+            assert result == expected
+
+    def test_execute_complete_error(self):
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_task_arn": self.TASK_ARN}
+        with pytest.raises(AirflowException, match="Error waiting for replication task to stop"):
+            op.execute_complete({}, error_event)
+
     def test_template_fields(self):
         op = DmsModifyTaskOperator(
             task_id="modify_task",
