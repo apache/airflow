@@ -168,7 +168,11 @@ const createPreComponent =
     const { children: codeChildren, className } = codeElement.props;
     const match = /language-(?<lang>[-\w]+)/u.exec(className ?? "");
     const language = match?.groups?.lang;
-    const childString = extractTextContent(codeChildren).replace(/\n$/u, "");
+const codeText = Array.isArray(codeChildren)
+  ? codeChildren.join("")
+  : (codeChildren ?? "");
+
+const childString = String(codeText).replace(/\n$/u, "");
 
     if (language === "mermaid") {
       return <MarkdownMermaid chart={childString} fallbackStyle={style} />;
