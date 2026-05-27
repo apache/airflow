@@ -28,16 +28,29 @@ from unittest.mock import patch
 import pytest
 import structlog
 
+from airflow.sdk._shared.timezones import timezone
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
     _RequestFrame,
+)
+
+# A minimal DagRun instance used in the GetDagRun test case.
+_MOCK_DAG_RUN = DagRun(
+    dag_id="test_dag",
+    run_id="test_run",
+    run_after=timezone.parse("2024-01-01T00:00:00+00:00"),
+    run_type=DagRunType.MANUAL,
+    state=DagRunState.RUNNING,
+    consumed_asset_events=[],
 )
 
 
@@ -172,6 +185,15 @@ class TestCallbackHandleRequest:
                 response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="secret"),
             ),
             mask_secret_args=("secret",),
+        ),
+        RequestCase(
+            message=GetDagRun(dag_id="test_dag", run_id="test_run"),
+            test_id="get_dag_run",
+            client_mock=ClientMock(
+                method_path="dag_runs.get_detail",
+                args=("test_dag", "test_run"),
+                response=_MOCK_DAG_RUN,
+            ),
         ),
         RequestCase(
             message=GetVariable(key="test_key"),

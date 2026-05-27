@@ -27,7 +27,8 @@ from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, Call
 
 TEST_MESSAGE = "test_message"
 TEST_CALLBACK_PATH = "classpath.test_callback"
-TEST_CALLBACK_KWARGS = {"message": TEST_MESSAGE, "context": {"dag_run": "test"}}
+TEST_CALLBACK_KWARGS = {"message": TEST_MESSAGE}
+TEST_CALLBACK_CONTEXT = {"dag_run": "test"}
 
 
 class ExampleAsyncNotifier(BaseNotifier):
@@ -48,10 +49,13 @@ class TestCallbackTrigger:
     @pytest.fixture
     def trigger(self):
         """Create a fresh trigger per test to avoid shared mutable state."""
-        return CallbackTrigger(
+        trigger = CallbackTrigger(
             callback_path=TEST_CALLBACK_PATH,
             callback_kwargs=dict(TEST_CALLBACK_KWARGS),
         )
+        # Simulate the TriggerRunner setting context (built from dag_run_data)
+        trigger._callback_context = TEST_CALLBACK_CONTEXT
+        return trigger
 
     @pytest.fixture
     def mock_import_string(self):
@@ -93,7 +97,7 @@ class TestCallbackTrigger:
         success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         # AsyncMock accepts **kwargs, so _accepts_context returns True and context is passed through
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS, context=TEST_CALLBACK_CONTEXT)
         assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
@@ -129,6 +133,30 @@ class TestCallbackTrigger:
         failure_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         # AsyncMock accepts **kwargs, so _accepts_context returns True and context is passed through
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS, context=TEST_CALLBACK_CONTEXT)
         assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
+
+    @pytest.mark.asyncio
+    async def test_run_backward_compat_context_in_kwargs(self, mock_import_string):
+        """Test backward compatibility: context in callback_kwargs when self._callback_context is None."""
+        callback_return_value = "compat value"
+        mock_callback = mock.AsyncMock(return_value=callback_return_value)
+        mock_import_string.return_value = mock_callback
+
+        # Simulate a pre-upgrade trigger that has context embedded in callback_kwargs
+        trigger = CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH,
+            callback_kwargs={"message": TEST_MESSAGE, "context": {"dag_run": "legacy"}},
+        )
+        # self._callback_context is None by default (not set by TriggerRunner)
+
+        trigger_gen = trigger.run()
+
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
+
+        success_event = await anext(trigger_gen)
+        mock_callback.assert_called_once_with(message=TEST_MESSAGE, context={"dag_run": "legacy"})
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value

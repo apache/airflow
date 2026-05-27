@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
+from sqlalchemy.orm import Mapped, Session, joinedload, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -212,7 +212,8 @@ class Trigger(Base):
             .options(
                 selectinload(cls.task_instance)
                 .joinedload(TaskInstance.trigger)
-                .joinedload(Trigger.triggerer_job)
+                .joinedload(Trigger.triggerer_job),
+                joinedload(cls.callback),
             )
         )
         return {obj.id: obj for obj in session.scalars(stmt)}

@@ -457,6 +457,8 @@ class TestLocalExecutorCallbackSupport:
             id=self.CALLBACK_UUID,
             callback_path="test.module.my_callback",
             callback_kwargs={"arg1": "val1"},
+            dag_id=None,
+            run_id=None,
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
