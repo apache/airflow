@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -263,3 +266,79 @@ class DmsTaskStoppedTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+
+class DmsTaskModifyCompleteTrigger(BaseTrigger):
+    """
+    Trigger that polls until a DMS classic replication task exits the ``modifying`` state.
+
+    The boto3 ``replication_task_stopped`` waiter treats ``modifying`` as a terminal failure,
+    so a custom polling loop is required here.
+
+    :param replication_task_arn: The ARN of the replication task.
+    :param waiter_delay: Seconds between polls.
+    :param waiter_max_attempts: Maximum number of poll attempts before giving up.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param verify: Whether or not to verify SSL certificates.
+    :param botocore_config: Configuration dictionary (key-values) for botocore client.
+    """
+
+    def __init__(
+        self,
+        replication_task_arn: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ) -> None:
+        super().__init__()
+        self.replication_task_arn = replication_task_arn
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.aws_conn_id = aws_conn_id
+        self.verify = verify
+        self.botocore_config = botocore_config
+
+    def serialize(self) -> tuple[str, dict]:
+        return (
+            "airflow.providers.amazon.aws.triggers.dms.DmsTaskModifyCompleteTrigger",
+            {
+                "replication_task_arn": self.replication_task_arn,
+                "waiter_delay": self.waiter_delay,
+                "waiter_max_attempts": self.waiter_max_attempts,
+                "aws_conn_id": self.aws_conn_id,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = DmsHook(aws_conn_id=self.aws_conn_id, verify=self.verify, config=self.botocore_config)
+        try:
+            for _ in range(self.waiter_max_attempts):
+                status = await hook.get_task_status_async(self.replication_task_arn)
+                if status != "modifying":
+                    yield TriggerEvent(
+                        {"status": "success", "replication_task_arn": self.replication_task_arn}
+                    )
+                    return
+                await asyncio.sleep(self.waiter_delay)
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": (
+                        f"Replication task {self.replication_task_arn} did not exit 'modifying' state "
+                        f"after {self.waiter_max_attempts} attempts."
+                    ),
+                    "replication_task_arn": self.replication_task_arn,
+                }
+            )
+        except Exception as e:
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(e),
+                    "replication_task_arn": self.replication_task_arn,
+                }
+            )

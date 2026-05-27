@@ -493,6 +493,55 @@ class TestDmsModifyTaskOperator:
         with pytest.raises(AirflowException, match="Error waiting for replication task to stop"):
             op.execute_complete({}, error_event)
 
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_execute_complete_defers_for_restart_in_deferrable_mode(self, mock_conn):
+        from airflow.exceptions import TaskDeferred
+        from airflow.providers.amazon.aws.triggers.dms import DmsTaskModifyCompleteTrigger
+
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                table_mappings=self.TABLE_MAPPINGS,
+                restart_task_after=True,
+                deferrable=True,
+            )
+            success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
+            with pytest.raises(TaskDeferred) as exc_info:
+                op.execute_complete({}, success_event)
+
+        assert isinstance(exc_info.value.trigger, DmsTaskModifyCompleteTrigger)
+        assert exc_info.value.method_name == "execute_restart"
+
+    @mock.patch.object(DmsHook, "start_replication_task")
+    def test_execute_restart_success(self, mock_start):
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+            start_replication_task_type="start-replication",
+        )
+        success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
+        op.execute_restart({}, success_event)
+
+        mock_start.assert_called_once_with(
+            replication_task_arn=self.TASK_ARN,
+            start_replication_task_type="start-replication",
+        )
+
+    def test_execute_restart_error(self):
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+        )
+        error_event = {
+            "status": "error",
+            "message": "Timeout waiting for modify",
+            "replication_task_arn": self.TASK_ARN,
+        }
+        with pytest.raises(AirflowException, match="Error waiting for DMS task modification to complete"):
+            op.execute_restart({}, error_event)
+
     def test_template_fields(self):
         op = DmsModifyTaskOperator(
             task_id="modify_task",

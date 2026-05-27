@@ -242,6 +242,15 @@ class DmsHook(AwsBaseHook):
         response = dms_client.modify_replication_task(**kwargs)
         return response.get("ReplicationTask", {})
 
+    async def get_task_status_async(self, replication_task_arn: str) -> str | None:
+        async with await self.get_async_conn() as client:
+            response = await client.describe_replication_tasks(
+                Filters=[{"Name": "replication-task-arn", "Values": [replication_task_arn]}],
+                WithoutSettings=True,
+            )
+            tasks = response.get("ReplicationTasks", [])
+            return tasks[0]["Status"].lower() if tasks else None
+
     def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
         """
         Wait for replication task to reach status; supported statuses: deleted, ready, running, stopped.

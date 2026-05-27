@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationStoppedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTaskModifyCompleteTrigger,
     DmsTaskStoppedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
@@ -145,9 +146,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     :param start_replication_task_type: Start type used when restarting the task.
         One of 'start-replication', 'resume-processing', or 'reload-target'.
         Defaults to 'resume-processing'. Only used when ``restart_task_after=True``.
-    :param wait_for_completion: If True, wait for the task to be stopped before modifying
-        when the task is not already in a stopped state. Requires ``stop_task_before=True``
-        or the task to already be stopping. If False, raises if the task is not stopped.
+    :param wait_for_completion: Only applies when the task is already in ``modifying`` state
+        when ``execute()`` is called. If True, wait for the modification to finish before
+        proceeding. If False, raises immediately instead of waiting.
     :param deferrable: Run the operator in deferrable mode.
     :param waiter_delay: Seconds between waiter polls (default: 30).
     :param waiter_max_attempts: Maximum waiter poll attempts (default: 60).
@@ -164,6 +165,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     """
 
     STOPPED_STATES = ("stopped", "ready", "failed", "created")
+    TERMINAL_STATES = frozenset({"failed", "stopped", "ready", "created", "deleting"})
 
     aws_hook_class = DmsHook
     template_fields: Sequence[str] = aws_template_fields(
@@ -309,8 +311,6 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             f"after {self.waiter_max_attempts} attempts."
         )
 
-    TERMINAL_STATES = frozenset({"failed", "stopped", "ready", "created", "deleting"})
-
     def _wait_for_status(self, target_status: str) -> None:
         for _ in range(self.waiter_max_attempts):
             tasks = self.hook.find_replication_tasks_by_arn(
@@ -318,11 +318,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             )
             status = tasks[0].get("Status", "").lower() if tasks else ""
             if status == target_status:
-                self.log.info(
-                    "Replication task(%s) reached status '%s'.", self.replication_task_arn, status
-                )
+                self.log.info("Replication task(%s) reached status '%s'.", self.replication_task_arn, status)
                 return
-            if status in self.TERMINAL_STATES and status != target_status:
+            if status in self.TERMINAL_STATES:
                 raise AirflowException(
                     f"Replication task {self.replication_task_arn} reached terminal state '{status}' "
                     f"while waiting for '{target_status}'."
@@ -352,6 +350,16 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         )
         self.log.info("DMS replication task(%s) has been modified.", self.replication_task_arn)
         if self.restart_task_after:
+            if self.deferrable:
+                self.defer(
+                    trigger=DmsTaskModifyCompleteTrigger(
+                        replication_task_arn=self.replication_task_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_restart",
+                )
             # modify_replication_task is async — poll until it exits 'modifying' before restarting.
             self._wait_until_not_modifying()
             self.log.info(
@@ -364,6 +372,21 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                 start_replication_task_type=self.start_replication_task_type,
             )
         return result
+
+    def execute_restart(self, context: Context, event: dict | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error waiting for DMS task modification to complete: {validated_event}")
+        self.replication_task_arn = validated_event["replication_task_arn"]
+        self.log.info(
+            "Restarting replication task(%s) with type '%s'.",
+            self.replication_task_arn,
+            self.start_replication_task_type,
+        )
+        self.hook.start_replication_task(
+            replication_task_arn=self.replication_task_arn,
+            start_replication_task_type=self.start_replication_task_type,
+        )
 
 
 class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):
