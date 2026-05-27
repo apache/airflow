@@ -21,10 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import {
-  useTaskStateServiceDeleteTaskState,
-  useTaskStateServiceListTaskStatesKey,
-} from "openapi/queries";
+import { useTaskStateServiceDeleteTaskState, useTaskStateServiceListTaskStatesKey } from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton, toaster } from "src/components/ui";
 

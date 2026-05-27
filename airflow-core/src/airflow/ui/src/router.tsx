@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /* eslint-disable react-refresh/only-export-components */
 import { queryOptions } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
