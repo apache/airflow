@@ -280,6 +280,7 @@ def _get_ssl_filepaths(cli_arguments) -> tuple[str | None, str | None, str | Non
 
     return (None, None, None)
 
+
 def _ssl_cert_reqs(cli_arguments):
     cert_reqs = cli_arguments.ssl_cert_reqs
     if cert_reqs is None or cert_reqs == "none":
