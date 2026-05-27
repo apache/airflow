@@ -173,7 +173,7 @@
           "title": "覆蓋"
         },
         "skip": {
-          "description": "略過匯入已存在的變數。",
+          "description": "跳過匯入已存在的變數。",
           "title": "跳過"
         }
       },

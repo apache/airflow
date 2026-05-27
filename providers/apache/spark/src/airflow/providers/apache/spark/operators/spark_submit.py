@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -48,6 +48,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -262,7 +264,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self.log.info("Spark driver submitted: %s", driver_id)
         return driver_id
 
-    def get_job_status(self, external_id: str) -> str:
+    def get_job_status(self, external_id: JsonValue) -> str:
+        # called from submit_job which always returns a str (Spark driver IDs are strings)
+        external_id = cast("str", external_id)
         if self._hook is None:
             self._hook = self._get_hook()
         if self._hook._is_yarn_cluster_mode:
@@ -328,7 +332,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             return status == "SUCCEEDED"
         return status == "FINISHED"
 
-    def poll_until_complete(self, external_id: str, context: Context) -> None:
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        # called from submit_job which always returns a str (Spark driver IDs are strings)
+        external_id = cast("str", external_id)
         if self._hook is None:
             self._hook = self._get_hook()
         if self._hook._is_yarn_cluster_mode:
@@ -348,7 +354,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         # finishes, not immediately after spark-submit returns the driver ID.
         self._hook._run_post_submit_commands()
 
-    def get_job_result(self, external_id: str, context: Context) -> None:
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
         return None
 
     def on_kill(self) -> None:

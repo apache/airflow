@@ -6719,6 +6719,46 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
             }
         ]
 
+    @pytest.mark.parametrize("task_count", [5, 10, 20])
+    def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
+        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
+        # each extra task instance must add exactly QUERIES_PER_TASK_INSTANCE query (its DELETE),
+        # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
+        # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
+        QUERIES_PER_TASK_INSTANCE = 1
+        BASE_QUERY_COUNT = 5
+
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": tuple(range(task_count))}],
+        )
+        request_body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"task_id": self.TASK_ID, "map_index": map_index} for map_index in range(task_count)
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch(self.ENDPOINT_URL, json=request_body)
+
+        assert response.status_code == 200
+        assert len(response.json()["delete"]["success"]) == task_count
+
+        query_count = sum(result.values())
+        expected_query_count = BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE
+        assert query_count == expected_query_count, (
+            f"Bulk-delete query count {query_count} does not match expected {expected_query_count} "
+            f"for {task_count} task instances. "
+            f"A regression that re-queries each task instance would give "
+            f"~{BASE_QUERY_COUNT + task_count * 2} queries instead."
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 401
