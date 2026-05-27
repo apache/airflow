@@ -1774,6 +1774,15 @@ api:
       type: string
       example: ~
       default: ~
+    ssl_cert_reqs:
+      description: |
+        Enable ssl certificate verification on the api server.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
+        Valid options are 'none', 'optional' or 'required'
+      version_added: ~
+      type: string
+      example: "required"
+      default: "none"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param

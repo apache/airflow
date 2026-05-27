@@ -431,6 +431,7 @@ class TestCreateGunicornApp:
                 ssl_cert="/path/to/cert.pem",
                 ssl_key="/path/to/key.pem",
                 ssl_ca_file="/path/to/ca.crt",
+                ssl_cert_reqs=1,
             )
 
             options = mock_app_class.call_args[0][0]
@@ -438,6 +439,7 @@ class TestCreateGunicornApp:
             assert options["certfile"] == "/path/to/cert.pem"
             assert options["keyfile"] == "/path/to/key.pem"
             assert options["ca_certs"] == "/path/to/ca.crt"
+            assert options["cert_reqs"] == 1
 
     def test_create_app_with_proxy_headers(self):
         """Test creating an app with proxy headers enabled."""

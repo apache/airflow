@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import ssl
 import sys
 import textwrap
 from collections.abc import Callable
@@ -76,6 +77,7 @@ def _run_api_server_with_gunicorn(
         ssl_cert=ssl_cert,
         ssl_key=ssl_key,
         ssl_ca_file=ssl_ca_file,
+        ssl_cert_reqs=_ssl_cert_reqs(args),
         log_level=log_level,
         proxy_headers=proxy_headers,
     )
@@ -120,6 +122,7 @@ def _run_api_server_with_uvicorn(
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
         "ssl_ca_certs": ssl_ca_file,
+        "ssl_cert_reqs": _ssl_cert_reqs(args),
         # HttpAccessLogMiddleware handles access logging; disable uvicorn's built-in access log.
         "access_log": False,
         "log_level": uvicorn_log_level,
@@ -276,3 +279,13 @@ def _get_ssl_filepaths(cli_arguments) -> tuple[str | None, str | None, str | Non
         raise AirflowConfigException(error_template_1.format("SSL key", "SSL certificate"))
 
     return (None, None, None)
+
+def _ssl_cert_reqs(cli_arguments):
+    cert_reqs = cli_arguments.ssl_cert_reqs
+    if cert_reqs is None or cert_reqs == "none":
+        return ssl.CERT_NONE
+    if cert_reqs == "required":
+        return ssl.CERT_REQUIRED
+    if cert_reqs == "optional":
+        return ssl.CERT_OPTIONAL
+    raise ValueError("Invalid ssl cert reqs option: %s", cert_reqs)

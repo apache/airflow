@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ssl
 import sys
 from unittest import mock
 
@@ -147,6 +148,8 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_key_path_placeholder",
                     "--ssl-ca-file",
                     "ssl_ca_file_placeholder",
+                    "--ssl-cert-reqs",
+                    "required",
                     "--apps",
                     "core",
                 ],
@@ -154,6 +157,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_keyfile": "ssl_key_path_placeholder",
                     "ssl_certfile": "ssl_cert_path_placeholder",
                     "ssl_ca_certs": "ssl_ca_file_placeholder",
+                    "ssl_cert_reqs": ssl.CERT_REQUIRED,
                 },
                 id="api-server with SSL cert and key",
             ),
@@ -167,6 +171,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_keyfile": None,
                     "ssl_certfile": None,
                     "ssl_ca_certs": None,
+                    "ssl_cert_reqs": ssl.CERT_NONE,
                     "log_config": "my_log_config.yaml",
                 },
                 id="api-server with log config",
@@ -255,6 +260,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             ssl_keyfile=None,
             ssl_certfile=None,
             ssl_ca_certs=None,
+            ssl_cert_reqs=ssl.CERT_NONE,
             access_log=False,
             log_level="info",
             proxy_headers=False,
