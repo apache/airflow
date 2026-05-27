@@ -34,6 +34,8 @@ from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -112,7 +114,7 @@ def _recording_pod_manager():
     Tests should assert against ``pm.deleted`` to observe which monitoring pods
     were actually deleted — the only thing that matters to the cluster.
     """
-    pm = mock.MagicMock()
+    pm = mock.create_autospec(PodManager, instance=True)
     pm.deleted = []
     pm.delete_pod.side_effect = lambda pod: pm.deleted.append(pod.metadata.name)
     return pm
@@ -918,7 +920,7 @@ class TestKubernetesJobOperator:
         mock_pod_manager_prop.return_value = pm
         mock_hook.get_pod.side_effect = ApiException(status=403, reason="Forbidden")
         event = {
-            "job": mock.MagicMock(),
+            "job": {},
             "status": "success",
             "pod_names": [POD_NAME],
             "pod_namespace": POD_NAMESPACE,
@@ -1453,7 +1455,7 @@ class TestKubernetesJobOperator:
             attempted.append(pod.metadata.name)
             raise ApiException(status=500, reason="boom")
 
-        pm = mock.MagicMock()
+        pm = mock.create_autospec(PodManager, instance=True)
         pm.delete_pod.side_effect = boom
         mock_pod_manager_prop.return_value = pm
 
@@ -1491,7 +1493,7 @@ class TestKubernetesJobOperator:
         pod = _pod("pod-1")
         mock_get_pods.return_value = [pod]
         mock_execute_deferrable.side_effect = TaskDeferred(
-            trigger=mock.MagicMock(), method_name="execute_complete"
+            trigger=mock.create_autospec(KubernetesJobTrigger, instance=True), method_name="execute_complete"
         )
 
         op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True, deferrable=True)

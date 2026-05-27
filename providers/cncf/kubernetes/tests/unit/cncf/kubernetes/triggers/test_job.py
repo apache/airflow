@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.triggers.base import TriggerEvent
@@ -141,7 +142,7 @@ class TestKubernetesJobTrigger:
             get_logs=False,
             do_xcom_push=XCOM_PUSH,
         )
-        mock_job = mock.MagicMock()
+        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
         mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
