@@ -1550,6 +1550,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_retry_callback",
                     "on_skipped_callback",
                     "retry_policy",
+                    "target_date",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
