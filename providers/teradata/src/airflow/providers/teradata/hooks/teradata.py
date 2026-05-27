@@ -23,12 +23,13 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import teradatasql
-from teradatasql import TeradataConnection
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from teradatasql import TeradataConnection
+
     try:
         from airflow.sdk import Connection
     except ImportError:

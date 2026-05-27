@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import pyexasol
 from deprecated import deprecated
-from pyexasol import ExaConnection, ExaStatement
 
 try:
     from sqlalchemy.engine import URL
@@ -38,6 +37,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     import pandas as pd
+    from pyexasol import ExaConnection, ExaStatement
 
 T = TypeVar("T")
 

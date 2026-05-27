@@ -27,7 +27,7 @@ import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
 from pydantic import BaseModel
-from requests import PreparedRequest, Request, Response, Session
+from requests import Request, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
@@ -40,6 +40,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from requests import PreparedRequest, Response
     from requests.adapters import HTTPAdapter
 
     from airflow.models import Connection

@@ -47,7 +47,7 @@ from asgiref.sync import sync_to_async
 from boto3.resources.base import ServiceResource
 from botocore.client import BaseClient
 from botocore.config import Config
-from botocore.waiter import Waiter, WaiterModel
+from botocore.waiter import WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
@@ -75,6 +75,7 @@ if TYPE_CHECKING:
     from aiobotocore.session import AioSession
     from botocore.client import ClientMeta
     from botocore.credentials import ReadOnlyCredentials
+    from botocore.waiter import Waiter
 
     from airflow.models.connection import Connection
     from airflow.sdk.execution_time.secrets_masker import mask_secret

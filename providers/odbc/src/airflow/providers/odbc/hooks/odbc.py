@@ -20,13 +20,16 @@ from __future__ import annotations
 
 from collections import namedtuple
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
-from pyodbc import Connection, Row, connect
+from pyodbc import connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
+
+if TYPE_CHECKING:
+    from pyodbc import Connection, Row
 
 
 class OdbcHook(DbApiHook):

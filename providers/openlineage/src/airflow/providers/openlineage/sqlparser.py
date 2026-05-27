@@ -24,7 +24,7 @@ import sqlparse
 from attrs import define
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import column_lineage_dataset, extraction_error_run, sql_job
-from openlineage.common.sql import DbTableMeta, SqlMeta, parse
+from openlineage.common.sql import parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.utils.sql import (
@@ -36,6 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet
+    from openlineage.common.sql import DbTableMeta, SqlMeta
     from sqlalchemy.engine import Engine
 
     from airflow.providers.common.compat.sdk import BaseHook

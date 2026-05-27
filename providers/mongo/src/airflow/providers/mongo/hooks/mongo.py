@@ -23,7 +23,6 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
-import pymongo
 from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import CollectionInvalid
 
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Literal
 
+    import pymongo
     from pymongo.collection import Collection as MongoCollection
     from pymongo.command_cursor import CommandCursor
 

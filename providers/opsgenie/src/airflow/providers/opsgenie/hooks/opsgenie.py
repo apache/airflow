@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from opsgenie_sdk import (
     AlertApi,
@@ -26,10 +26,12 @@ from opsgenie_sdk import (
     Configuration,
     CreateAlertPayload,
     OpenApiException,
-    SuccessResponse,
 )
 
 from airflow.providers.common.compat.sdk import BaseHook
+
+if TYPE_CHECKING:
+    from opsgenie_sdk import SuccessResponse
 
 
 class OpsgenieAlertHook(BaseHook):

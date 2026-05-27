@@ -24,8 +24,6 @@ import yaml
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import (
-    JobFacet,
-    RunFacet,
     documentation_job,
     error_message_run,
     job_type_job,
@@ -54,6 +52,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from openlineage.client.facet_v2 import JobFacet, RunFacet
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker

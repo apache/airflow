@@ -45,7 +45,6 @@ from flask_appbuilder.const import (
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
-    BaseRegisterUser,
     RegisterUserDBView,
     RegisterUserOAuthView,
 )
@@ -53,10 +52,8 @@ from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
     AuthRemoteUserView,
-    AuthView,
     RegisterUserModelView,
     UserGroupModelView,
-    UserModelView,
 )
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
@@ -110,6 +107,8 @@ from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from authlib.integrations.flask_client import OAuth
+    from flask_appbuilder.security.registerviews import BaseRegisterUser
+    from flask_appbuilder.security.views import AuthView, UserModelView
 
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
