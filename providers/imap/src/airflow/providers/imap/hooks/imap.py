@@ -321,13 +321,13 @@ class ImapHook(BaseHook):
     ) -> None:
         file_path = self._correct_path(name, local_output_directory)
 
-        if not overwrite_file and os.path.exists(file_path):
+        if not overwrite_file:
             base, ext = os.path.splitext(file_path)
-            counter = 1
+            counter = 0
             while True:
-                file_path = f"{base}_{counter}{ext}"
+                current_file_path = file_path if counter == 0 else f"{base}_{counter}{ext}"
                 try:
-                    with open(file_path, "xb") as file:
+                    with open(current_file_path, "xb") as file:
                         file.write(payload)
                     return
                 except FileExistsError:
