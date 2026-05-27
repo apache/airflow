@@ -105,4 +105,3 @@ http://localhost:8080
 ```
 
 **Note:** The `airflow standalone` command prints the generated username and password in the terminal on first run. Use these credentials to log in to the Airflow UI.
-
