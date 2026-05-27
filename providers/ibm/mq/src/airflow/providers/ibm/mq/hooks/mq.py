@@ -25,13 +25,27 @@ from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
+from functools import wraps
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
+
+
+# Guarded, module-level import for the optional heavy `ibmmq` C extension.
+# Providers should avoid importing optional dependencies at module import time
+# to keep Airflow lightweight for users who don't need the provider. Importing
+# inline in every function is repetitive; perform a single guarded import and
+# raise a clear error on first use.
+try:
+    import ibmmq  # type: ignore
+except (ImportError, ModuleNotFoundError):  # missing optional dependency
+    ibmmq = None  # type: ignore
+
 
 # Backoff parameters for transient consume failures
 _BACKOFF_BASE: float = 1.0
@@ -51,6 +65,27 @@ _TRANSIENT_REASON_NAMES = frozenset(
 # avoids colliding with a legitimate MQ reason/completion code of 0 and
 # allows downstream consumers (logs, Sentry tags) to distinguish non-MQ errors.
 _NON_MQ_SENTINEL: int = -1
+
+
+def requires_ibmmq(func):
+    """
+    Ensure the optional ``ibmmq`` module is available.
+
+    Use this decorator on functions or methods that call into the native ``ibmmq`` extension so callers
+    receive a clear :class:`AirflowOptionalProviderFeatureException` when the dependency is not installed.
+    """
+
+    @wraps(func)
+    def _wrapped(*args, **kwargs):
+        if ibmmq is None:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'ibmmq' package is required to use the IBM MQ provider. "
+                "Install the provider extra (e.g. 'apache-airflow-providers-ibm[ibm-mq]') "
+                "or add the 'ibmmq' dependency to your environment."
+            )
+        return func(*args, **kwargs)
+
+    return _wrapped
 
 
 class IBMMQError(Exception):
@@ -115,6 +150,7 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
         self.future = future
         self.stop_event = stop_event
 
+    @requires_ibmmq
     def _process_message(self, message: bytes) -> str:
         """
         Process a raw MQ message.
@@ -130,8 +166,6 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
         :param message: Raw message received from IBM MQ.
         :return: Decoded message payload.
         """
-        import ibmmq
-
         try:
             rfh2 = ibmmq.RFH2()
             rfh2.unpack(message)
@@ -167,6 +201,7 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
                 self.log.debug("Raw message payload (truncated): %s", truncated_message_display)
             return message.decode("utf-8", errors="ignore")
 
+    @requires_ibmmq
     def consume(
         self,
         queue_name: str,
@@ -189,7 +224,6 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
 
         For an asynchronous interface see :meth:`IBMMQHook.aconsume`.
         """
-        import ibmmq
 
         transient_reasons = frozenset(
             getattr(ibmmq.CMQC, name) for name in _TRANSIENT_REASON_NAMES if hasattr(ibmmq.CMQC, name)
@@ -356,6 +390,7 @@ class IBMMQHook(BaseHook):
         }
 
     @classmethod
+    @requires_ibmmq
     def get_open_options_flags(cls, open_options: int) -> list[str]:
         """
         Return the symbolic MQ open option flags set in a given bitmask.
@@ -373,7 +408,6 @@ class IBMMQHook(BaseHook):
             >>> cls.get_open_options_flags(open_options)
             ['MQOO_INPUT_SHARED', 'MQOO_FAIL_IF_QUIESCING']
         """
-        import ibmmq
 
         return [
             name
@@ -393,6 +427,7 @@ class IBMMQHook(BaseHook):
         return self.open_options
 
     @staticmethod
+    @requires_ibmmq
     def _connect(queue_manager: str, channel: str, conn_info: str, csp):
         """
         Connect to the IBM MQ queue manager.
@@ -402,7 +437,6 @@ class IBMMQHook(BaseHook):
 
         :return: IBM MQ connection object
         """
-        import ibmmq
 
         try:
             return ibmmq.connect(queue_manager, channel, conn_info, csp=csp)
@@ -413,6 +447,7 @@ class IBMMQHook(BaseHook):
             ) from e
 
     @contextmanager
+    @requires_ibmmq
     def get_conn(self, connection: Connection | None = None):
         """
         Sync context manager for IBM MQ connection lifecycle.
@@ -425,8 +460,6 @@ class IBMMQHook(BaseHook):
             the connection is resolved from ``self.conn_id``.
         :yield: IBM MQ connection object
         """
-        import ibmmq
-
         connection = connection or BaseHook.get_connection(self.conn_id)
         config = connection.extra_dejson
         queue_manager = self.queue_manager or config.get("queue_manager")
@@ -573,6 +606,7 @@ class IBMMQHook(BaseHook):
             connection, queue_name, payload, open_options
         )
 
+    @requires_ibmmq
     def produce(
         self,
         connection: Connection,
@@ -590,7 +624,6 @@ class IBMMQHook(BaseHook):
         :param open_options: Integer bitmask of ``MQOO_*`` open options for the queue.
             If not provided, defaults to ``MQOO_OUTPUT``.
         """
-        import ibmmq
 
         od = ibmmq.OD()
         od.ObjectName = queue_name
