@@ -1424,6 +1424,51 @@ class TestAssetStateAccessors:
 
         assert accessors._total == 0
 
+    def test_outlet_only_asset_is_accessible(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v1")
+
+        result = AssetStateAccessors([], [asset])[asset].get("watermark")
+
+        assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_uri_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetUriRef(uri=self.ASSET_URI)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v2")
+
+        result = AssetStateAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_outlet_only_single_shorthand_works(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v3")
+
+        result = AssetStateAccessors([], [asset]).get("watermark")
+
+        assert result == "v3"
+
+    def test_asset_in_both_inlets_and_outlets_not_duplicated(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+
+        accessors = AssetStateAccessors([asset], [asset])
+
+        assert accessors._total == 1
+
+    def test_outlet_alias_is_ignored(self, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+
+        accessors = AssetStateAccessors([], [alias])
+
+        assert accessors._total == 0
+        mock_supervisor_comms.send.assert_not_called()
+
 
 class InMemoryStateBackend(BaseStateBackend):
     """Simple in-memory test backend."""

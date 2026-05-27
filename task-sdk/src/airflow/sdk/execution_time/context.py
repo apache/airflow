@@ -723,16 +723,16 @@ class AssetStateAccessor:
 
 class AssetStateAccessors:
     """
-    Mapping of asset state accessors for all concrete inlets of a task.
+    Mapping of asset state accessors for all concrete inlets and outlets of a task.
 
     Available as ``context['asset_state']``. Subscript by asset to get a per asset
     accessor as: ``context['asset_state'][MY_ASSET].get('watermark')``.
 
-    For tasks with exactly one concrete inlet, the accessor methods (``get``, ``set``,
-    ``delete``, ``clear``) can be called directly without subscripting.
+    For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
+    ``set``, ``delete``, ``clear``) can be called directly without subscripting.
     """
 
-    def __init__(self, inlets: list) -> None:
+    def __init__(self, inlets: list, outlets: list | None = None) -> None:
         self._by_name: dict[str, AssetStateAccessor] = {}
         self._by_uri: dict[str, AssetStateAccessor] = {}
 
@@ -750,6 +750,13 @@ class AssetStateAccessors:
                     for asset in resp.assets:
                         self._by_name[asset.name] = AssetStateAccessor(name=asset.name)
 
+        for outlet in outlets or []:
+            # AssetAlias outlets are for dynamic event emission, not state access, so skip them
+            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in self._by_name:
+                self._by_name[outlet.name] = AssetStateAccessor(name=outlet.name)
+            elif isinstance(outlet, AssetUriRef) and outlet.uri not in self._by_uri:
+                self._by_uri[outlet.uri] = AssetStateAccessor(uri=outlet.uri)
+
         self._total = len(self._by_name) + len(self._by_uri)
 
     def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateAccessor:
@@ -759,7 +766,7 @@ class AssetStateAccessors:
             if isinstance(key, AssetUriRef):
                 return self._by_uri[key.uri]
         except KeyError:
-            raise KeyError(f"{key!r} is not in this task's inlets")
+            raise KeyError(f"{key!r} is not in this task's inlets or outlets")
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
 
     def _single_accessor(self) -> AssetStateAccessor:
