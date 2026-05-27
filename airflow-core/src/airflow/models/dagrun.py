@@ -671,7 +671,6 @@ class DagRun(Base, LoggingMixin):
         running_drs = (
             select(
                 DagRun.dag_id,
-                DagRun.id,
                 DagRun.backfill_id,
                 func.count(DagRun.id).label("num_running"),
             )
@@ -710,7 +709,7 @@ class DagRun(Base, LoggingMixin):
             )
             .join(
                 running_drs,
-                and_(running_drs.c.dag_id == DagRun.dag_id, running_drs.c.id == DagRun.id),
+                running_drs.c.dag_id == DagRun.dag_id,
                 isouter=True,
             )
             .subquery()
