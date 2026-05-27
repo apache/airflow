@@ -539,6 +539,33 @@ def _emit_task_span(ti, state):
         span.end()
 
 
+def _record_circuit_breaker_failure(ti: TI, dag_id: str, session: SessionDep) -> None:
+    """Record a task failure in the circuit breaker table if the task opts in."""
+    from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.task_circuit_breaker import TaskCircuitBreaker
+
+    try:
+        sdm = SerializedDagModel.get(dag_id, session)
+        if sdm is None:
+            return
+        task = sdm.dag.task_dict.get(ti.task_id)
+        if task is None:
+            return
+        max_failures = getattr(task, "circuit_breaker_max_failures", None)
+        if not max_failures:
+            return
+        TaskCircuitBreaker.record_failure(
+            dag_id=dag_id,
+            task_id=ti.task_id,
+            max_failures=max_failures,
+            window=getattr(task, "circuit_breaker_window", None),
+            reset_delay=getattr(task, "circuit_breaker_reset_delay", None),
+            session=session,
+        )
+    except Exception:
+        log.exception("Failed to record circuit breaker failure for %s/%s", dag_id, ti.task_id)
+
+
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
     dr = ti.dag_run
 
@@ -576,6 +603,7 @@ def _create_ti_state_update_query_and_update_state(
             # This is the only case needs extra handling for TITerminalStatePayload
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                _record_circuit_breaker_failure(ti=ti, dag_id=dag_id, session=session)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
                 ti.prepare_db_for_next_try(session)

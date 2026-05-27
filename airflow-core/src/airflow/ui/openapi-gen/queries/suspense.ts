@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, CircuitBreakerService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -212,6 +212,30 @@ export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.Backfil
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData, ...options });
+/**
+* Get Circuit Breaker
+* Get circuit breaker state for a task.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.taskId
+* @returns TaskCircuitBreakerResponse Successful Response
+* @throws ApiError
+*/
+export const useCircuitBreakerServiceGetCircuitBreakerSuspense = <TData = Common.CircuitBreakerServiceGetCircuitBreakerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, taskId }: {
+  dagId: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCircuitBreakerServiceGetCircuitBreakerKeyFn({ dagId, taskId }, queryKey), queryFn: () => CircuitBreakerService.getCircuitBreaker({ dagId, taskId }) as TData, ...options });
+/**
+* List Circuit Breakers
+* List all circuit breaker records for a Dag.
+* @param data The data for the request.
+* @param data.dagId
+* @returns TaskCircuitBreakerCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useCircuitBreakerServiceListCircuitBreakersSuspense = <TData = Common.CircuitBreakerServiceListCircuitBreakersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
+  dagId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCircuitBreakerServiceListCircuitBreakersKeyFn({ dagId }, queryKey), queryFn: () => CircuitBreakerService.listCircuitBreakers({ dagId }) as TData, ...options });
 /**
 * Get Connection
 * Get a connection entry.

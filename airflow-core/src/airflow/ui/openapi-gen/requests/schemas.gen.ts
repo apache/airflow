@@ -5572,6 +5572,106 @@ export const $StructuredLogMessage = {
     description: 'An individual log message.'
 } as const;
 
+export const $TaskCircuitBreakerCollectionResponse = {
+    properties: {
+        circuit_breakers: {
+            items: {
+                '$ref': '#/components/schemas/TaskCircuitBreakerResponse'
+            },
+            type: 'array',
+            title: 'Circuit Breakers'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['circuit_breakers', 'total_entries'],
+    title: 'TaskCircuitBreakerCollectionResponse',
+    description: 'Collection of TaskCircuitBreaker responses.'
+} as const;
+
+export const $TaskCircuitBreakerResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        is_open: {
+            type: 'boolean',
+            title: 'Is Open'
+        },
+        opened_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Opened At'
+        },
+        opened_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Opened Reason'
+        },
+        failure_count: {
+            type: 'integer',
+            title: 'Failure Count'
+        },
+        window_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Window Start'
+        },
+        reset_after: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reset After'
+        },
+        max_failures: {
+            type: 'integer',
+            title: 'Max Failures'
+        },
+        window_seconds: {
+            type: 'integer',
+            title: 'Window Seconds'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'task_id', 'is_open', 'opened_at', 'opened_reason', 'failure_count', 'window_start', 'reset_after', 'max_failures', 'window_seconds'],
+    title: 'TaskCircuitBreakerResponse',
+    description: 'Serializer for TaskCircuitBreaker responses.'
+} as const;
+
 export const $TaskCollectionResponse = {
     properties: {
         tasks: {
