@@ -164,7 +164,7 @@ class SFTPOperatorTrigger(BaseTrigger):
         ssh_conn_id: str | None = None,
         local_filepath: str | list[str] | None = None,
         remote_filepath: str | list[str] = "",
-        operation: str = "put",
+        operation: str = SFTPOperation.PUT,
         confirm: bool = True,
         create_intermediate_dirs: bool = False,
         remote_host: str | None = None,
@@ -218,15 +218,9 @@ class SFTPOperatorTrigger(BaseTrigger):
 
     def _do_transfer(self) -> None:
         """Run the actual synchronous SFTP transfer in a thread executor."""
-        import os
-        from pathlib import Path
-
-        from airflow.providers.sftp.constants import SFTPOperation
-        from airflow.providers.sftp.hooks.sftp import SFTPHook
-
         sftp_hook = SFTPHook(
             ssh_conn_id=self.ssh_conn_id,
-            remote_host=self.remote_host or "",
+            remote_host=self.remote_host,
         )
 
         if isinstance(self.local_filepath, str):
