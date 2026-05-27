@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import operator
 import re
 import warnings
 import weakref
@@ -27,9 +28,9 @@ import pytest
 from airflow.sdk import Context, Label, PartitionAtRuntime, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
-from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables import assets, events, interval, simple, trigger  # noqa: F401
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
@@ -64,13 +65,17 @@ class TestDag:
         dag = DAG("dag-invalid-outlet", schedule=None)
 
         with pytest.raises(TypeError, match=r"Left hand side \(not-an-outlet\) is not an outlet"):
-            dag > "not-an-outlet"
+            operator.gt(dag, "not-an-outlet")
 
     def test_dag_outlets_register_success_callback(self):
         dag = DAG("dag-callback-outlet", schedule=None, outlets=Asset("asset://dag_outlet"))
 
         assert dag.has_on_success_callback
-        callbacks = dag.on_success_callback if isinstance(dag.on_success_callback, list) else [dag.on_success_callback]
+        callbacks = (
+            dag.on_success_callback
+            if isinstance(dag.on_success_callback, list)
+            else [dag.on_success_callback]
+        )
         assert any(getattr(cb, "__name__", "") == "_emit_dag_asset_events" for cb in callbacks)
 
     def test_dag_outlets_preserve_existing_success_callback(self):
@@ -83,7 +88,11 @@ class TestDag:
             outlets=Asset("asset://dag_outlet"),
             on_success_callback=callback,
         )
-        callbacks = dag.on_success_callback if isinstance(dag.on_success_callback, list) else [dag.on_success_callback]
+        callbacks = (
+            dag.on_success_callback
+            if isinstance(dag.on_success_callback, list)
+            else [dag.on_success_callback]
+        )
         assert callback in callbacks
         assert any(getattr(cb, "__name__", "") == "_emit_dag_asset_events" for cb in callbacks)
 

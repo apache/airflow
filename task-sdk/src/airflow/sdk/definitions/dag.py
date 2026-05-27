@@ -45,7 +45,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import AssetAll, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
@@ -803,8 +803,10 @@ class DAG:
 
         If other is an attr annotated object it is set as an outlet of this Dag.
         """
-        if not isinstance(other, Iterable):
+        if isinstance(other, str) or not isinstance(other, Iterable):
             other = [other]
+        else:
+            other = list(other)
 
         for obj in other:
             if not attrs.has(obj):
