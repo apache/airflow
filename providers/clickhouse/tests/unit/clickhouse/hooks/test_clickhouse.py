@@ -1007,7 +1007,7 @@ class TestClickHouseHookClientName:
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         client_name = hook._get_client_kwargs()["client_name"]
-        assert "apache-airflow-providers-clickhouse/" in client_name
+        assert "apache-airflow-providers-clickhousedb/" in client_name
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_name_version_format(self, mock_get_connection):
@@ -1016,7 +1016,7 @@ class TestClickHouseHookClientName:
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         client_name = hook._get_client_kwargs()["client_name"]
         assert re.search(r"apache-airflow/\d+\.\d+", client_name)
-        assert re.search(r"apache-airflow-providers-clickhouse/\d+\.\d+", client_name)
+        assert re.search(r"apache-airflow-providers-clickhousedb/\d+\.\d+", client_name)
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_custom_label_appended_as_comment(self, mock_get_connection):

@@ -70,7 +70,7 @@ Extra (optional)
     * ``compress`` *(bool, default: ``true``)*: Enable LZ4 query result compression.
     * ``client_name`` *(str)*: Optional label appended to the Airflow version identifier in the
       ClickHouse ``User-Agent`` and ``system.query_log`` ``client_name`` field.  The hook always
-      prepends ``apache-airflow/<version> apache-airflow-providers-clickhouse/<version>``; this
+      prepends ``apache-airflow/<version> apache-airflow-providers-clickhousedb/<version>``; this
       field adds a human-readable suffix, e.g. ``"my-pipeline"``.
     * ``session_settings`` *(dict)*: ClickHouse session-level settings applied to every
       query on this connection.  These are passed directly to the ``settings`` parameter of

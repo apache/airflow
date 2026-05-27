@@ -23,14 +23,14 @@
 
 def get_provider_info():
     return {
-        "package-name": "apache-airflow-providers-clickhouse",
+        "package-name": "apache-airflow-providers-clickhousedb",
         "name": "ClickHouse",
         "description": "`ClickHouse <https://clickhouse.com/>`__\n",
         "integrations": [
             {
                 "integration-name": "ClickHouse",
                 "external-doc-url": "https://clickhouse.com/docs",
-                "how-to-guide": ["/docs/apache-airflow-providers-clickhouse/operators/clickhouse.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-clickhousedb/operators/clickhouse.rst"],
                 "logo": "/docs/integration-logos/ClickHouse.png",
                 "tags": ["software"],
             }
