@@ -1551,6 +1551,11 @@ export const $ClearTaskInstancesBody = {
             title: 'Only Failed',
             default: true
         },
+        only_skipped: {
+            type: 'boolean',
+            title: 'Only Skipped',
+            default: false
+        },
         only_running: {
             type: 'boolean',
             title: 'Only Running',
@@ -2759,6 +2764,11 @@ export const $DAGRunClearBody = {
         only_failed: {
             type: 'boolean',
             title: 'Only Failed',
+            default: false
+        },
+        only_skipped: {
+            type: 'boolean',
+            title: 'Only Skipped',
             default: false
         },
         only_new: {

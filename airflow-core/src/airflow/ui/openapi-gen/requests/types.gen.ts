@@ -495,6 +495,7 @@ export type ClearTaskInstancesBody = {
     start_date?: string | null;
     end_date?: string | null;
     only_failed?: boolean;
+    only_skipped?: boolean;
     only_running?: boolean;
     reset_dag_runs?: boolean;
     /**
@@ -743,6 +744,7 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    only_skipped?: boolean;
     /**
      * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
      */
