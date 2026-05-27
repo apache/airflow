@@ -146,6 +146,7 @@ with DAG(
         domain_identifier=domain_id,
         owning_project_identifier=project_id,
         wait_for_completion=True,
+        deferrable=False,
     )
 
     run_notebook_b = SageMakerUnifiedStudioNotebookOperator(
@@ -159,6 +160,7 @@ with DAG(
             "employee_age": "{{ task_instance.xcom_pull(task_ids='notebook-a-task', key='NOTEBOOK_OUTPUT.age') }}",
         },
         wait_for_completion=True,
+        deferrable=False,
     )
     # [END howto_operator_sagemaker_unified_studio_notebook_pass_outputs]
 
