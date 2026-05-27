@@ -283,6 +283,7 @@
     "priorityWeight": "우선순위 가중치",
     "queue": "큐",
     "queuedWhen": "대기열에 추가된 시간",
+    "renderedMapIndex": "렌더링된 맵 인덱스",
     "scheduledWhen": "예정된 시간",
     "triggerer": {
       "assigned": "할당된 트리거",
