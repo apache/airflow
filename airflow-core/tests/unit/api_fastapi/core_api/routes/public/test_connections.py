@@ -1060,11 +1060,13 @@ class TestConnection(TestConnectionEndpoint):
         assert response.status_code == 403
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_respond_403_when_caller_lacks_read_on_existing_connection(self, test_client):
+    def test_unreadable_existing_connection_indistinguishable_from_missing(self, test_client):
         """Route-level POST authorization is not enough on its own — when the
         request references an existing connection_id, the caller must also be
         authorized to read that specific connection before its hidden fields
-        are merged into the test object."""
+        are merged into the test object. A caller lacking read access must
+        get the same response shape as for a non-existent connection_id, so
+        the route cannot be used to enumerate protected connection ids."""
         self.create_connection()
 
         from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
@@ -1077,12 +1079,20 @@ class TestConnection(TestConnectionEndpoint):
             return real_method(self, method=method, details=details, user=user)
 
         with mock.patch.object(SimpleAuthManager, "is_authorized_connection", gated_authz):
-            response = test_client.post(
+            existing_response = test_client.post(
                 "/connections/test",
                 json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
             )
-        assert response.status_code == 403
-        assert "Insufficient permissions" in response.json()["detail"]
+            missing_response = test_client.post(
+                "/connections/test",
+                json={"connection_id": "this_connection_does_not_exist", "conn_type": "sqlite"},
+            )
+
+        # Both calls reach the body-only test path (the unreadable existing
+        # connection is treated as if it did not exist), so status + body
+        # shape must be identical — no existence oracle for protected ids.
+        assert existing_response.status_code == missing_response.status_code
+        assert set(existing_response.json().keys()) == set(missing_response.json().keys())
 
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
