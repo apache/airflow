@@ -330,9 +330,8 @@ class AssetManager(LoggingMixin):
             for asset_alias_model in asset_alias_models:
                 # Use a direct INSERT rather than ORM .append() to avoid lazy-loading the
                 # entire asset_events collection. On long-running deployments that collection
-                # can contain thousands of rows, and loading it while the task_instance row
-                # lock is held (from the calling ti_update_state handler) causes the DB
-                # connection to sit idle-in-transaction for minutes, blocking other workers.
+                # can contain thousands of rows; loading it on the task-success hot path can
+                # leave DB connections idle-in-transaction for minutes, blocking other workers.
                 session.execute(
                     insert(asset_alias_asset_event_association_table).values(
                         alias_id=asset_alias_model.id,
@@ -475,9 +474,9 @@ class AssetManager(LoggingMixin):
         # constraint violation.
         #
         # If we support it, use ON CONFLICT to do nothing, otherwise
-        # "fallback" to running this in a nested transaction. This is needed
-        # so that the adding of these rows happens in the same transaction
-        # where `ti.state` is changed.
+        # "fallback" to running this in a nested transaction. Some callers
+        # run this as part of a TI state transaction; the Execution API commits
+        # the TI state first, then runs asset registration in a separate transaction.
         if get_dialect_name(session) == "postgresql":
             return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
         return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)

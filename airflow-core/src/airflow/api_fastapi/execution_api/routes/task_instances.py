@@ -522,6 +522,7 @@ def ti_update_state(
                     ti_patch_payload.outlet_events,
                     session,
                 )
+                session.commit()
         except Exception:
             session.rollback()
             log.exception(
