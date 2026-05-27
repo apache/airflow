@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import threading
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
@@ -126,14 +127,16 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
             payload = message[payload_offset:]
 
             decoded = payload.decode("utf-8", errors="ignore")
-            self.log.info("Message received from MQ (RFH2 decoded): %s", decoded)
+            if self.log.isEnabledFor(logging.DEBUG):
+                truncated_decoded = decoded[:200] + ("..." if len(decoded) > 200 else "")
+                self.log.debug("Message received from MQ (RFH2 decoded): %s", truncated_decoded)
             return decoded
         except ibmmq.PYIFError as error:  # RFH2 header not present or unpack failed
-            self.log.warning(
-                "Failed to unpack RFH2 header (%s). Returning raw message payload: %s",
-                error,
-                message,
-            )
+            self.log.warning("Failed to unpack RFH2 header: %s (message size: %d bytes)", error, len(message))
+            if self.log.isEnabledFor(logging.DEBUG):
+                truncated_message = message.decode("utf-8", errors="ignore")[:200]
+                truncated_message_display = truncated_message + ("..." if len(message) > 200 else "")
+                self.log.debug("Raw message payload (truncated): %s", truncated_message_display)
             return message.decode("utf-8", errors="ignore")
 
     def consume(
