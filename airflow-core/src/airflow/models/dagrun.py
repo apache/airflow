@@ -707,16 +707,19 @@ class DagRun(Base, LoggingMixin):
             )
             .where(DagRun.state == DagRunState.QUEUED)
             .join(
+                running_drs,
+                and_(
+                    running_drs.c.dag_id == DagRun.dag_id,
+                    running_drs.c.backfill_id == DagRun.backfill_id,
+                ),
+                isouter=True,
+            )
+            .join(
                 BackfillDagRun,
                 and_(
                     BackfillDagRun.dag_run_id == DagRun.id,
                     BackfillDagRun.backfill_id == DagRun.backfill_id,
                 ),
-                isouter=True,
-            )
-            .join(
-                running_drs,
-                running_drs.c.dag_id == DagRun.dag_id,
                 isouter=True,
             )
             .subquery()
