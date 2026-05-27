@@ -1767,6 +1767,22 @@ api:
       type: string
       example: ~
       default: ""
+    ssl_ca_file:
+      description: |
+        Path to the SSL CA file for the api server. Defaults to None.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    ssl_cert_reqs:
+      description: |
+        Enable ssl certificate verification on the api server.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
+        Valid options are 'none', 'optional' or 'required'
+      version_added: ~
+      type: string
+      example: "required"
+      default: "none"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1885,6 +1901,13 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    client_use_public_certs:
+      description: |
+        Enable loading of public CA certificates from certifi into the client SSL context.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
