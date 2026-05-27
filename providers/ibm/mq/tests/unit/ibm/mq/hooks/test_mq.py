@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import operator
 import threading
 from functools import reduce
@@ -500,6 +501,160 @@ class TestIBMMQConsumer:
             result = consumer._process_message(message)
 
         assert result == "plain text message"
+
+    @pytest.mark.parametrize(
+        ("exception_to_raise", "exception_name", "message_bytes", "expected_result", "log_contains"),
+        [
+            pytest.param(
+                ValueError("invalid offset"),
+                "ValueError",
+                b"short message",
+                "short message",
+                "Failed to process RFH2 header (ValueError:",
+                id="exception_from_get_length",
+            ),
+            pytest.param(
+                Exception("generic error"),
+                "Exception",
+                b"malformed rfh2 data",
+                "malformed rfh2 data",
+                "Failed to process RFH2 header (Exception:",
+                id="generic_exception_during_processing",
+            ),
+        ],
+    )
+    @patch("ibmmq.RFH2")
+    def test_process_message_exception_fallback(
+        self, mock_rfh2_class, consumer, caplog, exception_to_raise, exception_name, message_bytes, expected_result, log_contains
+    ):
+        """Test that various exceptions during RFH2 processing fall back gracefully."""
+        import logging
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.get_length.side_effect = exception_to_raise
+
+        with caplog.at_level(logging.WARNING):
+            result = consumer._process_message(message_bytes)
+
+        assert result == expected_result
+        assert log_contains in caplog.text
+        assert "returning raw message" in caplog.text
+
+    @patch("ibmmq.RFH2")
+    def test_process_message_out_of_bounds_offset(self, mock_rfh2_class, consumer, caplog):
+        """Test that oversized RFH2 offset falls back to raw message."""
+        import logging
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.get_length.return_value = 100  # Offset larger than message
+
+        message = b"short message"
+        with caplog.at_level(logging.WARNING):
+            result = consumer._process_message(message)
+
+        assert result == "short message"
+        assert "RFH2 offset 100 exceeds message length 13; returning raw message" in caplog.text
+
+    @patch("ibmmq.RFH2")
+    def test_process_message_struct_error_falls_back(self, mock_rfh2_class, consumer, caplog):
+        """Test that struct.error in RFH2.unpack() falls back gracefully."""
+        import logging
+        import struct
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.unpack.side_effect = struct.error("unpack requires a buffer of N bytes")
+
+        message = b"malformed rfh2 data"
+        with caplog.at_level(logging.WARNING):
+            result = consumer._process_message(message)
+
+        assert result == "malformed rfh2 data"
+        assert "Failed to process RFH2 header (error:" in caplog.text
+        assert "returning raw message" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("log_level", "expect_debug_log"),
+        [
+            pytest.param(logging.DEBUG, True, id="debug_level_enabled"),
+            pytest.param(logging.INFO, False, id="info_level_no_debug"),
+        ],
+    )
+    @patch("ibmmq.RFH2")
+    def test_process_message_debug_logging_payload(
+        self, mock_rfh2_class, consumer, caplog, log_level, expect_debug_log
+    ):
+        """Test that debug payloads are only logged when DEBUG level is enabled."""
+        import logging
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.get_length.return_value = 10
+
+        message = b"0123456789hello world"
+        with caplog.at_level(log_level):
+            result = consumer._process_message(message)
+
+        assert result == "hello world"
+        if expect_debug_log:
+            assert "Message received from MQ (RFH2 decoded):" in caplog.text
+        else:
+            assert "Message received from MQ (RFH2 decoded):" not in caplog.text
+
+    @patch("ibmmq.RFH2")
+    def test_process_message_payload_truncation(self, mock_rfh2_class, consumer, caplog):
+        """Test that debug payloads are truncated to 200 chars."""
+        import logging
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.get_length.return_value = 10
+
+        # Create a long payload (>200 chars)
+        long_payload = "x" * 300
+        message = b"0123456789" + long_payload.encode()
+        with caplog.at_level(logging.DEBUG):
+            result = consumer._process_message(message)
+
+        assert result == long_payload
+        # Check truncation marker
+        debug_logs = [r.message for r in caplog.records if "Message received from MQ" in r.message]
+        assert len(debug_logs) > 0
+        assert "..." in debug_logs[0]  # Should have truncation marker
+
+    @pytest.mark.parametrize(
+        ("log_level", "expect_raw_payload_log"),
+        [
+            pytest.param(logging.DEBUG, True, id="fallback_debug_level_enabled"),
+            pytest.param(logging.INFO, False, id="fallback_info_level_no_debug"),
+        ],
+    )
+    @patch("ibmmq.RFH2")
+    def test_process_message_fallback_debug_logging(
+        self, mock_rfh2_class, consumer, caplog, log_level, expect_raw_payload_log
+    ):
+        """Test fallback path debug logging behavior based on log level."""
+        import logging
+        import struct
+
+        mock_rfh2 = MagicMock()
+        mock_rfh2_class.return_value = mock_rfh2
+        mock_rfh2.unpack.side_effect = struct.error("unpack failed")
+
+        message = b"error case message"
+        with caplog.at_level(log_level):
+            result = consumer._process_message(message)
+
+        assert result == "error case message"
+        # Warning should always appear
+        assert "Failed to process RFH2 header" in caplog.text
+        # Debug log should only appear at DEBUG level
+        if expect_raw_payload_log:
+            assert "Raw message payload (truncated):" in caplog.text
+        else:
+            assert "Raw message payload (truncated):" not in caplog.text
 
     @patch("ibmmq.Queue")
     @patch("ibmmq.GMO")

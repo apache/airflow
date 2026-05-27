@@ -114,6 +114,10 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
         payload following the header is returned. If unpacking fails, the raw
         message is returned decoded as UTF-8.
 
+        Because the message is consumed with ``MQGMO_NO_SYNCPOINT``, it has already
+        been removed from the queue. Any exception raised here would lose the message,
+        so we catch all errors and fall back to returning the raw message.
+
         :param message: Raw message received from IBM MQ.
         :return: Decoded message payload.
         """
@@ -124,15 +128,30 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
             rfh2.unpack(message)
 
             payload_offset = rfh2.get_length()
-            payload = message[payload_offset:]
+            # Defensive guard: if offset is out of bounds, fall back to raw message
+            if payload_offset >= len(message):
+                self.log.warning(
+                    "RFH2 offset %d exceeds message length %d; returning raw message",
+                    payload_offset,
+                    len(message),
+                )
+                return message.decode("utf-8", errors="ignore")
 
+            payload = message[payload_offset:]
             decoded = payload.decode("utf-8", errors="ignore")
             if self.log.isEnabledFor(logging.DEBUG):
                 truncated_decoded = decoded[:200] + ("..." if len(decoded) > 200 else "")
                 self.log.debug("Message received from MQ (RFH2 decoded): %s", truncated_decoded)
             return decoded
-        except ibmmq.PYIFError as error:  # RFH2 header not present or unpack failed
-            self.log.warning("Failed to unpack RFH2 header: %s (message size: %d bytes)", error, len(message))
+        except Exception as error:
+            # Catch all exceptions (PYIFError, struct errors, etc.) to avoid losing messages.
+            # Since message is already removed from queue (MQGMO_NO_SYNCPOINT), log and return raw.
+            self.log.warning(
+                "Failed to process RFH2 header (%s: %s) for message (size: %d bytes); returning raw message",
+                type(error).__name__,
+                error,
+                len(message),
+            )
             if self.log.isEnabledFor(logging.DEBUG):
                 truncated_message = message.decode("utf-8", errors="ignore")[:200]
                 truncated_message_display = truncated_message + ("..." if len(message) > 200 else "")
