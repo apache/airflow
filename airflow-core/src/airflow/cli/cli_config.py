@@ -23,10 +23,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import textwrap
 from collections.abc import Callable, Iterable
-from datetime import datetime
 from typing import NamedTuple
 
 import lazy_object_proxy
@@ -40,23 +38,6 @@ from airflow.utils.cli import ColorMode
 from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
-
-_PARTITION_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def _parse_partition_date_str(value: str) -> tuple[datetime, bool]:
-    """
-    Parse --start-date / --end-date / --date side; return (parsed, is_date_only).
-
-    Accepts YYYY-MM-DD or any ISO datetime pendulum understands. The is_date_only
-    flag is used by the caller to decide whether to clamp an end-date to end-of-day.
-    """
-    try:
-        parsed = parsedate(value)
-    except Exception as exc:
-        raise ValueError(f"could not parse {value!r} as a date or datetime") from exc
-    is_date_only = bool(_PARTITION_DATE_RE.fullmatch(value))
-    return parsed, is_date_only
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -1075,19 +1056,13 @@ ARG_PARTITIONS_CLEAR_DAG_ID = Arg(
 )
 ARG_PARTITIONS_CLEAR_START_DATE = Arg(
     ("-s", "--start-date"),
-    help=(
-        "Only clear DagRuns whose partition_date is on or after this point "
-        "(YYYY-MM-DD or ISO datetime; date-only means 00:00:00)"
-    ),
-    type=str,
+    help="Inclusive lower bound of the partition_date window.",
+    type=parsedate,
 )
 ARG_PARTITIONS_CLEAR_END_DATE = Arg(
     ("-e", "--end-date"),
-    help=(
-        "Only clear DagRuns whose partition_date is on or before this point "
-        "(YYYY-MM-DD or ISO datetime; date-only is inclusive of the whole day)"
-    ),
-    type=str,
+    help="Inclusive upper bound of the partition_date window.",
+    type=parsedate,
 )
 ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
     ("--dry-run",),
@@ -1103,9 +1078,8 @@ ARG_PARTITIONS_CLEAR_DATE_RANGE = Arg(
     ("--date",),
     type=str,
     help=(
-        "Range expressed as 'a~b' (e.g. '2026-01-01~2026-01-31'); equivalent to --start-date a --end-date b. "
-        "Mutually exclusive with --start-date / --end-date. "
-        "Each side accepts YYYY-MM-DD or ISO datetime; date-only end side is inclusive of the whole day."
+        "Range expressed as 'a~b' (e.g. '2026-01-01~2026-01-31'); equivalent to "
+        "--start-date a --end-date b. Mutually exclusive with --start-date / --end-date."
     ),
 )
 ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(

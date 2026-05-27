@@ -356,43 +356,6 @@ class TestPartitionsClear:
         assert run_1.state == DagRunState.QUEUED
         assert all(ti.state is None for ti in _get_tis("part_run_1"))
 
-    def test_clear_end_date_includes_same_day_runs(self, parser, dag_maker):
-        """A run whose partition_date is mid-day on --end-date must be cleared (thread 4b fix)."""
-        # Insert a run with partition_date at 15:00 on 2026-01-02.  Without the end-of-day clamp,
-        # the filter is `partition_date <= 2026-01-02T00:00:00`, so 15:00 > midnight would NOT
-        # be matched.  With the clamp (<=  2026-01-02T23:59:59.999999) it must be cleared.
-        dag_maker.create_dagrun(
-            run_id="part_run_2_midday",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 1, 2, 15, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-01-02T15:00:00",
-        )
-        dag_maker.sync_dagbag_to_db()
-
-        partition_command.clear(
-            parser.parse_args(
-                [
-                    "partitions",
-                    "clear",
-                    "--dag-id",
-                    DAG_ID,
-                    "--start-date",
-                    "2026-01-02",
-                    "--end-date",
-                    "2026-01-02",
-                ]
-            )
-        )
-        run_midday = _get_run("part_run_2_midday")
-        assert run_midday.partition_key is None
-        assert run_midday.partition_date is None
-        # Runs outside the range are untouched.
-        run_1 = _get_run("part_run_1")
-        assert run_1.partition_key == "2026-01-01T00:00:00"
-        run_3 = _get_run("part_run_3")
-        assert run_3.partition_key == "2026-01-03T00:00:00"
-
     def test_clear_streams_runs_without_materialising(self, parser, dag_maker):
         """Clearing 250 partitioned runs clears every one of them (streaming smoke test)."""
         clear_db_runs()
@@ -823,8 +786,12 @@ class TestPartitionsClear:
             )
         assert excinfo.value.code == "--date cannot be combined with --start-date / --end-date."
 
-    def test_date_range_end_of_day_clamp(self, parser, dag_maker):
-        """A run whose partition_date is mid-day on the --date right side must be cleared."""
+    def test_date_range_end_date_is_literal(self, parser, dag_maker):
+        """Pin literal <= semantics: --date right side is used as-is (no end-of-day clamp).
+
+        '2026-01-02' parses to midnight 2026-01-02T00:00:00, so a run at 15:00 on
+        the same day has partition_date > the bound and must NOT be cleared.
+        """
         dag_maker.create_dagrun(
             run_id="part_run_2_midday_date",
             state=DagRunState.SUCCESS,
@@ -847,13 +814,14 @@ class TestPartitionsClear:
             )
         )
 
-        run_midday = _get_run("part_run_2_midday_date")
-        assert run_midday.partition_key is None
-        assert run_midday.partition_date is None
-        # Midnight run on same date (start-boundary inclusive) is also cleared.
+        # Midnight run on exact date is matched (partition_date == bound).
         run_2 = _get_run("part_run_2")
         assert run_2.partition_key is None
         assert run_2.partition_date is None
+        # 15:00 > midnight bound — NOT cleared.
+        run_midday = _get_run("part_run_2_midday_date")
+        assert run_midday.partition_key == "2026-01-02T15:00:00"
+        assert run_midday.partition_date == datetime(2026, 1, 2, 15, 0, 0, tzinfo=pendulum.UTC)
         # Runs outside the range are untouched.
         run_1 = _get_run("part_run_1")
         assert run_1.partition_key == "2026-01-01T00:00:00"
@@ -861,7 +829,7 @@ class TestPartitionsClear:
         assert run_3.partition_key == "2026-01-03T00:00:00"
 
     def test_clear_with_datetime_end_date_no_clamp(self, parser, dag_maker):
-        """--end-date with an ISO datetime is NOT clamped; runs after that point are excluded."""
+        """Pin literal <= semantics with a datetime endpoint: runs after the bound are excluded."""
         dag_maker.create_dagrun(
             run_id="part_run_h10",
             state=DagRunState.SUCCESS,
@@ -898,35 +866,6 @@ class TestPartitionsClear:
         # 15:00 exceeds the un-clamped 10:00 boundary, must be untouched.
         run_h15 = _get_run("part_run_h15")
         assert run_h15.partition_key == "2026-01-02T15:00:00"
-
-    def test_clear_with_date_only_end_date_clamps_to_end_of_day(self, parser, dag_maker):
-        """--end-date with a date-only value clamps to 23:59:59; mid-day runs are included."""
-        dag_maker.create_dagrun(
-            run_id="part_run_h11",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 1, 2, 11, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-01-02T11:00:00",
-        )
-        dag_maker.sync_dagbag_to_db()
-
-        partition_command.clear(
-            parser.parse_args(
-                [
-                    "partitions",
-                    "clear",
-                    "--dag-id",
-                    DAG_ID,
-                    "--end-date",
-                    "2026-01-02",
-                ]
-            )
-        )
-
-        # 11:00 on 2026-01-02 is within the clamped boundary (23:59:59.999999).
-        run_h11 = _get_run("part_run_h11")
-        assert run_h11.partition_key is None
-        assert run_h11.partition_date is None
 
     def test_clear_hourly_window_via_start_end_date(self, parser, dag_maker):
         """ISO datetime --start-date / --end-date selects only runs within the exact window."""

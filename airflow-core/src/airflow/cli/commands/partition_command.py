@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 
-from airflow.cli.cli_config import _parse_partition_date_str
+from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import cli as cli_utils
@@ -77,10 +77,6 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             "(--start-date/--end-date or --date)."
         )
 
-    start_date = None
-    end_date = None
-    end_is_date_only = False
-
     if args.date is not None:
         if args.start_date is not None or args.end_date is not None:
             raise SystemExit("--date cannot be combined with --start-date / --end-date.")
@@ -89,24 +85,10 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
             raise SystemExit("--date must be in the form 'a~b', e.g. '2026-01-01~2026-01-31'.")
         try:
-            start_date, _ = _parse_partition_date_str(parts[0].strip())
-            end_date, end_is_date_only = _parse_partition_date_str(parts[1].strip())
+            args.start_date = parsedate(parts[0].strip())
+            args.end_date = parsedate(parts[1].strip())
         except ValueError:
-            raise SystemExit("--date sides must be parseable as YYYY-MM-DD or ISO datetime.")
-    else:
-        if args.start_date is not None:
-            try:
-                start_date, _ = _parse_partition_date_str(args.start_date)
-            except ValueError as exc:
-                raise SystemExit(str(exc)) from exc
-        if args.end_date is not None:
-            try:
-                end_date, end_is_date_only = _parse_partition_date_str(args.end_date)
-            except ValueError as exc:
-                raise SystemExit(str(exc)) from exc
-
-    if end_date is not None and end_is_date_only:
-        end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            raise SystemExit("--date sides must be parseable as a date or datetime.")
 
     stmt = select(DagRun).where(DagRun.dag_id == args.dag_id)
     if args.run_id:
@@ -115,10 +97,10 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         stmt = stmt.where(DagRun.partition_key == args.partition_key)
     else:
         stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
-        if start_date is not None:
-            stmt = stmt.where(DagRun.partition_date >= start_date)
-        if end_date is not None:
-            stmt = stmt.where(DagRun.partition_date <= end_date)
+        if args.start_date is not None:
+            stmt = stmt.where(DagRun.partition_date >= args.start_date)
+        if args.end_date is not None:
+            stmt = stmt.where(DagRun.partition_date <= args.end_date)
     stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
 
     clear_tis = bool(args.clear_task_instances)
