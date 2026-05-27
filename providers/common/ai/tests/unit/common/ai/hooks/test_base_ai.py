@@ -19,6 +19,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai.hooks.base_ai import (
     AgentRunRequest,
@@ -77,14 +79,67 @@ class TestBaseAIHookInit:
 
 class TestBaseAIHookAgentDurable:
     def test_bind_pop_round_trip(self):
-        # Real pydantic-ai Agent is unhashable; id()-keyed storage must still work.
-        agent = object()
+        agent = Agent(TestModel())
         storage = MagicMock()
         counter = MagicMock()
 
         BaseAIHook._bind_agent_durable(agent, storage, counter)
+        assert agent._airflow_durable_state == (storage, counter)
         assert BaseAIHook._pop_agent_durable(agent) == (storage, counter)
         assert BaseAIHook._pop_agent_durable(agent) is None
+        assert not hasattr(agent, "_airflow_durable_state")
+
+
+class TestValidateRunRequest:
+    def test_rejects_toolsets_when_unsupported(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+            supports_toolsets = False
+            supports_usage_limits = True
+            supports_durable = True
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook(llm_conn_id="test_conn")
+        request = AgentRunRequest(prompt="hi", toolsets=[MagicMock()])
+        with pytest.raises(ValueError, match="toolsets are not supported"):
+            hook.validate_run_request(request)
+
+    def test_rejects_usage_limits_when_unsupported(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+            supports_toolsets = True
+            supports_usage_limits = False
+            supports_durable = True
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook(llm_conn_id="test_conn")
+        request = AgentRunRequest(prompt="hi", usage_limits=MagicMock())
+        with pytest.raises(ValueError, match="usage_limits are not supported"):
+            hook.validate_run_request(request)
 
 
 class TestAgentRunResult:

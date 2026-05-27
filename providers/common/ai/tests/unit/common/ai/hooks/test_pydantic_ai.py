@@ -21,7 +21,12 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import Model
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.run import AgentRunResult as PydanticAgentRunResult
+from pydantic_ai.usage import RunUsage, UsageLimits
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, BaseAIHook, ToolSpec
@@ -31,6 +36,43 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+
+def _test_agent() -> Agent[None, str]:
+    return Agent(TestModel())
+
+
+def _pydantic_run_result(
+    output: str,
+    *,
+    model_name: str = "test-model",
+    message_history: list | None = None,
+    requests: int = 1,
+    tool_calls: int = 0,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+) -> MagicMock:
+    mock_result = MagicMock(spec=PydanticAgentRunResult)
+    mock_result.output = output
+    mock_result.usage = RunUsage(
+        requests=requests,
+        tool_calls=tool_calls,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+    mock_result.response = ModelResponse(
+        parts=[TextPart(content=str(output))],
+        model_name=model_name,
+    )
+    mock_result.all_messages.return_value = message_history or []
+    return mock_result
+
+
+def _noop_override_context() -> MagicMock:
+    ctx = MagicMock()
+    ctx.__enter__ = MagicMock(return_value=None)
+    ctx.__exit__ = MagicMock(return_value=False)
+    return ctx
 
 
 class TestPydanticAIHookBaseContract:
@@ -260,7 +302,46 @@ class TestPydanticAIHookCreateAgent:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    def test_create_agent_inits_durable_when_context_set(self, mock_agent_cls, mock_infer_model):
+    def test_create_agent_rejects_tools_in_agent_params_with_toolsets(self, mock_agent_cls, mock_infer_model):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(
+            prompt="hi",
+            toolsets=[lambda: "ok"],
+            agent_params={"tools": [MagicMock()]},
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="agent_params must not include 'tools'"):
+                hook.create_agent(request)
+
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_rejects_toolsets_in_agent_params_with_toolsets(
+        self, mock_agent_cls, mock_infer_model
+    ):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(
+            prompt="hi",
+            toolsets=[lambda: "ok"],
+            agent_params={"toolsets": [MagicMock()]},
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="agent_params must not include 'toolsets'"):
+                hook.create_agent(request)
+
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_create_agent_inits_durable_when_context_set(self, mock_infer_model):
         from airflow.providers.common.ai.hooks.base_ai import DurableContext
 
         mock_model = MagicMock(spec=Model)
@@ -277,14 +358,12 @@ class TestPydanticAIHookCreateAgent:
             patch.object(hook, "get_connection", return_value=conn),
             patch.object(hook, "_init_durable", return_value=(mock_storage, mock_counter)),
         ):
-            hook.create_agent(request)
+            agent = hook.create_agent(request)
 
-        mock_agent = mock_agent_cls.return_value
-        assert BaseAIHook._pop_agent_durable(mock_agent) == (mock_storage, mock_counter)
+        assert BaseAIHook._pop_agent_durable(agent) == (mock_storage, mock_counter)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    def test_create_agent_does_not_bind_durable_when_no_context(self, mock_agent_cls, mock_infer_model):
+    def test_create_agent_does_not_bind_durable_when_no_context(self, mock_infer_model):
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
@@ -293,10 +372,9 @@ class TestPydanticAIHookCreateAgent:
         request = AgentRunRequest(prompt="hi")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(request)
+            agent = hook.create_agent(request)
 
-        mock_agent = mock_agent_cls.return_value
-        assert BaseAIHook._pop_agent_durable(mock_agent) is None
+        assert BaseAIHook._pop_agent_durable(agent) is None
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
@@ -435,8 +513,7 @@ class TestPydanticAIHookCreateAgent:
         assert outer.wrapped.wrapped is abstract_ts
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    def test_create_agent_binds_durable_per_agent_not_on_hook(self, mock_agent_cls, mock_infer_model):
+    def test_create_agent_binds_durable_per_agent_not_on_hook(self, mock_infer_model):
         """Second create_agent must not overwrite durable state for the first agent."""
         from airflow.providers.common.ai.hooks.base_ai import DurableContext
 
@@ -448,9 +525,6 @@ class TestPydanticAIHookCreateAgent:
         ctx_b = DurableContext(dag_id="d", task_id="t", run_id="r2")
         storage_a, counter_a = MagicMock(), MagicMock()
         storage_b, counter_b = MagicMock(), MagicMock()
-        mock_agent_a = MagicMock()
-        mock_agent_b = MagicMock()
-        mock_agent_cls.side_effect = [mock_agent_a, mock_agent_b]
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
@@ -460,8 +534,7 @@ class TestPydanticAIHookCreateAgent:
                 agent_a = hook.create_agent(AgentRunRequest(prompt="a", durable_context=ctx_a))
                 agent_b = hook.create_agent(AgentRunRequest(prompt="b", durable_context=ctx_b))
 
-        assert agent_a is mock_agent_a
-        assert agent_b is mock_agent_b
+        assert agent_a is not agent_b
         assert BaseAIHook._pop_agent_durable(agent_a) == (storage_a, counter_a)
         assert BaseAIHook._pop_agent_durable(agent_b) == (storage_b, counter_b)
 
@@ -469,57 +542,60 @@ class TestPydanticAIHookCreateAgent:
 class TestPydanticAIHookRunAgent:
     def test_run_agent_returns_agent_run_result(self):
         hook = PydanticAIHook()
-        mock_agent = MagicMock()
-        mock_usage = MagicMock(requests=1, tool_calls=0, input_tokens=5, output_tokens=10, total_tokens=15)
-        mock_result = MagicMock()
-        mock_result.output = "done"
-        mock_result.usage.return_value = mock_usage
-        mock_result.response = MagicMock(model_name="openai:gpt-5")
-        mock_result.all_messages.return_value = []
-        mock_agent.run_sync.return_value = mock_result
+        agent = _test_agent()
+        mock_result = _pydantic_run_result(
+            "done",
+            model_name="openai:gpt-5",
+            input_tokens=5,
+            output_tokens=10,
+        )
 
         request = AgentRunRequest(prompt="hello")
-        run_result = hook.run_agent(mock_agent, request)
+        with patch.object(agent, "run_sync", return_value=mock_result) as mock_run_sync:
+            run_result = hook.run_agent(agent, request)
 
         assert isinstance(run_result, AgentRunResult)
         assert run_result.output == "done"
         assert run_result.model_name == "openai:gpt-5"
-        mock_agent.run_sync.assert_called_once_with("hello")
+        assert run_result.usage.total_tokens == 15
+        mock_run_sync.assert_called_once_with("hello")
+
+    def test_create_agent_rejects_unsupported_usage_limits(self):
+        hook = PydanticAIHook()
+        hook.supports_usage_limits = False
+        with pytest.raises(ValueError, match="usage_limits are not supported"):
+            hook.create_agent(AgentRunRequest(prompt="hi", usage_limits=UsageLimits()))
 
     def test_run_agent_forwards_message_history_and_usage_limits(self):
         hook = PydanticAIHook()
-        mock_agent = MagicMock()
-        mock_result = MagicMock()
-        mock_result.output = "ok"
-        mock_result.usage.return_value = MagicMock(
-            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-        )
-        mock_result.response = MagicMock(model_name="m")
-        mock_result.all_messages.return_value = ["history"]
-        mock_agent.run_sync.return_value = mock_result
-        limits = MagicMock()
+        agent = _test_agent()
+        mock_result = _pydantic_run_result("ok", model_name="m", message_history=["history"])
+        limits = UsageLimits()
         history = ["prior"]
 
         request = AgentRunRequest(prompt="more", message_history=history, usage_limits=limits)
-        hook.run_agent(mock_agent, request)
+        with patch.object(agent, "run_sync", return_value=mock_result) as mock_run_sync:
+            hook.run_agent(agent, request)
 
-        mock_agent.run_sync.assert_called_once_with("more", message_history=history, usage_limits=limits)
+        mock_run_sync.assert_called_once_with("more", message_history=history, usage_limits=limits)
 
-    def test_run_agent_durable_applies_caching_model(self):
+    @patch.object(Agent, "override")
+    @patch.object(Agent, "run_sync")
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.CachingModel")
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", side_effect=lambda m: m)
+    def test_run_agent_durable_applies_caching_model(
+        self,
+        mock_infer_model,
+        mock_caching_model_cls,
+        mock_run_sync,
+        mock_override,
+    ):
         """When durable state is set, run_agent wraps model with CachingModel."""
         hook = PydanticAIHook()
-        mock_agent = MagicMock()
-        mock_agent.model = MagicMock()
-        mock_result = MagicMock()
-        mock_result.output = "ok"
-        mock_result.usage.return_value = MagicMock(
-            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-        )
-        mock_result.response = MagicMock(model_name="m")
-        mock_result.all_messages.return_value = []
-        mock_agent.run_sync.return_value = mock_result
-        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
-        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+        agent = _test_agent()
+        mock_run_sync.return_value = _pydantic_run_result("ok", model_name="m")
+        mock_override.return_value = _noop_override_context()
+        mock_caching_model_cls.return_value = MagicMock()
 
         mock_storage = MagicMock()
         mock_counter = MagicMock()
@@ -527,37 +603,42 @@ class TestPydanticAIHookRunAgent:
         mock_counter.replayed_tool = 0
         mock_counter.cached_model = 0
         mock_counter.cached_tool = 0
-        BaseAIHook._bind_agent_durable(mock_agent, mock_storage, mock_counter)
+        BaseAIHook._bind_agent_durable(agent, mock_storage, mock_counter)
 
-        with patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", return_value=MagicMock()):
-            with patch("airflow.providers.common.ai.durable.caching_model.CachingModel"):
-                request = AgentRunRequest(prompt="hi")
-                run_result = hook.run_agent(mock_agent, request)
+        request = AgentRunRequest(prompt="hi")
+        run_result = hook.run_agent(agent, request)
 
-        mock_agent.override.assert_called_once()
+        mock_caching_model_cls.assert_called_once()
+        mock_override.assert_called_once()
+        mock_run_sync.assert_called_once_with("hi")
         assert run_result.durable_stats is not None
-        assert BaseAIHook._pop_agent_durable(mock_agent) is None
+        assert BaseAIHook._pop_agent_durable(agent) is None
         mock_storage.cleanup.assert_called_once()
 
-    def test_run_agent_preserves_durable_cache_on_exception(self):
+    @patch.object(Agent, "override")
+    @patch.object(Agent, "run_sync", side_effect=RuntimeError("boom"))
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.CachingModel")
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", side_effect=lambda m: m)
+    def test_run_agent_preserves_durable_cache_on_exception(
+        self,
+        mock_infer_model,
+        mock_caching_model_cls,
+        mock_run_sync,
+        mock_override,
+    ):
         hook = PydanticAIHook()
-        mock_agent = MagicMock()
-        mock_agent.model = MagicMock()
-        mock_agent.run_sync.side_effect = RuntimeError("boom")
-        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
-        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+        agent = _test_agent()
+        mock_override.return_value = _noop_override_context()
 
         mock_storage = MagicMock()
         mock_counter = MagicMock()
-        BaseAIHook._bind_agent_durable(mock_agent, mock_storage, mock_counter)
+        BaseAIHook._bind_agent_durable(agent, mock_storage, mock_counter)
 
-        with patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", return_value=MagicMock()):
-            with patch("airflow.providers.common.ai.durable.caching_model.CachingModel"):
-                with pytest.raises(RuntimeError, match="boom"):
-                    hook.run_agent(mock_agent, AgentRunRequest(prompt="hi"))
+        with pytest.raises(RuntimeError, match="boom"):
+            hook.run_agent(agent, AgentRunRequest(prompt="hi"))
 
         mock_storage.cleanup.assert_not_called()
-        assert BaseAIHook._pop_agent_durable(mock_agent) is None
+        assert BaseAIHook._pop_agent_durable(agent) is None
 
     def test_tool_spec_to_native_forwards_sequential(self):
         hook = PydanticAIHook()
@@ -572,7 +653,7 @@ class TestPydanticAIHookRunAgent:
             fn=fn,
             sequential=True,
         )
-        with patch("pydantic_ai.tools.Tool") as mock_tool_cls:
+        with patch("airflow.providers.common.ai.hooks.pydantic_ai.Tool") as mock_tool_cls:
             hook._tool_spec_to_native(spec)
         mock_tool_cls.assert_called_once_with(
             fn,
