@@ -779,6 +779,7 @@ ARG_SSL_CERT_REQS = Arg(
     ("--ssl-cert-reqs",),
     default=conf.get("api", "ssl_cert_reqs", fallback="none"),
     help="(Optional) Set certificate verification options.",
+    choices=("none", "optional", "required"),
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 

@@ -288,4 +288,4 @@ def _ssl_cert_reqs(cli_arguments):
         return ssl.CERT_REQUIRED
     if cert_reqs == "optional":
         return ssl.CERT_OPTIONAL
-    raise ValueError("Invalid ssl cert reqs option: %s", cert_reqs)
+    raise ValueError(f"Invalid ssl_cert_reqs option: {cert_reqs}")
