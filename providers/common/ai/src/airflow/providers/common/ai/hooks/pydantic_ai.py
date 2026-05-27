@@ -19,9 +19,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai import Agent
+from pydantic_ai.messages import ToolCallPart
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.tools import Tool
+from pydantic_ai.toolsets.abstract import AbstractToolset
 
+from airflow.providers.common.ai.durable.caching_model import CachingModel
+from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.hooks.base_ai import (
     AgentRunRequest,
     AgentRunResult,
@@ -30,6 +35,7 @@ from airflow.providers.common.ai.hooks.base_ai import (
     DurableStats,
     ToolSpec,
 )
+from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
@@ -185,8 +191,6 @@ class PydanticAIHook(BaseAIHook):
 
     def _tool_spec_to_native(self, spec: ToolSpec) -> Any:
         """Convert a :class:`~airflow.providers.common.ai.hooks.base_ai.ToolSpec` to a pydantic-ai ``Tool``."""
-        from pydantic_ai.tools import Tool
-
         return Tool(
             spec.fn,
             name=spec.name,
@@ -204,13 +208,22 @@ class PydanticAIHook(BaseAIHook):
 
         :param request: Agent configuration — output type, instructions, toolsets, extra params.
         """
+        self.validate_run_request(request)
+
         storage = counter = None
         if request.durable_context is not None:
             storage, counter = self._init_durable(request.durable_context)
 
         extra_kwargs = dict(request.agent_params or {})
         if request.toolsets:
-            from pydantic_ai.toolsets.abstract import AbstractToolset
+            if "tools" in extra_kwargs:
+                raise ValueError(
+                    "agent_params must not include 'tools' when toolsets= is set on AgentRunRequest."
+                )
+            if "toolsets" in extra_kwargs:
+                raise ValueError(
+                    "agent_params must not include 'toolsets' when toolsets= is set on AgentRunRequest."
+                )
 
             abstract_items = [ts for ts in request.toolsets if isinstance(ts, AbstractToolset)]
             pipeline_items = [ts for ts in request.toolsets if not isinstance(ts, AbstractToolset)]
@@ -222,14 +235,11 @@ class PydanticAIHook(BaseAIHook):
                     storage,
                     counter,
                 )
-                if resolved:
-                    extra_kwargs["tools"] = resolved
+                extra_kwargs["tools"] = resolved
 
             if abstract_items:
                 processed: list[Any] = list(abstract_items)
                 if storage is not None and counter is not None:
-                    from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
-
                     processed = [
                         CachingToolset(
                             wrapped=ts,
@@ -239,8 +249,6 @@ class PydanticAIHook(BaseAIHook):
                         for ts in processed
                     ]
                 if request.enable_tool_logging:
-                    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-
                     processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
                 extra_kwargs["toolsets"] = processed
 
@@ -256,8 +264,6 @@ class PydanticAIHook(BaseAIHook):
 
     def run_agent(self, agent: Agent[None, Any], request: AgentRunRequest) -> AgentRunResult:
         """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunResult`."""
-        from pydantic_ai.messages import ToolCallPart
-
         run_kwargs: dict[str, Any] = {}
         if request.message_history is not None:
             run_kwargs["message_history"] = request.message_history
@@ -267,57 +273,52 @@ class PydanticAIHook(BaseAIHook):
         durable = self._pop_agent_durable(agent)
         storage, counter = durable if durable else (None, None)
 
-        try:
-            if storage is not None and counter is not None:
-                from airflow.providers.common.ai.durable.caching_model import CachingModel
-
-                if agent.model is None:
-                    raise ValueError("Agent model must be set when durable=True")
-                model = agent.model
-                resolved_model = infer_model(model) if isinstance(model, str) else model
-                caching_model = CachingModel(
-                    resolved_model,
-                    storage=storage,
-                    counter=counter,
-                )
-                with agent.override(model=caching_model):
-                    result = agent.run_sync(request.prompt, **run_kwargs)
-            else:
+        if storage is not None and counter is not None:
+            if agent.model is None:
+                raise ValueError("Agent model must be set when durable=True")
+            model = agent.model
+            resolved_model = infer_model(model) if isinstance(model, str) else model
+            caching_model = CachingModel(
+                resolved_model,
+                storage=storage,
+                counter=counter,
+            )
+            with agent.override(model=caching_model):
                 result = agent.run_sync(request.prompt, **run_kwargs)
+        else:
+            result = agent.run_sync(request.prompt, **run_kwargs)
 
-            usage = result.usage
-            tool_names: list[str] = []
-            for message in result.all_messages():
-                for part in getattr(message, "parts", []):
-                    if isinstance(part, ToolCallPart):
-                        tool_names.append(part.tool_name)
+        usage = result.usage
+        tool_names: list[str] = []
+        for message in result.all_messages():
+            for part in getattr(message, "parts", []):
+                if isinstance(part, ToolCallPart):
+                    tool_names.append(part.tool_name)
 
-            run_result = AgentRunResult(
-                output=result.output,
-                message_history=result.all_messages(),
-                model_name=getattr(result.response, "model_name", None),
-                usage=AgentUsage(
-                    requests=usage.requests,
-                    tool_calls=usage.tool_calls,
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
-                    total_tokens=usage.total_tokens,
-                ),
-                tool_names=tool_names or None,
+        run_result = AgentRunResult(
+            output=result.output,
+            message_history=result.all_messages(),
+            model_name=getattr(result.response, "model_name", None),
+            usage=AgentUsage(
+                requests=usage.requests,
+                tool_calls=usage.tool_calls,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                total_tokens=usage.total_tokens,
+            ),
+            tool_names=tool_names or None,
+        )
+
+        if counter is not None:
+            run_result.durable_stats = DurableStats(
+                replayed_model=counter.replayed_model,
+                replayed_tool=counter.replayed_tool,
+                cached_model=counter.cached_model,
+                cached_tool=counter.cached_tool,
             )
 
-            if counter is not None:
-                run_result.durable_stats = DurableStats(
-                    replayed_model=counter.replayed_model,
-                    replayed_tool=counter.replayed_tool,
-                    cached_model=counter.cached_model,
-                    cached_tool=counter.cached_tool,
-                )
-        except BaseException:
-            raise
-        else:
-            if storage is not None:
-                storage.cleanup()
+        if storage is not None:
+            storage.cleanup()
         return run_result
 
     def test_connection(self) -> tuple[bool, str]:

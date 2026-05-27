@@ -24,7 +24,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
@@ -87,6 +87,22 @@ class TestLLMOperator:
         assert request.usage_limits is None
         mock_hook.run_agent.assert_called_once_with(mock_agent, request)
         mock_hook_cls.get_agent_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
+
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
+    def test_execute_rejects_usage_limits_when_hook_unsupported(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.llm_conn_id = "my_llm"
+        mock_hook.supports_usage_limits = False
+        mock_hook.create_agent.side_effect = lambda req: BaseAIHook.validate_run_request(mock_hook, req)
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            usage_limits=UsageLimits(request_limit=1),
+        )
+        with pytest.raises(ValueError, match="usage_limits are not supported"):
+            op.execute(context=MagicMock())
 
     @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_execute_forwards_usage_limits_to_run_agent(self, mock_hook_cls):

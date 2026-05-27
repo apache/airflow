@@ -58,6 +58,7 @@ def _make_agent_run_result(output, *, message_history=None) -> AgentRunResult:
 def _make_mock_hook(output, *, message_history=None):
     """Return (mock_hook, mock_agent) wired for AgentOperator.execute."""
     mock_hook = MagicMock(spec=BaseAIHook)
+    mock_hook.llm_conn_id = "my_llm"
     mock_hook.supports_toolsets = True
     mock_hook.supports_durable = True
     mock_hook.supports_usage_limits = True
@@ -71,9 +72,16 @@ class TestAgentOperatorHookCapabilities:
     @patch("airflow.providers.common.ai.operators.agent.BaseAIHook", autospec=True)
     def test_execute_rejects_toolsets_when_hook_does_not_support_them(self, mock_hook_cls):
         mock_hook = MagicMock(spec=BaseAIHook)
+        mock_hook.llm_conn_id = "strands_conn"
         mock_hook.supports_toolsets = False
         mock_hook.supports_durable = False
         mock_hook.supports_usage_limits = False
+
+        def create_agent(request):
+            BaseAIHook.validate_run_request(mock_hook, request)
+            return MagicMock()
+
+        mock_hook.create_agent.side_effect = create_agent
         mock_hook_cls.get_agent_hook.return_value = mock_hook
 
         op = AgentOperator(
