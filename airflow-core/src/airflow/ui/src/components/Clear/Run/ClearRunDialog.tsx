@@ -70,8 +70,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     },
     requestBody: {
       only_failed: onlyFailed,
-      only_skipped: onlySkipped,
       only_new: onlyNew,
+      only_skipped: onlySkipped,
       run_on_latest_version: runOnLatestVersion,
     },
   });
@@ -162,8 +162,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   requestBody: {
                     dry_run: false,
                     only_failed: onlyFailed,
-                    only_skipped: onlySkipped,
                     only_new: onlyNew,
+                    only_skipped: onlySkipped,
                     run_on_latest_version: runOnLatestVersion,
                   },
                 });
