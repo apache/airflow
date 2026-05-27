@@ -1551,6 +1551,19 @@ class TestPostAssetMaterialize(TestAssets):
                 user=mock.ANY,
             )
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_on_invalid_dag_run_id(self, test_client):
+        """A dag_run_id failing DagRun.validate_run_id triggers ValueError.
+
+        It must surface as 400 BAD_REQUEST, not 500 INTERNAL_SERVER_ERROR.
+        """
+        response = test_client.post(
+            "/assets/1/materialize",
+            json={"dag_run_id": "bad id"},
+        )
+        assert response.status_code == 400
+        assert "does not match regex pattern" in response.json()["detail"]
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
