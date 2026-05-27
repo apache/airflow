@@ -466,6 +466,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.mwaa_serverless"],
             },
             {
+                "integration-name": "Amazon OpenSearch Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.operators.opensearch_serverless"],
+            },
+            {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.operators.s3"],
             },
