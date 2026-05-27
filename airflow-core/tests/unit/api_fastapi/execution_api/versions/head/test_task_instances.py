@@ -1038,6 +1038,87 @@ class TestTIRunState:
         assert logs[0].owner == ti.task.owner
         assert logs[0].extra == '{"host_name": "random-hostname"}'
 
+    def test_ti_run_emits_queued_duration_metric(self, client, session, create_task_instance, time_machine):
+        """task.queued_duration is emitted when a TI transitions QUEUED -> RUNNING."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_emits_queued_duration_metric",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        ti.queue = "default"
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once_with(
+            "task.queued_duration",
+            run_at - queued_at,
+            tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": "default"},
+        )
+
+    @pytest.mark.parametrize(
+        "skip_reason",
+        ["end_date_set", "queued_dttm_missing"],
+    )
+    def test_ti_run_skips_queued_duration_metric(
+        self, client, session, create_task_instance, time_machine, skip_reason
+    ):
+        """task.queued_duration is skipped on deferral resume (end_date set) and when
+        queued_dttm was not recorded (rare race / test setups)."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id=f"test_ti_run_skips_queued_duration_metric_{skip_reason}",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        if skip_reason == "end_date_set":
+            ti.queued_dttm = queued_at
+            ti.end_date = queued_at.add(seconds=10)
+        else:
+            ti.queued_dttm = None
+        session.commit()
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_not_called()
+
 
 class TestTIUpdateState:
     def setup_method(self):

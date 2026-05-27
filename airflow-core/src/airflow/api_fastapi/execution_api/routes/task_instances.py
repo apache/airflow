@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -147,6 +148,9 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.end_date,
+            TI.queue,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -230,6 +234,17 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # Emit task.queued_duration on the first round of a try only — mirrors the skip
+        # logic from TaskInstance.emit_state_change_metric (an existing end_date means
+        # this is a deferral resume or similar, and the timing would be misleading).
+        # The registry-based legacy name dag.<dag_id>.<task_id>.queued_duration is
+        # emitted automatically by stats.timing via metrics_template.yaml.
+        if ti.queued_dttm is not None and ti.end_date is None:
+            stats.timing(
+                "task.queued_duration",
+                timezone.utcnow() - ti.queued_dttm,
+                tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue},
+            )
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
