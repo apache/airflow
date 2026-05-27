@@ -1941,8 +1941,11 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         ("order_by", "expected_map_indexes"),
         [
-            ("rendered_map_index", [2, 3, 0, 1]),
-            ("-rendered_map_index", [1, 0, 3, 2]),
+            # All four TIs have explicit labels so alphabetical order is
+            # consistent across databases (no NULL ordering differences).
+            # Labels: "analytics"(3), "events"(2), "table_orders"(0), "table_users"(1)
+            ("rendered_map_index", [3, 2, 0, 1]),
+            ("-rendered_map_index", [1, 0, 2, 3]),
         ],
     )
     def test_should_respond_200_for_rendered_map_index_order(
@@ -1954,8 +1957,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=[
                 {"map_index": 0, "_rendered_map_index": "table_orders"},
                 {"map_index": 1, "_rendered_map_index": "table_users"},
-                {"map_index": 2, "_rendered_map_index": None},
-                {"map_index": 3, "_rendered_map_index": None},
+                {"map_index": 2, "_rendered_map_index": "events"},
+                {"map_index": 3, "_rendered_map_index": "analytics"},
             ],
         )
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by})
