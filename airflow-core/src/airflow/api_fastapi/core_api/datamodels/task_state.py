@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import math
 from datetime import datetime
 from typing import Literal
 
@@ -69,8 +68,10 @@ class TaskStatePatchBody(StrictBaseModel):
     def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
         if v is None:
             raise ValueError("value cannot be null")
-        if isinstance(v, float) and not math.isfinite(v):
-            raise ValueError("value must be a finite number; NaN and Inf are not JSON representable")
-        if len(json.dumps(v)) > _MAX_SERIALIZED_BYTES:
+        try:
+            serialized = json.dumps(v, allow_nan=False)
+        except ValueError:
+            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
+        if len(serialized) > _MAX_SERIALIZED_BYTES:
             raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
         return v
