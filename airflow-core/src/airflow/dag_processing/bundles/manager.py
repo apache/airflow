@@ -479,8 +479,11 @@ class DagBundlesManager(LoggingMixin):
         if total_skipped:
             self.log.warning(
                 "Skipped %d legacy Dag(s) whose fileloc is not under any configured bundle; "
-                "they will be marked stale until a matching bundle is added to "
-                "dag_bundle_config_list and the next parse restores them.",
+                "triggering them will keep raising \"Requested bundle '{name}' is not configured.\" "
+                "until a bundle whose path contains the fileloc is added to "
+                "dag_bundle_config_list. The next parse will then restore them automatically, "
+                "or run `airflow dags reserialize` to force the parse path to rewrite "
+                "bundle_name and relative_fileloc immediately.",
                 total_skipped,
             )
 
