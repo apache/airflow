@@ -19,9 +19,11 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.datamodels.task_state import TaskStateBody
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -198,15 +200,20 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
     @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
     def test_non_finite_float_returns_422(self, test_client, bad_float):
-        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
-            test_client.put(
-                f"{BASE_URL}/job_id",
-                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
-                headers={"Content-Type": "application/json"},
-            )
+        response = test_client.put(
+            f"{BASE_URL}/job_id",
+            content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == 422
 
     def test_oversized_value_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={"value": "x" * 65536}).status_code == 422
+
+    @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
+    def test_non_finite_float_rejected_by_validator(self, bad_value):
+        with pytest.raises(ValidationError, match="non-finite"):
+            TaskStateBody(value=bad_value)
 
     def test_set_nonexistent_dag_run_returns_404(self, test_client):
         """set() raises ValueError when DagRun doesn't exist — should surface as 404."""

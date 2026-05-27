@@ -19,8 +19,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.core_api.datamodels.asset_state import AssetStateBody
 from airflow.models.asset import AssetModel
 from airflow.models.asset_state import AssetStateModel
 
@@ -180,15 +182,20 @@ class TestSetAssetState(TestAssetStateEndpoint):
 
     @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
     def test_non_finite_float_returns_422(self, test_client, bad_float):
-        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
-            test_client.put(
-                f"{self._base_url}/watermark",
-                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
-                headers={"Content-Type": "application/json"},
-            )
+        response = test_client.put(
+            f"{self._base_url}/watermark",
+            content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == 422
 
     def test_oversized_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+
+    @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
+    def test_non_finite_float_rejected_by_validator(self, bad_value):
+        with pytest.raises(ValidationError, match="non-finite"):
+            AssetStateBody(value=bad_value)
 
     @pytest.mark.parametrize(
         ("value", "expected_db"),
