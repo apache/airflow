@@ -20,7 +20,7 @@ from __future__ import annotations
 from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 
 class DagStatsStateResponse(BaseModel):

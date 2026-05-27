@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

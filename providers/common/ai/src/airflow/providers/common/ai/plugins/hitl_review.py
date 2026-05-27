@@ -80,7 +80,7 @@ if AIRFLOW_V_3_1_PLUS:
         SessionStatus,
     )
     from airflow.utils.session import create_session
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk.state import TaskInstanceState
 
     def _get_session():
         with create_session(scoped=False) as session:

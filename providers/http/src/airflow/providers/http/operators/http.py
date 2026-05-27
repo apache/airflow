@@ -25,7 +25,7 @@ from requests import Response
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase

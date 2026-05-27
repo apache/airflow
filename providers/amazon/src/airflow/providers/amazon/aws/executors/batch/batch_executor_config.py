@@ -39,7 +39,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     BatchSubmitJobKwargsConfigKeys,
 )
 from airflow.providers.amazon.aws.executors.ecs.utils import camelize_dict_keys
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 
 def _fetch_templated_kwargs(conf) -> dict[str, str]:

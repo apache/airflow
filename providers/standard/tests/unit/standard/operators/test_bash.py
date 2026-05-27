@@ -30,7 +30,7 @@ import pytest
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.sdk.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.sensors.base import PokeReturnValue
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

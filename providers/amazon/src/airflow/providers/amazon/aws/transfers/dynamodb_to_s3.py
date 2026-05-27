@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.version_compat import ArgNotSet

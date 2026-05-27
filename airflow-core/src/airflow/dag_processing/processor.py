@@ -90,7 +90,7 @@ from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from socket import socket

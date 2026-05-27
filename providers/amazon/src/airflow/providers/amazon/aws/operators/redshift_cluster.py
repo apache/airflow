@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

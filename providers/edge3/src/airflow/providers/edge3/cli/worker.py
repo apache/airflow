@@ -63,7 +63,7 @@ from airflow.providers.edge3.models.edge_worker import (
 )
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser

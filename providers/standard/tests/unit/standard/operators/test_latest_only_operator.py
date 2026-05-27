@@ -36,7 +36,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.sdk.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator

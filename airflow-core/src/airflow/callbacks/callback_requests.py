@@ -27,7 +27,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self

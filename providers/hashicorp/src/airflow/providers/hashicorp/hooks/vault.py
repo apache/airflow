@@ -29,7 +29,7 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
 )
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:

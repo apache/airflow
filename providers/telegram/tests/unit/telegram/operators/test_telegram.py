@@ -71,7 +71,7 @@ class TestTelegramOperator:
         )
 
     def test_should_throw_exception_if_connection_id_is_none(self):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
+        with pytest.raises(airflow.sdk.exceptions.AirflowException) as ctx:
             TelegramOperator(task_id="telegram", telegram_conn_id=None)
 
         assert str(ctx.value) == "No valid Telegram connection id supplied."

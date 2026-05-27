@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors

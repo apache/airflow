@@ -49,7 +49,7 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildUpdateBuildTriggerOperator,
 )
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 from airflow.utils.types import DagRunType
 
 GCP_CONN_ID = "google_cloud_default"

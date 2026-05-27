@@ -29,7 +29,7 @@ from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 __all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
 

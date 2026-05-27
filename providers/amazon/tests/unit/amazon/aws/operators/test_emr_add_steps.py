@@ -29,7 +29,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

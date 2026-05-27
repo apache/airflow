@@ -28,7 +28,7 @@ from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

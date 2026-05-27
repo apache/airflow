@@ -57,7 +57,7 @@ from airflow.dag_processing.bundles.base import (
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest

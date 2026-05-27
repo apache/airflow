@@ -628,7 +628,7 @@ class TestIsTaskCompleted:
         assert result is True
 
     def test_returns_false_when_ti_running(self, session, dag_maker):
-        from airflow.utils.state import TaskInstanceState
+        from airflow.sdk.state import TaskInstanceState
 
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")

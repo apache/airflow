@@ -54,7 +54,7 @@ from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state import get_state_backend
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
 

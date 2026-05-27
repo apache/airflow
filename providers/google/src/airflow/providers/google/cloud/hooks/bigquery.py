@@ -79,7 +79,7 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.helpers import convert_camel_to_snake
+from airflow.sdk.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.types import DagRunType
 

@@ -62,7 +62,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

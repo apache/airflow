@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.transfers.s3_to_gcs import (
     _RETURN_GCS_URIS_FALSE_DEPRECATION_MSG,
     S3ToGCSOperator,
 )
-from airflow.utils.timezone import utcnow
+import pendulum  # replaces airflow.utils.timezone utcnow
 
 PROJECT_ID = "test-project-id"
 TASK_ID = "test-s3-gcs-operator"

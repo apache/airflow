@@ -35,7 +35,7 @@ from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 

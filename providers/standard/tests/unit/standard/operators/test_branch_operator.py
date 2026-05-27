@@ -28,7 +28,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.sdk.state import State
 from airflow.utils.types import DagRunType
 
 try:

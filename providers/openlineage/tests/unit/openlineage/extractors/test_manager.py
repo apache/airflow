@@ -37,7 +37,7 @@ from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker

@@ -61,7 +61,7 @@ try:
 except ImportError:
     # Fallback for older Airflow location where timezone is in utils
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS

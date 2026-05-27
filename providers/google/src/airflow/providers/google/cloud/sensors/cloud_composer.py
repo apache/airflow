@@ -48,7 +48,7 @@ from airflow.providers.standard.exceptions import (
     ExternalTaskFailedError,
     ExternalTaskGroupFailedError,
 )
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

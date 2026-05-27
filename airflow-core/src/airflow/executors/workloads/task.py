@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -114,7 +114,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         sentry_integration: str = "",
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
-        from airflow.utils.helpers import log_filename_template_renderer
+        from airflow.sdk.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstanceDTO.model_validate(ti, from_attributes=True)
         if not bundle_info:

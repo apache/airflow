@@ -71,7 +71,7 @@ from airflow._shared.observability.traces import (
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
+from airflow.sdk.exceptions import AirflowException, NotMapped, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
@@ -85,7 +85,7 @@ from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.utils.helpers import chunks, is_container, prune_dict
+from airflow.sdk.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -97,7 +97,7 @@ from airflow.utils.sqlalchemy import (
     nulls_first,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.sdk.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db

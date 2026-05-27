@@ -47,7 +47,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskInstanceKey, conf
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import BaseOperator
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.taskinstance import create_task_instance

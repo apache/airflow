@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 
 def _get_message_attribute(o):

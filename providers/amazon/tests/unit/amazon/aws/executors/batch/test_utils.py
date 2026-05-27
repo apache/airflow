@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     BatchQueuedJob,
     BatchSubmitJobKwargsConfigKeys,
 )
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 
 class TestBatchQueuedJob:

@@ -24,7 +24,7 @@ import pytest
 from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.sdk.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,

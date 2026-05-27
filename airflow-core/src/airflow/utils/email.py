@@ -31,7 +31,7 @@ from email.utils import formatdate
 from typing import Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 

@@ -44,7 +44,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, is_arg_set
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 try:
@@ -107,10 +107,10 @@ class TriggerDagRunLink(BaseOperatorLink):
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.helpers import build_airflow_dagrun_url
+            from airflow.sdk.utils.helpers import build_airflow_dagrun_url
 
             return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
-        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+        from airflow.sdk.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)

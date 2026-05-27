@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

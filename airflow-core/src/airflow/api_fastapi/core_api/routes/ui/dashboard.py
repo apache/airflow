@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, require
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 
 dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 

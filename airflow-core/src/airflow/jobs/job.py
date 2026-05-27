@@ -32,10 +32,10 @@ from sqlalchemy.orm.session import make_transient
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.utils.helpers import convert_camel_to_snake
+from airflow.sdk.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser

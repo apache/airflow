@@ -95,7 +95,7 @@ else:
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
-from airflow.utils.helpers import prune_dict, validate_key
+from airflow.sdk.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:

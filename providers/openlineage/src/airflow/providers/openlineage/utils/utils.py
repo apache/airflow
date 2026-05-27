@@ -99,7 +99,7 @@ if TYPE_CHECKING:
         SecretsMasker,
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.utils.state import DagRunState, TaskInstanceState
+    from airflow.sdk.state import DagRunState, TaskInstanceState
 
     AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:

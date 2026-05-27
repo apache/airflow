@@ -37,7 +37,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX

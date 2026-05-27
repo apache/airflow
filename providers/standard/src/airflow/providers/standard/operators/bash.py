@@ -89,7 +89,7 @@ class BashOperator(BaseOperator):
        * - `skip_on_exit_code` (default: 99)
          - raise :class:`airflow.exceptions.AirflowSkipException`
        * - otherwise
-         - raise :class:`airflow.exceptions.AirflowException`
+         - raise :class:`airflow.sdk.exceptions.AirflowException`
 
     .. note::
 

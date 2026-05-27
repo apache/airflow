@@ -43,7 +43,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 from tests_common.test_utils.taskinstance import run_task_instance
 

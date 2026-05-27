@@ -27,7 +27,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

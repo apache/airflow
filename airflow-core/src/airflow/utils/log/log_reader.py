@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler, StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from typing import TypeAlias

@@ -25,7 +25,7 @@ from pydantic import computed_field
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 

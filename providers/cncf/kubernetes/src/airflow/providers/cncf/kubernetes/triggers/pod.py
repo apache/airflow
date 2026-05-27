@@ -43,7 +43,7 @@ from airflow.providers.cncf.kubernetes.version_compat import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod

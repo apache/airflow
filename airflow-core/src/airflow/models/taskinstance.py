@@ -99,7 +99,7 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -107,7 +107,7 @@ from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.sdk.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
 

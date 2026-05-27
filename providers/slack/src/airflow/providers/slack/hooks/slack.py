@@ -41,7 +41,7 @@ from typing_extensions import NotRequired
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

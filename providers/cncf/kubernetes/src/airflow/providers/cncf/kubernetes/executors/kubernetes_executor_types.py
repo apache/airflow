@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk.state import TaskInstanceState
 
 
 ADOPTED = "adopted"

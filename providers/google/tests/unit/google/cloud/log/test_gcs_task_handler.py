@@ -28,8 +28,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
-from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
+from airflow.sdk.state import TaskInstanceState
+import pendulum  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLThresholdCheckOperator
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 connection_args = {
     "conn_id": "sales_db",

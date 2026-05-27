@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 from unit.amazon.aws.triggers.test_base import TestAwsBaseWaiterTrigger
 

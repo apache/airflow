@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):

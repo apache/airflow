@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.auth_manager.constants import (
 )
 from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPermissionsHook
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

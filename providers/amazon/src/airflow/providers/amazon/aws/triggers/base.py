@@ -21,10 +21,10 @@ from abc import abstractmethod
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook

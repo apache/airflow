@@ -38,7 +38,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

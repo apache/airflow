@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook

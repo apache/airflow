@@ -44,7 +44,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IS_TASK_DEP = True
 
     def _get_dep_statuses(self, ti, session, dep_context):
-        from airflow.utils.state import TaskInstanceState
+        from airflow.sdk.state import TaskInstanceState
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 

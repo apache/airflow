@@ -27,7 +27,7 @@ import pytest
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

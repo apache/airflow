@@ -50,8 +50,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.utils.helpers import merge_dicts
-from airflow.utils.state import State
+from airflow.sdk.utils.helpers import merge_dicts
+from airflow.sdk.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

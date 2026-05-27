@@ -31,8 +31,8 @@ from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
 )
 from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
+from airflow.sdk.state import TaskInstanceState
+import pendulum  # replaces airflow.utils.timezone datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars

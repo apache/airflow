@@ -70,7 +70,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 

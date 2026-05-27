@@ -41,7 +41,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
-from airflow.utils.helpers import as_flattened_list
+from airflow.sdk.utils.helpers import as_flattened_list
 
 if TYPE_CHECKING:
     import pandas as pd

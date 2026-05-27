@@ -45,7 +45,7 @@ from airflow.providers.snowflake.utils.openlineage import (
     fix_snowflake_sqlalchemy_uri,
 )
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 
 @pytest.mark.parametrize(

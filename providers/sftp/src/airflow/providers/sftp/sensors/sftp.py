@@ -29,7 +29,7 @@ from paramiko.sftp import SFTP_NO_SUCH_FILE
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue, conf
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
-from airflow.utils.timezone import convert_to_utc, parse
+import pendulum  # replaces airflow.utils.timezone convert_to_utc, parse
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

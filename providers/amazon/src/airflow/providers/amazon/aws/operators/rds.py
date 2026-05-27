@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from mypy_boto3_rds.type_defs import TagTypeDef

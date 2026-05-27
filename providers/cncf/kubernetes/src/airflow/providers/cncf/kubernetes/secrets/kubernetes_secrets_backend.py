@@ -27,7 +27,7 @@ from pathlib import Path
 from kubernetes.client import ApiClient, CoreV1Api
 from kubernetes.config import load_incluster_config
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 

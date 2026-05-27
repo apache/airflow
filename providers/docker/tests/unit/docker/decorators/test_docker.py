@@ -21,7 +21,7 @@ from importlib.util import find_spec
 import pytest
 
 from airflow.providers.common.compat.sdk import DAG, AirflowException, setup, task, teardown
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker

@@ -83,7 +83,7 @@ from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.utils.sqlalchemy import get_dialect_name
-from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
+from airflow.sdk.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update

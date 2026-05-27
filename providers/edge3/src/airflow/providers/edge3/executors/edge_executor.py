@@ -35,7 +35,7 @@ from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

@@ -33,7 +33,7 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
+from airflow.sdk.exceptions import AirflowException, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -47,7 +47,7 @@ from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:

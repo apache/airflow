@@ -25,12 +25,12 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
-from airflow.exceptions import AirflowException, PoolNotFound
+from airflow.sdk.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

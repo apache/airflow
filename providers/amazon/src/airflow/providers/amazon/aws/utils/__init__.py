@@ -24,7 +24,7 @@ from importlib import metadata
 from typing import Any
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 from airflow.version import version
 
 log = logging.getLogger(__name__)

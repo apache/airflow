@@ -27,7 +27,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlsplit
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.bid_manager import GoogleBidManagerHook
 from airflow.providers.google.version_compat import BaseOperator

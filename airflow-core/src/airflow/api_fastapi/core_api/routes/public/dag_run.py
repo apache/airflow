@@ -109,7 +109,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)

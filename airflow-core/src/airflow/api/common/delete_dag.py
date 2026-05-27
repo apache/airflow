@@ -25,13 +25,13 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import delete, select
 
 from airflow import models
-from airflow.exceptions import AirflowException, DagNotFound
+from airflow.sdk.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel, DagRun
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult, Result

@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from kubernetes.client.exceptions import ApiException
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend import (
     KubernetesSecretsBackend,
 )

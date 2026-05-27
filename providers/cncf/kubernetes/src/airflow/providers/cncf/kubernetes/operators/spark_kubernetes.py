@@ -32,7 +32,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     import jinja2

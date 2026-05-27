@@ -27,7 +27,7 @@ from dateutil.parser import parse as parse_date
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.timezone import convert_to_utc
+import pendulum  # replaces airflow.utils.timezone convert_to_utc
 
 
 class SFTPTrigger(BaseTrigger):

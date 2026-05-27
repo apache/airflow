@@ -55,7 +55,7 @@ from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.sdk.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import OperatorSerialization
@@ -77,7 +77,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.timezone import coerce_datetime, datetime
 else:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-    from airflow.utils.timezone import coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
+    import pendulum  # replaces airflow.utils.timezone coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag

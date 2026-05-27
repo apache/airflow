@@ -38,7 +38,7 @@ from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
 from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
-from airflow.utils.state import CallbackState
+from airflow.sdk.state import CallbackState
 
 
 @dataclass(frozen=True, slots=True)

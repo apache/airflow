@@ -42,7 +42,7 @@ from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreate
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import yaml
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

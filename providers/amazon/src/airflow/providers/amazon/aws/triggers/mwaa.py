@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.sdk.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook

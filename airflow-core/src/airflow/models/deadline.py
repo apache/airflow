@@ -40,7 +40,7 @@ from airflow.models.callback import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
-from airflow.utils.state import CallbackState
+from airflow.sdk.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

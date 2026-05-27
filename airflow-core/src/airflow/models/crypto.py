@@ -22,7 +22,7 @@ from functools import cache
 from typing import Protocol
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ def get_fernet() -> FernetProtocol:
     or because the Fernet key is invalid.
 
     :return: Fernet object
-    :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
+    :raises: airflow.sdk.exceptions.AirflowException if there's a problem trying to load Fernet
     """
     from cryptography.fernet import Fernet, MultiFernet
 

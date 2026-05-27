@@ -39,7 +39,7 @@ from airflow.providers.common.compat.sdk import (
     conf,
 )
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.helpers import convert_camel_to_snake, exactly_one
+from airflow.sdk.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
 
 if TYPE_CHECKING:

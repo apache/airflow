@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, TypeAlias
 from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.utils.state import CallbackState, TaskInstanceState
+from airflow.sdk.state import CallbackState, TaskInstanceState
 
 if TYPE_CHECKING:
     # Type aliases for workload keys and states (used by executor layer)

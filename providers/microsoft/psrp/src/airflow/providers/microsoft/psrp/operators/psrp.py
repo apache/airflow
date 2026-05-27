@@ -27,7 +27,7 @@ from pypsrp.serializer import TaggedValue
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from pypsrp.powershell import Command

@@ -34,7 +34,7 @@ from pydantic import (
 
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 

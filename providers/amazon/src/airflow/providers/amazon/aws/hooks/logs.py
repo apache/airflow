@@ -24,7 +24,7 @@ from typing import Any, TypedDict
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
 # value of the nextForwardToken is the same in subsequent calls.

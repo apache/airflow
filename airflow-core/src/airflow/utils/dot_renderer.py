@@ -23,12 +23,12 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 # Also support SDK types if possible.
 try:

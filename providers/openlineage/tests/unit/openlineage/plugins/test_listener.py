@@ -40,7 +40,7 @@ from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils import types
-from airflow.utils.state import DagRunState, State
+from airflow.sdk.state import DagRunState, State
 
 from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars

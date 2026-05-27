@@ -25,7 +25,7 @@ from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.providers.edge3.worker_api.datamodels import EdgeJobBase, WorkerStateBody
-from airflow.utils.state import TaskInstanceState  # noqa: TC001
+from airflow.sdk.state import TaskInstanceState  # noqa: TC001
 
 
 class Worker(WorkerStateBody):

@@ -43,11 +43,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
+from airflow.sdk.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -558,7 +558,7 @@ def _handle_clear_run(
     from sqlalchemy.sql import update
 
     from airflow.models import DagRun
-    from airflow.utils.state import DagRunState
+    from airflow.sdk.state import DagRunState
     from airflow.utils.types import DagRunType
 
     dag.clear(

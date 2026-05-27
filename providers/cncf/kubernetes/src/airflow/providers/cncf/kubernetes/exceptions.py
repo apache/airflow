@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 
 # Todo: we cannot have a backcompat import for AirflowException yet
 # because PodMutationHookException is redefined in airflow.exception

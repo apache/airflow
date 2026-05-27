@@ -30,7 +30,7 @@ from google.genai.types import (
     TuningDataset,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAICountTokensOperator,
     GenAICreateCachedContentOperator,

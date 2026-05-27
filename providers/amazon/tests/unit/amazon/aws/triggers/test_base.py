@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 if TYPE_CHECKING:

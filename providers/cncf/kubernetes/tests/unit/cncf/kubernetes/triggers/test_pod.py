@@ -32,7 +32,7 @@ from pendulum import DateTime
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -890,7 +890,7 @@ class TestKubernetesPodTrigger:
         # response is missing the expected (composite) key, so callers
         # like ``safe_to_cancel`` keep the same behaviour they had before
         # the lookup was fixed.
-        from airflow.exceptions import AirflowException
+        from airflow.sdk.exceptions import AirflowException
 
         run_id = "manual__2026-05-21T00:00:00+00:00"
         # Response has the run_id but not the (``map_group.task_a``, ``2``)

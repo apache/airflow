@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from tableauserverclient.server import Auth

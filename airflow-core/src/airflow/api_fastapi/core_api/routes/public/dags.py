@@ -73,11 +73,11 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowException, DagNotFound
+from airflow.sdk.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 

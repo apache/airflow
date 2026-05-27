@@ -49,7 +49,7 @@ from airflow.providers.edge3.worker_api.datamodels_ui import (
     Worker,
     WorkerCollectionResponse,
 )
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import ScalarResult

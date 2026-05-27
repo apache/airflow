@@ -28,7 +28,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:

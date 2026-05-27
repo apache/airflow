@@ -26,7 +26,7 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
 from airflow.providers.common.compat.sdk import AirflowSensorTimeout
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 from unit.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment
 

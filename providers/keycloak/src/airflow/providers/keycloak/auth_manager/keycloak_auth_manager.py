@@ -56,7 +56,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod

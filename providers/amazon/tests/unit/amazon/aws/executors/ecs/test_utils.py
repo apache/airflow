@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     camelize_dict_keys,
     parse_assign_public_ip,
 )
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 
 class TestEcsQueuedTask:

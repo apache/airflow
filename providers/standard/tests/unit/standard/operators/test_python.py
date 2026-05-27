@@ -60,7 +60,7 @@ from airflow.providers.standard.operators.python import (
 )
 from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.sdk.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import TriggerRule, timezone

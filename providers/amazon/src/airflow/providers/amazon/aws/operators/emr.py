@@ -63,7 +63,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_transport_information_into_emr_serverless_properties,
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import exactly_one, prune_dict
+from airflow.sdk.utils.helpers import exactly_one, prune_dict
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

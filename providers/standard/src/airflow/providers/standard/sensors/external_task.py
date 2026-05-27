@@ -49,7 +49,7 @@ from airflow.providers.standard.version_compat import (
     BaseOperator,
 )
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
@@ -96,10 +96,10 @@ class ExternalDagLink(BaseOperatorLink):
                 external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.helpers import build_airflow_dagrun_url
+            from airflow.sdk.utils.helpers import build_airflow_dagrun_url
 
             return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
-        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+        from airflow.sdk.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
         return build_airflow_url_with_query(query)

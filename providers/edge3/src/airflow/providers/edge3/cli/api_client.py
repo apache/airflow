@@ -47,7 +47,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk.state import TaskInstanceState
 
 logger = logging.getLogger(__name__)
 

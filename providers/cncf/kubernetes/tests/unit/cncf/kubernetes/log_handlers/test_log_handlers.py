@@ -34,7 +34,7 @@ from airflow.utils.log.file_task_handler import (
 )
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import set_context
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
@@ -49,7 +49,7 @@ if AIRFLOW_V_3_0_PLUS:
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.timezone import datetime
 else:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
+    import pendulum  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 

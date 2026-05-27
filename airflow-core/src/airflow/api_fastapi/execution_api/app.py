@@ -281,7 +281,7 @@ def get_extra_schemas() -> dict[str, dict]:
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.trigger_rule import TriggerRule
     from airflow.task.weight_rule import WeightRule
-    from airflow.utils.state import TaskInstanceState, TerminalTIState
+    from airflow.sdk.state import TaskInstanceState, TerminalTIState
 
     return {
         "TaskInstance": TaskInstance.model_json_schema(),

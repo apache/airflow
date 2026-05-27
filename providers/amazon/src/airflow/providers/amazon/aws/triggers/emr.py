@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

@@ -21,7 +21,7 @@ from datetime import datetime
 from pydantic import computed_field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 
 class DAGRunLightResponse(BaseModel):

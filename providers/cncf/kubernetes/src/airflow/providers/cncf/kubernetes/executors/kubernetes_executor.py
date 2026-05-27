@@ -55,7 +55,7 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -717,7 +717,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.jobs.job import Job
             from airflow.utils import timezone
             from airflow.utils.session import create_session
-            from airflow.utils.state import JobState
+            from airflow.sdk.state import JobState
 
             timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
             cutoff = timezone.utcnow() - timedelta(seconds=timeout)

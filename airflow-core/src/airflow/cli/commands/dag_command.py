@@ -54,11 +54,11 @@ from airflow.utils.cli import (
     validate_dag_bundle_arg,
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
-from airflow.utils.helpers import ask_yesno
+from airflow.sdk.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:

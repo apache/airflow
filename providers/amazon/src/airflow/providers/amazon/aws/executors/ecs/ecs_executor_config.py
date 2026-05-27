@@ -43,7 +43,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 
 def _fetch_templated_kwargs(conf) -> dict[str, str]:

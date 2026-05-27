@@ -28,7 +28,7 @@ from sqlalchemy.orm import lazyload
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.sdk.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession

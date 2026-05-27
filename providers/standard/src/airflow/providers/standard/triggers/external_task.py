@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from airflow.utils.state import DagRunState
+    from airflow.sdk.state import DagRunState
 
 
 class WorkflowTrigger(BaseTrigger):

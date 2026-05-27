@@ -37,7 +37,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

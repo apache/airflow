@@ -50,7 +50,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 try:
     from airflow.providers.common.compat.sdk import AirflowException
 except ModuleNotFoundError:
-    from airflow.exceptions import AirflowException
+    from airflow.sdk.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,

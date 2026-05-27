@@ -35,7 +35,7 @@ from airflow.providers.openlineage.utils.utils import (
     try_import_from_string,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset

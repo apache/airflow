@@ -27,7 +27,7 @@ from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup

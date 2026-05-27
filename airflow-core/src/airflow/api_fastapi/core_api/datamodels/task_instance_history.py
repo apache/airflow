@@ -27,7 +27,7 @@ from pydantic import (
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 
 class TaskInstanceHistoryResponse(BaseModel):

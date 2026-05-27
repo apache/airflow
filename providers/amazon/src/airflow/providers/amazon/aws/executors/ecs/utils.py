@@ -33,7 +33,7 @@ from inflection import camelize
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 if TYPE_CHECKING:
     if AIRFLOW_V_3_3_PLUS:

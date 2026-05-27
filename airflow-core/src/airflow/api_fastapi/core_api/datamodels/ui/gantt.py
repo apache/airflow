@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 
 class GanttTaskInstance(BaseModel):

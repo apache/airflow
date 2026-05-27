@@ -30,7 +30,7 @@ from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 

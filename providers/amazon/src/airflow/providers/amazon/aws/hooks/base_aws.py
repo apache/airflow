@@ -57,7 +57,7 @@ from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, conf
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.helpers import exactly_one
+from airflow.sdk.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # We need to set typeignore, sadly without it Sphinx build and mypy don't agree.

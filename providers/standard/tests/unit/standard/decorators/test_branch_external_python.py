@@ -21,7 +21,7 @@ import sys
 
 import pytest
 
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 

@@ -38,7 +38,7 @@ from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 router = VersionedAPIRouter()

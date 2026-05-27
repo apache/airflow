@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.version_compat import BaseOperator
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import task
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
 connection_args = {

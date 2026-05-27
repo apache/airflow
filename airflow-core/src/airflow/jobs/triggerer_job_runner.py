@@ -110,7 +110,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer
+from airflow.sdk.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 

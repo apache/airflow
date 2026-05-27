@@ -44,7 +44,7 @@ from airflow.providers.celery.executors import (
 )
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
 

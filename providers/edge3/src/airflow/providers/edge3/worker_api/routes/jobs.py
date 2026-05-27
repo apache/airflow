@@ -34,7 +34,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerApiDocs,
     WorkerQueuesBody,
 )
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 

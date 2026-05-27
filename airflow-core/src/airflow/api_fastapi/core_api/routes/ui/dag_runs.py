@@ -28,7 +28,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.dag_run import compute_duration_stats
 from airflow.models.dagrun import DagRun
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 dag_runs_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns", tags=["DagRun"])
 

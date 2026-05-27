@@ -42,7 +42,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
 from airflow.typing_compat import Unpack
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 if TYPE_CHECKING:
     from sqlalchemy import Result

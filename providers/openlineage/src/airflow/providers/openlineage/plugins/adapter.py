@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
-    from airflow.utils.state import DagRunState
+    from airflow.sdk.state import DagRunState
 else:
     try:
         from airflow.sdk._shared.secrets_masker import SecretsMasker, _secrets_masker

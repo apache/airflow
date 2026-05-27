@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

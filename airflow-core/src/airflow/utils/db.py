@@ -56,7 +56,7 @@ from sqlalchemy import (
 import airflow
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.models import import_all_models
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager

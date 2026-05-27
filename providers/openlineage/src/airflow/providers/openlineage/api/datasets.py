@@ -40,7 +40,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_run_dag_and_task_from_ti,
     get_task_instance_from_context,
 )
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import InputDataset, OutputDataset

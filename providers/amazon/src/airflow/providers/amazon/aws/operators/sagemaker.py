@@ -47,7 +47,7 @@ from airflow.providers.common.compat.sdk import (
     BaseBranchOperator,
     conf,
 )
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset

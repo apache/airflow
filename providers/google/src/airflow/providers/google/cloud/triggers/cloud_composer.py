@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsy
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from airflow.utils.state import TerminalTIState
+    from airflow.sdk.state import TerminalTIState
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):

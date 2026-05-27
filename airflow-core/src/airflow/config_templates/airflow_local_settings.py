@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 if TYPE_CHECKING:

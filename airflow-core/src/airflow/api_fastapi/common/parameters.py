@@ -68,7 +68,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:

@@ -23,7 +23,7 @@ import pkgutil
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.settings import json
 
 if TYPE_CHECKING:

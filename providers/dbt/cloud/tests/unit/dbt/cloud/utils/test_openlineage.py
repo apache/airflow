@@ -34,7 +34,7 @@ from airflow.providers.dbt.cloud.utils.openlineage import (
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 TASK_ID = "dbt_test"
 DAG_ID = "dbt_dag"

@@ -30,7 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateExperimentOperator,
 )
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

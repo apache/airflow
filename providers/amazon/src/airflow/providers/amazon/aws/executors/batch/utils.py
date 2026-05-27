@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey

@@ -24,7 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 

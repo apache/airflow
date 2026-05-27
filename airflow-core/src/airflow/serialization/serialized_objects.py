@@ -44,7 +44,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.exceptions import AirflowException, DeserializationError, SerializationError
+from airflow.sdk.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey

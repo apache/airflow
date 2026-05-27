@@ -53,9 +53,9 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import utcnow
+from airflow.sdk.utils.helpers import convert_camel_to_snake
+from airflow.sdk.state import State, TaskInstanceState
+import pendulum  # replaces airflow.utils.timezone utcnow
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES

@@ -31,7 +31,7 @@ from moto import mock_aws
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
@@ -43,7 +43,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 try:
     from airflow.sdk.timezone import datetime
 except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
+    import pendulum  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)

@@ -26,7 +26,7 @@ from urllib.parse import quote_plus
 from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.helpers import merge_dicts
+from airflow.sdk.utils.helpers import merge_dicts
 
 
 class OdbcHook(DbApiHook):

@@ -29,7 +29,7 @@ from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import PokeReturnValue
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

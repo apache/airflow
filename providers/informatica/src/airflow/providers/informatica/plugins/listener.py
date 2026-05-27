@@ -25,7 +25,7 @@ from airflow.providers.informatica.hooks.edc import InformaticaEDCHook
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk.state import TaskInstanceState
 
 _informatica_listener: InformaticaListener | None = None
 

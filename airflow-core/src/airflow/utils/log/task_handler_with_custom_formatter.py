@@ -22,7 +22,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.utils.helpers import _render_template_to_string, parse_template_string
+from airflow.sdk.utils.helpers import _render_template_to_string, parse_template_string
 
 if TYPE_CHECKING:
     from jinja2 import Template

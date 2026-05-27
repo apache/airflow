@@ -57,7 +57,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.models.asset import AssetDagRunQueue, AssetModel
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
@@ -71,7 +71,7 @@ from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataInte
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:

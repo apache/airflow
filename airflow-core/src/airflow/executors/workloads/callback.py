@@ -27,7 +27,7 @@ import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
-from airflow.utils.state import CallbackState
+from airflow.sdk.state import CallbackState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator

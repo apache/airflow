@@ -54,7 +54,7 @@ from airflow.providers.openlineage.utils.utils import (
     print_warning,
 )
 from airflow.settings import configure_orm
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

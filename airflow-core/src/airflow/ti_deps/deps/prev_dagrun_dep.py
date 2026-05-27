@@ -27,7 +27,7 @@ from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import exists_query
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

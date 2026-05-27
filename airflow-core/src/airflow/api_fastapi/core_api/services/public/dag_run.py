@@ -42,7 +42,7 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator

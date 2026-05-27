@@ -43,7 +43,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     unify_bucket_name_and_key,
 )
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 try:
     import importlib.util

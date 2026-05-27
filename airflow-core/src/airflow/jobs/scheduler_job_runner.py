@@ -117,7 +117,7 @@ from airflow.utils.sqlalchemy import (
     random_db_uuid,
     with_row_locks,
 )
-from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
+from airflow.sdk.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:

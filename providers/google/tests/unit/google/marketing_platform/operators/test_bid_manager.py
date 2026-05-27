@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.models import TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.bid_manager import (
     GoogleBidManagerCreateQueryOperator,

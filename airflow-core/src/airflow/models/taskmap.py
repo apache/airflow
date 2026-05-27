@@ -33,7 +33,7 @@ from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

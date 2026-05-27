@@ -83,7 +83,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.typing_compat import Unpack
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:

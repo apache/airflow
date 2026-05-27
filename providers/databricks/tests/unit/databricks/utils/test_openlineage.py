@@ -42,7 +42,7 @@ from airflow.providers.databricks.utils.openlineage import (
 )
 from airflow.providers.openlineage.conf import namespace
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 
 def test_get_parent_run_facet():

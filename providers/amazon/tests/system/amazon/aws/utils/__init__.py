@@ -41,7 +41,7 @@ try:
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.utils.state import DagRunState, State
+from airflow.sdk.state import DagRunState, State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

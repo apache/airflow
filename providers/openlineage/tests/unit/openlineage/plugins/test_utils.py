@@ -44,7 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
     is_operator_disabled,
 )
 from airflow.serialization.enums import DagAttributeTypes, Encoding
-from airflow.utils.state import State
+from airflow.sdk.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (

@@ -47,7 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
 from airflow.providers.common.compat.sdk import AirflowException, Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s

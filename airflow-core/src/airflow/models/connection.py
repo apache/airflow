@@ -32,7 +32,7 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, 
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 
@@ -49,7 +49,7 @@ except ImportError:
         """Compat stub — never raised by task-sdk <1.2.2."""
 
 
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 

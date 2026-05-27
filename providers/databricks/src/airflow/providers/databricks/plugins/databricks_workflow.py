@@ -34,7 +34,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

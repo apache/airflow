@@ -44,7 +44,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationTerminalStatusTrigger,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import timezone

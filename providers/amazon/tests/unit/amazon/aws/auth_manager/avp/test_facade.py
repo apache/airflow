@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, 
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.helpers import prune_dict
+from airflow.sdk.utils.helpers import prune_dict
 
 from tests_common.test_utils.config import conf_vars
 

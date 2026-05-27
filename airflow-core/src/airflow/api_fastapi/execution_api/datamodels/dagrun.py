@@ -21,7 +21,7 @@ from pydantic import Field
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 
 class TriggerDAGRunPayload(StrictBaseModel):

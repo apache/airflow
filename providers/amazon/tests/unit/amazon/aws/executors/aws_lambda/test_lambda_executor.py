@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.executors.aws_lambda import lambda_executor
 from airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor import AwsLambdaExecutor
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import CONFIG_GROUP_NAME, AllLambdaConfigKeys
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk.state import TaskInstanceState
 from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone

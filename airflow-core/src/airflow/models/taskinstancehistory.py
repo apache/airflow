@@ -51,7 +51,7 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
 )
-from airflow.utils.state import State, TaskInstanceState
+from airflow.sdk.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

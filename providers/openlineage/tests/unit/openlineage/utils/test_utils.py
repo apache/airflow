@@ -82,7 +82,7 @@ from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.edgemodifier import Label
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator

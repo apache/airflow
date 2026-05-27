@@ -25,7 +25,7 @@ from sqlalchemy import inspect
 from airflow import settings
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name
 

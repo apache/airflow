@@ -47,7 +47,7 @@ from airflow.providers.common.sql.operators.sql import (
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone  # type: ignore[attr-defined]
-from airflow.utils.state import State
+from airflow.sdk.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db

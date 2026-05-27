@@ -34,7 +34,7 @@ from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, 
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db

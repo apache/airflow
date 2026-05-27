@@ -25,7 +25,7 @@ import pytest
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.instance import Instance
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 

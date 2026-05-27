@@ -30,7 +30,7 @@ from airflow.providers.ftp.operators.ftp import (
     FTPSFileTransmitOperator,
 )
 from airflow.utils import timezone
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 DEFAULT_DATE = datetime(2017, 1, 1)
 DEFAULT_CONN_ID = "ftp_default"

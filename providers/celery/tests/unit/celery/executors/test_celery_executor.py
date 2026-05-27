@@ -40,7 +40,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.common.compat.sdk import conf
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars

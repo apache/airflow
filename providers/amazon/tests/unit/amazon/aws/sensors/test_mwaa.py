@@ -23,7 +23,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor, MwaaTaskSensor
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.state import DagRunState, TaskInstanceState
 
 SENSOR_DAG_RUN_KWARGS = {
     "task_id": "test_mwaa_sensor",

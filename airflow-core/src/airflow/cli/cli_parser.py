@@ -45,9 +45,9 @@ from airflow.cli.cli_config import (
     core_commands,
 )
 from airflow.cli.utils import CliConflictError
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.helpers import partition
+from airflow.sdk.utils.helpers import partition
 
 if TYPE_CHECKING:
     from airflow.cli.cli_config import (

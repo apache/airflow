@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import attr
 
 from airflow.exceptions import TaskNotFound
-from airflow.utils.state import State
+from airflow.sdk.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

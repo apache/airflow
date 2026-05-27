@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.looker import (
     DataStudioStartPdtBuildOperator,
     LookerStartPdtBuildOperator,
 )
-from airflow.utils.timezone import datetime
+import pendulum  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 

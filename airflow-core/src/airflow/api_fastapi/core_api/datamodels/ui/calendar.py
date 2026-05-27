@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Literal
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import DagRunState
+from airflow.sdk.state import DagRunState
 
 
 class CalendarTimeRangeResponse(BaseModel):
