@@ -370,6 +370,7 @@ class TestDagRunDetail:
             "triggering_user_name": None,
             "note": None,
             "team_name": None,
+            "target_date": None,
         }
 
     def test_dag_run_not_found(self, client):
