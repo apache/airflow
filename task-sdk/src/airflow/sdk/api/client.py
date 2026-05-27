@@ -1089,10 +1089,11 @@ API_RETRIES = conf.getint("workers", "execution_api_retries")
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
-API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=certifi.where())
+API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
+API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
@@ -1110,10 +1111,15 @@ class Client(httpx.Client):
         """
         Cache SSL context to prevent memory growth from repeated context creation.
 
-        :param ca_file: Certificate Authority.
+        If `client_use_public_certs` is enabled certifi.where() will be loaded into the context.
+
+        :param ca_file: Certificate Authority, optional.
         :param ca_path: Certificate File, optional.
         """
         ctx = ssl.create_default_context(cafile=ca_file)
+        if API_CLIENT_USE_PUBLIC_CERTS:
+            log.info("Using Public CAs from certifi")
+            ctx.load_verify_locations(certifi.where())
         if ca_path:
             ctx.load_verify_locations(ca_path)
         return ctx

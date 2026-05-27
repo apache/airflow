@@ -1892,6 +1892,13 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    client_use_public_certs:
+      description: |
+        Enable loading of public CA certificates from certifi into the client SSL context.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
