@@ -923,7 +923,7 @@ class GetTaskState(BaseModel):
 class SetTaskState(BaseModel):
     ti_id: UUID
     key: str
-    value: str
+    value: JsonValue
     expires_at: AwareDatetime | None
     type: Literal["SetTaskState"] = "SetTaskState"
 
@@ -955,14 +955,14 @@ class GetAssetStateByUri(BaseModel):
 class SetAssetStateByName(BaseModel):
     name: str
     key: str
-    value: str
+    value: JsonValue
     type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
 
 
 class SetAssetStateByUri(BaseModel):
     uri: str
     key: str
-    value: str
+    value: JsonValue
     type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
 
 
