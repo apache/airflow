@@ -21,6 +21,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from airflow.models import Connection, Trigger, Variable
+from airflow.models.connection_test import ConnectionTestRequest
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
@@ -43,6 +44,13 @@ def rotate_fernet_key(args):
                 session, Variable, filter_condition=Variable.is_encrypted, batch_size=batch_size
             )
             rotate_items_in_batches(session, Trigger, filter_condition=None, batch_size=batch_size)
+            rotate_items_in_batches(
+                session,
+                ConnectionTestRequest,
+                filter_condition=ConnectionTestRequest.is_encrypted
+                | ConnectionTestRequest.is_extra_encrypted,
+                batch_size=batch_size,
+            )
 
 
 def rotate_items_in_batches(session, model_class, filter_condition=None, batch_size=100):

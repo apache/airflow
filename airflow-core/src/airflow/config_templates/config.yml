@@ -2756,9 +2756,11 @@ connection_test:
       description: |
         Maximum number of connection tests that can be active
         (QUEUED + RUNNING) at the same time. Excess tests will remain in
-        PENDING state until slots become available. With N HA schedulers and
-        the dispatch lock seeded by the migration, this is enforced as a
-        true global cap.
+        PENDING state until slots become available. This cap is enforced
+        per-scheduler, not globally: with N HA schedulers the worst-case
+        per-tick dispatch is ``N * max_concurrency``. Connection tests are
+        user-initiated and rare, so the overshoot self-corrects via the
+        reaper.
       version_added: 3.3.0
       type: integer
       example: ~

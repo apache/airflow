@@ -40,7 +40,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.connection import Connection
-from airflow.models.crypto import FernetFieldsMixin
+from airflow.models.crypto import FernetFieldsMixin, get_fernet
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -118,6 +118,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     )
 
     active_connection_id: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    team_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     __table_args__ = (
         Index("idx_connection_test_request_state_created_at", state, created_at),
@@ -141,6 +142,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         commit_on_success: bool = False,
         executor: str | None = None,
         queue: str | None = None,
+        team_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -155,11 +157,14 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.commit_on_success = commit_on_success
         self.executor = executor
         self.queue = queue
+        self.team_name = team_name
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
 
     @validates("state")
-    def _sync_active_connection_id(self, _key: str, value: str) -> str:
+    def _sync_active_connection_id(
+        self, _key: str, value: str | ConnectionTestState
+    ) -> str | ConnectionTestState:
         self.active_connection_id = self.connection_id if value in ACTIVE_STATES else None
         return value
 
@@ -167,6 +172,14 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         return (
             f"<ConnectionTestRequest id={self.id!r} connection_id={self.connection_id!r} state={self.state}>"
         )
+
+    def rotate_fernet_key(self):
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
+        fernet = get_fernet()
+        if self._password and self.is_encrypted:
+            self._password = fernet.rotate(self._password.encode("utf-8")).decode()
+        if self._extra and self.is_extra_encrypted:
+            self._extra = fernet.rotate(self._extra.encode("utf-8")).decode()
 
     def get_executor_name(self) -> str | None:
         """Return the executor name for scheduler routing."""

@@ -138,10 +138,9 @@ def get_connection_test(
             f"No connection test found for token: `{connection_test_token}`",
         )
 
-    team_name = Connection.get_team_name(connection_test.connection_id, session=session)
     if not get_auth_manager().is_authorized_connection(
         method="GET",
-        details=ConnectionDetails(conn_id=connection_test.connection_id, team_name=team_name),
+        details=ConnectionDetails(conn_id=connection_test.connection_id, team_name=connection_test.team_name),
         user=user,
     ):
         raise HTTPException(
@@ -376,6 +375,7 @@ def enqueue_connection_test(
         commit_on_success=test_body.commit_on_success,
         executor=test_body.executor,
         queue=test_body.queue,
+        team_name=effective_team,
     )
     session.add(connection_test)
     try:

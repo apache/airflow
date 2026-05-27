@@ -89,7 +89,6 @@ from airflow.models.asset import (
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
-from airflow.models.connection import Connection
 from airflow.models.connection_test import (
     ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
     DISPATCHED_STATES,
@@ -3300,9 +3299,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         for ct in pending_tests:
-            team_name = (
-                Connection.get_team_name(ct.connection_id, session=session) if self._multi_team else None
-            )
+            team_name = ct.team_name if self._multi_team else None
             executor = self._try_to_load_executor(ct, session, team_name=team_name)
             if executor is None:
                 reason = f"No executor matches '{ct.executor}'"
@@ -3346,8 +3343,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stale_tests = session.scalars(stale_stmt).all()
 
         for ct in stale_tests:
+            prior_state = ct.state
             ct.state = ConnectionTestState.FAILED
-            ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
+            if prior_state == ConnectionTestState.PENDING:
+                ct.result_message = (
+                    f"Connection test expired in PENDING before any executor picked it up "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            elif prior_state == ConnectionTestState.QUEUED:
+                ct.result_message = (
+                    f"Connection test was queued but never started before timeout "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            else:
+                ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
             self.log.warning("Reaped stale connection test %s", ct.id)
             key = ConnectionTestKey(id=str(ct.id))
             for executor in self.executors:

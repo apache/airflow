@@ -1066,6 +1066,8 @@ class ConnectionTestOperations:
         self, id: uuid.UUID, state: ConnectionTestState, result_message: str | None = None
     ) -> None:
         """Report the state of a connection test to the API server."""
+        if result_message is not None:
+            result_message = result_message[:2000]
         body = ConnectionTestResultBody(
             state=state,
             result_message=ResultMessage(result_message) if result_message is not None else None,
