@@ -55,6 +55,13 @@ class PubsubPullTrigger(BaseEventTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     """
 
     def __init__(
@@ -66,6 +73,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         gcp_conn_id: str,
         poke_interval: float = 10.0,
         impersonation_chain: str | Sequence[str] | None = None,
+        return_immediately: bool = False,
     ):
         super().__init__()
         self.project_id = project_id
@@ -75,6 +83,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         self.poke_interval = poke_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.return_immediately = return_immediately
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""
@@ -88,6 +97,7 @@ class PubsubPullTrigger(BaseEventTrigger):
                 "poke_interval": self.poke_interval,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
+                "return_immediately": self.return_immediately,
             },
         )
 
@@ -97,7 +107,7 @@ class PubsubPullTrigger(BaseEventTrigger):
                 project_id=self.project_id,
                 subscription=self.subscription,
                 max_messages=self.max_messages,
-                return_immediately=True,
+                return_immediately=self.return_immediately,
             ):
                 if self.ack_messages:
                     await self.message_acknowledgement(pulled_messages)
