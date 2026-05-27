@@ -218,7 +218,10 @@ class ClickHouseHook(DbApiHook):
         # Merge client_kwargs: extra values are the base, constructor values override.
         raw_client_kwargs = extra.get("client_kwargs")
         if isinstance(raw_client_kwargs, str):
-            raw_client_kwargs = json.loads(raw_client_kwargs)
+            try:
+                raw_client_kwargs = json.loads(raw_client_kwargs)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in extra.client_kwargs: {e}") from e
         merged_client_kwargs: dict[str, Any] = {**(raw_client_kwargs or {}), **self.client_kwargs}
 
         # Strip hook-managed keys so they cannot overwrite connection credentials
@@ -256,7 +259,10 @@ class ClickHouseHook(DbApiHook):
         # Merge session_settings: extra values are the base, constructor values override.
         raw = extra.get("session_settings")
         if isinstance(raw, str):
-            raw = json.loads(raw)
+            try:
+                raw = json.loads(raw)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in extra.session_settings: {e}") from e
         merged: dict[str, Any] = {**(raw or {}), **self.session_settings}
         if merged:
             kwargs["settings"] = merged
