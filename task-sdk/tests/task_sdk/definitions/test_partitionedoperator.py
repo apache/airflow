@@ -78,7 +78,7 @@ class TestPartitionedOperator:
         assert set(outputs["1"]) == {1, 3, 5, 7, 9}
 
     @pytest.mark.parametrize(
-        "partition_size,expand_size",
+        ("partition_size", "expand_size"),
         [
             (5, 10),  # Partitioned: size=5 for 10 items
             (3, 3),  # Partitioned: size=3 for 3 items
