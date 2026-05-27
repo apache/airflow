@@ -922,6 +922,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Callback Logs
+      description: 'Get execution logs for a callback associated with a deadline.
+
+
+        Returns the logs produced during callback execution. These logs are uploaded
+
+        to remote storage (or written locally) by the callback supervisor after execution.'
+      operationId: get_callback_logs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: callback_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Callback Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstancesLogResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/structure/structure_data:
     get:
       tags:
@@ -2571,6 +2625,17 @@ components:
           - type: string
           - type: 'null'
           title: Alert Name
+        callback_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Callback Id
+        callback_state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callback State
       type: object
       required:
       - id
@@ -3437,6 +3502,21 @@ components:
       - nodes
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskInstanceResponse:
       properties:
         id:
@@ -3700,6 +3780,28 @@ components:
       - deferred
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TaskInstancesLogResponse:
+      properties:
+        content:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
+          title: Content
+        continuation_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Continuation Token
+      type: object
+      required:
+      - content
+      - continuation_token
+      title: TaskInstancesLogResponse
+      description: Log serializer for responses.
     TeamCollectionResponse:
       properties:
         teams:
