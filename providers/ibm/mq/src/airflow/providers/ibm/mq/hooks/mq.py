@@ -512,7 +512,7 @@ class IBMMQHook(BaseHook):
                 raise
             finally:
                 stop_event.set()
-                thread.join(timeout=0)
+                thread.join(timeout=poll_interval + 1)
 
             self.log.info(
                 "IBM MQ consume returned no event for queue '%s'; queue may be quiet. Retrying in %.1fs",
