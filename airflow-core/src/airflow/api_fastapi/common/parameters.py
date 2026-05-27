@@ -676,7 +676,10 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | Sequence[str] | None = None) -> Callable:
-        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+        # Include to_replace keys that are not already in allowed_attrs to avoid
+        # duplicate entries in the spec description.
+        allowed_set = set(self.allowed_attrs)
+        to_replace_attrs = [k for k in self.to_replace if k not in allowed_set] if self.to_replace else []
 
         all_attrs = self.allowed_attrs + to_replace_attrs
 
