@@ -66,10 +66,8 @@ export const Calendar = () => {
 
   // Compute the date range in the selected timezone, then convert to UTC for API
   const tzDate = selectedDate.tz(selectedTimezone, true);
-  const startDate =
-    granularity === "daily" ? tzDate.startOf("year") : tzDate.startOf("month");
-  const endDate =
-    granularity === "daily" ? tzDate.endOf("year") : tzDate.endOf("month");
+  const startDate = granularity === "daily" ? tzDate.startOf("year") : tzDate.startOf("month");
+  const endDate = granularity === "daily" ? tzDate.endOf("year") : tzDate.endOf("month");
 
   const gte = startDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
   const lte = endDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
@@ -86,7 +84,11 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity, selectedTimezone);
+  const scale = createCalendarScale(data?.dag_runs ?? [], {
+    granularity,
+    timezone: selectedTimezone,
+    viewMode,
+  });
 
   if (!data && !isLoading) {
     return (

@@ -66,7 +66,7 @@ export const HourlyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth, timezone);
+  const hourlyData = generateHourlyCalendarData(data, { selectedMonth, selectedYear, timezone });
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>

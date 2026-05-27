@@ -149,12 +149,17 @@ export const generateDailyCalendarData = (
   return weeks;
 };
 
+type HourlyOptions = {
+  selectedMonth: number;
+  selectedYear: number;
+  timezone: string;
+};
+
 export const generateHourlyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  selectedMonth: number,
-  timezone: string,
+  options: HourlyOptions,
 ): HourlyCalendarData => {
+  const { selectedMonth, selectedYear, timezone } = options;
   const hourlyDataMap = createHourlyDataMap(data, timezone);
 
   const monthStart = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).startOf("month");
@@ -180,12 +185,18 @@ export const generateHourlyCalendarData = (
   return { days: monthData, month: monthStart.format("MMM YYYY") };
 };
 
+type BoundsOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const calculateDataBounds = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
-  timezone: string,
+  options: BoundsOptions,
 ): { maxCount: number; minCount: number } => {
+  const { granularity, timezone, viewMode } = options;
+
   if (data.length === 0) {
     return { maxCount: 0, minCount: 0 };
   }
@@ -227,13 +238,18 @@ export const calculateDataBounds = (
   };
 };
 
+type ScaleOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const createCalendarScale = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
-  timezone: string,
+  options: ScaleOptions,
 ): CalendarScale => {
-  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity, timezone);
+  const { granularity, timezone, viewMode } = options;
+  const { maxCount, minCount } = calculateDataBounds(data, { granularity, timezone, viewMode });
 
   // Handle empty data case
   if (maxCount === 0) {
