@@ -1905,6 +1905,7 @@ class TestRuntimeTaskInstance:
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
+            "target_date": None,
             "task_state": TaskStateAccessor(
                 ti_id=ti_id, scope=TaskScope(dag_id=dag_id, run_id="test_run", task_id="hello")
             ),
@@ -1971,6 +1972,7 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
             "partition_key": dr.partition_key,
+            "target_date": date(2024, 12, 1),
         }
 
     def test_partition_key_in_context(self, create_runtime_ti, mock_supervisor_comms):
