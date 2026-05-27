@@ -42,6 +42,15 @@ repos:
         entry: ../../scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+      - id: check-http-exception-import-from-fastapi
+        name: Check HTTPException is imported from fastapi
+        entry: ../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$|
+          ^tests/unit/fab/auth_manager/api_fastapi/.*\.py$
       - id: update-migration-references-fab
         name: Update migration ref doc for FAB
         language: python

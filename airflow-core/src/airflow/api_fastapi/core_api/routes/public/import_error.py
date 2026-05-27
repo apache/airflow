@@ -55,11 +55,6 @@ from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 
 REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
-REDACTED_STACKTRACE_NO_DAG = (
-    "REDACTED - no Dag has been registered for this file yet "
-    "(parse may have failed before any Dag was defined; "
-    "if you have Dag read access, check the dag-processor logs for the raw error)"
-)
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
 
 
@@ -103,13 +98,10 @@ def get_import_error(
 
     # No Dags matched for this file -- either the file genuinely contains
     # no Dags (parse failed before any Dag was defined), or the name keys
-    # did not resolve. Redact the stacktrace rather than returning the raw
-    # error, so the response stays on the deny-by-default side of the
-    # authorization check. The message distinguishes this case from the
-    # per-Dag scope mismatch below so callers (especially admins) don't
-    # mistake "file has no Dag yet" for "you lack permission".
+    # did not resolve. Return the raw error in this case; a proper
+    # admin-only path for unregistered files is tracked in a follow-up
+    # issue (see https://github.com/apache/airflow/issues/67461).
     if not file_dag_ids:
-        error.stacktrace = REDACTED_STACKTRACE_NO_DAG
         return error
 
     # Can the user read any Dags in the file?
@@ -235,15 +227,11 @@ def get_import_errors(
 
         # No Dags matched for this file -- either the file genuinely has
         # no Dags yet (parse failed before any Dag was defined), or the
-        # name keys did not resolve. Redact the stacktrace before
-        # appending so the response stays on the deny-by-default side of
-        # the authorization check. The message distinguishes this case
-        # from the per-Dag scope mismatch below so callers (especially
-        # admins) don't mistake "file has no Dag yet" for "you lack
-        # permission".
+        # name keys did not resolve. Append the raw error in this case;
+        # a proper admin-only path for unregistered files is tracked in
+        # a follow-up issue
+        # (see https://github.com/apache/airflow/issues/67461).
         if not dag_ids:
-            session.expunge(import_error)
-            import_error.stacktrace = REDACTED_STACKTRACE_NO_DAG
             import_errors.append(import_error)
             continue
 

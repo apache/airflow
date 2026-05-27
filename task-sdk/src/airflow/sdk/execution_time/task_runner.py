@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import inspect
 import os
 import sys
 import time
@@ -36,6 +37,7 @@ import attrs
 import lazy_object_proxy
 import structlog
 from opentelemetry import trace
+from opentelemetry.trace import INVALID_SPAN, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from structlog.contextvars import bind_contextvars
@@ -43,6 +45,7 @@ from structlog.contextvars import bind_contextvars
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -153,6 +156,38 @@ log = structlog.get_logger("task")
 tracer = trace.get_tracer(__name__)
 
 
+class detail_span:
+    """Context manager and decorator that creates a child span when detail level > 1."""
+
+    def __init__(self, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self._ctx = None
+
+    def _make_ctx(self):
+        parent_span = trace.get_current_span()
+        config_level = get_task_span_detail_level(span=parent_span)
+        if config_level > 1:
+            return tracer.start_as_current_span(*self._args, **self._kwargs)
+        return trace.INVALID_SPAN
+
+    def __enter__(self):
+        self._ctx = self._make_ctx()
+        return self._ctx.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._ctx.__exit__(*exc_info)
+
+    def __call__(self, f):
+        @functools.wraps(f)
+        def wrapper(*inner_args, **inner_kwargs):
+            with self._make_ctx():
+                return f(*inner_args, **inner_kwargs)
+
+        wrapper.__signature__ = inspect.signature(f)
+        return wrapper
+
+
 @contextmanager
 def _make_task_span(msg: StartupDetails):
     parent_context = (
@@ -224,6 +259,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
@@ -336,6 +372,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         return self._cached_template_context
 
+    @detail_span("render_templates")
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> BaseOperator:
@@ -796,6 +833,7 @@ def _maybe_reschedule_startup_failure(
     )
 
 
+@detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
@@ -898,6 +936,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
+@detail_span("_verify_bundle_access")
 def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     Verify bundle is accessible by the current user.
@@ -960,6 +999,7 @@ def get_startup_details() -> StartupDetails:
     return msg
 
 
+@detail_span("startup")
 def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
@@ -982,7 +1022,8 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     )
 
     try:
-        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+        with detail_span("hook.on_starting"):
+            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
 
@@ -1111,6 +1152,7 @@ def _serialize_template_field(
     return serialized
 
 
+@detail_span("_serialize_rendered_fields")
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     from airflow.sdk._shared.secrets_masker import redact
 
@@ -1187,6 +1229,7 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
             yield attrs.asdict(alias_event)
 
 
+@detail_span("_prepare")
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
@@ -1228,6 +1271,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     return None
 
 
+@detail_span("_validate_task_inlets_and_outlets")
 def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -> None:
     if not ti.task.inlets and not ti.task.outlets:
         return
@@ -1279,6 +1323,7 @@ def _defer_task(
 
 
 @Sentry.enrich_errors
+@detail_span("run")
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -1814,6 +1859,7 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
@@ -1937,6 +1983,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+@detail_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -2046,6 +2093,7 @@ def main():
     )
 
     stack = ExitStack()
+    span = INVALID_SPAN
     with stack:
         try:
             try:
@@ -2059,8 +2107,8 @@ def main():
                 # startup message as a ResendLoggingFD response.
                 if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
                     reinit_supervisor_comms()
-                span = _make_task_span(msg=startup_details)
-                stack.enter_context(span)
+                span_ctx_mgr = _make_task_span(msg=startup_details)
+                span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
             except AirflowRescheduleException as reschedule:
                 log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
@@ -2069,6 +2117,10 @@ def main():
                         reschedule_date=reschedule.reschedule_date,
                         end_date=datetime.now(tz=timezone.utc),
                     )
+                )
+                span.record_exception(reschedule)
+                span.set_status(
+                    Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
                 )
                 sys.exit(0)
             with BundleVersionLock(
@@ -2083,11 +2135,15 @@ def main():
                 # already run, so callbacks and listeners observed the state.
                 if getattr(ti, "_terminal_state_send_failed", False):
                     sys.exit(1)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as e:
             log.exception("Ctrl-c hit")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
             sys.exit(2)
-        except Exception:
+        except Exception as e:
             log.exception("Top level error")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
             sys.exit(1)
         finally:
             # Ensure the request socket is closed on the child side in all circumstances

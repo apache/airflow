@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -113,7 +114,37 @@ class TestPutAssetStateByName:
             )
         )
         assert row is not None
-        assert row.value == "2026-04-29"
+        # DB stores JSON-encoded string
+        assert row.value == '"2026-04-29"'
+
+    def test_put_int_value_roundtrip(self, client: TestClient, asset: AssetModel):
+        response = client.put(
+            _BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}, json={"value": 5}
+        )
+        assert response.status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}).json() == {
+            "value": 5
+        }
+
+    def test_put_dict_value_roundtrip(self, client: TestClient, asset: AssetModel):
+        response = client.put(
+            _BY_NAME_VALUE,
+            params={"name": asset.name, "key": "last_run"},
+            json={"value": {"rows": 1234, "status": "ok"}},
+        )
+        assert response.status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "last_run"}).json() == {
+            "value": {"rows": 1234, "status": "ok"}
+        }
+
+    def test_put_list_value_roundtrip(self, client: TestClient, asset: AssetModel):
+        response = client.put(
+            _BY_NAME_VALUE, params={"name": asset.name, "key": "ids"}, json={"value": [1, 2, 3]}
+        )
+        assert response.status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "ids"}).json() == {
+            "value": [1, 2, 3]
+        }
 
     def test_put_overwrites_existing(self, client: TestClient, asset: AssetModel):
         client.put(
@@ -133,6 +164,22 @@ class TestPutAssetStateByName:
         response = client.put(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={})
 
         assert response.status_code == 422
+
+    def test_put_null_value_returns_422(self, client: TestClient, asset: AssetModel):
+        response = client.put(
+            _BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={"value": None}
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_put_non_finite_float_returns_422(self, client: TestClient, asset: AssetModel, bad_float: float):
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            _ = client.put(
+                _BY_NAME_VALUE,
+                params={"name": asset.name, "key": "watermark"},
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
 
     def test_put_unknown_asset_returns_404(self, client: TestClient):
         response = client.put(
@@ -208,7 +255,7 @@ class TestPutAssetStateByUri:
             )
         )
         assert row is not None
-        assert row.value == "2026-04-29"
+        assert row.value == '"2026-04-29"'
 
     def test_put_unknown_uri_returns_404(self, client: TestClient):
         response = client.put(

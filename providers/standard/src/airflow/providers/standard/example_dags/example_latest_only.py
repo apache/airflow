@@ -41,7 +41,7 @@ with DAG(
     schedule=datetime.timedelta(hours=4),
     start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
-    tags=["example2", "example3"],
+    tags=["example", "example2", "example3"],
     doc_md=__doc__,
 ) as dag:
     # [START howto_operator_latest_only]

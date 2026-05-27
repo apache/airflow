@@ -185,6 +185,30 @@ ARG_END_DATE = Arg(
     ),
     type=parsedate,
 )
+ARG_PARTITION_DATE_START = Arg(
+    ("--partition-date-start",),
+    help=(
+        "Inclusive lower bound of the partition_date window (matched against DagRun.partition_date). "
+        "Accepts the same datetime formats as --start-date."
+    ),
+    type=parsedate,
+)
+ARG_PARTITION_DATE_END = Arg(
+    ("--partition-date-end",),
+    help=(
+        "Inclusive upper bound of the partition_date window (matched against DagRun.partition_date). "
+        "Accepts the same datetime formats as --end-date."
+    ),
+    type=parsedate,
+)
+ARG_PARTITION_KEY = Arg(
+    ("--partition-key",),
+    help="Clear all Dag runs whose partition_key matches this exact value.",
+)
+ARG_CLEAR_RUN_ID = Arg(
+    ("--run-id",),
+    help="Clear the Dag run with this run_id.",
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -1001,6 +1025,10 @@ ARG_QUEUES = Arg(
     type=string_list_type,
     help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
+ARG_TRIGGERER_TEAM_NAME = Arg(
+    ("--team-name",),
+    help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
+)
 
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
@@ -1019,6 +1047,49 @@ ARG_ASSET_LIST_COLUMNS = Arg(
 ARG_ASSET_NAME = Arg(("--name",), default="", help="Asset name")
 ARG_ASSET_URI = Arg(("--uri",), default="", help="Asset URI")
 ARG_ASSET_ALIAS = Arg(("--alias",), default=False, action="store_true", help="Show asset alias")
+
+# partitions clear
+ARG_PARTITIONS_CLEAR_DAG_ID = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the Dag whose DagRun partition fields should be cleared",
+    required=True,
+)
+ARG_PARTITIONS_CLEAR_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help="Inclusive lower bound of the partition_date window.",
+    type=parsedate,
+)
+ARG_PARTITIONS_CLEAR_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help="Inclusive upper bound of the partition_date window.",
+    type=parsedate,
+)
+ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show which DagRuns would be cleared without modifying the database",
+    action="store_true",
+)
+ARG_PARTITIONS_CLEAR_PARTITION_KEY = Arg(
+    ("-k", "--partition-key"),
+    type=str,
+    help="Only clear DagRuns whose `partition_key` equals this exact value",
+)
+ARG_PARTITIONS_CLEAR_DATE_RANGE = Arg(
+    ("--date",),
+    type=str,
+    help=(
+        "Range expressed as 'a~b' (e.g. '2026-01-01~2026-01-31'); equivalent to "
+        "--start-date a --end-date b. Mutually exclusive with --start-date / --end-date."
+    ),
+)
+ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(
+    ("--clear-task-instances",),
+    help=(
+        "Also clear the matching DagRuns' task instances (resetting finished runs back to "
+        "QUEUED so they re-execute), in addition to clearing the partition fields."
+    ),
+    action="store_true",
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
@@ -1100,6 +1171,31 @@ DAGS_COMMANDS = (
         help="Get DAG details given a DAG id",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
         args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="clear",
+        help="Clear Dag runs selected by run_id, partition_key, or a partition_date window",
+        description=(
+            "Clear Dag runs of the given dag_id and re-queue them for reprocessing. Exactly one "
+            "of the following selectors must be provided: --run-id (single run); --partition-key "
+            "(every run with that exact partition_key); or a partition_date window via "
+            "--partition-date-start and/or --partition-date-end (inclusive on both ends). "
+            "Intended for partitioned Dags, whose runs are keyed by partition_date / "
+            "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
+            "`airflow tasks clear --start-date / --end-date`."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_CLEAR_RUN_ID,
+            ARG_PARTITION_KEY,
+            ARG_PARTITION_DATE_START,
+            ARG_PARTITION_DATE_END,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
+            ARG_YES,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="list",
@@ -1414,6 +1510,31 @@ TASKS_COMMANDS = (
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command("airflow.cli.commands.task_command.task_states_for_dag_run"),
         args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
+PARTITIONS_COMMANDS = (
+    ActionCommand(
+        name="clear",
+        help="Clear the partition_key and partition_date of one or more DagRuns",
+        description=(
+            "Clear the partition_key and partition_date columns on a Dag's DagRuns.\n"
+            "Either --run-id (single run), --partition-key (exact match), or a partition_date range "
+            "(--start-date/--end-date or --date a~b) is required.\n"
+            "Pass --clear-task-instances to additionally clear the matching DagRuns' "
+            "task instances so finished runs go back to QUEUED and re-execute."
+        ),
+        func=lazy_load_command("airflow.cli.commands.partition_command.clear"),
+        args=(
+            ARG_PARTITIONS_CLEAR_DAG_ID,
+            ARG_RUN_ID,
+            ARG_PARTITIONS_CLEAR_START_DATE,
+            ARG_PARTITIONS_CLEAR_END_DATE,
+            ARG_PARTITIONS_CLEAR_PARTITION_KEY,
+            ARG_PARTITIONS_CLEAR_DATE_RANGE,
+            ARG_PARTITIONS_CLEAR_TASK_INSTANCES,
+            ARG_PARTITIONS_CLEAR_DRY_RUN,
+            ARG_VERBOSE,
+        ),
     ),
 )
 POOLS_COMMANDS = (
@@ -1979,6 +2100,11 @@ core_commands: list[CLICommand] = [
         subcommands=BACKFILL_COMMANDS,
     ),
     GroupCommand(
+        name="partitions",
+        help="Manage Dag run partition metadata",
+        subcommands=PARTITIONS_COMMANDS,
+    ),
+    GroupCommand(
         name="tasks",
         help="Manage tasks",
         subcommands=TASKS_COMMANDS,
@@ -2091,6 +2217,7 @@ core_commands: list[CLICommand] = [
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
             ARG_QUEUES,
+            ARG_TRIGGERER_TEAM_NAME,
         ),
     ),
     ActionCommand(
