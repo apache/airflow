@@ -358,6 +358,50 @@ class TestGetDependencies:
         for node_id in expected_absent:
             assert node_id not in dag_node_ids
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"downstream"},
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_scheduling_dependencies_redacts_trigger_sensor_endpoints_referencing_unreadable_dags(
+        self, _, test_client, asset1_id
+    ):
+        """Trigger/sensor dependency objects under a readable top-level DAG must
+        not leak unreadable DAG identifiers through ``dep.node_id`` /
+        ``dep.source`` / ``dep.target``. The top-level filter only hides the
+        unreadable DAG as a top-level key; this regression check covers the
+        edge-endpoint leak."""
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        unreadable_dag_ids = {"external_trigger_dag_id", "other_dag", "upstream"}
+
+        # No node id may contain any unreadable DAG identifier (covers the
+        # bare ``dag:`` nodes that the top-level filter already hid, plus
+        # the ``trigger:.../sensor:...`` nodes whose ids embed both endpoints).
+        for node in result["nodes"]:
+            for unreadable in unreadable_dag_ids:
+                assert unreadable not in node["id"], (
+                    f"node id {node['id']!r} leaks unreadable DAG {unreadable!r}"
+                )
+
+        # No edge endpoint may be a ``dag:<unreadable>`` reference, and no
+        # endpoint may be a ``trigger:.../sensor:...`` node whose id embeds
+        # an unreadable DAG.
+        for edge in result["edges"]:
+            for endpoint in (edge["source_id"], edge["target_id"]):
+                for unreadable in unreadable_dag_ids:
+                    assert unreadable not in endpoint, (
+                        f"edge endpoint {endpoint!r} leaks unreadable DAG {unreadable!r}"
+                    )
+
+        # The readable top-level DAG itself must still be present, along with
+        # its legitimate asset-scheduled-by edge (asset ids are not DAG ids
+        # and are unaffected by the readable-DAG filter).
+        dag_node_ids = {node["id"] for node in result["nodes"] if node["type"] == "dag"}
+        assert dag_node_ids == {"dag:downstream"}
+
     @pytest.mark.parametrize(
         ("readable_dags", "expected_present", "expected_absent"),
         [
