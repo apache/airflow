@@ -62,6 +62,7 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
+    only_skipped: bool = False
     only_new: bool = Field(
         default=False,
         description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
@@ -80,6 +81,8 @@ class DAGRunClearBody(StrictBaseModel):
         """Validate clear Dag run form."""
         if data.get("only_new") and data.get("only_failed"):
             raise ValueError("only_new and only_failed are mutually exclusive")
+        if data.get("only_new") and data.get("only_skipped"):
+            raise ValueError("only_new and only_skipped are mutually exclusive")
         return data
 
 
