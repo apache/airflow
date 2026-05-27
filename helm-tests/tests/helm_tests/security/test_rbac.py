@@ -180,7 +180,7 @@ class TestRBAC:
                     "workers": {"serviceAccount": {"create": False}},
                     "triggerer": {"serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
-                    "otelCollector": {"serviceAccount": {"create": False}},
+                    "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
                     "createUserJob": {"serviceAccount": {"create": False}},
                     "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
@@ -206,6 +206,7 @@ class TestRBAC:
                     "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
+                    "otelCollector": {"tracesEnabled": True},
                 },
                 version=version,
             ),
@@ -244,7 +245,7 @@ class TestRBAC:
                     "triggerer": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
-                    "otelCollector": {"serviceAccount": {"create": False}},
+                    "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
                     "redis": {"serviceAccount": {"create": False}},
                     "pgbouncer": {
                         "enabled": True,
@@ -276,6 +277,7 @@ class TestRBAC:
                     "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
+                    "otelCollector": {"tracesEnabled": True},
                 },
                 version=version,
             ),
@@ -335,7 +337,10 @@ class TestRBAC:
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
-                "otelCollector": {"serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME}},
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME},
+                },
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "postgresql": {"serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
@@ -394,7 +399,10 @@ class TestRBAC:
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
-                "otelCollector": {"serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME}},
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME},
+                },
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "postgresql": {"serviceAccount": {"name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
