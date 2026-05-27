@@ -2674,6 +2674,56 @@ class TestGetRescheduleStartDate:
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
         assert response.json() is None
 
+    def test_mismatched_subject_is_rejected(self, client, session, create_task_instance):
+        """A worker holding an Execution JWT for one task instance must not be
+        able to read another task instance's reschedule data via the path
+        parameter. Mirrors the ``ti:self`` enforcement contract already
+        applied on the sibling ``/hitl``, ``/task-instances``, and
+        ``/task-state`` routers."""
+        ti = create_task_instance(
+            task_id="test_ti_mismatched_subject",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        session.add(
+            TaskReschedule(
+                ti_id=ti.id,
+                start_date=timezone.datetime(2024, 1, 1),
+                end_date=timezone.datetime(2024, 1, 1, 1),
+                reschedule_date=timezone.datetime(2024, 1, 1, 2),
+            )
+        )
+        session.commit()
+
+        attacker_token_id = uuid4()
+        assert attacker_token_id != ti.id
+
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mismatched_jwt(request: Request) -> TIToken:
+            return TIToken(id=attacker_token_id, claims=TIClaims(scope="execution"))
+
+        exec_app = next(
+            route.app for route in client.app.routes if getattr(route, "path", None) == "/execution"
+        )
+        # Clear the conftest's ``require_auth`` override so the real
+        # scope-checking dependency runs, then override the JWT bearer it
+        # depends on to mint a token with a *different* ``id`` than the
+        # path parameter. The ``ti:self`` check inside ``require_auth``
+        # should reject the mismatch with 403.
+        original_require_auth_override = exec_app.dependency_overrides.pop(require_auth, None)
+        exec_app.dependency_overrides[_jwt_bearer] = mismatched_jwt
+        try:
+            response = client.get(f"/execution/task-reschedules/{ti.id}/start_date")
+        finally:
+            exec_app.dependency_overrides.pop(_jwt_bearer, None)
+            if original_require_auth_override is not None:
+                exec_app.dependency_overrides[require_auth] = original_require_auth_override
+
+        assert response.status_code == 403
+        assert "does not match" in response.json()["detail"]
+
 
 class TestGetCount:
     def setup_method(self):
