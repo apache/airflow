@@ -32,6 +32,7 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from sqlalchemy import (
     CTE,
@@ -1273,7 +1274,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, str(callback_id))
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).

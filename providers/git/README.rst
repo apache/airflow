@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``GitPython``                               ``>=3.1.44``
 ==========================================  ==================
 
