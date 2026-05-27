@@ -14,38 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAGs demonstrating RAG pipelines with LlamaIndex operators.
-
-Three patterns:
-
-1. Full RAG pipeline -- load -> embed -> retrieve -> answer in one DAG.
-2. Separate index/query DAGs -- production-shaped split (scheduled
-   indexing job + on-demand query DAG).
-3. Multi-source RAG -- combine multiple loaders with source metadata.
-
-The ``LLMOperator`` synthesis step uses a ``pydanticai_default`` connection
-because :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` is
-pydantic-ai-backed; the LlamaIndex operators use ``llamaindex_default``.
-The two connection types are intentional -- they back different frameworks.
-"""
+"""Example DAGs demonstrating RAG pipelines with LlamaIndex operators."""
 
 from __future__ import annotations
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
-from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaIndexEmbeddingOperator
-from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaIndexRetrievalOperator
+from airflow.providers.common.ai.operators.llamaindex_embedding import EmbeddingOperator
+from airflow.providers.common.ai.operators.llamaindex_retrieval import RetrievalOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 # ---------------------------------------------------------------------------
-# 1. Full RAG pipeline: load -> embed -> retrieve -> answer
+# 1. Full RAG pipeline: load → embed → retrieve → answer
 # ---------------------------------------------------------------------------
 
 
 # [START howto_llamaindex_rag_pipeline]
-@dag(schedule=None, tags=["example"])
+@dag
 def example_llamaindex_rag_pipeline():
-    """End-to-end RAG pipeline in a single DAG.
+    """
+    End-to-end RAG pipeline.
 
     1. Parse local text files into document dicts.
     2. Chunk and embed the documents, persisting the index to disk.
@@ -58,22 +46,20 @@ def example_llamaindex_rag_pipeline():
         file_extensions=[".txt", ".md", ".pdf"],
     )
 
-    embed = LlamaIndexEmbeddingOperator(
+    embed = EmbeddingOperator(
         task_id="embed_docs",
-        documents=load.output,
-        embed_model="text-embedding-3-small",
-        llm_conn_id="llamaindex_default",
+        documents="{{ ti.xcom_pull(task_ids='load_docs') }}",
+        llm_conn_id="pydanticai_default",
         chunk_size=512,
         chunk_overlap=50,
         persist_dir="/opt/airflow/data/indexes/kb_index",
     )
 
-    retrieve = LlamaIndexRetrievalOperator(
+    retrieve = RetrievalOperator(
         task_id="retrieve",
         query="What are the main components of Apache Airflow?",
         index_persist_dir="/opt/airflow/data/indexes/kb_index",
-        embed_model="text-embedding-3-small",
-        llm_conn_id="llamaindex_default",
+        llm_conn_id="pydanticai_default",
         top_k=5,
     )
 
@@ -95,7 +81,7 @@ def example_llamaindex_rag_pipeline():
         system_prompt="Answer based only on the provided context. Cite sources when possible.",
     )
 
-    embed >> retrieve >> context >> answer
+    load >> embed >> retrieve >> context >> answer
 
 
 # [END howto_llamaindex_rag_pipeline]
@@ -104,33 +90,35 @@ example_llamaindex_rag_pipeline()
 
 
 # ---------------------------------------------------------------------------
-# 2. Production-shaped split: scheduled indexing + on-demand query
+# 2. PDF knowledge base with separate index and query Dags
 # ---------------------------------------------------------------------------
 
 
 # [START howto_llamaindex_index_dag]
-@dag(schedule="@weekly", tags=["example"])
+@dag(schedule="@weekly")
 def example_llamaindex_index_pdf():
-    """Weekly indexing DAG -- keep the vector index fresh as PDFs arrive.
+    """
+    Weekly indexing Dag: parse PDFs and build a persistent vector index.
 
-    The companion query DAG (below) reads the persisted index on demand.
+    Run this on a schedule to keep the index fresh as new documents arrive.
+    The query Dag (below) reads the persisted index on demand.
     """
     load = DocumentLoaderOperator(
         task_id="load_pdfs",
         source_path="/opt/airflow/data/reports/*.pdf",
     )
 
-    build_index = LlamaIndexEmbeddingOperator(
+    EmbeddingOperator(
         task_id="build_index",
-        documents=load.output,
+        documents="{{ ti.xcom_pull(task_ids='load_pdfs') }}",
+        llm_conn_id="pydanticai_default",
         embed_model="text-embedding-3-small",
-        llm_conn_id="llamaindex_default",
         chunk_size=1024,
         chunk_overlap=100,
         persist_dir="/opt/airflow/data/indexes/reports_index",
     )
 
-    load >> build_index
+    load >> "build_index"
 
 
 # [END howto_llamaindex_index_dag]
@@ -142,19 +130,18 @@ example_llamaindex_index_pdf()
 @dag(
     schedule=None,
     params={"question": "Summarize the key findings from the latest quarterly report."},
-    tags=["example"],
 )
 def example_llamaindex_query():
-    """On-demand query DAG -- retrieve from a pre-built index and synthesize.
+    """
+    On-demand query Dag: retrieve from a pre-built index and synthesize an answer.
 
     Trigger manually or via API with a ``question`` parameter.
     """
-    retrieve = LlamaIndexRetrievalOperator(
+    retrieve = RetrievalOperator(
         task_id="retrieve",
         query="{{ params.question }}",
         index_persist_dir="/opt/airflow/data/indexes/reports_index",
-        embed_model="text-embedding-3-small",
-        llm_conn_id="llamaindex_default",
+        llm_conn_id="pydanticai_default",
         top_k=5,
     )
 
@@ -166,7 +153,7 @@ def example_llamaindex_query():
 
     context = format_context(retrieve.output)
 
-    synthesize = LLMOperator(
+    LLMOperator(
         task_id="synthesize",
         prompt=(
             "Question: {{ params.question }}\n\n"
@@ -180,7 +167,7 @@ def example_llamaindex_query():
         ),
     )
 
-    context >> synthesize
+    retrieve >> context >> "synthesize"
 
 
 # [END howto_llamaindex_query_dag]
@@ -189,18 +176,18 @@ example_llamaindex_query()
 
 
 # ---------------------------------------------------------------------------
-# 3. Multi-source RAG: combine CSV product data with text documentation
+# 3. Multi-source RAG: CSV + text files with metadata
 # ---------------------------------------------------------------------------
 
 
 # [START howto_llamaindex_multi_source]
-@dag(schedule=None, tags=["example"])
+@dag
 def example_llamaindex_multi_source():
-    """Combine multiple loaders with source-tagging metadata.
+    """
+    Multi-source RAG: combine CSV product data with text documentation.
 
-    Shows how ``DocumentLoaderOperator`` handles different file formats and
-    how ``metadata_fields`` tags documents by source for filtered retrieval
-    downstream.
+    Shows how DocumentLoaderOperator handles different file formats and
+    how metadata_fields tags documents by source for filtered retrieval.
     """
     load_products = DocumentLoaderOperator(
         task_id="load_products",
@@ -221,15 +208,14 @@ def example_llamaindex_multi_source():
 
     merged = merge_documents(load_products.output, load_docs.output)
 
-    embed_all = LlamaIndexEmbeddingOperator(
+    EmbeddingOperator(
         task_id="embed_all",
         documents=merged,
-        embed_model="text-embedding-3-small",
-        llm_conn_id="llamaindex_default",
+        llm_conn_id="pydanticai_default",
         persist_dir="/opt/airflow/data/indexes/multi_source_index",
     )
 
-    embed_all
+    [load_products, load_docs] >> merged >> "embed_all"
 
 
 # [END howto_llamaindex_multi_source]
