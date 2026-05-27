@@ -1274,6 +1274,7 @@ class TriggerRunner:
                 from airflow.sdk.definitions.asset import Asset
                 from airflow.sdk.execution_time.context import AssetStateAccessors
 
+                # Potentially address Asset vs. AssetRef, AssetUriRef, etc.
                 trigger_instance.asset_states = AssetStateAccessors(
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
