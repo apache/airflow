@@ -20,22 +20,25 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 
-from unit.databricks._retry_test_utils import (
-    UNSUPPORTED_RETRY_ARGS,
-    assert_invalid_retry_args_raises,
-)
-
 DEFAULT_CONN_ID = "databricks_default"
 STATEMENT = "select * from test.test;"
 STATEMENT_ID = "statement_id"
 TASK_ID = "task_id"
 WAREHOUSE_ID = "warehouse_id"
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 
 
 class TestDatabricksSQLStatementsSensor:
@@ -190,7 +193,8 @@ class TestDatabricksSQLStatementsSensor:
         db_mock = db_mock_class.return_value
         self._configure_running_deferrable_hook(db_mock)
 
-        assert_invalid_retry_args_raises(lambda: op.execute(None))
+        with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+            op.execute(None)
 
     def test_execute_complete_success(self):
         """

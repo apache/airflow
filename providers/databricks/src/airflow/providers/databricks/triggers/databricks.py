@@ -56,6 +56,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
         validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
@@ -153,6 +155,8 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksSQLStatementExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
         validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.statement_id = statement_id
         self.databricks_conn_id = databricks_conn_id

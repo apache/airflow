@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
@@ -28,11 +29,6 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-
-from unit.databricks._retry_test_utils import (
-    UNSUPPORTED_RETRY_ARGS,
-    assert_invalid_retry_args_raises,
-)
 
 pytestmark = pytest.mark.db_test
 
@@ -58,6 +54,13 @@ RUN_PAGE_URL = "https://XX.cloud.databricks.com/#jobs/1/runs/1"
 CALLER = "DatabricksSubmitRunOperator"
 ERROR_MESSAGE = "error message from databricks API"
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 
 RUN_LIFE_CYCLE_STATES = ["PENDING", "RUNNING", "TERMINATING", "TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
 
@@ -148,7 +151,8 @@ TRIGGER_INIT_CASES = [
 @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
 @pytest.mark.parametrize(("trigger_cls", "trigger_kwargs"), TRIGGER_INIT_CASES)
 def test_trigger_init_rejects_non_serializable_retry_args(trigger_cls, trigger_kwargs, retry_args):
-    assert_invalid_retry_args_raises(lambda: trigger_cls(**trigger_kwargs, retry_args=retry_args))
+    with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+        trigger_cls(**trigger_kwargs, retry_args=retry_args)
 
 
 class TestDatabricksExecutionTrigger:

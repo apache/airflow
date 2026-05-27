@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -50,11 +51,6 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.providers.databricks.utils import databricks as utils
-
-from unit.databricks._retry_test_utils import (
-    UNSUPPORTED_RETRY_ARGS,
-    assert_invalid_retry_args_raises,
-)
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
@@ -100,6 +96,13 @@ TAGS = {
     "cost-center": "engineering",
     "team": "jobs",
 }
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 TASKS = [
     {
         "task_key": "Sessionize",
@@ -1049,7 +1052,8 @@ class TestDatabricksSubmitRunOperator:
         db_mock = db_mock_class.return_value
         self._configure_running_deferrable_hook(db_mock)
 
-        assert_invalid_retry_args_raises(lambda: op.execute(None))
+        with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+            op.execute(None)
 
     def test_execute_complete_success(self):
         """

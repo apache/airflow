@@ -17,14 +17,21 @@
 from __future__ import annotations
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 
-from unit.databricks._retry_test_utils import UNSUPPORTED_RETRY_ARGS, assert_invalid_retry_args_raises
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 
 
 def test_validate_deferrable_databricks_retry_args_accepts_none():
-    validate_deferrable_databricks_retry_args(None, owner="test-owner")
+    assert validate_deferrable_databricks_retry_args(None, owner="test-owner") is None
 
 
 @pytest.mark.parametrize(
@@ -36,11 +43,10 @@ def test_validate_deferrable_databricks_retry_args_accepts_none():
     ],
 )
 def test_validate_deferrable_databricks_retry_args_accepts_json_serializable_values(retry_args):
-    validate_deferrable_databricks_retry_args(retry_args, owner="test-owner")
+    assert validate_deferrable_databricks_retry_args(retry_args, owner="test-owner") is None
 
 
 @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
 def test_validate_deferrable_databricks_retry_args_rejects_non_serializable_values(retry_args):
-    assert_invalid_retry_args_raises(
-        lambda: validate_deferrable_databricks_retry_args(retry_args, owner="test-owner")
-    )
+    with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+        validate_deferrable_databricks_retry_args(retry_args, owner="test-owner")
