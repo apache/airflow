@@ -18,14 +18,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone as dt_timezone
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse, DagRun
+from airflow.sdk._shared.state import TaskScope
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetResponse,
+    DagRun,
+)
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -93,8 +100,12 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+from airflow.sdk.state import BaseStateBackend
 
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from pydantic import JsonValue
 
 
 def test_convert_connection_result_conn():
@@ -459,6 +470,35 @@ class TestOutletEventAccessor:
         outlet_event_accessor = OutletEventAccessor(key=key)
         outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
+
+
+class TestOutletEventAccessorPartitionKeys:
+    @pytest.fixture
+    def accessor(self) -> OutletEventAccessor:
+        return OutletEventAccessor(key=AssetUniqueKey.from_asset(Asset("a")))
+
+    def test_default_is_empty(self, accessor):
+        assert accessor.partition_keys == set()
+
+    def test_direct_assignment(self, accessor):
+        accessor.partition_keys = {"us", "eu"}
+        assert accessor.partition_keys == {"us", "eu"}
+
+    def test_add_partitions(self, accessor):
+        accessor.add_partitions("us")
+        assert accessor.partition_keys == {"us"}
+
+    def test_add_partitions_appends(self, accessor):
+        accessor.add_partitions("us")
+        accessor.add_partitions("eu")
+        accessor.add_partitions("apac")
+        assert accessor.partition_keys == {"us", "eu", "apac"}
+
+    def test_add_partitions_dedupes(self, accessor):
+        accessor.add_partitions("us")
+        accessor.add_partitions("us")
+        accessor.add_partitions(["us", "eu"])
+        assert accessor.partition_keys == {"us", "eu"}
 
 
 class TestTriggeringAssetEventsAccessor:
@@ -1063,11 +1103,12 @@ class TestSecretsBackend:
 
 class TestTaskStateAccessor:
     TI_ID = UUID("01900000-0000-0000-0000-000000000001")
+    SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
 
     def test_get_returns_value(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = TaskStateResult(value="app_001")
 
-        result = TaskStateAccessor(ti_id=self.TI_ID).get("job_id")
+        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
 
         assert result == "app_001"
         mock_supervisor_comms.send.assert_called_once_with(GetTaskState(ti_id=self.TI_ID, key="job_id"))
@@ -1077,7 +1118,7 @@ class TestTaskStateAccessor:
             error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "missing_key"}
         )
 
-        result = TaskStateAccessor(ti_id=self.TI_ID).get("missing_key")
+        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("missing_key")
 
         assert result is None
 
@@ -1087,7 +1128,7 @@ class TestTaskStateAccessor:
         )
 
         with pytest.raises(AirflowRuntimeError):
-            TaskStateAccessor(ti_id=self.TI_ID).get("some_key")
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
 
     def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
         """set() with no retention uses global default_retention_days config."""
@@ -1097,7 +1138,7 @@ class TestTaskStateAccessor:
         time_machine.move_to(now, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
-            TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(
@@ -1114,7 +1155,9 @@ class TestTaskStateAccessor:
         now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(now, tick=False)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=timedelta(days=7))
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+            "job_id", "app_001", retention=timedelta(days=7)
+        )
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(
@@ -1130,7 +1173,7 @@ class TestTaskStateAccessor:
 
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=NEVER_EXPIRE)
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001", retention=NEVER_EXPIRE)
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
@@ -1141,7 +1184,7 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         with conf_vars({("state_store", "default_retention_days"): "0"}):
-            TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
@@ -1150,14 +1193,14 @@ class TestTaskStateAccessor:
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).delete("job_id")
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
 
         mock_supervisor_comms.send.assert_called_once_with(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
 
     def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).clear()
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
         mock_supervisor_comms.send.assert_called_once_with(
             ClearTaskState(ti_id=self.TI_ID, all_map_indices=False)
@@ -1166,11 +1209,21 @@ class TestTaskStateAccessor:
     def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).clear(all_map_indices=True)
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
 
         mock_supervisor_comms.send.assert_called_once_with(
             ClearTaskState(ti_id=self.TI_ID, all_map_indices=True)
         )
+
+    def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
+        """datetime is not JSON-serializable; callers must use .isoformat() first."""
+        with pytest.raises(ValidationError):
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+                "watermark",
+                datetime(2026, 5, 15, tzinfo=dt_timezone.utc),
+            )
+
+        mock_supervisor_comms.send.assert_not_called()
 
 
 class TestAssetStateAccessor:
@@ -1370,3 +1423,179 @@ class TestAssetStateAccessors:
         accessors = AssetStateAccessors([alias])
 
         assert accessors._total == 0
+
+
+class InMemoryStateBackend(BaseStateBackend):
+    """Simple in-memory test backend."""
+
+    def __init__(self):
+        self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
+        self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
+
+    def serialize_task_state_to_ref(self, *, value, key: str, ti_id: str) -> str:
+        ref = f"mem://{ti_id}/{key}"
+        self._actual_key_value_store[key] = value
+        self.reference[key] = ref
+        return ref
+
+    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
+        key = stored.rsplit("/", 1)[-1]
+        return self._actual_key_value_store.get(key, stored)
+
+    def serialize_asset_state_to_ref(self, *, value, key: str, asset_ref: str) -> str:
+        ref = f"mem://{asset_ref}/{key}"
+        self._actual_key_value_store[key] = value
+        self.reference[key] = ref
+        return ref
+
+    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
+        key = stored.rsplit("/", 1)[-1]
+        return self._actual_key_value_store.get(key, stored)
+
+    def get(self, scope, key, *, session=None): ...
+    def set(self, scope, key, value, *, session=None): ...
+
+    def delete(self, scope, key, *, session=None) -> None:
+        self._actual_key_value_store.pop(key, None)
+        self.reference.pop(key, None)
+
+    def clear(self, scope, *, all_map_indices=False, session=None) -> None:
+        self._actual_key_value_store.clear()
+        self.reference.clear()
+
+    async def aget(self, scope, key): ...
+    async def aset(self, scope, key, value): ...
+    async def adelete(self, scope, key): ...
+    async def aclear(self, scope, *, all_map_indices=False): ...
+
+
+class TestTaskStateAccessorWithCustomBackend:
+    TI_ID = UUID("01900000-0000-0000-0000-000000000002")
+    SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
+
+    @pytest.fixture(autouse=True)
+    def backend(self):
+        b = InMemoryStateBackend()
+        with mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            return_value=b,
+        ):
+            yield b
+
+    def test_set_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
+        """set() stores actual value in backend and sends mem:// reference via comms."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        expected_ref = f"mem://{self.TI_ID}/job_id"
+
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+        # comms message has the mem:// reference, not the actual value
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(
+                ti_id=self.TI_ID, key="job_id", value=expected_ref, expires_at=frozen_dt + timedelta(days=30)
+            )
+        )
+        # actual value is stored on the backend, reference is stored for DB
+        assert backend._actual_key_value_store["job_id"] == "app_001"
+        assert backend.reference["job_id"] == expected_ref
+
+    def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
+        """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
+        ref = f"mem://{self.TI_ID}/job_id"
+        backend._actual_key_value_store["job_id"] = "app_001"
+        mock_supervisor_comms.send.return_value = TaskStateResult(value=ref)
+
+        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+        # actual value is resolved from mem:// reference via backend
+        assert result == "app_001"
+
+    def test_deletes_from_backend_and_removes_db_ref(self, mock_supervisor_comms, backend):
+        """delete() purges from backend storage and removes the DB reference."""
+        backend._actual_key_value_store["job_id"] = "app_001"
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
+
+        # backend does not have the value anymore
+        assert "job_id" not in backend._actual_key_value_store
+        # request to delete reference in DB was made
+        mock_supervisor_comms.send.assert_any_call(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
+
+    def test_clears_all_from_backend_and_clears_db(self, mock_supervisor_comms, backend):
+        """clear() purges all backend objects for the TI and removes all DB references."""
+        backend._actual_key_value_store["job_id"] = "app_001"
+        backend._actual_key_value_store["checkpoint"] = "step_3"
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
+
+        assert "job_id" not in backend._actual_key_value_store
+        assert "checkpoint" not in backend._actual_key_value_store
+        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=self.TI_ID, all_map_indices=False))
+
+
+class TestAssetStateAccessorWithCustomBackend:
+    ASSET_NAME = "my_asset"
+
+    @pytest.fixture(autouse=True)
+    def backend(self):
+        b = InMemoryStateBackend()
+        with mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            return_value=b,
+        ):
+            yield b
+
+    def test_set_sends_reference_not_value(self, mock_supervisor_comms, backend):
+        """set() stores actual value in backend and sends mem:// reference via comms."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
+
+        expected_ref = f"mem://{self.ASSET_NAME}/watermark"
+        # comms message has the mem:// reference, not the actual value
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value=expected_ref)
+        )
+        # actual value is stored on the backend, reference is stored for DB
+        assert backend._actual_key_value_store["watermark"] == "2026-05-01"
+        assert backend.reference["watermark"] == expected_ref
+
+    def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
+        """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
+        ref = f"mem://{self.ASSET_NAME}/watermark"
+        backend._actual_key_value_store["watermark"] = "2026-05-01"
+        mock_supervisor_comms.send.return_value = AssetStateResult(value=ref)
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+
+        # actual value is resolved from mem:// reference via backend
+        assert result == "2026-05-01"
+
+    def test_delete_purges_from_backend_and_removes_db_ref(self, mock_supervisor_comms, backend):
+        """delete() purges from backend storage and removes the DB reference."""
+        backend._actual_key_value_store["watermark"] = "2026-05-01"
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
+
+        # backend doesn't have the value anymore
+        assert "watermark" not in backend._actual_key_value_store
+        # request to delete reference in DB was made
+        mock_supervisor_comms.send.assert_any_call(
+            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_clear_purges_all_from_backend_and_clears_db(self, mock_supervisor_comms, backend):
+        """clear() purges all backend objects and removes all DB references."""
+        backend._actual_key_value_store["watermark"] = "2026-05-01"
+        backend._actual_key_value_store["file_count"] = "42"
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).clear()
+
+        assert "watermark" not in backend._actual_key_value_store
+        assert "file_count" not in backend._actual_key_value_store
+        mock_supervisor_comms.send.assert_any_call(ClearAssetStateByName(name=self.ASSET_NAME))
