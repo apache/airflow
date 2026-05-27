@@ -324,9 +324,14 @@ class ImapHook(BaseHook):
         if not overwrite_file and os.path.exists(file_path):
             base, ext = os.path.splitext(file_path)
             counter = 1
-            while os.path.exists(f"{base}_{counter}{ext}"):
-                counter += 1
-            file_path = f"{base}_{counter}{ext}"
+            while True:
+                file_path = f"{base}_{counter}{ext}"
+                try:
+                    with open(file_path, "xb") as file:
+                        file.write(payload)
+                    return
+                except FileExistsError:
+                    counter += 1
 
         with open(file_path, "wb") as file:
             file.write(payload)
