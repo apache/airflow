@@ -32,6 +32,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add DmsModifyTaskOperator to modify DMS replication tasks with stop/restart lifecycle (#67524)``
 * ``Add OpenLineage support to AthenaSQLHook (#66844)``
 * ``Add S3TablesDeleteTableBucketPolicyOperator (#66957)``
 * ``Add parent info injection to EMR operator (#66816)``
