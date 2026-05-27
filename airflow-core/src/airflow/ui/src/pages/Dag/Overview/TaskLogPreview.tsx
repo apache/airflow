@@ -67,7 +67,7 @@ export const TaskLogPreview = ({
           <Time datetime={taskInstance.run_after} ml={1} />
         </Box>
         <Flex gap={1}>
-          <Button fontSize="sm" onClick={() => setIsExpanded(!isExpanded)} size="sm" variant="ghost">
+          <Button fontSize="sm" onClick={() => setIsExpanded(!isExpanded)} variant="ghost">
             {isExpanded
               ? translate("overview.failedLogs.hideLogs")
               : translate("overview.failedLogs.showLogs")}

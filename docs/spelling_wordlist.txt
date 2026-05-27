@@ -542,6 +542,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -815,7 +816,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -1080,6 +1083,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1122,6 +1126,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
@@ -1296,6 +1301,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1553,6 +1559,7 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
 STS
 subchart
@@ -1603,6 +1610,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath

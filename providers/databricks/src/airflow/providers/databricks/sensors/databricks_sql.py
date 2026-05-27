@@ -109,7 +109,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
             self.http_headers,
             self.catalog,
             self.schema,
-            self.caller,
+            caller=self.caller,
             **self.client_parameters,
             **self.hook_params,
         )

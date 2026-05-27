@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, Bedrock
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockBatchInferenceOperator,
     BedrockCreateDataSourceOperator,
+    BedrockCreateEvaluationJobOperator,
     BedrockCreateGuardrailOperator,
     BedrockCreateGuardrailVersionOperator,
     BedrockCreateKnowledgeBaseOperator,
@@ -995,6 +996,67 @@ class TestBedrockUpdateGuardrailOperator:
 
         assert result == GUARDRAIL_ID
         mock_client.update_guardrail.assert_called_once()
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+EVAL_JOB_NAME = "test-eval-job"
+EVAL_JOB_ARN = "arn:aws:bedrock:us-east-1:123456789012:evaluation-job/test-eval-job"
+ROLE_ARN = "arn:aws:iam::123456789012:role/test-role"
+EVAL_CONFIG = {"automated": {"datasetMetricConfigs": [{"taskType": "Summarization"}]}}
+INFERENCE_CONFIG = {"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-v2"}}]}
+OUTPUT_CONFIG = {"s3Uri": "s3://bucket/output/"}
+
+
+class TestBedrockCreateEvaluationJobOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateEvaluationJobOperator(
+            task_id="create_eval_job",
+            job_name=EVAL_JOB_NAME,
+            role_arn=ROLE_ARN,
+            evaluation_config=EVAL_CONFIG,
+            inference_config=INFERENCE_CONFIG,
+            output_data_config=OUTPUT_CONFIG,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_evaluation_job.return_value = {"jobArn": EVAL_JOB_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_evaluation_job.assert_called_once_with(
+            jobName=EVAL_JOB_NAME,
+            roleArn=ROLE_ARN,
+            evaluationConfig=EVAL_CONFIG,
+            inferenceConfig=INFERENCE_CONFIG,
+            outputDataConfig=OUTPUT_CONFIG,
+        )
+        assert result == EVAL_JOB_ARN
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_evaluation_job.return_value = {"jobArn": EVAL_JOB_ARN}
+        mock_conn.return_value = mock_client
+
+        op = BedrockCreateEvaluationJobOperator(
+            task_id="create_eval_job",
+            job_name=EVAL_JOB_NAME,
+            role_arn=ROLE_ARN,
+            evaluation_config=EVAL_CONFIG,
+            inference_config=INFERENCE_CONFIG,
+            output_data_config=OUTPUT_CONFIG,
+            job_description="Test evaluation",
+        )
+        result = op.execute({})
+
+        call_kwargs = mock_client.create_evaluation_job.call_args[1]
+        assert call_kwargs["jobDescription"] == "Test evaluation"
+        assert result == EVAL_JOB_ARN
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

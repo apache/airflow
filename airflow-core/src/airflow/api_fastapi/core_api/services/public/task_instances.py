@@ -611,7 +611,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         try:
             # Handle deletion of specific (dag_id, dag_run_id, task_id, map_index) tuples
             if delete_specific_map_index_task_keys:
-                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                task_instances_map, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
                     delete_specific_map_index_task_keys
                 )
                 not_found_task_ids = [
@@ -625,23 +625,10 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                         detail=f"The task instances with these identifiers: {not_found_task_ids} were not found",
                     )
 
-                for dag_id, run_id, task_id, map_index in matched_task_keys:
-                    ti = (
-                        self.session.execute(
-                            select(TI).where(
-                                TI.dag_id == dag_id,
-                                TI.run_id == run_id,
-                                TI.task_id == task_id,
-                                TI.map_index == map_index,
-                            )
-                        )
-                        .scalars()
-                        .one_or_none()
-                    )
-
-                    if ti:
-                        self.session.delete(ti)
-                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
+                for task_key in matched_task_keys:
+                    dag_id, run_id, task_id, map_index = task_key
+                    self.session.delete(task_instances_map[task_key])
+                    results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
 
             # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
             if delete_all_map_index_task_keys:
