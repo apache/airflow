@@ -652,10 +652,11 @@ class BaseExecutor(LoggingMixin):
 
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task
-            from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO as SDKTaskInstanceDTO
 
+            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
+            # TODO: Create a protocol for this.
             return supervise_task(
-                ti=SDKTaskInstanceDTO.model_validate(workload.ti, from_attributes=True),
+                ti=workload.ti,  # type: ignore[arg-type]
                 bundle_info=workload.bundle_info,
                 dag_rel_path=workload.dag_rel_path,
                 token=workload.token,
