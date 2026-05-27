@@ -39,7 +39,7 @@ from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
@@ -61,9 +61,17 @@ def _start_server() -> socket.socket:
     return server
 
 
+def _find_jars(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
+    for item in items:
+        if item.is_dir():
+            yield from _find_jars(item.iterdir())
+        elif item.is_file() and item.suffix == ".jar":
+            yield item
+
+
 def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
-    jars = (p.as_posix() for root in jars_root for p in root.iterdir() if p.suffix == ".jar")
-    return os.pathsep.join(jars)
+    jars = (p.as_posix() for p in _find_jars(jars_root))
+    return os.pathsep.join(sorted(jars))  # Keep output deterministic.
 
 
 @attrs.define
@@ -109,26 +117,23 @@ class _JarInfo:
 
     @classmethod
     def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> _JarInfo:
+        log.debug("Finding JARs recursively", roots=roots)
         progress = cls._Progress()
-        for root in roots:
-            log.debug("Finding required JAR metadata in directory", dir=root)
-            for p in root.iterdir():
-                if p.suffix != ".jar":
-                    continue
-                if (metadata := _JarMetadata.from_jar(p)) is None:
-                    continue
-                if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
-                    log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
-                    progress.main_class = metadata.main_class
-                if metadata.schema_version:
-                    log.debug(
-                        "JAR located with Airflow-Supervisor-Schema-Version metadata",
-                        path=p,
-                        schema_version=metadata.schema_version,
-                    )
-                    progress.schema_version = metadata.schema_version
-                if (result := progress.collect()) is not None:
-                    return result
+        for p in _find_jars(roots):
+            if (metadata := _JarMetadata.from_jar(p)) is None:
+                continue
+            if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
+                log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
+                progress.main_class = metadata.main_class
+            if metadata.schema_version:
+                log.debug(
+                    "JAR located with Airflow-Supervisor-Schema-Version metadata",
+                    path=p,
+                    schema_version=metadata.schema_version,
+                )
+                progress.schema_version = metadata.schema_version
+            if (result := progress.collect()) is not None:
+                return result
         if progress.main_class is not None:
             tp = "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in {1}"
         elif main_class:
@@ -254,10 +259,11 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         jvm_args: list[str],
         jars_root: Sequence[pathlib.Path],
         main_class: str,
+        startup_timeout: float = 10.0,
         **kwargs,
     ) -> Self:
         jar = _JarInfo.find(jars_root, main_class)
-        with _ResourceTracker(timeout=10.0) as tracker:
+        with _ResourceTracker(timeout=startup_timeout) as tracker:
             comm_server, logs_server = tracker.track(_start_server(), _start_server())
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
@@ -285,6 +291,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                 {"comm": comm_server, "logs": logs_server},
                 {"stdout": stdout_r, "stderr": stderr_r},
                 proc,
+                max_wait=startup_timeout,
             )
             tracker.track(*socks.values())
 
@@ -356,6 +363,8 @@ class JavaCoordinator(BaseCoordinator):
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
     :param jars_root: A list of directories scanned for JAR bundles.
     :param main_class: Explicit entry point to execute with *java_executable*.
+    :param task_startup_timeout: Maximum time the coordinator waits for a task
+        process to start, in seconds. The default is 10 seconds.
 
     If *main_class* is not explicitly set, JavaCoordinator scans *jars_root* to
     find an executable JAR (one with Main-Class set in its metadata). If more
@@ -367,12 +376,23 @@ class JavaCoordinator(BaseCoordinator):
     SDK automatically sets this, so you don't generally need to do anything if
     dependency JARs are deployed as-is. If you repackage the dependencies,
     however, you must also reproduce the metadata entry in one of the JARs.
+
+    The default *task_startup_timeout* should plenty long enough since a task-
+    containing JAR is not supposed to consume significant time to perform setup
+    (it should happen in individual tasks instead). However, if the launch time
+    has to be so slow, you can increase the timeout to give the JAR more time.
+    Note that decreasing the value is generally not meaningful since the
+    coordinator does not need to wait for the full period.
     """
 
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
-    jars_root: list[pathlib.Path] = attrs.field(converter=_convert_jars_root, factory=list)
+    jars_root: list[pathlib.Path] = attrs.field(
+        converter=_convert_jars_root,
+        validator=attrs.validators.min_len(1),
+    )
     main_class: str = ""
+    task_startup_timeout: float = 10.0
 
     def execute_task(
         self,
@@ -398,6 +418,7 @@ class JavaCoordinator(BaseCoordinator):
             jvm_args=self.jvm_args,
             jars_root=self.jars_root,
             main_class=self.main_class,
+            startup_timeout=self.task_startup_timeout,
         )
         exit_code = process.wait()
         return self.ExecutionResult(exit_code, process.final_state)
