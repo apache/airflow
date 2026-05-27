@@ -1416,6 +1416,62 @@ class TestTIUpdateState:
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
 
+    def test_ti_update_state_rolls_back_partial_asset_registration_on_failure(
+        self, client, session, create_task_instance
+    ):
+        asset = AssetModel(
+            id=43,
+            name="partial-asset",
+            uri="s3://bucket/partial-asset",
+            group="asset",
+            extra={},
+        )
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_partial_asset_registration_failure",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        def add_event_then_fail(ti, task_outlets, outlet_events, session):
+            session.add(
+                AssetEvent(
+                    asset_id=asset.id,
+                    extra={"partial": True},
+                    source_task_id=ti.task_id,
+                    source_dag_id=ti.dag_id,
+                    source_run_id=ti.run_id,
+                    source_map_index=ti.map_index,
+                )
+            )
+            session.flush()
+            raise RuntimeError("simulated failure after partial asset registration")
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            side_effect=add_event_then_fail,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [
+                        {"name": "partial-asset", "uri": "s3://bucket/partial-asset", "type": "Asset"}
+                    ],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}: {response.text}"
+        session.expire_all()
+        ti_db = session.get(TaskInstance, ti.id)
+        assert ti_db is not None
+        assert ti_db.state == TaskInstanceState.SUCCESS
+        assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
+
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
         Test that a database error is handled correctly when updating the Task Instance state.
@@ -2024,6 +2080,74 @@ class TestTIUpdateState:
         assert response.status_code == 204
         session.expire_all()
         assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_asset_registration_failure_does_not_rollback_successful_task_state_clear(
+        self, client, session, create_task_instance
+    ):
+        asset = AssetModel(
+            id=44,
+            name="partial-asset-with-state-clear",
+            uri="s3://bucket/partial-asset-with-state-clear",
+            group="asset",
+            extra={},
+        )
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_asset_failure_after_state_clear",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        def add_event_then_fail(ti, task_outlets, outlet_events, session):
+            session.add(
+                AssetEvent(
+                    asset_id=asset.id,
+                    extra={"partial": True},
+                    source_task_id=ti.task_id,
+                    source_dag_id=ti.dag_id,
+                    source_run_id=ti.run_id,
+                    source_map_index=ti.map_index,
+                )
+            )
+            session.flush()
+            raise RuntimeError("simulated failure after state clear")
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            side_effect=add_event_then_fail,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [
+                        {
+                            "name": "partial-asset-with-state-clear",
+                            "uri": "s3://bucket/partial-asset-with-state-clear",
+                            "type": "Asset",
+                        }
+                    ],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}: {response.text}"
+        session.expire_all()
+        ti_db = session.get(TaskInstance, ti.id)
+        assert ti_db is not None
+        assert ti_db.state == TaskInstanceState.SUCCESS
+        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})

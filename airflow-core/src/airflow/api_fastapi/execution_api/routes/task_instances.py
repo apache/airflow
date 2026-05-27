@@ -470,7 +470,7 @@ def ti_update_state(
         # Commit the TI state update now to release the task_instance row lock before
         # running asset-event queries. The direct-INSERT fix in AssetManager removes
         # the O(n) lazy-load on the alias-event table, but register_asset_changes_in_db
-        # also queries scheduled dags and inserts AssetDagRunQueue rows — all of which
+        # also queries scheduled dags and inserts AssetDagRunQueue rows - all of which
         # would otherwise hold the row lock and cause idle-in-transaction pile-up that
         # exhausts API server memory and triggers OOMKill under high concurrency.
         # The task outcome is durable from this point on.
@@ -498,7 +498,9 @@ def ti_update_state(
                     task_id=task_id,
                     map_index=map_index,
                 )
+                session.commit()
             except Exception:
+                session.rollback()
                 log.warning(
                     "Failed to clear task state on success",
                     dag_id=dag_id,
@@ -521,6 +523,7 @@ def ti_update_state(
                     session,
                 )
         except Exception:
+            session.rollback()
             log.exception(
                 "Failed to register asset changes; task state is already committed",
                 task_instance_id=str(task_instance_id),
