@@ -17,7 +17,6 @@
  * under the License.
  */
 import type { PropsWithChildren } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useColorMode } from "src/context/colorMode";
 
@@ -39,36 +38,18 @@ const getMermaid = async (): Promise<MermaidApi> => {
 export const MermaidProvider = ({ children }: PropsWithChildren) => {
   const { colorMode } = useColorMode();
   const theme: MermaidTheme = colorMode === "dark" ? "dark" : "default";
-  const [initializedTheme, setInitializedTheme] = useState<MermaidTheme | undefined>(undefined);
-  const initializedThemeRef = useRef<MermaidTheme | undefined>(initializedTheme);
 
-  useEffect(() => {
-    initializedThemeRef.current = initializedTheme;
-  }, [initializedTheme]);
-
-  const initializeMermaid = useCallback(async (): Promise<MermaidApi> => {
+  const renderDiagram = async ({ chart, diagramId }: MermaidRenderParams): Promise<string> => {
     const mermaid = await getMermaid();
 
-    if (initializedThemeRef.current !== theme) {
-      mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
-      initializedThemeRef.current = theme;
-      setInitializedTheme(theme);
-    }
+    mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
 
-    return mermaid;
-  }, [theme]);
+    const { svg } = await mermaid.render(diagramId, chart);
 
-  const renderDiagram = useCallback(
-    async ({ chart, diagramId }: MermaidRenderParams): Promise<string> => {
-      const mermaid = await initializeMermaid();
-      const { svg } = await mermaid.render(diagramId, chart);
+    return svg;
+  };
 
-      return svg;
-    },
-    [initializeMermaid],
-  );
-
-  const value = useMemo(() => ({ renderDiagram }), [renderDiagram]);
+  const value = { renderDiagram };
 
   return <MermaidContext.Provider value={value}>{children}</MermaidContext.Provider>;
 };
