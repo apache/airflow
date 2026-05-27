@@ -413,6 +413,7 @@ class TestDataprocBatchTrigger:
 
         future = asyncio.Future()
         future.set_result(mock_batch)
+        mock_get_async_hook.return_value.get_batch_client = mock.AsyncMock()
         mock_get_async_hook.return_value.get_batch.return_value = future
 
         expected_event = TriggerEvent(
@@ -439,6 +440,7 @@ class TestDataprocBatchTrigger:
 
         future = asyncio.Future()
         future.set_result(mock_batch)
+        mock_get_async_hook.return_value.get_batch_client = mock.AsyncMock()
         mock_get_async_hook.return_value.get_batch.return_value = future
 
         expected_event = TriggerEvent(
@@ -463,6 +465,7 @@ class TestDataprocBatchTrigger:
 
         future = asyncio.Future()
         future.set_result(mock_batch)
+        mock_get_async_hook.return_value.get_batch_client = mock.AsyncMock()
         mock_get_async_hook.return_value.get_batch.return_value = future
 
         expected_event = TriggerEvent(
@@ -487,6 +490,7 @@ class TestDataprocBatchTrigger:
 
         future = asyncio.Future()
         future.set_result(mock_batch)
+        mock_get_async_hook.return_value.get_batch_client = mock.AsyncMock()
         mock_get_async_hook.return_value.get_batch.return_value = future
 
         task = asyncio.create_task(batch_trigger.run().__anext__())
@@ -494,6 +498,37 @@ class TestDataprocBatchTrigger:
 
         assert not task.done()
         mock_log.info.assert_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_create_batch_trigger_reuses_async_hook_while_polling(
+        self, mock_sleep, mock_get_async_hook, batch_trigger
+    ):
+        running_batch = mock.MagicMock()
+        running_batch.state = Batch.State.RUNNING
+        running_batch.state_message = TEST_BATCH_STATE_MESSAGE
+        succeeded_batch = mock.MagicMock()
+        succeeded_batch.state = Batch.State.SUCCEEDED
+        succeeded_batch.state_message = TEST_BATCH_STATE_MESSAGE
+
+        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(
+            side_effect=[running_batch, succeeded_batch]
+        )
+
+        actual_event = await batch_trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent(
+            {
+                "batch_id": TEST_BATCH_ID,
+                "batch_state": Batch.State.SUCCEEDED.name,
+                "batch_state_message": TEST_BATCH_STATE_MESSAGE,
+            }
+        )
+        mock_get_async_hook.assert_called_once_with()
+        assert mock_get_async_hook.return_value.get_batch.await_count == 2
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
 
 
 class TestDataprocOperationTrigger:

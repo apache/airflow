@@ -594,8 +594,10 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
         )
 
     async def run(self):
+        hook = self.get_async_hook()
+
         while True:
-            batch = await self.get_async_hook().get_batch(
+            batch = await hook.get_batch(
                 project_id=self.project_id, region=self.region, batch_id=self.batch_id
             )
             state = batch.state
