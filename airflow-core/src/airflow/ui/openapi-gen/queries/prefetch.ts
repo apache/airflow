@@ -1892,6 +1892,24 @@ export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: Que
   orderBy?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) });
 /**
+* Get Callback Logs
+* Get execution logs for a callback associated with a deadline.
+*
+* Returns the logs produced during callback execution. These logs are uploaded
+* to remote storage (or written locally) by the callback supervisor after execution.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.callbackId
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDeadlinesServiceGetCallbackLogs = (queryClient: QueryClient, { callbackId, dagId, dagRunId }: {
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ callbackId, dagId, dagRunId }), queryFn: () => DeadlinesService.getCallbackLogs({ callbackId, dagId, dagRunId }) });
+/**
 * Structure Data
 * Get Structure Data.
 * @param data The data for the request.

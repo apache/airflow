@@ -34,6 +34,11 @@
       "wednesday": "Wed"
     }
   },
+  "callbackLogs": {
+    "noLogs": "No logs available for this callback.",
+    "title": "Callback Logs",
+    "viewLogs": "Callback Logs"
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",

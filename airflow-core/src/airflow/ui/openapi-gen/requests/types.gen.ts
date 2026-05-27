@@ -2163,6 +2163,8 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+    callback_id?: string | null;
+    callback_state?: string | null;
 };
 
 /**
@@ -4262,6 +4264,14 @@ export type GetDagDeadlineAlertsData = {
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
+
+export type GetCallbackLogsData = {
+    callbackId: string;
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetCallbackLogsResponse = TaskInstancesLogResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -7929,6 +7939,25 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs': {
+        get: {
+            req: GetCallbackLogsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstancesLogResponse;
                 /**
                  * Not Found
                  */

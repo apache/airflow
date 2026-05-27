@@ -17,28 +17,20 @@
  * under the License.
  */
 import { Badge, Heading, HStack, Separator, Skeleton, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
-import { renderDuration } from "src/utils/datetimeUtils";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
+import { CallbackLogViewer } from "src/pages/Run/CallbackLogViewer";
 
 const PAGE_LIMIT = 10;
 
 type DeadlineStatusModalProps = {
-  readonly alertMap: Map<string, DeadlineAlertResponse>;
   readonly dagId: string;
   readonly dagRunId: string;
   readonly onClose: () => void;
@@ -47,7 +39,6 @@ type DeadlineStatusModalProps = {
 };
 
 export const DeadlineStatusModal = ({
-  alertMap,
   dagId,
   dagRunId,
   onClose,
@@ -96,74 +87,42 @@ export const DeadlineStatusModal = ({
             </VStack>
           ) : (
             <VStack gap={0} separator={<Separator />}>
-              {deadlines.map((dl) => {
-                const alert =
-                  dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-                const deadlineTime = dayjs(dl.deadline_time);
-
-                let actualDurationLabel: string | undefined;
-
-                if (dl.missed && runEndDate !== undefined) {
-                  const diff = dayjs(runEndDate).diff(deadlineTime);
-                  const dur = renderDuration(Math.abs(diff) / 1000, false);
-
-                  if (dur !== undefined) {
-                    actualDurationLabel =
-                      diff >= 0
-                        ? translate("deadlineStatus.finishedLate", { duration: dur })
-                        : translate("deadlineStatus.finishedEarly", { duration: dur });
-                  }
-                }
-
-                return (
-                  <VStack alignItems="flex-start" gap={0.5} key={dl.id} px={2} py={1.5} width="100%">
-                    <HStack gap={2}>
-                      <Badge colorPalette={dl.missed ? "red" : "blue"} size="sm" variant="solid">
-                        {dl.missed ? <FiAlertTriangle /> : <FiClock />}
-                        {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
-                      </Badge>
-                      {Boolean(dl.alert_name) && (
-                        <Text color="fg.muted" fontSize="xs">
-                          {dl.alert_name}
-                        </Text>
-                      )}
-                    </HStack>
-                    {alert === undefined ? undefined : (
+              {deadlines.map((dl) => (
+                <VStack alignItems="flex-start" gap={0.5} key={dl.id} px={2} py={1.5} width="100%">
+                  <HStack alignItems="center" gap={2}>
+                    <Badge colorPalette={dl.missed ? "red" : "blue"} size="sm" variant="solid">
+                      {dl.missed ? <FiAlertTriangle /> : <FiClock />}
+                      {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
+                    </Badge>
+                    {dl.callback_id !== undefined && dl.callback_id !== null ? (
+                      <CallbackLogViewer
+                        callbackId={dl.callback_id}
+                        callbackState={dl.callback_state}
+                        dagId={dagId}
+                        dagRunId={dagRunId}
+                      />
+                    ) : undefined}
+                  </HStack>
+                  <HStack gap={1}>
+                    <Text color="fg.muted" fontSize="xs">
+                      {translate("deadlineStatus.expected")}:
+                    </Text>
+                    <Time datetime={dl.deadline_time} fontSize="xs" />
+                  </HStack>
+                  <HStack gap={1}>
+                    <Text color="fg.muted" fontSize="xs">
+                      {translate("deadlineStatus.actual")}:
+                    </Text>
+                    {runEndDate === undefined ? (
                       <Text color="fg.muted" fontSize="xs">
-                        {translate("deadlineAlerts.completionRule", {
-                          interval: dayjs.duration(alert.interval, "seconds").humanize(),
-                          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-                            defaultValue: alert.reference_type,
-                          }),
-                        })}
+                        {translate("deadlineStatus.stillRunning")}
                       </Text>
+                    ) : (
+                      <Time datetime={runEndDate} fontSize="xs" />
                     )}
-                    <HStack gap={1}>
-                      <Text color="fg.muted" fontSize="xs">
-                        {translate("deadlineStatus.expected")}:
-                      </Text>
-                      <Time datetime={dl.deadline_time} fontSize="xs" />
-                    </HStack>
-                    <HStack gap={1}>
-                      <Text color="fg.muted" fontSize="xs">
-                        {translate("deadlineStatus.actual")}:
-                      </Text>
-                      {runEndDate === undefined ? (
-                        <Text color="fg.muted" fontSize="xs">
-                          {translate("deadlineStatus.stillRunning")}
-                        </Text>
-                      ) : (
-                        <Time datetime={runEndDate} fontSize="xs" />
-                      )}
-                    </HStack>
-                    {actualDurationLabel === undefined ? undefined : (
-                      <Text color="fg.error" fontSize="xs" pl={1}>
-                        {actualDurationLabel}
-                      </Text>
-                    )}
-                  </VStack>
-                );
-              })}
+                  </HStack>
+                </VStack>
+              ))}
             </VStack>
           )}
         </Dialog.Body>

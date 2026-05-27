@@ -1892,6 +1892,24 @@ export const useDeadlinesServiceGetDagDeadlineAlerts = <TData = Common.Deadlines
   orderBy?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) as TData, ...options });
 /**
+* Get Callback Logs
+* Get execution logs for a callback associated with a deadline.
+*
+* Returns the logs produced during callback execution. These logs are uploaded
+* to remote storage (or written locally) by the callback supervisor after execution.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.callbackId
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const useDeadlinesServiceGetCallbackLogs = <TData = Common.DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ callbackId, dagId, dagRunId }: {
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ callbackId, dagId, dagRunId }, queryKey), queryFn: () => DeadlinesService.getCallbackLogs({ callbackId, dagId, dagRunId }) as TData, ...options });
+/**
 * Structure Data
 * Get Structure Data.
 * @param data The data for the request.
