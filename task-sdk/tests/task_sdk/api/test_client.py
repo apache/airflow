@@ -116,14 +116,14 @@ class TestClient:
 
         assert isinstance(err.value, FileNotFoundError)
 
-    @mock.patch("ssl.SSLContext")
+    @mock.patch("ssl.create_default_context")
     @mock.patch("airflow.sdk.api.client.API_CLIENT_USE_PUBLIC_CERTS", True)
-    def test_use_public_certs(self, mock_use_public_certs, mock_ssl_context):
+    def test_use_public_certs(self, mock_default_context):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(status_code=200)
 
         make_client(httpx.MockTransport(handle_request))
-        mock_ssl_context.load_verify_locations.assert_called_with(certifi.where())
+        mock_default_context.return_value.load_verify_locations.assert_called_with(certifi.where())
 
     @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
     def test_timeout_configuration(self):
