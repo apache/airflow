@@ -1,0 +1,1 @@
+Import error stack traces are now immediately visible when the import errors modal opens, instead of requiring the user to expand each accordion item.

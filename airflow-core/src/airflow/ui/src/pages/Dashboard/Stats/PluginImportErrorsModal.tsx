@@ -44,6 +44,7 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
+  const [openItems, setOpenItems] = useState<Array<string>>([]);
 
   const startRange = (page - 1) * PAGE_LIMIT;
   const endRange = startRange + PAGE_LIMIT;
@@ -63,6 +64,10 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
     setPage(1);
   }, [searchQuery, importErrors]);
 
+  useEffect(() => {
+    setOpenItems(filteredErrors.slice((page - 1) * PAGE_LIMIT, page * PAGE_LIMIT).map((err) => err.source));
+  }, [filteredErrors, page]);
+
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
       <Dialog.Content backdrop p={4}>
@@ -81,9 +86,16 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
+          <Accordion.Root
+            collapsible
+            multiple
+            onValueChange={(details) => setOpenItems(details.value)}
+            size="md"
+            value={openItems}
+            variant="enclosed"
+          >
             {visibleItems.map((importError) => (
-              <Accordion.Item key={importError.error} value={importError.source}>
+              <Accordion.Item key={importError.source} value={importError.source}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <PiFilePy />
                   {importError.source}

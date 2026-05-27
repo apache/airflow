@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Heading, Text, HStack, ClipboardRoot } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
@@ -38,6 +38,7 @@ const PAGE_LIMIT = 15;
 export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [openItems, setOpenItems] = useState<Array<string>>([]);
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
@@ -48,6 +49,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
     undefined,
     { enabled: open },
   );
+
+  useEffect(() => {
+    setOpenItems(data?.import_errors.map((importError) => String(importError.import_error_id)) ?? []);
+  }, [data?.import_errors]);
 
   const { t: translate } = useTranslation(["dashboard", "components"]);
 
@@ -80,9 +85,16 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
+          <Accordion.Root
+            collapsible
+            multiple
+            onValueChange={(details) => setOpenItems(details.value)}
+            size="md"
+            value={openItems}
+            variant="enclosed"
+          >
             {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
+              <Accordion.Item key={importError.import_error_id} value={String(importError.import_error_id)}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
                     {translate("components:versionDetails.bundleName")}
