@@ -29,6 +29,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables import assets, events, interval, simple, trigger  # noqa: F401
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
@@ -37,6 +38,55 @@ DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
 class TestDag:
+    def test_dag_outlets_init_from_single_value(self):
+        outlet = Asset("asset://dag_outlet")
+        dag = DAG("dag-with-outlet", schedule=None, outlets=outlet)
+
+        assert dag.outlets == [outlet]
+
+    def test_dag_outlets_init_from_collection(self):
+        outlet_1 = Asset("asset://dag_outlet_1")
+        outlet_2 = Asset("asset://dag_outlet_2")
+        dag = DAG("dag-with-outlets", schedule=None, outlets=[outlet_1, outlet_2])
+
+        assert dag.outlets == [outlet_1, outlet_2]
+
+    def test_dag_gt_sets_outlets(self):
+        dag = DAG("dag-gt-outlet", schedule=None)
+        outlet = Asset("asset://dag_outlet")
+
+        result = dag > outlet
+
+        assert result is dag
+        assert dag.outlets == [outlet]
+
+    def test_dag_gt_rejects_non_outlets(self):
+        dag = DAG("dag-invalid-outlet", schedule=None)
+
+        with pytest.raises(TypeError, match=r"Left hand side \(not-an-outlet\) is not an outlet"):
+            dag > "not-an-outlet"
+
+    def test_dag_outlets_register_success_callback(self):
+        dag = DAG("dag-callback-outlet", schedule=None, outlets=Asset("asset://dag_outlet"))
+
+        assert dag.has_on_success_callback
+        callbacks = dag.on_success_callback if isinstance(dag.on_success_callback, list) else [dag.on_success_callback]
+        assert any(getattr(cb, "__name__", "") == "_emit_dag_asset_events" for cb in callbacks)
+
+    def test_dag_outlets_preserve_existing_success_callback(self):
+        def callback(context):
+            pass
+
+        dag = DAG(
+            "dag-callback-merge",
+            schedule=None,
+            outlets=Asset("asset://dag_outlet"),
+            on_success_callback=callback,
+        )
+        callbacks = dag.on_success_callback if isinstance(dag.on_success_callback, list) else [dag.on_success_callback]
+        assert callback in callbacks
+        assert any(getattr(cb, "__name__", "") == "_emit_dag_asset_events" for cb in callbacks)
+
     @pytest.mark.parametrize(
         ("dag_id", "exc_type", "exc_value"),
         [

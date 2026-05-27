@@ -233,6 +233,60 @@ def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> l
     return list(deadline)
 
 
+def _collect_from_input(value_or_values: Any | Collection[Any] | None) -> list[Any]:
+    if not value_or_values:
+        return []
+    if isinstance(value_or_values, Collection) and not isinstance(value_or_values, str):
+        return list(value_or_values)
+    return [value_or_values]
+
+
+def _emit_dag_asset_events(*, context: Context) -> None:
+    """Emit asset events for Dag-level outlets on successful Dag run."""
+    dag = context.get("dag")
+    if dag is None:
+        return
+
+    from airflow.assets.manager import asset_manager
+    from airflow.models.asset import AssetModel
+    from airflow.serialization.definitions.assets import SerializedAsset
+    from airflow.utils.session import create_session
+
+    run_id = context.get("run_id")
+    with create_session() as session:
+        for outlet in dag.outlets:
+            if not isinstance(outlet, BaseAsset):
+                continue
+            if not isinstance(outlet, Asset):
+                # Dag-level outlets only emit concrete assets as events.
+                continue
+
+            serialized_asset = SerializedAsset(
+                name=outlet.name,
+                uri=outlet.uri,
+                group=outlet.group,
+                extra=outlet.extra,
+                watchers=[],
+            )
+            event = asset_manager.register_asset_change(
+                asset=serialized_asset,
+                source_dag_id=dag.dag_id,
+                source_run_id=run_id,
+                partition_key=getattr(context.get("dag_run"), "partition_key", None),
+                session=session,
+            )
+            if event is None:
+                session.add(AssetModel.from_serialized(serialized_asset))
+                session.flush()
+                asset_manager.register_asset_change(
+                    asset=serialized_asset,
+                    source_dag_id=dag.dag_id,
+                    source_run_id=run_id,
+                    partition_key=getattr(context.get("dag_run"), "partition_key", None),
+                    session=session,
+                )
+
+
 def _convert_doc_md(doc_md: str | None) -> str | None:
     if doc_md is None:
         return doc_md
@@ -410,6 +464,7 @@ class DAG:
     :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
+    :param outlets: List of outlets that the Dag should emit when the Dag run is successful.
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
@@ -524,6 +579,7 @@ class DAG:
     render_template_as_native_obj: bool = attrs.field(default=False, converter=bool)
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
     owner_links: dict[str, str] = attrs.field(factory=dict)
+    outlets: list[Any] = attrs.field(factory=list, converter=_collect_from_input)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
     allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
@@ -589,6 +645,12 @@ class DAG:
                 f"Invalid max_active_runs: {type(self.timetable)} "
                 f"requires max_active_runs <= {active_runs_limit}"
             )
+
+        if self.outlets:
+            callbacks = _collect_from_input(self.on_success_callback)
+            callbacks.append(_emit_dag_asset_events)
+            self.on_success_callback = callbacks
+            self.has_on_success_callback = True
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -734,6 +796,26 @@ class DAG:
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
+
+    def __gt__(self, other):
+        """
+        Return [Dag] > [Outlet].
+
+        If other is an attr annotated object it is set as an outlet of this Dag.
+        """
+        if not isinstance(other, Iterable):
+            other = [other]
+
+        for obj in other:
+            if not attrs.has(obj):
+                raise TypeError(f"Left hand side ({obj}) is not an outlet")
+        self.add_outlets(other)
+
+        return self
+
+    def add_outlets(self, outlets: Iterable[Any]) -> None:
+        """Define the outlets of this Dag."""
+        self.outlets.extend(outlets)
 
     def __enter__(self) -> Self:
         from airflow.sdk.definitions._internal.contextmanager import DagContext
@@ -1610,6 +1692,7 @@ if TYPE_CHECKING:
         render_template_as_native_obj: bool = False,
         tags: Collection[str] | None = None,
         owner_links: dict[str, str] | None = None,
+        outlets: Any | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
