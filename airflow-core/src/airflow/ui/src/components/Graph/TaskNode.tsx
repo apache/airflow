@@ -24,7 +24,6 @@ import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useGroups } from "src/context/groups";
-import { getDisplayState } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { SegmentedStateBar } from "./SegmentedStateBar";
@@ -84,8 +83,6 @@ export const TaskNode = ({
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
 
-  const displayState = getDisplayState(taskInstance?.child_states, taskInstance?.state);
-
   return (
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column" {...opacityStyle(isFiltered)}>
@@ -100,7 +97,9 @@ export const TaskNode = ({
           <Flex
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
-            borderColor={isSelected ? "blue.500" : displayState ? `${displayState}.solid` : "border"}
+            borderColor={
+              isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
+            }
             borderRadius={5}
             borderWidth={isSelected ? 4 : 2}
             direction="column"
@@ -136,8 +135,8 @@ export const TaskNode = ({
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>
-                <StateBadge fontSize="xs" state={displayState}>
-                  {displayState}
+                <StateBadge fontSize="xs" state={taskInstance.state}>
+                  {taskInstance.state}
                 </StateBadge>
               </HStack>
             )}
@@ -166,22 +165,22 @@ export const TaskNode = ({
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>
             <Box
-              bg={displayState ? `${displayState}.solid` : "bg.subtle"}
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor={displayState ? `${displayState}.solid` : "border.emphasized"}
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
               width={`${width - 10}px`}
             />
             <Box
-              bg={displayState ? `${displayState}.solid` : "bg.subtle"}
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor={displayState ? `${displayState}.solid` : "border.emphasized"}
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}

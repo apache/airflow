@@ -26,7 +26,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDisplayState, getDuration, renderDuration, sortStateEntries } from "src/utils";
+import { getDuration, renderDuration, sortStateEntries } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
@@ -53,11 +53,6 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
       ? sortStateEntries(taskInstance.child_states)
       : [];
 
-  const displayState = getDisplayState(
-    taskInstance !== undefined && "child_states" in taskInstance ? taskInstance.child_states : null,
-    taskInstance?.state,
-  );
-
   return taskInstance === undefined && !hasTooltip ? (
     children
   ) : (
@@ -73,8 +68,8 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               </Text>
               <Text>
                 {translate("state")}:{" "}
-                {displayState
-                  ? translate(`common:states.${displayState}`)
+                {taskInstance.state
+                  ? translate(`common:states.${taskInstance.state}`)
                   : translate("common:states.no_status")}
               </Text>
               {"dag_run_id" in taskInstance || (runId !== undefined && runId !== null && runId !== "") ? (
