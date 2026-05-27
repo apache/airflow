@@ -45,10 +45,14 @@ func (m *myBundle) GetBundleVersion() v1.BundleInfo {
 }
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
+	simpleDag := dagbag.AddDag("simple_dag", v1.DagSpec{
+		Schedule:    "@daily",
+		Description: "Example Go-authored Dag",
+		Tags:        []string{"example", "go-sdk"},
+	})
+	simpleDag.AddTask(extract, v1.TaskSpec{Queue: "go-task", Retries: 2}, nil)
+	simpleDag.AddTask(transform, v1.TaskSpec{Queue: "go-task"}, []string{"extract"})
+	simpleDag.AddTask(load, v1.TaskSpec{Queue: "go-task"}, []string{"transform"})
 
 	return nil
 }

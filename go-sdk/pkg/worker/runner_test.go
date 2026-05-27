@@ -161,7 +161,7 @@ func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
 	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
 		wasCalled = true
 		return nil
-	})
+	}, bundlev1.TaskSpec{}, nil)
 
 	// Setup the mock
 	s.ti.EXPECT().
@@ -194,7 +194,7 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
 		return nil
-	})
+	}, bundlev1.TaskSpec{}, nil)
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
