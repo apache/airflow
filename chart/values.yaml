@@ -4070,6 +4070,25 @@ cleanup:
     # Annotations to add to cleanup CronJob Kubernetes Service Account.
     annotations: {}
 
+    # Service Account Token Volume configuration
+    # This is only used when `automountServiceAccountToken` is 'false'
+    # and allows manual configuration of the Service Account token volume
+    serviceAccountTokenVolume:
+      # Enable manual Service Account token volume configuration
+      enabled: false
+
+      # Path where the Service Account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+
+      # Name of the volume
+      volumeName: kube-api-access
+
+      # Token expiration in seconds
+      expirationSeconds: 3600
+
+      # Audience for the token
+      audience: ~
+
   # When not set, the values defined in the global `securityContext` will be used
   # (deprecated, use `cleanup.securityContexts` instead)
   securityContext: {}
