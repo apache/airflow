@@ -22,7 +22,7 @@ State Store Configuration
 
 .. versionadded:: 3.3
 
-The state store is the persistence layer for :doc:`task state </core-concepts/task-state>` and :doc:`asset state </authoring-and-scheduling/asset-state>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend.
+The state store is the persistence layer for :doc:`task state </core-concepts/task-state>` and :doc:`asset state </core-concepts/asset-state>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend.
 
 Configuration reference
 -----------------------
@@ -46,7 +46,7 @@ Full dotted path to a class that implements :class:`~airflow.sdk.state.BaseState
 ``default_retention_days``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Number of days to retain **task state** rows after their last update. Rows older than this are deleted during the next GC pass.
+Number of days to retain **task state** rows after their last update. Rows older than this are deleted during the next garbage collection pass.
 
 * Set to ``0`` to disable time-based cleanup entirely.
 * Default: ``30``.
@@ -74,7 +74,7 @@ When ``True``, all task state keys for a task instance are automatically deleted
 ``state_cleanup_batch_size``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Number of rows deleted per batch during GC cleanup. Set to ``0`` (default) to delete all matching rows in a single statement. Tune this on deployments with large ``task_state`` tables to reduce lock contention.
+Number of rows deleted per batch during garbage collection cleanup. Set to ``0`` (default) to delete all matching rows in a single statement. Tune this on deployments with large ``task_state`` tables to reduce lock contention.
 
 .. code-block:: ini
 
@@ -91,25 +91,30 @@ A separate, optional config key under ``[workers]`` lets you route task state an
     [workers]
     state_backend = mypackage.state.S3StateBackend
 
-When this is set, ``TaskStateAccessor.set()`` calls ``serialize_task_state_to_ref()`` on the worker-side backend before sending the value to the Execution API, and ``get()`` calls ``deserialize_task_state_from_ref()`` after receiving the stored reference. See `Custom worker-side backends`_ below.
+When this is set, ``TaskStateAccessor.set()`` calls ``serialize_task_state_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_state_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
 
 
 Garbage collection semantics
 -----------------------------
 
-The GC job runs periodically and removes state rows according to the following rules:
+The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store cleanup-task-states``. This process removes state rows according to the following rules:
 
 **Time-based expiry (task state only)**
   Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
 
 **``default_retention_days`` fallback (task state only)**
-  Keys written with no explicit ``retention`` (i.e. ``expires_at`` is ``NULL``) are governed by the global ``default_retention_days`` setting. When this setting is positive, the GC job treats such rows as expiring ``default_retention_days`` days after their last update.
+  Keys written with no explicit ``retention`` (i.e. ``expires_at`` is ``NULL``) are governed by the global ``default_retention_days`` setting. When this setting is positive, the garbage collection job treats such rows as expiring ``default_retention_days`` days after their last update.
 
 **``NEVER_EXPIRE`` keys**
-  Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the GC to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.
+  Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the garbage collection to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.
 
 **Orphan sweep (asset state)**
   Asset state rows for assets that no longer have an ``asset_active`` record are deleted during the orphan-sweep pass. This cleans up state for deactivated or renamed assets.
+
+.. important::
+
+   Garbage collection only works for the ``MetastoreStateBackend``. Custom backends are explicitly skipped.
+
 
 
 Custom backends
@@ -158,9 +163,9 @@ Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.
 
     class MyBackend(BaseStateBackend):
         def get(self, scope, key, *, session=None):
-            if scope == TaskScope():
+            if isinstance(scope, TaskScope):
                 return self._task_store.get(scope, key)
-            elif scope == AssetScope():
+            elif isinstance(scope, AssetScope):
                 return self._asset_store.get(scope, key)
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
@@ -176,7 +181,7 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStateBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly on worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStateBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
 
 Override these four methods:
 
@@ -212,6 +217,9 @@ Example skeleton:
 
     from airflow.sdk.state import BaseStateBackend, TaskScope, AssetScope
 
+    if TYPE_CHECKING:
+        from pydantic import JsonValue
+
 
     class S3StateBackend(BaseStateBackend):
 
@@ -224,23 +232,23 @@ Example skeleton:
             safe = hashlib.sha256(asset_ref.encode()).hexdigest()[:16]
             return f"airflow/asset-state/{safe}/{key}"
 
-        def serialize_task_state_to_ref(self, *, value, key, ti_id):
+        def serialize_task_state_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
             s3_key = self._task_ref(ti_id, key)
-            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=value.encode())
+            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_task_state_from_ref(self, stored):
+        def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
-            return s3_object["Body"].read().decode()
+            return json.loads(s3_object["Body"].read().decode())
 
-        def serialize_asset_state_to_ref(self, *, value, key, asset_ref):
+        def serialize_asset_state_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
             s3_key = self._asset_ref(asset_ref, key)
-            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=value.encode())
+            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_asset_state_from_ref(self, stored):
+        def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
-            return s3_object["Body"].read().decode()
+            return json.loads(s3_object["Body"].read().decode())
 
         # Implement the remaining abstract methods as pass-throughs or delegating to the
         # default MetastoreStateBackend for the DB side

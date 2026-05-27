@@ -46,7 +46,7 @@ Airflow 3.3 ships two persistent key/value stores, differentiated by *what* they
      - Persists indefinitely; removed only when the asset is deactivated
      - Cross-run watermarks, incremental-load cursors, per-asset metadata
 
-Both stores accept string keys and string values.  Values up to 64 KB are supported through the default metastore backend; larger payloads can be offloaded via a :ref:`custom worker-side backend <state-store:worker-backends>`.
+Both stores accept string keys and JSON values. Values up to 64 KB are supported through the default metastore backend; larger payloads can be offloaded via a :ref:`custom worker-side backend <state-store:worker-backends>`.
 
 When to use Task and Asset State
 --------------------------------

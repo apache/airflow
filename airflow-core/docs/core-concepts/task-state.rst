@@ -61,7 +61,14 @@ Returns the stored string value, or ``None`` if the key does not exist.
 ``set(key, value, *, retention=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Writes or overwrites a key. Note, ``value`` must be a string.
+Writes or overwrites a value for the specified key. Note, ``value`` can be any JSON-compatible type, including:
+
+* ``str``
+* ``int``
+* ``float``
+* ``bool``
+* ``list``
+* ``dict``
 
 The optional ``retention`` argument controls when the key expires:
 
@@ -151,7 +158,7 @@ the default retention window.
             result = spark_client.wait_for_completion(job_id)
             return result
 
-On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job.
+On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_state.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_state.py>`_.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,14 +174,16 @@ For tasks that process paginated or batched data, store the last-completed offse
 
         @task
         def ingest_pages(**context):
+            # Retrieve the task_state
             task_state = context["task_state"]
-
             raw = task_state.get("last_page")
-            start_page = int(raw) + 1 if raw is not None else 1
+
+            start_page = raw + 1 if raw is not None else 1
 
             for page in range(start_page, total_pages + 1):
                 fetch_and_load(page)
-                task_state.set("last_page", str(page))
+                task_state.set("last_page", page)  # Update the task_state for reuse later
+
 
 On a retry, the task reads ``last_page`` and skips pages that were already processed.
 
@@ -202,10 +211,10 @@ Task state can expose in-progress metrics for observability — row counts, stat
                 total += len(batch)
                 task_state.set(
                     "progress",
-                    json.dumps({
+                    {
                         "rows_loaded": total,
                         "status": "running"
-                    }),
+                    },
                 )
 
             task_state.set(
