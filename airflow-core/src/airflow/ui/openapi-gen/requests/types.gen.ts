@@ -7761,6 +7761,10 @@ export type $OpenApiTs = {
                  */
                 307: HTTPExceptionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
