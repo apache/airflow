@@ -24,6 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import ConnectionDetails
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryConnectionIdPatternSearch,
@@ -46,6 +47,8 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    AuthManagerDep,
+    GetUserDep,
     ReadableConnectionsFilterDep,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -223,7 +226,11 @@ def patch_connection(
 
 
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
-def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
+def test_connection(
+    test_body: ConnectionBody,
+    user: GetUserDep,
+    auth_manager: AuthManagerDep,
+) -> ConnectionTestResponse:
     """
     Test an API connection.
 
@@ -244,6 +251,21 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
         # Try to get existing connection and merge with provided values
         try:
             existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
+            # The route-level POST dependency only verifies the caller can create
+            # connections; loading the existing connection's hidden fields below
+            # additionally requires read access to that specific connection.
+            if not auth_manager.is_authorized_connection(
+                method="GET",
+                details=ConnectionDetails(
+                    conn_id=test_body.connection_id,
+                    team_name=existing_conn.team_name,
+                ),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    f"Insufficient permissions to use the existing connection `{test_body.connection_id}`.",
+                )
             existing_conn.conn_id = transient_conn_id
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn
