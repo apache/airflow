@@ -104,7 +104,12 @@ class TestAirbyteTriggerSyncOp:
             execution_timeout=timedelta(seconds=30),
         )
 
-        op.execute({})
+        # Create a mock task instance with xcom_push method
+        mock_ti = mock.MagicMock()
+        mock_ti.xcom_push = mock.MagicMock()
+        context = {"ti": mock_ti}
+
+        op.execute(context)
 
         # Explicitly pass timeout=None so Airflow's framework-level deferred
         # timeout handling does not bypass execute_complete(), which is
