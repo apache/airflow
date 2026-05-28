@@ -84,8 +84,6 @@ class SFTPToS3Operator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
         sftp_remote_host: str = "",
-        aws_conn_id: str = "aws_default",
-        s3_conn_id: str | None = None,
         sftp_filenames: str | list[str] | None = None,
         s3_filenames: str | list[str] | None = None,
         use_temp_file: bool = True,
@@ -94,6 +92,8 @@ class SFTPToS3Operator(BaseOperator):
         encrypt: bool = False,
         gzip: bool = False,
         acl_policy: str | None = None,
+        aws_conn_id: str = "aws_default",
+        s3_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
