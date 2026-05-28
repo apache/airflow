@@ -69,13 +69,13 @@ def _ensure_bundle_module_registered(callback_path: str) -> None:
                 module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
                 sys.modules[mod_name] = module
                 loader.exec_module(module)
-                log.debug("Registered bundle module on triggerer", mod_name=mod_name, file=str(file_path))
+                log.debug("Registered bundle module on triggerer: %s from %s", mod_name, file_path)
                 return
             except Exception:
-                log.debug("Bundle did not contain module", bundle=bundle.name, stem=stem)
+                log.debug("Bundle %s did not contain module stem %s", bundle.name, stem)
                 continue
     except Exception:
-        log.warning("Failed to register unusual_prefix module", mod_name=mod_name, exc_info=True)
+        log.warning("Failed to register unusual_prefix module %s", mod_name, exc_info=True)
 
 
 class CallbackTrigger(BaseTrigger):
