@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def read_elasticsearch_sql_to_polars(
+def read_sql_to_polars(
     client: Elasticsearch,
     query: str,
     params: Mapping[str, Any] | Iterable | None = None,

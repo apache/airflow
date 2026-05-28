@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.elasticsearch.utils.sql import (
-    read_elasticsearch_sql_to_polars,
+    read_sql_to_polars,
 )
 
 COLUMNS = [
@@ -65,7 +65,7 @@ def test_read_sql_to_polars_basic_variants(rows, expected_shape, expected_dict):
         ]
     )
 
-    df = read_elasticsearch_sql_to_polars(es, "SELECT *")
+    df = read_sql_to_polars(es, "SELECT *")
 
     assert df.shape == expected_shape
     assert df.columns == ["id", "name"]
@@ -87,7 +87,7 @@ def test_read_sql_to_polars_pagination():
         ]
     )
 
-    df = read_elasticsearch_sql_to_polars(es, "SELECT *")
+    df = read_sql_to_polars(es, "SELECT *")
 
     assert df.shape == (2, 2)
     assert df.to_dict(as_series=False) == {
@@ -111,7 +111,7 @@ def test_read_sql_to_polars_max_rows_single_page():
         ]
     )
 
-    df = read_elasticsearch_sql_to_polars(es, "SELECT *", max_rows=2)
+    df = read_sql_to_polars(es, "SELECT *", max_rows=2)
 
     assert df.shape == (2, 2)
     assert df.to_dict(as_series=False) == {
@@ -137,7 +137,7 @@ def test_read_sql_to_polars_max_rows():
         ]
     )
 
-    df = read_elasticsearch_sql_to_polars(es, "SELECT *", max_rows=3)
+    df = read_sql_to_polars(es, "SELECT *", max_rows=3)
 
     assert df.shape == (3, 2)
     assert df.to_dict(as_series=False) == {
@@ -161,7 +161,7 @@ def test_read_sql_to_polars_clears_cursor():
         ]
     )
 
-    read_elasticsearch_sql_to_polars(es, "SELECT *")
+    read_sql_to_polars(es, "SELECT *")
 
     es.sql.clear_cursor.assert_called_once()
 
@@ -176,6 +176,6 @@ def test_read_sql_to_polars_no_cursor_cleanup():
         ]
     )
 
-    read_elasticsearch_sql_to_polars(es, "SELECT *")
+    read_sql_to_polars(es, "SELECT *")
 
     es.sql.clear_cursor.assert_not_called()

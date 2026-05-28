@@ -29,7 +29,7 @@ from elasticsearch import Elasticsearch
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch._compat import apply_compat_with
-from airflow.providers.elasticsearch.utils.sql import read_elasticsearch_sql_to_polars
+from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -276,7 +276,7 @@ class ElasticsearchSQLHook(DbApiHook):
         """
         client = self.get_conn().es
 
-        return read_elasticsearch_sql_to_polars(
+        return read_sql_to_polars(
             client=client,
             query=sql,
             params=parameters,

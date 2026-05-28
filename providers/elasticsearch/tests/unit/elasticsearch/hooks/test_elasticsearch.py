@@ -253,7 +253,7 @@ class TestElasticsearchSQLHook:
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
 
-    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.read_elasticsearch_sql_to_polars")
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.read_sql_to_polars")
     def test_get_df_polars(self, mock_reader):
         mock_reader.return_value = "df"
 
