@@ -49,6 +49,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
+    from requests.auth import AuthBase
 
     from airflow.providers.common.compat.sdk import Context
 
@@ -91,7 +92,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     :param name: Name of the job (default airflow-spark). (templated)
     :param num_executors: Number of executors to launch
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
-        mode (Default: 1)
+        mode. Used both by the Spark standalone driver-status tracker and (when
+        ``yarn_track_via_rm_api=True``) by the YARN ResourceManager REST API
+        polling loop, so keep it high enough that RM REST API calls do not
+        flood the ResourceManager on long-running jobs (Default: 10).
     :param application_args: Arguments for the application being submitted (templated)
     :param env_vars: Environment variables for spark-submit. It supports yarn and k8s mode too. (templated)
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
@@ -108,6 +112,20 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                            on keytab for Kerberos login
     :param post_submit_commands: Optional list of shell commands to run after the Spark job finishes.
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
+    :param yarn_track_via_rm_api: If True (and ``deploy_mode`` is YARN cluster),
+        release the ``spark-submit`` JVM once the application has been submitted to
+        YARN, then poll the YARN ResourceManager REST API
+        (``GET /ws/v1/cluster/apps/{appId}``) every ``status_poll_interval`` seconds
+        until the application reaches a final state. This frees the worker from
+        holding the long-lived submit JVM. Requires the Spark connection's ``extra``
+        JSON to set ``yarn_resourcemanager_webapp_address`` (e.g. ``http://rm:8088``).
+        Cluster-side driver logs should be used after the switch to polling.
+        Defaults to ``False``.
+    :param yarn_rm_auth: Optional ``requests.auth.AuthBase`` instance used for every
+        call to the YARN ResourceManager REST API (status polling and kill). For
+        Kerberized clusters, install ``requests-kerberos`` and pass
+        ``HTTPKerberosAuth()``. Defaults to ``None`` (no auth — works for clusters
+        running with ``hadoop.security.authentication=simple``).
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -157,7 +175,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         proxy_user: str | None = None,
         name: str = "arrow-spark",
         num_executors: int | None = None,
-        status_poll_interval: int = 1,
+        status_poll_interval: int = 10,
         application_args: list[Any] | None = None,
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
@@ -168,6 +186,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
         reconnect_on_retry: bool = True,
+        yarn_track_via_rm_api: bool = False,
+        yarn_rm_auth: AuthBase | None = None,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -210,6 +230,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._post_submit_commands = list(post_submit_commands) if post_submit_commands else []
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
+        self._yarn_track_via_rm_api = yarn_track_via_rm_api
+        self._yarn_rm_auth = yarn_rm_auth
 
         self.reconnect_on_retry = reconnect_on_retry
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
@@ -378,4 +400,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
             post_submit_commands=self.post_submit_commands,
+            yarn_track_via_rm_api=self._yarn_track_via_rm_api,
+            yarn_rm_auth=self._yarn_rm_auth,
         )

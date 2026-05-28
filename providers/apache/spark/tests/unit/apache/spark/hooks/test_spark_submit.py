@@ -21,9 +21,10 @@ import base64
 import os
 from io import StringIO
 from pathlib import Path
-from unittest.mock import call, mock_open, patch
+from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
+import requests
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -196,6 +197,16 @@ class TestSparkSubmitHook:
             Connection(
                 conn_id="local_uri",
                 uri="spark://local",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_yarn_rm",
+                conn_type="spark",
+                host="yarn",
+                extra=(
+                    '{"deploy-mode": "cluster", "yarn_resourcemanager_webapp_address": "http://rm.test:8088"}'
+                ),
             )
         )
 
@@ -1036,6 +1047,26 @@ class TestSparkSubmitHook:
             in mock_popen.mock_calls
         )
 
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_legacy_on_kill_skips_yarn_cli_when_submit_sp_already_exited(self, mock_popen):
+        """Regression guard for #65991: when `yarn_track_via_rm_api=False` (legacy
+        path), the YARN CLI kill must stay gated on a live `_submit_sp`. If the
+        spark-submit subprocess has already exited, `on_kill` must not spawn
+        `yarn application -kill` — preserving pre-PR behavior for users who have
+        not opted in to the REST kill path.
+        """
+        submit_process = MagicMock(spec=["kill", "poll"])
+        submit_process.poll.return_value = 0  # already exited
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_cluster")  # yarn_track_via_rm_api=False
+        hook._submit_sp = submit_process
+        hook._yarn_application_id = "application_1486558679801_1820"
+
+        hook.on_kill()
+
+        submit_process.kill.assert_not_called()
+        mock_popen.assert_not_called()
+
     def test_standalone_cluster_process_on_kill(self):
         # Given
         log_lines = [
@@ -1366,3 +1397,356 @@ class TestSparkSubmitHook:
         """Test that None post_submit_commands results in an empty list."""
         hook = SparkSubmitHook(conn_id="")
         assert hook._post_submit_commands == []
+
+    _YARN_LOG_LINES = [
+        "INFO Client: Requesting a new application from cluster with 1 NodeManagers",
+        "INFO Client: Uploading resource file:/tmp/lib.zip -> "
+        "hdfs://namenode:8020/user/root/.sparkStaging/application_1700000000000_0001/lib.zip",
+        "INFO Client: Submitting application application_1700000000000_0001 to ResourceManager",
+        "INFO YarnClientImpl: Submitted application application_1700000000000_0001",
+        "INFO Client: Application report for application_1700000000000_0001 (state: ACCEPTED)",
+        "INFO Client: Application report for application_1700000000000_0001 (state: RUNNING)",
+        "INFO Client: Application report for application_1700000000000_0001 (state: FINISHED)",
+        "INFO Client: final status: SUCCEEDED",
+    ]
+
+    _RM_BASE_URL = "http://rm.test:8088"
+    _RM_APP_ID = "application_1700000000000_0001"
+
+    @classmethod
+    def _rm_status_url(cls, app_id: str | None = None) -> str:
+        return f"{cls._RM_BASE_URL}/ws/v1/cluster/apps/{app_id or cls._RM_APP_ID}"
+
+    @classmethod
+    def _rm_kill_url(cls, app_id: str | None = None) -> str:
+        return f"{cls._RM_BASE_URL}/ws/v1/cluster/apps/{app_id or cls._RM_APP_ID}/state"
+
+    @classmethod
+    def _rm_status_resp(cls, final_status: str, state: str = "FINISHED") -> MagicMock:
+        resp = MagicMock(spec=requests.Response)
+        resp.status_code = 200
+        resp.json.return_value = {"app": {"id": cls._RM_APP_ID, "state": state, "finalStatus": final_status}}
+        return resp
+
+    @staticmethod
+    def _rm_failure_resp(status_code: int = 500, text: str = "Internal Server Error") -> MagicMock:
+        resp = MagicMock(spec=requests.Response)
+        resp.status_code = status_code
+        resp.text = text
+        return resp
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.put")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_default_keeps_existing_behavior_in_yarn_cluster(self, mock_popen, mock_get, mock_put):
+        """Flag default False -> no HTTP calls; behavior identical to today."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_cluster")
+        hook.submit()
+
+        proc.terminate.assert_not_called()
+        mock_get.assert_not_called()
+        mock_put.assert_not_called()
+        assert hook._yarn_application_id == "application_1700000000000_0001"
+
+    def test_yarn_status_tracking_requires_yarn_master(self):
+        """yarn_track_via_rm_api=True should fail fast outside YARN."""
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", yarn_track_via_rm_api=True)
+
+        with pytest.raises(ValueError, match="requires Spark master to be YARN"):
+            hook.submit()
+
+    def test_yarn_status_tracking_requires_cluster_deploy_mode(self):
+        """yarn_track_via_rm_api=True should fail fast outside cluster deploy mode."""
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_rm",
+            deploy_mode="client",
+            yarn_track_via_rm_api=True,
+        )
+
+        with pytest.raises(ValueError, match="requires `deploy_mode='cluster'`"):
+            hook.submit()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_succeeds(self, mock_popen, mock_get, mock_sleep):
+        """RM returns UNDEFINED then SUCCEEDED -> hook returns normally."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        mock_get.side_effect = [
+            self._rm_status_resp("UNDEFINED", state="RUNNING"),
+            self._rm_status_resp("SUCCEEDED"),
+        ]
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook.submit()
+
+        spark_submit_cmd = mock_popen.call_args.args[0]
+        assert "spark.yarn.submit.waitAppCompletion=false" in spark_submit_cmd
+        proc.terminate.assert_not_called()
+        assert mock_get.call_count == 2
+        for call_obj in mock_get.call_args_list:
+            assert call_obj.args[0] == self._rm_status_url()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_fails_on_killed(self, mock_popen, mock_get, mock_sleep):
+        """RM returns KILLED -> raise with message containing app id and KILLED."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        mock_get.return_value = self._rm_status_resp("KILLED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match=f"{self._RM_APP_ID}.*KILLED"):
+            hook.submit()
+        proc.terminate.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_fails_on_unexpected_final_status(self, mock_popen, mock_get, mock_sleep):
+        """RM returns a non-standard finalStatus ('BOGUS') -> raise without sleeping."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        mock_get.return_value = self._rm_status_resp("BOGUS")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="unexpected final status: BOGUS"):
+            hook.submit()
+
+        proc.terminate.assert_not_called()
+        mock_sleep.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_polls_without_application_submission_log(self, mock_popen, mock_get):
+        """Missing 'Submitted application' log line should not block RM REST polling."""
+        yarn_log_lines = [
+            "INFO Client: Uploading resource file:/tmp/lib.zip -> "
+            "hdfs://namenode:8020/user/root/.sparkStaging/application_1700000000000_0001/lib.zip",
+            "INFO Client: Submitting application application_1700000000000_0001 to ResourceManager",
+        ]
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(yarn_log_lines)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook.submit()
+
+        assert hook._yarn_application_id == self._RM_APP_ID
+        assert mock_get.call_args.args[0] == self._rm_status_url()
+        proc.terminate.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_checks_spark_submit_exit_code_before_polling(self, mock_popen, mock_get):
+        """spark-submit exits non-zero -> raise BEFORE issuing any HTTP request."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 1
+        mock_popen.return_value = proc
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(AirflowException, match="Error code is: 1"):
+            hook.submit()
+
+        proc.terminate.assert_not_called()
+        mock_get.assert_not_called()
+
+    def test_yarn_status_tracking_rejects_conflicting_wait_app_completion_conf(self):
+        """User-set spark.yarn.submit.waitAppCompletion=true conflicts with flag -> ValueError."""
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_rm",
+            conf={"spark.yarn.submit.waitAppCompletion": "true"},
+            yarn_track_via_rm_api=True,
+        )
+
+        with pytest.raises(ValueError, match="spark.yarn.submit.waitAppCompletion=false"):
+            hook._build_spark_submit_command("")
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_tolerates_transient_failures(self, mock_popen, mock_get, mock_sleep):
+        """3 consecutive 5xx responses then SUCCEEDED -> normal completion."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        # 3 transient failures (within the 10-failure budget), then SUCCEEDED.
+        mock_get.side_effect = [
+            self._rm_failure_resp(503, "Service Unavailable"),
+            self._rm_failure_resp(502, "Bad Gateway"),
+            self._rm_failure_resp(500, "Internal Server Error"),
+            self._rm_status_resp("SUCCEEDED"),
+        ]
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook.submit()
+
+        assert mock_get.call_count == 4
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_tolerates_status_timeouts(self, mock_popen, mock_get, mock_sleep):
+        """First requests.exceptions.Timeout, second call succeeds -> normal completion."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        mock_get.side_effect = [
+            requests.exceptions.Timeout("read timed out"),
+            self._rm_status_resp("SUCCEEDED"),
+        ]
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook.submit()
+
+        assert mock_get.call_count == 2
+        # All calls must include the (connect, read) timeout tuple.
+        for call_obj in mock_get.call_args_list:
+            assert call_obj.kwargs["timeout"] == (5, 30)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_raises_after_too_many_failures(self, mock_popen, mock_get, mock_sleep):
+        """11 consecutive 5xx responses -> raise 'Giving up tracking YARN application'."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        # 11 failures: 10 tolerated; the 11th trips the budget.
+        mock_get.side_effect = [self._rm_failure_resp() for _ in range(11)]
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="Giving up tracking YARN application"):
+            hook.submit()
+
+        assert mock_get.call_count == 11
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_query_passes_provided_auth_to_requests(self, mock_get):
+        """yarn_rm_auth=<sentinel AuthBase> -> requests.get called with auth=<sentinel>."""
+
+        class _SentinelAuth(requests.auth.AuthBase):
+            def __call__(self, r):
+                return r
+
+        sentinel = _SentinelAuth()
+        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
+
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_rm",
+            yarn_track_via_rm_api=True,
+            yarn_rm_auth=sentinel,
+        )
+        hook._query_yarn_application_final_status(self._RM_APP_ID)
+
+        assert mock_get.call_args.kwargs["auth"] is sentinel
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_query_sends_no_auth_by_default(self, mock_get):
+        """Without yarn_rm_auth -> requests.get called with auth=None."""
+        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook._query_yarn_application_final_status(self._RM_APP_ID)
+
+        assert mock_get.call_args.kwargs["auth"] is None
+
+    def test_yarn_status_tracking_fails_when_rm_url_missing(self):
+        """Missing yarn_resourcemanager_webapp_address extra -> ValueError containing the key name."""
+        hook = SparkSubmitHook(conn_id="spark_yarn_cluster", yarn_track_via_rm_api=True)
+
+        with pytest.raises(ValueError, match="yarn_resourcemanager_webapp_address"):
+            hook._query_yarn_application_final_status(self._RM_APP_ID)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_rm_base_url_is_resolved_once_across_polling_loop(self, mock_popen, mock_get, mock_sleep):
+        """Connection lookup must run once even if the polling loop runs many iterations.
+
+        Regression guard: a job polling every few seconds for hours must not re-fetch
+        the Spark connection (and potentially re-hit a Secrets Backend) on every iteration.
+        """
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        # 4 UNDEFINED iterations then SUCCEEDED -> 5 polling iterations total.
+        mock_get.side_effect = [
+            self._rm_status_resp("UNDEFINED", state="RUNNING"),
+            self._rm_status_resp("UNDEFINED", state="RUNNING"),
+            self._rm_status_resp("UNDEFINED", state="RUNNING"),
+            self._rm_status_resp("UNDEFINED", state="RUNNING"),
+            self._rm_status_resp("SUCCEEDED"),
+        ]
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with patch.object(hook, "get_connection", wraps=hook.get_connection) as spy_get_conn:
+            hook.submit()
+
+        assert mock_get.call_count == 5
+        assert spy_get_conn.call_count == 1
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.put")
+    def test_on_kill_sends_put_to_rm_when_app_id_known(self, mock_put):
+        """_yarn_application_id known -> PUT {state: KILLED} to RM with configured auth."""
+
+        class _SentinelAuth(requests.auth.AuthBase):
+            def __call__(self, r):
+                return r
+
+        sentinel = _SentinelAuth()
+        mock_put.return_value = MagicMock(spec=requests.Response, status_code=202)
+
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_rm",
+            yarn_track_via_rm_api=True,
+            yarn_rm_auth=sentinel,
+        )
+        hook._yarn_application_id = self._RM_APP_ID
+        hook.on_kill()
+
+        mock_put.assert_called_once()
+        call_obj = mock_put.call_args
+        assert call_obj.args[0] == self._rm_kill_url()
+        assert call_obj.kwargs["json"] == {"state": "KILLED"}
+        assert call_obj.kwargs["auth"] is sentinel
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.put")
+    def test_on_kill_tolerates_rm_failure(self, mock_put):
+        """RM PUT raises -> on_kill does not raise (best-effort, mirrors today)."""
+        mock_put.side_effect = requests.exceptions.ConnectionError("RM unreachable")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        hook._yarn_application_id = self._RM_APP_ID
+
+        # Must not raise.
+        hook.on_kill()
+
+        mock_put.assert_called_once()
