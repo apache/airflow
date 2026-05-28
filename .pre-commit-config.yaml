@@ -62,6 +62,9 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle/|
           ^scripts/ci/license-templates/
         args:
           - --comment-style
@@ -680,6 +683,9 @@ repos:
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
