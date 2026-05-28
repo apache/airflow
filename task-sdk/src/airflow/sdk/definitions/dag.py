@@ -29,7 +29,7 @@ import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, Union, cast, overload
 from urllib.parse import urlsplit
@@ -533,6 +533,8 @@ class DAG:
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
     )
+
+    target_date: date | Callable[..., date] | None = attrs.field(default=None)
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
 
@@ -1576,6 +1578,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_failure_callback",
     "auto_register",
     "schedule",
+    "target_date",
 }
 
 if TYPE_CHECKING:
@@ -1614,6 +1617,7 @@ if TYPE_CHECKING:
         fail_fast: bool = False,
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
+        target_date: date | Callable[..., date] | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:

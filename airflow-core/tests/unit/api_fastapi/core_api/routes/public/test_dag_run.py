@@ -295,6 +295,7 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": None,
+        "target_date": None,
     }
 
 
@@ -2070,6 +2071,7 @@ class TestTriggerDagRun:
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "partition_key": None,
+            "target_date": None,
         }
 
         assert response.json() == expected_response_json
@@ -2302,6 +2304,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": note,
             "partition_key": None,
+            "target_date": None,
         }
 
         assert response_2.status_code == 409
@@ -2391,6 +2394,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
             "partition_key": None,
+            "target_date": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2899,3 +2903,91 @@ class TestBulkDagRuns:
             },
         )
         assert response.status_code == 403
+
+
+class TestTargetDateOnDagRun:
+    """Tests for the target_date field on DagRun API endpoints."""
+
+    def test_get_dag_run_returns_target_date(self, test_client, session):
+        """GET /dagRuns/{run_id} returns target_date when set on the run."""
+        from datetime import date
+
+        from sqlalchemy import select
+
+        td = date(2025, 3, 31)
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        assert run is not None
+        run.target_date = td
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        assert response.status_code == 200
+        assert response.json()["target_date"] == "2025-03-31"
+
+    def test_get_dag_run_returns_null_target_date_when_not_set(self, test_client):
+        """GET /dagRuns/{run_id} returns target_date=null when not set."""
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        assert response.status_code == 200
+        assert response.json()["target_date"] is None
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_updates_target_date(self, test_client, session):
+        """PATCH /dagRuns/{run_id} with target_date in body updates the column."""
+        from datetime import date
+
+        from sqlalchemy import select
+
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
+            json={"target_date": "2025-06-15"},
+        )
+        assert response.status_code == 200
+        assert response.json()["target_date"] == "2025-06-15"
+
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        session.refresh(run)
+        assert run.target_date == date(2025, 6, 15)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_clears_target_date(self, test_client, session):
+        """PATCH /dagRuns/{run_id} with target_date=null clears the value."""
+        from datetime import date
+
+        from sqlalchemy import select
+
+        # Pre-set a target_date
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        assert run is not None
+        run.target_date = date(2025, 3, 31)
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
+            json={"target_date": None},
+        )
+        assert response.status_code == 200
+        assert response.json()["target_date"] is None
+
+        session.refresh(run)
+        assert run.target_date is None
+
+    @time_machine.travel(timezone.utcnow(), tick=False)
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_with_explicit_target_date(self, test_client, session):
+        """POST /dagRuns with explicit target_date stores it on the new DagRun."""
+        from datetime import date
+
+        from sqlalchemy import select
+
+        fixed_now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": fixed_now, "target_date": "2025-09-30"},
+        )
+        assert response.status_code == 200
+        assert response.json()["target_date"] == "2025-09-30"
+
+        run_id = response.json()["dag_run_id"]
+        run = session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+        assert run is not None
+        assert run.target_date == date(2025, 9, 30)

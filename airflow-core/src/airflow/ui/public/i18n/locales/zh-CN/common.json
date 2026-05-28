@@ -72,6 +72,7 @@
     "runAfter": "最早可执行时间",
     "runType": "执行类型",
     "sourceAssetEvent": "来源资源事件",
+    "targetDate": "Target Date",
     "triggeredBy": "触发者",
     "triggeringUser": "触发用户名称"
   },

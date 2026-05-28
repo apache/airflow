@@ -23,7 +23,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
+    Date,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -237,6 +238,7 @@ class DagRun(Base, LoggingMixin):
 
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    target_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -346,6 +348,7 @@ class DagRun(Base, LoggingMixin):
         partition_key: str | None = None,
         partition_date: datetime | None = None,
         note: str | None = None,
+        target_date: date | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
@@ -391,6 +394,7 @@ class DagRun(Base, LoggingMixin):
             )
         self.partition_key = partition_key
         self.partition_date = partition_date
+        self.target_date = target_date
         super().__init__()
 
     def __repr__(self):

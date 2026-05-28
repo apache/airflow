@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import timedelta
+from datetime import date, timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
 
@@ -309,6 +309,7 @@ class DagRun(StrictBaseModel):
     partition_key: str | None
     note: str | None = None
     team_name: str | None = None
+    target_date: date | None = None
 
     @model_validator(mode="before")
     @classmethod

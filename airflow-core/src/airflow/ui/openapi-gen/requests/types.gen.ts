@@ -785,6 +785,7 @@ export type DAGRunCollectionResponse = {
 export type DAGRunPatchBody = {
     state?: DagRunMutableStates | null;
     note?: string | null;
+    target_date?: string | null;
 };
 
 /**
@@ -814,6 +815,7 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
+    target_date?: string | null;
 };
 
 /**
@@ -1268,6 +1270,7 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    target_date?: string | null;
 };
 
 /**
@@ -1760,6 +1763,7 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    target_date?: string | null;
 };
 
 /**

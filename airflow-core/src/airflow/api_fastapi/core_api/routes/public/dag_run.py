@@ -248,6 +248,8 @@ def patch_dag_run(
             elif updated_dag_run:
                 updated_dag_run.dag_run_note.content = attr_value_raw
                 updated_dag_run.dag_run_note.user_id = user.get_id()
+        elif attr_name == "target_date":
+            dag_run.target_date = attr_value_raw
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:
@@ -622,6 +624,15 @@ def trigger_dag_run(
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     params = body.validate_context(dag)
 
+    # Resolve target_date: use explicit override from request body if provided,
+    # otherwise evaluate the DAG-level callable/default.
+    if params.get("target_date") is not None:
+        resolved_target_date = params["target_date"]
+    else:
+        from airflow.jobs.scheduler_job_runner import _evaluate_dag_target_date
+
+        resolved_target_date = _evaluate_dag_target_date(dag, params["logical_date"], params["data_interval"])
+
     try:
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
@@ -634,6 +645,7 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            target_date=resolved_target_date,
             session=session,
         )
     except (ParamValidationError, ValueError) as e:

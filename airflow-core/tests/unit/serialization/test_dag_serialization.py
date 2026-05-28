@@ -1563,6 +1563,8 @@ class TestStringifiedDAGs:
             "has_on_failure_callback",
             "dag_dependencies",
             "params",
+            "target_date",
+            "target_date_callable",
         }
 
         keys_for_backwards_compat: set = {

@@ -238,6 +238,7 @@ class TestTIRunState:
                 "partition_key": None,
                 "note": None,
                 "team_name": None,
+                "target_date": None,
             },
             "task_reschedule_count": 0,
             "max_tries": max_tries,

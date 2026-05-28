@@ -73,6 +73,7 @@
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
+    "targetDate": "Target Date",
     "triggeredBy": "Triggered By",
     "triggeringUser": "Triggering User"
   },

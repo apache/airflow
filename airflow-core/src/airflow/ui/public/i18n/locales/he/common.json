@@ -75,6 +75,7 @@
     "runAfter": "ריצה לאחר",
     "runType": "סוג ריצה",
     "sourceAssetEvent": "אירוע נכס מקור",
+    "targetDate": "Target Date",
     "triggeredBy": "הופעל על-ידי",
     "triggeringUser": "שם משתמש מפעיל"
   },

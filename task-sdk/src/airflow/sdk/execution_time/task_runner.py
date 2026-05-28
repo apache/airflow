@@ -27,7 +27,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -306,6 +306,7 @@ class RuntimeTaskInstance(TaskInstance):
                         map_index=self.map_index if self.map_index is not None else -1,
                     ),
                 ),
+                "target_date": None,
             }
             if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for i in self.task.inlets):
                 self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
@@ -333,6 +334,24 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             }
             self._cached_template_context.update(context_from_server)
+
+            # 1. DAG-level value
+            dag_target_date = getattr(dag_run, "target_date", None)
+            # 2. Task-level override (callable evaluated against context containing dag-level value)
+            task_target_date_fn = getattr(self.task, "target_date", None)
+            if task_target_date_fn is not None and callable(task_target_date_fn):
+                _partial_ctx: dict = {**self._cached_template_context, "target_date": dag_target_date}
+                resolved = task_target_date_fn(_partial_ctx)
+                if isinstance(resolved, datetime):
+                    resolved = resolved.date()
+                task_target_date: date | None = resolved
+            else:
+                task_target_date = dag_target_date
+            # 3. Final fallback to logical_date.date()
+            if task_target_date is None and dag_run.logical_date:
+                logical_date_raw = dag_run.logical_date
+                task_target_date = date(logical_date_raw.year, logical_date_raw.month, logical_date_raw.day)
+            self._cached_template_context["target_date"] = task_target_date
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:

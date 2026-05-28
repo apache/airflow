@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +48,7 @@ class DAGRunPatchBody(StrictBaseModel):
 
     state: DagRunMutableStates | None = None
     note: str | None = Field(None, max_length=1000)
+    target_date: date | None = None
 
 
 class BulkDAGRunBody(StrictBaseModel):
@@ -107,6 +108,7 @@ class DAGRunResponse(BaseModel):
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     partition_key: str | None
+    target_date: date | None = None
 
 
 class DAGRunCollectionResponse(BaseModel):
@@ -151,6 +153,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None
     partition_key: str | None = None
+    target_date: date | None = None
 
     @model_validator(mode="after")
     def check_data_intervals(self):
@@ -186,6 +189,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
+            "target_date": self.target_date,
         }
 
 

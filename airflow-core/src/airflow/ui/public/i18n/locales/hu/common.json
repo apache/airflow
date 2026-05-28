@@ -72,6 +72,7 @@
     "runAfter": "Futtatás ezután",
     "runType": "Futtatás típusa",
     "sourceAssetEvent": "Forrás adatkészlet esemény",
+    "targetDate": "Target Date",
     "triggeredBy": "Indította",
     "triggeringUser": "Indító felhasználó neve"
   },

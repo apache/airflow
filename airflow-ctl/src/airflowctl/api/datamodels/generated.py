@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -712,6 +712,7 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    target_date: Annotated[date | None, Field(title="Target Date")] = None
 
 
 class NewTaskResponse(BaseModel):
@@ -1022,6 +1023,7 @@ class TriggerDAGRunPostBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    target_date: Annotated[date | None, Field(title="Target Date")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -1614,6 +1616,7 @@ class DAGRunPatchBody(BaseModel):
     )
     state: DagRunMutableStates | None = None
     note: Annotated[Note | None, Field(title="Note")] = None
+    target_date: Annotated[date | None, Field(title="Target Date")] = None
 
 
 class DAGRunResponse(BaseModel):
@@ -1642,6 +1645,7 @@ class DAGRunResponse(BaseModel):
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    target_date: Annotated[date | None, Field(title="Target Date")] = None
 
 
 class DAGRunsBatchBody(BaseModel):

@@ -1227,6 +1227,19 @@
           "default": null,
           "title": "Team Name"
         },
+        "target_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Date"
+        },
         "type": {
           "const": "DagRunResult",
           "default": "DagRunResult",
@@ -4746,6 +4759,19 @@
           ],
           "default": null,
           "title": "Team Name"
+        },
+        "target_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Date"
         }
       },
       "required": [

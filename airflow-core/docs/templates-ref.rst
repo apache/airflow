@@ -87,6 +87,9 @@ Variable                                    Type                  Description
                                                                   | is enabled in ``airflow.cfg``.
 ``{{ partition_key }}``                     str | None            | The partition key from the current :class:`~airflow.models.dagrun.DagRun`.
                                                                   | Returns ``None`` if no partition key was set. Added in version 3.3.0.
+``{{ target_date }}``                       datetime.date | None  | The user-defined processing date for this Dag run, distinct from ``logical_date``.
+                                                                  | Resolved via the telescope model: task-level callable overrides Dag-level value;
+                                                                  | falls back to ``logical_date.date()`` when nothing is set. Added in version 3.3.0.
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.

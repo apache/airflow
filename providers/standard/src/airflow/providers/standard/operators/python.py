@@ -455,6 +455,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         BASE_SERIALIZABLE_CONTEXT_KEYS.add("task_reschedule_count")
     if AIRFLOW_V_3_3_PLUS:
         BASE_SERIALIZABLE_CONTEXT_KEYS.add("partition_key")
+        BASE_SERIALIZABLE_CONTEXT_KEYS.add("target_date")
 
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
