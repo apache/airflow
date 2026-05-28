@@ -200,6 +200,9 @@ apache-airflow = "airflow.__main__:main"
 "datadog" = [
     "apache-airflow-providers-datadog>=3.8.0"
 ]
+"db2" = [
+    "apache-airflow-providers-db2>=1.0.0"
+]
 "dbt.cloud" = [
     "apache-airflow-providers-dbt-cloud>=3.11.0"
 ]
@@ -435,6 +438,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
+    "apache-airflow-providers-db2>=1.0.0",
     "apache-airflow-providers-dbt-cloud>=3.11.0",
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
@@ -1142,6 +1146,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/databricks/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/datadog/src",
     "$MYPY_CONFIG_FILE_DIR/providers/datadog/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/db2/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/db2/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/dbt/cloud/src",
     "$MYPY_CONFIG_FILE_DIR/providers/dbt/cloud/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/dingding/src",
@@ -1444,6 +1450,7 @@ apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
 apache-airflow-providers-databricks = false
 apache-airflow-providers-datadog = false
+apache-airflow-providers-db2 = false
 apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
@@ -1586,6 +1593,7 @@ apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
 apache-airflow-providers-databricks = false
 apache-airflow-providers-datadog = false
+apache-airflow-providers-db2 = false
 apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
@@ -1745,6 +1753,7 @@ apache-airflow-providers-common-messaging = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-databricks = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
+apache-airflow-providers-db2 = { workspace = true }
 apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
@@ -1882,6 +1891,7 @@ members = [
     "providers/common/sql",
     "providers/databricks",
     "providers/datadog",
+    "providers/db2",
     "providers/dbt/cloud",
     "providers/dingding",
     "providers/discord",
