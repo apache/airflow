@@ -219,6 +219,7 @@ class ClearTaskInstancesBody(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = True
     only_running: Annotated[bool | None, Field(title="Only Running")] = False
+    only_skipped: Annotated[bool | None, Field(title="Only Skipped")] = False
     reset_dag_runs: Annotated[bool | None, Field(title="Reset Dag Runs")] = True
     task_ids: Annotated[
         list[str | TaskIds] | None,
@@ -355,6 +356,7 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_skipped: Annotated[bool | None, Field(title="Only Skipped")] = False
     only_new: Annotated[
         bool | None,
         Field(
