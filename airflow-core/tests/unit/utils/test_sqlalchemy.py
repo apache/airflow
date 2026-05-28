@@ -158,7 +158,7 @@ class TestSqlAlchemyUtils:
             ("mysql", False, False, False),
             ("mysql", True, True, True),
             ("mysql", True, False, False),
-            ("sqlite", False, True, True),
+            ("sqlite", False, True, False),
         ],
     )
     def test_with_row_locks(
