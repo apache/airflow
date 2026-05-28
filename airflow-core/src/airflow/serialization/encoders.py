@@ -198,9 +198,10 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
                     d["access_control"] = ac
             else:
                 # Asset stores access_control as an AssetAccessControl instance.
-                if ac.producer_teams or not ac.allow_global:
+                if ac.producer_teams or ac.consumer_teams or not ac.allow_global:
                     d["access_control"] = {
                         "producer_teams": ac.producer_teams,
+                        "consumer_teams": ac.consumer_teams,
                         "allow_global": ac.allow_global,
                     }
             return d
