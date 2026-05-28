@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import importlib.util
 import json
 import sqlite3
@@ -25,6 +24,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from pydantic_ai.exceptions import ModelRetry
 
+from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 
@@ -35,7 +35,6 @@ def _make_mock_db_hook(
     records: list[tuple] | None = None,
     last_description: list[tuple] | None = None,
 ):
-    """Create a mock DbApiHook with sensible defaults."""
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 
     mock = MagicMock(spec=DbApiHook)
@@ -51,65 +50,88 @@ def _make_mock_db_hook(
 
 
 class TestSQLToolsetInit:
-    def test_id_includes_conn_id(self):
+    def test_is_base_toolset(self):
+        assert issubclass(SQLToolset, BaseToolset)
+
+    def test_defaults(self):
         ts = SQLToolset("my_pg")
-        assert ts.id == "sql-my_pg"
+        assert ts._db_conn_id == "my_pg"
+        assert ts._allowed_tables is None
+        assert ts._schema is None
+        assert ts._allow_writes is False
+        assert ts._max_rows == 50
 
 
-class TestSQLToolsetGetTools:
-    def test_returns_four_tools(self):
+class TestSQLToolsetAsTools:
+    def test_returns_four_tool_specs(self):
         ts = SQLToolset("pg_default")
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
-        assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query"}
+        tools = ts.as_tools()
+        assert len(tools) == 4
+        assert all(isinstance(t, ToolSpec) for t in tools)
 
-    def test_tool_definitions_have_descriptions(self):
+    def test_tool_names(self):
         ts = SQLToolset("pg_default")
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
-        for tool in tools.values():
-            assert tool.tool_def.description
+        names = [t.name for t in ts.as_tools()]
+        assert names == ["list_tables", "get_schema", "query", "check_query"]
+
+    def test_tool_descriptions_non_empty(self):
+        ts = SQLToolset("pg_default")
+        for spec in ts.as_tools():
+            assert spec.description
+
+    def test_tool_callables_are_bound_methods(self):
+        ts = SQLToolset("pg_default")
+        specs = ts.as_tools()
+        fns = {s.name: s.fn for s in specs}
+        assert fns["list_tables"] == ts._list_tables
+        assert fns["get_schema"] == ts._get_schema
+        assert fns["query"] == ts._query
+        assert fns["check_query"] == ts._check_query
+
+    def test_tool_parameters_match_schemas(self):
+        ts = SQLToolset("pg_default")
+        specs = {s.name: s for s in ts.as_tools()}
+        assert specs["list_tables"].parameters["type"] == "object"
+        assert "table_name" in specs["get_schema"].parameters["properties"]
+        assert "sql" in specs["query"].parameters["properties"]
+        assert "sql" in specs["check_query"].parameters["properties"]
+
+    def test_tools_are_sequential(self):
+        ts = SQLToolset("pg_default")
+        for spec in ts.as_tools():
+            assert spec.sequential is True
 
 
 class TestSQLToolsetListTables:
     def test_returns_all_tables(self):
         ts = SQLToolset("pg_default")
-        mock_hook = _make_mock_db_hook(table_names=["users", "orders", "products"])
-        ts._hook = mock_hook
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders", "products"])
 
-        result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
-        tables = json.loads(result)
+        tables = json.loads(ts._list_tables())
         assert tables == ["users", "orders", "products"]
 
     def test_filters_by_allowed_tables(self):
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
-        mock_hook = _make_mock_db_hook(table_names=["users", "orders", "products"])
-        ts._hook = mock_hook
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders", "products"])
 
-        result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
-        tables = json.loads(result)
+        tables = json.loads(ts._list_tables())
         assert tables == ["orders"]
 
 
 class TestSQLToolsetGetSchema:
     def test_returns_column_info(self):
         ts = SQLToolset("pg_default")
-        mock_hook = _make_mock_db_hook()
-        ts._hook = mock_hook
+        ts._hook = _make_mock_db_hook()
 
-        result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        columns = json.loads(result)
+        columns = json.loads(ts._get_schema("users"))
         assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}]
-        mock_hook.get_table_schema.assert_called_once_with("users", schema=None)
+        ts._hook.get_table_schema.assert_called_once_with("users", schema=None)
 
     def test_blocks_table_not_in_allowed_list(self):
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook()
 
-        result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "secrets"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._get_schema("secrets"))
         assert "error" in data
         assert "secrets" in data["error"]
 
@@ -122,10 +144,7 @@ class TestSQLToolsetQuery:
             last_description=[("id",), ("name",)],
         )
 
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT id, name FROM users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._query("SELECT id, name FROM users"))
         assert data["rows"] == [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
         assert data["count"] == 2
 
@@ -136,10 +155,7 @@ class TestSQLToolsetQuery:
             last_description=[("id",), ("name",)],
         )
 
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT id, name FROM users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._query("SELECT id, name FROM users"))
         assert len(data["rows"]) == 1
         assert data["truncated"] is True
         assert data["count"] == 3
@@ -149,58 +165,39 @@ class TestSQLToolsetQuery:
         ts._hook = _make_mock_db_hook()
 
         with pytest.raises(SQLSafetyError, match="not allowed"):
-            asyncio.run(ts.call_tool("query", {"sql": "DROP TABLE users"}, ctx=MagicMock(), tool=MagicMock()))
+            ts._query("DROP TABLE users")
 
     def test_allows_writes_when_enabled(self):
         ts = SQLToolset("pg_default", allow_writes=True)
-        ts._hook = _make_mock_db_hook(
-            records=[(1,)],
-            last_description=[("count",)],
-        )
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("count",)])
 
-        # Should not raise even with INSERT
-        result = asyncio.run(
-            ts.call_tool(
-                "query", {"sql": "INSERT INTO users VALUES (3, 'Eve')"}, ctx=MagicMock(), tool=MagicMock()
-            )
-        )
-        # The mock doesn't actually execute, just returns mocked records
-        data = json.loads(result)
+        data = json.loads(ts._query("INSERT INTO users VALUES (3, 'Eve')"))
         assert "rows" in data
 
     def test_raises_model_retry_when_query_fails_with_retryable_error(self):
-        """When the query fails with a retryable error, raise ModelRetry so the model retries."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
         ts._hook.conn_type = "sqlite"
         ts._hook.get_records.side_effect = sqlite3.OperationalError("no such column: nonexistent")
 
         with pytest.raises(ModelRetry) as exc_info:
-            asyncio.run(
-                ts.call_tool(
-                    "query",
-                    {"sql": "SELECT id, nonexistent FROM users"},
-                    ctx=MagicMock(),
-                    tool=MagicMock(),
-                )
-            )
-        assert "nonexistent" in exc_info.value.message
-        assert "get_schema" in exc_info.value.message
-        assert "list_tables" in exc_info.value.message
+            ts._query("SELECT id, nonexistent FROM users")
+
+        assert "nonexistent" in exc_info.value.args[0]
+        assert "get_schema" in exc_info.value.args[0]
+        assert "list_tables" in exc_info.value.args[0]
 
     def test_model_retry_message_includes_schema_hint(self):
-        """ModelRetry message tells the model to use get_schema and list_tables for more details."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
         ts._hook.conn_type = "sqlite"
         ts._hook.get_records.side_effect = sqlite3.OperationalError("no such table: missing_table")
 
         with pytest.raises(ModelRetry) as exc_info:
-            asyncio.run(
-                ts.call_tool("query", {"sql": "SELECT foo FROM x"}, ctx=MagicMock(), tool=MagicMock())
-            )
-        assert "get_schema" in exc_info.value.message
-        assert "list_tables" in exc_info.value.message
+            ts._query("SELECT foo FROM x")
+
+        assert "get_schema" in exc_info.value.args[0]
+        assert "list_tables" in exc_info.value.args[0]
 
     def test_non_retryable_error_is_propagated(self):
         ts = SQLToolset("pg_default")
@@ -209,7 +206,7 @@ class TestSQLToolsetQuery:
         ts._hook.get_records.side_effect = sqlite3.OperationalError("database is locked")
 
         with pytest.raises(sqlite3.OperationalError, match="database is locked"):
-            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+            ts._query("SELECT 1")
 
     def test_error_propagates_when_hook_conn_type_not_supported(self):
         ts = SQLToolset("pg_default")
@@ -218,7 +215,7 @@ class TestSQLToolsetQuery:
         ts._hook.get_records.side_effect = RuntimeError("unexpected db error")
 
         with pytest.raises(RuntimeError, match="unexpected db error"):
-            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+            ts._query("SELECT 1")
 
     def test_error_propagates_when_hook_has_no_conn_type(self):
         ts = SQLToolset("pg_default")
@@ -228,7 +225,7 @@ class TestSQLToolsetQuery:
         ts._hook = mock_hook
 
         with pytest.raises(RuntimeError, match="hook error"):
-            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+            ts._query("SELECT 1")
 
     @pytest.mark.skipif(
         importlib.util.find_spec("psycopg2") is None,
@@ -260,14 +257,7 @@ class TestSQLToolsetQuery:
             ),
             pytest.raises(ModelRetry),
         ):
-            asyncio.run(
-                ts.call_tool(
-                    "query",
-                    {"sql": "SELECT id, missing FROM users"},
-                    ctx=MagicMock(),
-                    tool=MagicMock(),
-                )
-            )
+            ts._query("SELECT id, missing FROM users")
 
     @pytest.mark.skipif(
         importlib.util.find_spec("psycopg2") is None,
@@ -299,35 +289,18 @@ class TestSQLToolsetQuery:
             ),
             pytest.raises(ProgrammingError),
         ):
-            asyncio.run(
-                ts.call_tool(
-                    "query",
-                    {"sql": "SELECT id FROM users"},
-                    ctx=MagicMock(),
-                    tool=MagicMock(),
-                )
-            )
+            ts._query("SELECT id FROM users")
 
 
 class TestSQLToolsetCheckQuery:
     def test_valid_select(self):
         ts = SQLToolset("pg_default")
-        ts._hook = _make_mock_db_hook()
-
-        result = asyncio.run(
-            ts.call_tool("check_query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._check_query("SELECT 1"))
         assert data["valid"] is True
 
     def test_invalid_sql(self):
         ts = SQLToolset("pg_default")
-        ts._hook = _make_mock_db_hook()
-
-        result = asyncio.run(
-            ts.call_tool("check_query", {"sql": "DROP TABLE users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._check_query("DROP TABLE users"))
         assert data["valid"] is False
         assert "error" in data
 
@@ -351,7 +324,7 @@ class TestSQLToolsetHookResolution:
     @patch("airflow.providers.common.ai.toolsets.sql.BaseHook", autospec=True)
     def test_raises_for_non_dbapi_hook(self, mock_base_hook):
         mock_conn = MagicMock(spec=["get_hook"])
-        mock_conn.get_hook.return_value = MagicMock()  # Not a DbApiHook
+        mock_conn.get_hook.return_value = MagicMock()
         mock_base_hook.get_connection.return_value = mock_conn
 
         ts = SQLToolset("bad_conn")
@@ -372,5 +345,4 @@ class TestSQLToolsetHookResolution:
         ts._get_db_hook()
         ts._get_db_hook()
 
-        # Only called once because result is cached.
         mock_base_hook.get_connection.assert_called_once()

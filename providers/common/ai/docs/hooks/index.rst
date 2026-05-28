@@ -34,8 +34,13 @@ Choosing a hook
    * - Hook
      - When to use
    * - :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
-     - Default for ``common.ai`` operators (``LLMOperator``, ``AgentOperator``,
-       ``LLMBranchOperator``, ...). Returns a pydantic-ai ``Agent`` / ``Model``.
+     - Default for one-shot LLM operators (``LLMOperator``, ``LLMBranchOperator``, ...).
+       Also used by ``AgentOperator`` when ``conn_type`` is ``pydanticai`` (or
+       ``pydanticai-bedrock``, ``pydanticai-azure``, ``pydanticai-vertex``).
+   * - :class:`~airflow.providers.common.ai.hooks.strands_ai.StrandsHook`
+     - Used by ``AgentOperator`` / ``@task.agent`` with Strands Agents backends
+       (currently ``strands-gemini`` for Google Gemini). Requires the ``[strands]``
+       optional extra.
    * - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook`
      - Direct LangChain access for tasks that compose ``Runnable``\\s, use the
        LangChain agent surface, or need LangChain-native chat / embedding model

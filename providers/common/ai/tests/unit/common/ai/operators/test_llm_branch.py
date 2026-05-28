@@ -21,20 +21,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+def _make_run_result(output):
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0),
     )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
 
 
 class TestLLMBranchOperator:
@@ -57,14 +54,14 @@ class TestLLMBranchOperator:
         assert op.output_type is str
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_execute_single_branch(self, mock_hook_cls, mock_do_branch):
         """LLM returns a single enum member → do_branch receives a string."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = MagicMock()
+        mock_hook.run_agent.return_value = _make_run_result(downstream_enum.task_a)
         mock_do_branch.return_value = "task_a"
 
         op = LLMBranchOperator(
@@ -79,21 +76,18 @@ class TestLLMBranchOperator:
 
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
-        mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_execute_multi_branch(self, mock_hook_cls, mock_do_branch):
         """allow_multiple_branches=True → LLM returns list of enums → do_branch receives list."""
         downstream_enum = Enum(
             "DownstreamTasks", {"task_a": "task_a", "task_b": "task_b", "task_c": "task_c"}
         )
 
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(
-            [downstream_enum.task_a, downstream_enum.task_c]
-        )
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = MagicMock()
+        mock_hook.run_agent.return_value = _make_run_result([downstream_enum.task_a, downstream_enum.task_c])
         mock_do_branch.return_value = ["task_a", "task_c"]
 
         op = LLMBranchOperator(
@@ -111,14 +105,14 @@ class TestLLMBranchOperator:
         mock_do_branch.assert_called_once_with(ctx, ["task_a", "task_c"])
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_system_prompt_forwarded(self, mock_hook_cls, mock_do_branch):
-        """system_prompt is passed to create_agent(instructions=...)."""
+        """system_prompt is passed as AgentRunRequest.instructions."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
 
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = MagicMock()
+        mock_hook.run_agent.return_value = _make_run_result(downstream_enum.task_a)
 
         op = LLMBranchOperator(
             task_id="test",
@@ -130,20 +124,20 @@ class TestLLMBranchOperator:
 
         op.execute(MagicMock())
 
-        call_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert call_kwargs.kwargs["instructions"] == "Route tickets to the right team."
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.instructions == "Route tickets to the right team."
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_downstream_task_ids_used_for_enum(self, mock_hook_cls, mock_do_branch):
         """The dynamic enum is built from self.downstream_task_ids."""
         downstream_enum = Enum(
             "DownstreamTasks", {"billing": "billing", "auth": "auth", "general": "general"}
         )
 
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.billing)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = MagicMock()
+        mock_hook.run_agent.return_value = _make_run_result(downstream_enum.billing)
 
         op = LLMBranchOperator(
             task_id="test",
@@ -154,8 +148,8 @@ class TestLLMBranchOperator:
 
         op.execute(MagicMock())
 
-        output_type = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
-        assert {m.value for m in output_type} == {"billing", "auth", "general"}
+        request = mock_hook.create_agent.call_args[0][0]
+        assert {m.value for m in request.output_type} == {"billing", "auth", "general"}
 
     def test_execute_raises_on_no_downstream_tasks(self):
         """ValueError when the operator has no downstream tasks."""

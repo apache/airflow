@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/pydantic_ai>
+    Strands Agents connection <connections/strands>
     MCP connection <connections/mcp>
     Hooks <hooks/index>
     Toolsets <toolsets>

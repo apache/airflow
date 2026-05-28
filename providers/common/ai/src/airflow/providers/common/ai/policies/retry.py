@@ -81,7 +81,7 @@ class LLMRetryPolicy(RetryPolicy):
     """
     Retry policy that uses an LLM to classify errors and decide retry behaviour.
 
-    Uses :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+    Uses :class:`~airflow.providers.common.ai.hooks.base_ai.BaseAIHook`
     to call any configured LLM provider (OpenAI, Anthropic, Bedrock, Vertex,
     Ollama, etc.) for error classification with structured output.
 
@@ -139,13 +139,11 @@ class LLMRetryPolicy(RetryPolicy):
         try_number: int,
         max_tries: int,
     ) -> RetryDecision:
-        from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+        from pydantic_ai.settings import ModelSettings
 
-        hook = PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
-        agent = hook.create_agent(
-            output_type=ErrorClassification,
-            instructions=self.instructions,
-        )
+        from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook
+
+        hook = BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
         prompt = (
             f"Classify this error from a data pipeline task "
@@ -153,12 +151,14 @@ class LLMRetryPolicy(RetryPolicy):
             f"{type(exception).__name__}: {exception}"
         )
 
-        from pydantic_ai.settings import ModelSettings
-
-        result = agent.run_sync(
-            prompt,
-            model_settings=ModelSettings(timeout=self.timeout),
+        request = AgentRunRequest(
+            prompt=prompt,
+            output_type=ErrorClassification,
+            instructions=self.instructions,
+            agent_params={"model_settings": ModelSettings(timeout=self.timeout)},
         )
+        agent = hook.create_agent(request)
+        result = hook.run_agent(agent, request)
         classification = result.output
 
         log.info(

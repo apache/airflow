@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for running pydantic-ai agents with tools and multi-turn reasoning."""
+"""Operator for running LLM agents with tools and multi-turn reasoning."""
 
 from __future__ import annotations
 
@@ -26,9 +26,10 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook, DurableContext
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
-from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
+from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.validation import reject_sequence_with_unsupported_feature
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -38,12 +39,8 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-    from pydantic_ai.toolsets.abstract import AbstractToolset
     from pydantic_ai.usage import UsageLimits
 
-    from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-    from airflow.providers.common.ai.durable.storage import DurableStorage
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -83,27 +80,37 @@ class HITLReviewLink(BaseOperatorLink):
 
 class AgentOperator(BaseOperator, HITLReviewMixin):
     """
-    Run a pydantic-ai Agent with tools and multi-turn reasoning.
+    Run an LLM agent with tools and multi-turn reasoning.
 
     Provide ``llm_conn_id`` and optional ``toolsets`` to let the operator build
     and run the agent. The agent reasons about the prompt, calls tools in a
     multi-turn loop, and returns a final answer.
 
+    The agent backend is selected by the connection ``conn_type`` (for example
+    ``pydanticai``, ``pydanticai-bedrock``, or ``pydanticai-azure``).
+
     :param prompt: The prompt to send to the agent.
-    :param llm_conn_id: Connection ID for the LLM provider.
+    :param llm_conn_id: Connection ID for the agent provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output.
-    :param toolsets: List of pydantic-ai toolsets the agent can use
-        (e.g. ``SQLToolset``, ``HookToolset``).
-    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
-        ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
-    :param usage_limits: Optional pydantic-ai
+    :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
+        instances the agent can use.
+    :param skills: Skill sources for Strands progressive-disclosure instructions.
+        Each item is a filesystem/HTTPS path (``str``) or a
+        :class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec`.
+        Requires a hook with ``supports_skills=True`` (e.g. ``strands-gemini``).
+    :param skills_params: Extra keyword arguments forwarded to the backend skills
+        plugin (for example ``strict``, ``max_resource_files``, ``state_key`` for
+        Strands ``AgentSkills``). Requires a hook with ``supports_skills=True``.
+    :param enable_tool_logging: When ``True`` (default), wraps each tool callable with a
+        logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
+        Set to ``False`` to disable.
+    :param agent_params: Additional keyword arguments passed to the underlying agent
+        constructor (e.g. ``retries``, ``model_settings``).
+    :param usage_limits: Optional
         :class:`~pydantic_ai.usage.UsageLimits` enforced on every agent run
         (initial run, durable replay, and HITL regeneration). Pass
         ``UsageLimits(request_limit=..., total_tokens_limit=..., tool_calls_limit=..., ...)``
@@ -139,6 +146,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "model_id",
         "system_prompt",
         "agent_params",
+        "skills",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -151,7 +159,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         model_id: str | None = None,
         system_prompt: str = "",
         output_type: type = str,
-        toolsets: list[AbstractToolset] | None = None,
+        toolsets: list[Any] | None = None,
+        skills: list[Any] | None = None,
+        skills_params: dict[str, Any] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | None = None,
@@ -171,6 +181,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.toolsets = toolsets
+        self.skills = skills
+        self.skills_params = skills_params or {}
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
@@ -191,86 +203,55 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             )
 
     @cached_property
-    def llm_hook(self) -> PydanticAIHook:
-        """Return PydanticAIHook for the configured LLM connection."""
+    def llm_hook(self) -> BaseAIHook:
+        """Return the agent hook for the configured connection (resolved from ``conn_type``)."""
         hook_params = {
             "model_id": self.model_id,
         }
-        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
+        return BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def _build_agent(self) -> Agent[None, Any]:
-        """Build and return a pydantic-ai Agent from the operator's config."""
-        extra_kwargs = dict(self.agent_params)
-        if self.toolsets:
-            toolsets = self.toolsets
-            if self.durable and self._durable_storage is not None and self._durable_counter is not None:
-                toolsets = self._build_durable_toolsets(
-                    toolsets, self._durable_storage, self._durable_counter
-                )
-            if self.enable_tool_logging:
-                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
-            extra_kwargs["toolsets"] = toolsets
-        return self.llm_hook.create_agent(
-            output_type=self.output_type,
-            instructions=self.system_prompt,
-            **extra_kwargs,
-        )
-
-    def _build_durable_toolsets(
-        self, toolsets: list[AbstractToolset], storage: DurableStorage, counter: DurableStepCounter
-    ) -> list[AbstractToolset]:
-        """Wrap each toolset with CachingToolset for durable execution."""
-        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
-
-        return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
-
-    def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
-        self._durable_storage = None
-        self._durable_counter = None
-
-        if self.durable:
-            from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-            from airflow.providers.common.ai.durable.storage import DurableStorage
-
-            ti = context["task_instance"]
-            self._durable_storage = DurableStorage(
+    def _build_request(self, *, prompt: str, message_history: Any = None) -> AgentRunRequest:
+        """Build an :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunRequest` from operator config."""
+        durable_context: DurableContext | None = None
+        if self.durable and hasattr(self, "_durable_ti") and self._durable_ti is not None:
+            ti = self._durable_ti
+            durable_context = DurableContext(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,
                 map_index=ti.map_index if ti.map_index is not None else -1,
             )
-            self._durable_counter = DurableStepCounter()
+        return AgentRunRequest(
+            prompt=prompt,
+            output_type=self.output_type,
+            instructions=self.system_prompt,
+            toolsets=self.toolsets,
+            skills=self.skills,
+            skills_params=dict(self.skills_params),
+            usage_limits=self.usage_limits,
+            message_history=message_history,
+            enable_tool_logging=self.enable_tool_logging,
+            durable_context=durable_context,
+            agent_params=dict(self.agent_params),
+        )
 
-        agent = self._build_agent()
+    def execute(self, context: Context) -> Any:
+        reject_sequence_with_unsupported_feature(
+            self.prompt,
+            decorator_name=type(self).__name__,
+            feature_name="enable_hitl_review",
+            feature_enabled=self.enable_hitl_review,
+        )
+        self._durable_ti = context["task_instance"] if self.durable else None
 
-        storage = self._durable_storage
-        counter = self._durable_counter
-        if self.durable and storage is not None and counter is not None:
-            from pydantic_ai.models import infer_model
+        request = self._build_request(prompt=self.prompt)
+        agent = self.llm_hook.create_agent(request)
+        run_result = self.llm_hook.run_agent(agent, request)
 
-            from airflow.providers.common.ai.durable.caching_model import CachingModel
+        log_run_summary(self.log, run_result)
 
-            if agent.model is None:
-                raise ValueError("Agent model must be set when durable=True")
-            resolved_model = infer_model(agent.model)
-            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
-            with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
-        else:
-            result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
-
-        log_run_summary(self.log, result)
-
-        if self._durable_counter is not None:
-            c = self._durable_counter
+        if run_result.durable_stats is not None:
+            c = run_result.durable_stats
             replayed = c.replayed_model + c.replayed_tool
             cached = c.cached_model + c.cached_tool
             if replayed:
@@ -285,16 +266,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                     c.cached_tool,
                 )
 
-        if self._durable_storage is not None:
-            self._durable_storage.cleanup()
-
-        output = result.output
+        output = run_result.output
 
         if self.enable_hitl_review:
             result_str = self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
-                message_history=result.all_messages(),
+                message_history=run_result.message_history,
             )
             # Deserialize back to dict
             try:
@@ -308,12 +286,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
-        agent = self._build_agent()
-        messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
-        log_run_summary(self.log, result)
+        request = self._build_request(prompt=feedback, message_history=message_history)
+        agent = self.llm_hook.create_agent(request)
+        run_result = self.llm_hook.run_agent(agent, request)
+        log_run_summary(self.log, run_result)
 
-        output = result.output
+        output = run_result.output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        return str(output), result.all_messages()
+        return str(output), run_result.message_history
