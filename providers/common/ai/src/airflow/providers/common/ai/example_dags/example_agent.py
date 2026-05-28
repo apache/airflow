@@ -32,6 +32,8 @@ from airflow.providers.common.compat.sdk import dag, task
 # Pydantic output classes must be defined at module scope so downstream
 # tasks can re-import them when deserializing the XCom payload.
 class Analysis(BaseModel):
+    """Structured analysis output for the agent example."""
+
     summary: str
     top_items: list[str]
     row_count: int

@@ -25,6 +25,16 @@ from pydantic_ai.messages import ImageUrl
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
+try:
+    from airflow.sdk.serde import allow_class as _allow_class
+except ImportError:
+    _allow_class = None
+
+requires_allow_class = pytest.mark.skipif(
+    _allow_class is None,
+    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+)
+
 
 class Summary(BaseModel):
     text: str
@@ -163,6 +173,7 @@ class TestAgentDecoratedOperator:
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
+    @requires_allow_class
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
         """BaseModel output flows through XCom as the Pydantic instance."""

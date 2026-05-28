@@ -53,7 +53,7 @@ The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable fro
 ``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
 process that parses the DAG. The Pydantic class must be defined at **module
 scope** and bound to an attribute matching its ``__name__`` -- classes nested
-inside a function or ``@dag``-decorated body, parametrised generics, and
+inside a function or ``@dag``-decorated body, parameterized generics, and
 dynamically-built classes whose ``__name__`` does not match the attribute they
 are bound to are rejected at construction time with a ``ValueError``.
 

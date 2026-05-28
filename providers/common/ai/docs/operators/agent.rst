@@ -130,7 +130,7 @@ scope** and bound to an attribute matching its ``__name__``. Same-DAG
 downstream tasks need no configuration. The UI's XCom viewer renders the value
 via the ``stringify`` path (no configuration needed; see the ``LLMOperator``
 guide for the exact representation). Cross-DAG ``xcom_pull`` consumers still
-need the class qualname added to ``[core] allowed_deserialization_classes``.
+need the class ``qualname`` added to ``[core] allowed_deserialization_classes``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python

@@ -26,6 +26,8 @@ from airflow.providers.common.compat.sdk import dag, task
 # Pydantic output classes must be defined at module scope so they can be
 # imported by name when downstream tasks deserialize the XCom payload.
 class TicketAnalysis(BaseModel):
+    """Structured analysis of a single support ticket."""
+
     priority: str
     category: str
     summary: str

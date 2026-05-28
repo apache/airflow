@@ -28,6 +28,16 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
+try:
+    from airflow.sdk.serde import allow_class as _allow_class
+except ImportError:
+    _allow_class = None
+
+requires_allow_class = pytest.mark.skipif(
+    _allow_class is None,
+    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+)
+
 
 class Summary(BaseModel):
     text: str
@@ -198,6 +208,7 @@ class TestAgentOperatorExecute:
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
+    @requires_allow_class
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
         """Structured output keeps the Pydantic instance so downstream tasks can type-hint it."""
@@ -217,6 +228,7 @@ class TestAgentOperatorExecute:
         assert result.text == "Great"
         assert result.score == 0.95
 
+    @requires_allow_class
     def test_init_rejects_nested_output_type(self):
         """A BaseModel defined inside a function carries ``<locals>`` and can't survive XCom."""
 
@@ -229,6 +241,7 @@ class TestAgentOperatorExecute:
         with pytest.raises(ValueError, match="defined inside a function"):
             _build()
 
+    @requires_allow_class
     def test_init_registers_output_type_in_extra_allowed(self):
         from airflow.sdk.module_loading import qualname
         from airflow.sdk.serde import _extra_allowed
@@ -279,6 +292,7 @@ class TestAgentOperatorExecute:
         assert result == "Approved output"
         mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
+    @requires_allow_class
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )

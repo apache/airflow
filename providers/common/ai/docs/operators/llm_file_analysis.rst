@@ -85,7 +85,7 @@ attribute matching its ``__name__``: nested-in-function classes and
 dynamically-built classes are rejected at construction time. Same-DAG
 downstream tasks need no configuration; the UI XCom viewer renders the value
 via the ``stringify`` path (no configuration needed). Cross-DAG ``xcom_pull``
-consumers still need the class qualname added to
+consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes`` (see the ``LLMOperator`` guide for
 details).
 

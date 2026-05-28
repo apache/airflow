@@ -28,6 +28,16 @@ from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
+try:
+    from airflow.sdk.serde import allow_class as _allow_class
+except ImportError:
+    _allow_class = None
+
+requires_allow_class = pytest.mark.skipif(
+    _allow_class is None,
+    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+)
+
 
 class Summary(BaseModel):
     findings: list[str]
@@ -107,6 +117,7 @@ class TestLLMFileAnalysisOperator:
         )
         mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
 
+    @requires_allow_class
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True

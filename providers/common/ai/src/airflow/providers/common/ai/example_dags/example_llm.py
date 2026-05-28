@@ -31,6 +31,8 @@ from airflow.providers.common.compat.sdk import dag, task
 # Pydantic output classes must be defined at module scope so they survive
 # XCom serialization (their qualname is used to re-import them downstream).
 class Entities(BaseModel):
+    """Named entities extracted from a text."""
+
     names: list[str]
     locations: list[str]
 

@@ -31,6 +31,16 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
+try:
+    from airflow.sdk.serde import allow_class as _allow_class
+except ImportError:
+    _allow_class = None
+
+requires_allow_class = pytest.mark.skipif(
+    _allow_class is None,
+    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+)
+
 
 class Entities(BaseModel):
     names: list[str]
@@ -92,6 +102,7 @@ class TestLLMOperator:
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
 
+    @requires_allow_class
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
         """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
@@ -120,6 +131,7 @@ class TestLLMOperator:
             model_settings={"temperature": 0.9},
         )
 
+    @requires_allow_class
     def test_init_rejects_nested_output_type(self):
         """output_type defined inside a function carries ``<locals>`` and can't survive XCom."""
 
@@ -132,6 +144,7 @@ class TestLLMOperator:
         with pytest.raises(ValueError, match="defined inside a function"):
             _build_op()
 
+    @requires_allow_class
     def test_init_registers_output_type_in_extra_allowed(self):
         """A module-scope BaseModel output_type is auto-registered for XCom deserialization."""
         from airflow.sdk.module_loading import qualname

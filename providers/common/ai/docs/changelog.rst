@@ -36,7 +36,7 @@ class (``def downstream(result: MyModel)``) and use attribute access
 defined at **module scope** and bound to an attribute matching its
 ``__name__``; operators raise ``ValueError`` at construction time when
 ``output_type`` (or any ``BaseModel`` reachable from a ``Union``/``Optional``/
-``list`` of types) is nested, dynamically built, or non-importable by qualname.
+``list`` of types) is nested, dynamically built, or non-importable by ``qualname``.
 
 Same-DAG downstream tasks deserialize the model without any configuration
 change because each worker re-runs the operator constructor when it parses the

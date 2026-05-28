@@ -29,7 +29,7 @@ def iter_base_model_classes(output_type: Any) -> Iterator[type[BaseModel]]:
     Yield every Pydantic ``BaseModel`` subclass reachable from ``output_type``.
 
     pydantic-ai accepts ``output_type`` as a single class, a ``Union`` /
-    ``Optional`` of classes, a list of classes (multi-output), or a parametrised
+    ``Optional`` of classes, a list of classes (multi-output), or a parameterized
     generic such as ``list[MyModel]``. The agent may return an instance of any
     ``BaseModel`` reachable from the type expression, so each must be registered
     for XCom deserialization, not just the top-level ``output_type``.
