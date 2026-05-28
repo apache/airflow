@@ -8,7 +8,7 @@
   },
   "config": {
     "columns": {
-      "section": "Secção"
+      "section": "Seção"
     },
     "title": "Configuração do Airflow"
   },
