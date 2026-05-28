@@ -2472,6 +2472,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # escape username to prevent LDAP injection attacks
         escaped_username = ldap.filter.escape_filter_chars(username)
         if self.auth_ldap_search_filter:
+            _sf = self.auth_ldap_search_filter
+            if not (_sf.startswith("(") and _sf.endswith(")") and _sf.count("(") == _sf.count(")")):
+                raise ValueError("AUTH_LDAP_SEARCH_FILTER is not a valid LDAP filter expression")
             filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={escaped_username}))"
         else:
             filter_str = f"({self.auth_ldap_uid_field}={escaped_username})"
@@ -2653,7 +2656,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _cli_safe_flash(text: str, level: str) -> None:
         """Show a flash in a web context or prints a message if not."""
         if has_request_context():
-            flash(Markup(text), level)
+            flash(escape(text), level)
         else:
             getattr(log, level)(text.replace("<br>", "\n").replace("<b>", "*").replace("</b>", "*"))
 
