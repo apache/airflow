@@ -3813,6 +3813,8 @@ dependencies = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "grpcio-status" },
     { name = "pyspark-client" },
+    { name = "requests" },
+    { name = "tenacity" },
 ]
 
 [package.optional-dependencies]
@@ -3849,6 +3851,8 @@ requires-dist = [
     { name = "grpcio-status", specifier = ">=1.67.0" },
     { name = "pyspark", marker = "extra == 'pyspark'", specifier = ">=4.0.0" },
     { name = "pyspark-client", specifier = ">=4.0.0" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "tenacity", specifier = ">=8.3.0" },
 ]
 provides-extras = ["cncf-kubernetes", "openlineage", "pyspark"]
 
