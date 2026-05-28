@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
+import itertools
 
 import attrs
 
@@ -248,12 +249,15 @@ class DictOfListsExpandInput(ExpandInput):
 
         resolved = {k: v.resolve(context) if isinstance(v, XComArg) else v for k, v in self.value.items()}
         keys = list(resolved)
-        for items in zip(
-            *(
-                v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
-                for v in (resolved[k] for k in keys)
-            )
-        ):
+
+        iterables_for_product: list[tuple] = []
+        for v in (resolved[k] for k in keys):
+            if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)):
+                iterables_for_product.append(tuple(v))
+            else:
+                iterables_for_product.append((v,))
+
+        for items in itertools.product(*iterables_for_product):
             yield dict(zip(keys, items))
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:

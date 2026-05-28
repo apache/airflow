@@ -202,8 +202,8 @@ class TestIterableOperator:
             ({"a": 1}, [{"a": 1}]),
             ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
             ({"a": "hello"}, [{"a": "hello"}]),
-            ({"a": [1, 2], "b": [10, 20]}, [{"a": 1, "b": 10}, {"a": 2, "b": 20}]),
-            ({"a": [1, 2]}, [{"a": 1}, {"a": 2}]),  # Convert generator to list for testing
+            ({"a": [1, 2], "b": [10, 20]}, [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}]),
+            ({"a": [1, 2]}, [{"a": 1}, {"a": 2}]),
         ],
     )
     def test_dict_of_lists_expand_input_iter_values(self, dag_maker, session, actual, expected):
@@ -350,7 +350,19 @@ class TestIterableOperator:
             mock_xcom_get_one(context)
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert materialized == [(1, 10, "x"), (2, 20, "y")]
+            # Cartesian product expected order:
+            # (1,10,'x'), (1,10,'y'), (1,20,'x'), (1,20,'y'),
+            # (2,10,'x'), (2,10,'y'), (2,20,'x'), (2,20,'y')
+            assert materialized == [
+                (1, 10, "x"),
+                (1, 10, "y"),
+                (1, 20, "x"),
+                (1, 20, "y"),
+                (2, 10, "x"),
+                (2, 10, "y"),
+                (2, 20, "x"),
+                (2, 20, "y"),
+            ]
 
     @pytest.mark.db_test
     def test_execute_with_task_concurrency_setting(self, dag_maker, session, mock_xcom_get_one):
