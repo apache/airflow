@@ -91,8 +91,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
         mode. Used both by the Spark standalone driver-status tracker and (when
         ``yarn_track_via_rm_api=True``) by the YARN ResourceManager REST API
-        polling loop, so keep it high enough that RM REST API calls do not
-        flood the ResourceManager on long-running jobs (Default: 10).
+        polling loop. The YARN ResourceManager REST API polling loop uses at
+        least 10 seconds to avoid flooding the ResourceManager on long-running
+        jobs (Default: 1).
     :param application_args: Arguments for the application being submitted
     :param env_vars: Environment variables for spark-submit. It
         supports yarn and k8s mode too.
@@ -115,9 +116,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
         is ``cluster``), release the ``spark-submit`` JVM once the application has
         been submitted to YARN, then poll the YARN ResourceManager REST API
-        (``GET /ws/v1/cluster/apps/{appId}``) every ``status_poll_interval``
-        seconds until the application reaches a final state. This frees the worker
-        from holding the long-lived submit JVM. Requires the Spark connection's
+        (``GET /ws/v1/cluster/apps/{appId}``) until the application reaches a
+        final state. The polling interval is controlled by ``status_poll_interval``
+        with a 10-second minimum. This frees the worker from holding the
+        long-lived submit JVM. Requires the Spark connection's
         ``extra`` JSON to set ``yarn_resourcemanager_webapp_address``
         (e.g. ``http://rm:8088``). Cluster-side driver logs should be used after
         the switch to polling. Defaults to ``False``.
@@ -242,7 +244,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         proxy_user: str | None = None,
         name: str = "default-name",
         num_executors: int | None = None,
-        status_poll_interval: int = 10,
+        status_poll_interval: int = 1,
         application_args: list[Any] | None = None,
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
@@ -803,12 +805,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self.log.info(line)
 
     def _track_yarn_application(self, application_id: str) -> None:
-        """Poll the YARN RM REST API until ``app.finalStatus`` reaches a terminal value."""
+        """Poll the YARN RM REST API until the application reaches a terminal state."""
         self.log.info(
             "Tracking YARN application %s via ResourceManager REST API polling",
             application_id,
         )
-        poll_interval = max(self._status_poll_interval, 1)
+        poll_interval = max(self._status_poll_interval, 10)
         # Tolerate transient RM REST API failures (RM hiccup, network blip, request
         # timeout) the same way `_start_driver_status_tracking` does for spark
         # standalone — only give up after this many consecutive failures.
@@ -817,7 +819,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while True:
             self.log.debug("Polling YARN RM REST API for application %s", application_id)
             try:
-                final_status = self._query_yarn_application_final_status(application_id)
+                state, final_status = self._query_yarn_application_status(application_id)
             except RuntimeError as exc:
                 consecutive_failures += 1
                 if consecutive_failures > max_consecutive_failures:
@@ -835,6 +837,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 time.sleep(poll_interval)
                 continue
             consecutive_failures = 0
+            if state in self._YARN_FINAL_FAILURES:
+                raise RuntimeError(
+                    f"YARN application {application_id} ended with state: {state}, "
+                    f"final status: {final_status}"
+                )
             if final_status == self._YARN_FINAL_SUCCESS:
                 self.log.info("YARN application %s finished with SUCCEEDED", application_id)
                 return
@@ -876,8 +883,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._yarn_rm_base_url = url.rstrip("/")
         return self._yarn_rm_base_url
 
-    def _query_yarn_application_final_status(self, application_id: str) -> str:
-        """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.finalStatus``."""
+    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str]:
+        """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.state`` and ``app.finalStatus``."""
         url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
         try:
             resp = requests.get(url, auth=self._yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
@@ -891,7 +898,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{application_id}: {resp.text[:200]}"
             )
         try:
-            return resp.json()["app"]["finalStatus"]
+            app = resp.json()["app"]
+            return app["state"], app["finalStatus"]
         except (ValueError, KeyError, TypeError) as exc:
             raise RuntimeError(
                 f"YARN RM REST API returned unexpected payload for application "
