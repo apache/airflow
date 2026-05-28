@@ -1117,6 +1117,34 @@ def test_topological_group_dep():
     ]
 
 
+def test_topological_sort_serialized_layered():
+    """SerializedTaskGroup.topological_sort emits a valid order after DAG round-trip.
+
+    Exercises the projected-sweep path on the serialization variant (which is otherwise
+    untested), using a layered shape that forces multi-pass behavior.
+    """
+    with DAG("test_topo_sort_serialized", schedule=None, start_date=DEFAULT_DATE) as dag:
+        layers: list[list[BaseOperator]] = []
+        for layer_idx in range(4):
+            cur = [EmptyOperator(task_id=f"L{layer_idx}_t{i}") for i in range(3)]
+            if layers:
+                for upstream in layers[-1]:
+                    upstream >> cur
+            layers.append(cur)
+
+    serialized = create_scheduler_dag(dag)
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    position = {nid: i for i, nid in enumerate(order)}
+
+    assert set(position) == {t.task_id for layer in layers for t in layer}
+    for layer_idx in range(len(layers) - 1):
+        for upstream in layers[layer_idx]:
+            for downstream in layers[layer_idx + 1]:
+                assert position[upstream.task_id] < position[downstream.task_id], (
+                    f"{upstream.task_id!r} must precede {downstream.task_id!r}, got {order!r}"
+                )
+
+
 def test_task_group_arrow_with_setup_group():
     with DAG(dag_id="setup_group_teardown_group") as dag:
         with TaskGroup("group_1") as g1:

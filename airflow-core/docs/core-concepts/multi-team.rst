@@ -517,26 +517,41 @@ Default Behavior
 
 By default, a consuming Dag only receives asset events from producers within the same team or from Dags with no team association, i.e. global Dags.
 
-Cross-Team Opt-In with ``allow_producer_teams``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Cross-Team Opt-In with ``access_control``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To allow specific teams to produce events that trigger consumers on a given asset from another team, use the
-``allow_producer_teams`` parameter on the ``Asset`` definition:
+``access_control`` parameter on the ``Asset`` definition with an ``AssetAccessControl`` instance:
 
 .. code-block:: python
 
-    from airflow.sdk import Asset
+    from airflow.sdk import Asset, AssetAccessControl
 
     shared_data = Asset(
         name="shared_data",
         uri="s3://bucket/shared/data.csv",
-        allow_producer_teams=["team_analytics", "team_ml"],
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
     )
 
 With this configuration, asset events from ``team_analytics`` or ``team_ml`` will be accepted by any
 consuming Dag that schedules on ``shared_data``, in addition to events from the consumer's own team.
 
-See :ref:`Cross-team asset event filtering with allow_producer_teams <asset_allow_producer_teams>` in the Assets
+To block global (teamless) Dag producers from triggering consumers, set ``allow_global=False``:
+
+.. code-block:: python
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+See :ref:`Cross-team asset event filtering with access_control <asset_access_control>` in the Assets
 documentation for usage details and validation rules.
 
 Behavioral Rules
@@ -546,65 +561,83 @@ The following table describes the complete filtering logic:
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 20 20 15 25
+   :widths: 15 15 18 14 13 25
 
    * - Producer
      - Consumer
-     - ``allow_producer_teams``
+     - ``producer_teams``
+     - ``allow_global``
      - Result
      - Reason
    * - Team A (DAG)
      - Team A
+     - (any)
      - (any)
      - ✅ Allowed
      - Same team
    * - Team A (DAG)
      - Team B
      - ``[]``
+     - (any)
      - ❌ Blocked
      - Different team, no opt-in
    * - Team A (DAG)
      - Team B
      - ``["team_a"]``
+     - (any)
      - ✅ Allowed
      - Cross-team opt-in
    * - (no team, DAG)
      - Team B
      - (any)
+     - ``True``
      - ✅ Allowed
-     - Global producer
+     - Global producer, allow_global is True
+   * - (no team, DAG)
+     - Team B
+     - (any)
+     - ``False``
+     - ❌ Blocked
+     - Global producer blocked by allow_global=False
    * - Team A (DAG)
      - (no team)
+     - (any)
      - (any)
      - ✅ Allowed
      - Teamless consumer accepts events from any DAG producer
    * - (no team, DAG)
      - (no team)
      - (any)
+     - (any)
      - ✅ Allowed
      - Both global
    * - Team A (API)
      - Team A
+     - (any)
      - (any)
      - ✅ Allowed
      - Same team
    * - Team A (API)
      - Team B
      - ``["team_a"]``
+     - (any)
      - ✅ Allowed
      - Cross-team opt-in
    * - Team A (API)
      - (no team)
+     - (any)
      - (any)
      - ✅ Allowed
      - Teamless consumer accepts events from any source
    * - (no team, API)
      - Team B
      - (any)
+     - (any)
      - ❌ Blocked
      - Teamless API user cannot trigger team-bound consumer
    * - (no team, API)
      - (no team)
+     - (any)
      - (any)
      - ✅ Allowed
      - Both global
@@ -612,13 +645,14 @@ The following table describes the complete filtering logic:
 Key rules:
 
 - **Same team**: Always allowed.
-- **Global (teamless) DAG producer**: Triggers all consumers regardless of team.
+- **Global (teamless) DAG producer with** ``allow_global=True``: Triggers all consumers regardless of team.
+- **Global (teamless) DAG producer with** ``allow_global=False``: Blocked from triggering team-bound consumers.
 - **Teamless API user**: Can only trigger teamless consumers. Unlike a teamless DAG — which is
   deployed by a platform operator and intentionally shared — an API user without a team has no
   verified team affiliation, so their events are restricted to teamless consumers to
   prevent unscoped access to team-bound pipelines.
 - **Teamless consumer**: Accepts events from any source (DAG or API), regardless of team.
-- **Cross-team via** ``allow_producer_teams``: Allowed when the producer's team is listed in the asset's ``allow_producer_teams``.
+- **Cross-team via** ``producer_teams``: Allowed when the producer's team is listed in the asset's ``producer_teams``.
 - **Multi-Team disabled**: All filtering is skipped; existing behavior is preserved.
 
 API-Triggered Events

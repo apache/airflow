@@ -237,6 +237,20 @@ class TestExecutorCallback:
         callback.queue()
         assert callback.state == CallbackState.QUEUED
 
+    def test_session_get_requires_uuid_not_str(self, session):
+        """Filtering the UUID id column with a plain str breaks on SQLite, so
+        callers must wrap with ``UUID(...)`` before querying."""
+        from uuid import UUID
+
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add(callback)
+        session.commit()
+        # ``id`` is filled by the ``uuid6.uuid7`` default at flush time, so it
+        # is only safe to stringify *after* the commit.
+        callback_id_str = str(callback.id)
+
+        assert session.get(Callback, UUID(callback_id_str)) is not None
+
 
 class TestDagProcessorCallback:
     def test_polymorphic_serde(self, session):
