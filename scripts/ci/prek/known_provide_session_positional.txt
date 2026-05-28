@@ -75,10 +75,6 @@ providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/template_renderi
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/triggers/pod.py::1
 providers/common/ai/tests/unit/common/ai/plugins/test_hitl_review.py::1
 providers/databricks/src/airflow/providers/databricks/plugins/databricks_workflow.py::2
-providers/edge3/src/airflow/providers/edge3/executors/edge_executor.py::3
-providers/edge3/src/airflow/providers/edge3/models/edge_worker.py::10
-providers/edge3/src/airflow/providers/edge3/plugins/edge_executor_plugin.py::1
-providers/edge3/src/airflow/providers/edge3/worker_api/routes/logs.py::1
 providers/fab/src/airflow/providers/fab/auth_manager/cli_commands/permissions_command.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/bigquery.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/dataproc.py::3
