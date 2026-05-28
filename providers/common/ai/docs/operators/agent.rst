@@ -118,8 +118,23 @@ to the model. This mirrors the input types accepted by pydantic-ai's
 Structured Output
 -----------------
 
-Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured
-data back. The result is serialized via ``model_dump()`` for XCom.
+Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured data
+back. The model instance is pushed to XCom unchanged so downstream tasks can
+type-hint the class directly (``def downstream(result: MyModel)``) and use
+attribute access (``result.field``).
+
+The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable
+from ``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
+process that parses the DAG. The Pydantic class must be defined at **module
+scope** and bound to an attribute matching its ``__name__``. Same-DAG downstream
+tasks are covered; the UI's XCom viewer and cross-DAG ``xcom_pull`` still need
+the class qualname added to ``[core] allowed_deserialization_classes`` (see the
+``LLMOperator`` guide for details).
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_decorator_agent_structured_output_class]
+    :end-before: [END howto_decorator_agent_structured_output_class]
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python

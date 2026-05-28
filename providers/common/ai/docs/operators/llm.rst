@@ -45,13 +45,38 @@ Structured Output
 -----------------
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass. The LLM is instructed
-to return structured data, and the result is serialized via ``model_dump()``
-for XCom:
+to return structured data, and the model instance is pushed to XCom unchanged
+so downstream tasks can type-hint the class directly
+(``def downstream(result: MyModel)``) and use attribute access (``result.field``).
+
+The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable from
+``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
+process that parses the DAG. The Pydantic class must be defined at **module
+scope** and bound to an attribute matching its ``__name__`` -- classes nested
+inside a function or ``@dag``-decorated body, parametrised generics, and
+dynamically-built classes whose ``__name__`` does not match the attribute they
+are bound to are rejected at construction time with a ``ValueError``.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_structured_output_class]
+    :end-before: [END howto_operator_llm_structured_output_class]
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
+
+Auto-registration covers downstream tasks in the **same DAG** -- their workers
+parse the DAG file when starting up, which re-runs the operator constructor and
+re-populates the per-process allow-list. Two consumer paths are not covered and
+still need the class qualified name added to
+``[core] allowed_deserialization_classes`` (or a glob that matches it):
+
+* The Airflow UI's XCom viewer (the API server process does not import user
+  DAGs, so its allow-list comes from configuration only).
+* ``xcom_pull`` from a different DAG (the consumer's worker only parses its
+  own DAG file, not the producer's).
 
 Agent Parameters
 ----------------

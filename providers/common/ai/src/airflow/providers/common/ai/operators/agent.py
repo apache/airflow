@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
+from airflow.providers.common.ai.utils.output_type import iter_base_model_classes
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -36,6 +37,11 @@ from airflow.providers.common.compat.sdk import (
     conf,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
+
+try:
+    from airflow.sdk.serde import allow_class
+except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
+    allow_class = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -95,7 +101,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output.
+        ``BaseModel`` subclass for structured output; the model instance is
+        returned to XCom unchanged so downstream tasks can type-hint it
+        directly. The class must be defined at module scope -- nested classes
+        cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``).
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
@@ -170,6 +179,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
+        self._serialize_model_output = allow_class is None
+        if allow_class is not None:
+            for model_cls in iter_base_model_classes(output_type):
+                allow_class(model_cls)
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
@@ -296,14 +309,21 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 output,
                 message_history=result.all_messages(),
             )
-            # Deserialize back to dict
+            if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
+                try:
+                    rehydrated = self.output_type.model_validate_json(result_str)
+                except (ValueError, TypeError):
+                    return result_str
+                if self._serialize_model_output:
+                    return rehydrated.model_dump()
+                return rehydrated
             try:
                 return json.loads(result_str)
             except (ValueError, TypeError):
                 return result_str
 
-        if isinstance(output, BaseModel):
-            return output.model_dump()
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            output = output.model_dump()
         return output
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:

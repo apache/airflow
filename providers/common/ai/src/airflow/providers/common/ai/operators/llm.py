@@ -23,12 +23,18 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.output_type import iter_base_model_classes
 from airflow.providers.common.compat.sdk import BaseOperator
+
+try:
+    from airflow.sdk.serde import allow_class
+except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
+    allow_class = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -44,7 +50,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     Uses a :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
     for LLM access. Supports plain string output (default) and structured output
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
-    the result is serialized via ``model_dump()`` for XCom.
+    the model instance is returned to XCom unchanged so downstream tasks can
+    type-hint it directly (e.g. ``def downstream(result: MyModel) -> None``).
+    The class is auto-registered for deserialization in each process that parses
+    the DAG, so no edit to ``[core] allowed_deserialization_classes`` is required.
+    The Pydantic class must be defined at module scope: classes nested inside
+    a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
@@ -52,7 +63,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the LLM agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output.
+        ``BaseModel`` subclass for structured output; the model instance is
+        returned to XCom unchanged so downstream tasks can type-hint it
+        directly. The class must be defined at module scope -- nested classes
+        cannot be deserialized from XCom.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
@@ -101,6 +115,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
+        self._serialize_model_output = allow_class is None
+        if allow_class is not None:
+            for model_cls in iter_base_model_classes(output_type):
+                allow_class(model_cls)
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
         self.require_approval = require_approval
@@ -141,7 +159,22 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if isinstance(output, BaseModel):
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            # Older Airflow versions lack ``airflow.sdk.serde.allow_class``,
+            # so we cannot register the output class for XCom deserialization.
+            # Fall back to the dict form to keep XCom round-trippable.
             output = output.model_dump()
 
+        return output
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
+        """Resume after human review and restore the Pydantic model for XCom consumers."""
+        output = super().execute_complete(context, generated_output, event)
+        if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
+            try:
+                return self.output_type.model_validate_json(output)
+            except (ValidationError, ValueError, TypeError):
+                # Reviewer-edited output may not validate against the schema.
+                # Mirror AgentOperator's HITL branch and fall back to the raw string.
+                return output
         return output

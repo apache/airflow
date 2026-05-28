@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+Breaking change: operators with ``output_type=<BaseModel subclass>``
+(``LLMOperator``, ``LLMAgentOperator``, ``LLMFileAnalysisOperator``, and
+their ``@task.llm`` / ``@task.agent`` / ``@task.llm_file_analysis`` decorators)
+now return the Pydantic model instance through XCom instead of dumping it to
+a ``dict`` when the running Airflow version provides
+``airflow.sdk.serde.allow_class``. Downstream tasks should type-hint the model
+class (``def downstream(result: MyModel)``) and use attribute access
+(``result.field``) instead of subscript access. The output class must be
+defined at **module scope** and bound to an attribute matching its
+``__name__``; operators raise ``ValueError`` at construction time when
+``output_type`` (or any ``BaseModel`` reachable from a ``Union``/``Optional``/
+``list`` of types) is nested, dynamically built, or non-importable by qualname.
+
+Same-DAG downstream tasks deserialize the model without any configuration
+change because each worker re-runs the operator constructor when it parses the
+DAG. The UI XCom viewer and cross-DAG ``xcom_pull`` still need the class
+qualified name added to ``[core] allowed_deserialization_classes`` (or a glob
+that matches it) -- the API server process and other DAGs' workers do not
+parse the producing DAG. On older Airflow releases that lack ``allow_class``
+the operators continue to dump to ``dict``.
+
 0.3.0
 .....
 

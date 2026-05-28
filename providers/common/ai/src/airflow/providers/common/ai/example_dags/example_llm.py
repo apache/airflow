@@ -27,6 +27,17 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 
+# [START howto_operator_llm_structured_output_class]
+# Pydantic output classes must be defined at module scope so they survive
+# XCom serialization (their qualname is used to re-import them downstream).
+class Entities(BaseModel):
+    names: list[str]
+    locations: list[str]
+
+
+# [END howto_operator_llm_structured_output_class]
+
+
 # [START howto_operator_llm_basic]
 @dag(tags=["example"])
 def example_llm_operator():
@@ -46,10 +57,6 @@ example_llm_operator()
 # [START howto_operator_llm_structured]
 @dag(tags=["example"])
 def example_llm_operator_structured():
-    class Entities(BaseModel):
-        names: list[str]
-        locations: list[str]
-
     LLMOperator(
         task_id="extract_entities",
         prompt="Extract all named entities from the article.",
@@ -99,10 +106,6 @@ example_llm_decorator()
 # [START howto_decorator_llm_structured]
 @dag(tags=["example"])
 def example_llm_decorator_structured():
-    class Entities(BaseModel):
-        names: list[str]
-        locations: list[str]
-
     @task.llm(
         llm_conn_id="pydanticai_default",
         system_prompt="Extract named entities.",
