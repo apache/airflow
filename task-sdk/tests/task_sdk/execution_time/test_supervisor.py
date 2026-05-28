@@ -3788,6 +3788,30 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
+def test_process_log_messages_from_subprocess_ignores_closed_loggers(monkeypatch):
+    class ClosedLogger:
+        def log(self, level, msg, **event):
+            raise ValueError("write to closed file")
+
+    class OpenLogger:
+        def __init__(self):
+            self.messages = []
+
+        def log(self, level, msg, **event):
+            self.messages.append((level, msg, event))
+
+    open_logger = OpenLogger()
+
+    monkeypatch.setattr("airflow.sdk.execution_time.supervisor.reconfigure_logger", lambda log, *_, **__: log)
+
+    gen = process_log_messages_from_subprocess(loggers=(ClosedLogger(), open_logger))
+    next(gen)
+
+    gen.send(b'{"level": "error", "event": "still delivered", "source": "subprocess"}\n')
+
+    assert open_logger.messages == [(logging.ERROR, "still delivered", {"source": "subprocess"})]
+
+
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     def subprocess_main():
         # This is run in the subprocess!

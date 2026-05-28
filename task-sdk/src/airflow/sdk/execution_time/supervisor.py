@@ -2291,7 +2291,12 @@ def process_log_messages_from_subprocess(
         if level := NAME_TO_LEVEL.get(event.pop("level")):
             msg = event.pop("event", None)
             for target in loggers:
-                target.log(level, msg, **event)
+                try:
+                    target.log(level, msg, **event)
+                except ValueError as e:
+                    if str(e) != "write to closed file":
+                        raise
+                    log.debug("Dropping subprocess log line for closed logger", pid=os.getpid(), level=level)
 
 
 def forward_to_log(
