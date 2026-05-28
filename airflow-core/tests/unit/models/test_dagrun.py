@@ -779,13 +779,19 @@ class TestDagRun:
         assert ti is None
 
     @pytest.mark.parametrize(
-        "state_filter",
+        ("state_filter", "expected_task_ids"),
         [
-            pytest.param(TaskInstanceState.SUCCESS, id="single-state"),
-            pytest.param([TaskInstanceState.SUCCESS], id="iterable-of-states"),
+            pytest.param(TaskInstanceState.SUCCESS, {"success_task"}, id="single-state"),
+            pytest.param(
+                [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED],
+                {"success_task", "failed_task"},
+                id="iterable-of-states",
+            ),
         ],
     )
-    def test_get_task_instances_state_accepts_single_or_iterable(self, dag_maker, session, state_filter):
+    def test_get_task_instances_state_accepts_single_or_iterable(
+        self, dag_maker, session, state_filter, expected_task_ids
+    ):
         with dag_maker(
             dag_id="test_get_task_instances_state",
             schedule=datetime.timedelta(days=1),
@@ -793,18 +799,20 @@ class TestDagRun:
         ) as dag:
             EmptyOperator(task_id="success_task")
             EmptyOperator(task_id="failed_task")
+            EmptyOperator(task_id="skipped_task")
 
         dag_run = self.create_dag_run(
             dag=dag,
             task_states={
                 "success_task": TaskInstanceState.SUCCESS,
                 "failed_task": TaskInstanceState.FAILED,
+                "skipped_task": TaskInstanceState.SKIPPED,
             },
             session=session,
         )
 
         tis = dag_run.get_task_instances(state=state_filter, session=session)
-        assert {ti.task_id for ti in tis} == {"success_task"}
+        assert {ti.task_id for ti in tis} == expected_task_ids
 
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(
