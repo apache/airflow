@@ -26,7 +26,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 import yaml
@@ -163,8 +163,8 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted = _accept_connections({"comm": comm_server, "logs": logs_server}, mock_proc)
-            assert set(accepted) == {"comm", "logs"}
+            accepted, _ = _accept_connections({"comm": comm_server, "logs": logs_server}, {}, mock_proc)
+            assert set(accepted) == {comm_server, logs_server}
             for sock in accepted.values():
                 sock.close()
         finally:
@@ -177,7 +177,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
         try:
             with pytest.raises(TimeoutError, match="did not connect within timeout"):
-                _accept_connections({"comm": server}, mock_proc, max_wait=0.05)
+                _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
         finally:
             server.close()
 
@@ -188,7 +188,7 @@ class TestAcceptConnections:
         mock_proc.returncode = 1
         try:
             with pytest.raises(RuntimeError, match="process exited with 1"):
-                _accept_connections({"comm": server}, mock_proc)
+                _accept_connections({"comm": server}, {}, mock_proc)
         finally:
             server.close()
 
@@ -247,7 +247,6 @@ class TestExecutableCoordinatorAttributes:
     def test_default_kwargs(self):
         coordinator = ExecutableCoordinator()
         assert coordinator.sdk == "executable"
-        assert coordinator.file_extension == ""
         assert coordinator.executables_root == []
 
     def test_executables_root_accepts_single_path(self, tmp_path):
@@ -324,7 +323,10 @@ class TestExecutableCoordinatorExecuteTask:
             ),
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -374,7 +376,10 @@ class TestExecutableCoordinatorExecuteTask:
             patch("subprocess.Popen", return_value=mock_proc),
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -423,7 +428,10 @@ class TestExecutableActivitySubprocessStart:
             ) as popen_mock,
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -439,18 +447,6 @@ class TestExecutableActivitySubprocessStart:
             )
         return proc, popen_mock
 
-    def test_stdout_write_socket_stored_for_cleanup(self, bundles_dir, mock_client):
-        proc, _ = self._start_with_mocks(str(bundles_dir / "my_bundle"), mock_client)
-        assert proc._stdout_w is not None
-
-    def test_stderr_write_socket_stored_for_cleanup(self, bundles_dir, mock_client):
-        proc, _ = self._start_with_mocks(str(bundles_dir / "my_bundle"), mock_client)
-        assert proc._stderr_w is not None
-
-    def test_stdout_and_stderr_write_sockets_are_distinct(self, bundles_dir, mock_client):
-        proc, _ = self._start_with_mocks(str(bundles_dir / "my_bundle"), mock_client)
-        assert proc._stdout_w is not proc._stderr_w
-
     def test_stdin_is_comm_socket(self, bundles_dir, mock_client):
         """stdin (used by send_msg) must be the accepted comm socket."""
         ti = _make_ti()
@@ -461,7 +457,10 @@ class TestExecutableActivitySubprocessStart:
             patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -489,7 +488,10 @@ class TestExecutableActivitySubprocessStart:
             patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": MagicMock(), "logs": MagicMock()},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
@@ -511,12 +513,15 @@ class TestExecutableActivitySubprocessStart:
         assert kwargs["dag_rel_path"] == "my_bundle"
 
     def test_register_pipe_readers_called_with_four_sockets(self, bundles_dir, mock_client):
-        """Both socketpair read-ends and both TCP sockets must be registered."""
+        """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (
             patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                return_value={"comm": MagicMock(), "logs": MagicMock()},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers") as mock_register,
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -531,8 +536,4 @@ class TestExecutableActivitySubprocessStart:
                 executable_path=str(bundles_dir / "my_bundle"),
                 subprocess_logs_to_stdout=False,
             )
-
-        mock_register.assert_called_once()
-        args = mock_register.call_args.args
-        # positional: stdout, stderr, comm, logs — all four must be sockets
-        assert len(args) == 4
+        assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
