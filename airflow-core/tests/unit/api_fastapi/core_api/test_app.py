@@ -149,20 +149,31 @@ class TestRouterLevelDefaultDeny:
         )
 
 
-class TestCorsMiddlewareAllowCredentials:
-    @pytest.mark.parametrize(
-        ("config_value", "expected_allow_credentials"),
-        [(None, True), ("True", True), ("False", False)],
-    )
-    def test_init_config_passes_allow_credentials(self, config_value, expected_allow_credentials):
-        config = {("api", "access_control_allow_origins"): "https://example.com"}
-        if config_value is not None:
-            config[("api", "access_control_allow_credentials")] = config_value
-
-        with conf_vars(config):
+class TestCorsMiddlewareConfig:
+    def test_init_config_enables_credentialed_cors_for_explicit_origins(self):
+        with conf_vars({("api", "access_control_allow_origins"): "https://example.com"}):
             app = FastAPI()
             init_config(app)
 
         cors_middlewares = [m for m in app.user_middleware if m.cls is CORSMiddleware]
         assert len(cors_middlewares) == 1
-        assert cors_middlewares[0].kwargs["allow_credentials"] is expected_allow_credentials
+        assert cors_middlewares[0].kwargs["allow_credentials"] is True
+        assert cors_middlewares[0].kwargs["allow_origins"] == ["https://example.com"]
+
+    @pytest.mark.parametrize(
+        "origins",
+        ["*", "https://example.com,*", "*,https://example.com"],
+    )
+    def test_init_config_rejects_wildcard_origin(self, origins):
+        """Wildcard origin is incompatible with credentialed CORS; reject it at startup.
+
+        Browsers refuse any response that combines ``Access-Control-Allow-Origin: *`` with
+        ``Access-Control-Allow-Credentials: true``, so silently accepting ``*`` would just ship
+        a configuration where every cross-origin request fails. Fail loudly instead.
+        """
+        from airflow.exceptions import AirflowConfigException
+
+        with conf_vars({("api", "access_control_allow_origins"): origins}):
+            app = FastAPI()
+            with pytest.raises(AirflowConfigException, match=r"must not contain `\*`"):
+                init_config(app)

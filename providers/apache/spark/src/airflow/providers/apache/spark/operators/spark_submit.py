@@ -110,6 +110,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
     """
 
+    # Generic key used across all Spark deployment modes (standalone driver ID,
+    # YARN application ID, K8s driver pod name).
+    external_id_key = "spark_job_id"
+
     template_fields: Sequence[str] = (
         "application",
         "conf",
@@ -230,12 +234,14 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
         if hook._is_yarn_cluster_mode:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
@@ -272,6 +278,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook._is_yarn_cluster_mode:
             return self._hook.query_yarn_application_status(external_id)
         if self._hook._is_kubernetes:
+            # The K8s branches below (and in is_job_active, is_job_succeeded, poll_until_complete)
+            # are currently unreachable: execute_resumable is only called when _should_track_driver_status
+            # is True, which requires spark:// + cluster mode. They are scaffolding for a follow-up PR
+            # that extends ResumableJobMixin support to Kubernetes.
             # TODO: call K8s pod status API
             raise NotImplementedError("K8s job status not yet implemented")
         scheme = self._hook._connection.get("rest_scheme", "http")
@@ -287,8 +297,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             try:
                 status = self._fetch_driver_status(url, external_id)
                 return status
-            except RuntimeError:
-                raise
             except Exception as e:
                 self.log.warning("Could not reach Spark master %s: %s", host, e)
                 last_exc = e
@@ -314,6 +322,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             self._hook = self._get_hook()
         status = status.upper()
         if self._hook._is_yarn_cluster_mode:
+            # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html
             return status in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}
         if self._hook._is_kubernetes:
             return status in ("PENDING", "RUNNING")
@@ -330,6 +339,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             return status == "SUCCEEDED"
         if self._hook._is_kubernetes:
             return status == "SUCCEEDED"
+        # standalone and YARN both use FINISHED
         return status == "FINISHED"
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
@@ -346,13 +356,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             raise NotImplementedError("K8s poll not yet implemented")
         self.log.info("Polling driver %s until completion", external_id)
         self._hook._driver_id = external_id
-        self._hook._driver_status = "SUBMITTED"
-        self._hook._start_driver_status_tracking()
-        if self._hook._driver_status != "FINISHED":
-            raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
-        # Run post-submit commands here instead of in the hook so they fire after the job
-        # finishes, not immediately after spark-submit returns the driver ID.
-        self._hook._run_post_submit_commands()
+        try:
+            self._hook._start_driver_status_tracking()
+            if self._hook._driver_status != "FINISHED":
+                raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
+        finally:
+            # post-submit commands must fire whether the job succeeded or failed.
+            self._hook._run_post_submit_commands()
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
         return None

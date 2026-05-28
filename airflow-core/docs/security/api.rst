@@ -86,10 +86,12 @@ from scripts running in the browser.
     access_control_allow_methods = POST, GET, OPTIONS, DELETE
     access_control_allow_origins = https://exampleclientapp1.com https://exampleclientapp2.com
 
-The ``Access-Control-Allow-Credentials`` header is included by default. Set
-``access_control_allow_credentials = False`` if you have configured
-``access_control_allow_origins`` and do not want browsers to send credentials
-(cookies, ``Authorization`` header) with cross-origin requests.
+Airflow's API always responds with ``Access-Control-Allow-Credentials: true`` so the UI and
+clients can send cookies and ``Authorization`` headers across origins. Because of that,
+``access_control_allow_origins`` must list the exact origins that need access — the wildcard
+``*`` is rejected at startup. The CORS spec forbids combining
+``Access-Control-Allow-Origin: *`` with credentialed responses, and browsers refuse any
+response that does so, so a wildcard origin would simply break every cross-origin request.
 
 Page size limit
 ---------------

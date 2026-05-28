@@ -94,6 +94,12 @@ class ResumableJobMixin:
         - On retry with active job: skips submission, reconnects to the running job.
         - On retry with succeeded job: skips submission and polling, returns result immediately.
         - On retry with failed job: falls through and resubmits fresh.
+
+        Known limitation: there is a small window between ``submit_job`` returning and
+        ``task_state.set`` completing. If the worker dies in that gap, the next retry still
+        holds the previous (terminal) ID and will resubmit a fresh job rather than reconnecting.
+        Closing this window would require atomic "submit + persist", which is not possible across
+        an external system boundary.
         """
         task_state = context.get("task_state")
 
