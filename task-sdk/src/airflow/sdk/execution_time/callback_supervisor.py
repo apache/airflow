@@ -230,7 +230,7 @@ class CallbackSubprocess(WatchedSubprocess):
 
     def wait(self) -> int:
         """
-        Wait for the callback subprocess to complete, then upload logs to remote storage.
+        Wait for the callback subprocess to complete.
 
         Mirrors the structure of ActivitySubprocess.wait() but without heartbeating
         or task API state management.
@@ -257,7 +257,7 @@ class CallbackSubprocess(WatchedSubprocess):
             with _remote_logging_conn(self.client):
                 upload_to_remote(self.process_log)
         except Exception:
-            log.exception("Failed to upload callback logs to remote storage", id=self.id, pid=self.pid)
+            log.exception("Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid)
 
     def _monitor_subprocess(self):
         """
