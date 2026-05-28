@@ -389,8 +389,6 @@ def clear_dag_run(
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
-    # ``note=None`` means "leave existing note untouched"; any string (including ``""``)
-    # replaces it. Mirrors the convention used by ``ClearTaskInstancesBody``.
     if body.note is not None:
         if dag_run_cleared.dag_run_note is None:
             dag_run_cleared.note = (body.note, user.get_id())

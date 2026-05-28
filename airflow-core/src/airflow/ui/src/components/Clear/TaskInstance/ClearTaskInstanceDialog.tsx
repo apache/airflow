@@ -256,10 +256,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 include_future: future,
                 include_past: past,
                 include_upstream: upstream,
-                // The clear endpoint applies the note in the same transaction
-                // when it is provided; leaving it off leaves any existing note
-                // on the cleared TIs untouched.
-                ...(noteChanged ? { note } : {}),
+                note: noteChanged ? note : undefined,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],

@@ -345,17 +345,6 @@ class DAGPatchBody(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
 
 
-class Note2(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description='Optional note to attach to the Dag Run as part of the clear. ``None`` (the default) leaves the existing note untouched; any string value (including ``""``) replaces it.',
-            max_length=1000,
-            title="Note",
-        ),
-    ]
-
-
 class DAGRunClearBody(BaseModel):
     """
     Dag Run serializer for clear endpoint body.
@@ -380,17 +369,7 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
-    note: Annotated[
-        Note2 | None,
-        Field(
-            description='Optional note to attach to the Dag Run as part of the clear. ``None`` (the default) leaves the existing note untouched; any string value (including ``""``) replaces it.',
-            title="Note",
-        ),
-    ] = None
-
-
-class Note3(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGSourceResponse(BaseModel):
@@ -1635,7 +1614,7 @@ class DAGRunPatchBody(BaseModel):
         extra="forbid",
     )
     state: DagRunMutableStates | None = None
-    note: Annotated[Note3 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGRunResponse(BaseModel):
@@ -1804,7 +1783,7 @@ class PatchTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
-    note: Annotated[Note3 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False

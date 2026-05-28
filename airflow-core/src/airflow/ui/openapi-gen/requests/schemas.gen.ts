@@ -2789,8 +2789,7 @@ export const $DAGRunClearBody = {
                     type: 'null'
                 }
             ],
-            title: 'Note',
-            description: 'Optional note to attach to the Dag Run as part of the clear. ``None`` (the default) leaves the existing note untouched; any string value (including ``""``) replaces it.'
+            title: 'Note'
         }
     },
     additionalProperties: false,

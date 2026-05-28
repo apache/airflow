@@ -106,9 +106,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
           dagRunId: dagRun.dag_run_id,
           requestBody: {
             dry_run: false,
-            // The clear endpoint applies the note in the same transaction when
-            // it is provided; ``null`` / unset leaves the existing note alone.
-            ...(options.note === null ? {} : { note: options.note }),
+            note: options.note ?? undefined,
             only_failed: options.onlyFailed,
             only_new: options.onlyNew,
           },
