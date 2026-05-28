@@ -1,0 +1,1 @@
+Fixed ``airflow dags next-execution --table`` crash when a DAG has no next scheduled run.
