@@ -529,7 +529,7 @@ class TestImapHook:
     @patch(imaplib_string)
     def test_download_mail_attachments_overwrite_true(self, mock_imaplib, mock_open_method):
         _create_fake_imap(mock_imaplib, with_mail=True)
-        
+
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=True)
 
