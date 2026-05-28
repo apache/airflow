@@ -509,3 +509,51 @@ class TestGoogleCloudStorageToSFTPOperator:
             task._resolve_destination_path("incoming/sub/dir/file.csv")
             == "/srv/sftp/incoming/incoming/sub/dir/file.csv"
         )
+
+    @pytest.mark.parametrize(
+        ("destination_path", "source_object", "expected"),
+        [
+            pytest.param(".", "file.txt", "file.txt", id="dot-base-benign"),
+            pytest.param("", "file.txt", "file.txt", id="empty-base-benign"),
+            pytest.param(".", "sub/dir/file.txt", "sub/dir/file.txt", id="dot-base-nested"),
+        ],
+    )
+    def test_resolve_destination_path_allows_relative_base(self, destination_path, source_object, expected):
+        # ``destination_path="."`` and ``destination_path=""`` are valid SFTP
+        # destinations — they refer to the SFTP user's login / current
+        # directory. The validation must allow these benign uploads while
+        # still rejecting ``..`` escapes and absolute-path absorption (covered
+        # by the next test).
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="*",
+            destination_path=destination_path,
+            keep_directory_structure=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        assert task._resolve_destination_path(source_object) == expected
+
+    @pytest.mark.parametrize(
+        "source_object",
+        [
+            pytest.param("../etc/passwd", id="dotdot-escape-from-relative-base"),
+            pytest.param("/etc/passwd", id="absolute-absorbs-relative-base"),
+        ],
+    )
+    def test_resolve_destination_path_rejects_escape_from_relative_base(self, source_object):
+        # With a relative ``destination_path`` such as ``"."``, ``..`` segments
+        # escape the configured root and absolute ``source_object`` values
+        # absorb it entirely — both must still be refused.
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="*",
+            destination_path=".",
+            keep_directory_structure=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        with pytest.raises(AirflowException, match="escapes configured destination_path"):
+            task._resolve_destination_path(source_object)
