@@ -1,8 +1,9 @@
 {
   "backfill": {
-    "affected_few": "Будет запущено {{count}} процесса.",
-    "affected_one": "Будет запущен 1 процесс.",
-    "affected_other": "Будет запущено {{count}} процессов.",
+    "affected_few": "{{count}} запуска будут запущены",
+    "affected_many": "{{count}} запусков будет запущено",
+    "affected_one": "{{count}} запуск будет запущен",
+    "affected_other": "{{count}} запуска будет запущено",
     "affectedNone": "Нет процессов, соответствующих выбранным критериям.",
     "allRuns": "Все процессы",
     "backwards": "Запуск назад",
@@ -11,9 +12,11 @@
     "maxRuns": "Максимум активных запусков",
     "missingAndErroredRuns": "Отсутствующие и ошибочные запуски",
     "missingRuns": "Отсутствующие запуски",
+    "overrideExistingParams": "Переопределить параметры существующих запусков",
     "permissionDenied": "Не удалось выполнить пробный запуск, так как у пользователя нет разрешения на создание Заполнения.",
     "reprocessBehavior": "Поведение повторной обработки",
     "run": "Запуск Заполнения",
+    "scheduleNotBackfillable": "Расписание этого Dag-а не поддерживает заполнения",
     "selectDescription": "Запуск этого Dag-а для диапазона дат",
     "selectLabel": "Заполнение",
     "title": "Запуск Заполнения",
@@ -48,8 +51,9 @@
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
     "warning_few": "{{count}} предупреждения",
-    "warning_one": "1 предупреждение",
-    "warning_other": "{{count}} предупреждений"
+    "warning_many": "{{count}} предупреждений",
+    "warning_one": "{{count}} предупреждение",
+    "warning_other": "{{count}} предупреждения"
   },
   "dateRangeFilter": {
     "validation": {
@@ -61,19 +65,22 @@
   "durationChart": {
     "duration": "Продолжительность (секунды)",
     "lastDagRun_few": "Последние {{count}} запуска Dag-а",
-    "lastDagRun_one": "Последний запуск Dag-а",
-    "lastDagRun_other": "Последние {{count}} запусков Dag-а",
+    "lastDagRun_many": "Последние {{count}} запусков Dag-а",
+    "lastDagRun_one": "Последний {{count}} запуск Dag-а",
+    "lastDagRun_other": "Последние {{count}} запуска Dag-а",
     "lastTaskInstance_few": "Последние {{count}} экземпляра задачи",
-    "lastTaskInstance_one": "Последний экземпляр задачи",
-    "lastTaskInstance_other": "Последние {{count}} экземпляров задачи",
+    "lastTaskInstance_many": "Последние {{count}} экземпляров задачи",
+    "lastTaskInstance_one": "Последний {{count}} экземпляр задачи",
+    "lastTaskInstance_other": "Последние {{count}} экземпляра задачи",
     "queuedDuration": "Длительность в очереди",
     "runAfter": "Запустить после",
     "runDuration": "Длительность запуска"
   },
   "fileUpload": {
     "files_few": "{{count}} файла",
+    "files_many": "{{count}} файлов",
     "files_one": "{{count}} файл",
-    "files_other": "{{count}} файлов"
+    "files_other": "{{count}} файла"
   },
   "flexibleForm": {
     "placeholder": "Выбрать значение",
@@ -95,21 +102,25 @@
     "downloadImageErrorTitle": "Ошибка загрузки",
     "otherDagRuns": "+Другие запуски Dag-а",
     "taskCount_few": "{{count}} задачи",
+    "taskCount_many": "{{count}} задач",
     "taskCount_one": "{{count}} задача",
-    "taskCount_other": "{{count}} задач",
-    "taskGroup": "Группа задач"
+    "taskCount_other": "{{count}} задачи",
+    "taskGroup": "Группа задач",
+    "zoomToTask": "Приблизить к выбранной задаче"
   },
   "limitedList": "Ещё +{{count}}",
   "limitedList.allItems": "Все {{count}} элемента(ов):",
   "limitedList.allTags_few": "Все теги ({{count}})",
-  "limitedList.allTags_one": "Все теги (1)",
+  "limitedList.allTags_many": "Все теги ({{count}})",
+  "limitedList.allTags_one": "Все теги ({{count}})",
   "limitedList.allTags_other": "Все теги ({{count}})",
   "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Dag-и",
   "limitedList.clickToOpenFull": "Нажмите \"Ещё +{{count}}\", чтобы открыть полный вид",
   "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
   "limitedList.showingItems_few": "Показано {{count}} элемента",
-  "limitedList.showingItems_one": "Показан 1 элемент",
-  "limitedList.showingItems_other": "Показано {{count}} элементов",
+  "limitedList.showingItems_many": "Показано {{count}} элементов",
+  "limitedList.showingItems_one": "Показан {{count}} элемент",
+  "limitedList.showingItems_other": "Показано {{count}} элемента",
   "logs": {
     "file": "Файл",
     "location": "строка {{line}} в {{name}}"

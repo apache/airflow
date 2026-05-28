@@ -8,9 +8,12 @@
       "received": "Просмотрено"
     }
   },
-  "requiredAction_one": "Необходимое действие",
-  "requiredAction_other": "Необходимые действия",
+  "requiredAction_few": "{{count}} обязательных действия",
+  "requiredAction_many": "{{count}} обязательных действий",
+  "requiredAction_one": "{{count}} обязательное действие",
+  "requiredAction_other": "{{count}} обязательных действия",
   "requiredActionCount_few": "Необходимые действия ({{count}})",
+  "requiredActionCount_many": "Необходимые действия ({{count}})",
   "requiredActionCount_one": "Необходимое действие ({{count}})",
   "requiredActionCount_other": "Необходимые действия ({{count}})",
   "requiredActionState": "Состояние необходимого действия",

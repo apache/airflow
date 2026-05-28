@@ -20,14 +20,19 @@
       "host": "Хост",
       "port": "Порт"
     },
+    "connection_few": "Соединения",
+    "connection_many": "Соединений",
     "connection_one": "Соединение",
-    "connection_other": "Соединений",
+    "connection_other": "Соединения",
     "delete": {
       "deleteConnection_few": "Удалить {{count}} соединения",
-      "deleteConnection_one": "Удалить 1 соединение",
-      "deleteConnection_other": "Удалить {{count}} соединений",
-      "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение:",
-      "firstConfirmMessage_other": "Вы собираетесь удалить следующие соединения:",
+      "deleteConnection_many": "Удалить {{count}} соединений",
+      "deleteConnection_one": "Удалить {{count}} соединение",
+      "deleteConnection_other": "Удалить {{count}} соединения",
+      "firstConfirmMessage_few": "Вы собираетесь удалить следующие соединения",
+      "firstConfirmMessage_many": "Вы собираетесь удалить следующие соединения",
+      "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение",
+      "firstConfirmMessage_other": "Вы собираетесь удалить следующие соединения",
       "title": "Удалить соединение"
     },
     "edit": "Редактировать соединение",
@@ -103,6 +108,8 @@
     "columns": {
       "source": "Источник"
     },
+    "importError_few": "Ошибки импорта плагинов",
+    "importError_many": "Ошибки импорта плагинов",
     "importError_one": "Ошибка импорта плагина",
     "importError_other": "Ошибки импорта плагинов",
     "searchPlaceholder": "Поиск по файлу"
@@ -121,11 +128,14 @@
       "includeDeferred": "Включить отложенные",
       "nameMaxLength": "Имя может содержать максимум 256 символов",
       "nameRequired": "Имя обязательно",
-      "slots": "Слоты"
+      "slots": "Слоты",
+      "slotsHelperText": "Используйте -1 для неограниченного количества слотов."
     },
     "noPoolsFound": "Пулы не найдены",
+    "pool_few": "Пула",
+    "pool_many": "Пулов",
     "pool_one": "Пул",
-    "pool_other": "Пулы",
+    "pool_other": "Пула",
     "searchPlaceholder": "Поиск пулов",
     "sort": {
       "asc": "Имя (A-Z)",
@@ -145,10 +155,14 @@
       "isEncrypted": "Зашифровано"
     },
     "delete": {
-      "deleteVariable_one": "Удалить 1 переменную",
-      "deleteVariable_other": "Удалить {{count}} переменных",
-      "firstConfirmMessage_one": "Вы собираетесь удалить следующую переменную:",
-      "firstConfirmMessage_other": "Вы собираетесь удалить следующие переменные:",
+      "deleteVariable_few": "Удалить {{count}} переменные",
+      "deleteVariable_many": "Удалить {{count}} переменных",
+      "deleteVariable_one": "Удалить {{count}} переменную",
+      "deleteVariable_other": "Удалить {{count}} переменные",
+      "firstConfirmMessage_few": "Вы собираетесь удалить следующие переменные",
+      "firstConfirmMessage_many": "Вы собираетесь удалить следующие переменные",
+      "firstConfirmMessage_one": "Вы собираетесь удалить следующую переменную",
+      "firstConfirmMessage_other": "Вы собираетесь удалить следующие переменные",
       "title": "Удалить переменную",
       "tooltip": "Удалить выбранные переменные"
     },
@@ -183,7 +197,9 @@
     },
     "noRowsMessage": "Переменные не найдены",
     "searchPlaceholder": "Поиск ключей",
+    "variable_few": "Переменные",
+    "variable_many": "Переменных",
     "variable_one": "Переменная",
-    "variable_other": "Переменные"
+    "variable_other": "Переменной"
   }
 }
