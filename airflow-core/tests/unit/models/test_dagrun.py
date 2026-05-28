@@ -778,6 +778,34 @@ class TestDagRun:
         ti = dag_run.get_task_instance("test_short_circuit_false")
         assert ti is None
 
+    @pytest.mark.parametrize(
+        "state_filter",
+        [
+            pytest.param(TaskInstanceState.SUCCESS, id="single-state"),
+            pytest.param([TaskInstanceState.SUCCESS], id="iterable-of-states"),
+        ],
+    )
+    def test_get_task_instances_state_accepts_single_or_iterable(self, dag_maker, session, state_filter):
+        with dag_maker(
+            dag_id="test_get_task_instances_state",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        ) as dag:
+            EmptyOperator(task_id="success_task")
+            EmptyOperator(task_id="failed_task")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={
+                "success_task": TaskInstanceState.SUCCESS,
+                "failed_task": TaskInstanceState.FAILED,
+            },
+            session=session,
+        )
+
+        tis = dag_run.get_task_instances(state=state_filter, session=session)
+        assert {ti.task_id for ti in tis} == {"success_task"}
+
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(
             dag_id="test_latest_runs_1", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE
