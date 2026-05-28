@@ -1130,6 +1130,31 @@ class TestConnection(TestConnectionEndpoint):
         assert response.status_code == 200
         spy_secrets.assert_not_called()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_existing_connection_lookup_preserves_team_scope(self, test_client, testing_team, session):
+        """The secrets-backend lookup must propagate the authorized
+        ``team_name`` to ``Connection.get_connection_from_secrets``.
+        Otherwise the call falls back to global / wrong-team paths in
+        team-aware backends (Vault, Akeyless, …) and can return a
+        cross-scope secret with the same ``conn_id`` — exactly what the
+        team-scoped authorization check above is supposed to prevent."""
+        self.create_connection(team_name=testing_team.name)
+        session.commit()
+
+        with mock.patch.object(
+            Connection,
+            "get_connection_from_secrets",
+            wraps=Connection.get_connection_from_secrets,
+        ) as spy_secrets:
+            response = test_client.post(
+                "/connections/test",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(

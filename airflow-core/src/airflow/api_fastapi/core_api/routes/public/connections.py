@@ -269,7 +269,9 @@ def test_connection(
             user=user,
         ):
             try:
-                existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
+                existing_conn = Connection.get_connection_from_secrets(
+                    test_body.connection_id, team_name=team_name
+                )
             except AirflowNotFoundException:
                 existing_conn = None
 
