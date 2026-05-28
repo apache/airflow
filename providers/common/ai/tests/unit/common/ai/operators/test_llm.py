@@ -32,7 +32,9 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
-    from airflow.sdk.serde import allow_class as _allow_class
+    from airflow.sdk.serde import allow_class
+
+    _allow_class: object | None = allow_class
 except ImportError:
     _allow_class = None
 

@@ -26,7 +26,9 @@ from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 try:
-    from airflow.sdk.serde import allow_class as _allow_class
+    from airflow.sdk.serde import allow_class
+
+    _allow_class: object | None = allow_class
 except ImportError:
     _allow_class = None
 
