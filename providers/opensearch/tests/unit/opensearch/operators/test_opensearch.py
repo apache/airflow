@@ -25,7 +25,7 @@ from airflow.providers.opensearch.operators.opensearch import (
     OpenSearchCreateIndexOperator,
     OpenSearchQueryOperator,
 )
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 opensearchpy = pytest.importorskip("opensearchpy")
 

@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.config import conf_vars
 

@@ -27,8 +27,6 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.sdk.state import TaskInstanceState
-import pendulum  # replaces airflow.utils.timezone utcnow
-
 
 def test_input_validation():
     """
@@ -120,7 +118,7 @@ async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
     """
     Tests DateTimeTrigger with time and asyncio mocks
     """
-    start_moment = utcnow()
+    start_moment = pendulum.now("UTC")
     trigger_moment = start_moment + datetime.timedelta(seconds=30)
 
     # returns the mock 'current time'. The first 3 calls report the initial time

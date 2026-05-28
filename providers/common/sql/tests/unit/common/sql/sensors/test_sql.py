@@ -25,7 +25,7 @@ from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_sql_dag"

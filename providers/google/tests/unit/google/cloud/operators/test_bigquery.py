@@ -82,7 +82,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.utils.task_group import TaskGroup
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 TASK_ID = "test-bq-generic-operator"
 TEST_DATASET = "test-dataset"

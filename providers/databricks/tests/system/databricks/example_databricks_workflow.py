@@ -28,7 +28,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksTaskOperator,
 )
 from airflow.providers.databricks.operators.databricks_workflow import DatabricksWorkflowTaskGroup
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", str(6)))
 

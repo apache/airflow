@@ -77,7 +77,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.timezone import coerce_datetime, datetime
 else:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-    import pendulum  # replaces airflow.utils.timezone coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
+    from pendulum import instance as coerce_datetime, datetime  # replaces airflow.utils.timezone coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag

@@ -43,7 +43,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 try:
     from airflow.sdk.timezone import datetime
 except ImportError:
-    import pendulum  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
+    from pendulum import datetime  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)

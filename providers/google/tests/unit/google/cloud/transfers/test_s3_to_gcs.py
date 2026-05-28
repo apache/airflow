@@ -532,7 +532,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             dest_gcs=GCS_PATH_PREFIX,
         )
 
-        now_time = utcnow()
+        now_time = pendulum.now("UTC")
         with time_machine.travel(now_time):
             with mock.patch.object(operator, "get_transfer_hook") as mock_get_transfer_hook:
                 mock_create_transfer_job = mock.MagicMock(

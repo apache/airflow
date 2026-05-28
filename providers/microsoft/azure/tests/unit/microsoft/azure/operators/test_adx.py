@@ -24,7 +24,7 @@ from azure.kusto.data._models import KustoResultTable
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

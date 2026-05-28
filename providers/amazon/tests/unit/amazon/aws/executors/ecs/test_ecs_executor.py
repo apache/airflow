@@ -882,7 +882,7 @@ class TestAwsEcsExecutor:
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
-        mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
+        mock_executor._calculate_next_attempt_time = MagicMock(return_value=pendulum.now("UTC"))
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
         for _ in range(2):

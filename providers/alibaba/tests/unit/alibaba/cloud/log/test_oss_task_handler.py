@@ -26,7 +26,7 @@ import pytest
 
 from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
 from airflow.sdk.state import TaskInstanceState
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs

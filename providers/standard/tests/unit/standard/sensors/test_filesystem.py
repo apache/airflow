@@ -27,7 +27,7 @@ import pytest
 try:
     from airflow.sdk.timezone import datetime
 except ImportError:
-    import pendulum  # replaces airflow.utils.timezone datetime  # type: ignore[no-redef]
+    from pendulum import datetime  # replaces airflow.utils.timezone datetime  # type: ignore[no-redef]
 
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred

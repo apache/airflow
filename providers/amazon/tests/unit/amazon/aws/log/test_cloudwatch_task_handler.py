@@ -42,7 +42,7 @@ from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.sdk.state import State
-import pendulum  # replaces airflow.utils.timezone datetime
+from pendulum import datetime  # replaces airflow.utils.timezone datetime
 
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars

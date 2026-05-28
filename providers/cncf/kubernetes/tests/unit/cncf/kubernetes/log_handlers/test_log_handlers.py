@@ -49,7 +49,7 @@ if AIRFLOW_V_3_0_PLUS:
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.timezone import datetime
 else:
-    import pendulum  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
+    from pendulum import datetime  # replaces airflow.utils.timezone datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
