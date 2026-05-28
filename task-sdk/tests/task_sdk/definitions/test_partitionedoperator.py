@@ -99,32 +99,29 @@ class TestPartitionedOperator:
             iterable_op = op._iterate(expand_input, strict=False)
 
             # Check if partitioned or non-partitioned
-            is_partitioned = partition_size > 0
-            if is_partitioned:
+            if partition_size > 0:
                 assert isinstance(iterable_op, MappedIterableOperator)
                 mapped_op = iterable_op.delegate
                 assert iterable_op.partition_size == partition_size
-            else:
-                assert isinstance(iterable_op, IterableOperator)
-                mapped_op = iterable_op._operator
 
-            # 1. Verify partition_size is in partial_kwargs
-            assert "partition_size" in mapped_op.partial_kwargs
-            assert mapped_op.partial_kwargs["partition_size"] == partition_size
+                # 1. Verify partition_size is in partial_kwargs
+                assert "partition_size" in mapped_op.partial_kwargs
+                assert mapped_op.partial_kwargs["partition_size"] == partition_size
 
-            # 2. Verify partition_size is serialized (not excluded)
-            serialized = OperatorSerialization.serialize_operator(mapped_op)
-            assert "partial_kwargs" in serialized
-            assert "partition_size" in serialized["partial_kwargs"]
-            assert serialized["partial_kwargs"]["partition_size"] == partition_size
+                # 2. Verify partition_size is serialized (not excluded)
+                serialized = OperatorSerialization.serialize_mapped_operator(mapped_op)
+                assert "partial_kwargs" in serialized
+                assert "partition_size" in serialized["partial_kwargs"]
+                assert serialized["partial_kwargs"]["partition_size"] == partition_size
 
-            # 3. Verify partition_size survives deserialization
-            deserialized_op = OperatorSerialization.deserialize_operator(serialized)
-            assert "partition_size" in deserialized_op.partial_kwargs
-            assert deserialized_op.partial_kwargs["partition_size"] == partition_size
+                # 3. Verify partition_size survives deserialization
+                deserialized_op = OperatorSerialization.deserialize_operator(serialized)
+                assert "partition_size" in deserialized_op.partial_kwargs
+                assert deserialized_op.partial_kwargs["partition_size"] == partition_size
 
-            # 4. Verify partition_size is removed before operator instantiation (only for partitioned)
-            if is_partitioned:
+                # 4. Verify partition_size is removed before operator instantiation (only for partitioned)
                 unmapped = iterable_op.unmap({"x": 1})
                 # Verify unmapped task doesn't have partition_size attribute
                 assert not hasattr(unmapped, "partition_size")
+            else:
+                assert isinstance(iterable_op, IterableOperator)
