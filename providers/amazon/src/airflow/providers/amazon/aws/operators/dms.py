@@ -143,7 +143,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     :param cdc_stop_position: Indicates when to stop CDC.
     :param wait_for_completion: If True, wait for the modification to finish before returning.
         In deferrable mode the operator defers rather than blocking. Defaults to True.
-    :param deferrable: Run the operator in deferrable mode.
+    :param deferrable: Run the operator in deferrable mode. Defaults to False.
     :param waiter_delay: Seconds between waiter polls (default: 30).
     :param waiter_max_attempts: Maximum waiter poll attempts (default: 60).
     :param aws_conn_id: The Airflow connection used for AWS credentials.
