@@ -257,7 +257,9 @@ class CallbackSubprocess(WatchedSubprocess):
             with _remote_logging_conn(self.client):
                 upload_to_remote(self.process_log)
         except Exception:
-            log.exception("Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid)
+            log.exception(
+                "Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid
+            )
 
     def _monitor_subprocess(self):
         """
