@@ -123,6 +123,7 @@ def build_file_analysis_request(
     file_path: str,
     file_conn_id: str | None,
     prompt: str,
+    include_user_request: bool = True,
     multi_modal: bool,
     max_files: int,
     max_file_size_bytes: int,
@@ -204,6 +205,7 @@ def build_file_analysis_request(
         log.info("Normalized text content exceeded max_text_chars=%s and was truncated.", max_text_chars)
     text_preamble = _build_text_preamble(
         prompt=prompt,
+        include_user_request=include_user_request,
         prepared_files=prepared_files,
         omitted_files=omitted_files,
         text_truncated=text_truncated,
@@ -593,16 +595,21 @@ def _apply_text_budget(*, prepared_files: list[_PreparedFile], max_text_chars: i
 def _build_text_preamble(
     *,
     prompt: str,
+    include_user_request: bool,
     prepared_files: list[_PreparedFile],
     omitted_files: int,
     text_truncated: bool,
 ) -> str:
-    lines = [
-        "User request:",
-        prompt,
-        "",
-        "Resolved files:",
-    ]
+    lines: list[str] = []
+    if include_user_request:
+        lines.extend(
+            [
+                "User request:",
+                prompt,
+                "",
+            ]
+        )
+    lines.append("Resolved files:")
     text_sections: list[str] = []
     has_attachments = False
     for prepared in prepared_files:
