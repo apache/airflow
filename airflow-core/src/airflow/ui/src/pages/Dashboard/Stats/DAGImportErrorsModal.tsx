@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Heading, Text, HStack, ClipboardRoot } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
@@ -38,7 +38,6 @@ const PAGE_LIMIT = 15;
 export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openItems, setOpenItems] = useState<Array<string>>([]);
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
@@ -49,10 +48,6 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
     undefined,
     { enabled: open },
   );
-
-  useEffect(() => {
-    setOpenItems(data?.import_errors.map((importError) => String(importError.import_error_id)) ?? []);
-  }, [data?.import_errors]);
 
   const { t: translate } = useTranslation(["dashboard", "components"]);
 
@@ -66,6 +61,8 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
     setSearchQuery(value);
     setPage(1);
   };
+
+  const importErrorIds = data?.import_errors.map((importError) => String(importError.import_error_id)) ?? [];
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
@@ -87,10 +84,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.Body>
           <Accordion.Root
             collapsible
+            defaultValue={importErrorIds}
+            key={importErrorIds.join(",")}
             multiple
-            onValueChange={(details) => setOpenItems(details.value)}
             size="md"
-            value={openItems}
             variant="enclosed"
           >
             {data?.import_errors.map((importError) => (
