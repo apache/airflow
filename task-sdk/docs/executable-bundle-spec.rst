@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Bundle Spec Format
-==================
+Executable Bundle Spec
+======================
 
 This document specifies the on-disk format of a build artifact produced by an
 Airflow native-executable SDK (Go, Rust, C++, Zig, ...) and consumed by
@@ -27,7 +27,7 @@ The goal is a single, language-agnostic *bundle* shape so that scheduler,
 worker, and UI behave identically regardless of which compiled SDK produced
 the DAG.
 
-Format version: ``1.0``.
+Bundle-spec version: ``1.0``.
 
 Container
 ---------
@@ -45,8 +45,9 @@ A bundle file therefore has three regions, in order from offset 0:
 2. The primary DAG source file, embedded verbatim (UTF-8). MAY have length 0.
 3. The build-time manifest (``airflow-metadata.yaml`` content, UTF-8).
 
-The file ends with a fixed 32-byte trailer that locates regions (2) and (3)
-and identifies the file as a bundle. See :ref:`bundle-trailer-layout`.
+The file ends with a fixed 64-byte trailer that locates regions (2) and (3),
+carries an integrity hash of the binary region, and identifies the file as a
+bundle. See :ref:`bundle-trailer-layout`.
 
 Filenames follow OS conventions for executables: no extension on Linux/macOS,
 ``.exe`` on Windows. The scanner identifies bundles by the trailer's magic,
@@ -57,16 +58,17 @@ not by the filename.
 Trailer Layout
 --------------
 
-The last 32 bytes of a conforming bundle are the trailer. All multi-byte
+The last 64 bytes of a conforming bundle are the trailer. All multi-byte
 integers are little-endian.
 
 ::
 
-    bytes  0..3   source_len    uint32   length of the source region in bytes
-    bytes  4..7   metadata_len  uint32   length of the metadata region in bytes
-    bytes  8..11  footer_ver    uint32   currently 1
-    bytes 12..23  reserved      12 bytes, MUST be zero
-    bytes 24..31  magic         8 bytes ASCII "AFBNDL01"
+    bytes  0..3    source_len     uint32     length of the source region in bytes
+    bytes  4..7    metadata_len   uint32     length of the metadata region in bytes
+    bytes  8..11   footer_ver     uint32     currently 1
+    bytes 12..43   binary_sha256  32 bytes   SHA-256 of the binary region
+    bytes 44..55   reserved       12 bytes   MUST be zero
+    bytes 56..63   magic          8 bytes    ASCII "AFBNDL01"
 
 The magic is the byte sequence ``0x41 0x46 0x42 0x4E 0x44 0x4C 0x30 0x31``
 (``"AFBNDL01"``). The trailing ``01`` is the footer-format version repeated
@@ -74,20 +76,33 @@ in ASCII so a human can identify a bundle at a glance
 (``tail -c 8 ./mybundle | xxd``); the binary ``footer_ver`` field is the
 authoritative source of truth for parsing.
 
+``binary_sha256`` is the SHA-256 digest computed over the **binary region
+only** — bytes ``[0, source_start)``. The hash field sits inside the trailer
+and therefore cannot cover the bytes it occupies; it provides *integrity*
+(the binary region has not been truncated, corrupted, or naively edited
+between packing and exec) rather than *authenticity*
+(see :ref:`bundle-code-signing` for how authenticity layers on top).
+
 Reader algorithm:
 
-1. Open the file. Seek to ``EOF - 32``. Read 32 bytes.
-2. Compare bytes ``24..31`` against ``"AFBNDL01"``. If different, the file
+1. Open the file. Seek to ``EOF - 64``. Read 64 bytes.
+2. Compare bytes ``56..63`` against ``"AFBNDL01"``. If different, the file
    is not a bundle; the scanner MUST ignore it.
 3. Parse ``footer_ver``. If unknown, fail with a versioning error.
-4. Compute ``metadata_start = filesize - 32 - metadata_len`` and
+4. Compute ``metadata_start = filesize - 64 - metadata_len`` and
    ``source_start = metadata_start - source_len``.
-5. Read ``metadata_len`` bytes from ``metadata_start`` for the manifest.
-6. Read ``source_len`` bytes from ``source_start`` for the source view.
+5. Validate ``source_start >= 0`` and that the implied binary region
+   (``[0, source_start)``) is non-empty.
+6. Compute SHA-256 over the binary region ``[0, source_start)`` and compare
+   to ``binary_sha256``. Mismatch is a hard failure handled identically to
+   a magic-check failure: the scanner logs and skips the file. The result
+   MAY be cached by ``(path, inode, mtime, size)`` so the runtime does not
+   re-hash on every exec; a cache miss (file replaced, mtime bumped)
+   triggers re-verification.
+7. Read ``metadata_len`` bytes from ``metadata_start`` for the manifest.
+8. Read ``source_len`` bytes from ``source_start`` for the source view.
    If ``source_len == 0``, no source is embedded; the UI displays
    "(source not available)".
-7. Validate ``source_start >= 0`` and that the implied binary region
-   (``[0, source_start)``) is non-empty.
 
 Source comes *before* metadata so a future ``footer_ver`` MAY introduce
 additional trailing blobs (e.g. signed checksums, compressed deps) by
@@ -106,10 +121,11 @@ and editors.
 
 .. code-block:: yaml
 
-    format_version: "1.0"
+    airflow_bundle_metadata_version: "1.0"
     sdk:
       language: go
       version: "0.1.0"
+      supervisor_schema_version: "2026-06-16"
     source: example.go
     dags:
       example_dag:
@@ -123,7 +139,7 @@ and editors.
 
 Top-level keys:
 
-``format_version`` (string, required)
+``airflow_bundle_metadata_version`` (string, required)
     The bundle-spec version this manifest conforms to. Currently ``"1.0"``.
 
 ``sdk`` (mapping, required)
@@ -132,6 +148,13 @@ Top-level keys:
     - ``language`` (string, required): lower-case source-language identifier
       (e.g. ``go``, ``rust``, ``cpp``, ``zig``).
     - ``version`` (string, required): SDK version used at build time.
+    - ``supervisor_schema_version`` (string, required): dated AIP-72
+      supervisor wire-schema version the bundle was compiled against, in
+      ``YYYY-MM-DD`` format (e.g. ``"2026-06-16"``). The coordinator passes
+      this value to the supervisor so it can downgrade outbound messages /
+      upgrade inbound messages to a shape the bundle understands. The value
+      MUST resolve against the supervisor's schema bundle; an unknown
+      version is rejected at coordinator start.
 
 ``source`` (string, required)
     Original filename of the primary DAG source file (e.g. ``example.go``).
@@ -164,7 +187,7 @@ Go bundle::
     ├── ELF/Mach-O/PE executable
     ├── source region:   contents of example.go
     ├── metadata region: airflow-metadata.yaml (source: example.go)
-    └── trailer (32 B):  AFBNDL01 magic + lengths
+    └── trailer (64 B):  lengths + binary_sha256 + AFBNDL01 magic
 
 Rust bundle::
 
@@ -172,7 +195,7 @@ Rust bundle::
     ├── ELF/Mach-O/PE executable
     ├── source region:   contents of main.rs
     ├── metadata region: airflow-metadata.yaml (source: main.rs)
-    └── trailer (32 B):  AFBNDL01 magic + lengths
+    └── trailer (64 B):  lengths + binary_sha256 + AFBNDL01 magic
 
 The bundle is one file. ``./example`` runs the binary; the appended data
 is invisible to ``exec()``.
@@ -186,15 +209,34 @@ that perform additional post-build steps MUST observe the following order:
 - **Strip** debug symbols *before* appending the footer. Strip
   implementations operate on the binary's defined end and either leave
   trailing data intact or truncate it; do not rely on either behaviour.
-- **Code-sign** *after* appending the footer on platforms whose signature
-  covers the entire file (Authenticode, certain notarisation flows). The
-  signature then attests to the footer's contents along with the binary.
-- **Compressors** such as UPX are NOT supported. They rewrite the file
-  end-to-end and destroy the trailer.
+- **Compute binary_sha256** over the on-disk bytes *as they stand
+  immediately before the append*. At that moment the whole file is the
+  binary region; nothing has been written past its OS-defined end yet, so
+  the digest matches what the reader will recompute over
+  ``[0, source_start)`` after the append.
+- **Append** ``<source><metadata><trailer>`` in a single write so a
+  partially written file fails the magic or hash check rather than
+  appearing as a half-valid bundle.
+
+.. _bundle-code-signing:
+
+Code Signing
+~~~~~~~~~~~~
+
+The bundle format itself does not require OS-level code signing.
+``binary_sha256`` provides integrity against truncation, in-flight
+corruption, and naive tampering, and Airflow's threat model treats
+``executables_root`` as Deployment-Manager-controlled — *authenticity*
+(signed by a trusted identity) is a deployment-time concern rather than a
+bundle-format one.
+
+**Compressors** such as UPX are NOT supported. They rewrite the file
+end-to-end, destroying both the trailer and the hash invariant.
 
 Determinism: the trailer is byte-identical for byte-identical inputs, so a
 deterministic build plus a canonical (sorted-key) manifest serialisation
-yields a byte-identical bundle file.
+yields a byte-identical bundle file (and therefore a stable
+``binary_sha256``).
 
 Deployment Layout
 -----------------
@@ -203,10 +245,12 @@ Bundle files are placed **as-is** in any of the directories configured as the
 ``executables_root`` kwarg on the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
 under ``[sdk] coordinators``. The scanner enumerates regular files in each
-directory, reads the last 32 bytes of each, and treats files whose magic
-matches ``"AFBNDL01"`` as bundles. Files without the magic are silently
-ignored, so non-bundle files (READMEs, dotfiles) MAY share the directory
-without interfering with the scan.
+directory, reads the last 64 bytes of each, and treats files whose magic
+matches ``"AFBNDL01"`` as bundles. Matched files are then SHA-256-verified
+per the reader algorithm; a mismatch demotes the file back to "ignored, with
+an error log." Files without the magic are silently ignored, so non-bundle
+files (READMEs, dotfiles) MAY share the directory without interfering with
+the scan.
 
 ::
 
@@ -219,7 +263,9 @@ At task-execution time the runtime execs the bundle file directly with the
 coordinator arguments (``--comm=<addr>`` / ``--logs=<addr>``). No extraction,
 no transient cache directory, no chmod-after-extract step is required: the
 file is already a runnable executable with the appropriate permission bits
-preserved by the build pipeline.
+preserved by the build pipeline. The integrity check runs at scan/discovery
+time and is cached by ``(path, inode, mtime, size)``, so the exec hot path
+does not re-hash.
 
 The compiled executable MUST honour the SDK coordinator protocol —
 ``--comm=<host:port>`` / ``--logs=<host:port>`` socket-based IPC.
@@ -239,14 +285,15 @@ helpers are expected from each language's packer.
 Compatibility and Versioning
 ----------------------------
 
-- The current bundle-spec format version is ``1.0``; the current trailer
-  format version is ``1`` (``footer_ver = 1``).
+- The current bundle-spec format version is ``1.0``
+  (``airflow_bundle_metadata_version``); the current trailer format version is
+  ``1`` (``footer_ver = 1``).
 - Backward-incompatible bundle-spec changes increment the major component
-  of ``format_version`` and are gated behind an explicit opt-in on the
-  consumer side.
+  of ``airflow_bundle_metadata_version`` and are gated behind an explicit opt-in
+  on the consumer side.
 - New optional manifest fields MAY be added in minor versions and MUST be
   ignored by older consumers.
-- New trailer-format versions append fields after ``footer_ver`` (consuming
-  the reserved region) or extend the trailer with additional trailing
-  blobs ahead of the magic. Older readers MUST reject unknown
+- New trailer-format versions append fields after ``binary_sha256``
+  (consuming the reserved region) or extend the trailer with additional
+  trailing blobs ahead of the magic. Older readers MUST reject unknown
   ``footer_ver`` rather than guessing.

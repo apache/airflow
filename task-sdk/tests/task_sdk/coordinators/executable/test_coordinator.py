@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import socket
 import stat
 import struct
 import subprocess
 from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,6 +36,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_SIZE,
     ExecutableCoordinator,
     _Bundle,
+    _cached_binary_region_digest,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -49,8 +52,12 @@ _DEFAULT_BINARY_PAYLOAD = b"\x7fELF" + b"binary-stub-payload"
 
 def _make_metadata(dag_ids, source_filename: str = "example.go") -> dict:
     return {
-        "format_version": "1.0",
-        "sdk": {"language": "go", "version": "0.1.0"},
+        "airflow_bundle_metadata_version": "1.0",
+        "sdk": {
+            "language": "go",
+            "version": "0.1.0",
+            "supervisor_schema_version": "2026-06-16",
+        },
         "source": source_filename,
         "dags": {dag_id: {"tasks": ["task1"]} for dag_id in dag_ids},
     }
@@ -67,6 +74,7 @@ def _build_bundle(
     footer_ver: int = 1,
     magic: bytes = FOOTER_MAGIC,
     reserved: bytes = b"\x00" * 12,
+    binary_sha256: bytes | None = None,
 ) -> Path:
     if isinstance(source, str):
         source_bytes = source.encode("utf-8")
@@ -83,7 +91,12 @@ def _build_bundle(
 
     if len(reserved) != 12:
         raise ValueError("reserved must be exactly 12 bytes")
-    trailer = struct.pack("<III", len(source_bytes), len(metadata_bytes), footer_ver) + reserved + magic
+    digest = binary_sha256 if binary_sha256 is not None else hashlib.sha256(binary_bytes).digest()
+    if len(digest) != 32:
+        raise ValueError("binary_sha256 must be exactly 32 bytes")
+    trailer = (
+        struct.pack("<III", len(source_bytes), len(metadata_bytes), footer_ver) + digest + reserved + magic
+    )
     assert len(trailer) == FOOTER_SIZE
 
     path.write_bytes(binary_bytes + source_bytes + metadata_bytes + trailer)
@@ -127,6 +140,14 @@ class TestBundleFind:
         bundle = _Bundle.find([tmp_path], "beta_dag")
         assert bundle.path == beta.resolve()
 
+    def test_searches_nested_subdirectories(self, tmp_path):
+        nested = tmp_path / "team-a" / "release-2026.05"
+        nested.mkdir(parents=True)
+        target = _build_bundle(nested / "pipeline", dag_ids=["nested_dag"])
+
+        bundle = _Bundle.find([tmp_path], "nested_dag")
+        assert bundle.path == target.resolve()
+
     def test_searches_multiple_roots(self, tmp_path):
         root_a = tmp_path / "a"
         root_b = tmp_path / "b"
@@ -161,13 +182,65 @@ class TestBundleFind:
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
             _Bundle.find([tmp_path / "does_not_exist"], "tutorial_dag")
 
+    def test_skips_bundle_with_corrupted_binary_region(self, tmp_path):
+        bundle_path = _build_bundle(tmp_path / "tampered", dag_ids=["tutorial_dag"])
+        # Flip a byte in the binary region; the embedded SHA-256 no longer matches.
+        data = bytearray(bundle_path.read_bytes())
+        data[0] ^= 0xFF
+        bundle_path.write_bytes(bytes(data))
+        bundle_path.chmod(bundle_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        _cached_binary_region_digest.cache_clear()
+
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+                _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle binary_sha256 mismatch; skipping",
+            path=str(bundle_path),
+            expected=mock.ANY,
+            actual=mock.ANY,
+        )
+
+    def test_captures_schema_version_from_metadata(self, tmp_path):
+        _build_bundle(tmp_path / "with_schema", dag_ids=["tutorial_dag"])
+
+        bundle = _Bundle.find([tmp_path], "tutorial_dag")
+        assert bundle.schema_version == "2026-06-16"
+
+    def test_skips_bundle_when_schema_version_missing(self, tmp_path):
+        metadata = _make_metadata(["tutorial_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle_path = _build_bundle(tmp_path / "no_schema", dag_ids=["tutorial_dag"], metadata=metadata)
+
+        # Validator rejects the missing schema_version, so find() treats the bundle as unusable.
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+                _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle metadata rejected by validator; skipping",
+            path=str(bundle_path),
+            error=mock.ANY,
+        )
+
+    def test_skips_bundle_with_unknown_schema_version(self, tmp_path):
+        metadata = _make_metadata(["tutorial_dag"])
+        metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
+        bundle_path = _build_bundle(tmp_path / "bogus_schema", dag_ids=["tutorial_dag"], metadata=metadata)
+
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+                _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle metadata rejected by validator; skipping",
+            path=str(bundle_path),
+            error=mock.ANY,
+        )
+
 
 class TestExecutableCoordinatorAttributes:
-    def test_default_kwargs(self):
-        coordinator = ExecutableCoordinator()
-        assert coordinator.sdk == "executable"
-        assert coordinator.executables_root == []
-
     def test_executables_root_accepts_single_path(self, tmp_path):
         coordinator = ExecutableCoordinator(executables_root=str(tmp_path))
         assert coordinator.executables_root == [tmp_path]
@@ -177,25 +250,34 @@ class TestExecutableCoordinatorAttributes:
         coordinator = ExecutableCoordinator(executables_root=[str(tmp_path), other])
         assert coordinator.executables_root == [tmp_path, other]
 
-    def test_executables_root_none_becomes_empty_list(self):
-        coordinator = ExecutableCoordinator(executables_root=None)
-        assert coordinator.executables_root == []
+    def test_executables_root_required(self):
+        with pytest.raises(TypeError, match="executables_root"):
+            ExecutableCoordinator()
+
+    def test_executables_root_must_be_non_empty(self):
+        with pytest.raises(ValueError, match="executables_root"):
+            ExecutableCoordinator(executables_root=None)
 
 
-class TestResolveExecutable:
-    def test_resolves_via_executables_root(self, tmp_path):
+class TestBuildExecuteTaskCommand:
+    def test_returns_resolved_executable_and_schema_version(self, tmp_path):
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        resolved = coordinator._resolve_executable(what=ti)
-        assert resolved == str(binary.resolve())
+        command, schema_version = coordinator._build_execute_task_command(what=ti)
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
 
-    def test_raises_when_executables_root_missing(self):
+    def test_raises_when_bundle_omits_schema_version(self, tmp_path):
+        metadata = _make_metadata(["tutorial_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"], metadata=metadata)
         ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator()
-        with pytest.raises(ValueError, match="executables_root kwarg must be set"):
-            coordinator._resolve_executable(what=ti)
+
+        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
+        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+            coordinator._build_execute_task_command(what=ti)
 
     def test_raises_when_dag_id_not_found(self, tmp_path):
         _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
@@ -203,7 +285,7 @@ class TestResolveExecutable:
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            coordinator._resolve_executable(what=ti)
+            coordinator._build_execute_task_command(what=ti)
 
 
 @pytest.fixture
