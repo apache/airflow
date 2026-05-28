@@ -754,10 +754,26 @@ class DAG:
         """
         self.timetable.validate()
         self.validate_setup_teardown()
+        self.validate_depends_on_previous_tasks()
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
         self._validate_owner_links(None, self.owner_links)
+
+    def validate_depends_on_previous_tasks(self):
+        """
+        Validate that depends_on_previous_tasks references valid task IDs in this DAG.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if deps := getattr(task, "depends_on_previous_tasks", None):
+                invalid_ids = set(deps) - set(self.task_dict)
+                if invalid_ids:
+                    raise ValueError(
+                        f"Task '{task.task_id}': depends_on_previous_tasks references task IDs "
+                        f"not found in DAG '{self.dag_id}': {sorted(invalid_ids)}"
+                    )
 
     def validate_setup_teardown(self):
         """

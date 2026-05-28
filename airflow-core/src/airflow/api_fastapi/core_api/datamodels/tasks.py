@@ -62,6 +62,7 @@ class TaskResponse(BaseModel):
     end_date: datetime | None
     trigger_rule: str | None
     depends_on_past: bool
+    depends_on_previous_tasks: list[str] | None
     wait_for_downstream: bool
     retries: float | None
     queue: str | None

@@ -1948,6 +1948,7 @@ class TaskResponse(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
     trigger_rule: Annotated[str | None, Field(title="Trigger Rule")] = None
     depends_on_past: Annotated[bool, Field(title="Depends On Past")]
+    depends_on_previous_tasks: Annotated[list[str] | None, Field(title="Depends On Previous Tasks")] = None
     wait_for_downstream: Annotated[bool, Field(title="Wait For Downstream")]
     retries: Annotated[float | None, Field(title="Retries")] = None
     queue: Annotated[str | None, Field(title="Queue")] = None
