@@ -1589,6 +1589,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/connections/enqueue-test:
+    get:
+      tags:
+      - Connection
+      summary: Get Connection Test
+      description: Poll for the status of an enqueued connection test by its token
+        (passed as a header).
+      operationId: get_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: Airflow-Connection-Test-Token
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Airflow-Connection-Test-Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncConnectionTestResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Connection
+      summary: Enqueue Connection Test
+      description: Enqueue a connection test for deferred execution on a worker; returns
+        a polling token.
+      operationId: enqueue_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequestBody'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestQueuedResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /api/v2/connections:
     get:
       tags:
@@ -11423,6 +11519,35 @@ components:
       - created_date
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
+    AsyncConnectionTestResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+        result_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      - created_at
+      title: AsyncConnectionTestResponse
+      description: Response returned when polling for the status of an enqueued connection
+        test.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -12471,6 +12596,108 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestQueuedResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      title: ConnectionTestQueuedResponse
+      description: Response returned when a connection test has been enqueued for
+        worker execution.
+    ConnectionTestRequestBody:
+      properties:
+        connection_id:
+          type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
+        commit_on_success:
+          type: boolean
+          title: Commit On Success
+          description: If True, save or update the connection in the connection table
+            when the test succeeds.
+          default: false
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+          description: Executor name to dispatch the connection test to.
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+          description: Worker queue to route the connection test to (executor-dependent).
+      additionalProperties: false
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      title: ConnectionTestRequestBody
+      description: 'Request body for enqueueing a connection test on a worker.
+
+
+        Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+
+        ``team_name`` handling from ``ConnectionBody`` so tested connections share
+
+        the same input contract as persisted ones.'
     ConnectionTestResponse:
       properties:
         status:
@@ -12484,7 +12711,7 @@ components:
       - status
       - message
       title: ConnectionTestResponse
-      description: Connection Test serializer for responses.
+      description: Connection Test serializer for synchronous test responses.
     CreateAssetEventsBody:
       properties:
         asset_id:

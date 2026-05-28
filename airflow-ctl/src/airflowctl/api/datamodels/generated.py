@@ -80,6 +80,18 @@ class AssetWatcherResponse(BaseModel):
     created_date: Annotated[datetime, Field(title="Created Date")]
 
 
+class AsyncConnectionTestResponse(BaseModel):
+    """
+    Response returned when polling for the status of an enqueued connection test.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+
+
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
@@ -312,9 +324,59 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ConnectionTestQueuedResponse(BaseModel):
+    """
+    Response returned when a connection test has been enqueued for worker execution.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+
+
+class ConnectionTestRequestBody(BaseModel):
+    """
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    connection_id: Annotated[str, Field(max_length=200, pattern="^[\\w.-]+$", title="Connection Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+    commit_on_success: Annotated[
+        bool | None,
+        Field(
+            description="If True, save or update the connection in the connection table when the test succeeds.",
+            title="Commit On Success",
+        ),
+    ] = False
+    executor: Annotated[
+        str | None, Field(description="Executor name to dispatch the connection test to.", title="Executor")
+    ] = None
+    queue: Annotated[
+        str | None,
+        Field(
+            description="Worker queue to route the connection test to (executor-dependent).", title="Queue"
+        ),
+    ] = None
+
+
 class ConnectionTestResponse(BaseModel):
     """
-    Connection Test serializer for responses.
+    Connection Test serializer for synchronous test responses.
     """
 
     status: Annotated[bool, Field(title="Status")]

@@ -78,6 +78,37 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class ConnectionTestConnectionResponse(BaseModel):
+    """
+    Connection data returned to workers from a test request.
+    """
+
+    conn_id: Annotated[str, Field(title="Conn Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class ResultMessage(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Result Message")]
+
+
+class ConnectionTestState(str, Enum):
+    """
+    All possible states of a connection test.
+    """
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
@@ -602,6 +633,18 @@ class AssetStateResponse(BaseModel):
         extra="forbid",
     )
     value: JsonValue
+
+
+class ConnectionTestResultBody(BaseModel):
+    """
+    Result a worker reports back for a connection test.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: ConnectionTestState
+    result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
 
 
 class HITLDetailRequest(BaseModel):

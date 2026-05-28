@@ -398,6 +398,12 @@ class TestLocalExecutor:
         executor.end()
 
 
+class TestLocalExecutorConnectionTestSupport:
+    def test_supports_connection_test_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_connection_test is True
+
+
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
     TEST_TOKEN = "test_token"

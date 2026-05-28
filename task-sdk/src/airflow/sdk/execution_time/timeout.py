@@ -31,6 +31,7 @@ class TimeoutPosix:
         self.seconds = seconds
         self.error_message = error_message + ", PID: " + str(os.getpid())
         self.log = structlog.get_logger(logger_name="task")
+        self._timeout_supported = False
 
     def handle_timeout(self, signum, frame):
         """Log information and raises AirflowTaskTimeout."""
@@ -43,17 +44,19 @@ class TimeoutPosix:
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.setitimer(signal.ITIMER_REAL, self.seconds)
-        except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
+            self._timeout_supported = True
+        except (AttributeError, ValueError):
+            self.log.warning(
+                "TimeoutPosix requires signal.SIGALRM and the main thread. Proceeding without a timeout."
+            )
         return self
 
     def __exit__(self, type_, value, traceback):
+        if not self._timeout_supported:
+            return
         import signal
 
-        try:
-            signal.setitimer(signal.ITIMER_REAL, 0)
-        except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
+        signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 timeout = TimeoutPosix

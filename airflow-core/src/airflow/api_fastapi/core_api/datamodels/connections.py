@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
@@ -78,10 +79,28 @@ class ConnectionCollectionResponse(BaseModel):
 
 
 class ConnectionTestResponse(BaseModel):
-    """Connection Test serializer for responses."""
+    """Connection Test serializer for synchronous test responses."""
 
     status: bool
     message: str
+
+
+class ConnectionTestQueuedResponse(BaseModel):
+    """Response returned when a connection test has been enqueued for worker execution."""
+
+    token: str
+    connection_id: str
+    state: str
+
+
+class AsyncConnectionTestResponse(BaseModel):
+    """Response returned when polling for the status of an enqueued connection test."""
+
+    token: str
+    connection_id: str
+    state: str
+    result_message: str | None = None
+    created_at: datetime
 
 
 class ConnectionHookFieldBehavior(BaseModel):
@@ -210,3 +229,26 @@ class ConnectionBody(StrictBaseModel):
 
 
 ConnectionBodyPartial = make_partial_model(ConnectionBody)
+
+
+class ConnectionTestRequestBody(ConnectionBody):
+    """
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
+    """
+
+    commit_on_success: bool = Field(
+        default=False,
+        description="If True, save or update the connection in the connection table when the test succeeds.",
+    )
+    executor: str | None = Field(
+        default=None,
+        description="Executor name to dispatch the connection test to.",
+    )
+    queue: str | None = Field(
+        default=None,
+        description="Worker queue to route the connection test to (executor-dependent).",
+    )

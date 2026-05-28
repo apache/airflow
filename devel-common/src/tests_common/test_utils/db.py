@@ -470,6 +470,16 @@ def clear_db_teams():
         session.execute(delete(Team))
 
 
+def clear_db_connection_tests():
+    with create_session() as session:
+        try:
+            from airflow.models.connection_test import ConnectionTestRequest
+
+            session.execute(delete(ConnectionTestRequest))
+        except ImportError:
+            pass
+
+
 @_retry_db
 def clear_db_revoked_tokens():
     with create_session() as session:
@@ -1001,3 +1011,4 @@ def clear_all():
         clear_db_backfills()
         clear_db_dag_bundles()
         clear_db_dag_parsing_requests()
+    clear_db_connection_tests()

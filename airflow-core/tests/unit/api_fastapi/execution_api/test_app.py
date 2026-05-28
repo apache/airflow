@@ -60,6 +60,23 @@ def test_ti_self_routes_have_task_instance_id_param(client):
                 )
 
 
+def test_ct_self_routes_have_connection_test_id_param(client):
+    """Every route with ct:self scope must have a {connection_test_id} path parameter."""
+    from fastapi.params import Security as SecurityParam
+    from fastapi.routing import APIRoute
+
+    app = client.app
+
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for dep in route.dependencies:
+            if isinstance(dep, SecurityParam) and "ct:self" in (dep.scopes or []):
+                assert "connection_test_id" in route.dependant.path_param_names, (
+                    f"Route {route.path} has ct:self scope but no {{connection_test_id}} path parameter"
+                )
+
+
 class TestCorrelationIdMiddleware:
     def test_correlation_id_echoed_in_response_headers(self, client):
         """Test that correlation-id from request is echoed back in response headers."""
