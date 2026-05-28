@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,41 +33,46 @@ def _ensure_fake_ibmmq_if_missing():
     available. This avoids global import-time mutations while preserving test
     behavior.
     """
+
     if importlib.util.find_spec("ibmmq") is not None:
         # Real package available, nothing to do.
         yield
         return
 
+    from airflow.providers.ibm.mq.hooks import mq
+
     # Create a minimal fake module with the attributes our tests expect.
     fake = ModuleType("ibmmq")
     # https://www.ibm.com/docs/en/ibm-mq/9.4.x?topic=20-cmqc
-    fake.CMQC = MagicMock()
-    fake.CMQC.MQCC_OK = 0
-    fake.CMQC.MQCC_WARNING = 1
-    fake.CMQC.MQCC_FAILED = 2
-    fake.CMQC.MQRC_NONE = 0
-    fake.CMQC.MQRC_CONNECTION_BROKEN = 2009
-    fake.CMQC.MQRC_Q_MGR_NOT_AVAILABLE = 2059
-    fake.CMQC.MQRC_NO_MSG_AVAILABLE = 2033
-    fake.CMQC.MQRC_NOT_AUTHORIZED = 2035
-    fake.CMQC.MQRC_UNKNOWN_OBJECT_NAME = 2085
-    fake.CMQC.MQRC_Q_MGR_NAME_ERROR = 2058
-    fake.CMQC.MQRC_Q_MGR_QUIESCING = 2161
-    fake.CMQC.MQRC_CONNECTION_QUIESCING = 2202
-    fake.CMQC.MQRC_HOST_NOT_AVAILABLE = 2538
-    fake.CMQC.MQGMO_NO = 0
-    fake.CMQC.MQGMO_NO_WAIT = 0
-    fake.CMQC.MQGMO_WAIT = 1
-    fake.CMQC.MQGMO_NO_SYNCPOINT = 2
-    fake.CMQC.MQGMO_CONVERT = 4
-    fake.CMQC.MQOO_INPUT_EXCLUSIVE = 4
-    fake.CMQC.MQOO_INPUT_SHARED = 2
-    fake.CMQC.MQOO_FAIL_IF_QUIESCING = 8192
+    fake.CMQC = SimpleNamespace(
+        MQCC_OK=0,
+        MQCC_WARNING=1,
+        MQCC_FAILED=2,
+        MQRC_NONE=0,
+        MQRC_CONNECTION_BROKEN=2009,
+        MQRC_Q_MGR_NOT_AVAILABLE=2059,
+        MQRC_NO_MSG_AVAILABLE=2033,
+        MQRC_NOT_AUTHORIZED=2035,
+        MQRC_UNKNOWN_OBJECT_NAME=2085,
+        MQRC_Q_MGR_NAME_ERROR=2058,
+        MQRC_Q_MGR_QUIESCING=2161,
+        MQRC_CONNECTION_QUIESCING=2202,
+        MQRC_HOST_NOT_AVAILABLE=2538,
+        MQGMO_NO=0,
+        MQGMO_NO_WAIT=0,
+        MQGMO_WAIT=1,
+        MQGMO_NO_SYNCPOINT=2,
+        MQGMO_CONVERT=4,
+        MQOO_INPUT_EXCLUSIVE=4,
+        MQOO_INPUT_SHARED=2,
+        MQOO_FAIL_IF_QUIESCING=8192,
+        MQOO_OUTPUT=0x00000010,
+        MQFMT_STRING=b"MQSTR   ",
+        MQENC_NATIVE=0x00000111,
+    )
 
     class MQMIError(Exception):
         def __init__(self, comp: int | None = None, reason: int | None = None):
-            print("comp: ", comp)
-            print("reason: ", reason)
             self.comp = comp or fake.CMQC.MQCC_OK
             self.reason = reason or fake.CMQC.MQRC_NONE
 
@@ -101,8 +106,15 @@ def _ensure_fake_ibmmq_if_missing():
     fake.RFH2 = MagicMock()
 
     sys.modules["ibmmq"] = fake
+    original_mq = getattr(mq, "ibmmq", None)
+    # Bind the fake into the already-imported hook module (if present) so that
+    # module-level references to `ibmmq` are satisfied even if the hook was
+    # imported before this fixture ran during collection.
+    setattr(mq, "ibmmq", fake)
+
     try:
         yield
     finally:
         # Remove the injected fake to avoid leaking into other tests
         sys.modules.pop("ibmmq", None)
+        setattr(mq, "ibmmq", original_mq)

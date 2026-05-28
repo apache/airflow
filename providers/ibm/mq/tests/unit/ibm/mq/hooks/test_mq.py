@@ -148,12 +148,11 @@ class TestIBMMQHook:
         hook.open_options = open_options
         with patch.object(hook, "_connect", return_value=mock_conn) as mock_connect:
             if use_explicit_connection:
-                conn_context = hook.get_conn(connection=mq_connection())
+                with hook.get_conn(connection=mq_connection()):
+                    pass
             else:
-                conn_context = hook.get_conn()
-
-            with conn_context:
-                pass
+                with hook.get_conn():
+                    pass
 
             assert hook.open_options == open_options
 
@@ -178,8 +177,12 @@ class TestIBMMQHook:
         with patch.object(hook, "_connect", return_value=mock_conn) as mock_connect:
             if expect_exception:
                 with pytest.raises(ValueError):
-                    hook.get_conn(connection=mq_connection(open_options=open_options))
+                    with hook.get_conn(connection=mq_connection(open_options=open_options)):
+                        pass
                 assert hook.open_options is None
+
+                mock_connect.assert_not_called()
+                mock_conn.disconnect.assert_not_called()
             else:
                 with hook.get_conn(connection=mq_connection(open_options=open_options)):
                     assert hasattr(hook, "_resolved_open_options")
@@ -188,8 +191,8 @@ class TestIBMMQHook:
                 assert not hasattr(hook, "_resolved_open_options")
                 assert hook.open_options is None
 
-        mock_connect.assert_called_once()
-        mock_conn.disconnect.assert_called_once()
+                mock_connect.assert_called_once()
+                mock_conn.disconnect.assert_called_once()
 
     @pytest.mark.parametrize(
         ("open_options_attr", "expected_flags"),

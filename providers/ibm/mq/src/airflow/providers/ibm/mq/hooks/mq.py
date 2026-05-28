@@ -393,23 +393,21 @@ class IBMMQHook(BaseHook):
         if isinstance(value, str):
             s = value.strip()
             # Try numeric literal first (decimal or hex)
-            try:
+            with suppress(ValueError):
                 if s.startswith(("0x", "0X")):
                     return int(s, 16)
                 return int(s)
-            except ValueError:
-                pass
 
             tokens = [t.strip() for t in re.split(r"\s*(?:\||,)\s*", s) if t.strip()]
             if not tokens:
                 raise ValueError("Empty open_options string")
 
             result = 0
-            for tok in tokens:
-                if hasattr(ibmmq.CMQC, tok):
-                    result |= getattr(ibmmq.CMQC, tok)
+            for token in tokens:
+                if hasattr(ibmmq.CMQC, token):
+                    result |= getattr(ibmmq.CMQC, token)
                 else:
-                    raise ValueError(f"Unknown MQ open option token: {tok}")
+                    raise ValueError(f"Unknown MQ open option token: {token}")
             return result
 
         raise TypeError("open_options must be an int or string of MQOO_* tokens")
@@ -529,7 +527,7 @@ class IBMMQHook(BaseHook):
             config_value = config.get("open_options", self.default_open_options)
             # Use the class-level parser so callers (and tests) can reuse the
             # logic without importing a module-private helper.
-            resolved_open_options = type(self).parse_open_options(config_value)
+            resolved_open_options = self.parse_open_options(config_value)
         else:
             resolved_open_options = self.open_options
 
