@@ -155,7 +155,7 @@
     "edit": "Editar Variável",
     "form": {
       "invalidJson": "JSON Inválido",
-      "keyMaxLength": "Chave pode conter um máximo de 250 caracteres",
+      "keyMaxLength": "Chave pode conter no máximo 250 caracteres",
       "keyRequired": "Chave é obrigatória",
       "valueRequired": "Valor é obrigatório"
     },
