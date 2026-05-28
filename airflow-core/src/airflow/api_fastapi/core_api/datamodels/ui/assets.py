@@ -16,41 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+
+from pydantic import Field
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class PartitionedDagRunResponse(BaseModel):
-    """Single partitioned Dag run item."""
+class NextRunAssetEventResponse(BaseModel):
+    """One asset event in the ``next_run_assets`` payload."""
 
     id: int
-    partition_key: str
-    created_at: str | None = None
-    total_received: int
-    total_required: int
-    dag_id: str | None = None
-    state: str | None = None
-    created_dag_run_id: str | None = None
-
-
-class PartitionedDagRunCollectionResponse(BaseModel):
-    """Collection of partitioned Dag runs."""
-
-    partitioned_dag_runs: list[PartitionedDagRunResponse]
-    total: int
-    asset_expressions: dict[str, dict | None] | None = None
-
-
-class PartitionedDagRunAssetResponse(BaseModel):
-    """Asset info within a partitioned Dag run detail."""
-
-    asset_id: int
-    asset_name: str
-    asset_uri: str
-    received: bool
-    received_count: int
-    required_count: int
-    received_keys: list[str]
-    required_keys: list[str]
+    name: str | None
+    uri: str
+    last_update: datetime | None = None
+    received_count: int = 0
+    required_count: int = 1
+    received_keys: list[str] = Field(default_factory=list)
+    required_keys: list[str] = Field(default_factory=list)
     is_rollup: bool = False
     mapper_error: bool = False
     """True when the rollup mapper raised; the asset is not-yet-satisfied and
@@ -63,16 +46,9 @@ class PartitionedDagRunAssetResponse(BaseModel):
     than treating it as "waiting"."""
 
 
-class PartitionedDagRunDetailResponse(BaseModel):
-    """Detail of a single partitioned Dag run."""
+class NextRunAssetsResponse(BaseModel):
+    """Response for the ``next_run_assets`` endpoint."""
 
-    id: int
-    dag_id: str
-    partition_key: str
-    created_at: str | None = None
-    updated_at: str | None = None
-    created_dag_run_id: str | None = None
-    assets: list[PartitionedDagRunAssetResponse]
-    total_required: int
-    total_received: int
     asset_expression: dict | None = None
+    events: list[NextRunAssetEventResponse]
+    pending_partition_count: int | None = None

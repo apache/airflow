@@ -105,7 +105,7 @@ from airflow.observability.metrics import stats_utils
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -133,6 +133,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads.types import SchedulerWorkload
+    from airflow.partition_mappers.base import RollupMapper
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -315,6 +316,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        # Per-tick cap on pending AssetPartitionDagRun rows the scheduler
+        # evaluates. Bounds the per-tick transaction so executor heartbeats
+        # and regular scheduling aren't starved; remaining APDRs drain across
+        # subsequent ticks (steady-state throughput knob, not a backlog limit).
+        self._max_partition_dag_runs_per_loop = conf.getint(
+            "scheduler", "max_partition_dag_runs_to_create_per_loop"
+        )
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -328,6 +336,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._log = log
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+
+        # Set of (dag_id, asset_name, asset_uri) tuples for which an audit log
+        # entry has already been written this scheduler process lifetime.
+        # Deduplicated here (not at the DB level) so a misconfigured mapper does
+        # not write a new Log row on every scheduler tick. The set is
+        # intentionally reset on scheduler restart so at least one entry is
+        # written per process lifetime, giving operators a fresh signal after
+        # a config fix and re-deploy. No size cap or TTL is applied: the set is
+        # bounded in practice by the number of distinct misconfigured partition
+        # assets, and scheduler restart is the reset mechanism.
+        self._partition_audit_seen: set[tuple[str, str, str]] = set()
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -1863,40 +1882,339 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
+    def _check_rollup_asset_status(
+        self,
+        *,
+        asset_id: int,
+        apdr: AssetPartitionDagRun,
+        mapper: RollupMapper,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        expected = mapper.to_upstream(apdr.partition_key)
+        return expected.issubset(actual_by_asset.get(asset_id, set()))
+
+    def _resolve_asset_partition_status(
+        self,
+        *,
+        session: Session,
+        asset_id: int,
+        name: str,
+        uri: str,
+        apdr: AssetPartitionDagRun,
+        timetable: PartitionedAssetTimetable,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        """
+        Return whether *asset_id* has been satisfied for *apdr*.
+
+        Non-rollup assets resolve to ``True`` because the caller only invokes
+        this for assets that already have at least one logged event for *APDR*
+        (see :class:`~airflow.models.asset.PartitionedAssetKeyLog`), which is
+        the non-rollup contract for "received". Rollup assets defer to
+        :meth:`_check_rollup_asset_status` for the upstream-window check.
+
+        A misconfigured mapper that raises returns ``False`` (treated as
+        not-yet-satisfied) and an audit log entry is written so the operator
+        can see why the Dag run is being held in the UI.
+        """
+        try:
+            mapper = timetable.get_partition_mapper(name=name, uri=uri)
+            if not mapper.is_rollup:
+                return True
+            return self._check_rollup_asset_status(
+                asset_id=asset_id,
+                apdr=apdr,
+                mapper=cast("RollupMapper", mapper),
+                actual_by_asset=actual_by_asset,
+            )
+        except Exception as err:
+            self.log.exception(
+                "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "
+                "This likely indicates a misconfigured partition mapper.",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                asset_name=name,
+                asset_uri=uri,
+            )
+            audit_key = (apdr.target_dag_id, name, uri)
+            if audit_key not in self._partition_audit_seen:
+                # The audit Log row is committed on its own session so it
+                # survives even when the outer ``_create_dagruns_for_dags``
+                # transaction is rolled back (the caller is wrapped in
+                # ``@retry_db_transaction``, and a downstream ``OperationalError``
+                # or scheduler crash mid-tick would otherwise drop the row while
+                # the in-memory set still suppressed the next attempt).
+                # The dedup-set update is gated on the independent commit
+                # succeeding; a transient DB failure on the audit session leaves
+                # the key unmarked so the next tick retries.
+                if self._record_partition_audit_log(apdr=apdr, name=name, uri=uri, err=err):
+                    self._partition_audit_seen.add(audit_key)
+            return False
+
+    def _record_partition_audit_log(
+        self,
+        *,
+        apdr: AssetPartitionDagRun,
+        name: str,
+        uri: str,
+        err: BaseException,
+    ) -> bool:
+        """
+        Persist a misconfigured-rollup audit Log row on an independent session.
+
+        Returns ``True`` on commit success, ``False`` when the write fails.
+        Failures are logged and swallowed: the audit row is advisory (the
+        warning above already captures the same information for operators
+        reading scheduler logs), and propagating a Log-table failure would
+        taint the scheduler tick.
+
+        APDR attributes are captured into locals before opening the audit
+        session so the new session never has to lazy-load through an instance
+        attached to the outer session.
+        """
+        target_dag_id = apdr.target_dag_id
+        extra = (
+            "Could not evaluate rollup status for partition_key "
+            f"'{apdr.partition_key}' on asset (name='{name}', uri='{uri}') "
+            f"in target Dag '{target_dag_id}'. This likely indicates "
+            "that the rollup mapper is misconfigured or does not support "
+            f"this partition key.\n{type(err).__name__}: {err}"
+        )
+        try:
+            # ``scoped=False`` so this really is a separate connection / session
+            # rather than the thread-scoped one shared with the outer
+            # transaction — otherwise an inner commit would close the outer
+            # session's state too.
+            with create_session(scoped=False) as audit_session:
+                audit_session.add(
+                    Log(
+                        event="failed to evaluate rollup status",
+                        dag_id=target_dag_id,
+                        extra=extra,
+                    )
+                )
+        except Exception:
+            self.log.warning(
+                "Failed to write audit Log row for misconfigured rollup mapper",
+                dag_id=target_dag_id,
+                asset_name=name,
+                asset_uri=uri,
+                exc_info=True,
+            )
+            return False
+        return True
+
+    def _record_stale_apdr_audit_log(
+        self,
+        *,
+        target_dag_id: str,
+        cleared_count: int,
+        new_dag_version_id: UUID | None,
+    ) -> bool:
+        """
+        Persist a stale-APDR cleanup audit Log row on an independent session.
+
+        Returns ``True`` on commit success, ``False`` when the write fails.
+        Same independent-session pattern as :meth:`_record_partition_audit_log`
+        so the audit row survives an outer-transaction rollback.
+
+        Unlike :meth:`_record_partition_audit_log`, no per-process dedup set is
+        maintained — stale cleanup is transient (a Dag oscillating between two
+        versions will write one Log row per tick it appears in the LIMIT window),
+        and the volume is bounded by the per-loop cap.
+        """
+        extra = (
+            f"Cleared {cleared_count} provisional partition Dag run(s) for "
+            f"Dag '{target_dag_id}' because their stamped Dag version no "
+            f"longer matches the current version "
+            f"({new_dag_version_id}). The mapper or window backing the run "
+            "may have changed; the next scheduler tick will rebuild "
+            "evaluation from fresh asset events."
+        )
+        try:
+            with create_session(scoped=False) as audit_session:
+                audit_session.add(
+                    Log(
+                        event="stale partition apdr cleanup",
+                        dag_id=target_dag_id,
+                        extra=extra,
+                    )
+                )
+        except Exception:
+            self.log.warning(
+                "Failed to write audit Log row for stale partition APDR cleanup",
+                dag_id=target_dag_id,
+                exc_info=True,
+            )
+            return False
+        return True
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+        """
+        Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
+
+        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
+        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
+        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
+        gets two Dag runs for the same tick when it appears in more than one creation path. We
+        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
+        use is membership lookup, and a heavier return type would just be discarded.
+
+        Asset deactivation freezes pending APDRs: when an asset becomes inactive
+        (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
+        stop contributing to the rollup. If the consumer Dag still depends on that
+        asset, firing on stale history would conflict with the declared topology,
+        so the APDR waits. Reactivating the asset resumes evaluation automatically.
+        This matches the UI's progress view (``_fetch_active_assets_per_dag``).
+        """
+        # Cap per-tick work so the scheduler transaction stays bounded and other
+        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
+        # FIFO is intentional: the oldest pending APDR fires first. A persistently
+        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
+        # never arrive) blocks newer ones until an operator removes it or fixes
+        # the underlying mapper. We surface the stuck state rather than silently
+        # rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
+        # in HA two schedulers can otherwise both grab the same satisfied APDR
+        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
+        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
+        # two APDRs share a `created_at` under bulk asset-event ingestion.
+        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs = session.scalars(
+            with_row_locks(
+                select(AssetPartitionDagRun)
+                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                .where(
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    DagModel.is_stale.is_(False),
+                )
+                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .limit(self._max_partition_dag_runs_per_loop),
+                of=AssetPartitionDagRun,
+                skip_locked=True,
+                key_share=False,
+                session=session,
+            )
+        ).all()
+        if not pending_apdrs:
+            return set()
+
+        # Pre-fetch all required serialized Dags in one query. The same map
+        # serves the stale-version cleanup below and the downstream rollup
+        # evaluation, so the table is only hit once per tick.
+        dag_ids = list({apdr.target_dag_id for apdr in pending_apdrs})
+        serdags_by_dag_id: dict[str, SerializedDagModel] = {
+            sd.dag_id: sd
+            for sd in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
+        }
+
+        # Stale-version cleanup. An APDR stamped with a ``dag_version_id`` that
+        # no longer matches the Dag's latest serialized version was queued
+        # under a definition (mapper / window) that may not apply any more.
+        # Firing on partial data — or holding forever because the new mapper
+        # demands keys that will never arrive — would both be wrong, so the
+        # APDR + its PartitionedAssetKeyLog rows are dropped in the same
+        # transaction. Rows stamped ``NULL`` (legacy, pre-column) are likewise
+        # treated as stale on the first tick after upgrade.
+        stale_apdrs = [
+            apdr
+            for apdr in pending_apdrs
+            if (serdag := serdags_by_dag_id.get(apdr.target_dag_id)) is not None
+            and apdr.dag_version_id != serdag.dag_version_id
+        ]
+        if stale_apdrs:
+            stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
+            # Write the audit Log row before the outer DELETEs so the
+            # independent ``scoped=False`` session does not have to fight the
+            # outer write transaction for SQLite's single writer lock. The Log
+            # is the only artefact a Postgres / MySQL operator would see if the
+            # outer transaction later rolls back, which is the same trade-off
+            # ``_record_partition_audit_log`` makes for the rollup-error path.
+            cleared_by_dag: dict[str, int] = defaultdict(int)
+            for apdr in stale_apdrs:
+                cleared_by_dag[apdr.target_dag_id] += 1
+            for target_dag_id, cleared_count in cleared_by_dag.items():
+                self._record_stale_apdr_audit_log(
+                    target_dag_id=target_dag_id,
+                    cleared_count=cleared_count,
+                    new_dag_version_id=serdags_by_dag_id[target_dag_id].dag_version_id,
+                )
+            session.execute(
+                delete(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(stale_apdr_ids)
+                )
+            )
+            session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(stale_apdr_ids)))
+            stale_apdr_id_set = set(stale_apdr_ids)
+            pending_apdrs = [apdr for apdr in pending_apdrs if apdr.id not in stale_apdr_id_set]
+            if not pending_apdrs:
+                return set()
+
         partition_dag_ids: set[str] = set()
+        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
+
+        # {"dag_id": Serialized Dag}
+        serialized_dags: dict[str, SerializedDAG] = {}
+        for serdag in serdags_by_dag_id.values():
+            try:
+                serdag.load_op_links = False
+                serialized_dags[serdag.dag_id] = serdag.dag
+            except Exception:
+                self.log.exception("Failed to deserialize Dag '%s'", serdag.dag_id)
+
+        # {apdr_id: {asset_id: set(source_key, ...)}
+        source_key_by_asset_per_apdr: dict[int, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+        # {apdr_id: {asset_id: (asset_name, asset_uri)}
+        asset_info_per_apdr: dict[int, dict[int, tuple[str, str]]] = defaultdict(dict)
+        for apdr_id, asset_id, source_key, name, uri in session.execute(
+            select(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id,
+                PartitionedAssetKeyLog.asset_id,
+                PartitionedAssetKeyLog.source_partition_key,
+                AssetModel.name,
+                AssetModel.uri,
+            )
+            .join(AssetModel, AssetModel.id == PartitionedAssetKeyLog.asset_id)
+            .where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(pending_apdr_ids),
+                # Skip PartitionedAssetKeyLog rows for assets that are no longer
+                # active (orphaned / no declaring Dag). If the consumer Dag still
+                # depends on an inactive asset, firing on stale history would
+                # conflict with the declared topology — so we freeze evaluation
+                # until the asset reactivates. Matches the UI's progress view
+                # (see ``_fetch_active_assets_per_dag``).
+                AssetModel.active.has(),
+            )
+        ):
+            source_key_by_asset_per_apdr[apdr_id][asset_id].add(source_key)
+            asset_info_per_apdr[apdr_id][asset_id] = (name, uri)
 
         evaluator = AssetEvaluator(session)
-        for apdr in session.scalars(
-            select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        ):
-            if TYPE_CHECKING:
-                assert apdr.target_dag_id
-
-            if not (dag := self._get_current_dag(dag_id=apdr.target_dag_id, session=session)):
+        for apdr in pending_apdrs:
+            if not (dag := serialized_dags.get(apdr.target_dag_id)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            asset_models = session.scalars(
-                select(AssetModel).where(
-                    exists(
-                        select(1).where(
-                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
-                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                            PartitionedAssetKeyLog.target_partition_key == apdr.partition_key,
-                        )
+            source_key_by_asset = source_key_by_asset_per_apdr[apdr.id]
+            timetable = dag.timetable
+            statuses: dict[SerializedAssetUniqueKey, bool] = {}
+            for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
+                key = SerializedAssetUniqueKey(name=name, uri=uri)
+                if timetable.partitioned:
+                    if TYPE_CHECKING:
+                        assert isinstance(timetable, PartitionedAssetTimetable)
+                    statuses[key] = self._resolve_asset_partition_status(
+                        session=session,
+                        asset_id=asset_id,
+                        name=name,
+                        uri=uri,
+                        apdr=apdr,
+                        timetable=timetable,
+                        actual_by_asset=source_key_by_asset,
                     )
-                )
-            )
-            statuses: dict[SerializedAssetUniqueKey, bool] = {
-                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
-            }
-            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
-            #  but, we ultimately need rollup ability
-            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
-            #  that all the required keys are there
-            #  one way to do this would be just to figure out what the count should be
-            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                else:
+                    statuses[key] = True
+            if not evaluator.run(timetable.asset_condition, statuses=statuses):
                 continue
 
             partition_dag_ids.add(apdr.target_dag_id)

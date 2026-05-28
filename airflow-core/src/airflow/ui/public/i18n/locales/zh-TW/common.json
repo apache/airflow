@@ -18,6 +18,9 @@
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
   "assetEvent_other": "資源事件",
+  "assetInactive": {
+    "tooltip": "上游資源已停用；排程器會暫停分區評估，直到資源重新啟用。"
+  },
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
