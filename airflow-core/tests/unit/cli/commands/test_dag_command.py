@@ -969,6 +969,18 @@ class TestCliDags:
         assert "data_interval" in mock_get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
+    def test_dag_test_uses_current_time_as_start_date(self, mock_get_or_create_dagrun, time_machine):
+        run_start_date = timezone.parse("2026-04-29T21:04:00+00:00")
+        time_machine.move_to(run_start_date, tick=False)
+        cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat()])
+
+        dag_command.dag_test(cli_args)
+
+        kwargs = mock_get_or_create_dagrun.call_args.kwargs
+        assert kwargs["logical_date"] == DEFAULT_DATE
+        assert kwargs["start_date"] == run_start_date
+
+    @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
     def test_dag_with_parsing_context(
         self, mock_get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle
     ):
