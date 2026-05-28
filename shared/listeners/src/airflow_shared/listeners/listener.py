@@ -25,6 +25,8 @@ import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
+from ..observability.traces import DEFAULT_TASK_SPAN_DETAIL_LEVEL, TASK_SPAN_DETAIL_LEVEL_KEY
+
 if TYPE_CHECKING:
     from opentelemetry.trace import Span
     from pluggy._hooks import _HookRelay
@@ -32,20 +34,15 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-# Duplicated from airflow_shared.observability.traces to avoid a cross-shared-library
-# dependency. Must stay in sync with TASK_SPAN_DETAIL_LEVEL_KEY / DEFAULT_TASK_SPAN_DETAIL_LEVEL there.
-_TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
-_DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
-
 
 def _detail_level(span: Span) -> int:
-    raw = span.get_span_context().trace_state.get(_TASK_SPAN_DETAIL_LEVEL_KEY)
+    raw = span.get_span_context().trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY)
     if raw is None:
-        return _DEFAULT_TASK_SPAN_DETAIL_LEVEL
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
     try:
         return int(raw)
     except (TypeError, ValueError):
-        return _DEFAULT_TASK_SPAN_DETAIL_LEVEL
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
 
 
 _span_state = threading.local()
