@@ -82,12 +82,19 @@ The possible states for a Task Instance are:
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
-* ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
+* ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`.
+  A :doc:`Deferrable Operator <../authoring-and-scheduling/deferring>` running on a worker can suspend
+  itself and free up the worker slot by entering this state. While deferred, the Triggerer component
+  monitors the associated trigger. When the trigger fires, the Scheduler re-schedules the task back to
+  ``scheduled``, and execution resumes on a worker.
 * ``removed``: The task has vanished from the Dag since the run started
 
 .. image:: /img/diagram_task_lifecycle.png
 
-Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to ``success``.
+Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to
+``success``. For :doc:`Deferrable Operators <../authoring-and-scheduling/deferring>`, a task may also
+transition from ``running`` to ``deferred`` while waiting for an external event, and then re-enter the
+``scheduled`` state once the Triggerer fires, before continuing execution on a worker.
 
 When any custom Task (Operator) is running, it will get a copy of the task instance passed to it; as well as being able to inspect task metadata, it also contains methods for things like :doc:`xcoms`.
 
