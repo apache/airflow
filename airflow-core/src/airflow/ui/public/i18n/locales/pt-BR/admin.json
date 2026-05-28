@@ -165,7 +165,7 @@
       "errorParsingJsonFile": "Erro ao Analisar Arquivo JSON: Upload um arquivo JSON contendo variáveis (exemplo: {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
-          "description": "Falha na importação se forem detetadas variáveis que já existem.",
+          "description": "Falha na importação se forem detectadas variáveis que já existem.",
           "title": "Falha"
         },
         "overwrite": {
