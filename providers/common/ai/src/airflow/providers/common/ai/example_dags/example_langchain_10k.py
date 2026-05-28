@@ -572,6 +572,13 @@ Cite specific data points and scores.
     )
     # [END 10k_langchain_synthesis]
     collected >> synthesize
+     
+    @task
+    def format_report_for_review(report: dict) -> str:
+        return json.dumps(report, indent=2)
+
+    review_body = format_report_for_review(synthesize.output)
+    
 
     # ------------------------------------------------------------------
     # Step 7: Analyst reviews the report before it reaches the
