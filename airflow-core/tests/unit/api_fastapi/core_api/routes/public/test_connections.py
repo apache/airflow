@@ -1094,6 +1094,42 @@ class TestConnection(TestConnectionEndpoint):
         assert existing_response.status_code == missing_response.status_code
         assert set(existing_response.json().keys()) == set(missing_response.json().keys())
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_unreadable_existing_connection_does_not_trigger_secrets_lookup(self, test_client):
+        """The route must gate the secrets-backend lookup on the GET
+        authorization check, not perform the lookup and then suppress the
+        result. Otherwise an unauthorized caller can still force
+        ``Connection.get_connection_from_secrets`` to query every configured
+        secrets backend for arbitrary connection ids — leaking timing /
+        existence signals, generating access-log entries in audited
+        backends, and imposing backend load."""
+        self.create_connection()
+
+        from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+
+        real_method = SimpleAuthManager.is_authorized_connection
+
+        def gated_authz(self, *, method, details=None, user=None):
+            if method == "GET":
+                return False
+            return real_method(self, method=method, details=details, user=user)
+
+        with (
+            mock.patch.object(SimpleAuthManager, "is_authorized_connection", gated_authz),
+            mock.patch.object(
+                Connection,
+                "get_connection_from_secrets",
+                wraps=Connection.get_connection_from_secrets,
+            ) as spy_secrets,
+        ):
+            response = test_client.post(
+                "/connections/test",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_not_called()
+
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(

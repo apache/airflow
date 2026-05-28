@@ -248,27 +248,32 @@ def test_connection(
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
     try:
-        # Load the existing connection only if the caller is authorised to read
-        # it. The route-level POST dependency only verifies the caller can
-        # create connections; loading the existing connection's hidden fields
-        # also requires read access to that specific connection. When the
-        # caller lacks read access (or the connection does not exist at all),
-        # fall through to the body-only path below so the response cannot be
-        # used to enumerate protected connection identifiers — both cases
-        # produce the same response shape.
-        try:
-            existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
-        except AirflowNotFoundException:
-            existing_conn = None
-
-        if existing_conn is not None and auth_manager.is_authorized_connection(
+        # Authorize read access on the requested ``connection_id`` *before*
+        # touching the secrets backends. The route-level POST dependency only
+        # verifies the caller can create connections; merging the existing
+        # connection's hidden fields also requires read access to that
+        # specific connection. Gating the backend lookup itself (rather than
+        # the post-load merge) prevents an unauthorized caller from using
+        # this endpoint to enumerate protected connection ids, generate
+        # access-log entries in audited backends, or impose backend load for
+        # arbitrary ids. ``get_team_name`` is a metadata-only DB lookup and
+        # does not touch the configured secrets backends.
+        team_name = Connection.get_team_name(test_body.connection_id)
+        existing_conn: Connection | None = None
+        if auth_manager.is_authorized_connection(
             method="GET",
             details=ConnectionDetails(
                 conn_id=test_body.connection_id,
-                team_name=existing_conn.team_name,
+                team_name=team_name,
             ),
             user=user,
         ):
+            try:
+                existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
+            except AirflowNotFoundException:
+                existing_conn = None
+
+        if existing_conn is not None:
             existing_conn.conn_id = transient_conn_id
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn
