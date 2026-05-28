@@ -94,8 +94,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
         mode. Used both by the Spark standalone driver-status tracker and (when
         ``yarn_track_via_rm_api=True``) by the YARN ResourceManager REST API
-        polling loop, so keep it high enough that RM REST API calls do not
-        flood the ResourceManager on long-running jobs (Default: 10).
+        polling loop. The YARN ResourceManager REST API polling loop uses at
+        least 10 seconds to avoid flooding the ResourceManager on long-running
+        jobs (Default: 1).
     :param application_args: Arguments for the application being submitted (templated)
     :param env_vars: Environment variables for spark-submit. It supports yarn and k8s mode too. (templated)
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
@@ -112,12 +113,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                            on keytab for Kerberos login
     :param post_submit_commands: Optional list of shell commands to run after the Spark job finishes.
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
-    :param yarn_track_via_rm_api: If True (and ``deploy_mode`` is YARN cluster),
-        release the ``spark-submit`` JVM once the application has been submitted to
-        YARN, then poll the YARN ResourceManager REST API
-        (``GET /ws/v1/cluster/apps/{appId}``) every ``status_poll_interval`` seconds
-        until the application reaches a final state. This frees the worker from
-        holding the long-lived submit JVM. Requires the Spark connection's ``extra``
+    :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
+        is ``cluster``), release the ``spark-submit`` JVM once the application has
+        been submitted to YARN, then poll the YARN ResourceManager REST API
+        (``GET /ws/v1/cluster/apps/{appId}``) until the application reaches a
+        final state. The polling interval is controlled by ``status_poll_interval``
+        with a 10-second minimum. This frees the worker from holding the
+        long-lived submit JVM. Requires the Spark connection's ``extra``
         JSON to set ``yarn_resourcemanager_webapp_address`` (e.g. ``http://rm:8088``).
         Cluster-side driver logs should be used after the switch to polling.
         Defaults to ``False``.
@@ -175,7 +177,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         proxy_user: str | None = None,
         name: str = "arrow-spark",
         num_executors: int | None = None,
-        status_poll_interval: int = 10,
+        status_poll_interval: int = 1,
         application_args: list[Any] | None = None,
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,

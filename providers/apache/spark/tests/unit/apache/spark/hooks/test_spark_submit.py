@@ -1493,6 +1493,7 @@ class TestSparkSubmitHook:
         assert "spark.yarn.submit.waitAppCompletion=false" in spark_submit_cmd
         proc.terminate.assert_not_called()
         assert mock_get.call_count == 2
+        mock_sleep.assert_called_once_with(10)
         for call_obj in mock_get.call_args_list:
             assert call_obj.args[0] == self._rm_status_url()
 
@@ -1512,6 +1513,27 @@ class TestSparkSubmitHook:
         with pytest.raises(RuntimeError, match=f"{self._RM_APP_ID}.*KILLED"):
             hook.submit()
         proc.terminate.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_fails_on_failed_state_with_undefined_final_status(
+        self, mock_popen, mock_get, mock_sleep
+    ):
+        """RM state FAILED with finalStatus UNDEFINED should not poll forever."""
+        proc = MagicMock(spec=["stdout", "terminate", "wait"])
+        proc.stdout = iter(self._YARN_LOG_LINES)
+        proc.wait.return_value = 0
+        mock_popen.return_value = proc
+
+        mock_get.return_value = self._rm_status_resp("UNDEFINED", state="FAILED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match=f"{self._RM_APP_ID}.*state: FAILED"):
+            hook.submit()
+
+        proc.terminate.assert_not_called()
+        mock_sleep.assert_not_called()
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
@@ -1662,7 +1684,7 @@ class TestSparkSubmitHook:
             yarn_track_via_rm_api=True,
             yarn_rm_auth=sentinel,
         )
-        hook._query_yarn_application_final_status(self._RM_APP_ID)
+        hook._query_yarn_application_status(self._RM_APP_ID)
 
         assert mock_get.call_args.kwargs["auth"] is sentinel
 
@@ -1672,7 +1694,7 @@ class TestSparkSubmitHook:
         mock_get.return_value = self._rm_status_resp("SUCCEEDED")
 
         hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
-        hook._query_yarn_application_final_status(self._RM_APP_ID)
+        hook._query_yarn_application_status(self._RM_APP_ID)
 
         assert mock_get.call_args.kwargs["auth"] is None
 
@@ -1681,7 +1703,7 @@ class TestSparkSubmitHook:
         hook = SparkSubmitHook(conn_id="spark_yarn_cluster", yarn_track_via_rm_api=True)
 
         with pytest.raises(ValueError, match="yarn_resourcemanager_webapp_address"):
-            hook._query_yarn_application_final_status(self._RM_APP_ID)
+            hook._query_yarn_application_status(self._RM_APP_ID)
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
