@@ -65,11 +65,6 @@ export class AssetListPage extends BasePage {
     return name?.trim() ?? "";
   }
 
-  public async search(value: string): Promise<void> {
-    await this.searchInput.fill(value);
-    await this.waitForLoad();
-  }
-
   public async waitForLoad(): Promise<void> {
     await expect(this.table).toBeVisible();
     await expect(this.rows.locator("td a").first()).toBeVisible();

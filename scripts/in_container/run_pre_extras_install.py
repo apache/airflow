@@ -30,16 +30,22 @@ See contributing-docs/12_provider_distributions.rst for the format.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
+import ipaddress
 import re
 import shlex
+import socket
 import sys
 import tarfile
 import tempfile
+import urllib.error
 import urllib.request
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import NoReturn
+from urllib.parse import urlparse
 
 import yaml
 
@@ -48,7 +54,9 @@ ALLOWED_EXTRACT_PREFIXES = ("/opt/", "/tmp/")
 ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ALLOWED_TOP_LEVEL_KEYS = {"downloads", "env"}
-ALLOWED_DOWNLOAD_KEYS = {"url", "sha256", "extract_to"}
+REQUIRED_DOWNLOAD_KEYS = {"url", "sha256", "extract_to"}
+OPTIONAL_DOWNLOAD_KEYS = {"fallback_ips"}
+ALLOWED_DOWNLOAD_KEYS = REQUIRED_DOWNLOAD_KEYS | OPTIONAL_DOWNLOAD_KEYS
 
 
 def fail(msg: str) -> NoReturn:
@@ -71,7 +79,7 @@ def validate_manifest(manifest: object, provider_id: str) -> dict:
         unknown = set(entry) - ALLOWED_DOWNLOAD_KEYS
         if unknown:
             fail(f"downloads[{i}] has unknown keys: {sorted(unknown)}")
-        missing = ALLOWED_DOWNLOAD_KEYS - set(entry)
+        missing = REQUIRED_DOWNLOAD_KEYS - set(entry)
         if missing:
             fail(f"downloads[{i}] is missing required keys: {sorted(missing)}")
         url = entry["url"]
@@ -90,6 +98,16 @@ def validate_manifest(manifest: object, provider_id: str) -> dict:
             )
         if ".." in Path(extract_to).parts:
             fail(f"downloads[{i}].extract_to cannot contain '..'")
+        fallback_ips = entry.get("fallback_ips", [])
+        if not isinstance(fallback_ips, list):
+            fail(f"downloads[{i}].fallback_ips must be a list of IP address strings")
+        for j, ip in enumerate(fallback_ips):
+            if not isinstance(ip, str):
+                fail(f"downloads[{i}].fallback_ips[{j}] must be a string")
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                fail(f"downloads[{i}].fallback_ips[{j}] is not a valid IP address: {ip!r}")
     env = manifest.get("env", {})
     if not isinstance(env, dict):
         fail("'env' must be a mapping")
@@ -101,8 +119,31 @@ def validate_manifest(manifest: object, provider_id: str) -> dict:
     return manifest
 
 
-def download_with_checksum(url: str, expected_sha256: str, dest: Path) -> None:
-    print(f"Downloading {url}")
+@contextlib.contextmanager
+def override_dns(hostname: str, ip: str) -> Iterator[None]:
+    """Temporarily resolve `hostname` to `ip` for the duration of the block.
+
+    Only `socket.getaddrinfo` is patched, so urllib still uses `hostname` for
+    the HTTPS SNI and certificate verification — we only change which IP the
+    TCP connection dials.
+    """
+    family = socket.AF_INET6 if ipaddress.ip_address(ip).version == 6 else socket.AF_INET
+    original = socket.getaddrinfo
+
+    def patched(host, port, *args, **kwargs):
+        if host == hostname:
+            sockaddr = (ip, port, 0, 0) if family == socket.AF_INET6 else (ip, port)
+            return [(family, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", sockaddr)]
+        return original(host, port, *args, **kwargs)
+
+    socket.getaddrinfo = patched
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original
+
+
+def _attempt_download(url: str, expected_sha256: str, dest: Path) -> None:
     digest = hashlib.sha256()
     with urllib.request.urlopen(url) as response, dest.open("wb") as out:
         while True:
@@ -114,6 +155,44 @@ def download_with_checksum(url: str, expected_sha256: str, dest: Path) -> None:
     got = digest.hexdigest()
     if got != expected_sha256:
         fail(f"sha256 mismatch for {url}: expected {expected_sha256}, got {got}")
+
+
+def download_with_checksum(
+    url: str,
+    expected_sha256: str,
+    dest: Path,
+    fallback_ips: list[str] | None = None,
+) -> None:
+    print(f"Downloading {url}")
+    try:
+        _attempt_download(url, expected_sha256, dest)
+        return
+    except (urllib.error.URLError, OSError) as primary_err:
+        if not fallback_ips:
+            raise
+        print(
+            f"Primary download failed ({type(primary_err).__name__}: {primary_err}); "
+            f"trying {len(fallback_ips)} fallback IP(s)"
+        )
+
+    hostname = urlparse(url).hostname
+    if not hostname:
+        fail(f"cannot extract hostname from url {url!r} for fallback resolution")
+
+    last_err: BaseException | None = None
+    for ip in fallback_ips:
+        print(f"  Retrying with {hostname} -> {ip}")
+        try:
+            with override_dns(hostname, ip):
+                _attempt_download(url, expected_sha256, dest)
+            print(f"  Success via {ip}")
+            return
+        except (urllib.error.URLError, OSError) as e:
+            print(f"  {ip} failed: {type(e).__name__}: {e}")
+            last_err = e
+            continue
+
+    fail(f"all download attempts failed for {url}; last error: {last_err}")
 
 
 def safe_extract(archive: Path, target: Path) -> None:
@@ -173,7 +252,12 @@ def main() -> None:
         for index, entry in enumerate(manifest.get("downloads", [])):
             archive_name = Path(entry["url"]).name or f"download_{index}"
             archive = tmp / f"{index}_{archive_name}"
-            download_with_checksum(entry["url"], entry["sha256"], archive)
+            download_with_checksum(
+                entry["url"],
+                entry["sha256"],
+                archive,
+                fallback_ips=entry.get("fallback_ips") or None,
+            )
             safe_extract(archive, Path(entry["extract_to"]))
             archive.unlink(missing_ok=True)
 

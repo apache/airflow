@@ -44,6 +44,8 @@ from uvicorn.workers import UvicornWorker
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
+    from ssl import VerifyMode
+
     from fastapi import FastAPI
     from gunicorn.app.base import Application
 
@@ -243,6 +245,8 @@ def create_gunicorn_app(
     worker_timeout: int,
     ssl_cert: str | None = None,
     ssl_key: str | None = None,
+    ssl_ca_file: str | None = None,
+    ssl_cert_reqs: VerifyMode | None = None,
     log_level: str = "info",
     proxy_headers: bool = False,
 ) -> AirflowGunicornApp:
@@ -255,6 +259,8 @@ def create_gunicorn_app(
     :param worker_timeout: Worker timeout in seconds
     :param ssl_cert: Path to SSL certificate file
     :param ssl_key: Path to SSL key file
+    :param ssl_ca_file: Path to the SSL CA certs file
+    :param ssl_cert_reqs: SSL client certificate requirements
     :param log_level: Log level (debug, info, warning, error, critical)
     :param proxy_headers: Whether to trust proxy headers
     """
@@ -275,6 +281,10 @@ def create_gunicorn_app(
     if ssl_cert and ssl_key:
         options["certfile"] = ssl_cert
         options["keyfile"] = ssl_key
+        if ssl_ca_file:
+            options["ca_certs"] = ssl_ca_file
+        if ssl_cert_reqs is not None:
+            options["cert_reqs"] = ssl_cert_reqs
 
     if proxy_headers:
         options["forwarded_allow_ips"] = "*"

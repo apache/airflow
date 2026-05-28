@@ -160,6 +160,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 description="Run the command `base64 <your-keytab-path>` and use its output.",
                 validators=[Optional()],
             ),
+            "rest-scheme": StringField(
+                lazy_gettext("REST scheme"),
+                widget=BS3TextFieldWidget(),
+                description="Scheme for the Spark standalone REST API (http or https). Default: http.",
+                validators=[Optional()],
+            ),
+            "rest-port": StringField(
+                lazy_gettext("REST port"),
+                widget=BS3TextFieldWidget(),
+                description="Port for the Spark standalone REST API (spark.master.rest.port). Default: 6066.",
+                validators=[Optional()],
+            ),
         }
 
     def __init__(
@@ -258,7 +270,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_connection(self) -> dict[str, Any]:
         # Build from connection master or default to yarn if not available
-        conn_data = {
+        conn_data: dict[str, Any] = {
             "master": "yarn",
             "queue": None,  # yarn queue
             "deploy_mode": None,
@@ -266,6 +278,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "namespace": None,
             "principal": self._principal,
             "keytab": self._keytab,
+            # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
 
         try:
@@ -308,6 +323,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
+            conn_data["rest_scheme"] = extra.get("rest-scheme", "http")
+            conn_data["rest_port"] = int(extra.get("rest-port", 6066))
             if conn_data["principal"] is None:
                 conn_data["principal"] = extra.get("principal")
             if conn_data["keytab"] is None:
@@ -587,7 +604,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             except Exception as exc:
                 self.log.warning("Post-submit command raised an exception: %s. Error: %s", cmd, exc)
 
-    def submit(self, application: str = "", **kwargs: Any) -> None:
+    def submit(self, application: str = "", **kwargs: Any) -> str | None:
         """
         Remote Popen to execute the spark-submit job.
 
@@ -626,27 +643,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
                 )
 
-            self.log.debug("Should track driver: %s", self._should_track_driver_status)
-
-            # We want the Airflow job to wait until the Spark driver is finished
-            if self._should_track_driver_status:
-                if self._driver_id is None:
-                    raise AirflowException(
-                        "No driver id is known: something went wrong when executing the spark submit command"
-                    )
-
-                # We start with the SUBMITTED status as initial status
-                self._driver_status = "SUBMITTED"
-
-                # Start tracking the driver status (blocking function)
-                self._start_driver_status_tracking()
-
-                if self._driver_status != "FINISHED":
-                    raise AirflowException(
-                        f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
-                    )
+            if self._should_track_driver_status and self._driver_id is None:
+                raise AirflowException(
+                    "No driver id is known: something went wrong when executing the spark submit command"
+                )
         finally:
-            self._run_post_submit_commands()
+            # In cluster mode with driver tracking, the operator calls poll_until_complete
+            # after submit() returns, so post_submit_commands are deferred there to preserve
+            # the "runs after job finishes" contract. In all other modes, run them here.
+            if not self._should_track_driver_status:
+                self._run_post_submit_commands()
+
+        return self._driver_id
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
         """
