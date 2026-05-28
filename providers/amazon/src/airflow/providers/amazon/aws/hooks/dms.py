@@ -37,6 +37,20 @@ class DmsTaskWaiterStatus(str, Enum):
     STOPPED = "stopped"
 
 
+class DmsTaskState(str, Enum):
+    """AWS DMS replication task states."""
+
+    CREATING = "creating"
+    READY = "ready"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    MODIFYING = "modifying"
+    FAILED = "failed"
+    DELETING = "deleting"
+
+
 class DmsHook(AwsBaseHook):
     """
     Interact with AWS Database Migration Service (DMS).

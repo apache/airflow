@@ -390,8 +390,6 @@ with DAG(
                 }
             ]
         },
-        restart_task_after=True,
-        start_replication_task_type="resume-processing",
     )
     # [END howto_operator_dms_modify_task]
 
