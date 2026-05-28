@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select
+from sqlalchemy import exc, or_, select, text
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -138,7 +138,7 @@ class AssetManager(LoggingMixin):
         return [_add_one(a) for a in assets]
 
     @classmethod
-    def create_asset_event(cls, *, event_kwargs: dict, session: Session) -> AssetEvent:
+    def create_asset_event(cls, *, session: Session, **event_kwargs) -> AssetEvent:
         """
         Persist an :class:`AssetEvent` row and return it, bound to *session*.
 
@@ -148,20 +148,14 @@ class AssetManager(LoggingMixin):
         concurrent connections, so the event is added directly to the caller's
         *session* and flushed instead.
         """
-        if get_dialect_name(session) == "sqlite":
-            # SQLite cannot have two concurrent connections to the same file, so
-            # opening a second session would deadlock.  Add directly and flush so
-            # the object gets an id without committing the outer transaction.
-            asset_event = AssetEvent(**event_kwargs)
-            session.add(asset_event)
-            session.flush()
-            return asset_event
-
         # Create a short-lived session to populate asset event in db.
         # This is to ensure the asset event is committed and visible to other sessions.
         # e.g. Scheduler's session when it looks for new asset events to trigger dags via ADRQ.
         # Use ``scoped=False`` to get a truly independent session with its own connection/transaction.
         with create_session(scoped=False) as ae_session:
+            # SQLite cannot have two concurrent connections to the same file, so opening a second session would deadlock.
+            if get_dialect_name(session) == "sqlite":
+                ae_session.execute(text("BEGIN IMMEDIATE"))
             _asset_event = AssetEvent(**event_kwargs)
             ae_session.add(_asset_event)
             ae_session.flush()
@@ -344,7 +338,7 @@ class AssetManager(LoggingMixin):
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
             )
-        asset_event = cls.create_asset_event(event_kwargs=event_kwargs, session=session)
+        asset_event = cls.create_asset_event(session=session, **event_kwargs)
 
         dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 

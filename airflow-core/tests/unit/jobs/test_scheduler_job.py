@@ -5408,7 +5408,6 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_when_concurrent_asset_events_created(self, session: Session, dag_maker, caplog):
-        import random
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         ASSET_EVENT_COUNT = 100
@@ -5430,11 +5429,11 @@ class TestSchedulerJob:
 
             with create_session() as session:
                 now = timezone.utcnow()
-                asset_event = AssetEvent(asset_id=asset_id, timestamp=now)
-                session.add(asset_event)
-                session.commit()
-                time.sleep(sleep)  # sleep to simulate slow performance
                 asset_manager = AssetManager()
+                asset_event = asset_manager.create_asset_event(
+                    session=session, asset_id=asset_id, timestamp=now
+                )
+                time.sleep(sleep)  # sleep to simulate slow performance
                 dialect_name = inspect(session.get_bind()).dialect.name
                 if dialect_name in ("postgresql", "sqlite"):
                     asset_manager._queue_dagruns_nonpartitioned_conflict_update(
@@ -5458,8 +5457,10 @@ class TestSchedulerJob:
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
-            for _ in range(ASSET_EVENT_COUNT):
-                future = exec.submit(create_asset_events, random.randint(0, 1))
+            for i in range(ASSET_EVENT_COUNT):
+                # Deterministically alternate between fast (0s) and slow (1s) workers so the
+                # test reliably exercises both code paths without relying on RNG.
+                future = exec.submit(create_asset_events, i % 2)
                 futures.append(future)
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
