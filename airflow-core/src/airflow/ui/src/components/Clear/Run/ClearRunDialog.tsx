@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -45,6 +45,17 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+
+  // Reset local form state after the close transition completes so the next
+  // open shows the dag run's note / default options, not whatever the user
+  // typed before cancelling. Mirrors the fresh-mount semantics #47071 used
+  // before we had to keep the dialog mounted for Chakra to clean up properly.
+  useEffect(() => {
+    if (!open) {
+      setNote(dagRun.note);
+      setSelectedOptions(["existingTasks"]);
+    }
+  }, [open, dagRun.note]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 

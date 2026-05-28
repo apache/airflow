@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
@@ -51,6 +51,15 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const downstream = selectedOptions.includes("downstream");
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  // Reset form state after the dialog closes so the next open starts from
+  // the task instance's own note / no propagation options selected.
+  useEffect(() => {
+    if (!open) {
+      setNote(taskInstance.note);
+      setSelectedOptions([]);
+    }
+  }, [open, taskInstance.note]);
 
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,

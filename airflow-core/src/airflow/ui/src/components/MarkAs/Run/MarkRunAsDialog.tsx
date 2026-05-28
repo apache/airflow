@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
@@ -40,6 +40,14 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
+
+  // Reset the note after each close so the next open shows the dag run's
+  // own note, not whatever the user typed before cancelling.
+  useEffect(() => {
+    if (!open) {
+      setNote(dagRun.note);
+    }
+  }, [open, dagRun.note]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>

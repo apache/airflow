@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -98,6 +98,16 @@ const ClearTaskInstanceDialog = (props: Props) => {
     dagRunId,
     taskId,
   });
+
+  // Reset form state after the dialog closes so the next open starts from
+  // the task instance's own note / default propagation options.
+  useEffect(() => {
+    if (!openDialog) {
+      setSelectedOptions(["downstream"]);
+      setPreventRunningTask(true);
+      setNote(taskInstance?.note ?? null);
+    }
+  }, [openDialog, taskInstance?.note]);
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
