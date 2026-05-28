@@ -64,6 +64,13 @@ dependencies = [
     "GitPython>=3.1.44",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+github = [
+    "PyGithub>=2.1.1",
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
