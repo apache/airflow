@@ -50,6 +50,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
@@ -160,6 +161,31 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+def test_create_backfill_does_not_re_query_each_info(dag_maker, session):
+    # Regression guard for the N+1 fix in _create_runs_non_partitioned: existence
+    # checks for each DagRunInfo were previously a per-info SELECT, but are now
+    # batched into one SELECT in _fetch_latest_dag_runs_for_infos. Backfilling N
+    # daily runs should not issue a SELECT per info on top of the unavoidable
+    # per-info INSERTs.
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    # Backfilling 20 daily runs issues 195 queries with the batched fetch.
+    # Reverting to a per-info SELECT in the loop pushes the count to 215
+    # (one extra SELECT per info), which would fail this assertion.
+    with assert_queries_count(195):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-21"),  # 20 daily runs
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+        )
 
 
 @pytest.mark.parametrize("run_on_latest_version", [True, False])
