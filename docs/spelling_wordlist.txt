@@ -860,6 +860,7 @@ iTerm
 iterm
 itertools
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -897,6 +898,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -1083,6 +1085,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1130,6 +1133,7 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
@@ -1300,6 +1304,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1861,6 +1866,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz
