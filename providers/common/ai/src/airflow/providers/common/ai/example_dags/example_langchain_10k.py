@@ -588,7 +588,7 @@ Cite specific data points and scores.
     ApprovalOperator(
         task_id="review_report",
         subject="Review 10-K comparison report before sharing",
-        body=synthesize.output,
+        body=review_body,
         response_timeout=timedelta(hours=24),
     )
     # [END 10k_langchain_hitl_approval]
