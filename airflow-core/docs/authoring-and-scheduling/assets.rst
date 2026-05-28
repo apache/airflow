@@ -623,7 +623,9 @@ partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
 Inside partitioned Dag runs, access the resolved partition through
-``dag_run.partition_key``.
+``dag_run.partition_key``. For date-shaped partitions, the underlying
+``datetime`` is also available as ``dag_run.partition_date``, so
+templates can use ``{{ partition_date | ds }}``.
 
 You can also trigger a DagRun manually with a partition key (for example,
 through the Trigger Dag window in the UI, or through the REST API by

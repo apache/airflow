@@ -1524,6 +1524,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
             ti.dag_run.partition_key = next(iter(runtime_pks))
         dag_run_partition_key = ti.dag_run.partition_key
+        dag_run_partition_date = ti.dag_run.partition_date
 
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
@@ -1559,15 +1560,31 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=am,
                     extra=None,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 return
             for payload in payloads_for_asset:
+                # Drop partition_date when the payload's partition_key diverges
+                # from the DagRun's — the run-level date refers to the run-level
+                # key and would mis-label this event.
+                if payload.partition_key == dag_run_partition_key:
+                    payload_partition_date = dag_run_partition_date
+                else:
+                    payload_partition_date = None
+                    if dag_run_partition_date is not None:
+                        ti.log.debug(
+                            "Task-emitted partition_key %r differs from DagRun partition_key %r; "
+                            "AssetEvent partition_date will be None.",
+                            payload.partition_key,
+                            dag_run_partition_key,
+                        )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
                     partition_key=payload.partition_key,
+                    partition_date=payload_partition_date,
                     session=session,
                 )
 
@@ -1651,6 +1668,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 if event is None:
@@ -1663,6 +1681,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
+                        partition_date=dag_run_partition_date,
                         session=session,
                     )
 

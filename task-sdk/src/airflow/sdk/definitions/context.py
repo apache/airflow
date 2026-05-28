@@ -64,6 +64,7 @@ class Context(TypedDict, total=False):
     outlets: list
     params: dict[str, Any]
     partition_key: NotRequired[str | None]
+    partition_date: NotRequired[DateTime | None]
     prev_data_interval_start_success: NotRequired[DateTime | None]
     prev_data_interval_end_success: NotRequired[DateTime | None]
     prev_start_date_success: NotRequired[DateTime | None]

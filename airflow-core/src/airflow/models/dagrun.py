@@ -432,6 +432,7 @@ class DagRun(Base, LoggingMixin):
             conf=self.conf,
             consumed_asset_events=[],
             partition_key=self.partition_key,
+            partition_date=self.partition_date,
         )
 
     @property
@@ -1081,6 +1082,8 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            if self.partition_date:
+                attributes["airflow.dag_run.partition_date"] = self.partition_date.isoformat()
             # TODO: make the empty parent context optional. Default should be to
             # nest the dag run span under the currently active parent span (by
             # omitting `context` here); only use the empty `context.Context()` to

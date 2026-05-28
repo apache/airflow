@@ -17,7 +17,17 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
+
+from airflow.api_fastapi.execution_api.datamodels.asset_event import (
+    AssetEventResponse,
+    AssetEventsResponse,
+    DagRunAssetReference,
+)
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun,
+    TIRunContext,
+)
 
 
 class AddVariableKeysEndpoint(VersionChange):
@@ -26,3 +36,30 @@ class AddVariableKeysEndpoint(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (endpoint("/variables/keys", ["GET"]).didnt_exist,)
+
+
+class AddPartitionDateField(VersionChange):
+    """Expose the producer's partition datetime on the execution API so consumer tasks can template it."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("partition_date").didnt_exist,
+        schema(AssetEventResponse).field("partition_date").didnt_exist,
+        schema(DagRunAssetReference).field("partition_date").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_partition_date_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            response.body["dag_run"].pop("partition_date", None)
+
+    @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
+    def remove_partition_date_from_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from each asset event and its ``created_dagruns`` references."""
+        events = response.body["asset_events"]
+        for elem in events:
+            elem.pop("partition_date", None)
+            for dag_ref in elem.get("created_dagruns", []):
+                dag_ref.pop("partition_date", None)

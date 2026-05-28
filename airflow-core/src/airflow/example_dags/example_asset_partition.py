@@ -94,7 +94,7 @@ with DAG(
         """Merge the aligned hourly partitions into a combined dataset."""
         if TYPE_CHECKING:
             assert dag_run
-        print(dag_run.partition_key)
+        print(dag_run.partition_key, dag_run.partition_date)
 
     combine_player_stats()
 

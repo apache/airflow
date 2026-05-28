@@ -66,6 +66,7 @@ def _get_asset_events_through_sql_clauses(
                     source_run_id=event.source_run_id,
                     source_map_index=event.source_map_index,
                     partition_key=event.partition_key,
+                    partition_date=event.partition_date,
                 )
                 for event in asset_events
             ]

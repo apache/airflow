@@ -110,6 +110,7 @@ class DagRunAssetReference(BaseModel):
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
 
 
 class DagRunState(str, Enum):
@@ -681,6 +682,7 @@ class AssetEventResponse(BaseModel):
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
 
 
 class AssetEventsResponse(BaseModel):
@@ -714,6 +716,7 @@ class DagRun(BaseModel):
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 

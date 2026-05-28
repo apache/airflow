@@ -3536,6 +3536,30 @@ def test_runtime_partition_key_backfills_dag_run_when_none(dag_maker, session):
     assert dr.partition_key == "us"
 
 
+def test_dag_run_partition_date_stamped_onto_asset_event(dag_maker, session):
+    """When DagRun has both partition_key and partition_date, both flow to the AssetEvent."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pdate_stamped", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    partition_date = pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC")
+    dr = dag_maker.create_dagrun(
+        partition_key="2026-05-20T01:00:00",
+        partition_date=partition_date,
+        session=session,
+    )
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "2026-05-20T01:00:00"
+    assert event.partition_date == partition_date
+
+
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
     """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
     asset = Asset(name="hello")
@@ -3556,6 +3580,31 @@ def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker,
     assert event.partition_key == "task-key"
     session.refresh(dr)
     assert dr.partition_key == "scheduler-key"
+
+
+def test_runtime_partition_key_drops_partition_date_when_key_differs(dag_maker, session):
+    """When a task emits a partition_key different from the DagRun's, the event's partition_date is None."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pdate_drop", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(
+        partition_key="scheduler-key",
+        partition_date=pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC"),
+        session=session,
+    )
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "task-key"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "task-key"
+    assert event.partition_date is None
 
 
 def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):

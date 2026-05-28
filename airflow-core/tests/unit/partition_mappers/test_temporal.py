@@ -162,6 +162,41 @@ class TestTemporalMappers:
         # → start-of-day in New York is 2026-02-11
         assert pm.to_downstream("2026-02-11T06:00:00+0000") == "2026-02-11"
 
+    @pytest.mark.parametrize(
+        ("mapper_cls", "expected_normalized"),
+        [
+            (StartOfHourMapper, pendulum.datetime(2026, 2, 10, 14, 0, 0, tz="UTC")),
+            (StartOfDayMapper, pendulum.datetime(2026, 2, 10, 0, 0, 0, tz="UTC")),
+            (StartOfWeekMapper, pendulum.datetime(2026, 2, 9, 0, 0, 0, tz="UTC")),
+            (StartOfMonthMapper, pendulum.datetime(2026, 2, 1, 0, 0, 0, tz="UTC")),
+            (StartOfQuarterMapper, pendulum.datetime(2026, 1, 1, 0, 0, 0, tz="UTC")),
+            (StartOfYearMapper, pendulum.datetime(2026, 1, 1, 0, 0, 0, tz="UTC")),
+        ],
+    )
+    def test_to_downstream_normalized(
+        self,
+        mapper_cls: type[_BaseTemporalMapper],
+        expected_normalized,
+    ):
+        """Each temporal mapper exposes the normalized datetime alongside the string form."""
+        pm = mapper_cls()
+        normalized = pm.to_downstream_normalized("2026-02-10T14:30:45")
+        assert normalized == expected_normalized
+        # to_downstream returns the formatted string of the same normalized value.
+        assert pm.to_downstream("2026-02-10T14:30:45") == pm.format(normalized)
+
+    def test_to_downstream_normalized_timezone_aware(self):
+        """Normalized datetime is in the configured timezone, mirroring to_downstream."""
+        pm = StartOfDayMapper(timezone="America/New_York")
+        normalized = pm.to_downstream_normalized("2026-02-10T23:00:00")
+        # Normalized to start-of-day in New York timezone.
+        assert normalized.tzinfo is not None
+        assert normalized.year == 2026
+        assert normalized.month == 2
+        assert normalized.day == 10
+        assert normalized.hour == 0
+        assert normalized.minute == 0
+
 
 class TestSdkTemporalMappersTimezoneSerialization:
     """

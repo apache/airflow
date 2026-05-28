@@ -804,6 +804,7 @@ class AssetEvent(Base):
     :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
     :param partition_key: the key for the partition associated with event, if applicable
+    :param partition_date: the datetime of the partition associated with event, if applicable
 
     We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
@@ -818,6 +819,7 @@ class AssetEvent(Base):
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __tablename__ = "asset_event"
     __table_args__ = (
@@ -916,6 +918,7 @@ class AssetPartitionDagRun(Base):
     target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
