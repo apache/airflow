@@ -53,7 +53,9 @@ from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 
-
+# Getting audit logs is an admin feature giving access to the logs for
+# the whole Airflow installation, not on a more granular level. This is documented
+# at https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#audit-log-users
 @event_logs_router.get(
     "/{event_log_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
@@ -71,6 +73,9 @@ def get_event_log(
     return event_log
 
 
+# Getting audit logs is an admin feature giving access to the logs for
+# the whole Airflow installation, not on a more granular level. This is documented
+# at https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#audit-log-users
 @event_logs_router.get(
     "",
     dependencies=[Depends(requires_access_event_log("GET"))],
