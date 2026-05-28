@@ -2429,6 +2429,88 @@ class TestRuntimeTaskInstance:
             ),
         )
 
+    def test_xcom_pull_default_respected_when_no_map_indexes(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """Test that ``default`` is returned when map_indexes is not specified and no XCom is found.
+
+        Previously, ``xcoms.append(None)`` was used unconditionally on the no-map-indexes
+        path, so a user-supplied ``default`` was silently ignored.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all") as mock_get_all:
+            mock_get_all.return_value = None
+            result = runtime_ti.xcom_pull(key="missing_key", task_ids="task_a", default="fallback_value")
+
+        assert result == "fallback_value"
+
+    def test_xcom_pull_default_is_none_when_not_passed_and_no_xcom(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """When default is not supplied, a missing XCom resolves to None.
+
+        This confirms the pre-existing behavior is preserved: if the caller does
+        not pass a default value, a key that has no stored XCom still comes back
+        as None rather than raising or returning something unexpected.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all") as mock_get_all:
+            mock_get_all.return_value = None
+            result = runtime_ti.xcom_pull(key="missing_key", task_ids="task_a")
+
+        assert result is None
+
+    def test_xcom_pull_default_fills_correct_position_with_multiple_task_ids(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """When pulling from several task_ids, default fills the slot for the one with no XCom.
+
+        The result list preserves the order of task_ids, so the value from the
+        task that did have an XCom appears at its position and the default sits
+        at the position of the task that had nothing stored.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        def get_all_side_effect(*, run_id, key, task_id, dag_id, include_prior_dates):
+            if task_id == "task_with_xcom":
+                return ["stored_value"]
+            return None
+
+        with patch.object(XCom, "get_all", side_effect=get_all_side_effect):
+            result = runtime_ti.xcom_pull(
+                key="my_key",
+                task_ids=["task_with_xcom", "task_without_xcom"],
+                default="my_default",
+            )
+
+        assert result == ["stored_value", "my_default"]
+
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
