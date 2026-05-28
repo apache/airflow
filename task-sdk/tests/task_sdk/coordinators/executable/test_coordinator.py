@@ -17,16 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import pathlib
 import socket
 import stat
 import struct
 import subprocess
-import threading
-import time
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -36,10 +33,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
     ExecutableCoordinator,
-    _accept_connections,
     _Bundle,
-    _ExecutableActivitySubprocess,
-    _start_server,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -116,81 +110,6 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "executable") -> TaskIns
         queue=queue,
         priority_weight=1,
     )
-
-
-class TestStartServer:
-    def test_returns_listening_socket(self):
-        server = _start_server()
-        try:
-            host, port = server.getsockname()
-        finally:
-            server.close()
-        assert host == "127.0.0.1"
-        assert port > 0
-
-    def test_two_calls_return_different_ports(self):
-        s1 = _start_server()
-        s2 = _start_server()
-        try:
-            _, port1 = s1.getsockname()
-            _, port2 = s2.getsockname()
-        finally:
-            s1.close()
-            s2.close()
-        assert port1 != port2
-
-
-class TestAcceptConnections:
-    def _connect_after_delay(self, addr: tuple[str, int], delay: float = 0.0) -> None:
-        def _connect():
-            time.sleep(delay)
-            c = socket.socket()
-            with contextlib.suppress(OSError):  # Server may already be closed in teardown.
-                c.connect(addr)
-
-        threading.Thread(target=_connect, daemon=True).start()
-
-    def test_accepts_multiple_servers(self):
-        comm_server = _start_server()
-        logs_server = _start_server()
-        _, comm_port = comm_server.getsockname()
-        _, logs_port = logs_server.getsockname()
-
-        self._connect_after_delay(("127.0.0.1", comm_port))
-        self._connect_after_delay(("127.0.0.1", logs_port))
-
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.poll.return_value = None
-
-        try:
-            accepted, _ = _accept_connections({"comm": comm_server, "logs": logs_server}, {}, mock_proc)
-            assert set(accepted) == {comm_server, logs_server}
-            for sock in accepted.values():
-                sock.close()
-        finally:
-            comm_server.close()
-            logs_server.close()
-
-    def test_raises_timeout_when_no_connection(self):
-        server = _start_server()
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.poll.return_value = None
-        try:
-            with pytest.raises(TimeoutError, match="did not connect within timeout"):
-                _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
-        finally:
-            server.close()
-
-    def test_raises_runtime_error_if_process_exits_before_connecting(self):
-        server = _start_server()
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.poll.return_value = 1
-        mock_proc.returncode = 1
-        try:
-            with pytest.raises(RuntimeError, match="process exited with 1"):
-                _accept_connections({"comm": server}, {}, mock_proc)
-        finally:
-            server.close()
 
 
 class TestBundleFind:
@@ -318,11 +237,11 @@ class TestExecutableCoordinatorExecuteTask:
 
         with (
             patch(
-                "airflow.sdk.coordinators.executable.coordinator.subprocess.Popen",
+                "airflow.sdk.coordinators.socket.coordinator.subprocess.Popen",
                 side_effect=capture_popen,
             ),
             patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
+                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -349,20 +268,6 @@ class TestExecutableCoordinatorExecuteTask:
         expected = str((bundles_dir / "my_bundle").resolve())
         assert cmd[0] == expected
 
-    def test_comm_and_logs_args_present(self, bundles_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundles_dir, mock_client)
-        comm_args = [a for a in cmd if a.startswith("--comm=")]
-        logs_args = [a for a in cmd if a.startswith("--logs=")]
-        assert len(comm_args) == 1
-        assert len(logs_args) == 1
-
-    def test_comm_and_logs_contain_port(self, bundles_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundles_dir, mock_client)
-        comm_arg = next(a for a in cmd if a.startswith("--comm="))
-        logs_arg = next(a for a in cmd if a.startswith("--logs="))
-        assert ":" in comm_arg.split("=", 1)[1]
-        assert ":" in logs_arg.split("=", 1)[1]
-
     def test_returns_execution_result(self, bundles_dir, mock_client):
         ti = _make_ti(dag_id="tutorial_dag")
         coordinator = ExecutableCoordinator(executables_root=[bundles_dir])
@@ -375,7 +280,7 @@ class TestExecutableCoordinatorExecuteTask:
         with (
             patch("subprocess.Popen", return_value=mock_proc),
             patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
+                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -396,144 +301,3 @@ class TestExecutableCoordinatorExecuteTask:
 
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
-
-
-class TestExecutableActivitySubprocessStart:
-    """
-    Unit tests for _ExecutableActivitySubprocess.start().
-
-    These tests mock subprocess.Popen and _accept_connections to verify that
-    start() wires up the right command and stores the right sockets,
-    without requiring a real native binary to launch.
-    """
-
-    def _start_with_mocks(
-        self,
-        executable_path: str,
-        mock_client,
-        *,
-        ti: TaskInstanceDTO | None = None,
-    ):
-        ti = ti or _make_ti()
-
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.pid = 12345
-        comm_sock = MagicMock(spec=socket.socket)
-        logs_sock = MagicMock(spec=socket.socket)
-
-        with (
-            patch(
-                "airflow.sdk.coordinators.executable.coordinator.subprocess.Popen",
-                return_value=mock_proc,
-            ) as popen_mock,
-            patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers"),
-            patch.object(ActivitySubprocess, "_on_child_started"),
-            patch("psutil.Process"),
-        ):
-            proc = _ExecutableActivitySubprocess.start(
-                what=ti,
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                executable_path=executable_path,
-                subprocess_logs_to_stdout=False,
-            )
-        return proc, popen_mock
-
-    def test_stdin_is_comm_socket(self, bundles_dir, mock_client):
-        """stdin (used by send_msg) must be the accepted comm socket."""
-        ti = _make_ti()
-        comm_sock = MagicMock(spec=socket.socket)
-        logs_sock = MagicMock(spec=socket.socket)
-
-        with (
-            patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
-            patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers"),
-            patch.object(ActivitySubprocess, "_on_child_started"),
-            patch("psutil.Process"),
-        ):
-            popen_mock.return_value.pid = 12345
-            proc = _ExecutableActivitySubprocess.start(
-                what=ti,
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=MagicMock(),
-                executable_path=str(bundles_dir / "my_bundle"),
-                subprocess_logs_to_stdout=False,
-            )
-
-        assert proc.stdin is comm_sock
-
-    def test_pid_taken_from_popen(self, bundles_dir, mock_client):
-        proc, _ = self._start_with_mocks(str(bundles_dir / "my_bundle"), mock_client)
-        assert proc.pid == 12345
-
-    def test_on_child_started_called(self, bundles_dir, mock_client):
-        ti = _make_ti()
-        with (
-            patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
-            patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers"),
-            patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
-            patch("psutil.Process"),
-        ):
-            popen_mock.return_value.pid = 12345
-            _ExecutableActivitySubprocess.start(
-                what=ti,
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                executable_path=str(bundles_dir / "my_bundle"),
-                subprocess_logs_to_stdout=False,
-            )
-
-        mock_on_started.assert_called_once()
-        kwargs = mock_on_started.call_args.kwargs
-        assert kwargs["ti"] is ti
-        assert kwargs["dag_rel_path"] == "my_bundle"
-
-    def test_register_pipe_readers_called_with_four_sockets(self, bundles_dir, mock_client):
-        """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
-        with (
-            patch("airflow.sdk.coordinators.executable.coordinator.subprocess.Popen") as popen_mock,
-            patch(
-                "airflow.sdk.coordinators.executable.coordinator._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers") as mock_register,
-            patch.object(ActivitySubprocess, "_on_child_started"),
-            patch("psutil.Process"),
-        ):
-            popen_mock.return_value.pid = 12345
-            _ExecutableActivitySubprocess.start(
-                what=_make_ti(),
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                executable_path=str(bundles_dir / "my_bundle"),
-                subprocess_logs_to_stdout=False,
-            )
-        assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
