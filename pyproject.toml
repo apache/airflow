@@ -170,6 +170,9 @@ apache-airflow = "airflow.__main__:main"
 "celery" = [
     "apache-airflow-providers-celery>=3.8.3"
 ]
+"clickhouse" = [
+    "apache-airflow-providers-clickhousedb>=1.0.0"
+]
 "cloudant" = [
     "apache-airflow-providers-cloudant>=4.0.1"
 ]
@@ -425,6 +428,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
+    "apache-airflow-providers-clickhousedb>=1.0.0",
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
@@ -1122,6 +1126,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/atlassian/jira/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
     "$MYPY_CONFIG_FILE_DIR/providers/celery/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/clickhouse/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/clickhouse/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/cloudant/src",
     "$MYPY_CONFIG_FILE_DIR/providers/cloudant/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/cncf/kubernetes/src",
@@ -1434,6 +1440,7 @@ apache-airflow-providers-arangodb = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-atlassian-jira = false
 apache-airflow-providers-celery = false
+apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-cloudant = false
 apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
@@ -1576,6 +1583,7 @@ apache-airflow-providers-arangodb = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-atlassian-jira = false
 apache-airflow-providers-celery = false
+apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-cloudant = false
 apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
@@ -1735,6 +1743,7 @@ apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = { workspace = true }
+apache-airflow-providers-clickhousedb = { workspace = true }
 apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
@@ -1872,6 +1881,7 @@ members = [
     "providers/asana",
     "providers/atlassian/jira",
     "providers/celery",
+    "providers/clickhouse",
     "providers/cloudant",
     "providers/cncf/kubernetes",
     "providers/cohere",

@@ -243,6 +243,8 @@ classpath
 classpaths
 cleartext
 cli
+ClickHouse
+clickhouse
 ClientSecretCredential
 cloudant
 CloudantV
@@ -1243,6 +1245,7 @@ Preload
 preload
 prepend
 prepended
+prepends
 preprocess
 Preprocessed
 preprocessing

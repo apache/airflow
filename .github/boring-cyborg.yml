@@ -93,6 +93,9 @@ labelPRBasedOnFilePath:
   provider:celery:
     - providers/celery/**
 
+  provider:clickhouse:
+    - providers/clickhouse/**
+
   provider:cloudant:
     - providers/cloudant/**
 
