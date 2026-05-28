@@ -176,7 +176,23 @@ class GCSToSFTPOperator(BaseOperator):
                 source_object = os.path.relpath(source_object, start=prefix)
             else:
                 source_object = os.path.basename(source_object)
-        return os.path.join(self.destination_path, source_object)
+        destination = os.path.join(self.destination_path, source_object)
+        # GCS object names are arbitrary UTF-8 strings and originate from
+        # whoever can write to the source bucket (frequently a lower-trust
+        # external producer). A name containing ``..`` segments or an
+        # absolute-path prefix would otherwise canonicalise outside the
+        # configured ``destination_path`` on the SFTP server: ``os.path.join``
+        # preserves ``..`` and an absolute ``source_object`` silently absorbs
+        # the destination prefix. Normalize the joined result and refuse any
+        # path that does not stay within the destination.
+        base = os.path.normpath(self.destination_path)
+        resolved = os.path.normpath(destination)
+        if resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep):
+            raise AirflowException(
+                f"Refusing to copy GCS object {source_object!r}: resolved destination "
+                f"{resolved!r} escapes configured destination_path {base!r}."
+            )
+        return resolved
 
     def _copy_single_object(
         self,

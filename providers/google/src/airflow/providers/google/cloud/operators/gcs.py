@@ -897,6 +897,16 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                 bucket = client.bucket(bucket_name=self.source_bucket)
                 blob = bucket.blob(blob_name=blob_name, chunk_size=self.chunk_size)
 
+                # GCS blob names are arbitrary Unicode strings produced by
+                # whoever can write to the source bucket; in many data-pipeline
+                # deployments that is an external producer rather than the DAG
+                # author. A blob name containing ``..`` segments or an
+                # absolute-path prefix would otherwise canonicalise outside the
+                # temp input directory and be written to wherever the worker's
+                # filesystem permissions allowed (``~/.bashrc``, ``cron.d``,
+                # ``.ssh/authorized_keys``). Validate the resolved form, but
+                # pass the un-resolved path downstream so callers that read
+                # ``temp_input_dir_path`` back out keep their existing shape.
                 destination_file = temp_input_dir_path / blob_name
                 # Containment check: ``blob_name`` originates outside the worker, and GCS
                 # allows object names containing ``..``. Resolve the target and assert it

@@ -466,3 +466,46 @@ class TestGoogleCloudStorageToSFTPOperator:
         task.execute(None)
 
         sftp_hook_mock.return_value.create_directory.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "source_object",
+        [
+            pytest.param("incoming/../../../../etc/passwd", id="dotdot-segments"),
+            pytest.param("/etc/passwd", id="absolute-path"),
+        ],
+    )
+    def test_resolve_destination_path_rejects_escape(self, source_object):
+        # ``_resolve_destination_path`` is the GCSToSFTPOperator method that
+        # joins a GCS object name with the configured ``destination_path``.
+        # When the joined path canonicalises outside the destination — either
+        # via ``..`` segments or an absolute ``source_object`` that absorbs
+        # the prefix — the method must refuse rather than hand the path to
+        # the SFTP server, where the server would resolve it on its own host.
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="incoming/*",
+            destination_path="/srv/sftp/incoming",
+            keep_directory_structure=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        with pytest.raises(AirflowException, match="escapes configured destination_path"):
+            task._resolve_destination_path(source_object)
+
+    def test_resolve_destination_path_allows_benign_nested(self):
+        # The new validation is post-join normalisation; benign nested paths
+        # under the destination must still resolve cleanly.
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="incoming/*",
+            destination_path="/srv/sftp/incoming",
+            keep_directory_structure=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        assert (
+            task._resolve_destination_path("incoming/sub/dir/file.csv")
+            == "/srv/sftp/incoming/incoming/sub/dir/file.csv"
+        )
