@@ -20,10 +20,10 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Security, status
 
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep, require_auth
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
@@ -50,7 +50,10 @@ async def has_connection_access(
 
 router = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
-    dependencies=[Depends(has_connection_access)],
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_connection_access),
+    ],
 )
 
 log = logging.getLogger(__name__)
