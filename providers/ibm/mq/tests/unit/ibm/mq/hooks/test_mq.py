@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import operator
+import struct
 import threading
 from functools import reduce
 from itertools import count
@@ -33,10 +34,10 @@ from airflow.providers.ibm.mq.hooks.mq import (
     _BACKOFF_BASE,
     _BACKOFF_FACTOR,
     _BACKOFF_MAX,
+    _NON_MQ_SENTINEL,
     IBMMQConsumer,
     IBMMQError,
     IBMMQHook,
-    _NON_MQ_SENTINEL,
 )
 
 MQ_PAYLOAD = """RFH x"MQSTR    <mcd><Msd>jms_map</Msd></mcd>   <jms><Dst>topic://localhost/topic</Dst><Tms>1772121947476</Tms><Dlv>2</Dlv><Uci dt='bin.hex'>414D5143514D49413030542020202069774D7092F81057</Uci></jms>L<usr><XMSC_CLIENT_ID>local</XMSC_CLIENT_ID><release>26.01.00</release></usr> 4<mqps><Top>topic</Top></mqps>  {}"""
@@ -170,13 +171,15 @@ class TestIBMMQHook:
             ("MQOO_INPUT_EXCLSUVE", True, None),
         ],
     )
-    def test_get_conn_resolves_or_errors_based_on_connection_extra(self, open_options, expect_exception, expected_resolved):
+    def test_get_conn_resolves_or_errors_based_on_connection_extra(
+        self, open_options, expect_exception, expected_resolved
+    ):
         hook = IBMMQHook(open_options=None)
         mock_conn = MagicMock()
 
         with patch.object(hook, "_connect", return_value=mock_conn) as mock_connect:
             if expect_exception:
-                with pytest.raises(ValueError):
+                with pytest.raises(ValueError, match="Unknown MQ open option token"):
                     with hook.get_conn(connection=mq_connection(open_options=open_options)):
                         pass
                 assert hook.open_options is None
@@ -238,10 +241,9 @@ class TestIBMMQHook:
         if isinstance(bad_value, list):
             with pytest.raises(TypeError):
                 IBMMQHook.parse_open_options(bad_value)
-            return
-
-        with pytest.raises(ValueError):
-            IBMMQHook.parse_open_options(bad_value)
+        else:
+            with pytest.raises(ValueError, match=r"Unknown MQ open option token|Empty open_options string"):
+                IBMMQHook.parse_open_options(bad_value)
 
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
@@ -291,16 +293,22 @@ class TestIBMMQHook:
         ("open_options_attr", "use_explicit_open_options"),
         [
             pytest.param("MQOO_OUTPUT", False, id="default_output"),
-            pytest.param("MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"),
+            pytest.param(
+                "MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"
+            ),
         ],
     )
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
     async def test_aproduce_with_custom_open_options(
-        self, mock_queue_class, mock_connect, mock_get_connection, patch_sync_to_async,
-        open_options_attr, use_explicit_open_options
+        self,
+        mock_queue_class,
+        mock_connect,
+        mock_get_connection,
+        patch_sync_to_async,
+        open_options_attr,
+        use_explicit_open_options,
     ):
-        """Test that aproduce correctly passes open_options to produce."""
         import ibmmq
 
         mock_qmgr = MagicMock()
@@ -310,17 +318,12 @@ class TestIBMMQHook:
         mock_queue_class.return_value = mock_queue
 
         # Calculate the expected open_options value
-        open_options_values = [
-            getattr(ibmmq.CMQC, opt.strip())
-            for opt in open_options_attr.split("|")
-        ]
+        open_options_values = [getattr(ibmmq.CMQC, opt.strip()) for opt in open_options_attr.split("|")]
         expected_open_options = reduce(operator.or_, open_options_values)
 
         if use_explicit_open_options:
             await self.hook.aproduce(
-                queue_name="QUEUE1",
-                payload="payload",
-                open_options=expected_open_options
+                queue_name="QUEUE1", payload="payload", open_options=expected_open_options
             )
         else:
             await self.hook.aproduce(queue_name="QUEUE1", payload="payload")
@@ -553,21 +556,25 @@ class TestIBMMQHook:
         assert call_args[1].get("thread_sensitive") is False
         assert call_args[0][0] == self.hook.produce
 
-
     @pytest.mark.parametrize(
         ("open_options_attr", "use_explicit_open_options"),
         [
-             pytest.param("MQOO_OUTPUT", False, id="default_output"),
-             pytest.param("MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"),
+            pytest.param("MQOO_OUTPUT", False, id="default_output"),
+            pytest.param(
+                "MQOO_OUTPUT | MQOO_FAIL_IF_QUIESCING", True, id="custom_output_with_fail_if_quiescing"
+            ),
         ],
     )
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
     def test_produce_with_custom_open_options(
-        self, mock_queue_class, mock_connect, mock_base_get_connection,
-        open_options_attr, use_explicit_open_options
+        self,
+        mock_queue_class,
+        mock_connect,
+        mock_base_get_connection,
+        open_options_attr,
+        use_explicit_open_options,
     ):
-        """Test that produce correctly uses custom open_options when opening queue."""
         import ibmmq
 
         mock_qmgr = MagicMock()
@@ -577,10 +584,7 @@ class TestIBMMQHook:
         mock_queue_class.return_value = mock_queue
 
         # Calculate the expected open_options value
-        open_options_values = [
-            getattr(ibmmq.CMQC, opt.strip())
-            for opt in open_options_attr.split("|")
-        ]
+        open_options_values = [getattr(ibmmq.CMQC, opt.strip()) for opt in open_options_attr.split("|")]
         expected_open_options = reduce(operator.or_, open_options_values)
 
         conn = mq_connection()
@@ -589,14 +593,10 @@ class TestIBMMQHook:
                 connection=conn,
                 queue_name="QUEUE1",
                 payload="test payload",
-                open_options=expected_open_options
+                open_options=expected_open_options,
             )
         else:
-            self.hook.produce(
-                connection=conn,
-                queue_name="QUEUE1",
-                payload="test payload"
-            )
+            self.hook.produce(connection=conn, queue_name="QUEUE1", payload="test payload")
             # When not specified, should default to MQOO_OUTPUT
             expected_open_options = ibmmq.CMQC.MQOO_OUTPUT
 
@@ -692,11 +692,16 @@ class TestIBMMQConsumer:
     )
     @patch("ibmmq.RFH2")
     def test_process_message_exception_fallback(
-        self, mock_rfh2_class, consumer, caplog, exception_to_raise, exception_name, message_bytes, expected_result, log_contains
+        self,
+        mock_rfh2_class,
+        consumer,
+        caplog,
+        exception_to_raise,
+        exception_name,
+        message_bytes,
+        expected_result,
+        log_contains,
     ):
-        """Test that various exceptions during RFH2 processing fall back gracefully."""
-        import logging
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.get_length.side_effect = exception_to_raise
@@ -710,9 +715,6 @@ class TestIBMMQConsumer:
 
     @patch("ibmmq.RFH2")
     def test_process_message_out_of_bounds_offset(self, mock_rfh2_class, consumer, caplog):
-        """Test that oversized RFH2 offset falls back to raw message."""
-        import logging
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.get_length.return_value = 100  # Offset larger than message
@@ -726,10 +728,6 @@ class TestIBMMQConsumer:
 
     @patch("ibmmq.RFH2")
     def test_process_message_struct_error_falls_back(self, mock_rfh2_class, consumer, caplog):
-        """Test that struct.error in RFH2.unpack() falls back gracefully."""
-        import logging
-        import struct
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.unpack.side_effect = struct.error("unpack requires a buffer of N bytes")
@@ -753,9 +751,6 @@ class TestIBMMQConsumer:
     def test_process_message_debug_logging_payload(
         self, mock_rfh2_class, consumer, caplog, log_level, expect_debug_log
     ):
-        """Test that debug payloads are only logged when DEBUG level is enabled."""
-        import logging
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.get_length.return_value = 10
@@ -772,9 +767,6 @@ class TestIBMMQConsumer:
 
     @patch("ibmmq.RFH2")
     def test_process_message_payload_truncation(self, mock_rfh2_class, consumer, caplog):
-        """Test that debug payloads are truncated to 200 chars."""
-        import logging
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.get_length.return_value = 10
@@ -802,10 +794,6 @@ class TestIBMMQConsumer:
     def test_process_message_fallback_debug_logging(
         self, mock_rfh2_class, consumer, caplog, log_level, expect_raw_payload_log
     ):
-        """Test fallback path debug logging behavior based on log level."""
-        import logging
-        import struct
-
         mock_rfh2 = MagicMock()
         mock_rfh2_class.return_value = mock_rfh2
         mock_rfh2.unpack.side_effect = struct.error("unpack failed")

@@ -23,10 +23,10 @@ import logging
 import re
 import threading
 from contextlib import contextmanager, suppress
+from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
-from functools import wraps
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.connection import get_async_connection
@@ -225,7 +225,6 @@ class IBMMQConsumer(threading.Thread, LoggingMixin):
 
         For an asynchronous interface see :meth:`IBMMQHook.aconsume`.
         """
-
         transient_reasons = frozenset(
             getattr(ibmmq.CMQC, name) for name in _TRANSIENT_REASON_NAMES if hasattr(ibmmq.CMQC, name)
         )
@@ -451,7 +450,6 @@ class IBMMQHook(BaseHook):
             >>> cls.get_open_options_flags(open_options)
             ['MQOO_INPUT_SHARED', 'MQOO_FAIL_IF_QUIESCING']
         """
-
         return [
             name
             for name, value in vars(ibmmq.CMQC).items()
@@ -486,7 +484,6 @@ class IBMMQHook(BaseHook):
 
         :return: IBM MQ connection object
         """
-
         try:
             return ibmmq.connect(queue_manager, channel, conn_info, csp=csp)
         except (ibmmq.MQMIError, ibmmq.PYIFError) as e:
@@ -645,9 +642,7 @@ class IBMMQHook(BaseHook):
             await asyncio.sleep(backoff)
             backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)
 
-    async def aproduce(
-        self, queue_name: str, payload: str, open_options: int | None = None
-    ) -> None:
+    async def aproduce(self, queue_name: str, payload: str, open_options: int | None = None) -> None:
         """
         Asynchronous version of :meth:`produce`.
 
@@ -686,7 +681,6 @@ class IBMMQHook(BaseHook):
         :param open_options: Integer bitmask of ``MQOO_*`` open options for the queue.
             If not provided, defaults to ``MQOO_OUTPUT``.
         """
-
         od = ibmmq.OD()
         od.ObjectName = queue_name
 
