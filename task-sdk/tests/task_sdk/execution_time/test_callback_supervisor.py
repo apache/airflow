@@ -191,6 +191,9 @@ class TestCallbackHandleRequest:
                 method_path="variables.keys",
                 kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
                 response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            ),
+        ),
+        RequestCase(
             message=GetXCom(
                 key="return_value",
                 dag_id="test_dag",
