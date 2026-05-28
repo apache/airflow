@@ -62,6 +62,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagId,
     dagRunId,
     options: {
+      enabled: open,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => "state" in ti && isStatePending(ti.state))
           ? refetchInterval

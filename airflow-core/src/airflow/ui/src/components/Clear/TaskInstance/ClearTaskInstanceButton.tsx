@@ -87,12 +87,11 @@ const ClearTaskInstanceButton = ({
         <CgRedo />
       </IconButton>
 
-      {useInternalDialog && open && isGroup ? (
+      {useInternalDialog && isGroup ? (
         <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />
       ) : undefined}
 
       {useInternalDialog &&
-      open &&
       !isGroup &&
       allMapped &&
       dagId !== undefined &&
@@ -108,7 +107,7 @@ const ClearTaskInstanceButton = ({
         />
       ) : undefined}
 
-      {useInternalDialog && open && !isGroup && !allMapped && taskInstance ? (
+      {useInternalDialog && !isGroup && !allMapped && taskInstance ? (
         <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
       ) : undefined}
     </>

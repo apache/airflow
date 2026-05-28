@@ -121,13 +121,11 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      {clearOpen ? (
-        <ClearTaskInstanceDialog
-          onClose={() => setClearOpen(false)}
-          open={clearOpen}
-          taskInstance={taskInstance}
-        />
-      ) : undefined}
+      <ClearTaskInstanceDialog
+        onClose={() => setClearOpen(false)}
+        open={clearOpen}
+        taskInstance={taskInstance}
+      />
     </Box>
   );
 };
