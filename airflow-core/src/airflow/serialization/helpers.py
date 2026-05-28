@@ -197,3 +197,22 @@ class PartitionMapperNotFound(ValueError):
 def is_core_partition_mapper_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core partition mapper class."""
     return importable_string.startswith("airflow.partition_mappers.")
+
+
+class WindowNotSupported(ValueError):
+    """Raise when serialization encounters a non-built-in ``Window`` subclass."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Window class {self.type_string!r} is not a built-in. Custom Window "
+            "subclasses are not currently supported; use one of the built-in "
+            "windows under ``airflow.partition_mappers.window``."
+        )
+
+
+def is_core_window_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core ``Window`` class."""
+    return importable_string.startswith("airflow.partition_mappers.window.")

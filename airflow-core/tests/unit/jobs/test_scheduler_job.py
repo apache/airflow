@@ -98,7 +98,9 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
+    HourWindow,
     IdentityMapper,
+    RollupMapper,
     StartOfHourMapper,
     task,
 )
@@ -9922,10 +9924,11 @@ def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: 
 
 
 @pytest.mark.db_test
-def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(session, caplog):
+def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(session):
     """
     Partitioned timetables may leave next_dagrun / next_dagrun_create_after unset when no run is due.
-    Scheduler should skip and log if partition key is not set.
+    The scheduler must skip the Dag without resolving its serialized definition AND log why,
+    so operators can diagnose a Dag held by a misconfigured timetable.
     """
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
@@ -9940,12 +9943,20 @@ def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(sessi
     dag_model.max_active_runs = 16
     dag_model.allowed_run_types = None
 
-    with caplog.at_level(logging.ERROR):
-        with mock.patch.object(runner, "_get_current_dag") as mock_get_dag:
-            runner._create_dag_runs([dag_model], session)
+    # ``LoggingMixin.log`` is a property that lazily fills ``_log``; preload the
+    # cache with a mock so the log-emission can be asserted by call signature.
+    runner._log = mock.MagicMock()
+    with mock.patch.object(runner, "_get_current_dag") as mock_get_dag:
+        runner._create_dag_runs([dag_model], session)
 
     mock_get_dag.assert_not_called()
-    assert "dag_model.next_dagrun_partition_key is None" in caplog.text
+    # Operator-visibility invariant: the skip must log why, not silently swallow.
+    assert runner._log.error.mock_calls == [
+        mock.call(
+            "dag_model.next_dagrun_partition_key is None; expected str",
+            dag_id="partitioned-skip-no-next-fields",
+        )
+    ]
 
 
 @pytest.mark.db_test
@@ -10106,6 +10117,640 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_holds_until_window_complete(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """A rollup APDR stays pending until every upstream key in the window has arrived."""
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # First minute key arrives — only 1 / 60 upstream keys, so the APDR must
+    # not fire yet.
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # Send the remaining 59 minute keys — once all 60 are present the rollup is
+    # satisfied and the APDR creates its Dag run on the next tick.
+    for minute in range(1, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    A misconfigured rollup mapper that raises during status evaluation must not crash
+    the scheduler tick — the asset is treated as not-yet-satisfied, the APDR remains
+    pending, and an audit log entry surfaces the reason to the operator.
+    """
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    with mock.patch.object(
+        SchedulerJobRunner,
+        "_check_rollup_asset_status",
+        side_effect=RuntimeError("misconfigured rollup mapper"),
+    ):
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # Audit log is added via session.add inside the scheduler tick and only
+    # visible to a subsequent read after a flush.
+    session.flush()
+    audit_log = session.scalar(select(Log).where(Log.event == "failed to evaluate rollup status"))
+    assert audit_log is not None
+    assert audit_log.dag_id == "rollup-consumer"
+    assert audit_log.extra is not None
+    assert "misconfigured rollup mapper" in audit_log.extra
+    assert "asset-1" in audit_log.extra
+    assert "2024-01-01T00" in audit_log.extra
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_audit_log_dedup_across_ticks(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    A misconfigured rollup mapper must write at most one audit Log entry per
+    scheduler process lifetime, not one per scheduler tick.
+
+    The same SchedulerJobRunner instance is used for two consecutive calls to
+    _create_dagruns_for_partitioned_asset_dags (simulating two scheduler ticks).
+    Only the first tick should produce a Log row; the second tick should be
+    suppressed by the process-level _partition_audit_seen deduplication set.
+    """
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    with mock.patch.object(
+        SchedulerJobRunner,
+        "_check_rollup_asset_status",
+        side_effect=RuntimeError("misconfigured rollup mapper"),
+    ):
+        # First tick — audit log should be written once.
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        session.flush()
+        # Second tick — same runner instance, same (dag_id, name, uri) key.
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        session.flush()
+
+    log_count = session.scalar(select(func.count()).where(Log.event == "failed to evaluate rollup status"))
+    assert log_count == 1, (
+        f"Expected exactly 1 audit log entry across two ticks, but got {log_count}. "
+        "Check that _partition_audit_seen deduplication is working."
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_audit_log_persists_independent_of_outer_transaction(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    The audit Log row is committed on an independent session so it survives
+    even when the outer ``@retry_db_transaction`` transaction rolls back.
+
+    The outer scheduler tick is wrapped in retry/rollback; relying on the
+    same session would mean an in-memory dedup set says "already logged"
+    while no row ever made it to the DB.
+    """
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    with mock.patch.object(
+        SchedulerJobRunner,
+        "_check_rollup_asset_status",
+        side_effect=RuntimeError("misconfigured rollup mapper"),
+    ):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        # Roll back the outer session so anything that *was* added to it is
+        # discarded — only rows that hit the DB via the independent audit
+        # session should remain.
+        session.rollback()
+
+    log_count = session.scalar(select(func.count()).where(Log.event == "failed to evaluate rollup status"))
+    assert log_count == 1, (
+        "Audit Log row must survive outer-transaction rollback (committed on "
+        f"its own session); got {log_count} rows."
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_audit_log_inner_failure_does_not_mark_key_seen(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    When the independent audit session raises (e.g. transient DB failure),
+    ``_record_partition_audit_log`` must return ``False`` and the caller must
+    NOT add the key to ``_partition_audit_seen``.  The next scheduler tick will
+    then retry writing the audit row.
+    """
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._log = MagicMock()
+
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    real_create_session = create_session
+
+    def _failing_inner_create_session(*args, **kwargs):
+        if kwargs.get("scoped") is False:
+            raise OSError("simulated audit DB failure")
+        return real_create_session(*args, **kwargs)
+
+    with (
+        mock.patch.object(
+            SchedulerJobRunner,
+            "_check_rollup_asset_status",
+            side_effect=RuntimeError("misconfigured rollup mapper"),
+        ),
+        mock.patch(
+            "airflow.jobs.scheduler_job_runner.create_session",
+            side_effect=_failing_inner_create_session,
+        ),
+    ):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    # Key must NOT have been added — transient failure should allow a retry.
+    assert len(runner._partition_audit_seen) == 0
+
+    # The warning for the failed audit write must have fired.
+    assert any(
+        call.args[0] == "Failed to write audit Log row for misconfigured rollup mapper"
+        for call in runner._log.warning.mock_calls
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_survives_scheduler_restart_partial_arrival(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    Rollup completion is driven by PAKL rows (the source of truth), not by any
+    in-memory scheduler state.  After a simulated scheduler restart, a brand new
+    SchedulerJobRunner instance can pick up where the previous one left off and
+    fire the Dag run once all upstream keys have arrived.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    # --- First scheduler process: send 30 of 60 required minute keys ---
+    runner_1 = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    for minute in range(1, 30):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner_1._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None, "APDR must not fire with only 30 of 60 keys"
+    assert partition_dags == set()
+
+    # --- Simulate scheduler restart: expire session state, create new runner ---
+    session.expire_all()
+    del runner_1
+
+    runner_2 = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # Send the remaining 30 minute keys (total 60 distinct).
+    for minute in range(30, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner_2._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None, (
+        "APDR must fire once all 60 upstream keys have arrived, even after a scheduler restart"
+    )
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
+    """
+    The pending-APDR select must wrap the query in ``with_row_locks(skip_locked=True)``
+    so HA scheduler replicas don't both grab the same satisfied APDR and race the
+    ``created_dag_run_id`` UPDATE (which would orphan whichever DagRun loses the race).
+    """
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks",
+        wraps=with_row_locks,
+    ) as wrapped:
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    apdr_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is AssetPartitionDagRun]
+    assert len(apdr_calls) == 1, f"Expected exactly one with_row_locks call for APDR, got {apdr_calls}"
+    call = apdr_calls[0]
+    assert call.kwargs["skip_locked"] is True
+    assert call.kwargs["key_share"] is False
+    assert call.kwargs["session"] is session
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pending_apdr_select_breaks_tie_on_id(session: Session):
+    """
+    Two APDRs sharing a ``created_at`` (possible under bulk asset-event ingestion)
+    must be ordered by ``id`` ascending so concurrent HA scheduler ticks pick the
+    same LIMIT slice — otherwise replicas can disagree on which APDRs the LIMIT
+    selects even when the row lock would otherwise prevent the duplicate fire.
+    """
+    shared_ts = timezone.utcnow()
+    first_inserted = AssetPartitionDagRun(target_dag_id="d1", partition_key="b", created_at=shared_ts)
+    session.add(first_inserted)
+    session.flush()
+    second_inserted = AssetPartitionDagRun(target_dag_id="d2", partition_key="a", created_at=shared_ts)
+    session.add(second_inserted)
+    session.flush()
+
+    fetched = session.scalars(
+        select(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+    ).all()
+
+    assert first_inserted.id < second_inserted.id
+    assert [a.id for a in fetched] == [first_inserted.id, second_inserted.id]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_clears_stale_dag_version_apdr(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    An APDR whose stamped ``dag_version_id`` no longer matches the Dag's
+    latest serialized version was queued under a mapper / window that may
+    not apply any more. The scheduler tick must drop the APDR plus its
+    PartitionedAssetKeyLog rows and write an audit Log entry; APDR rows
+    whose stamp matches the latest version are left untouched.
+    """
+    from uuid6 import uuid7
+
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer-stale",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    stale_apdr = _produce_and_register_asset_event(
+        dag_id="rollup-stale-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    fresh_apdr = _produce_and_register_asset_event(
+        dag_id="rollup-fresh-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T01:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T01",
+    )
+    # Overwrite one APDR's stamp to a UUID the latest serdag will never have,
+    # leaving the other on the live stamp so the negative branch is exercised too.
+    stale_uuid = uuid7()
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == stale_apdr.id)
+        .values(dag_version_id=stale_uuid)
+    )
+    session.commit()
+
+    stale_pakl_count_before = session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == stale_apdr.id)
+    )
+    fresh_pakl_count_before = session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == fresh_apdr.id)
+    )
+    assert stale_pakl_count_before is not None
+    assert stale_pakl_count_before > 0
+    assert fresh_pakl_count_before is not None
+    assert fresh_pakl_count_before > 0
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == stale_apdr.id)) == 0, (
+        "stale APDR row should be deleted"
+    )
+    assert (
+        session.scalar(
+            select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == stale_apdr.id)
+        )
+        == 0
+    ), "PAKL rows for the stale APDR should be deleted"
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == fresh_apdr.id)) == 1, (
+        "fresh APDR row must survive"
+    )
+    assert (
+        session.scalar(
+            select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == fresh_apdr.id)
+        )
+        == fresh_pakl_count_before
+    ), "PAKL rows for fresh APDR must survive"
+
+    audit = session.scalar(
+        select(Log).where(
+            Log.event == "stale partition apdr cleanup",
+            Log.dag_id == "rollup-consumer-stale",
+        )
+    )
+    assert audit is not None
+    assert audit.extra is not None
+    assert "Cleared 1" in audit.extra
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_idempotent_with_duplicate_upstream_events(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    Rollup completion is based on distinct upstream partition keys, not on the
+    number of PartitionedAssetKeyLog rows.
+
+    PAKL by design does not enforce uniqueness — the same (asset, partition_key)
+    can appear in multiple rows when several producer Dags emit the same key.
+    The scheduler resolves this via set semantics in source_key_by_asset_per_apdr
+    (a defaultdict of defaultdict of set), so a duplicate PAKL row must not
+    prevent the rollup from completing once all 60 distinct keys are present.
+
+    Do NOT add a unique constraint to PAKL to "fix" duplicates — that would break
+    legitimate multi-producer workflows where two independent Dags produce the
+    same asset partition.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # Emit the first minute key twice from two different producer Dags — this
+    # writes two PAKL rows for the same (asset, partition_key).
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-dup-a",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-dup-b",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    # Send the remaining 59 distinct minute keys (total = 60 distinct + 1 duplicate
+    # = 61 PAKL rows).
+    for minute in range(1, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None, (
+        "APDR must fire when 60 distinct upstream keys are present, regardless of duplicate PAKL rows"
+    )
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
     dag_maker: DagMaker,
     session: Session,
@@ -10180,6 +10825,185 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
         assert asset_event.source_task_id == "hi"
         assert "asset-event-producer-" in asset_event.source_dag_id
         assert asset_event.source_run_id == "test"
+
+
+def _make_n_satisfied_apdrs(
+    *,
+    consumer_dag_id: str,
+    asset: Asset,
+    partition_keys: list[str],
+    session: Session,
+    dag_maker: DagMaker,
+) -> list[AssetPartitionDagRun]:
+    """Build a consumer Dag plus *N* satisfied APDRs (one per partition_key)."""
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    return [
+        _produce_and_register_asset_event(
+            dag_id=f"asset-event-producer-{i}",
+            asset=asset,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        for i, key in enumerate(partition_keys, start=1)
+    ]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: Session):
+    """
+    cap == APDR count: every pending APDR fires in a single tick.
+
+    Pairs with :func:`test_partition_cap_at_n_minus_one_leaves_one_pending` to pin
+    the ``LIMIT`` boundary against off-by-one regressions (``>`` vs ``>=``).
+    """
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-n",
+        asset=Asset(name="asset-cap-n"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 3
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    for apdr in apdrs:
+        session.refresh(apdr)
+        assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"cap-consumer-n"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, session: Session):
+    """
+    cap == APDR count - 1: oldest cap APDRs fire, the newest remains pending.
+
+    FIFO ordering means the *last-created* APDR is the one left for the next
+    tick. Together with :func:`test_partition_cap_at_exactly_n_processes_all`
+    this pins the ``LIMIT`` boundary — a ``LIMIT N-1`` regression would still
+    pass the at-cap test, but the older sibling here would fail to fire.
+    """
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-n-minus-one",
+        asset=Asset(name="asset-cap-n-minus-one"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    # Pin created_at so FIFO ordering is stable across fast in-memory runs —
+    # otherwise three APDRs created in the same microsecond tie under
+    # ``ORDER BY created_at`` and "which two fire" becomes nondeterministic.
+    base = timezone.utcnow()
+    for i, apdr in enumerate(apdrs):
+        apdr.created_at = base + timedelta(seconds=i)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    for apdr in apdrs:
+        session.refresh(apdr)
+    assert apdrs[0].created_dag_run_id is not None
+    assert apdrs[1].created_dag_run_id is not None
+    assert apdrs[2].created_dag_run_id is None
+    assert partition_dags == {"cap-consumer-n-minus-one"}
+
+
+def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
+    """Toggle ``AssetActive`` row for an asset to simulate orphan / reactivation."""
+    row = session.scalar(select(AssetActive).where(AssetActive.name == name, AssetActive.uri == uri))
+    if active and row is None:
+        session.add(AssetActive(name=name, uri=uri))
+    elif not active and row is not None:
+        session.delete(row)
+    session.commit()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_skips_when_asset_is_inactive(dag_maker: DagMaker, session: Session):
+    """
+    An otherwise-satisfied APDR does not fire while its upstream asset is inactive.
+
+    If the asset becomes orphaned (no Dag declares it any more) while the consumer
+    Dag still references it, firing on the stale ``PartitionedAssetKeyLog`` history
+    would conflict with the declared topology — so the scheduler freezes the APDR
+    instead.
+    """
+    asset = Asset(name="asset-inactive")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="inactive-asset-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_resumes_when_asset_reactivates(dag_maker: DagMaker, session: Session):
+    """
+    A frozen APDR fires automatically once its asset is reactivated.
+
+    Pairs with :func:`test_partitioned_dag_run_skips_when_asset_is_inactive` to pin
+    the freeze ↔ resume contract: deactivation halts fire, reactivation resumes it
+    without any other state change.
+    """
+    asset = Asset(name="asset-reactivate")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="reactivate-asset-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=True)
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"reactivate-asset-consumer"}
 
 
 # ---------------------------------------------------------------------------

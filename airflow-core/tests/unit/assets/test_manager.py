@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
+from uuid6 import uuid7
 
 from airflow import settings
 from airflow.assets.manager import AssetManager
@@ -221,6 +222,8 @@ class TestAssetManager:
         session.flush()
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
 
+        dag_version_id = uuid7()
+
         def _get_or_create_apdr():
             if TYPE_CHECKING:
                 assert settings.Session
@@ -232,6 +235,7 @@ class TestAssetManager:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
                     target_dag=testing_dag,
+                    dag_version_id=dag_version_id,
                     asset_id=asm.id,
                     session=_session,
                 ).id

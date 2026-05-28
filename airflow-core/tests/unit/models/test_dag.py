@@ -2964,6 +2964,88 @@ class TestDagModel:
         }
 
 
+class TestDagModelPartitionMapperInfo:
+    """Pure-function tests for DagModel.is_rollup_asset / has_rollup_mappers."""
+
+    @pytest.mark.parametrize(
+        ("info", "name", "uri", "expected"),
+        [
+            pytest.param([], "a", "s3://a", False, id="empty-info"),
+            pytest.param(
+                [
+                    {"name": "asset", "is_rollup": True},
+                    {"uri": "s3://asset", "is_rollup": False},
+                ],
+                "asset",
+                "s3://asset",
+                True,
+                id="name-match-wins-over-uri",
+            ),
+            pytest.param(
+                [{"uri": "s3://asset", "is_rollup": True}],
+                "asset",
+                "s3://asset",
+                True,
+                id="uri-match-fallback",
+            ),
+            pytest.param(
+                [{"name": "other", "is_rollup": True}],
+                "asset",
+                "s3://asset",
+                False,
+                id="unknown-asset",
+            ),
+        ],
+    )
+    def test_is_rollup_asset(self, info, name, uri, expected):
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = info
+        assert dm.is_rollup_asset(name=name, uri=uri) is expected
+
+    def test_is_rollup_asset_raises_when_field_missing(self):
+        # ``is_rollup`` is required by the TypedDict contract; a missing field
+        # signals a serialization bug that must surface, not silently default.
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = [{"name": "asset"}]
+        with pytest.raises(KeyError, match="is_rollup"):
+            dm.is_rollup_asset(name="asset", uri="s3://asset")
+
+    @pytest.mark.parametrize(
+        ("info", "expected"),
+        [
+            pytest.param([], False, id="empty"),
+            pytest.param(
+                [
+                    {"name": "a", "is_rollup": False},
+                    {"uri": "s3://b", "is_rollup": False},
+                ],
+                False,
+                id="no-rollup-entries",
+            ),
+            pytest.param(
+                [
+                    {"name": "a", "is_rollup": False},
+                    {"uri": "s3://b", "is_rollup": True},
+                ],
+                True,
+                id="at-least-one-rollup",
+            ),
+        ],
+    )
+    def test_has_rollup_mappers(self, info, expected):
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = info
+        assert dm.has_rollup_mappers is expected
+
+    def test_has_rollup_mappers_raises_when_field_missing(self):
+        # ``is_rollup`` is required by the TypedDict contract; a missing field
+        # signals a serialization bug that must surface, not silently default.
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = [{"name": "a"}, {"uri": "s3://b"}]
+        with pytest.raises(KeyError, match="is_rollup"):
+            _ = dm.has_rollup_mappers
+
+
 class TestQueries:
     def setup_method(self) -> None:
         clear_db_runs()

@@ -18,6 +18,9 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {

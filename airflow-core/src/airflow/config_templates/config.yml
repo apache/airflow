@@ -2668,6 +2668,17 @@ scheduler:
       type: integer
       default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
+    max_partition_dag_runs_to_create_per_loop:
+      description: |
+        Per-loop cap on pending ``AssetPartitionDagRun`` rows the scheduler
+        evaluates when creating partition-driven Dag runs. Bounds the
+        per-tick transaction so executor heartbeats and regular scheduling
+        work are not starved. Remaining rows drain across subsequent loops;
+        this is a *steady-state throughput* knob, not a backlog limit.
+      example: ~
+      version_added: 3.3.0
+      type: integer
+      default: "500"
     max_dagruns_per_loop_to_schedule:
       description: |
         How many DagRuns should a scheduler examine (and lock) when scheduling
