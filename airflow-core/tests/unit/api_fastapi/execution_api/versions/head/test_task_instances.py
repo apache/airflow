@@ -1078,13 +1078,14 @@ class TestTIRunState:
 
     @pytest.mark.parametrize(
         "skip_reason",
-        ["end_date_set", "queued_dttm_missing"],
+        ["end_date_set", "deferral_resume", "queued_dttm_missing"],
     )
     def test_ti_run_skips_queued_duration_metric(
         self, client, session, create_task_instance, time_machine, skip_reason
     ):
-        """task.queued_duration is skipped on deferral resume (end_date set) and when
-        queued_dttm was not recorded (rare race / test setups)."""
+        """task.queued_duration is skipped on a retry (end_date set), on a resume from
+        deferral (next_method set, end_date still None), and when queued_dttm was not
+        recorded (rare race / test setups)."""
         queued_at = timezone.parse("2024-09-30T12:00:00Z")
         run_at = queued_at.add(seconds=42)
         time_machine.move_to(run_at, tick=False)
@@ -1100,6 +1101,10 @@ class TestTIRunState:
         if skip_reason == "end_date_set":
             ti.queued_dttm = queued_at
             ti.end_date = queued_at.add(seconds=10)
+        elif skip_reason == "deferral_resume":
+            ti.queued_dttm = queued_at
+            ti.end_date = None
+            ti.next_method = "execute_complete"
         else:
             ti.queued_dttm = None
         session.commit()

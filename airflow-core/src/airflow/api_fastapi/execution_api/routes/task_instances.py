@@ -234,12 +234,16 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
-        # Emit task.queued_duration on the first round of a try only — mirrors the skip
-        # logic from TaskInstance.emit_state_change_metric (an existing end_date means
-        # this is a deferral resume or similar, and the timing would be misleading).
+        # Emit task.queued_duration only on the genuine first QUEUED -> RUNNING of a try,
+        # otherwise the timing would be misleading. Two cases are skipped:
+        #   - a retry of a previous attempt, identified by an existing end_date;
+        #   - a resume from deferral, identified by next_method (the trigger sets it and
+        #     end_date stays None across a deferral, so end_date alone cannot catch it) —
+        #     mirrors how this endpoint already detects deferral resumes above/below via
+        #     next_kwargs / next_method.
         # The registry-based legacy name dag.<dag_id>.<task_id>.queued_duration is
         # emitted automatically by stats.timing via metrics_template.yaml.
-        if ti.queued_dttm is not None and ti.end_date is None:
+        if ti.queued_dttm is not None and ti.end_date is None and ti.next_method is None:
             stats.timing(
                 "task.queued_duration",
                 timezone.utcnow() - ti.queued_dttm,
