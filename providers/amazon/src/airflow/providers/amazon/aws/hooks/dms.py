@@ -38,7 +38,11 @@ class DmsTaskWaiterStatus(str, Enum):
 
 
 class DmsTaskState(str, Enum):
-    """AWS DMS replication task states."""
+    """
+    AWS DMS replication task states.
+
+    Source: https://docs.aws.amazon.com/boto3/latest/reference/services/dms/client/modify_replication_task.html
+    """
 
     CREATING = "creating"
     READY = "ready"
@@ -47,7 +51,10 @@ class DmsTaskState(str, Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
     MODIFYING = "modifying"
+    MOVING = "moving"
+    TESTING = "testing"
     FAILED = "failed"
+    FAILED_MOVE = "failed-move"
     DELETING = "deleting"
 
 
