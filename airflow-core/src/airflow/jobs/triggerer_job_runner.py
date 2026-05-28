@@ -1307,12 +1307,11 @@ class TriggerRunner:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     # For callback triggers with dag_run_data, build a standard Context
-                    # so the trigger can access dag_run info (same pattern as start_from_trigger).
+                    # and set it on the trigger instance — the same pattern as
+                    # trigger_instance.task_instance = runtime_ti for task-bound triggers.
                     if workload.dag_run_data:
                         context = self._build_context_from_dag_run_data(workload.dag_run_data)
-                        # Set context on the trigger instance so CallbackTrigger.run() can
-                        # pass it to the callback function.
-                        trigger_instance._callback_context = context
+                        trigger_instance.context = context
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))

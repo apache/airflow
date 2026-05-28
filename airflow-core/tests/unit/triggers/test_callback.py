@@ -54,7 +54,7 @@ class TestCallbackTrigger:
             callback_kwargs=dict(TEST_CALLBACK_KWARGS),
         )
         # Simulate the TriggerRunner setting context (built from dag_run_data)
-        trigger._callback_context = TEST_CALLBACK_CONTEXT
+        trigger.context = TEST_CALLBACK_CONTEXT
         return trigger
 
     @pytest.fixture
@@ -138,18 +138,17 @@ class TestCallbackTrigger:
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
 
     @pytest.mark.asyncio
-    async def test_run_backward_compat_context_in_kwargs(self, mock_import_string):
-        """Test backward compatibility: context in callback_kwargs when self._callback_context is None."""
-        callback_return_value = "compat value"
+    async def test_run_without_context(self, mock_import_string):
+        """Test trigger calls callback without context when self.context is None."""
+        callback_return_value = "no context value"
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        # Simulate a pre-upgrade trigger that has context embedded in callback_kwargs
         trigger = CallbackTrigger(
             callback_path=TEST_CALLBACK_PATH,
-            callback_kwargs={"message": TEST_MESSAGE, "context": {"dag_run": "legacy"}},
+            callback_kwargs={"message": TEST_MESSAGE},
         )
-        # self._callback_context is None by default (not set by TriggerRunner)
+        # self.context is None by default (not set by TriggerRunner)
 
         trigger_gen = trigger.run()
 
@@ -157,6 +156,7 @@ class TestCallbackTrigger:
         assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         success_event = await anext(trigger_gen)
-        mock_callback.assert_called_once_with(message=TEST_MESSAGE, context={"dag_run": "legacy"})
+        # Context is None, so callback is called without context parameter
+        mock_callback.assert_called_once_with(message=TEST_MESSAGE)
         assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value

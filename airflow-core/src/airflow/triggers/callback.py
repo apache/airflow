@@ -41,9 +41,10 @@ class CallbackTrigger(BaseTrigger):
         super().__init__()
         self.callback_path = callback_path
         self.callback_kwargs = callback_kwargs or {}
-        #: Set externally by TriggerRunner from workload dag_run_data before run() is called.
-        #: Not serialized; always None on a freshly deserialized trigger.
-        self._callback_context: dict | None = None
+        #: Set externally by TriggerRunner from workload dag_run_data before run() is called,
+        #: the same pattern as task_instance is set for task-bound triggers. Not serialized;
+        #: always None on a freshly deserialized trigger.
+        self.context: dict | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -56,14 +57,10 @@ class CallbackTrigger(BaseTrigger):
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
 
-            # Context is set on this instance by the TriggerRunner (built from dag_run_data).
-            # For backward compatibility, fall back to extracting "context" from callback_kwargs
-            # (pre-upgrade triggers that were queued before this change).
-            context = self._callback_context or self.callback_kwargs.get("context", None)
+            # self.context is set by TriggerRunner from workload.dag_run_data before run() is called.
+            context = self.context
 
-            # Build kwargs without "context" to avoid passing it twice when context is supplied
-            # separately. Using a copy instead of .pop() keeps callback_kwargs immutable (safe on retry).
-            kwargs = {k: v for k, v in self.callback_kwargs.items() if k != "context"}
+            kwargs = dict(self.callback_kwargs)
 
             if accepts_context(callback) and context is not None:
                 result = await callback(**kwargs, context=context)
