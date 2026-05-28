@@ -153,6 +153,25 @@ class TestLLMOperator:
         LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Entities)
         assert qualname(Entities) in _extra_allowed
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_serialize_output_returns_dict(self, mock_hook_cls):
+        """serialize_output=True dumps the BaseModel to a dict on the wire."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["A", "B"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=Entities,
+            serialize_output=True,
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == {"names": ["A", "B"]}
+        assert not isinstance(result, Entities)
+
 
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()

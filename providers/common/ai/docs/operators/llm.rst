@@ -83,6 +83,11 @@ class is not auto-registered. Add the class qualified name to
 ``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
 that pattern work.
 
+If a downstream consumer needs the dict shape (e.g. forwarding to an external
+system that expects JSON-style payloads), pass ``serialize_output=True`` and the
+operator calls ``model_dump()`` before pushing to XCom. The pre-PR behavior is
+available on demand without giving up the typed default.
+
 Agent Parameters
 ----------------
 

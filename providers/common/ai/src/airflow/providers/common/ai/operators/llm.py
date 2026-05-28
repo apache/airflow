@@ -84,6 +84,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
+    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
+        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+        ``model_dump()`` before being pushed to XCom. Default ``False`` --
+        the Pydantic instance flows through XCom unchanged. Set to ``True``
+        when a downstream consumer needs the dict shape (e.g. sending to an
+        external system that expects JSON-style payloads).
     """
 
     template_fields: Sequence[str] = (
@@ -107,6 +113,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -115,8 +122,11 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
-        self._serialize_model_output = allow_class is None
-        if allow_class is not None:
+        self.serialize_output = serialize_output
+        # Skip registration when the user opted into the dict form -- the wire
+        # carries a plain dict in that case and never hits the allow-list gate.
+        self._serialize_model_output = serialize_output or allow_class is None
+        if not serialize_output and allow_class is not None:
             for model_cls in iter_base_model_classes(output_type):
                 allow_class(model_cls)
         self.agent_params = agent_params or {}
@@ -160,9 +170,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
         if self._serialize_model_output and isinstance(output, BaseModel):
-            # Older Airflow versions lack ``airflow.sdk.serde.allow_class``,
-            # so we cannot register the output class for XCom deserialization.
-            # Fall back to the dict form to keep XCom round-trippable.
+            # ``serialize_output=True`` was set explicitly, or this is an
+            # older Airflow version without ``airflow.sdk.serde.allow_class``.
+            # Either way, dump to dict so XCom carries a plain JSON payload.
             output = output.model_dump()
 
         return output
@@ -172,9 +182,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         output = super().execute_complete(context, generated_output, event)
         if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
             try:
-                return self.output_type.model_validate_json(output)
+                rehydrated = self.output_type.model_validate_json(output)
             except (ValidationError, ValueError, TypeError):
                 # Reviewer-edited output may not validate against the schema.
                 # Mirror AgentOperator's HITL branch and fall back to the raw string.
                 return output
+            if self._serialize_model_output:
+                return rehydrated.model_dump()
+            return rehydrated
         return output

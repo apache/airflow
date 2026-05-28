@@ -140,6 +140,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         operator blocks until a terminal action).
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
+    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
+        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+        ``model_dump()`` before being pushed to XCom. Default ``False`` --
+        the Pydantic instance flows through XCom unchanged. Set to ``True``
+        when a downstream consumer needs the dict shape.
     """
 
     template_fields: Sequence[str] = (
@@ -170,6 +175,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         max_hitl_iterations: int = 5,
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 10.0,
+        serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -179,8 +185,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
-        self._serialize_model_output = allow_class is None
-        if allow_class is not None:
+        self.serialize_output = serialize_output
+        self._serialize_model_output = serialize_output or allow_class is None
+        if not serialize_output and allow_class is not None:
             for model_cls in iter_base_model_classes(output_type):
                 allow_class(model_cls)
         self.toolsets = toolsets
