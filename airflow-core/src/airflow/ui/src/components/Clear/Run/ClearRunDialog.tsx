@@ -45,6 +45,14 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+
+  const handleClose = () => {
+    setNote(dagRun.note);
+    setSelectedOptions(["existingTasks"]);
+    onClose();
+  };
+
+
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 
@@ -62,6 +70,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagId,
     dagRunId,
     options: {
+      enabled: open,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => "state" in ti && isStatePending(ti.state))
           ? refetchInterval
@@ -77,13 +86,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const { isPending, mutate } = useClearDagRun({
     dagId,
     dagRunId,
-    onSuccessConfirm: onClose,
+    onSuccessConfirm: handleClose,
   });
 
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({
     dagId,
     dagRunId,
-    onSuccess: onClose,
+    onSuccess: handleClose,
   });
 
   // Check if DAG versions differ (works for both bundle-versioned and local bundles)
@@ -96,7 +105,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
+    <Dialog.Root lazyMount onOpenChange={handleClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
