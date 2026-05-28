@@ -520,6 +520,19 @@ core:
       type: boolean
       example: ~
       default: "False"
+    rerun_with_latest_version:
+      description: |
+        Default value for whether cleared, rerun, or backfilled tasks should use
+        the latest bundle version. When set to True, reruns and backfills pick up
+        the latest code. When set to False, they use the original bundle version.
+        When unset, the fallback depends on the call site: False for clearing or
+        rerunning tasks, True for creating backfills (preserving the historical
+        defaults for each). Individual DAGs can override this with the
+        ``rerun_with_latest_version`` parameter.
+      type: boolean
+      example: ~
+      default: ~
+      version_added: 3.2.0
 database:
   description: ~
   options:
@@ -1754,6 +1767,22 @@ api:
       type: string
       example: ~
       default: ""
+    ssl_ca_file:
+      description: |
+        Path to the SSL CA file for the api server. Defaults to None.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    ssl_cert_reqs:
+      description: |
+        Enable ssl certificate verification on the api server.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
+        Valid options are 'none', 'optional' or 'required'
+      version_added: ~
+      type: string
+      example: "required"
+      default: "none"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1792,21 +1821,14 @@ api:
     access_control_allow_origins:
       description: |
         Indicates whether the response can be shared with requesting code from the given origins.
-        Separate URLs with space.
+        Separate URLs with space. Wildcard (``*``) is not allowed: Airflow's API requires
+        credentialed CORS, which is incompatible with a wildcard origin per the CORS spec, and
+        browsers reject any response that combines the two. List exact origins instead
+        (for example ``https://airflow.mycompany.com``).
       type: string
       version_added: 2.2.0
       example: ~
       default: ""
-    access_control_allow_credentials:
-      description: |
-        Whether the FastAPI server includes the ``Access-Control-Allow-Credentials`` header on
-        CORS responses. Defaults to True to preserve existing behavior; set to False if you have
-        configured ``access_control_allow_origins`` and do not want browsers to send credentials
-        (cookies, Authorization header) with cross-origin requests.
-      type: boolean
-      version_added: 3.2.2
-      example: ~
-      default: "True"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -1872,6 +1894,13 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    client_use_public_certs:
+      description: |
+        Enable loading of public CA certificates from certifi into the client SSL context.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1898,6 +1927,17 @@ workers:
       type: string
       sensitive: true
       example: ~
+      default: ""
+    state_backend:
+      description: |
+        Full class name of a custom worker-side state backend. When set, task state values are
+        routed through this backend so large payloads or credentialed storage stay on worker
+        infrastructure. The Execution API still records a reference string in the database.
+
+        Leave empty (default) to use the standard path through the task sdk supervisor.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.S3StateBackend"
       default: ""
     min_heartbeat_interval:
       description: |
@@ -1980,6 +2020,43 @@ workers:
       type: integer
       example: ~
       default: "60"
+sdk:
+  description: Settings for non-Python SDK runtime coordination
+  options:
+    coordinators:
+      description: |
+        JSON object mapping of coordinator keys to coordinator definitions.
+
+        Each value is an object with ``classpath`` and optional ``kwargs``.
+        ``classpath`` is resolved via ``import_string`` and constructed with
+        ``kwargs`` on first use.  Entries are
+        independent instances, so the same ``classpath`` can be configured
+        multiple times under different names with different ``kwargs`` (for
+        example, two ``JavaCoordinator`` instances pinned to different JDK
+        versions).
+      version_added: 3.3.0
+      type: string
+      example: |
+        {
+          "jdk-17": {
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+          }
+        }
+      default: ~
+    queue_to_coordinator:
+      description: |
+        JSON mapping of queue names to a coordinator key from
+        ``[sdk] coordinators``.
+
+        This mapping is checked to route a task to a configured coordinator
+        instance based on its queue.  An entry in this mapping is needed if
+        tasks of a queue should be handled by a custom coordinator instead of
+        the default Python task-running mechanism.
+      version_added: 3.3.0
+      type: string
+      example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -2749,6 +2826,17 @@ triggerer:
       type: boolean
       example: ~
       default: "False"
+    shared_stream_subscriber_queue_size:
+      description: |
+        Per-subscriber buffer size for shared-stream triggers (triggers that opt into a shared poll loop
+        via ``BaseEventTrigger.shared_stream_key``). Each subscribing trigger keeps an in-memory queue of
+        raw events produced by the shared poll; if a slow subscriber fills its queue, only that subscriber
+        fails, sibling subscribers are unaffected. Increase if a slow subscriber must tolerate bursts from
+        a fast upstream.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1024"
 kerberos:
   description: ~
   options:

@@ -1,5 +1,26 @@
 [
     {
+        "$absent": "This task should be skipped.",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_short_circuit_dag.should_be_skipped"
+        }
+    },
+    {
+        "$absent": "This task should be skipped.",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_short_circuit_dag.should_be_skipped"
+        }
+    },
+    {
+        "$absent": "This task should be skipped.",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_short_circuit_dag.should_be_skipped"
+        }
+    },
+    {
         "eventType": "START",
         "job": {
             "namespace": "{{ result is string }}",
@@ -23,7 +44,7 @@
                         },
                         "should_be_skipped": {
                             "downstream_task_ids": [
-                                "check_events_number"
+                                "check_events"
                             ],
                             "emits_ol_events": "{{ result == true }}",
                             "is_setup": false,

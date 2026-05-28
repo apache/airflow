@@ -252,7 +252,7 @@ with DAG(
     doc_md=__doc__,
     schedule=None,
     start_date=datetime(2025, 1, 1),
-    tags=["edge", "Windows"],
+    tags=["example", "edge", "Windows"],
     default_args={"queue": "windows"},
     params={
         "mapping_count": Param(

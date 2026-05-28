@@ -55,6 +55,12 @@ def config_path(check_legacy_env_var: bool = True) -> str:
 
 
 @cache
+def config_conn_id() -> str:
+    """[openlineage] config_conn_id."""
+    return conf.get(_CONFIG_SECTION, "config_conn_id", fallback="")
+
+
+@cache
 def is_source_enabled() -> bool:
     """[openlineage] disable_source_code."""
     option = conf.getboolean(_CONFIG_SECTION, "disable_source_code", fallback="False")
@@ -136,6 +142,8 @@ def is_disabled() -> bool:
     if _is_true(os.getenv("OPENLINEAGE_DISABLED", "")):  # Check legacy variable
         return True
 
+    if config_conn_id():  # Check if config connection is present
+        return False
     if transport():  # Check if transport is present
         return False
     if config_path(True):  # Check if config file is present

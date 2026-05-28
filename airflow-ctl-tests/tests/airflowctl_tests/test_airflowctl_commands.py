@@ -86,6 +86,7 @@ TEST_COMMANDS = [
     "dags trigger example_bash_operator --logical-date={date_param} --run-after={date_param}",
     # Test trigger without logical-date (should default to now)
     "dags trigger example_bash_operator",
+    "dags next-execution example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
     # Dag Run commands

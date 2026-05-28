@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -95,7 +96,37 @@ class TestPutTaskState:
                 )
             )
             assert row is not None
-            assert row.value == "spark_001"
+            # DB stores a json string
+            assert row.value == '"spark_001"'
+
+    def test_put_int_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, "retry_count"), json={"value": 3})
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "retry_count")).json() == {"value": 3}
+
+    def test_put_dict_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(
+            _api_url(ti.id, "poll_result"),
+            json={"value": {"status": "succeeded", "rows": 1234}},
+        )
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "poll_result")).json() == {
+            "value": {"status": "succeeded", "rows": 1234}
+        }
+
+    def test_put_list_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, "checkpoints"), json={"value": [1, 2, 3]})
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "checkpoints")).json() == {"value": [1, 2, 3]}
 
     def test_put_with_expires_at_creates_row(
         self, client: TestClient, create_task_instance: CreateTaskInstance, time_machine
@@ -122,7 +153,7 @@ class TestPutTaskState:
                 )
             )
             assert row is not None
-            assert row.value == "spark_001"
+            assert row.value == '"spark_001"'
             assert row.expires_at == datetime(2026, 5, 15, 12, 0, 0, tzinfo=pendulum.UTC)
 
     def test_put_overwrites_existing(self, client: TestClient, create_task_instance: CreateTaskInstance):
@@ -154,6 +185,18 @@ class TestPutTaskState:
         response = client.put(_api_url(ti.id, "job_id"), json={"value": None})
 
         assert response.status_code == 422
+
+    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
+    def test_put_non_finite_float_returns_422(
+        self, client: TestClient, create_task_instance: CreateTaskInstance, bad_float: float
+    ):
+        ti = create_task_instance()
+        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+            _ = client.put(
+                _api_url(ti.id, "job_id"),
+                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
+                headers={"Content-Type": "application/json"},
+            )
 
     def test_put_missing_ti_returns_404(self, client: TestClient):
         response = client.put(_api_url(uuid4(), "job_id"), json={"value": "x"})

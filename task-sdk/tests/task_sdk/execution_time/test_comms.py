@@ -86,6 +86,9 @@ class TestCommsDecoder:
                 "run_id": "b",
                 "dag_id": "c",
                 "dag_version_id": uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                "pool_slots": 1,
+                "queue": "default",
+                "priority_weight": 1,
             },
             "ti_context": {
                 "dag_run": {
