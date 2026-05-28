@@ -478,6 +478,11 @@ class TestOtelIntegration:
                     # calls get wrapped in spans at detail level > 1.
                     "listener.on_task_instance_running": "_prepare",
                     "listener.on_task_instance_success": "finalize",
+                    # Task callbacks get wrapped in callback.<kind> spans at
+                    # detail level > 1; on_execute runs during _execute_task and
+                    # on_success runs during finalize.
+                    "callback.on_execute_callback": "_execute_task",
+                    "callback.on_success_callback": "finalize",
                 },
                 id="detail_spans",
             ),
