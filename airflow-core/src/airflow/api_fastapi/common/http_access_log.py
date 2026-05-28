@@ -95,12 +95,18 @@ class HttpAccessLogMiddleware:
                     client = scope.get("client")
                     client_addr = f"{client[0]}:{client[1]}" if client else None
 
-                    logger.info(
-                        "request finished",
-                        method=method,
-                        path=path,
-                        query=query,
-                        status_code=status,
-                        duration_us=duration_us,
-                        client_addr=client_addr,
-                    )
+                    # Guard the log emit: if it raised inside a ``finally`` while the
+                    # original ``try`` block was already propagating an app exception,
+                    # Python's exception-replacement semantics would discard the
+                    # original. Swallow logging failures so the application exception
+                    # always reaches uvicorn intact.
+                    with contextlib.suppress(Exception):
+                        logger.info(
+                            "request finished",
+                            method=method,
+                            path=path,
+                            query=query,
+                            status_code=status,
+                            duration_us=duration_us,
+                            client_addr=client_addr,
+                        )

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 import structlog
 import structlog.testing
 from starlette.applications import Starlette
@@ -130,3 +131,55 @@ def test_non_http_scope_not_logged():
 
 def test_health_paths_constant():
     assert "/api/v2/monitor/health" in _HEALTH_PATHS
+
+
+def test_logger_failure_does_not_mask_app_exception(monkeypatch):
+    """
+    If ``logger.info`` raises while the app already raised, the original app exception must
+    still propagate (rather than being replaced by the logger's exception).
+    """
+    import airflow.api_fastapi.common.http_access_log as mod
+
+    def broken_info(*_args, **_kwargs):
+        raise RuntimeError("logger broken")
+
+    monkeypatch.setattr(mod.logger, "info", broken_info)
+
+    import asyncio
+
+    async def raising_app(scope, receive, send):
+        # Send response.start so the middleware's response variable is populated, then raise.
+        await send({"type": "http.response.start", "status": 503, "headers": []})
+        raise RuntimeError("app exception")
+
+    middleware = HttpAccessLogMiddleware(raising_app)
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/boom",
+        "query_string": b"",
+        "headers": [],
+        "client": ("test", 1),
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": b""}
+
+    async def send(_message):
+        return None
+
+    with pytest.raises(RuntimeError, match="app exception"):
+        asyncio.run(middleware(scope, receive, send))
+
+
+def test_logger_failure_swallowed_on_clean_request(monkeypatch):
+    """No app exception + a broken logger must not break the request."""
+    import airflow.api_fastapi.common.http_access_log as mod
+
+    monkeypatch.setattr(
+        mod.logger, "info", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("logger broken"))
+    )
+
+    client = TestClient(_make_app(), raise_server_exceptions=False)
+    response = client.get("/")
+    assert response.status_code == 200
