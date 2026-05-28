@@ -22,7 +22,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.20.19",
+    "trove-classifiers==2026.5.22.10",
 ]
 build-backend = "hatchling.build"
 
@@ -1493,9 +1493,6 @@ apache-aurflow-docker-stack = false
 # contains characters invalid per RFC 9110 §7.2. The fix landed too recently
 # to be admitted by the global 4-day cooldown; this override lets the floor
 # bump in `airflow-core/pyproject.toml` resolve.
-# REMOVE BY 2026-05-26 — once 1.0.1 is older than the global 4-day cooldown
-# this override is redundant and should be deleted along with the line below.
-starlette = "6 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1635,8 +1632,6 @@ apache-aurflow-docker-stack = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# REMOVE BY 2026-05-26 along with the matching entry above.
-starlette = "6 hours"
 
 
 [tool.uv.sources]
