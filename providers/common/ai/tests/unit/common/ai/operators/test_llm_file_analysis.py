@@ -244,6 +244,7 @@ class TestLLMFileAnalysisOperatorApproval:
         assert exc_info.value.kwargs["generated_output"] == '{"findings":["error spike"]}'
         mock_upsert.assert_called_once()
 
+    @requires_allow_class
     def test_execute_complete_with_approval_restores_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_test",
@@ -260,6 +261,7 @@ class TestLLMFileAnalysisOperatorApproval:
         assert isinstance(result, Summary)
         assert result.findings == ["error spike"]
 
+    @requires_allow_class
     def test_execute_complete_with_approval_restores_modified_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_modified_test",

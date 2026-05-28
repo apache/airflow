@@ -354,6 +354,7 @@ class TestLLMOperatorApproval:
 
         assert result == "edited"
 
+    @requires_allow_class
     def test_execute_complete_rehydrates_pydantic_for_structured_output(self):
         """When output_type is a BaseModel, execute_complete returns the model, not the JSON string."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
