@@ -51,8 +51,8 @@ Before running:
 
 1. Create an LLM connection named ``pydanticai_default`` (or the value of
    ``LLM_CONN_ID``) for your chosen model provider.
-2. Set ``USE_SAMPLE_DATA = False`` in the DAG file to fetch live data
-   from the Apache Confluence wiki and GitHub API.
+2. Trigger the DAG with the default ``aip_numbers`` param or edit it to
+   choose which AIPs to investigate.
 """
 
 from __future__ import annotations
@@ -69,6 +69,7 @@ from pydantic_ai.usage import UsageLimits
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.standard.operators.hitl import ApprovalOperator
+from airflow.sdk import Param
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -76,15 +77,11 @@ from airflow.providers.standard.operators.hitl import ApprovalOperator
 
 LLM_CONN_ID = "pydanticai_default"
 
-# Confluence wiki -- the AIP listing page is public, no auth required.
-# https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals
+# Confluence wiki -- public REST API, no auth required.
 CONFLUENCE_BASE_URL = "https://cwiki.apache.org/confluence"
-AIP_LISTING_PAGE_ID = "89066602"
+AIP_LISTING_PAGE_ID = "89066602"  # ancestor filter for CQL queries
 GITHUB_REPO = "apache/airflow"
-
-# When True the Dag runs on built-in sample data (self-contained, no network).
-# Set to False to fetch live data from Confluence and GitHub.
-USE_SAMPLE_DATA = True
+DEFAULT_AIP_NUMBERS = "76,99,103,105,108"
 
 # ---------------------------------------------------------------------------
 # Structured output model -- enforces a schema on the per-AIP LLM response
@@ -109,125 +106,7 @@ class AIPStatus(BaseModel):
 # [END aip_tracker_structured_output]
 
 # ---------------------------------------------------------------------------
-# Sample data -- replace with Confluence / GitHub API calls for production
-# ---------------------------------------------------------------------------
-
-SAMPLE_AIPS: list[dict] = [
-    {"aip_number": 76, "title": "Asset Partitions"},
-    {"aip_number": 99, "title": "Common Data Access Pattern + AI"},
-    {"aip_number": 103, "title": "Task State Management"},
-    {"aip_number": 105, "title": "LLM Retry Policy"},
-    {"aip_number": 108, "title": "Language Coordinator Layer"},
-]
-
-SAMPLE_EVIDENCE: dict[int, dict] = {
-    76: {
-        "spec_text": (
-            "AIP-76 adds partition awareness to Airflow assets. Instead of "
-            "triggering on any update to an asset, Dags can depend on specific "
-            "partitions (e.g. a date-based slice of a dataset). The scheduler "
-            "tracks which partitions have been produced and only triggers "
-            "downstream Dags when the required partitions are available."
-        ),
-        "prs": [
-            "#62400 -- Asset partition model and metadata schema",
-            "#63900 -- Partition-aware scheduling in the DagRun creator",
-            "#65100 -- UI: partition status badges on Asset views",
-        ],
-        "commits": [
-            "Add AssetPartition model with composite key",
-            "Extend DagScheduleAssetReference for partition filters",
-            "Show partition status in React Asset detail view",
-        ],
-    },
-    99: {
-        "spec_text": (
-            "AIP-99 adds first-class AI/ML operators to the common.ai provider. "
-            "LLMOperator wraps pydantic-ai for structured LLM calls with retries. "
-            "AgentOperator enables multi-turn ReAct agents with tool use. "
-            "LangChain and LlamaIndex hooks bridge framework models to Airflow "
-            "connections. DocumentLoaderOperator parses files for RAG pipelines."
-        ),
-        "prs": [
-            "#61200 -- LLMOperator and PydanticAIHook",
-            "#62800 -- AgentOperator with tool calling and HITL",
-            "#64100 -- LangChain hook and integration",
-            "#65500 -- LlamaIndex embedding and retrieval operators",
-            "#66300 -- DocumentLoaderOperator for multi-format parsing",
-        ],
-        "commits": [
-            "Add LLMOperator with structured output support",
-            "Add AgentOperator with ReAct loop and durable execution",
-            "Add LangChainHook bridging langchain models to connections",
-            "Add LlamaIndex embedding and retrieval operators",
-            "Add DocumentLoaderOperator with PDF and DOCX support",
-        ],
-    },
-    103: {
-        "spec_text": (
-            "AIP-103 introduces task-level state persistence via "
-            "context['task_state']. Tasks can checkpoint intermediate results "
-            "that survive retries and restarts. The state backend stores "
-            "key-value pairs scoped to a task instance, enabling long-running "
-            "tasks to resume from the last checkpoint rather than starting "
-            "from scratch."
-        ),
-        "prs": [
-            "#65000 -- Task state storage backend and API",
-            "#65800 -- context['task_state'] integration in Task SDK",
-            "#66700 -- State-aware retry logic for LLM tasks",
-        ],
-        "commits": [
-            "Add TaskState model with key-value storage",
-            "Expose task_state in TaskInstanceContext",
-            "Add state checkpoint and restore in retry path",
-        ],
-    },
-    105: {
-        "spec_text": (
-            "AIP-105 introduces LLMRetryPolicy, an intelligent retry mechanism "
-            "that uses an LLM to classify task failures before deciding whether "
-            "to retry, fail fast, or back off. Instead of static exception-type "
-            "matching, the policy sends the error context to an LLM that "
-            "determines the appropriate action: rate-limit errors trigger "
-            "exponential backoff, auth errors fail immediately, transient "
-            "network errors retry with a short delay."
-        ),
-        "prs": [
-            "#64800 -- RetryPolicy base class in Task SDK (AIP-105 prerequisite)",
-            "#65600 -- LLMRetryPolicy with pydantic-ai error classification",
-            "#66200 -- Integration tests for LLM-classified retry scenarios",
-        ],
-        "commits": [
-            "Add RetryPolicy protocol and RetryRule dataclass",
-            "Implement LLMRetryPolicy with structured ErrorClassification output",
-            "Wire RetryPolicy into task runner retry loop",
-        ],
-    },
-    108: {
-        "spec_text": (
-            "AIP-108 defines a language coordinator layer that enables tasks "
-            "written in Java, Go, and TypeScript to run alongside Python tasks. "
-            "A lightweight coordinator process manages the non-Python runtime "
-            "lifecycle, handles serialization between the task and the Execution "
-            "API, and provides the same guarantees (heartbeat, state, XCom) that "
-            "Python tasks get from the Task SDK."
-        ),
-        "prs": [
-            "#66100 -- Coordinator protocol specification and protobuf schema",
-            "#66800 -- Java Task SDK with coordinator bridge",
-            "#67200 -- Go Task SDK initial implementation",
-        ],
-        "commits": [
-            "Define coordinator gRPC protocol for multi-language tasks",
-            "Add Java Task SDK with Maven build and coordinator client",
-            "Scaffold Go Task SDK with coordinator handshake",
-        ],
-    },
-}
-
-# ---------------------------------------------------------------------------
-# HTTP helpers -- used when USE_SAMPLE_DATA is False
+# HTTP helpers
 # ---------------------------------------------------------------------------
 
 
@@ -251,20 +130,6 @@ def _strip_html_tags(html: str) -> str:
     """Remove HTML/Confluence markup, returning plain text."""
     text = re.sub(r"<[^>]+>", " ", html)
     return re.sub(r"\s+", " ", text).strip()
-
-
-def _parse_accepted_aips(listing_html: str) -> list[dict]:
-    """Extract accepted AIPs from the rendered AIP listing page."""
-    match = re.search(r"Accepted AIPs.*?(?=<h[1-3]|$)", listing_html, re.DOTALL | re.IGNORECASE)
-    if not match:
-        return []
-    section = match.group()
-    aips = []
-    for m in re.finditer(r"<a[^>]+>([^<]*AIP-(\d+)[^<]*)</a>", section):
-        title = re.sub(r"\s+", " ", m.group(1)).strip()
-        aip_number = int(m.group(2))
-        aips.append({"aip_number": aip_number, "title": title})
-    return aips
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +160,18 @@ and under 500 words."""
 
 
 # [START example_aip_progress_tracker]
-@dag(catchup=False, tags=["example", "aip_tracker", "common_ai"])
+@dag(
+    schedule=None,
+    catchup=False,
+    params={
+        "aip_numbers": Param(
+            DEFAULT_AIP_NUMBERS,
+            type="string",
+            description="Comma-separated AIP numbers to investigate (e.g. 76,99,103,105,108)",
+        ),
+    },
+    tags=["example", "aip_tracker", "common_ai"],
+)
 def example_aip_progress_tracker():
     """
     Track AIP progress by analysing Confluence specs against GitHub evidence.
@@ -317,14 +193,20 @@ def example_aip_progress_tracker():
     # created in the downstream steps -- N is decided at runtime.
     # ------------------------------------------------------------------
     @task
-    def fetch_aip_list() -> list[dict]:
-        if USE_SAMPLE_DATA:
-            return SAMPLE_AIPS
-        # Fetch the AIP listing page and extract the "Accepted" section.
-        # https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals
-        page = _confluence_rest_get(f"/rest/api/content/{AIP_LISTING_PAGE_ID}?expand=body.view")
-        accepted = _parse_accepted_aips(page["body"]["view"]["value"])
-        return accepted or SAMPLE_AIPS
+    def fetch_aip_list(params: dict) -> list[dict]:
+        aip_numbers = [int(n.strip()) for n in params["aip_numbers"].split(",") if n.strip()]
+        aips = []
+        for num in aip_numbers:
+            cql = urllib.parse.quote(
+                f'space="AIRFLOW" AND title~"AIP-{num}" AND ancestor={AIP_LISTING_PAGE_ID}'
+            )
+            results = _confluence_rest_get(f"/rest/api/content/search?cql={cql}&limit=1")
+            if results.get("results"):
+                title = results["results"][0]["title"]
+            else:
+                title = f"AIP-{num}"
+            aips.append({"aip_number": num, "title": title})
+        return aips
 
     aip_list = fetch_aip_list()
 
@@ -338,17 +220,6 @@ def example_aip_progress_tracker():
     @task
     def gather_aip_evidence(aip: dict) -> dict:
         aip_number = aip["aip_number"]
-        if USE_SAMPLE_DATA:
-            evidence = SAMPLE_EVIDENCE[aip_number]
-            return {
-                "aip_number": aip_number,
-                "title": aip["title"],
-                "spec_text": evidence["spec_text"],
-                "prs": evidence["prs"],
-                "commits": evidence["commits"],
-            }
-        # Fetch spec text from the AIP's Confluence wiki page via CQL search.
-        # Example: https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-103
         cql = urllib.parse.quote(
             f'space="AIRFLOW" AND title~"AIP-{aip_number}" AND ancestor={AIP_LISTING_PAGE_ID}'
         )
@@ -357,11 +228,9 @@ def example_aip_progress_tracker():
         if results.get("results"):
             raw_html = results["results"][0]["body"]["view"]["value"]
             spec_text = _strip_html_tags(raw_html)[:3000]
-        # Search GitHub for related PRs.
         pr_query = urllib.parse.quote(f"AIP-{aip_number} repo:{GITHUB_REPO} is:pr")
         pr_data = _github_api_get(f"/search/issues?q={pr_query}&per_page=10")
         prs = [f"#{it['number']} -- {it['title']}" for it in pr_data.get("items", [])]
-        # Search GitHub for related commits.
         commit_query = urllib.parse.quote(f"AIP-{aip_number} repo:{GITHUB_REPO}")
         commit_data = _github_api_get(f"/search/commits?q={commit_query}&per_page=10")
         commits = [it["commit"]["message"].split("\n")[0] for it in commit_data.get("items", [])]
