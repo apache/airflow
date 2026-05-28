@@ -1524,8 +1524,8 @@ requires-dist = [
     { name = "apache-airflow-providers-atlassian-jira", marker = "extra == 'atlassian-jira'", editable = "providers/atlassian/jira" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'all'", editable = "providers/celery" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'celery'", editable = "providers/celery" },
-    { name = "apache-airflow-providers-clickhousedb", marker = "extra == 'all'", editable = "providers/clickhouse" },
-    { name = "apache-airflow-providers-clickhousedb", marker = "extra == 'clickhouse'", editable = "providers/clickhouse" },
+    { name = "apache-airflow-providers-clickhousedb", marker = "extra == 'all'", editable = "providers/clickhousedb" },
+    { name = "apache-airflow-providers-clickhousedb", marker = "extra == 'clickhouse'", editable = "providers/clickhousedb" },
     { name = "apache-airflow-providers-cloudant", marker = "extra == 'all'", editable = "providers/cloudant" },
     { name = "apache-airflow-providers-cloudant", marker = "extra == 'cloudant'", editable = "providers/cloudant" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'all'", editable = "providers/cncf/kubernetes" },
@@ -4011,7 +4011,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 [[package]]
 name = "apache-airflow-providers-clickhousedb"
 version = "1.0.0"
-source = { editable = "providers/clickhouse" }
+source = { editable = "providers/clickhousedb" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-sql" },

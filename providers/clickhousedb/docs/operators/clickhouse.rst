@@ -22,7 +22,7 @@ SQLExecuteQueryOperator for ClickHouse
 Use the :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` to execute
 SQL commands in a `ClickHouse <https://clickhouse.com/>`__ database.
 
-Because :class:`~airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook` extends
+Because :class:`~airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook` extends
 :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`, no dedicated ClickHouse operator is
 needed — the generic ``SQLExecuteQueryOperator`` handles DDL, DML, and analytical queries.
 
@@ -72,6 +72,6 @@ Use a ``handler`` to return query results:
 
 .. note::
 
-    ``session_settings`` passed to :class:`~airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook`
+    ``session_settings`` passed to :class:`~airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook`
     directly (via ``hook_params``) take precedence over any ``session_settings`` defined in the
     connection's ``extra`` JSON field. Conflicting keys are resolved in favor of the constructor argument.

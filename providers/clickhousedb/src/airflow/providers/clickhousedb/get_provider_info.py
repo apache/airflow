@@ -38,12 +38,12 @@ def get_provider_info():
         "hooks": [
             {
                 "integration-name": "ClickHouse",
-                "python-modules": ["airflow.providers.clickhouse.hooks.clickhouse"],
+                "python-modules": ["airflow.providers.clickhousedb.hooks.clickhouse"],
             }
         ],
         "connection-types": [
             {
-                "hook-class-name": "airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook",
+                "hook-class-name": "airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook",
                 "connection-type": "clickhouse",
                 "ui-field-behaviour": {
                     "hidden-fields": [],

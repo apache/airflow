@@ -86,7 +86,7 @@ Extra (optional)
           }
 
       Settings set here act as **defaults** — any ``session_settings`` passed to the
-      :class:`~airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook` constructor
+      :class:`~airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook` constructor
       are **merged on top** and take precedence on conflicting keys.
 
       For a full list of available settings see the

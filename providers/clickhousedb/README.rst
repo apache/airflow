@@ -32,7 +32,7 @@ Provider package
 ----------------
 
 This is a provider package for ``clickhouse`` provider. All classes for this provider package
-are in ``airflow.providers.clickhouse`` python package.
+are in ``airflow.providers.clickhousedb`` python package.
 
 You can find package information and changelog for the provider
 in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.0/>`_.

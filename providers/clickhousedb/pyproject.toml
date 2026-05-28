@@ -109,10 +109,10 @@ apache-airflow-providers-standard = {workspace = true}
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.clickhouse.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.clickhousedb.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.clickhouse"
+name = "airflow.providers.clickhousedb"
 
 # Explicit sdist contents so the build does not rely on VCS information
 # (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).

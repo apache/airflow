@@ -76,7 +76,7 @@ def _build_client_name(custom: str | None = None) -> str:
         clickhouse-connect/X.Y.Z (lv:py/X.Y.Z; mode:sync; os:linux)
     """
     import airflow
-    from airflow.providers.clickhouse import __version__ as provider_version
+    from airflow.providers.clickhousedb import __version__ as provider_version
 
     name = f"apache-airflow/{airflow.__version__} apache-airflow-providers-clickhousedb/{provider_version}"
     if custom:

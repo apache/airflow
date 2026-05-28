@@ -136,7 +136,7 @@ body:
         - asana
         - atlassian-jira
         - celery
-        - clickhouse
+        - clickhousedb
         - cloudant
         - cncf-kubernetes
         - cohere

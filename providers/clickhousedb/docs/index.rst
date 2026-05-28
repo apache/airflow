@@ -42,7 +42,7 @@
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/clickhouse/index>
+    Python API <_api/airflow/providers/clickhousedb/index>
 
 .. toctree::
     :hidden:
@@ -83,7 +83,7 @@ Provider package
 ----------------
 
 This package is for the ``clickhouse`` provider.
-All classes for this package are included in the ``airflow.providers.clickhouse`` python package.
+All classes for this package are included in the ``airflow.providers.clickhousedb`` python package.
 
 Installation
 ------------

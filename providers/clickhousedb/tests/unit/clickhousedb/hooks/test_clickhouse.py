@@ -24,7 +24,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.clickhouse.hooks.clickhouse import (
+from airflow.providers.clickhousedb.hooks.clickhouse import (
     ClickHouseConnection,
     ClickHouseHook,
 )
@@ -143,7 +143,7 @@ CONN_WITH_SESSION_SETTINGS_STR = Connection(
 
 
 class TestClickHouseHookGetConn:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_conn_basic(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -162,7 +162,7 @@ class TestClickHouseHookGetConn:
         )
         assert isinstance(conn, ClickHouseConnection)
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_conn_with_extra_params(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN_EXTRA
@@ -183,7 +183,7 @@ class TestClickHouseHookGetConn:
             client_name=ANY,  # contains Airflow version + "(my-airflow)" comment
         )
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_conn_minimal_defaults(self, mock_get_client, mock_get_connection):
         """All connection fields absent → sensible defaults applied."""
@@ -202,7 +202,7 @@ class TestClickHouseHookGetConn:
             client_name=ANY,  # always set; format verified in TestClickHouseHookClientName
         )
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_conn_database_overrides_connection_schema(self, mock_get_client, mock_get_connection):
         """database constructor arg must override the schema field from the connection."""
@@ -213,7 +213,7 @@ class TestClickHouseHookGetConn:
         call_kwargs = mock_get_client.call_args.kwargs
         assert call_kwargs["database"] == "overridden_db"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_conn_no_database_falls_back_to_connection_schema(self, mock_get_client, mock_get_connection):
         """Without a database constructor arg the connection schema is used."""
@@ -231,7 +231,7 @@ class TestClickHouseHookGetConn:
 
 
 class TestClickHouseHookGetUri:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_with_password(self, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
@@ -239,7 +239,7 @@ class TestClickHouseHookGetUri:
 
         assert uri == "clickhousedb://user:secret@clickhouse-host:8123/analytics"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_without_password(self, mock_get_connection):
         conn = Connection(
             conn_id="clickhouse_nopass",
@@ -255,7 +255,7 @@ class TestClickHouseHookGetUri:
 
         assert uri == "clickhousedb://reader@myhost:8123/logs"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_password_url_encoded(self, mock_get_connection):
         """Special characters in the password must be percent-encoded."""
         conn = Connection(
@@ -274,7 +274,7 @@ class TestClickHouseHookGetUri:
         assert "@" not in uri.split("://")[1].split("@")[0]  # password part is encoded
         assert "p%40ss" in uri or "p%40" in uri  # @ is encoded
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_defaults(self, mock_get_connection):
         mock_get_connection.return_value = MINIMAL_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_minimal")
@@ -282,7 +282,7 @@ class TestClickHouseHookGetUri:
 
         assert uri == "clickhousedb://default@localhost:8123/default"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_database_overrides_connection_schema(self, mock_get_connection):
         """database constructor arg must appear in the URI instead of the connection schema."""
         mock_get_connection.return_value = BASE_CONN  # schema="analytics"
@@ -292,7 +292,7 @@ class TestClickHouseHookGetUri:
         assert uri.endswith("/overridden_db")
         assert "analytics" not in uri
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_secure_adds_query_param(self, mock_get_connection):
         """secure=True must produce clickhousedb://...?secure=true (not a separate scheme)."""
         conn = Connection(
@@ -309,7 +309,7 @@ class TestClickHouseHookGetUri:
         uri = ClickHouseHook(clickhouse_conn_id="ch_secure").get_uri()
         assert uri == "clickhousedb://user:pass@secure-host:8443/db?secure=true"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_verify_false_adds_query_param(self, mock_get_connection):
         """verify=False must appear as ?verify=false in the URI."""
         conn = Connection(
@@ -327,7 +327,7 @@ class TestClickHouseHookGetUri:
         assert "secure=true" in uri
         assert "verify=false" in uri
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_tuning_params_forwarded(self, mock_get_connection):
         """connect_timeout, send_receive_timeout and compress must appear in the URI query string."""
         conn = Connection(
@@ -345,7 +345,7 @@ class TestClickHouseHookGetUri:
         assert "send_receive_timeout=600" in uri
         assert "compress=false" in uri
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_uri_no_params_when_defaults(self, mock_get_connection):
         """When no extra settings are present the URI must have no query string."""
         mock_get_connection.return_value = MINIMAL_CONN
@@ -384,7 +384,7 @@ class TestClickHouseHookClassAttributes:
 
 
 class TestClickHouseHookClientKwargs:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_optional_keys_not_forwarded_when_absent(self, mock_get_connection):
         """Tuning kwargs must not appear when not set in extra; client_name is always set."""
         mock_get_connection.return_value = BASE_CONN
@@ -396,7 +396,7 @@ class TestClickHouseHookClientKwargs:
         # client_name is always injected (contains Airflow version info)
         assert "client_name" in kwargs
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_optional_keys_forwarded_when_present(self, mock_get_connection):
         """Optional kwargs must appear in params when set in extra."""
         mock_get_connection.return_value = BASE_CONN_EXTRA
@@ -410,7 +410,7 @@ class TestClickHouseHookClientKwargs:
         assert "apache-airflow/" in kwargs["client_name"]
         assert "(my-airflow)" in kwargs["client_name"]
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_kwargs_passthrough_forwarded(self, mock_get_connection):
         """Arbitrary client_kwargs must reach get_client() as-is."""
         mock_get_connection.return_value = BASE_CONN
@@ -423,7 +423,7 @@ class TestClickHouseHookClientKwargs:
         assert kwargs["http_proxy"] == "http://proxy:8080"
         assert kwargs["pool_mgr_params"] == {"num_pools": 4}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_hook_managed_keys_in_client_kwargs_logged_at_debug(self, mock_get_connection):
         """Dropped hook-managed keys must be logged at DEBUG level."""
         mock_get_connection.return_value = BASE_CONN
@@ -437,7 +437,7 @@ class TestClickHouseHookClientKwargs:
         logged_messages = [str(call) for call in mock_debug.call_args_list]
         assert any("host" in msg for msg in logged_messages)
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_kwargs_cannot_override_hook_managed_keys(self, mock_get_connection):
         """Hook-managed keys in client_kwargs must be silently dropped."""
         mock_get_connection.return_value = BASE_CONN
@@ -459,7 +459,7 @@ class TestClickHouseHookClientKwargs:
         assert "apache-airflow/" in kwargs["client_name"]
         assert "attacker" not in kwargs["client_name"]
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_kwargs_empty_by_default(self, mock_get_connection):
         """No client_kwargs constructor arg → no unexpected extra keys in output."""
         mock_get_connection.return_value = BASE_CONN
@@ -479,7 +479,7 @@ class TestClickHouseHookClientKwargs:
         }
         assert expected_keys.issubset(kwargs.keys())
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_no_settings_key_when_session_settings_absent(self, mock_get_connection):
         """'settings' must NOT appear in kwargs when no session_settings anywhere."""
         mock_get_connection.return_value = BASE_CONN
@@ -495,7 +495,7 @@ class TestClickHouseHookClientKwargs:
 
 
 class TestClickHouseHookClientKwargsFromExtra:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_kwargs_from_extra_dict(self, mock_get_connection):
         """client_kwargs dict in extra is forwarded to get_client()."""
         mock_get_connection.return_value = CONN_WITH_CLIENT_KWARGS
@@ -505,7 +505,7 @@ class TestClickHouseHookClientKwargsFromExtra:
         assert kwargs["http_proxy"] == "http://proxy:8080"
         assert kwargs["pool_mgr_params"] == {"num_pools": 4}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_kwargs_from_extra_string(self, mock_get_connection):
         """client_kwargs stored as a JSON string in extra is parsed correctly."""
         mock_get_connection.return_value = CONN_WITH_CLIENT_KWARGS_STR
@@ -514,7 +514,7 @@ class TestClickHouseHookClientKwargsFromExtra:
 
         assert kwargs["http_proxy"] == "http://proxy:8080"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_constructor_client_kwargs_override_extra(self, mock_get_connection):
         """Constructor client_kwargs take precedence over extra on conflicting keys."""
         mock_get_connection.return_value = CONN_WITH_CLIENT_KWARGS
@@ -531,7 +531,7 @@ class TestClickHouseHookClientKwargsFromExtra:
         # constructor-only key is present
         assert kwargs["verify_ssl"] is False
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_extra_client_kwargs_cannot_override_hook_managed_keys(self, mock_get_connection):
         """Hook-managed keys in extra client_kwargs must be silently dropped."""
         conn = Connection(
@@ -554,7 +554,7 @@ class TestClickHouseHookClientKwargsFromExtra:
         assert kwargs["host"] == "real-host"
         assert kwargs["password"] == ""
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_invalid_client_kwargs_string_raises(self, mock_get_connection):
         """Malformed JSON string in client_kwargs raises ValueError with a clear message."""
         conn = Connection(
@@ -569,7 +569,7 @@ class TestClickHouseHookClientKwargsFromExtra:
         with pytest.raises(ValueError, match="Invalid JSON in extra.client_kwargs"):
             hook._get_client_kwargs()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_no_extra_client_kwargs_no_leakage(self, mock_get_connection):
         """Absent client_kwargs in extra must not add unexpected keys."""
         mock_get_connection.return_value = BASE_CONN
@@ -586,7 +586,7 @@ class TestClickHouseHookClientKwargsFromExtra:
 
 
 class TestClickHouseHookSessionSettings:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_session_settings_from_extra_dict(self, mock_get_connection):
         """session_settings dict in extra is forwarded as 'settings'."""
         mock_get_connection.return_value = CONN_WITH_SESSION_SETTINGS
@@ -595,7 +595,7 @@ class TestClickHouseHookSessionSettings:
 
         assert kwargs["settings"] == {"max_execution_time": 120, "max_threads": 4}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_session_settings_from_extra_string(self, mock_get_connection):
         """session_settings stored as a JSON string in extra is parsed correctly."""
         mock_get_connection.return_value = CONN_WITH_SESSION_SETTINGS_STR
@@ -604,7 +604,7 @@ class TestClickHouseHookSessionSettings:
 
         assert kwargs["settings"] == {"max_execution_time": 60}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_constructor_session_settings_override_extra(self, mock_get_connection):
         """Constructor session_settings take precedence over extra on conflicting keys."""
         mock_get_connection.return_value = CONN_WITH_SESSION_SETTINGS
@@ -621,7 +621,7 @@ class TestClickHouseHookSessionSettings:
         # readonly added by constructor
         assert kwargs["settings"]["readonly"] == 1
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_constructor_only_session_settings(self, mock_get_connection):
         """Constructor session_settings work when extra has none."""
         mock_get_connection.return_value = BASE_CONN
@@ -633,7 +633,7 @@ class TestClickHouseHookSessionSettings:
 
         assert kwargs["settings"] == {"max_threads": 2}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_session_settings_passed_to_get_client(self, mock_get_client, mock_get_connection):
         """settings dict is forwarded to clickhouse_connect.get_client()."""
@@ -644,7 +644,7 @@ class TestClickHouseHookSessionSettings:
         call_kwargs = mock_get_client.call_args.kwargs
         assert call_kwargs["settings"] == {"max_execution_time": 120, "max_threads": 4}
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_empty_constructor_session_settings_ignored(self, mock_get_connection):
         """Passing session_settings={} is equivalent to not passing it."""
         mock_get_connection.return_value = BASE_CONN
@@ -653,7 +653,7 @@ class TestClickHouseHookSessionSettings:
 
         assert "settings" not in kwargs
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_invalid_session_settings_string_raises(self, mock_get_connection):
         """Malformed JSON string in session_settings raises ValueError with a clear message."""
         conn = Connection(
@@ -988,28 +988,28 @@ class TestClickHouseHookDbApiMethods:
 
 
 class TestClickHouseHookClientName:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_name_always_present(self, mock_get_connection):
         """client_name must be set even when not configured in extra."""
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         assert "client_name" in hook._get_client_kwargs()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_name_contains_airflow_token(self, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         client_name = hook._get_client_kwargs()["client_name"]
         assert "apache-airflow/" in client_name
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_name_contains_provider_token(self, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         client_name = hook._get_client_kwargs()["client_name"]
         assert "apache-airflow-providers-clickhousedb/" in client_name
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_client_name_version_format(self, mock_get_connection):
         """Both version tokens must follow the X.Y(.Z) pattern."""
         mock_get_connection.return_value = BASE_CONN
@@ -1018,7 +1018,7 @@ class TestClickHouseHookClientName:
         assert re.search(r"apache-airflow/\d+\.\d+", client_name)
         assert re.search(r"apache-airflow-providers-clickhousedb/\d+\.\d+", client_name)
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_custom_label_appended_as_comment(self, mock_get_connection):
         """A client_name value in extra must appear as '(<label>)' after the version tokens."""
         conn = Connection(
@@ -1033,7 +1033,7 @@ class TestClickHouseHookClientName:
         assert "apache-airflow/" in client_name
         assert "(my-etl-pipeline)" in client_name
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_no_custom_label_no_parentheses(self, mock_get_connection):
         """Without a user label the client_name must not end with empty parentheses."""
         mock_get_connection.return_value = BASE_CONN
@@ -1041,7 +1041,7 @@ class TestClickHouseHookClientName:
         client_name = hook._get_client_kwargs()["client_name"]
         assert "()" not in client_name
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_client_name_forwarded_to_get_client(self, mock_get_client, mock_get_connection):
         """The built client_name must reach clickhouse_connect.get_client()."""
@@ -1052,8 +1052,8 @@ class TestClickHouseHookClientName:
         assert "client_name" in call_kwargs
         assert "apache-airflow/" in call_kwargs["client_name"]
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse._build_client_name")
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse._build_client_name")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_get_client_kwargs_delegates_to_build_client_name(self, mock_get_connection, mock_build):
         """_get_client_kwargs must call _build_client_name with the extra label (or None)."""
         conn = Connection(
@@ -1069,8 +1069,8 @@ class TestClickHouseHookClientName:
         mock_build.assert_called_once_with("my-app")
         assert kwargs["client_name"] == "sentinel-name"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse._build_client_name")
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse._build_client_name")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_build_client_name_receives_none_when_no_label(self, mock_get_connection, mock_build):
         """When extra has no client_name, _build_client_name must receive None."""
         mock_get_connection.return_value = BASE_CONN
@@ -1086,7 +1086,7 @@ class TestClickHouseHookClientName:
 
 
 class TestClickHouseHookTestConnection:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_test_connection_success(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1103,7 +1103,7 @@ class TestClickHouseHookTestConnection:
         assert status is True
         assert message == "Connection successfully tested"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_test_connection_failure(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1115,7 +1115,7 @@ class TestClickHouseHookTestConnection:
         assert status is False
         assert "Connection refused" in message
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_test_connection_uses_select_1(self, mock_get_client, mock_get_connection):
         """Verifies that _test_connection_sql is actually executed."""
@@ -1157,7 +1157,7 @@ class TestClickHouseHookBulkOperations:
 
 
 class TestClickHouseHookGetClient:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_client_returns_raw_client(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1169,7 +1169,7 @@ class TestClickHouseHookGetClient:
 
         assert result is mock_client
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_client_passes_correct_kwargs(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1183,7 +1183,7 @@ class TestClickHouseHookGetClient:
         assert call_kwargs["password"] == "secret"
         assert call_kwargs["database"] == "analytics"
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_get_client_and_get_conn_use_same_kwargs(self, mock_get_client, mock_get_connection):
         """get_client() and get_conn() should build kwargs from the same source."""
@@ -1205,7 +1205,7 @@ class TestClickHouseHookGetClient:
 
 
 class TestClickHouseHookBulkInsert:
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_empty_rows_skips_insert(self, mock_get_client, mock_get_connection):
         """No insert call should be made when rows is empty."""
@@ -1214,7 +1214,7 @@ class TestClickHouseHookBulkInsert:
         hook.bulk_insert_rows("t", [], column_names=["id"])
         mock_get_client.assert_not_called()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_single_batch_insert(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1227,7 +1227,7 @@ class TestClickHouseHookBulkInsert:
 
         mock_client.insert.assert_called_once()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_multiple_batches(self, mock_get_client, mock_get_connection):
         """10 rows with batch_size=3 → context created once, 4 insert calls."""
@@ -1242,7 +1242,7 @@ class TestClickHouseHookBulkInsert:
         mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         assert mock_client.insert.call_count == 4
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_batch_size_larger_than_rows(self, mock_get_client, mock_get_connection):
         """batch_size > len(rows) → context created once, exactly one insert call."""
@@ -1257,7 +1257,7 @@ class TestClickHouseHookBulkInsert:
         mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         mock_client.insert.assert_called_once()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_exactly_batch_size_rows(self, mock_get_client, mock_get_connection):
         """Rows == batch_size → context created once, exactly one insert call."""
@@ -1272,7 +1272,7 @@ class TestClickHouseHookBulkInsert:
         mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         mock_client.insert.assert_called_once()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_client_closed_after_success(self, mock_get_client, mock_get_connection):
         """Client must be closed after successful insert."""
@@ -1285,7 +1285,7 @@ class TestClickHouseHookBulkInsert:
 
         mock_client.close.assert_called_once()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_client_closed_on_insert_error(self, mock_get_client, mock_get_connection):
         """Client must be closed even when insert raises."""
@@ -1300,7 +1300,7 @@ class TestClickHouseHookBulkInsert:
 
         mock_client.close.assert_called_once()
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_passes_correct_table_and_columns(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
@@ -1316,7 +1316,7 @@ class TestClickHouseHookBulkInsert:
         assert call_args.args[1] == rows
         assert call_args.kwargs["column_names"] == ["name", "count"]
 
-    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_single_row(self, mock_get_client, mock_get_connection):
         mock_get_connection.return_value = BASE_CONN
