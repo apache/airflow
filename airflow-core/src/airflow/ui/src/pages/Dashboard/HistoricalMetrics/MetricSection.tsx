@@ -35,6 +35,7 @@ type MetricSectionProps = {
   readonly startDate: string;
   readonly state: keyof TaskInstanceStateCount;
   readonly total: number;
+  readonly totalCapped?: boolean;
 };
 
 export const MetricSection = ({
@@ -45,10 +46,12 @@ export const MetricSection = ({
   startDate,
   state,
   total,
+  totalCapped = false,
 }: MetricSectionProps) => {
   const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
-  const statePercent = capped ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
+  const hidePercent = capped || totalCapped;
+  const statePercent = hidePercent ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
 
   const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
