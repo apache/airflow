@@ -389,7 +389,7 @@ class TestGetImportErrors:
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
@@ -541,6 +541,89 @@ class TestGetImportErrors:
             FILENAME2: STACKTRACE2,
             FILENAME3: STACKTRACE3,
         }
+
+    @pytest.fixture
+    @provide_session
+    def import_error_with_multiple_dags(
+        self,
+        testing_dag_bundle,
+        session: Session = NEW_SESSION,
+    ) -> tuple[ParseImportError, set[str]]:
+        """One ParseImportError file mapping to three DagModel rows.
+
+        Used to verify that total_entries and pagination operate on distinct
+        ParseImportError objects rather than on the inflated joined-row count.
+        """
+        multi_dag_file = "multi_dag_file.py"
+        multi_stacktrace = "SyntaxError in multi_dag_file"
+        multi_dag_ids = {"dag_a", "dag_b", "dag_c"}
+
+        multi_import_error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=multi_dag_file,
+            stacktrace=multi_stacktrace,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(multi_import_error)
+        for dag_id in multi_dag_ids:
+            session.add(
+                DagModel(
+                    fileloc=multi_dag_file,
+                    relative_fileloc=multi_dag_file,
+                    dag_id=dag_id,
+                    is_paused=False,
+                    bundle_name=BUNDLE_NAME,
+                )
+            )
+        session.commit()
+        return multi_import_error, multi_dag_ids
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_total_entries_counts_distinct_import_errors_when_file_has_multiple_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_error_with_multiple_dags,
+    ):
+        """total_entries and pagination must count ParseImportError objects, not
+        joined rows.
+
+        Regression test for https://github.com/apache/airflow/issues/67525.
+
+        When one file contains three Dags, the join from ParseImportError to
+        DagModel produces three rows for a single import-error record.  Before
+        the fix, total_entries reflected the raw joined-row count (3) instead
+        of the number of distinct import-error objects (1).  Similarly,
+        ``limit=1`` would have returned zero or partial results because the
+        LIMIT was applied to joined rows before grouping.
+        """
+        multi_import_error, multi_dag_ids = import_error_with_multiple_dags
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, multi_dag_ids)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        # Fetch only this import error (exclude the three from the autouse fixture)
+        response = test_client.get(
+            "/importErrors",
+            params={"filename_pattern": multi_import_error.filename},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        # One import-error object, not three joined rows
+        assert body["total_entries"] == 1
+        assert len(body["import_errors"]) == 1
+        assert body["import_errors"][0]["filename"] == multi_import_error.filename
+        assert body["import_errors"][0]["stack_trace"] == multi_import_error.stacktrace
+
+        # limit=1 must also return the single import-error object
+        response_limit = test_client.get(
+            "/importErrors",
+            params={"filename_pattern": multi_import_error.filename, "limit": 1},
+        )
+        assert response_limit.status_code == 200
+        body_limit = response_limit.json()
+        assert body_limit["total_entries"] == 1
+        assert len(body_limit["import_errors"]) == 1
 
 
 class TestImportErrorFileAuthorization:

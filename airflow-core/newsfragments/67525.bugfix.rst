@@ -1,0 +1,1 @@
+Fixed ``total_entries`` inflation in ``GET /api/v2/importErrors`` when one file contains multiple DAGs.
