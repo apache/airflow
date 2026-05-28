@@ -1267,6 +1267,59 @@ class TestWatchedSubprocess:
         proc.selector.close.assert_called_once()
         proc.stdin.close.assert_called_once()
 
+    def test_child_is_session_leader(self, client_with_ti_start):
+        """Regression test for #65505: after fork, the task-runner child must
+        call os.setsid() so its PGID equals its own PID. This allows kill()
+        to reach subprocesses the task-runner spawns via os.killpg(); without
+        setsid, a venv/Popen child of the task-runner inherits the
+        supervisor's process group and killpg would signal the supervisor too
+        (or miss the grandchild entirely).
+        """
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+            sleep(10)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+        try:
+            # Give the child a moment to run setsid() after fork.
+            deadline = time.monotonic() + 2.0
+            child_pgid = None
+            while time.monotonic() < deadline:
+                try:
+                    child_pgid = os.getpgid(proc.pid)
+                except ProcessLookupError:
+                    sleep(0.05)
+                    continue
+                if child_pgid == proc.pid:
+                    break
+                sleep(0.05)
+
+            assert child_pgid == proc.pid, (
+                "Task-runner child must be its own session/process-group leader "
+                f"(os.setsid called after fork). Got pgid={child_pgid}, pid={proc.pid}."
+            )
+            assert child_pgid != os.getpgid(os.getpid()), (
+                "Child's process group must differ from the supervisor's so "
+                "os.killpg() from kill() does not signal the supervisor itself."
+            )
+        finally:
+            proc.kill(signal.SIGKILL, force=True)
+            proc.wait()
+
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
@@ -1296,8 +1349,11 @@ class TestWatchedSubprocessKill:
         proc.selector = mock_selector
         return proc
 
-    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process, mocker):
         """Test behavior when the process has already exited."""
+        # When the process is gone, getpgid raises ProcessLookupError and the
+        # kill() path falls back to send_signal on the dead psutil.Process.
+        mocker.patch("os.getpgid", side_effect=ProcessLookupError)
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
         watched_subprocess.kill(signal.SIGINT, force=True)
 
@@ -1305,15 +1361,55 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once()
         assert watched_subprocess._exit_code == -1
 
-    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
-        """Test that the process is killed with the correct signal."""
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process, mocker):
+        """Test that the process is killed with the correct signal via killpg."""
+        mock_getpgid = mocker.patch("os.getpgid", return_value=12345)
+        mock_killpg = mocker.patch("os.killpg")
         mock_process.wait.return_value = 0
 
         signal_to_send = signal.SIGUSR1
         watched_subprocess.kill(signal_to_send, force=False)
 
-        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        mock_getpgid.assert_called_once_with(12345)
+        mock_killpg.assert_called_once_with(12345, signal_to_send)
+        mock_process.send_signal.assert_not_called()
         mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_kill_signals_process_group(self, watched_subprocess, mock_process, mocker):
+        """Regression test for #65505: kill() must signal the whole process
+        group so subprocesses spawned by the task-runner (venv children,
+        Docker exec, bash shells) are also reached.
+        """
+        mock_getpgid = mocker.patch("os.getpgid", return_value=12345)
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        mock_getpgid.assert_called_once_with(12345)
+        mock_killpg.assert_called_once_with(12345, signal.SIGTERM)
+        mock_process.send_signal.assert_not_called()
+
+    @pytest.mark.parametrize("failing_call", ["getpgid", "killpg"])
+    @pytest.mark.parametrize("exc", [ProcessLookupError, PermissionError])
+    def test_kill_falls_back_to_send_signal_when_group_signal_fails(
+        self, watched_subprocess, mock_process, mocker, failing_call, exc
+    ):
+        """If os.killpg or os.getpgid raises ProcessLookupError (group vanished
+        or child never reached setsid) or PermissionError, fall back to
+        signalling the task-runner PID directly via send_signal.
+        """
+        if failing_call == "getpgid":
+            mocker.patch("os.getpgid", side_effect=exc)
+            mocker.patch("os.killpg")
+        else:
+            mocker.patch("os.getpgid", return_value=12345)
+            mocker.patch("os.killpg", side_effect=exc)
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
 
     @pytest.mark.parametrize(
         ("signal_to_send", "exit_after"),
