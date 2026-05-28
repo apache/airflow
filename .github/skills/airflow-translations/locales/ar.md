@@ -1,261 +1,202 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
 
-# Arabic (ar) Translation Guidelines for Apache Airflow
+# Arabic (`ar`) Translation Agent Skill
 
-This document provides Arabic-specific guidelines for translating Apache Airflow terminology and documentation.
+**Locale code:** `ar`
+**Preferred variant:** Modern Standard Arabic (MSA), consistent with existing translations in `airflow-core/src/airflow/ui/public/i18n/locales/ar/`
 
-## Terms to Keep in English
+This file contains locale-specific guidelines so AI translation agents produce
+new Arabic strings that stay consistent with the existing Airflow Arabic
+locale. When a term already exists in `ar/*.json`, reuse that wording instead
+of introducing a new synonym.
 
-The following technical terms should **remain in English** in Arabic translations:
+## 1. Core Airflow Terminology
 
-### Core Technical Terms (مصطلحات تقنية أساسية)
+### Global Airflow terms (never translate)
 
-- **DAG** (Directed Acyclic Graph) - Keep as "DAG"
-- **XCom** (Cross-Communication) - Keep as "XCom"
-- **Operator** - Keep as "Operator" (المُشغِّل) or in English
-- **Task Instance** - Keep as "Task Instance" or translate as "مثيل المهمة"
-- **Pool** - Keep as "Pool" (المجموعة) or in English
-- **Hook** - Keep as "Hook" or translate as "خطاف"
-- **Sensor** - Keep as "Sensor" (المستشعر) or in English
+These terms are defined as untranslatable across Airflow locales. Do not
+translate them regardless of context:
 
-### UI Components (مكونات واجهة المستخدم)
+- `Airflow` — product name
+- `Dag` / `Dags` — Airflow concept; never write `DAG`
+- `XCom` / `XComs` — Airflow cross-communication mechanism
+- `REST API`
+- `JSON`
+- `UTC`
+- Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`
 
-- **Tree View** - Keep as "Tree View" or translate as "عرض الشجرة"
-- **Graph View** - Keep as "Graph View" or translate as "عرض المخطط"
-- **Gantt Chart** - Keep as "Gantt Chart" or translate as "مخطط جانت"
-- **Grid View** - Keep as "Grid View" or translate as "عرض الشبكة"
+### Translated by convention (Arabic-specific)
 
-### Code and Technical References
+The Arabic locale translates most other UI terms into Arabic. These
+established translations should be reused:
 
-- All Python class names, function names, and variables
-- Configuration keys (e.g., `dag_id`, `task_id`)
-- Command-line arguments and flags
-- File paths and URLs
+- `Operator` → `المشغّل` (plural in current UI: `المُشغِّلات`)
+- `Task Instance` → `مثيل المهمة`
+- `Pool` → `مجموعة الموارد`
+- `Provider` → `حُزمة` when a singular form is needed; the current UI mostly uses the plural `حُزم`
+- `Scheduler` → `المُجَدْوِل`
+- `Triggerer` → `المُطلِق`
+- `Executor` → `منفذ`
 
-## Common Airflow Terms in Arabic
+Do not add glossary entries for terms that are not yet used in the Arabic
+locale files. If a new term appears, inspect nearby existing translations
+first and keep the guide limited to terms with real usage.
 
-### Core Concepts (المفاهيم الأساسية)
+## 2. Standard Translations
 
-| English | Arabic | Notes |
-|---------|--------|-------|
-| Task | مهمة | Feminine noun (مهمة) |
-| DAG | DAG | Keep in English |
-| XCom | XCom | Keep in English |
-| Workflow | سير العمل | Masculine noun |
-| Pipeline | خط أنابيب | Masculine noun |
-| Dataset | مجموعة بيانات | Feminine noun |
-| Connection | اتصال | Masculine noun |
-| Variable | متغير | Masculine noun |
-| Provider | موفر | Masculine noun |
-| Trigger | تشغيل / مُشغِّل | Can be verb or noun |
-| Scheduler | الجدولة / المجدول | For scheduler component |
-| Executor | المنفذ / المُنفِّذ | For executor component |
-| Worker | العامل | For worker process |
-| Webserver | خادم الويب | Standard translation |
-| Database | قاعدة البيانات | Standard translation |
+| English Term  | Arabic Translation | Notes |
+| ------------- | ------------------ | ----- |
+| Task          | `مهمة`             |       |
+| Task Instance | `مثيل المهمة`      |       |
+| Task Group    | `مجموعة المهام`    |       |
+| Dag Run       | `تشغيل Dag`        | Keep `Dag` in English |
+| Pool          | `مجموعة الموارد`   |       |
+| Provider      | `حُزمة`            | Plural in current UI: `حُزم` |
+| Operator      | `المشغّل`          | Plural in current UI: `المُشغِّلات` |
+| Scheduler     | `المُجَدْوِل`      | Component label |
+| Triggerer     | `المُطلِق`         | Use this specifically for triggerer, not generic trigger |
+| Executor      | `منفذ`             | Component label |
 
-### Actions (الإجراءات)
+## 3. Arabic-Specific Guidelines
 
-| English | Arabic | Notes |
-|---------|--------|-------|
-| Run | تشغيل | Verb: يشغِّل، تشغيل |
-| Execute | تنفيذ | Verb: ينفِّذ، تنفيذ |
-| Trigger | تشغيل | Verb: يشغِّل، تشغيل |
-| Clear | مسح | Verb: يمسح، مسح |
-| Retry | إعادة المحاولة | Noun phrase |
-| Retry | أعاد المحاولة | Verb phrase |
-| Fail | فشل | Verb: يفشل، فشل |
-| Mark as Failed | تعليم كمفشل | Phrase |
-| Success | نجح | Verb: ينجح، نجاح |
-| Mark as Success | تعليم كناجح | Phrase |
-| Pause | إيقاف مؤقت | Verb: يوقف مؤقتاً |
-| Unpause | إلغاء الإيقاف المؤقت | Verb phrase |
+### Tone and Register
 
-### States (الحالات)
+- Use neutral, professional MSA suitable for a technical UI.
+- Keep labels concise.
+- Prefer the wording already present in `ar/*.json` over more literary or more
+  textbook alternatives.
 
-| English | Arabic | Notes |
-|---------|--------|-------|
-| success | ناجح | Adjective: ناجح (masc.), ناجحة (fem.) |
-| running | قيد التشغيل | Phrase |
-| failed | فاشل | Adjective: فاشل (masc.), فاشلة (fem.) |
-| upstream_failed | فشل المنبع | Phrase |
-| skipped | تم التخطي | Phrase |
-| upstream_skipped | تم تخطي المنبع | Phrase |
-| queued | في قائمة الانتظار | Phrase |
-| scheduled | مجدول | Adjective |
-| removed | تمت الإزالة | Phrase |
-| deferred | مؤجل | Adjective |
+### Action Labels
 
-## Pluralization Patterns in Arabic
+- Prefer the concise action labels already used in the locale over newly
+  invented imperative forms.
+- Existing UI examples include `تشغيل`, `حذف`, `حفظ`, and `تنزيل`.
+- Do not introduce imperative-only forms such as `شغّل` or `امسح` unless the
+  existing locale already uses them for that exact context.
 
-Arabic has complex pluralization rules with different forms:
+### Mixed Arabic and English Terms
 
-### Dual Form (المثنى) - for exactly 2
+- Keep embedded English Airflow terms in their original casing: `Dag`, `Dags`,
+  `XCom`.
+- Preserve placeholders exactly as written: `{{count}}`, `{{dagDisplayName}}`,
+  `{{hotkey}}`, and so on.
+- Existing patterns include `معرف Dag`, `تشغيل Dag`, and `{{count}} Dags`.
 
-Used with the suffix "ـان" (ān) or "ـين" (ayn):
+### Plural Forms
 
-- مهمة → مهمتان (2 tasks)
-- DAG → 2 DAGs (keep English with number)
+Arabic in Airflow uses the full six-category i18next plural set, and the UI
+tooling already expects all of these suffixes for `ar`:
 
-### Sound Masculine Plural (جمع المذكر السالم)
+- `_zero`
+- `_one`
+- `_two`
+- `_few`
+- `_many`
+- `_other`
 
-Suffix "ـون" (ūn) in nominative, "ـين" (īn) in accusative/genitive:
+Plural guidance should follow the Unicode CLDR Arabic cardinal rules:
 
-- موفر → موفرون (providers)
-- عامل → عمالون (workers)
-- متغير → متغيرون (variables)
+- `_zero` for `0`
+- `_one` for `1`
+- `_two` for `2`
+- `_few` for `3..10` (mod 100)
+- `_many` for `11..99` (mod 100)
+- `_other` for the remaining cases
 
-### Sound Feminine Plural (جمع المؤنث السالم)
+Keep all required keys even when some forms are textually identical.
 
-Suffix "ـات" (āt):
+For Airflow terms that stay in English, keep the English term rather than
+forcing Arabic dual or plural endings. Example: use `2 Dags`, not `Dagان` or
+`Dagين`.
 
-- مهمة → مهمات (tasks)
-- مجموعة → مجموعات (datasets/groups)
-- اتصال → اتصالات (connections)
+Reuse the existing repo patterns:
 
-### Broken Plural (الجمع التكسيري)
+```json
+"dag_zero": "لا يوجد أي Dag",
+"dag_one": "Dag",
+"dag_two": "2 Dags",
+"dag_few": "Dags",
+"dag_many": "Dags",
+"dag_other": "Dags"
+```
 
-Irregular patterns:
+```json
+"pool_zero": "لا يوجد أي مجموعة",
+"pool_one": "مجموعة",
+"pool_two": "مجموعتان",
+"pool_few": "مجموعات",
+"pool_many": "مجموعة",
+"pool_other": "مجموعة"
+```
 
-- خط أنابيب → خطوط أنابيب (pipelines)
-- قاعدة → قواعد (databases)
+```json
+"warning_zero": "لا يوجد أي تحذير",
+"warning_one": "1 تحذير",
+"warning_two": "تحذيران",
+"warning_few": "{{count}} تحذيرات",
+"warning_many": "{{count}} تحذير",
+"warning_other": "{{count}} تحذير"
+```
 
-### Using Numerals with Arabic
+### Numerals
 
-In Airflow UI and messages, numerals are typically formatted as:
+- Use only Western Arabic numerals: `0 1 2 3 4 5 6 7 8 9`
+- Do not use Eastern Arabic numerals: `٠ ١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩`
 
-- **Singular**: 1 مهمة (1 task)
-- **Dual**: 2 مهمتان (2 tasks) or 2 DAGs
-- **Plural (3-10)**: 5 مهام (5 tasks)
-- **Plural (11+)**: 15 مهمة (15 tasks)
+## 4. Examples from Existing Translations
 
-Note: For numbers 3-10, the noun is typically in plural form. For numbers 11+, the noun uses singular form.
-
-## RTL (Right-to-Left) Considerations
-
-1. **Direction**: Arabic text is written from right to left (RTL)
-2. **Mixed Content**: When mixing Arabic with English terms, maintain proper spacing
-3. **Punctuation**: Periods, commas, and other punctuation should be placed appropriately
-4. **Code Blocks**: Keep code blocks in English/LTR direction
-5. **Numbers**: Numbers (0-9) are written left-to-right even in Arabic text
-
-Example:
+**Established terminology in the current locale:**
 
 ```text
-تم تشغيل DAG بنجاح (DAG run successful)
+allOperators        -> "جميع المُشغِّلات"
+taskInstance_one    -> "مثيل المهمة"
+scheduler           -> "المُجَدْوِل"
+triggerer           -> "المُطلِق"
+executor            -> "منفذ"
+Providers           -> "حُزم"
 ```
 
-## Gender Agreement
-
-Arabic nouns have grammatical gender that affects adjectives and verbs:
-
-- **Task (مهمة)**: Feminine
-  - Singular: مهمة واحدة (one task)
-  - Plural: مهمات متعددة (multiple tasks)
-
-- **DAG**: Keep in English, treat as masculine or feminine based on context (لفظ "مخطط" is masculine)
-- **Pipeline (خط أنابيب)**: Masculine
-- **Connection (اتصال)**: Masculine
-
-## Translation Style Guidelines
-
-### 1. Technical Terminology
-
-- Keep technical terms like DAG, XCom, Operator in English when:
-  - They appear in code or configuration examples
-  - No clear Arabic equivalent exists
-  - The term is widely used in English in the technical community
-
-### 2. UI Labels
-
-- Keep UI labels concise and consistent
-- Use standard Arabic technical translations where available
-- Example: "Tree View" → "عرض الشجرة" or keep "Tree View"
-
-### 3. Verbs and Actions
-
-- Use imperative form for buttons and actions:
-  - "Run" → "شغِّل" (imperative)
-  - "Clear" → "امسح" (imperative)
-  - "Trigger" → "شغِّل" (imperative)
-
-### 4. Documentation
-
-- Use formal Modern Standard Arabic (MSA)
-- Maintain consistency with terminology throughout
-- Provide English terms in parentheses when introducing new technical terms
-
-### 5. Error Messages
-
-- Keep error messages clear and actionable
-- Include technical details in English when necessary
-- Example: "فشل تشغيل المهمة: Task instance not found"
-
-## Common Translation Patterns
-
-### 1. "Run" Context
-
-- "Run DAG" → "شغِّل DAG"
-- "DAG run" (noun) → "تشغيل DAG" or "تنفيذ DAG"
-- "Run ID" → "معرف التشغيل"
-
-### 2. "Task" Context
-
-- "Task failed" → "فشلت المهمة" (feminine agreement)
-- "Task instance" → "مثيل المهمة" or "Task instance"
-- "Task ID" → "معرف المهمة" or "Task ID"
-
-### 3. "DAG" Context
-
-- "DAG run" → "تشغيل DAG" or "DAG run"
-- "DAG ID" → "معرف DAG" or "DAG ID"
-- "Sub DAG" → "DAG فرعي" or "Sub DAG"
-
-### 4. Configuration
-
-- "Airflow Config" → "إعدادات Airflow"
-- "Connection ID" → "معرف الاتصال" or "Connection ID"
-- "Pool name" → "اسم المجموعة" or "Pool name"
-
-## Resources for Arabic Translators
-
-1. **Arabic Technical Terms**: Use established Arabic computing terminology
-2. **Style Guide**: Follow Modern Standard Arabic (MSA) conventions
-3. **Glossary**: Maintain consistency with previously translated Airflow content
-4. **Testing**: Test translations in RTL layout to ensure proper rendering
-5. **Community**: Refer to Arabic technical documentation communities for consistency
-
-## Examples
-
-### UI Label Examples
+**Current Dag patterns:**
 
 ```text
-"Tree View" → "عرض الشجرة" or "Tree View"
-"Graph View" → "عرض المخطط" or "Graph View"
-"Task Instances" → "أمثلة المهام" or "Task Instances"
-"DAG Runs" → "عمليات تشغيل DAG" or "DAG Runs"
+dagId               -> "معرف Dag"
+triggerDag.title    -> "تشغيل Dag"
+favoriteDags_zero   -> "لا توجد أي Dags مفضلة"
 ```
 
-### Message Examples
+**Current action-label style:**
 
 ```text
-"Task failed" → "فشلت المهمة"
-"DAG run successful" → "تم تشغيل DAG بنجاح"
-"XCom pushed" → "تم دفع XCom"
-"Connection test failed" → "فشل اختبار الاتصال"
+delete              -> "حذف"
+download.download   -> "تنزيل"
+modal.save          -> "حفظ"
 ```
 
-### Code Examples (Keep in English)
+## 5. Agent Instructions (DO / DON'T)
 
-```python
-# Don't translate code comments unless necessary
-dag = DAG("my_dag", schedule_interval="@daily")
-```
+**DO:**
 
-## Notes
+- Match the wording already used in `ar/*.json`
+- Keep `Dag` and `XCom` in English
+- Use concise MSA suitable for a software UI
+- Provide all six Arabic plural suffixes when a key is pluralized
+- Use Western Arabic numerals only
+- Take examples from the existing locale files instead of inventing them
 
-- This document is based on analysis of existing Airflow locale files and Arabic translation patterns
-- As translations evolve, update these guidelines to reflect community consensus
-- When in doubt, prefer keeping technical terms in English with Arabic explanations
-- Consistency is key: use the same translation for the same term throughout the UI
+**DON'T:**
+
+- Write `DAG`
+- Invent a large glossary for terms that are not used in the current locale
+- Attach Arabic dual or plural suffixes to English Airflow terms like `Dag`
+- Replace established UI wording with a textbook alternative without evidence in
+  the repo
+- Use Eastern Arabic numerals
+- Add grammatical-gender notes for every Arabic noun; they add noise and are
+  usually unnecessary here
+- Invent action or state examples instead of copying real ones from the locale
+
+---
+
+**Version:** 1.0 — derived from the existing Arabic locale files and Unicode
+CLDR Arabic plural rules (May 2026)
