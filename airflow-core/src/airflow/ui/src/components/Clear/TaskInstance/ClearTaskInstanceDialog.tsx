@@ -30,7 +30,6 @@ import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
@@ -93,11 +92,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    taskId,
-  });
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -229,11 +223,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
               >
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
-              <Button
-                disabled={affectedTasks.total_entries === 0}
-                loading={isPending || isPendingPatchDagRun}
-                onClick={onOpen}
-              >
+              <Button disabled={affectedTasks.total_entries === 0} loading={isPending} onClick={onOpen}>
                 <CgRedo /> {translate("modal.confirm")}
               </Button>
             </Flex>
@@ -255,6 +245,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
           }}
           onClose={onClose}
           onConfirm={() => {
+            const noteChanged = note !== (taskInstance?.note ?? null);
+
             mutate({
               dagId,
               requestBody: {
@@ -264,21 +256,16 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 include_future: future,
                 include_past: past,
                 include_upstream: upstream,
+                // The clear endpoint applies the note in the same transaction
+                // when it is provided; leaving it off leaves any existing note
+                // on the cleared TIs untouched.
+                ...(noteChanged ? { note } : {}),
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
-            if (note !== (taskInstance?.note ?? null)) {
-              mutatePatchTaskInstance({
-                dagId,
-                dagRunId,
-                ...(allMapped ? {} : { mapIndex }),
-                requestBody: { note },
-                taskId,
-              });
-            }
             onCloseDialog();
           }}
           open={open}

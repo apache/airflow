@@ -73,6 +73,13 @@ class DAGRunClearBody(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``False`` (the historical default for clear/rerun).",
     )
+    note: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Optional note to attach to the Dag Run as part of the clear. "
+        "``None`` (the default) leaves the existing note untouched; any string value "
+        '(including ``""``) replaces it.',
+    )
 
     @model_validator(mode="before")
     @classmethod

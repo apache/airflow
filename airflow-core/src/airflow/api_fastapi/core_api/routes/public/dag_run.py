@@ -319,6 +319,7 @@ def clear_dag_run(
     body: DAGRunClearBody,
     dag_bag: DagBagDep,
     session: SessionDep,
+    user: GetUserDep,
 ) -> ClearTaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(
         select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
@@ -388,6 +389,14 @@ def clear_dag_run(
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
+    # ``note=None`` means "leave existing note untouched"; any string (including ``""``)
+    # replaces it. Mirrors the convention used by ``ClearTaskInstancesBody``.
+    if body.note is not None:
+        if dag_run_cleared.dag_run_note is None:
+            dag_run_cleared.note = (body.note, user.get_id())
+        else:
+            dag_run_cleared.dag_run_note.content = body.note
+            dag_run_cleared.dag_run_note.user_id = user.get_id()
     return dag_run_cleared
 
 
