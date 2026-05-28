@@ -3803,16 +3803,16 @@ class TestTokenTypeValidation:
         assert resp.status_code == 403
         assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
-    def test_workload_scope_rejected_on_connections_endpoint(self, client, session, create_task_instance):
-        """Workload scoped tokens should be rejected on GET /connections (different router)."""
+    def test_workload_scope_accepted_on_connections_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens are accepted on GET /connections for deadline callback subprocesses."""
         ti = create_task_instance(task_id="test_workload_conn", state=State.RUNNING)
         session.commit()
 
         self._register_scoped_validator(ti.id, "workload")
 
         resp = client.get("/execution/connections/test_conn")
-        assert resp.status_code == 403
-        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+        # Workload tokens are now accepted; 404 because the connection doesn't exist in the test DB.
+        assert resp.status_code == 404
 
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
         """Execution scoped tokens should be accepted on all endpoints."""
