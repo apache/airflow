@@ -860,6 +860,7 @@ iTerm
 iterm
 itertools
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -897,6 +898,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -1131,6 +1133,7 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
@@ -1863,6 +1866,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

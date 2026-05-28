@@ -125,7 +125,7 @@ def dag_delete(args) -> None:
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def dag_clear(args, session: Session = NEW_SESSION) -> None:
+def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     """Clear Dag runs selected by run_id, partition_key, or a partition_date window."""
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
