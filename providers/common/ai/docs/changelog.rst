@@ -40,10 +40,12 @@ defined at **module scope** and bound to an attribute matching its
 
 Same-DAG downstream tasks deserialize the model without any configuration
 change because each worker re-runs the operator constructor when it parses the
-DAG. The UI XCom viewer and cross-DAG ``xcom_pull`` still need the class
-qualified name added to ``[core] allowed_deserialization_classes`` (or a glob
-that matches it) -- the API server process and other DAGs' workers do not
-parse the producing DAG. On older Airflow releases that lack ``allow_class``
+DAG. The UI XCom viewer renders the value via the ``stringify`` path and works
+without configuration (it shows ``module.MyModel@version=1(field=value,...)``
+rather than a pretty form, but no allow-list edit is required). Cross-DAG
+``xcom_pull`` consumers still need the class qualified name added to
+``[core] allowed_deserialization_classes`` -- the consumer DAG's worker only
+parses its own DAG file. On older Airflow releases that lack ``allow_class``
 the operators continue to dump to ``dict``.
 
 0.3.0

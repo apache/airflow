@@ -69,14 +69,19 @@ are bound to are rejected at construction time with a ``ValueError``.
 
 Auto-registration covers downstream tasks in the **same DAG** -- their workers
 parse the DAG file when starting up, which re-runs the operator constructor and
-re-populates the per-process allow-list. Two consumer paths are not covered and
-still need the class qualified name added to
-``[core] allowed_deserialization_classes`` (or a glob that matches it):
+re-populates the per-process allow-list.
 
-* The Airflow UI's XCom viewer (the API server process does not import user
-  DAGs, so its allow-list comes from configuration only).
-* ``xcom_pull`` from a different DAG (the consumer's worker only parses its
-  own DAG file, not the producer's).
+The Airflow UI's XCom viewer renders Pydantic instances via the
+``stringify`` path, which produces a representation like
+``my_module.MyModel@version=1(field=value,...)`` without consulting the
+allow-list. It is not pretty (no field-by-field rendering today), but the value
+shows up; no configuration is required.
+
+The remaining gap is **cross-DAG** ``xcom_pull`` -- a task in a different DAG
+that pulls this XCom only parses its own DAG file, not the producer's, so the
+class is not auto-registered. Add the class qualified name to
+``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
+that pattern work.
 
 Agent Parameters
 ----------------

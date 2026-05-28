@@ -82,10 +82,12 @@ operator auto-registers ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) for deserialization in every process
 that parses the DAG. Define the class at **module scope** and bind it to an
 attribute matching its ``__name__``: nested-in-function classes and
-dynamically-built classes are rejected at construction time. Same-DAG downstream
-tasks are covered; the UI's XCom viewer and cross-DAG ``xcom_pull`` still need
-the class qualname added to ``[core] allowed_deserialization_classes``
-(see the ``LLMOperator`` guide for details).
+dynamically-built classes are rejected at construction time. Same-DAG
+downstream tasks need no configuration; the UI XCom viewer renders the value
+via the ``stringify`` path (no configuration needed). Cross-DAG ``xcom_pull``
+consumers still need the class qualname added to
+``[core] allowed_deserialization_classes`` (see the ``LLMOperator`` guide for
+details).
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_file_analysis.py
     :language: python

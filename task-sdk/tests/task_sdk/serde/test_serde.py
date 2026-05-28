@@ -27,7 +27,7 @@ from typing import ClassVar
 import attr
 import pytest
 from packaging import version
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 
 from airflow._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk.definitions.asset import Asset
@@ -450,8 +450,6 @@ class TestSerDe:
 
     def test_allow_class_rejects_class_with_mismatched_module_attr(self):
         """A class whose qualname does not import back to itself must be rejected."""
-        from pydantic import create_model
-
         Mismatched = create_model("DifferentName", x=(int, ...))
 
         with pytest.raises(ValueError, match="cannot be re-imported|does not resolve"):
