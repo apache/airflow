@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-27T21:39:55.706665
+# This constraints file was automatically generated on 2026-05-28T17:37:49.742230
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.30.1
+PyAthena==3.31.0
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -620,7 +620,7 @@ sniffio==1.3.1
 snowflake-connector-python==4.5.0
 snowflake-sqlalchemy==1.10.0
 sortedcontainers==2.4.0
-soupsieve==2.8.3
+soupsieve==2.8.4
 spython==0.3.14
 sqlalchemy-bigquery==1.17.0
 sqlalchemy-spanner==1.18.0
@@ -665,7 +665,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.16
-uvicorn==0.47.0
+uvicorn==0.48.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
