@@ -61,7 +61,7 @@ def read_elasticsearch_sql_to_polars(
         raise AirflowOptionalProviderFeatureException(
             "Polars support requires installing the 'polars' extra: "
             "pip install apache-airflow-providers-elasticsearch[polars]"
-        )
+        ) from None
 
     if params:
         body["params"] = params
@@ -72,6 +72,11 @@ def read_elasticsearch_sql_to_polars(
     columns = [col["name"] for col in columns_meta]
 
     rows = list(response.get("rows", []))
+
+    # This handles scenarios where the first page exceeds max_rows.
+    if max_rows is not None and len(rows) >= max_rows:
+        rows = rows[:max_rows]
+
     cursor = response.get("cursor")
 
     # Track last non-null cursor since final response sets cursor=None but ES requires clearing the last issued cursor.
@@ -100,4 +105,4 @@ def read_elasticsearch_sql_to_polars(
             except Exception:
                 log.debug("Failed to clear Elasticsearch SQL cursor", exc_info=True)
 
-    return pl.DataFrame(rows, schema=columns, strict=False)
+    return pl.DataFrame(rows, schema=columns, orient="row", strict=False)

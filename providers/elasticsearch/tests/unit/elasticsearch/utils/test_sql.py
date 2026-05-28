@@ -44,7 +44,7 @@ def _mock_es(responses):
     ("rows", "expected_shape", "expected_dict"),
     [
         (
-            [[1, 2], ["a", "b"]],
+            [[1, "a"], [2, "b"]],
             (2, 2),
             {"id": [1, 2], "name": ["a", "b"]},
         ),
@@ -77,11 +77,11 @@ def test_read_sql_to_polars_pagination():
         [
             {
                 "columns": COLUMNS,
-                "rows": [[1, 2]],
+                "rows": [[1, "a"]],
                 "cursor": "cursor_1",
             },
             {
-                "rows": [["a", "b"]],
+                "rows": [[2, "b"]],
                 "cursor": None,
             },
         ]
@@ -94,6 +94,32 @@ def test_read_sql_to_polars_pagination():
         "id": [1, 2],
         "name": ["a", "b"],
     }
+
+
+def test_read_sql_to_polars_max_rows_single_page():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [
+                    [1, "a"],
+                    [2, "b"],
+                    [3, "c"],
+                    [4, "d"],
+                ],
+            }
+        ]
+    )
+
+    df = read_elasticsearch_sql_to_polars(es, "SELECT *", max_rows=2)
+
+    assert df.shape == (2, 2)
+    assert df.to_dict(as_series=False) == {
+        "id": [1, 2],
+        "name": ["a", "b"],
+    }
+
+    es.sql.clear_cursor.assert_not_called()
 
 
 def test_read_sql_to_polars_max_rows():
