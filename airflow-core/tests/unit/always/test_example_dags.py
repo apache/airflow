@@ -60,6 +60,7 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
+    "providers/ibm/mq/tests/system/ibm/mq/example_dag_message_queue_trigger.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
 
