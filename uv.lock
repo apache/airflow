@@ -8311,6 +8311,7 @@ name = "apache-airflow-shared-listeners"
 version = "0.0"
 source = { editable = "shared/listeners" }
 dependencies = [
+    { name = "opentelemetry-api" },
     { name = "pluggy" },
     { name = "structlog" },
 ]
@@ -8318,6 +8319,8 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-shared-observability" },
+    { name = "opentelemetry-sdk" },
 ]
 mypy = [
     { name = "apache-airflow-devel-common", extra = ["mypy"] },
@@ -8325,12 +8328,17 @@ mypy = [
 
 [package.metadata]
 requires-dist = [
+    { name = "opentelemetry-api", specifier = ">=1.27.0" },
     { name = "pluggy", specifier = ">=1.5.0" },
     { name = "structlog", specifier = ">=25.4.0" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+dev = [
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-shared-observability", editable = "shared/observability" },
+    { name = "opentelemetry-sdk", specifier = ">=1.27.0" },
+]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
