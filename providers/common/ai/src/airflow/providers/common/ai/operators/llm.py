@@ -23,12 +23,15 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
-from airflow.providers.common.ai.utils.output_type import iter_base_model_classes
+from airflow.providers.common.ai.utils.output_type import (
+    iter_base_model_classes,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -180,14 +183,6 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """Resume after human review and restore the Pydantic model for XCom consumers."""
         output = super().execute_complete(context, generated_output, event)
-        if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-            try:
-                rehydrated = self.output_type.model_validate_json(output)
-            except (ValidationError, ValueError, TypeError):
-                # Reviewer-edited output may not validate against the schema.
-                # Mirror AgentOperator's HITL branch and fall back to the raw string.
-                return output
-            if self._serialize_model_output:
-                return rehydrated.model_dump()
-            return rehydrated
-        return output
+        return rehydrate_pydantic_output(
+            self.output_type, output, serialize_output=self._serialize_model_output
+        )

@@ -29,7 +29,10 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
-from airflow.providers.common.ai.utils.output_type import iter_base_model_classes
+from airflow.providers.common.ai.utils.output_type import (
+    iter_base_model_classes,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -317,13 +320,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 message_history=result.all_messages(),
             )
             if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-                try:
-                    rehydrated = self.output_type.model_validate_json(result_str)
-                except (ValueError, TypeError):
-                    return result_str
-                if self._serialize_model_output:
-                    return rehydrated.model_dump()
-                return rehydrated
+                return rehydrate_pydantic_output(
+                    self.output_type,
+                    result_str,
+                    serialize_output=self._serialize_model_output,
+                )
             try:
                 return json.loads(result_str)
             except (ValueError, TypeError):

@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.utils.output_type import iter_base_model_classes
+from airflow.providers.common.ai.utils.output_type import (
+    iter_base_model_classes,
+    rehydrate_pydantic_output,
+)
 
 
 class A(BaseModel):
@@ -60,3 +63,27 @@ class TestIterBaseModelClasses:
 
     def test_three_models(self):
         assert set(iter_base_model_classes(A | B | C)) == {A, B, C}
+
+
+class TestRehydratePydanticOutput:
+    def test_returns_model_instance(self):
+        result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=False)
+        assert isinstance(result, A)
+        assert result.x == 7
+
+    def test_returns_dict_when_serialize_output(self):
+        result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=True)
+        assert result == {"x": 7}
+
+    def test_returns_raw_for_non_basemodel(self):
+        result = rehydrate_pydantic_output(str, "anything", serialize_output=False)
+        assert result == "anything"
+
+    def test_returns_raw_on_invalid_json(self):
+        result = rehydrate_pydantic_output(A, "not-json", serialize_output=False)
+        assert result == "not-json"
+
+    def test_returns_raw_on_schema_mismatch(self):
+        # ``A`` requires ``x: int`` -- this payload should fail validation
+        result = rehydrate_pydantic_output(A, '{"y": "no-x-field"}', serialize_output=False)
+        assert result == '{"y": "no-x-field"}'
