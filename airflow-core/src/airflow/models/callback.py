@@ -226,15 +226,19 @@ class TriggererCallback(Callback):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
 
     def queue(self):
+        from airflow.models.dag import DagModel
         from airflow.models.trigger import Trigger
         from airflow.triggers.callback import CallbackTrigger
 
-        self.trigger = Trigger.from_object(
+        trigger = Trigger.from_object(
             CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
             )
         )
+        if dag_id := self.data.get("dag_id"):
+            trigger.team_name = DagModel.get_team_name(dag_id)
+        self.trigger = trigger
         super().queue()
 
     def handle_event(self, event: TriggerEvent, session: Session):
