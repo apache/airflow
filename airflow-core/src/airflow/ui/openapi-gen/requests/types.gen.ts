@@ -495,8 +495,8 @@ export type ClearTaskInstancesBody = {
     start_date?: string | null;
     end_date?: string | null;
     only_failed?: boolean;
-    only_skipped?: boolean;
     only_running?: boolean;
+    only_skipped?: boolean;
     reset_dag_runs?: boolean;
     /**
      * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
