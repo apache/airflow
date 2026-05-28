@@ -174,7 +174,7 @@ and under 500 words."""
 )
 def example_aip_progress_tracker():
     """
-    Track AIP progress by analysing Confluence specs against GitHub evidence.
+    Track AIP progress by analyzing Confluence specs against GitHub evidence.
 
     Task graph::
 
