@@ -184,6 +184,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -784,7 +785,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -860,6 +864,7 @@ iTerm
 iterm
 itertools
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -897,6 +902,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -1047,6 +1053,8 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
@@ -1083,6 +1091,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1130,6 +1139,7 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
@@ -1300,6 +1310,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1861,6 +1872,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

@@ -1022,8 +1022,7 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     )
 
     try:
-        with detail_span("hook.on_starting"):
-            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
 

@@ -873,8 +873,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Enqueue orphaned triggers for cancellation
             self.cancelling_triggers.update(cancel_trigger_ids)
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
-        super()._register_pipe_readers(stdout, stderr, requests, logs)
+    def _register_pipe_readers(
+        self,
+        stdout: socket,
+        stderr: socket,
+        requests: socket,
+        logs: socket,
+        *,
+        data: dict[socket, bytes],
+    ):
+        super()._register_pipe_readers(stdout, stderr, requests, logs, data=data)
 
         # We want to handle logging differently here, so un-register the one our parent class created
         self.selector.unregister(logs)
