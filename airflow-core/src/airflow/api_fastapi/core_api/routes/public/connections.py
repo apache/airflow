@@ -258,7 +258,18 @@ def test_connection(
         # access-log entries in audited backends, or impose backend load for
         # arbitrary ids. ``get_team_name`` is a metadata-only DB lookup and
         # does not touch the configured secrets backends.
+        #
+        # When the connection has no metadata-DB row (e.g. it lives only in
+        # a team-aware secrets backend like Vault or Kubernetes), fall back
+        # to the request body's validated ``team_name`` so the GET
+        # authorization and the secrets lookup both run in the right team
+        # scope. ``ConnectionBody.validate_team_name`` already rejects
+        # ``team_name`` from clients when ``[core] multi_team`` is off, so
+        # a non-None body value here is always already gated by that
+        # validator.
         team_name = Connection.get_team_name(test_body.connection_id)
+        if team_name is None:
+            team_name = test_body.team_name
         existing_conn: Connection | None = None
         if auth_manager.is_authorized_connection(
             method="GET",

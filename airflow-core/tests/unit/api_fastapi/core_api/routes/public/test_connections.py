@@ -1155,6 +1155,37 @@ class TestConnection(TestConnectionEndpoint):
         assert response.status_code == 200
         spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_secrets_only_team_connection_uses_body_team_scope(self, test_client, testing_team):
+        """When the connection exists only in a team-aware secrets backend
+        (no metadata-DB row), ``Connection.get_team_name`` returns None.
+        The route must then fall back to the body's validated ``team_name``
+        so the GET authorization and the subsequent secrets lookup both
+        run in the right team scope — otherwise a team-scoped existing
+        connection would be authorized and looked up as global, losing
+        the multi-team isolation guarantee in deployments that keep
+        connections in Vault / Kubernetes / Akeyless rather than the DB."""
+        # No ``self.create_connection()`` — TEST_CONN_ID lives only in a
+        # secrets backend in this scenario.
+
+        with mock.patch.object(
+            Connection,
+            "get_connection_from_secrets",
+            wraps=Connection.get_connection_from_secrets,
+        ) as spy_secrets:
+            response = test_client.post(
+                "/connections/test",
+                json={
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": "sqlite",
+                    "team_name": testing_team.name,
+                },
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
