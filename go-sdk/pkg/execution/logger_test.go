@@ -172,3 +172,66 @@ func TestSocketLogHandlerResolvesLogValuer(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
 	assert.Equal(t, "hello:resolved", entry["field"])
 }
+
+// TestSocketLogHandlerWithAttrsBeforeWithGroup verifies that attributes added
+// via With() before a WithGroup() call are NOT retroactively qualified by
+// that group. Per the slog.Handler contract: "All attributes added
+// subsequently to that handler will be qualified by the group" — emphasis on
+// subsequently. A naive implementation that stores attrs raw and applies the
+// current group prefix at Handle time would break this and silently re-key
+// pre-group attrs.
+func TestSocketLogHandlerWithAttrsBeforeWithGroup(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler).With("a", 1).WithGroup("g").With("b", 2)
+
+	logger.Info("interleaved", "c", 3)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+
+	// a was added before WithGroup("g") — must stay at top level.
+	assert.EqualValues(
+		t,
+		1,
+		entry["a"],
+		"pre-group attr must not be re-qualified by a later WithGroup",
+	)
+	assert.NotContains(
+		t,
+		entry,
+		"g.a",
+		"pre-group attr must not appear under the later group prefix",
+	)
+
+	// b was added after WithGroup("g") — must be under g.
+	assert.EqualValues(t, 2, entry["g.b"], "post-group attr must be qualified by the active group")
+	assert.NotContains(t, entry, "b", "post-group attr must not appear at top level")
+
+	// c is a record-level attr handled while "g" is active — also under g.
+	assert.EqualValues(
+		t,
+		3,
+		entry["g.c"],
+		"record-level attr must be qualified by the active group",
+	)
+}
+
+// TestSocketLogHandlerNestedGroups verifies that nested WithGroup calls
+// produce dotted prefixes in declaration order, and that an attr added
+// between two WithGroup calls only sees the groups that were active at its
+// WithAttrs call site (not the later one).
+func TestSocketLogHandlerNestedGroups(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler).WithGroup("outer").With("a", 1).WithGroup("inner").With("b", 2)
+
+	logger.Info("nested", "c", 3)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+
+	assert.EqualValues(t, 1, entry["outer.a"], "a was added under outer only")
+	assert.EqualValues(t, 2, entry["outer.inner.b"], "b was added under outer.inner")
+	assert.EqualValues(t, 3, entry["outer.inner.c"], "record attr inherits outer.inner")
+}
