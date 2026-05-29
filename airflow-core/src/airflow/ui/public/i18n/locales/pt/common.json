@@ -272,9 +272,6 @@
   "task_one": "Tarefa",
   "task_other": "Tarefas",
   "task_zero": "Nenhuma tarefa",
-  "taskGroup": {
-    "documentation": "Task Group Documentation"
-  },
   "taskId": "ID da Tarefa",
   "taskInstance": {
     "dagVersion": "Versão do Dag",

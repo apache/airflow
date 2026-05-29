@@ -255,9 +255,6 @@
   "task_one": "Task",
   "task_other": "Tasks",
   "task_zero": "Nessun task",
-  "taskGroup": {
-    "documentation": "Task Group Documentation"
-  },
   "taskId": "ID del Task",
   "taskInstance": {
     "dagVersion": "Versione del Dag",
