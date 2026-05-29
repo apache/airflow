@@ -184,7 +184,7 @@ class TestMongoToGCSOperator:
         )
         assert op.convert_type(b"\x00\x01", "INTEGER") == 1
 
-    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook", autospec=True)
     def test_query_with_find_filter(self, mock_hook_class):
         mock_collection = mock.MagicMock()
         mock_hook_class.return_value.get_conn.return_value.__getitem__.return_value.__getitem__.return_value = mock_collection
@@ -206,7 +206,7 @@ class TestMongoToGCSOperator:
         mock_collection.aggregate.assert_not_called()
         assert isinstance(cursor, _MongoCursorAdapter)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook", autospec=True)
     def test_query_with_aggregation_pipeline(self, mock_hook_class):
         mock_collection = mock.MagicMock()
         mock_hook_class.return_value.get_conn.return_value.__getitem__.return_value.__getitem__.return_value = mock_collection
@@ -229,8 +229,8 @@ class TestMongoToGCSOperator:
         mock_collection.find.assert_not_called()
         assert isinstance(cursor, _MongoCursorAdapter)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.mongo_to_gcs.MongoHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
     def test_execute_uploads_to_gcs(self, gcs_hook_mock_class, mongo_hook_mock_class):
         mock_collection = mock.MagicMock()
         mongo_hook_mock_class.return_value.get_conn.return_value.__getitem__.return_value.__getitem__.return_value = mock_collection

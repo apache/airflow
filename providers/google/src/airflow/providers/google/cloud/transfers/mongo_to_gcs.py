@@ -78,6 +78,15 @@ class MongoToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from MongoDB to Google Cloud Storage in JSON, CSV or Parquet format.
 
+    .. note::
+        MongoDB is a NoSQL store, so subclassing ``BaseSQLToGCSOperator`` is a
+        deliberate reuse choice rather than a natural fit. The base class already
+        implements the chunking, schema inference and GCS upload flow we want; this
+        operator reuses it by adapting the pymongo cursor to a DB-API style cursor
+        (see :class:`_MongoCursorAdapter`) and overriding ``query`` /
+        ``field_to_bigquery`` / ``convert_type``. A dedicated
+        ``BaseNoSQLToGCSOperator`` could be a cleaner home for this in the future.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MongoToGCSOperator`
@@ -97,12 +106,24 @@ class MongoToGCSOperator(BaseSQLToGCSOperator):
 
     ui_color = "#a0e08c"
 
+    # ``sql``, ``template_ext`` (``.sql``) and the ``sql`` renderer are inherited
+    # from ``BaseSQLToGCSOperator`` but are meaningless here — this operator is
+    # driven by ``mongo_query``, not SQL. Override them explicitly so the unused
+    # ``sql`` field is not exposed in rendered templates.
     template_fields: Sequence[str] = (
-        *BaseSQLToGCSOperator.template_fields,
+        "bucket",
+        "filename",
+        "schema_filename",
+        "schema",
+        "parameters",
+        "impersonation_chain",
+        "partition_columns",
         "mongo_collection",
         "mongo_db",
         "mongo_query",
     )
+    template_ext: Sequence[str] = ()
+    template_fields_renderers = {}
 
     type_map: dict[type, str] = {
         bool: "BOOL",
