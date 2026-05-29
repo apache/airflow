@@ -1956,7 +1956,9 @@ class SelectiveChecks:
             console_print(
                 "[warning]Only Release Managers should change >= conditions for apache-airflow-providers "
                 "dependencies.[/]\n\nIf you want to refer to a future version of the dependency, please add a "
-                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n"
+                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n\n"
+                "If there is already the same provider before the `# Additional devel dependencies` without "
+                "version, move the provider dependency to required ones and add `# use next version` there."
             )
             console_print()
             console_print(
