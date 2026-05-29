@@ -5407,6 +5407,7 @@ class TestSchedulerJob:
         assert adrq_2 is not None
 
     @pytest.mark.need_serialized_dag
+    @pytest.mark.backend("postgres", "mysql")
     def test_create_dag_runs_when_concurrent_asset_events_created(self, session: Session, dag_maker, caplog):
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
