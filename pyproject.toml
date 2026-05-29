@@ -1540,6 +1540,10 @@ apache-aurflow-docker-stack = false
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
 
+# REMOVE BY 2026-05-31 — once 7.1.0 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+swagger-plugin-for-sphinx = "8 hours"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1682,6 +1686,9 @@ apache-aurflow-docker-stack = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
+
+# REMOVE BY 2026-05-31 along with the matching entry above.
+swagger-plugin-for-sphinx = "8 hours"
 
 
 [tool.uv.sources]
