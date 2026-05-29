@@ -564,7 +564,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.external_task_group_id,
             self.external_dag_id,
             states,
-            session,
+            session=session,
         )
 
     def get_external_task_group_task_ids(

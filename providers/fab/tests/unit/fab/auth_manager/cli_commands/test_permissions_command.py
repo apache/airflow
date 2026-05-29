@@ -96,7 +96,7 @@ class TestPermissionsCommand:
             permissions_command.permissions_cleanup(args)
 
         # Verify function calls - it should be called exactly once for the orphaned DAG
-        mock_cleanup_dag_permissions.assert_called_once_with("orphaned_dag", mock_session)
+        mock_cleanup_dag_permissions.assert_called_once_with("orphaned_dag", session=mock_session)
 
     @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
     @patch("airflow.providers.fab.auth_manager.models.Resource")
@@ -180,7 +180,7 @@ class TestPermissionsCommand:
             permissions_command.permissions_cleanup(args)
 
         # Should call cleanup_dag_permissions specifically for test_dag
-        mock_cleanup_dag_permissions.assert_called_once_with("test_dag", mock_session)
+        mock_cleanup_dag_permissions.assert_called_once_with("test_dag", session=mock_session)
 
     @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
     @patch("airflow.providers.fab.auth_manager.models.Resource")
