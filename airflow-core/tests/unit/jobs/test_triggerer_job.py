@@ -501,6 +501,29 @@ def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
     update_triggers.assert_not_called()
 
 
+def test_load_triggers_passes_team_name(supervisor_builder, mocker):
+    """load_triggers passes team_name to assign_unassigned and ids_for_triggerer."""
+    proc = supervisor_builder()
+    proc.team_name = "team_x"
+
+    assign_unassigned = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.assign_unassigned")
+    ids_for_triggerer = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.Trigger.ids_for_triggerer", return_value=[1, 2]
+    )
+    mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
+
+    proc.load_triggers()
+
+    assign_unassigned.assert_called_once_with(
+        proc.job.id,
+        proc.capacity,
+        proc.health_check_threshold,
+        queues=proc.queues,
+        team_name="team_x",
+    )
+    ids_for_triggerer.assert_called_once_with(proc.job.id, queues=proc.queues, team_name="team_x")
+
+
 def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mocker):
     """_create_workload() should fall back to self.id for the log filename when job is None."""
     trigger = mocker.Mock()

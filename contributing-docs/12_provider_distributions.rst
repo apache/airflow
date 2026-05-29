@@ -189,6 +189,8 @@ must succeed first. Use the per-provider pre-extras-install manifest:
          - url: https://public.dhe.ibm.com/.../9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz
            sha256: <64 lowercase hex chars>
            extract_to: /opt/mqm
+           fallback_ips:                # optional, see schema below
+             - 170.225.126.18
        env:
          MQ_FILE_PATH: /opt/mqm
 
@@ -199,6 +201,17 @@ must succeed first. Use the per-provider pre-extras-install manifest:
      ``/tmp/`` and may not contain ``..``). Supported archive formats are ``.tar``,
      ``.tar.gz``/``.tgz`` and ``.zip``; the extractor refuses any entry whose resolved path
      escapes ``extract_to``.
+
+     Each ``downloads`` entry may also include ``fallback_ips`` (optional list of IPv4 or
+     IPv6 address strings). The interpreter tries the URL with normal DNS resolution first;
+     only on connection or resolution failure does it retry the same URL with each listed
+     IP, in order, by temporarily overriding ``socket.getaddrinfo`` for the hostname. The
+     TLS SNI and certificate verification stay bound to the URL hostname, and the
+     ``sha256`` check still runs end-to-end on whichever attempt succeeds, so a fallback
+     entry only changes *which IP is dialled*, not what is trusted. Use this when the
+     upstream publishes anycast IPs (e.g. IBM's notice at
+     https://www.ibm.com/support/pages/node/6826677) and the CI test container has been
+     observed to fail DNS resolution for that host.
    - ``env`` (optional mapping): each name must match ``^[A-Z][A-Z0-9_]*$``, each value must
      be a string. The interpreter writes ``export NAME='value'`` lines that the entrypoint
      hook sources into the shell that subsequently runs ``uv sync --all-extras``.

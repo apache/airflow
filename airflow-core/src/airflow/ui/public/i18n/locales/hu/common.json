@@ -250,7 +250,6 @@
   },
   "task_one": "Feladat",
   "task_other": "Feladatok",
-  "taskGroup": "Feladatcsoport",
   "taskId": "Feladat azonosító",
   "taskInstance": {
     "dagVersion": "Dag verzió",

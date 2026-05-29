@@ -25,11 +25,17 @@ class TestAssetAccessControl:
     def test_defaults(self):
         ac = AssetAccessControl()
         assert ac.producer_teams == []
+        assert ac.consumer_teams == []
         assert ac.allow_global is True
 
     def test_explicit_values(self):
-        ac = AssetAccessControl(producer_teams=["team_a", "team_b"], allow_global=False)
+        ac = AssetAccessControl(
+            producer_teams=["team_a", "team_b"],
+            consumer_teams=["team_c"],
+            allow_global=False,
+        )
         assert ac.producer_teams == ["team_a", "team_b"]
+        assert ac.consumer_teams == ["team_c"]
         assert ac.allow_global is False
 
     @pytest.mark.parametrize(
@@ -50,6 +56,21 @@ class TestAssetAccessControl:
     @pytest.mark.parametrize(
         "teams",
         [
+            [""],
+            [123],
+            [None],
+            [True],
+            [{}],
+            ["team_a", "  ", "team_b"],
+        ],
+    )
+    def test_rejects_invalid_consumer_teams(self, teams):
+        with pytest.raises(ValueError, match="consumer_teams"):
+            AssetAccessControl(consumer_teams=teams)
+
+    @pytest.mark.parametrize(
+        "teams",
+        [
             [],
             ["team_a"],
             ["team_a", "team_b"],
@@ -60,6 +81,20 @@ class TestAssetAccessControl:
     def test_accepts_valid_producer_teams(self, teams):
         ac = AssetAccessControl(producer_teams=teams)
         assert ac.producer_teams == teams
+
+    @pytest.mark.parametrize(
+        "teams",
+        [
+            [],
+            ["team_a"],
+            ["team_a", "team_b"],
+            ["team-with-dashes"],
+            ["team_with_underscores"],
+        ],
+    )
+    def test_accepts_valid_consumer_teams(self, teams):
+        ac = AssetAccessControl(consumer_teams=teams)
+        assert ac.consumer_teams == teams
 
     def test_allow_global_must_be_bool(self):
         with pytest.raises(TypeError):

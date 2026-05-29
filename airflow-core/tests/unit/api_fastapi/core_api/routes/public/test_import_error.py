@@ -54,21 +54,6 @@ BUNDLE_NAME = "testing"
 
 @pytest.fixture
 @provide_session
-def permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(
-        fileloc=FILENAME1,
-        relative_fileloc=FILENAME1,
-        dag_id="dag_id1",
-        is_paused=False,
-        bundle_name=BUNDLE_NAME,
-    )
-    session.add(dag_model)
-    session.commit()
-    return dag_model
-
-
-@pytest.fixture
-@provide_session
 def permitted_dag_model_all(testing_dag_bundle, session: Session = NEW_SESSION) -> set[str]:
     dag_model1 = DagModel(
         fileloc=FILENAME1,
