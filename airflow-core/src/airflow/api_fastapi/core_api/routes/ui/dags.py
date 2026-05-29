@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -171,53 +171,29 @@ def get_dags(
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
 
-    # Populate the last 'dag_runs_limit' DagRuns for each Dag
-    recent_runs_subquery = (
-        select(
-            DagRun.dag_id,
-            DagRun.run_after,
-            func.rank()
-            .over(
-                partition_by=DagRun.dag_id,
-                order_by=DagRun.run_after.desc(),
+    recent_dag_runs: list = []
+    if dags:
+        recent_runs_branches = [
+            select(
+                DagRun.id,
+                DagRun.dag_id,
+                DagRun.run_id,
+                DagRun.end_date,
+                DagRun.logical_date,
+                DagRun.run_after,
+                DagRun.start_date,
+                DagRun.state,
             )
-            .label("rank"),
+            .where(DagRun.dag_id == dag.dag_id)
+            .order_by(DagRun.run_after.desc())
+            .limit(dag_runs_limit)
+            .subquery()
+            for dag in dags
+        ]
+        recent_runs_union = union_all(*(select(branch) for branch in recent_runs_branches)).subquery()
+        recent_dag_runs = session.execute(
+            select(recent_runs_union).order_by(recent_runs_union.c.run_after.desc())
         )
-        .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
-        .order_by(DagRun.run_after.desc())
-        .subquery()
-    )
-
-    recent_dag_runs_select = (
-        select(
-            recent_runs_subquery.c.run_after,
-            DagRun.id,
-            DagRun.dag_id,
-            DagRun.run_id,
-            DagRun.end_date,
-            DagRun.logical_date,
-            DagRun.run_after,
-            DagRun.start_date,
-            DagRun.state,
-            DagRun.duration.expression,  # type: ignore[attr-defined]
-        )
-        .join(
-            DagRun,
-            and_(
-                DagRun.dag_id == recent_runs_subquery.c.dag_id,
-                DagRun.run_after == recent_runs_subquery.c.run_after,
-            ),
-        )
-        .where(recent_runs_subquery.c.rank <= dag_runs_limit)
-        .group_by(
-            recent_runs_subquery.c.run_after,
-            DagRun.run_after,
-            DagRun.id,
-        )
-        .order_by(recent_runs_subquery.c.run_after.desc())
-    )
-
-    recent_dag_runs = session.execute(recent_dag_runs_select)
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
