@@ -188,10 +188,15 @@ def _extract_entity_arg(call_node: ast.Call) -> str | None:
         return None
 
     # For requires_access_dag the entity is the access_entity keyword
+    # or second positional argument
     if fn_name == "requires_access_dag":
         for kw in call_node.keywords:
             if kw.arg == "access_entity":
                 return ast.unparse(kw.value).split(".")[-1]  # DagAccessEntity.RUN → "RUN"
+
+        if len(call_node.args) >= 2:
+            return ast.unparse(call_node.args[1]).split(".")[-1]
+
         return None
 
     return None
