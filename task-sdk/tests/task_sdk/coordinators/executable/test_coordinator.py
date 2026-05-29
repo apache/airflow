@@ -213,13 +213,13 @@ class TestBundleFind:
         del metadata["sdk"]["supervisor_schema_version"]
         bundle_path = _build_bundle(tmp_path / "no_schema", dag_ids=["tutorial_dag"], metadata=metadata)
 
-        # Validator rejects the missing schema_version, so find() treats the bundle as unusable.
+        # Converter rejects the missing schema_version, so find() treats the bundle as unusable.
         with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+            with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Bundle metadata rejected by validator; skipping",
+            "Bundle metadata rejected; skipping",
             path=str(bundle_path),
             error=mock.ANY,
         )
@@ -230,13 +230,52 @@ class TestBundleFind:
         bundle_path = _build_bundle(tmp_path / "bogus_schema", dag_ids=["tutorial_dag"], metadata=metadata)
 
         with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            with pytest.raises(FileNotFoundError, match="matching bundles were rejected") as exc_info:
+                _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle metadata rejected; skipping",
+            path=str(bundle_path),
+            error=mock.ANY,
+        )
+        # The raised error surfaces the rejection so a found-but-unusable bundle
+        # is not reported as missing.
+        msg = str(exc_info.value)
+        assert str(bundle_path.resolve()) in msg
+        assert "1999-01-01" in msg
+
+    def test_logs_when_metadata_yaml_is_malformed(self, tmp_path):
+        bundle_path = _build_bundle(
+            tmp_path / "bad_yaml",
+            dag_ids=["tutorial_dag"],
+            metadata=b"key: : not: valid: yaml: [",
+        )
+
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
             with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Bundle metadata rejected by validator; skipping",
+            "Cannot decode bundle metadata; skipping",
             path=str(bundle_path),
             error=mock.ANY,
+        )
+
+    def test_logs_when_metadata_is_not_a_mapping(self, tmp_path):
+        bundle_path = _build_bundle(
+            tmp_path / "scalar_meta",
+            dag_ids=["tutorial_dag"],
+            metadata=b"just-a-scalar\n",
+        )
+
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+                _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle metadata is not a mapping; skipping",
+            path=str(bundle_path),
+            type=mock.ANY,
         )
 
 
@@ -276,7 +315,7 @@ class TestBuildExecuteTaskCommand:
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+        with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
             coordinator._build_execute_task_command(what=ti)
 
     def test_raises_when_dag_id_not_found(self, tmp_path):
