@@ -200,6 +200,77 @@ JSON Schema Validation
     As of now, for security reasons, one can not use :class:`~airflow.sdk.definitions.param.Param` objects derived out of custom classes. We are
     planning to have a registration system for custom :class:`~airflow.sdk.definitions.param.Param` classes, just like we've for Operator ExtraLinks.
 
+Using Params for manually triggered remediation Dags
+----------------------------------------------------
+
+For manually triggered Dags that perform remediation, backfill, or other operations against external systems,
+Params can make the trigger form explicit and validate user-provided values before the Dag run is created.
+It is also common to combine Params with a dry-run option, ``max_active_runs=1``, and task-level guards such as pools and execution timeouts.
+
+For example, a manually triggered Dag can validate a date range and a list of partitions, create a dry-run remediation plan by default,
+and run the actual remediation task through a pool that protects the external system:
+
+.. code-block:: python
+
+    import datetime
+
+    from airflow.sdk import DAG, Param, task, get_current_context
+
+    with DAG(
+        dag_id="example_manual_remediation",
+        schedule=None,
+        start_date=datetime.datetime(2024, 1, 1),
+        catchup=False,
+        max_active_runs=1,
+        tags=["example", "params"],
+        params={
+            "start_date": Param("", type="string", format="date", title="Start date"),
+            "end_date": Param("", type="string", format="date", title="End date"),
+            "partitions": Param(
+                ["partition_a"],
+                type="array",
+                items={"type": "string"},
+                title="Partitions",
+                description="One partition per line.",
+            ),
+            "dry_run": Param(True, type="boolean", title="Dry run"),
+        },
+    ) as dag:
+
+        @task
+        def build_plan() -> list[dict[str, str | bool]]:
+            params = get_current_context()["params"]
+
+            if not params["start_date"] or not params["end_date"]:
+                raise ValueError("Both start_date and end_date are required.")
+            if params["start_date"] > params["end_date"]:
+                raise ValueError("start_date must be before or equal to end_date.")
+            if not params["partitions"]:
+                raise ValueError("At least one partition is required.")
+
+            return [
+                {
+                    "partition": partition,
+                    "start_date": params["start_date"],
+                    "end_date": params["end_date"],
+                    "dry_run": params["dry_run"],
+                }
+                for partition in params["partitions"]
+            ]
+
+        @task(pool="external_system_remediation", execution_timeout=datetime.timedelta(minutes=30))
+        def remediate_partition(plan: dict[str, str | bool]) -> None:
+            if plan["dry_run"]:
+                print(f"Would remediate {plan['partition']}")
+                return
+
+            print(f"Remediating {plan['partition']}")
+
+        remediate_partition.expand(plan=build_plan())
+
+The pool in this example should be created before the Dag is triggered. In a production Dag,
+the task should also use idempotent writes or other safeguards that are appropriate for the external system.
+
 Use Params to Provide a Trigger UI Form
 ---------------------------------------
 
