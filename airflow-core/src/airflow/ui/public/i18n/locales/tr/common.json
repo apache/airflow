@@ -250,9 +250,6 @@
   },
   "task_one": "Görev",
   "task_other": "Görevler",
-  "taskGroup": {
-    "documentation": "Task Group Documentation"
-  },
   "taskId": "Görev Kimliği",
   "taskInstance": {
     "dagVersion": "Dag Versiyonu",
