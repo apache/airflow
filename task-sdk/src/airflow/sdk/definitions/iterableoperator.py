@@ -44,6 +44,7 @@ from airflow.sdk.definitions._internal.expandinput import PartitionedExpandInput
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
+    AirflowFailException,
     AirflowRescheduleTaskInstanceException,
     AirflowTaskTimeout,
     TaskDeferred,
@@ -328,6 +329,16 @@ class IterableOperator(BaseOperator):
 
             if not failed_tasks:
                 if exceptions:
+                    # If this IterableOperator is backed by a partitioned expand input
+                    # (created from a MappedIterableOperator), the parent mapped
+                    # task should never be retried; retries are handled by the
+                    # individual indexed runtime tasks. In that case raise
+                    # AirflowFailException to mark failure without retrying the
+                    # parent TaskInstance. For regular (non-partitioned) IterableOperator
+                    # behavior, preserve the previous behavior and raise the
+                    # BaseExceptionGroup so callers/tests that expect it keep working.
+                    if isinstance(self.expand_input, PartitionedExpandInput):
+                        raise AirflowFailException(f"Multiple sub-task failures: {exceptions}")
                     raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
                 if do_xcom_push:
                     from airflow.sdk.execution_time.lazy_sequence import XComIterable
@@ -494,7 +505,11 @@ class MappedIterableOperator(MappedOperator):
 
     @property
     def partition_size(self) -> int:
-        return self.partial_kwargs.get("partition_size", 0)
+        return self.delegate.partial_kwargs.get("partition_size", 0)
+
+    @property
+    def retries(self) -> int:
+        return 0  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
 
     def __repr__(self):
         return f"<MappedIterable({self.task_type}): {self.task_id}>"

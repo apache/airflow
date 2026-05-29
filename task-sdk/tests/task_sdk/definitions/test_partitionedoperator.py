@@ -125,3 +125,24 @@ class TestPartitionedOperator:
                 assert not hasattr(unmapped, "partition_size")
             else:
                 assert isinstance(iterable_op, IterableOperator)
+
+    def test_mapped_iterable_operator_retries_preserved(self):
+        """Ensure delegate's retries survive unmap, while MappedIterableOperator reports 0 retries."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
+        from airflow.sdk.definitions.iterableoperator import MappedIterableOperator
+
+        with DAG(dag_id="test_mapped_iterable_retries") as dag:
+            op = EmptyOperator.partial(task_id="test_task", dag=dag, retries=3).partition(size=2)
+
+            expand_input = DictOfListsExpandInput({"x": [1, 2]})
+            iterable_op = op._iterate(expand_input, strict=False)
+
+            assert isinstance(iterable_op, MappedIterableOperator)
+            assert iterable_op.retries == 0
+
+            mapped_op = iterable_op.delegate
+            assert mapped_op.retries == 3
+
+            unmapped = mapped_op.unmap({"x": 1})
+            assert unmapped.retries == 3
