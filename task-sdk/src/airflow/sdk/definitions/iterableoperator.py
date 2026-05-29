@@ -23,6 +23,7 @@ import os
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future
+from functools import cached_property
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
@@ -173,10 +174,10 @@ class IterableOperator(BaseOperator):
         """@property: type of the task."""
         return self._operator.__class__.__name__
 
-    @property
+    @cached_property
     def timeout(self) -> float | None:
-        if self.execution_timeout:
-            return self.execution_timeout.total_seconds()
+        if self._operator.execution_timeout:
+            return self._operator.execution_timeout.total_seconds()
         return None
 
     def _do_render_template_fields(

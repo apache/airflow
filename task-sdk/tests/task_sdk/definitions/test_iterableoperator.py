@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 from typing import TYPE_CHECKING
+from datetime import timedelta
 
 try:
     # Python 3.11+
@@ -118,6 +119,7 @@ class TestIterableOperator:
         retries: int = DEFAULT_RETRIES,
         do_xcom_push: bool = True,
         task_concurrency: int | None = None,
+        execution_timeout: timedelta | None = None
     ) -> MappedOperator:
         """
         Create a MappedOperator and assign it to a DAG.
@@ -133,6 +135,7 @@ class TestIterableOperator:
             retries=retries,
             task_concurrency=task_concurrency,
             do_xcom_push=do_xcom_push,
+            execution_timeout=execution_timeout,
         )._expand(
             expand_input,
             strict=True,
@@ -202,7 +205,10 @@ class TestIterableOperator:
             ({"a": 1}, [{"a": 1}]),
             ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
             ({"a": "hello"}, [{"a": "hello"}]),
-            ({"a": [1, 2], "b": [10, 20]}, [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}]),
+            (
+                {"a": [1, 2], "b": [10, 20]},
+                [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}],
+            ),
             ({"a": [1, 2]}, [{"a": 1}, {"a": 2}]),
         ],
     )
@@ -414,7 +420,8 @@ class TestIterableOperator:
 
     @pytest.mark.db_test
     def test_execute_with_failed_tasks_but_no_retries(self, dag_maker, session, mock_xcom_get_one):
-        """Test executing IterableOperator where tasks fail but no retries are available.
+        """
+        Test executing IterableOperator where tasks fail but no retries are available.
 
         This test verifies that:
         1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
@@ -445,7 +452,8 @@ class TestIterableOperator:
     def test_execute_with_failed_tasks_and_expired_reschedule_date(
         self, dag_maker, session, mock_xcom_get_one
     ):
-        """Test executing IterableOperator where certain map_index tasks fail on first attempt and are retried.
+        """
+        Test executing IterableOperator where certain map_index tasks fail on first attempt and are retried.
 
         This test verifies that:
         1. Tasks with fail_on_first_attempt=True raise an exception on first attempt (try_number == 0)
@@ -474,3 +482,18 @@ class TestIterableOperator:
 
             assert len(materialized) == 3
             assert materialized == [(1, 10, None), (2, 20, None), (3, 30, None)]
+
+    @pytest.mark.db_test
+    def test_timeout_reads_mapped_operator_and_iterable_execution_timeout_is_none(self, dag_maker, session):
+        """Ensure IterableOperator.timeout reads the wrapped operator.execution_timeout
+        and the IterableOperator.execution_timeout remains None (not propagated to parent)."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            execution_timeout = timedelta(seconds=7)
+            mapped_op = self.create_mapped_operator(dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout)
+
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            assert iterable_op._operator.execution_timeout == execution_timeout
+            assert iterable_op.execution_timeout is None
+            assert iterable_op.timeout == 7.0
