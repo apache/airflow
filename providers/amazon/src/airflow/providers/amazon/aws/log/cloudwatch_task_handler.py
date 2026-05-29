@@ -314,13 +314,19 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        if self.handler is not None:
-            self.handler.close()
+        # Flush pending log events to CloudWatch BEFORE closing the
+        # watchtower handler.  watchtower's close() sets shutting_down=True,
+        # which causes subsequent flush() calls to be no-ops and the queued
+        # events would never reach CloudWatch.  This ordering is critical for
+        # the ECS Executor where the process shuts down immediately after
+        # the task completes.
         if hasattr(self, "ti"):
             try:
                 self.io.upload(self.log_relative_path, self.ti)
             except Exception:
                 self.log.exception("Failed to delete local log after streaming to CloudWatch")
+        if self.handler is not None:
+            self.handler.close()
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
