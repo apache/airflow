@@ -339,6 +339,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "`yarn_track_via_rm_api=True` requires `deploy_mode='cluster'`; "
                 f"got {self._connection['deploy_mode']!r}."
             )
+        self._get_yarn_rm_base_url()
 
     def _resolve_connection(self) -> dict[str, Any]:
         # Build from connection master or default to yarn if not available

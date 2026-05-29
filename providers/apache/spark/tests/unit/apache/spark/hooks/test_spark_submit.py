@@ -1668,42 +1668,36 @@ class TestSparkSubmitHook:
 
         assert mock_get.call_count == 11
 
+    @pytest.mark.parametrize("use_auth", [False, True])
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
-    def test_yarn_status_query_passes_provided_auth_to_requests(self, mock_get):
-        """yarn_rm_auth=<sentinel AuthBase> -> requests.get called with auth=<sentinel>."""
+    def test_yarn_status_query_passes_auth_to_requests(self, mock_get, use_auth):
+        """yarn_rm_auth is passed to requests.get, including the default None."""
 
         class _SentinelAuth(requests.auth.AuthBase):
             def __call__(self, r):
                 return r
 
-        sentinel = _SentinelAuth()
+        auth = _SentinelAuth() if use_auth else None
         mock_get.return_value = self._rm_status_resp("SUCCEEDED")
 
         hook = SparkSubmitHook(
             conn_id="spark_yarn_rm",
             yarn_track_via_rm_api=True,
-            yarn_rm_auth=sentinel,
+            yarn_rm_auth=auth,
         )
         hook._query_yarn_application_status(self._RM_APP_ID)
 
-        assert mock_get.call_args.kwargs["auth"] is sentinel
+        assert mock_get.call_args.kwargs["auth"] is auth
 
-    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
-    def test_yarn_status_query_sends_no_auth_by_default(self, mock_get):
-        """Without yarn_rm_auth -> requests.get called with auth=None."""
-        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
-
-        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
-        hook._query_yarn_application_status(self._RM_APP_ID)
-
-        assert mock_get.call_args.kwargs["auth"] is None
-
-    def test_yarn_status_tracking_fails_when_rm_url_missing(self):
-        """Missing yarn_resourcemanager_webapp_address extra -> ValueError containing the key name."""
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_fails_before_submit_when_rm_url_missing(self, mock_popen):
+        """Missing yarn_resourcemanager_webapp_address extra -> fail before spark-submit starts."""
         hook = SparkSubmitHook(conn_id="spark_yarn_cluster", yarn_track_via_rm_api=True)
 
         with pytest.raises(ValueError, match="yarn_resourcemanager_webapp_address"):
-            hook._query_yarn_application_status(self._RM_APP_ID)
+            hook.submit()
+
+        mock_popen.assert_not_called()
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
