@@ -35,6 +35,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
     ExecutableCoordinator,
+    _BinaryDigestCache,
     _Bundle,
     _clear_digest_cache,
 )
@@ -123,6 +124,75 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "executable") -> TaskIns
         queue=queue,
         priority_weight=1,
     )
+
+
+class TestBinaryDigestCache:
+    def test_get_returns_none_for_missing_key(self):
+        cache = _BinaryDigestCache(maxsize=4)
+        assert cache.get(("/p", 0, 0, 0, 0)) is None
+
+    def test_put_then_get_returns_stored_digest(self):
+        cache = _BinaryDigestCache(maxsize=4)
+        key = ("/p", 100, 1, 2, 3)
+        cache.put(key, b"\xaa" * 32)
+        assert cache.get(key) == b"\xaa" * 32
+
+    def test_put_updates_existing_key(self):
+        cache = _BinaryDigestCache(maxsize=4)
+        key = ("/p", 100, 1, 2, 3)
+        cache.put(key, b"\xaa" * 32)
+        cache.put(key, b"\xbb" * 32)
+        assert cache.get(key) == b"\xbb" * 32
+
+    def test_eviction_drops_oldest_when_over_maxsize(self):
+        cache = _BinaryDigestCache(maxsize=2)
+        keys = [(f"/p{i}", i, 0, 0, 0) for i in range(3)]
+        for i, k in enumerate(keys):
+            cache.put(k, bytes([i]) * 32)
+
+        # First inserted entry should have been evicted.
+        assert cache.get(keys[0]) is None
+        assert cache.get(keys[1]) == bytes([1]) * 32
+        assert cache.get(keys[2]) == bytes([2]) * 32
+
+    def test_get_promotes_entry_so_it_is_not_evicted_next(self):
+        cache = _BinaryDigestCache(maxsize=2)
+        key_a = ("/a", 0, 0, 0, 0)
+        key_b = ("/b", 0, 0, 0, 0)
+        key_c = ("/c", 0, 0, 0, 0)
+        cache.put(key_a, b"\x01" * 32)
+        cache.put(key_b, b"\x02" * 32)
+
+        # Touch A so B becomes the LRU victim.
+        assert cache.get(key_a) == b"\x01" * 32
+        cache.put(key_c, b"\x03" * 32)
+
+        assert cache.get(key_a) == b"\x01" * 32
+        assert cache.get(key_b) is None
+        assert cache.get(key_c) == b"\x03" * 32
+
+    def test_put_promotes_existing_entry(self):
+        cache = _BinaryDigestCache(maxsize=2)
+        key_a = ("/a", 0, 0, 0, 0)
+        key_b = ("/b", 0, 0, 0, 0)
+        key_c = ("/c", 0, 0, 0, 0)
+        cache.put(key_a, b"\x01" * 32)
+        cache.put(key_b, b"\x02" * 32)
+
+        # Re-putting A should refresh it so B is the next victim.
+        cache.put(key_a, b"\x01" * 32)
+        cache.put(key_c, b"\x03" * 32)
+
+        assert cache.get(key_a) == b"\x01" * 32
+        assert cache.get(key_b) is None
+        assert cache.get(key_c) == b"\x03" * 32
+
+    def test_clear_drops_all_entries(self):
+        cache = _BinaryDigestCache(maxsize=4)
+        key = ("/p", 0, 0, 0, 0)
+        cache.put(key, b"\xaa" * 32)
+        cache.clear()
+        assert cache.get(key) is None
 
 
 class TestBundleFind:
