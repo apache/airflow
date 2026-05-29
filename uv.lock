@@ -107,6 +107,7 @@ apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
+swagger-plugin-for-sphinx = { timestamp = "0001-01-01T00:00:00Z", span = "PT2H" }
 apache-airflow-kubernetes-tests = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-apache-druid = false
@@ -2457,7 +2458,6 @@ docs = [
     { name = "pagefind" },
     { name = "pagefind-bin" },
     { name = "rich-click" },
-    { name = "setuptools" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -2479,9 +2479,9 @@ docs = [
     { name = "sphinxcontrib-jsmath" },
     { name = "sphinxcontrib-mermaid" },
     { name = "sphinxcontrib-qthelp" },
-    { name = "sphinxcontrib-redoc" },
     { name = "sphinxcontrib-serializinghtml" },
     { name = "sphinxcontrib-spelling" },
+    { name = "swagger-plugin-for-sphinx" },
 ]
 docs-gen = [
     { name = "diagrams" },
@@ -2650,7 +2650,6 @@ requires-dist = [
     { name = "ruff", specifier = "==0.15.14" },
     { name = "semver", specifier = ">=3.0.2" },
     { name = "semver", marker = "extra == 'devscripts'", specifier = ">=3.0.2" },
-    { name = "setuptools", marker = "extra == 'docs'", specifier = "<82.0.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
     { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.10-py3-none-any.whl" },
     { name = "sphinx-argparse", marker = "extra == 'docs'", specifier = ">=0.4.0" },
@@ -2668,11 +2667,11 @@ requires-dist = [
     { name = "sphinxcontrib-jsmath", marker = "extra == 'docs'", specifier = ">=1.0.1" },
     { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=1.0.0" },
     { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'", specifier = ">=1.0.3" },
-    { name = "sphinxcontrib-redoc", marker = "extra == 'docs'", specifier = ">=1.6.0" },
     { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'", specifier = ">=1.1.5" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49" },
     { name = "sqlalchemy-utils", marker = "extra == 'sqlalchemy'", specifier = ">=0.41.2" },
+    { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0" },
     { name = "time-machine", extras = ["dateutil"], specifier = ">=3.0.0" },
     { name = "towncrier", marker = "extra == 'devscripts'", specifier = ">=23.11.0" },
     { name = "twine", marker = "extra == 'devscripts'", specifier = ">=4.0.2" },
@@ -21895,21 +21894,6 @@ wheels = [
 ]
 
 [[package]]
-name = "sphinxcontrib-redoc"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "jinja2" },
-    { name = "jsonschema" },
-    { name = "pyyaml" },
-    { name = "six" },
-    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/73/872189269380d0271d575771986db8a77f06bc4565c1a971bebd54f38d2c/sphinxcontrib-redoc-1.6.0.tar.gz", hash = "sha256:e358edbe23927d36432dde748e978cf897283a331a03e93d3ef02e348dee4561", size = 350482, upload-time = "2020-04-17T19:46:48.041Z" }
-
-[[package]]
 name = "sphinxcontrib-serializinghtml"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -22199,6 +22183,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/08/e1/2d56ec21820cae24a6215dc1d6a224167b0e24368bf53166551064742e0d/svcs-25.1.0.tar.gz", hash = "sha256:64dd74d0c4e8fee79a9ac7550a9d824670b228df390ba1911614e29b59b3f2c2", size = 714086, upload-time = "2025-01-25T13:15:21.505Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/1c/a6b5d90a9ca479805798276728ccbbdff0c7228e2ea93b1f731779d635e3/svcs-25.1.0-py3-none-any.whl", hash = "sha256:df49cb7d1a05dfd2dd60af1a2cb84b9c3bb0a74728833cb8c54a7ceeecce6c97", size = 19456, upload-time = "2025-01-25T13:15:19.677Z" },
+]
+
+[[package]]
+name = "swagger-plugin-for-sphinx"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "jinja2" },
+    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/00/1b2ea76705a887b47d2ba1fa38bb01222431697e6fd020f25c95d6a44615/swagger_plugin_for_sphinx-7.1.0.tar.gz", hash = "sha256:8a054d69600767721f8920f90f87e9078e1736d8c89a6fe74d38ea930f95c9e2", size = 118298, upload-time = "2026-05-27T08:10:11.488Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/14/43f25438e93fd40f172535b0fac0ab2a4827e13a74f62c35860ba04fc891/swagger_plugin_for_sphinx-7.1.0-py3-none-any.whl", hash = "sha256:1a6369c6e9ee5bca88c11a327e58c134a457401a6a7f8bb97e166d3a2568d4d7", size = 11644, upload-time = "2026-05-27T08:10:10.347Z" },
 ]
 
 [[package]]

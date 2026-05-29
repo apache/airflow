@@ -16,10 +16,10 @@
     specific language governing permissions and limitations
     under the License.
 
-Simple auth manager token API
-=============================
+Edge Worker REST API
+====================
 
-.. swagger-plugin:: ../../../../src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml
-    :id: sam-token-api-ref
-    :page-title: Simple auth manager token API
+.. swagger-plugin:: ../src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
+    :id: edge-worker-api-ref
+    :page-title: Edge Worker REST API
     :swagger-options: { "tryItOutEnabled": "false", "supportedSubmitMethods": [] }
