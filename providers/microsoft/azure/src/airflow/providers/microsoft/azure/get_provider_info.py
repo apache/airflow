@@ -140,6 +140,14 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/powerbi.rst"],
                 "tags": ["azure"],
             },
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "external-doc-url": "https://learn.microsoft.com/en-us/azure/analysis-services/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-microsoft-azure/operators/analysis_services.rst"
+                ],
+                "tags": ["azure"],
+            },
         ],
         "operators": [
             {
@@ -190,6 +198,10 @@ def get_provider_info():
                 "integration-name": "Microsoft Power BI",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.powerbi"],
             },
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.operators.analysis_services"],
+            },
         ],
         "sensors": [
             {
@@ -211,6 +223,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Graph API",
                 "python-modules": ["airflow.providers.microsoft.azure.sensors.msgraph"],
+            },
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.sensors.analysis_services"],
             },
         ],
         "filesystems": [
@@ -282,6 +298,10 @@ def get_provider_info():
                 "integration-name": "Microsoft Power BI",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.powerbi"],
             },
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.analysis_services"],
+            },
         ],
         "triggers": [
             {
@@ -315,6 +335,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure Synapse",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.synapse"],
+            },
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.analysis_services"],
             },
         ],
         "queues": ["airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider"],
@@ -883,6 +907,21 @@ def get_provider_info():
                     "placeholders": {},
                 },
                 "conn-fields": {"tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
+            },
+            {
+                "hook-class-name": "airflow.providers.microsoft.azure.hooks.analysis_services.AzureAnalysisServicesHook",
+                "hook-name": "Azure Analysis Services",
+                "connection-type": "azure_analysis_services",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "host": "Region Endpoint",
+                        "login": "Client ID",
+                        "password": "Client Secret",
+                    },
+                    "placeholders": {"host": "eastus.asazure.windows.net"},
+                },
+                "conn-fields": {"tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
