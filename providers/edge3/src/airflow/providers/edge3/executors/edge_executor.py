@@ -99,7 +99,6 @@ class EdgeExecutor(BaseExecutor):
     def queue_workload(
         self,
         workload: workloads.All,
-        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
