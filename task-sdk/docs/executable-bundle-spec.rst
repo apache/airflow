@@ -246,19 +246,22 @@ Deployment Layout
 Bundle files are placed **as-is** in any of the directories configured as the
 ``executables_root`` kwarg on the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
-under ``[sdk] coordinators``. The scanner enumerates regular files in each
-directory, reads the last 64 bytes of each, and treats files whose magic
-matches ``"AFBNDL01"`` as bundles. Matched files are then SHA-256-verified
-per the reader algorithm; a mismatch demotes the file back to "ignored, with
-an error log." Files without the magic are silently ignored, so non-bundle
-files (READMEs, dotfiles) MAY share the directory without interfering with
-the scan.
+under ``[sdk] coordinators``. The scanner walks each directory **recursively**
+and considers only regular files whose **executable bit is set** for the
+invoking user; files without the executable bit are skipped without reading
+their trailer. For each candidate it reads the last 64 bytes and treats files
+whose magic matches ``"AFBNDL01"`` as bundles. Matched files are then
+SHA-256-verified per the reader algorithm; a mismatch demotes the file back
+to "ignored, with an error log." Files without the magic are silently
+ignored, so non-bundle files (READMEs, dotfiles) MAY share the directory
+without interfering with the scan.
 
 ::
 
     /opt/airflow/executable-bundles/
     ├── example
-    ├── pipeline
+    ├── team-a/
+    │   └── pipeline
     └── analytics
 
 At task-execution time the runtime execs the bundle file directly with the
