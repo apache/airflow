@@ -277,9 +277,6 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
-  "taskGroup": {
-    "documentation": "Task Group Documentation"
-  },
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",
