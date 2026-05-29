@@ -227,9 +227,22 @@ class SerializedTaskGroup(DAGNode):
         children = self.children
         if not children:
             return []
+
         nodes = list(children.values())
+        n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
-        projected = [self._project_child_deps(i, c, id_to_idx) for i, c in enumerate(nodes)]
+
+        projected: list[tuple[int, ...]] = [()] * n
+        nodes_with_back_edge = 0
+        for i, child in enumerate(nodes):
+            deps = self._project_child_deps(i, child, id_to_idx)
+            if deps:
+                projected[i] = deps
+                if any(d > i for d in deps):
+                    nodes_with_back_edge += 1
+
+        if nodes_with_back_edge * 2 > n:
+            return self._sort_via_pass_numbering(nodes, projected)
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
@@ -242,16 +255,18 @@ class SerializedTaskGroup(DAGNode):
         for edge_id in upstream_ids:
             j = id_to_idx.get(edge_id)
             if j is not None:
-                sib_deps.add(j)
-                continue
-            tg = self.dag.get_task(edge_id).task_group
-            while tg is not None:
-                j = id_to_idx.get(tg.node_id)
-                if j is not None:
+                if j != child_idx:
                     sib_deps.add(j)
+                continue
+            edge = self.dag.get_task(edge_id)
+            tg = edge.task_group
+            while tg is not None:
+                anc_idx = id_to_idx.get(tg.node_id)
+                if anc_idx is not None:
+                    if anc_idx != child_idx:
+                        sib_deps.add(anc_idx)
                     break
                 tg = tg.parent_group
-        sib_deps.discard(child_idx)
         return tuple(sib_deps)
 
     def _sweep_projection(self, nodes: list[DAGNode], projected: list[tuple[int, ...]]) -> list[DAGNode]:
@@ -290,6 +305,42 @@ class SerializedTaskGroup(DAGNode):
                 raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
             pending = next_pending
         return order
+
+    def _sort_via_pass_numbering(
+        self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
+    ) -> list[DAGNode]:
+        n = len(nodes)
+        in_degree = [len(deps) for deps in projected]
+        successors: list[list[int]] = [[] for _ in range(n)]
+        for i, deps in enumerate(projected):
+            for d in deps:
+                successors[d].append(i)
+
+        pass_of = [0] * n
+        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
+        processed = 0
+        while queue:
+            i = queue.popleft()
+            my_pass = 1
+            for d in projected[i]:
+                d_pass = pass_of[d]
+                if d < i:
+                    if d_pass > my_pass:
+                        my_pass = d_pass
+                elif d_pass + 1 > my_pass:
+                    my_pass = d_pass + 1
+            pass_of[i] = my_pass
+            processed += 1
+            for s in successors[i]:
+                in_degree[s] -= 1
+                if in_degree[s] == 0:
+                    queue.append(s)
+
+        if processed != n:
+            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+
+        sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
+        return [nodes[i] for i in sorted_indices]
 
     def add(self, node: DAGNode) -> DAGNode:
         # Set the TG first, as setting it might change the return value of node_id!
