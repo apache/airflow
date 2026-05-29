@@ -250,6 +250,9 @@
   "task_one": "משימה",
   "task_other": "משימות",
   "task_two": "משימות",
+  "taskGroup": {
+    "documentation": "תיעוד קבוצת משימות"
+  },
   "taskId": "מזהה משימה",
   "taskInstance": {
     "dagVersion": "גרסת Dag",
