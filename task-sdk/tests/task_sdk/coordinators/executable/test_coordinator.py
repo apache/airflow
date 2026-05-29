@@ -37,7 +37,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     ExecutableCoordinator,
     _BinaryDigestCache,
     _Bundle,
-    _clear_digest_cache,
+    _digest_cache,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -252,6 +252,19 @@ class TestBundleFind:
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
             _Bundle.find([tmp_path / "does_not_exist"], "tutorial_dag")
 
+    def test_symlink_cycle_does_not_infinite_recurse(self, tmp_path):
+        nested = tmp_path / "inner"
+        nested.mkdir()
+        target = _build_bundle(nested / "pipeline", dag_ids=["loop_dag"])
+        loop = nested / "loop"
+        try:
+            loop.symlink_to(tmp_path)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        bundle = _Bundle.find([tmp_path], "loop_dag")
+        assert bundle.path == target.resolve()
+
     def test_skips_bundle_with_corrupted_binary_region(self, tmp_path):
         bundle_path = _build_bundle(tmp_path / "tampered", dag_ids=["tutorial_dag"])
         # Flip a byte in the binary region; the embedded SHA-256 no longer matches.
@@ -259,7 +272,7 @@ class TestBundleFind:
         data[0] ^= 0xFF
         bundle_path.write_bytes(bytes(data))
         bundle_path.chmod(bundle_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        _clear_digest_cache()
+        _digest_cache.clear()
 
         with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
             with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):

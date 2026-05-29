@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import os
 import pathlib
+import stat
 import struct
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, BinaryIO
@@ -181,11 +182,6 @@ class _BinaryDigestCache:
 _digest_cache = _BinaryDigestCache(maxsize=_VERIFY_CACHE_MAXSIZE)
 
 
-def _clear_digest_cache() -> None:
-    """Drop all cached binary-region digests. Intended for tests."""
-    _digest_cache.clear()
-
-
 def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
     # One open per bundle: trailer-parse, hash (on cache miss), and
     # metadata-read all share the same fd, and the stat that keys the
@@ -277,15 +273,38 @@ def _supervisor_schema_version(metadata: dict[str, Any]) -> str | None:
 
 
 def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
-    """Yield executable regular files under *items*, descending into directories."""
+    """
+    Yield executable regular files under *items*, descending into directories.
+
+    A symlink loop or a directory that hardlinks into one of its ancestors
+    would otherwise recurse until the interpreter stack is exhausted, so
+    directories are deduplicated by ``(st_dev, st_ino)`` for the duration
+    of a single scan.
+    """
+    seen_dirs: set[tuple[int, int]] = set()
+    yield from _walk_executables(items, seen_dirs)
+
+
+def _walk_executables(
+    items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]
+) -> Iterator[pathlib.Path]:
     for item in items:
-        if item.is_dir():
-            try:
-                children = item.iterdir()
-            except (FileNotFoundError, NotADirectoryError, PermissionError):
+        try:
+            st = item.stat()
+        except OSError:
+            continue
+        if stat.S_ISDIR(st.st_mode):
+            key = (st.st_dev, st.st_ino)
+            if key in seen_dirs:
+                log.debug("Skipping already-visited directory", path=str(item))
                 continue
-            yield from _find_executables(children)
-        elif item.is_file() and os.access(item, os.X_OK):
+            seen_dirs.add(key)
+            try:
+                children = list(item.iterdir())
+            except OSError:
+                continue
+            yield from _walk_executables(children, seen_dirs)
+        elif stat.S_ISREG(st.st_mode) and os.access(item, os.X_OK):
             yield item
 
 
