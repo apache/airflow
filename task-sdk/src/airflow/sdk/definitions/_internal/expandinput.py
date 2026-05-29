@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
-import itertools
 
 import attrs
 
