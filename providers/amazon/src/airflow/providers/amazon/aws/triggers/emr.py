@@ -419,7 +419,7 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
             """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
             from sqlalchemy import select
 

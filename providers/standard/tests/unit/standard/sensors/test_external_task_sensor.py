@@ -54,7 +54,7 @@ from airflow.providers.standard.sensors.external_task import ExternalTaskMarker,
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.timetables.base import DataInterval
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
@@ -1821,6 +1821,7 @@ def dag_bag_parent_child():
 @provide_session
 def run_tasks(
     dag_bag: DagBag,
+    *,
     logical_date=DEFAULT_DATE,
     session=NEW_SESSION,
 ) -> tuple[dict[str, DagRun], dict[str, TaskInstance]]:
@@ -1893,10 +1894,11 @@ def clear_tasks(
     dag_bag,
     dag,
     task,
-    session,
+    *,
     start_date=DEFAULT_DATE,
     end_date=DEFAULT_DATE,
     dry_run=False,
+    session=NEW_SESSION,
 ):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
@@ -1927,8 +1929,7 @@ def test_external_task_marker_transitive(dag_bag_ext):
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for 3.0+")
-@provide_session
-def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
+def test_external_task_marker_clear_activate(dag_bag_parent_child):
     """
     Test clearing tasks across DAGs and make sure the right DagRuns are activated.
     """
@@ -1939,22 +1940,23 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     run_tasks(dag_bag, logical_date=day_1)
     run_tasks(dag_bag, logical_date=day_2)
 
-    # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
-    for dag, execution_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
-        dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
-        dagrun.set_state(State.SUCCESS)
-    session.flush()
+    with create_session() as session:
+        # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
+        for dag, execution_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
+            dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
+            dagrun.set_state(State.SUCCESS)
+        session.flush()
 
-    dag_0 = dag_bag.get_dag("parent_dag_0")
-    task_0 = dag_0.get_task("task_0")
-    clear_tasks(dag_bag, dag_0, task_0, start_date=day_1, end_date=day_2, session=session)
+        dag_0 = dag_bag.get_dag("parent_dag_0")
+        task_0 = dag_0.get_task("task_0")
+        clear_tasks(dag_bag, dag_0, task_0, start_date=day_1, end_date=day_2, session=session)
 
-    # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
-    # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_1, session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_2, session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_1, session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_2, session=session)
+        # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
+        # Unaffected dagruns should be left as SUCCESS.
+        dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_1, session=session)
+        dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_2, session=session)
+        dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_1, session=session)
+        dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_2, session=session)
 
     assert dagrun_0_1.state == State.QUEUED
     assert dagrun_0_2.state == State.QUEUED

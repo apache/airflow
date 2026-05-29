@@ -464,7 +464,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         @provide_session
         def _trigger_dag_run_af_2_execute_complete(
-            self, event_data: dict[str, Any], session: Session = NEW_SESSION
+            self, event_data: dict[str, Any], *, session: Session = NEW_SESSION
         ):
             # This logical_date is parsed from the return trigger event
             provided_logical_date = event_data["execution_dates"][0]
