@@ -85,6 +85,19 @@ class DepContext:
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
+    upstream_task_id_counts: dict[tuple[str, str, frozenset[str]], list[tuple[str, int]]] = attr.ib(
+        factory=dict, init=False
+    )
+    """
+    Per-pass memo of the trigger-rule upstream task-instance counts, keyed by
+    ``(dag_id, run_id, frozenset of direct-upstream task_ids)``.
+
+    Shares the lifetime and snapshot semantics of ``finished_tis`` (one scheduling pass). Only
+    populated for the "simple" case where the count-query predicate is exactly
+    ``task_id IN (upstream_ids)`` and is therefore identical for every downstream sharing the same
+    direct upstreams; the mapped-task-group case uses per-ti map-index predicates and is not cached.
+    """
+
     def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
