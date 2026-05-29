@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+
 import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
@@ -42,7 +44,13 @@ def test_validate_deferrable_databricks_retry_args_accepts_none():
         {"retry_limit": 3, "retry_delay": 10.5, "retry_enabled": True, "retry_codes": ["429", "500"]},
     ],
 )
-def test_validate_deferrable_databricks_retry_args_accepts_json_serializable_values(retry_args):
+def test_validate_deferrable_databricks_retry_args_accepts_serde_serializable_values(retry_args):
+    assert validate_deferrable_databricks_retry_args(retry_args, owner="test-owner") is None
+
+
+def test_validate_deferrable_databricks_retry_args_accepts_airflow_serde_serializable_values():
+    retry_args = {"deadline": datetime.datetime(2026, 5, 29, 12, 30, tzinfo=datetime.UTC)}
+
     assert validate_deferrable_databricks_retry_args(retry_args, owner="test-owner") is None
 
 
