@@ -29,6 +29,7 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
+from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.utils import (
     get_runtime_outlet_assets,
     get_unknown_source_attribute_run_facet,
@@ -92,9 +93,16 @@ class ExtractorManager(LoggingMixin):
         self.extractors[operator_class] = extractor
 
     def extract_metadata(
-        self, dagrun, task, task_instance_state: TaskInstanceState, task_instance
+        self,
+        dagrun,
+        task,
+        task_instance_state: TaskInstanceState,
+        task_instance,
+        controls: EmissionPolicy | None = None,
     ) -> OperatorLineage:
-        extractor = self._get_extractor(task)
+        if controls is None:
+            controls = EmissionPolicy.defaults()
+        extractor = self._get_extractor(task, source_code_enabled=controls.include_source_code)
         task_info = (
             f"task_type={task.task_type} "
             f"airflow_dag_id={task.dag_id} "
@@ -126,45 +134,59 @@ class ExtractorManager(LoggingMixin):
                     str(task_metadata),
                 )
                 task_metadata = self.validate_task_metadata(task_metadata) or OperatorLineage()
-                # If no inputs and outputs are present - check Hook Lineage
+                # If no inputs and outputs are present, optionally check Hook Lineage
                 if (not task_metadata.inputs) and (not task_metadata.outputs):
-                    hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
-                    if hook_lineage is not None:
-                        task_metadata = task_metadata.merge(hook_lineage)
-                    else:  # Last resort - check manual annotations
+                    if controls.hook_lineage:
+                        hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+                        if hook_lineage is not None:
+                            task_metadata = task_metadata.merge(hook_lineage)
+                        else:  # Last resort - check manual annotations
+                            self.extract_inlets_and_outlets(task_metadata, task, task_instance)
+                    else:
+                        self.log.info(
+                            "Skipping OpenLineage hook lineage collection for task '%s' due to emission_policy.",
+                            task.task_id,
+                        )
                         self.extract_inlets_and_outlets(task_metadata, task, task_instance)
                 return task_metadata
 
             except Exception as e:
                 self.log.warning(
-                    "Failed to extract metadata using found extractor %s - %s %s",
+                    "Failed to extract OpenLineage metadata using found extractor %s - %s %s",
                     extractor,
                     e,
                     task_info,
                 )
                 self.log.debug("OpenLineage extraction failure details:", exc_info=True)
         else:
-            # No extractor found — fall back to hook lineage. This call must be wrapped in
-            # try/except: it runs emit_lineage_from_sql_extras → _create_ol_event_pair which
-            # is not guarded internally. An uncaught exception here would propagate up to the
-            # listener's @print_warning decorator, silently suppressing the task-level event.
-            try:
-                hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
-            except Exception as e:
-                self.log.warning(
-                    "Failed to extract hook lineage %s: %s. Task event will be emitted without lineage.",
-                    task_info,
-                    e,
+            # No extractor found.
+            if controls.hook_lineage:
+                # Fall back to hook lineage. This call must be wrapped in try/except: it runs
+                # emit_lineage_from_sql_extras → _create_ol_event_pair which is not guarded
+                # internally. An uncaught exception here would propagate up to the listener's
+                # @print_warning decorator, silently suppressing the task-level event.
+                try:
+                    hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to extract OpenLineage hook lineage %s: %s. Task event will be emitted without lineage.",
+                        task_info,
+                        e,
+                    )
+                    self.log.debug("OpenLineage hook lineage failure details:", exc_info=True)
+                    hook_lineage = None
+
+                if hook_lineage is not None:
+                    return hook_lineage
+            else:
+                self.log.info(
+                    "Skipping OpenLineage hook lineage collection for task '%s' due to emission_policy.",
+                    task.task_id,
                 )
-                self.log.debug("OpenLineage hook lineage failure details:", exc_info=True)
-                hook_lineage = None
 
-            if hook_lineage is not None:
-                return hook_lineage
-
-            self.log.debug("Unable to find an extractor %s", task_info)
-
-            # Only include the unknownSourceAttribute facet if there is no extractor
+            # No extractor and no hook lineage (or hook lineage disabled) — always emit the
+            # unknownSourceAttribute facet and fall back to manually-declared inlets/outlets.
+            self.log.debug("Unable to find an OpenLineage extractor %s", task_info)
             task_metadata = OperatorLineage(
                 run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
@@ -184,12 +206,18 @@ class ExtractorManager(LoggingMixin):
             return self.default_extractor
         return None
 
-    def _get_extractor(self, task: BaseOperator) -> BaseExtractor | None:
-        extractor = self.get_extractor_class(task)
-        self.log.debug("extractor for %s is %s", task.task_type, extractor)
-        if extractor:
-            return extractor(task)
-        return None
+    def _get_extractor(self, task: BaseOperator, source_code_enabled: bool = True) -> BaseExtractor | None:
+        extractor_cls = self.get_extractor_class(task)
+        self.log.debug("extractor for %s is %s", task.task_type, extractor_cls)
+        if extractor_cls is None:
+            return None
+        # Set the flag after construction rather than passing it as a constructor kwarg:
+        # custom extractors may still use the historically-public `__init__(self, operator)`
+        # signature, which would raise TypeError on an unexpected keyword and drop the whole
+        # task event. Built-in extractors read `source_code_enabled` at extraction time.
+        extractor = extractor_cls(task)
+        extractor.source_code_enabled = source_code_enabled
+        return extractor
 
     def extract_inlets_and_outlets(
         self,
