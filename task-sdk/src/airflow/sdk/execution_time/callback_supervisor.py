@@ -332,11 +332,11 @@ def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> No
     Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
 
     Resolves the stem from the mangled module name, constructs the file path from
-    bundle_path, then delegates to load_mangled_dag_module from airflow._shared.
+    bundle_path, then delegates to load_mangled_dag_module from airflow.sdk._shared.
     """
     from pathlib import Path
 
-    from airflow._shared.module_loading import load_mangled_dag_module
+    from airflow.sdk._shared.module_loading import load_mangled_dag_module
 
     mod_name = callback_path.split(".")[0]
     if mod_name in sys.modules:

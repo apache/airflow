@@ -269,7 +269,7 @@ class TestLoadMangledModule:
     def test_loads_real_file_under_mangled_name(self, tmp_path):
         import sys
 
-        from airflow._shared.module_loading import load_mangled_dag_module
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
 
         stem = "my_dag"
         mod_name = f"unusual_prefix_{'a' * 40}_{stem}"
@@ -283,7 +283,7 @@ class TestLoadMangledModule:
         sys.modules.pop(mod_name)
 
     def test_returns_false_when_file_missing(self, tmp_path):
-        from airflow._shared.module_loading import load_mangled_dag_module
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
 
         result = load_mangled_dag_module(
             "unusual_prefix_" + "b" * 40 + "_absent",
@@ -295,7 +295,7 @@ class TestLoadMangledModule:
     def test_returns_false_on_syntax_error(self, tmp_path):
         import sys
 
-        from airflow._shared.module_loading import load_mangled_dag_module
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
 
         stem = "bad_dag"
         mod_name = f"unusual_prefix_{'c' * 40}_{stem}"
