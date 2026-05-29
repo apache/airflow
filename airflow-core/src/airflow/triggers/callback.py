@@ -54,19 +54,16 @@ def _ensure_bundle_module_registered(callback_path: str) -> None:
     stem = parts[3]
 
     try:
-        import structlog
-
+        from airflow._shared.module_loading import load_mangled_dag_module
         from airflow.dag_processing.bundles.manager import DagBundlesManager
-        from airflow.sdk.execution_time.callback_supervisor import _load_mangled_module
 
-        _log = structlog.get_logger()
         for bundle in DagBundlesManager().get_all_dag_bundles():
             try:
                 bundle.initialize()
                 file_path = Path(bundle.path) / f"{stem}.py"
                 if not file_path.exists():
                     continue
-                if _load_mangled_module(mod_name, str(file_path), _log):
+                if load_mangled_dag_module(mod_name, str(file_path)):
                     return
             except Exception:
                 log.debug("Bundle %s did not contain module stem %s", bundle.name, stem)

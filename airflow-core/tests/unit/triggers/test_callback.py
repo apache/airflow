@@ -177,9 +177,7 @@ class TestEnsureBundleModuleRegistered:
         fake_bundle.name = "test-bundle"
         fake_bundle.path = tmp_path
 
-        with mock.patch(
-            "airflow.dag_processing.bundles.manager.DagBundlesManager"
-        ) as mock_mgr:
+        with mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_mgr:
             mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
             _ensure_bundle_module_registered(f"{mod_name}.my_func")
 
@@ -196,9 +194,7 @@ class TestEnsureBundleModuleRegistered:
         sentinel = mock.Mock()
         sys.modules[mod_name] = sentinel
         try:
-            with mock.patch(
-                "airflow.dag_processing.bundles.manager.DagBundlesManager"
-            ) as mock_mgr:
+            with mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_mgr:
                 _ensure_bundle_module_registered(f"{mod_name}.fn")
                 mock_mgr.assert_not_called()
         finally:
@@ -212,9 +208,7 @@ class TestEnsureBundleModuleRegistered:
         fake_bundle.name = "empty-bundle"
         fake_bundle.path = tmp_path  # stem file doesn't exist here
 
-        with mock.patch(
-            "airflow.dag_processing.bundles.manager.DagBundlesManager"
-        ) as mock_mgr:
+        with mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_mgr:
             mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
             # Should not raise
             _ensure_bundle_module_registered(f"{mod_name}.fn")

@@ -266,51 +266,45 @@ class TestCallbackHandleRequest:
 class TestLoadMangledModule:
     """Tests for _load_mangled_module."""
 
-    def test_loads_real_file_under_mangled_name(self, tmp_path, mocker):
+    def test_loads_real_file_under_mangled_name(self, tmp_path):
         import sys
 
-        from airflow.sdk.execution_time.callback_supervisor import _load_mangled_module
+        from airflow._shared.module_loading import load_mangled_dag_module
 
         stem = "my_dag"
         mod_name = f"unusual_prefix_{'a' * 40}_{stem}"
         (tmp_path / f"{stem}.py").write_text("def my_callback(): return 42\n")
 
-        log = mocker.Mock()
-        result = _load_mangled_module(mod_name, str(tmp_path / f"{stem}.py"), log)
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
 
         assert result is True
         assert mod_name in sys.modules
         assert sys.modules[mod_name].my_callback() == 42
         sys.modules.pop(mod_name)
 
-    def test_returns_false_when_file_missing(self, tmp_path, mocker):
-        from airflow.sdk.execution_time.callback_supervisor import _load_mangled_module
+    def test_returns_false_when_file_missing(self, tmp_path):
+        from airflow._shared.module_loading import load_mangled_dag_module
 
-        log = mocker.Mock()
-        result = _load_mangled_module(
+        result = load_mangled_dag_module(
             "unusual_prefix_" + "b" * 40 + "_absent",
             str(tmp_path / "absent.py"),
-            log,
         )
 
         assert result is False
-        log.warning.assert_called_once()
 
-    def test_returns_false_on_syntax_error(self, tmp_path, mocker):
+    def test_returns_false_on_syntax_error(self, tmp_path):
         import sys
 
-        from airflow.sdk.execution_time.callback_supervisor import _load_mangled_module
+        from airflow._shared.module_loading import load_mangled_dag_module
 
         stem = "bad_dag"
         mod_name = f"unusual_prefix_{'c' * 40}_{stem}"
         (tmp_path / f"{stem}.py").write_text("def broken(: pass\n")  # syntax error
 
-        log = mocker.Mock()
-        result = _load_mangled_module(mod_name, str(tmp_path / f"{stem}.py"), log)
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
 
         assert result is False
         assert mod_name not in sys.modules
-        log.warning.assert_called_once()
 
     def test_skips_registration_when_already_in_sys_modules(self, tmp_path, mocker):
         import sys
