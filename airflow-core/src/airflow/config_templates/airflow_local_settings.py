@@ -253,7 +253,7 @@ if REMOTE_LOGGING:
         log_name = urlsplit(remote_base_log_folder).path[1:]
         STACKDRIVER_REMOTE_HANDLERS = {
             "task": {
-                "class": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+                "class": "airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingTaskHandler",
                 "formatter": "airflow",
                 "gcp_log_name": log_name,
                 "gcp_key_path": key_path,

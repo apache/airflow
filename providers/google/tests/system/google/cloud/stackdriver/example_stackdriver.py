@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Stackdriver service.
+Example Airflow Dag for Google Cloud Monitoring service.
 """
 
 from __future__ import annotations
@@ -27,17 +27,17 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.stackdriver import (
-    StackdriverDeleteAlertOperator,
-    StackdriverDeleteNotificationChannelOperator,
-    StackdriverDisableAlertPoliciesOperator,
-    StackdriverDisableNotificationChannelsOperator,
-    StackdriverEnableAlertPoliciesOperator,
-    StackdriverEnableNotificationChannelsOperator,
-    StackdriverListAlertPoliciesOperator,
-    StackdriverListNotificationChannelsOperator,
-    StackdriverUpsertAlertOperator,
-    StackdriverUpsertNotificationChannelOperator,
+from airflow.providers.google.cloud.operators.monitoring import (
+    CloudMonitoringDeleteAlertOperator,
+    CloudMonitoringDeleteNotificationChannelOperator,
+    CloudMonitoringDisableAlertPoliciesOperator,
+    CloudMonitoringDisableNotificationChannelsOperator,
+    CloudMonitoringEnableAlertPoliciesOperator,
+    CloudMonitoringEnableNotificationChannelsOperator,
+    CloudMonitoringListAlertPoliciesOperator,
+    CloudMonitoringListNotificationChannelsOperator,
+    CloudMonitoringUpsertAlertOperator,
+    CloudMonitoringUpsertNotificationChannelOperator,
 )
 
 try:
@@ -50,7 +50,7 @@ from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-DAG_ID = "stackdriver"
+DAG_ID = "cloud_monitoring"
 
 ALERT_1_NAME = f"alert_{ENV_ID}_1"
 ALERT_2_NAME = f"alert_{ENV_ID}_2"
@@ -136,83 +136,83 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "stackdriver"],
+    tags=["example", "monitoring"],
 ) as dag:
-    # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
-    create_notification_channel = StackdriverUpsertNotificationChannelOperator(
+    # [START howto_operator_gcp_cloud_monitoring_upsert_notification_channel]
+    create_notification_channel = CloudMonitoringUpsertNotificationChannelOperator(
         task_id="create-notification-channel",
         channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
     )
-    # [END howto_operator_gcp_stackdriver_upsert_notification_channel]
+    # [END howto_operator_gcp_cloud_monitoring_upsert_notification_channel]
 
-    # [START howto_operator_gcp_stackdriver_enable_notification_channel]
-    enable_notification_channel = StackdriverEnableNotificationChannelsOperator(
+    # [START howto_operator_gcp_cloud_monitoring_enable_notification_channel]
+    enable_notification_channel = CloudMonitoringEnableNotificationChannelsOperator(
         task_id="enable-notification-channel", filter_='type="pubsub"'
     )
-    # [END howto_operator_gcp_stackdriver_enable_notification_channel]
+    # [END howto_operator_gcp_cloud_monitoring_enable_notification_channel]
 
-    # [START howto_operator_gcp_stackdriver_disable_notification_channel]
-    disable_notification_channel = StackdriverDisableNotificationChannelsOperator(
+    # [START howto_operator_gcp_cloud_monitoring_disable_notification_channel]
+    disable_notification_channel = CloudMonitoringDisableNotificationChannelsOperator(
         task_id="disable-notification-channel", filter_=f'displayName="{CHANNEL_1_NAME}"'
     )
-    # [END howto_operator_gcp_stackdriver_disable_notification_channel]
+    # [END howto_operator_gcp_cloud_monitoring_disable_notification_channel]
 
-    # [START howto_operator_gcp_stackdriver_list_notification_channel]
-    list_notification_channel = StackdriverListNotificationChannelsOperator(
+    # [START howto_operator_gcp_cloud_monitoring_list_notification_channel]
+    list_notification_channel = CloudMonitoringListNotificationChannelsOperator(
         task_id="list-notification-channel", filter_='type="pubsub"'
     )
-    # [END howto_operator_gcp_stackdriver_list_notification_channel]
+    # [END howto_operator_gcp_cloud_monitoring_list_notification_channel]
 
-    # [START howto_operator_gcp_stackdriver_upsert_alert_policy]
-    create_alert_policy = StackdriverUpsertAlertOperator(
+    # [START howto_operator_gcp_cloud_monitoring_upsert_alert_policy]
+    create_alert_policy = CloudMonitoringUpsertAlertOperator(
         task_id="create-alert-policies",
         alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
     )
-    # [END howto_operator_gcp_stackdriver_upsert_alert_policy]
+    # [END howto_operator_gcp_cloud_monitoring_upsert_alert_policy]
 
-    # [START howto_operator_gcp_stackdriver_enable_alert_policy]
-    enable_alert_policy = StackdriverEnableAlertPoliciesOperator(
+    # [START howto_operator_gcp_cloud_monitoring_enable_alert_policy]
+    enable_alert_policy = CloudMonitoringEnableAlertPoliciesOperator(
         task_id="enable-alert-policies",
         filter_=f'(displayName="{ALERT_1_NAME}" OR displayName="{ALERT_2_NAME}")',
     )
-    # [END howto_operator_gcp_stackdriver_enable_alert_policy]
+    # [END howto_operator_gcp_cloud_monitoring_enable_alert_policy]
 
-    # [START howto_operator_gcp_stackdriver_disable_alert_policy]
-    disable_alert_policy = StackdriverDisableAlertPoliciesOperator(
+    # [START howto_operator_gcp_cloud_monitoring_disable_alert_policy]
+    disable_alert_policy = CloudMonitoringDisableAlertPoliciesOperator(
         task_id="disable-alert-policies",
         filter_=f'displayName="{ALERT_1_NAME}"',
     )
-    # [END howto_operator_gcp_stackdriver_disable_alert_policy]
+    # [END howto_operator_gcp_cloud_monitoring_disable_alert_policy]
 
-    # [START howto_operator_gcp_stackdriver_list_alert_policy]
-    list_alert_policies = StackdriverListAlertPoliciesOperator(
+    # [START howto_operator_gcp_cloud_monitoring_list_alert_policy]
+    list_alert_policies = CloudMonitoringListAlertPoliciesOperator(
         task_id="list-alert-policies",
     )
-    # [END howto_operator_gcp_stackdriver_list_alert_policy]
+    # [END howto_operator_gcp_cloud_monitoring_list_alert_policy]
 
-    # [START howto_operator_gcp_stackdriver_delete_notification_channel]
-    delete_notification_channel = StackdriverDeleteNotificationChannelOperator(
+    # [START howto_operator_gcp_cloud_monitoring_delete_notification_channel]
+    delete_notification_channel = CloudMonitoringDeleteNotificationChannelOperator(
         task_id="delete-notification-channel",
         name="{{ task_instance.xcom_pull('list-notification-channel')[0]['name'] }}",
     )
-    # [END howto_operator_gcp_stackdriver_delete_notification_channel]
+    # [END howto_operator_gcp_cloud_monitoring_delete_notification_channel]
     delete_notification_channel.trigger_rule = TriggerRule.ALL_DONE
 
-    delete_notification_channel_2 = StackdriverDeleteNotificationChannelOperator(
+    delete_notification_channel_2 = CloudMonitoringDeleteNotificationChannelOperator(
         task_id="delete-notification-channel-2",
         name="{{ task_instance.xcom_pull('list-notification-channel')[1]['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    # [START howto_operator_gcp_stackdriver_delete_alert_policy]
-    delete_alert_policy = StackdriverDeleteAlertOperator(
+    # [START howto_operator_gcp_cloud_monitoring_delete_alert_policy]
+    delete_alert_policy = CloudMonitoringDeleteAlertOperator(
         task_id="delete-alert-policy",
         name="{{ task_instance.xcom_pull('list-alert-policies')[0]['name'] }}",
     )
-    # [END howto_operator_gcp_stackdriver_delete_alert_policy]
+    # [END howto_operator_gcp_cloud_monitoring_delete_alert_policy]
     delete_alert_policy.trigger_rule = TriggerRule.ALL_DONE
 
-    delete_alert_policy_2 = StackdriverDeleteAlertOperator(
+    delete_alert_policy_2 = CloudMonitoringDeleteAlertOperator(
         task_id="delete-alert-policy-2",
         name="{{ task_instance.xcom_pull('list-alert-policies')[1]['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,

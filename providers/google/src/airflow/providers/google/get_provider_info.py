@@ -199,8 +199,8 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Cloud Stackdriver",
-                "external-doc-url": "https://cloud.google.com/products/operations/",
+                "integration-name": "Google Cloud Monitoring",
+                "external-doc-url": "https://cloud.google.com/monitoring/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/stackdriver.rst"],
                 "logo": "/docs/integration-logos/Google-Cloud-Stackdriver.png",
                 "tags": ["gcp"],
@@ -596,8 +596,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.speech_to_text"],
             },
             {
-                "integration-name": "Google Cloud Stackdriver",
-                "python-modules": ["airflow.providers.google.cloud.operators.stackdriver"],
+                "integration-name": "Google Cloud Monitoring",
+                "python-modules": [
+                    "airflow.providers.google.cloud.operators.monitoring",
+                    "airflow.providers.google.cloud.operators.stackdriver",
+                ],
             },
             {
                 "integration-name": "Google Cloud Tasks",
@@ -954,8 +957,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.speech_to_text"],
             },
             {
-                "integration-name": "Google Cloud Stackdriver",
-                "python-modules": ["airflow.providers.google.cloud.hooks.stackdriver"],
+                "integration-name": "Google Cloud Monitoring",
+                "python-modules": [
+                    "airflow.providers.google.cloud.hooks.monitoring",
+                    "airflow.providers.google.cloud.hooks.stackdriver",
+                ],
             },
             {
                 "integration-name": "Google Cloud Tasks",
@@ -1634,8 +1640,8 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.bigtable.BigtableTablesLink",
             "airflow.providers.google.cloud.links.spanner.SpannerDatabaseLink",
             "airflow.providers.google.cloud.links.spanner.SpannerInstanceLink",
-            "airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink",
-            "airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink",
+            "airflow.providers.google.cloud.links.monitoring.CloudMonitoringNotificationsLink",
+            "airflow.providers.google.cloud.links.monitoring.CloudMonitoringPoliciesLink",
             "airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink",
             "airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink",
             "airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink",
@@ -1693,7 +1699,7 @@ def get_provider_info():
         "auth-backends": ["airflow.providers.google.common.auth_backend.google_openid"],
         "logging": [
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
-            "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+            "airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingTaskHandler",
         ],
         "queues": [
             "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"

@@ -233,7 +233,6 @@ providers/google/src/airflow/providers/google/cloud/hooks/looker.py::8
 providers/google/src/airflow/providers/google/cloud/hooks/managed_kafka.py::1
 providers/google/src/airflow/providers/google/cloud/hooks/mlengine.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/spanner.py::5
-providers/google/src/airflow/providers/google/cloud/hooks/stackdriver.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/tasks.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/translate.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/auto_ml.py::3
