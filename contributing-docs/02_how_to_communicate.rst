@@ -26,6 +26,11 @@ This means that communication plays a big role in it, and this chapter is all ab
 
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
+When repeated Code of Conduct breaches, spamming of project channels, or other sustained disruptive
+behaviour cannot be resolved through normal review and mentoring, the project applies the
+`Community escalation process <../COMMUNITY_ESCALATION.md>`_. Affected contributors can appeal
+any decision taken under that process by emailing the PMC at ``private@airflow.apache.org``.
+
 .. contents:: Table of Contents
    :depth: 2
    :local:
