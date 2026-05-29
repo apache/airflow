@@ -437,7 +437,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, dag_maker, create_task_instance, session):
+    def test_ti_updates_with_task(self, dag_maker, create_task_instance, *, session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -1410,6 +1410,7 @@ class TestTaskInstance:
         downstream_ti_state,
         expected_are_dependents_done,
         dag_maker,
+        *,
         session,
     ):
         with dag_maker():
@@ -1504,7 +1505,7 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.try_number == 0
 
     @provide_session
-    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, *, session):
         """Test that external_executor_id can store values exceeding 250 characters."""
         # Kubernetes pod names and other executor IDs can exceed 250 chars
         long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
@@ -2314,7 +2315,7 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, session):
+    def test_handle_failure_calls_listener(self, dag_maker, *, session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 

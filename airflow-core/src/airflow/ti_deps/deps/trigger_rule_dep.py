@@ -276,7 +276,7 @@ class TriggerRuleDep(BaseTIDep):
             indirect_setups = {k: v for k, v in relevant_setups.items() if k not in task.upstream_task_ids}
             finished_upstream_tis = (
                 x
-                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session=session), session=session)
                 if _is_relevant_upstream(upstream=x, relevant_ids=indirect_setups.keys())
             )
             upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
@@ -331,7 +331,7 @@ class TriggerRuleDep(BaseTIDep):
                             changed,
                         )
                         return
-                changed = ti.set_state(new_state, session)
+                changed = ti.set_state(new_state, session=session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
@@ -359,7 +359,9 @@ class TriggerRuleDep(BaseTIDep):
 
             finished_upstream_tis = (
                 finished_ti
-                for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+                for finished_ti in dep_context.ensure_finished_tis(
+                    ti.get_dagrun(session=session), session=session
+                )
                 if _is_relevant_upstream(upstream=finished_ti, relevant_ids=task.upstream_task_ids)
             )
             upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
@@ -464,7 +466,7 @@ class TriggerRuleDep(BaseTIDep):
                             reason="Task should be skipped but the past depends are not met"
                         )
                         return
-                changed = ti.set_state(new_state, session)
+                changed = ti.set_state(new_state, session=session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
@@ -651,7 +653,7 @@ class TriggerRuleDep(BaseTIDep):
 
             done = sum(
                 1
-                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session=session), session=session)
                 if _is_relevant_upstream(upstream=x, relevant_ids=in_scope_ids)
             )
 

@@ -490,7 +490,7 @@ DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
 
 @provide_session
-def _fetch_from_db(model_reference: Mapped, session=None, **conditions) -> datetime | None:
+def _fetch_from_db(model_reference: Mapped, *, session=None, **conditions) -> datetime | None:
     """
     Fetch a datetime value from the database using the provided model reference and filtering conditions.
 
