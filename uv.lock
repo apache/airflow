@@ -8500,7 +8500,6 @@ dependencies = [
     { name = "importlib-metadata" },
     { name = "jsonschema" },
     { name = "methodtools" },
-    { name = "more-itertools", marker = "python_full_version < '3.12'" },
     { name = "packaging" },
     { name = "pendulum" },
     { name = "pygtrie" },
@@ -8522,7 +8521,6 @@ requires-dist = [
     { name = "importlib-metadata", marker = "python_full_version >= '3.12'", specifier = ">=7.0" },
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "methodtools", specifier = ">=0.4.7" },
-    { name = "more-itertools", marker = "python_full_version < '3.12'", specifier = ">=9.0.0" },
     { name = "packaging", specifier = ">=25.0" },
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
@@ -8690,6 +8688,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "jsonschema" },
     { name = "methodtools" },
+    { name = "more-itertools", marker = "python_full_version < '3.12'" },
     { name = "msgspec" },
     { name = "opentelemetry-api" },
     { name = "packaging" },
@@ -8766,6 +8765,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "methodtools", specifier = ">=0.4.7" },
+    { name = "more-itertools", marker = "python_full_version < '3.12'", specifier = ">=9.0.0" },
     { name = "msgspec", specifier = ">=0.19.0" },
     { name = "opentelemetry-api", specifier = ">=1.27.0" },
     { name = "opentelemetry-api", marker = "extra == 'all'", specifier = ">=1.27.0" },
@@ -21170,8 +21170,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+     { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+     { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
