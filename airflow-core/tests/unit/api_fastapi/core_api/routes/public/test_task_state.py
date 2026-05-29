@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import json
-
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.datamodels.task_state import TaskStatePatchBody
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -279,16 +279,10 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         self._session.commit()
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
 
-    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
-    def test_patch_non_finite_float_returns_422(self, test_client, bad_float):
-        _create_task_state(self._session, "job_id", "v", self.dag_run)
-        self._session.commit()
-        with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
-            test_client.patch(
-                f"{BASE_URL}/job_id",
-                content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
-                headers={"Content-Type": "application/json"},
-            )
+    @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
+    def test_patch_non_finite_float_rejected_by_validator(self, bad_value):
+        with pytest.raises(ValidationError, match="non-finite"):
+            TaskStatePatchBody(value=bad_value)
 
     @pytest.mark.parametrize(
         ("value", "expected_db"),
