@@ -60,7 +60,43 @@ if TYPE_CHECKING:
 
 
 class IterableOperator(BaseOperator):
-    """Object representing an iterable operator in a DAG."""
+    """
+    Operator used for Dynamic Task Iteration (DTI) that runs a mapped operator over an iterable input.
+
+    The IterableOperator wraps a :class:`MappedOperator` together with an
+    :class:`ExpandInput` and is responsible for creating and running the
+    per-index runtime task instances. The IterableOperator itself is a
+    lightweight, non-retrying wrapper — retries, timeouts and deferred
+    execution are handled by the individual indexed task instances that the
+    IterableOperator creates for each element produced by the
+    ``expand_input``.
+
+    The IterableOperator executes the mapped operator instances using a
+    concurrent executor with a configurable number of workers. By default
+    the worker count is taken from the mapped operator's ``partial_kwargs``
+    (``task_concurrency``) if present, otherwise falls back to
+    ``os.cpu_count()`` and finally to ``1``.
+
+    :param operator: The :class:`MappedOperator` to unmap and execute for
+        each element of ``expand_input``. Each indexed runtime receives a
+        deep copy/unmapped instance of this operator.
+    :type operator: MappedOperator
+    :param expand_input: Provider of the values (or partitions) to iterate
+        over. Its ``iter_values(context)`` method is used to produce the
+        per-index ``mapped_kwargs`` used to unmap the operator.
+    :type expand_input: ExpandInput
+    :param kwargs: Additional keyword arguments forwarded to
+        :class:`BaseOperator` when instantiating the IterableOperator
+        (e.g. ``dag``, ``start_date``). Note that the IterableOperator
+        overrides retry-related parameters because retries are managed by
+        the per-index tasks.
+
+    Returns
+    -------
+    XComIterable | None
+        When executed, the IterableOperator returns an :class:`XComIterable`
+        if the mapped operator pushes XComs, otherwise ``None``.
+    """
 
     _operator: MappedOperator
     expand_input: ExpandInput
@@ -87,7 +123,7 @@ class IterableOperator(BaseOperator):
                 "email": operator.email,
                 "email_on_retry": operator.email_on_retry,
                 "email_on_failure": operator.email_on_failure,
-                "retries": 0,  # We should not retry the IterableOperator, only the mapped ti's should be retried
+                "retries": 0,  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
                 "retry_delay": operator.retry_delay,
                 "retry_exponential_backoff": operator.retry_exponential_backoff,
                 "max_retry_delay": operator.max_retry_delay,
@@ -333,7 +369,7 @@ class IterableOperator(BaseOperator):
         with TaskExecutor(task_instance=task_instance) as executor:
             return executor.run(
                 context={
-                    **dict(context),
+                    **self._clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
@@ -345,13 +381,25 @@ class IterableOperator(BaseOperator):
         async with TaskExecutor(task_instance=task_instance) as executor:
             return await executor.arun(
                 context={
-                    **dict(context),
+                    **self._clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
                     },
                 }
             )
+
+    @classmethod
+    def _clone_context(cls, context: Context) -> Context:
+        # We need to clone the context for each task to avoid concurrency issues with mutable objects in the context.
+        cloned_context: Context = copy.copy(context)
+        cloned_context["params"] = copy.deepcopy(context["params"])
+        cloned_context["inlets"] = list(context["inlets"])
+        cloned_context["outlets"] = list(context["outlets"])
+        cloned_context["templates_dict"] = copy.deepcopy(context["templates_dict"])
+        cloned_context["outlet_events"] = copy.deepcopy(context["outlet_events"])
+        cloned_context["dag_run"] = copy.deepcopy(context["dag_run"])
+        return cloned_context
 
     def _create_task(
         self,
