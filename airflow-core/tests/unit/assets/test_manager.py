@@ -293,10 +293,13 @@ class TestAssetManager:
 
         expected_fp = compute_rollup_fingerprint(core_rollup_schedule)
 
-        # Produce an asset event to trigger APDR creation.
+        # Produce an asset event to trigger APDR creation. The producer is a
+        # partition-at-runtime Dag so its run can carry a ``partition_key`` that
+        # the emitted ``AssetEvent`` inherits.
         from airflow.models.taskinstance import TaskInstance
+        from airflow.sdk import PartitionAtRuntime
 
-        with dag_maker(dag_id="stamp-producer", schedule=None, session=session) as producer_dag:
+        with dag_maker(dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session) as producer_dag:
             from airflow.providers.standard.operators.empty import EmptyOperator
 
             EmptyOperator(task_id="hi", outlets=[asset_1])

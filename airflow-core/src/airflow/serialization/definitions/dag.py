@@ -33,7 +33,7 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
+from airflow.exceptions import AirflowException, DagNotPartitionedError, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -585,6 +585,15 @@ class SerializedDAG:
                     f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
                     f"is reserved for {inferred_run_type.value} runs"
                 )
+
+        if (
+            partition_key is not None
+            and not self.timetable.partitioned
+            and not self.timetable.partitioned_at_runtime
+        ):
+            raise DagNotPartitionedError(
+                f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
         copied_params = self.params.deep_merge(conf)

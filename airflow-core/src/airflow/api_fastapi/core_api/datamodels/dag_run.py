@@ -27,6 +27,7 @@ from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_vali
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.exceptions import DagNotPartitionedError
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -171,6 +172,14 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
+        if (
+            self.partition_key is not None
+            and not dag.timetable.partitioned
+            and not dag.timetable.partitioned_at_runtime
+        ):
+            raise DagNotPartitionedError(
+                f"Dag '{dag.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None
