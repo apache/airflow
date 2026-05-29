@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-27T04:35:06.778356
+# This constraints file was automatically generated on 2026-05-29T15:13:12.651487
 # via `uv pip install --resolution highest` for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.30.1
+PyAthena==3.31.0
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -56,7 +56,7 @@ PyNaCl==1.6.2
 PyYAML==6.0.3
 Pygments==2.20.0
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.49
+SQLAlchemy==2.0.50
 SecretStorage==3.5.0
 WTForms==3.2.2
 Werkzeug==3.1.8
@@ -94,7 +94,7 @@ amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
-apache-airflow-providers-airbyte==5.4.2
+apache-airflow-providers-airbyte==5.5.0
 apache-airflow-providers-alibaba==3.3.8
 apache-airflow-providers-amazon==9.29.0
 apache-airflow-providers-apache-cassandra==3.9.4
@@ -127,7 +127,7 @@ apache-airflow-providers-common-messaging==2.0.3
 apache-airflow-providers-common-sql==2.0.0
 apache-airflow-providers-databricks==7.15.0
 apache-airflow-providers-datadog==3.10.4
-apache-airflow-providers-dbt-cloud==4.8.2
+apache-airflow-providers-dbt-cloud==4.9.0
 apache-airflow-providers-dingding==3.9.4
 apache-airflow-providers-discord==3.12.3
 apache-airflow-providers-docker==4.5.6
@@ -285,7 +285,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.18.0
 durationpy==0.10
-elastic-transport==9.4.0
+elastic-transport==9.4.1
 elasticsearch==9.4.0
 email-validator==2.3.0
 entrypoints==0.4
@@ -294,7 +294,7 @@ eventlet==0.41.0
 executing==2.2.1
 facebook_business==25.0.1
 fastapi-cli==0.0.24
-fastapi==0.136.1
+fastapi==0.136.3
 fastavro==1.12.2
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -525,11 +525,11 @@ pendulum==3.2.0
 pexpect==4.9.0
 pgvector==0.4.2
 pinecone==9.0.1
-pinotdb==5.7.0
+pinotdb==9.1.2
 platformdirs==4.9.6
 pluggy==1.6.0
-polars-runtime-32==1.41.0
-polars==1.41.0
+polars-runtime-32==1.40.1
+polars==1.40.1
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -632,7 +632,7 @@ snowflake-connector-python==4.5.0
 snowflake-snowpark-python==1.51.0
 snowflake-sqlalchemy==1.10.0
 sortedcontainers==2.4.0
-soupsieve==2.8.3
+soupsieve==2.8.4
 spython==0.3.14
 sqlalchemy-bigquery==1.17.0
 sqlalchemy-spanner==1.18.0
@@ -677,7 +677,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.16
-uvicorn==0.47.0
+uvicorn==0.48.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0

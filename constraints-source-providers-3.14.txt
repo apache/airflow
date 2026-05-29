@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-27T04:31:42.775919
+# This constraints file was automatically generated on 2026-05-29T15:15:00.015009
 # via `uv sync --resolution highest for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -27,7 +27,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.30.1
+PyAthena==3.31.0
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -150,7 +150,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.1
 cloudpickle==3.1.2
-cohere==5.21.1
+cohere==7.0.0
 colorama==0.4.6
 colorlog==6.10.1
 comm==0.2.3
@@ -196,7 +196,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==25.0.1
 fastapi-cli==0.0.24
-fastapi==0.136.1
+fastapi==0.136.3
 fastavro==1.12.2
 fastjsonschema==2.21.2
 fastmcp-slim==3.3.1
@@ -307,8 +307,8 @@ hvac==2.4.0
 hyperframe==6.1.0
 hyperlink==21.0.0
 ibm-cloud-sdk-core==3.24.4
-ibmcloudant==0.11.6
-icalendar==7.1.1
+ibmcloudant==0.11.7
+icalendar==7.1.2
 icdiff==2.0.10
 id==1.6.1
 identify==2.6.19
@@ -336,7 +336,7 @@ jeepney==0.9.0
 jiter==0.15.0
 jmespath==0.10.0
 joblib==1.5.3
-joserfc==1.6.5
+joserfc==1.6.7
 jpype1==1.7.1
 jsonpatch==1.33
 jsonpath-ng==1.8.0
@@ -386,7 +386,7 @@ microsoft-kiota-serialization-json==1.10.1
 microsoft-kiota-serialization-text==1.10.1
 mistune==3.2.1
 mmh3==5.2.1
-more-itertools==11.0.2
+more-itertools==11.1.0
 moto==5.2.1
 mpmath==1.3.0
 msal-extensions==1.3.1
@@ -402,7 +402,7 @@ multidict==6.7.1
 mypy-boto3-appflow==1.43.0
 mypy-boto3-rds==1.43.0
 mypy-boto3-redshift-data==1.43.0
-mypy-boto3-s3==1.43.5
+mypy-boto3-s3==1.43.14
 mypy==2.1.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.6.0
@@ -497,9 +497,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.101.0
+pydantic-ai-slim==1.102.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.101.0
+pydantic-graph==1.102.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -660,7 +660,7 @@ towncrier==25.8.0
 tqdm==4.67.3
 traitlets==5.15.0
 trino==0.337.0
-trove-classifiers==2026.5.20.19
+trove-classifiers==2026.5.22.10
 twine==6.2.0
 typer==0.25.1
 types-Deprecated==1.3.1.20260520
@@ -711,7 +711,7 @@ websocket-client==1.8.0
 websockets==16.0
 wheel==0.47.0
 wirerope==1.0.0
-wrapt==2.2.0
+wrapt==2.2.1
 xmltodict==1.0.4
 yamllint==1.38.0
 yandex-query-client==0.1.4
