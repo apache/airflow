@@ -46,10 +46,10 @@ object Frame {
   fun decode(bytes: ByteArray): IncomingFrame {
     val unpacker = MessagePack.newDefaultUnpacker(bytes)
     val headerSize = unpacker.unpackArrayHeader()
-    check(headerSize >= 2) { "Unexpected Task SDK frame arity $headerSize" }
+    check(headerSize >= 1) { "Unexpected Task SDK frame arity $headerSize" }
 
     val id = unpacker.unpackInt()
-    val rawBody = unpacker.unpackAny()
+    val rawBody = if (headerSize >= 2) unpacker.unpackAny() else null
     val rawError = if (headerSize >= 3) unpacker.unpackAny() else null
     unpacker.close()
 

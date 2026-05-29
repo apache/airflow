@@ -44,13 +44,16 @@ def python_task_2(transformed):
 
 @dag(dag_id="java_interface_example")
 def java_interface_example():
-    python_task_1() >> extract() >> transform() >> python_task_2()
+    transformed = transform()
+    python_task_1() >> extract() >> transformed
+    python_task_2(transformed)
 
 
 @dag(dag_id="java_annotation_example")
 def java_annotation_example():
     transformed = transform()
-    python_task_1() >> extract() >> transformed >> python_task_2()
+    python_task_1() >> extract() >> transformed
+    python_task_2(transformed)
 
 
 java_interface_example()

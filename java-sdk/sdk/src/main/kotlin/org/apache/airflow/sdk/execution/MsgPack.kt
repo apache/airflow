@@ -33,6 +33,7 @@ import org.msgpack.core.MessagePacker
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.jackson.dataformat.MessagePackExtensionType
 import org.msgpack.value.ArrayValue
+import org.msgpack.value.ExtensionValue
 import org.msgpack.value.MapValue
 import org.msgpack.value.Value
 import org.msgpack.value.ValueType
@@ -88,19 +89,29 @@ private fun MapValue.decodeMap(): Map<*, *> =
     entrySet().forEach { (k, v) -> it[k.asStringValue().asString()] = v.decode() }
   }
 
+private fun ExtensionValue.decodeExtensionValue(): Any? =
+  when (type) {
+    TimestampToJavaOffsetDateTimeModule.EXT_TYPE -> {
+      MessagePack
+        .newDefaultUnpacker(data)
+        .unpackTimestamp(ExtensionTypeHeader(type, data.size))
+        .atOffset(ZoneOffset.UTC)
+    }
+    else -> throw IllegalArgumentException("Unsupported extension type: $this")
+  }
+
 private fun Value.decode(): Any? =
   when (valueType) {
     ValueType.NIL -> null
     ValueType.BOOLEAN -> asBooleanValue().boolean
-    ValueType.INTEGER ->
-      with(asIntegerValue()) {
-        if (isInLongRange) asLong() else asBigInteger()
-      }
+    ValueType.INTEGER -> with(asIntegerValue()) { if (isInLongRange) asLong() else asBigInteger() }
     ValueType.FLOAT -> asFloatValue().toDouble()
     ValueType.STRING -> asStringValue().asString()
     ValueType.BINARY -> asBinaryValue().asByteArray()
     ValueType.ARRAY -> asArrayValue().decodeArray()
     ValueType.MAP -> asMapValue().decodeMap()
+    ValueType.EXTENSION -> asExtensionValue().decodeExtensionValue()
+
     else -> throw IllegalArgumentException("Unsupported data type: $this")
   }
 
