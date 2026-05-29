@@ -1070,6 +1070,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1283,6 +1284,7 @@ pythonic
 PythonOperator
 pythonpath
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
