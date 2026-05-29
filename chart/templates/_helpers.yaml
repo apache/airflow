@@ -1154,3 +1154,54 @@ Usage:
   {{- end -}}
   {{- toYaml $newValues -}}
 {{- end -}}
+
+
+{{/*
+serviceAccountTokenVolume mount
+
+Usage:
+  {{ include "serviceAccountTokenVolumeMount" (list . .Values.scheduler.serviceAccount) }}
+*/}}
+{{- define "serviceAccountTokenVolumeMount" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  mountPath: {{ $sa.serviceAccountTokenVolume.mountPath }}
+  readOnly: true
+  {{- end }}
+{{- end -}}
+
+{{/*
+serviceAccountTokenVolume
+
+Usage:
+  {{ include "serviceAccountTokenVolume" (list . .Values.scheduler.serviceAccount) }}
+*/}}
+{{- define "serviceAccountTokenVolume" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  projected:
+    defaultMode: 420
+    sources:
+    - serviceAccountToken:
+        {{- if $sa.serviceAccountTokenVolume.audience }}
+        audience: {{ $sa.serviceAccountTokenVolume.audience }}
+        {{- end }}
+        expirationSeconds: {{ $sa.serviceAccountTokenVolume.expirationSeconds }}
+        path: token
+    - configMap:
+        items:
+        - key: ca.crt
+          path: ca.crt
+        name: kube-root-ca.crt
+    - downwardAPI:
+        items:
+        - fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+          path: namespace
+  {{- end }}
+{{- end -}}
