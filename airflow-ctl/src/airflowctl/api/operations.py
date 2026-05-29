@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -59,6 +60,7 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
+    PatchTaskInstanceBody,
     PluginCollectionResponse,
     PluginImportErrorCollectionResponse,
     PoolBody,
@@ -68,6 +70,12 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
+    TaskDependencyCollectionResponse,
+    TaskInstanceCollectionResponse,
+    TaskInstanceHistoryCollectionResponse,
+    TaskInstanceResponse,
+    TaskResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -923,5 +931,124 @@ class PluginsOperations(BaseOperations):
         try:
             self.response = self.client.get("plugins/importErrors")
             return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def get(self, dag_id: str, task_id: str) -> TaskResponse | ServerResponseError:
+        """Get a task."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/tasks/{task_id}")
+            return TaskResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self, dag_id: str) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a DAG."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/tasks")
+            return TaskCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task Instances operations."""
+
+    def get(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance."""
+        try:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+            if map_index is not None:
+                path = f"{path}/{map_index}"
+            self.response = self.client.get(path)
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(
+        self, dag_id: str, dag_run_id: str, limit: int = 50, offset: int = 0
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a DAG run."""
+        params = {"limit": limit, "offset": offset}
+        try:
+            self.response = self.client.get(
+                f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances", params=params
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_dependencies(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskDependencyCollectionResponse | ServerResponseError:
+        """Get dependencies blocking a task instance from being scheduled."""
+        try:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies"
+            if map_index is not None:
+                path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies"
+            self.response = self.client.get(path)
+            return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_tries(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskInstanceHistoryCollectionResponse | ServerResponseError:
+        """Get task instance history (tries) for a task instance."""
+        try:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries"
+            if map_index is not None:
+                path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries"
+            self.response = self.client.get(path)
+            return TaskInstanceHistoryCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def patch(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        body: PatchTaskInstanceBody,
+        map_index: int | None = None,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Update a task instance state or note."""
+        try:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+            if map_index is not None:
+                path = f"{path}/{map_index}"
+            self.response = self.client.patch(
+                path, json=body.model_dump(mode="json", exclude_none=True)
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def clear(
+        self, dag_id: str, body: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=body.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1
+    ) -> None | ServerResponseError:
+        """Delete a task instance."""
+        try:
+            self.client.delete(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}")
+            return None
         except ServerResponseError as e:
             raise e
