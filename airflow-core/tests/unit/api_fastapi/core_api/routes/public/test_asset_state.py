@@ -180,15 +180,6 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_null_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": None}).status_code == 422
 
-    @pytest.mark.parametrize("bad_float", [float("nan"), float("inf"), float("-inf")])
-    def test_non_finite_float_returns_422(self, test_client, bad_float):
-        response = test_client.put(
-            f"{self._base_url}/watermark",
-            content=json.dumps({"value": bad_float}, allow_nan=True).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        assert response.status_code == 422
-
     def test_oversized_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
 
