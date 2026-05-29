@@ -26,6 +26,7 @@ import pathlib
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import time
 import zipfile
@@ -62,10 +63,36 @@ def _start_server() -> socket.socket:
 
 
 def _find_jars(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
+    """
+    Yield JAR files under *items*, descending into directories.
+
+    A symlink loop or a directory that hardlinks into one of its ancestors
+    would otherwise recurse until the interpreter stack is exhausted, so
+    directories are deduplicated by ``(st_dev, st_ino)`` for the duration
+    of a single scan.
+    """
+    seen_dirs: set[tuple[int, int]] = set()
+    yield from _walk_jars(items, seen_dirs)
+
+
+def _walk_jars(items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]) -> Iterator[pathlib.Path]:
     for item in items:
-        if item.is_dir():
-            yield from _find_jars(item.iterdir())
-        elif item.is_file() and item.suffix == ".jar":
+        try:
+            st = item.stat()
+        except OSError:
+            continue
+        if stat.S_ISDIR(st.st_mode):
+            key = (st.st_dev, st.st_ino)
+            if key in seen_dirs:
+                log.debug("Skipping already-visited directory", path=str(item))
+                continue
+            seen_dirs.add(key)
+            try:
+                children = list(item.iterdir())
+            except OSError:
+                continue
+            yield from _walk_jars(children, seen_dirs)
+        elif stat.S_ISREG(st.st_mode) and item.suffix == ".jar":
             yield item
 
 
