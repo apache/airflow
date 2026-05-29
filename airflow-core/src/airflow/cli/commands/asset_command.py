@@ -129,8 +129,8 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     """
     Materialize the specified asset.
 
-    This is done by finding the DAG with the asset defined as outlet, and create
-    a run for that DAG.
+    This is done by finding the Dag with the asset defined as outlet, and create
+    a run for that Dag.
     """
     if not args.name and not args.uri:
         raise SystemExit("Either --name or --uri is required")
@@ -149,7 +149,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     if (dag_id := next(dag_id_it, None)) is None:
         raise SystemExit(f"Asset with {select_message} does not exist.")
     if next(dag_id_it, None) is not None:
-        raise SystemExit(f"More than one DAG materializes asset with {select_message}.")
+        raise SystemExit(f"More than one Dag materializes asset with {select_message}.")
 
     try:
         user = getuser()

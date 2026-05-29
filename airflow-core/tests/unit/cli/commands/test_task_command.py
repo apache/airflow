@@ -143,7 +143,7 @@ class TestCliTasks:
     def test_task_render_with_custom_timetable(self, mock_fetch_dag_run_from_run_id_or_logical_date_string):
         """
         Test that the `tasks render` CLI command queries the database correctly
-        for a DAG with a custom timetable. Verifies that a query is executed to
+        for a Dag with a custom timetable. Verifies that a query is executed to
         fetch the appropriate DagRun and that the database interaction occurs as expected.
         """
         mock_fetch_dag_run_from_run_id_or_logical_date_string.return_value = (None, None)

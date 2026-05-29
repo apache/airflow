@@ -69,7 +69,7 @@ if pendulum.__version__.startswith("3"):
 else:
     DEFAULT_DATE_REPR = DEFAULT_DATE.isoformat()
 
-# TODO: Check if tests needs side effects - locally there's missing DAG
+# TODO: Check if tests needs side effects - locally there's missing Dag
 
 pytestmark = pytest.mark.db_test
 
@@ -292,7 +292,7 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        # Check if DAG Details field are present
+        # Check if Dag Details field are present
         for field in dag_command.DAG_DETAIL_FIELDS:
             assert field in out
 
@@ -532,21 +532,21 @@ class TestCliDags:
         with stdout_capture as temp_stdout:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No unpaused DAGs were found"
+        assert out == "No unpaused Dags were found"
 
     def test_unpause_non_existing_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
         with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No paused DAGs were found"
+        assert out == "No paused Dags were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
         with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No paused DAGs were found"
+        assert out == "No paused Dags were found"
 
     def test_pausing_already_paused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--yes"])
@@ -554,7 +554,7 @@ class TestCliDags:
             dag_command.dag_pause(args)
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No unpaused DAGs were found"
+        assert out == "No unpaused Dags were found"
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
@@ -715,7 +715,7 @@ class TestCliDags:
             )
 
     def test_dag_delete_when_backfill_and_dagrun_exist(self):
-        # Test to check that the DAG should be deleted even if
+        # Test to check that the Dag should be deleted even if
         # there are backfill records associated with it.
         from airflow.models.backfill import Backfill
 
@@ -745,7 +745,7 @@ class TestCliDags:
             )
 
     def test_delete_dag_existing_file(self, tmp_path):
-        # Test to check that the DAG should be deleted even if
+        # Test to check that the Dag should be deleted even if
         # the file containing it is not deleted
         path = tmp_path / "testfile"
         DM = DagModel
@@ -876,7 +876,7 @@ class TestCliDags:
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
-        """Test that DAG can be tested using bundle name."""
+        """Test that Dag can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
         )
@@ -903,7 +903,7 @@ class TestCliDags:
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
-        """Test that DAG can be tested using dagfile path."""
+        """Test that Dag can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
         )
@@ -924,7 +924,7 @@ class TestCliDags:
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
-        """Test that DAG can be tested using both bundle name and dagfile path."""
+        """Test that Dag can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
         )
@@ -985,7 +985,7 @@ class TestCliDags:
             )
             dag_command.dag_test(cli_args)
 
-        # if dag_parsing_context is not set, this DAG will only have 1 task
+        # if dag_parsing_context is not set, this Dag will only have 1 task
         assert len(mock_get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
 
     def test_dag_test_run_inline_trigger(self, dag_maker):
@@ -1065,14 +1065,14 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
-        """Test that example DAGs are excluded when bundle names are passed."""
+        """Test that example Dags are excluded when bundle names are passed."""
         try:
             from airflow.utils.cli import get_bagged_dag
         except ImportError:  # Prior to Airflow 3.1.0.
             from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
-            # example DAG should not be found since include_examples=False
+            # example Dag should not be found since include_examples=False
             with pytest.raises(AirflowException, match="could not be found"):
                 get_bagged_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
 
