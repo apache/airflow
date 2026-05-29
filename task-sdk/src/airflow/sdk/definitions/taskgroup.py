@@ -571,7 +571,9 @@ class TaskGroup(DAGNode):
                 if any(d > i for d in deps):
                     nodes_with_back_edge += 1
 
-        if nodes_with_back_edge * 2 > n:
+        # The ratio catches dense back-heavy groups; a 32-node absolute cutoff keeps
+        # padded reverse-declared runs on the fast path once sweep rescans overtake pass-numbering.
+        if nodes_with_back_edge >= 32 or nodes_with_back_edge * 2 > n:
             return self._sort_via_pass_numbering(nodes, projected)
         return self._sweep_projection(nodes, projected)
 
