@@ -162,7 +162,7 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <TData = Common.Ass
 * Next Run Assets
 * @param data The data for the request.
 * @param data.dagId
-* @returns unknown Successful Response
+* @returns NextRunAssetsResponse Successful Response
 * @throws ApiError
 */
 export const useAssetServiceNextRunAssetsSuspense = <TData = Common.AssetServiceNextRunAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {

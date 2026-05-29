@@ -21,6 +21,7 @@ from sqlalchemy import ColumnElement, and_, case, exists, func, select, true
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.ui.assets import NextRunAssetsResponse
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -38,11 +39,14 @@ assets_router = AirflowRouter(tags=["Asset"])
 @assets_router.get(
     "/next_run_assets/{dag_id}",
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
+    # ``pending_partition_count`` is only meaningful for partitioned DAGs, so it is left unset
+    # otherwise; excluding unset fields keeps the response shape unchanged for non-partitioned DAGs.
+    response_model_exclude_unset=True,
 )
 def next_run_assets(
     dag_id: str,
     session: SessionDep,
-) -> dict:
+) -> NextRunAssetsResponse:
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
     if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
@@ -118,4 +122,4 @@ def next_run_assets(
     data: dict = {"asset_expression": dag_model.asset_expression, "events": events}
     if pending_partition_count is not None:
         data["pending_partition_count"] = pending_partition_count
-    return data
+    return NextRunAssetsResponse.model_validate(data)
