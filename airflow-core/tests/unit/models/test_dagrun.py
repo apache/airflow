@@ -61,7 +61,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
+from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1326,17 +1328,28 @@ class TestDagRun:
         assert isinstance(dag_run.dag_versions, list)
         assert len(dag_run.dag_versions) == 0
 
+    @pytest.mark.parametrize(
+        "interval",
+        [
+            datetime.timedelta(hours=1),
+            VariableInterval("my_key"),
+        ],
+    )
+    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
+        # First value used during resolution
+        mock_get.return_value = "5"
+
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
+                interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
             on_success_callback=on_success_callable,
@@ -1440,6 +1453,73 @@ class TestDagRun:
 
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Variable, "get")
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
+        # First value used during resolution.
+        mock_get.return_value = "60"
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("my_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+
+        # First update resolve interval to "5".
+        dag_run.update_state(session=session)
+
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        first_deadline_time = deadline.deadline_time
+
+        # Change Variable value after resolution.
+        mock_get.return_value = "120"
+
+        # Run again (This should not change existing deadline).
+        dag_run.update_state(session=session)
+
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline.deadline_time == first_deadline_time
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
+
+        mock_err = mock.Mock()
+        mock_err.error.value = "MISSING_DEADLINE"
+        mock_err.detail = "missing deadline"
+
+        with mock.patch.object(
+            Variable,
+            "get",
+            side_effect=AirflowRuntimeError(mock_err),
+        ):
+            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
+            scheduler_dag = deadline_test_dag(
+                deadline=DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(future_date),
+                    interval=VariableInterval("missing_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            )
+
+            with pytest.raises(ValueError, match="not found"):
+                self.create_dag_run(
+                    dag=scheduler_dag,
+                    task_states={"task_1": TaskInstanceState.SUCCESS},
+                    session=session,
+                )
 
 
 @pytest.mark.parametrize(

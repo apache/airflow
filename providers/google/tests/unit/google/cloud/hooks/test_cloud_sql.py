@@ -21,7 +21,9 @@ import base64
 import json
 import os
 import platform
+import stat
 import tempfile
+from pathlib import Path
 from unittest import mock
 from unittest.mock import PropertyMock, call, mock_open
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -1933,6 +1935,34 @@ class TestCloudSqlProxyRunner:
 
         assert runner._get_credential_parameters() == ["-credential_file", "/tmp/key.json"]
         assert "-enable_iam_login" in runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_credentials_file_from_keyfile_dict_is_chmod_0600(self, get_connection, tmp_path):
+        """The keyfile_dict credentials file must be written with explicit 0600 permissions.
+
+        Plain ``open(...)`` inherits the process umask (typically 0644), leaving the
+        service-account private key world-readable on shared worker hosts.
+        """
+        keyfile_dict = {"type": "service_account", "private_key": "PRIVATE"}
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        extra = json.dumps({"keyfile_dict": json.dumps(keyfile_dict)})
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = extra
+        else:
+            connection.set_extra(extra)
+        get_connection.return_value = connection
+
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "creds"),
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+        )
+        runner._get_credential_parameters()
+
+        creds_path = Path(runner.credentials_path)
+        assert creds_path.exists()
+        # Mask off the file-type bits, keep only the permission bits.
+        assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
 
 
 class TestCloudSQLAsyncHook:

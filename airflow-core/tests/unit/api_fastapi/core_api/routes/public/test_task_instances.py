@@ -758,20 +758,6 @@ class TestGetMappedTaskInstances:
         )
 
     @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
     def one_task_with_many_mapped_tis(self, dag_maker, session):
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,

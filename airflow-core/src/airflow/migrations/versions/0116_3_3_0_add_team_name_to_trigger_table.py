@@ -22,6 +22,7 @@ Add team_name to trigger table.
 Revision ID: acc215baed80
 Revises: a1b2c3d4e5f6
 Create Date: 2026-05-21 21:38:00.122692
+
 """
 
 from __future__ import annotations
