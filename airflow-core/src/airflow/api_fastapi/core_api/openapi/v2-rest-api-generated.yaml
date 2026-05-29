@@ -11360,9 +11360,7 @@ components:
     AssetStateBody:
       properties:
         value:
-          type: string
-          maxLength: 65535
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
       additionalProperties: false
       type: object
       required:
@@ -11391,8 +11389,7 @@ components:
           type: string
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         updated_at:
           type: string
           format: date-time
@@ -15810,9 +15807,7 @@ components:
     TaskStateBody:
       properties:
         value:
-          type: string
-          maxLength: 65535
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
       additionalProperties: false
       type: object
       required:
@@ -15841,8 +15836,7 @@ components:
           type: string
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         updated_at:
           type: string
           format: date-time
