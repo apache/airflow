@@ -1,0 +1,1 @@
+Restore the ``dag.<dag_id>.<task_id>.queued_duration`` metric, which stopped being emitted in Airflow 3 after the queued-to-running transition moved out of the ORM into the execution API.
