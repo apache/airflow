@@ -92,6 +92,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_3_PLUS,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -3065,15 +3066,20 @@ def test_taskinstance_info_af3():
     bundle_instance.name = "bundle_name"
     runtime_ti.bundle_instance = bundle_instance
 
-    assert dict(TaskInstanceInfo(runtime_ti)) == {
+    expected: dict = {
         "log_url": runtime_ti.log_url,
         "map_index": 2,
         "rendered_map_index": None,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
         "dag_bundle_name": "bundle_name",
-        "queued_dttm": None,
     }
+
+    if AIRFLOW_V_3_3_PLUS:
+        # queued_dttm was added to RuntimeTaskInstance in 3.3.0
+        expected["queued_dttm"] = None
+
+    assert dict(TaskInstanceInfo(runtime_ti)) == expected
 
     runtime_ti.rendered_map_index = "country=PL"
     assert dict(TaskInstanceInfo(runtime_ti))["rendered_map_index"] == "country=PL"
