@@ -34,7 +34,6 @@ from unit.models import DEFAULT_DATE
 
 DAG_ID = "test_deadline_alert_dag"
 DEADLINE_NAME = "Test Alert"
-DEADLINE_DESCRIPTION = "This is a test alert description"
 DEADLINE_INTERVAL = 60
 DEADLINE_CALLBACK = {"path": "test.callback"}
 SERIALIZED_DAG_ID = "serialized_dag_uuid"
@@ -62,7 +61,6 @@ def deadline_alert_orm(dag_maker, session, deadline_reference):
         alert = DeadlineAlert(
             serialized_dag_id=serialized_dag.id,
             name=DEADLINE_NAME,
-            description=DEADLINE_DESCRIPTION,
             reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
             callback_def=DEADLINE_CALLBACK,
@@ -86,7 +84,6 @@ class TestDeadlineAlert:
         assert deadline_alert_orm.id is not None
         assert deadline_alert_orm.created_at == DEFAULT_DATE
         assert deadline_alert_orm.name == DEADLINE_NAME
-        assert deadline_alert_orm.description == DEADLINE_DESCRIPTION
 
     def test_minimal_deadline_alert_creation(self, dag_maker, session, deadline_reference):
         with dag_maker(DAG_ID, session=session):
@@ -109,7 +106,6 @@ class TestDeadlineAlert:
             assert deadline_alert.id is not None
             assert deadline_alert.created_at == DEFAULT_DATE
             assert deadline_alert.name is None
-            assert deadline_alert.description is None
 
     def test_deadline_alert_repr(self, deadline_alert_orm, deadline_reference):
         repr_str = repr(deadline_alert_orm)

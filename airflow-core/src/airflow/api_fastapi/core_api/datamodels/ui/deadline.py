@@ -33,10 +33,8 @@ class DeadlineResponse(BaseModel):
     deadline_time: datetime
     missed: bool
     created_at: datetime
+    alert_id: UUID | None = Field(validation_alias="deadline_alert_id", default=None)
     alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
-    alert_description: str | None = Field(
-        validation_alias=AliasPath("deadline_alert", "description"), default=None
-    )
 
 
 class DeadlineCollectionResponse(BaseModel):
