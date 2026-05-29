@@ -79,7 +79,7 @@ export const Task = () => {
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
+        {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
       </DetailsLayout>
     </ReactFlowProvider>
   );

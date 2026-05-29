@@ -156,6 +156,7 @@ def decode_deadline_alert(encoded_data: dict):
 
     :meta private:
     """
+    from airflow.sdk.definitions.deadline import VariableInterval
     from airflow.sdk.serde import deserialize
 
     data = encoded_data.get(Encoding.VAR, encoded_data)
@@ -163,9 +164,30 @@ def decode_deadline_alert(encoded_data: dict):
     reference_data = data[DeadlineAlertFields.REFERENCE]
     reference = decode_deadline_reference(reference_data)
 
+    raw_interval = data[DeadlineAlertFields.INTERVAL]
+
+    if raw_interval is None:
+        raise ValueError(
+            "DeadlineAlert interval is missing. This can happen after downgrading "
+            "from a version that supports VariableInterval. Downgrade is not fully reversible."
+        )
+
+    interval: datetime.timedelta | VariableInterval
+
+    # Backward compatibility: previously interval was stored as total_seconds() (float/int).
+    # Handle numeric values by converting to timedelta.
+    if isinstance(raw_interval, (int, float)):
+        interval = datetime.timedelta(seconds=raw_interval)
+    else:
+        deserialized = deserialize(raw_interval)
+        if isinstance(deserialized, (datetime.timedelta, VariableInterval)):
+            interval = deserialized
+        else:
+            raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
+
     return SerializedDeadlineAlert(
         reference=reference,
-        interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        interval=interval,
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )

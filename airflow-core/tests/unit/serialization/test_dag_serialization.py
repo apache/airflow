@@ -1754,7 +1754,7 @@ class TestStringifiedDAGs:
         logical_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
             task1 = EmptyOperator(task_id="task1")
-            with TaskGroup("group234") as group234:
+            with TaskGroup("group234", doc_md="### TaskGroup Documentation") as group234:
                 _ = EmptyOperator(task_id="task2")
 
                 with TaskGroup("group34") as group34:
@@ -1774,6 +1774,7 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.task_group.children
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
+        assert serialized_dag.task_group.children["group234"].doc_md == "### TaskGroup Documentation"
 
         def check_task_group(node):
             assert node.dag is serialized_dag

@@ -458,7 +458,6 @@ class TestOtelIntegration:
                 # Additional detail spans are deferred to follow-up PRs; tracked
                 # at https://linear.app/astronomer/issue/ACD-157.
                 {
-                    "hook.on_starting": "startup",
                     "_verify_bundle_access": "parse",
                     "parse": "startup",
                     "get_template_context": "startup",
@@ -474,6 +473,11 @@ class TestOtelIntegration:
                     "dag_run.otel_test_dag": None,
                     "task_run.task1": "dag_run.otel_test_dag",
                     "worker.task1": "task_run.task1",
+                    # OpenLineage registers a listener by default, so its
+                    # on_task_instance_running / on_task_instance_success hook
+                    # calls get wrapped in spans at detail level > 1.
+                    "listener.on_task_instance_running": "_prepare",
+                    "listener.on_task_instance_success": "finalize",
                 },
                 id="detail_spans",
             ),

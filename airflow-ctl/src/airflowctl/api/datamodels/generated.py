@@ -49,27 +49,6 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
-class AssetStateBody(BaseModel):
-    """
-    Request body for setting an asset state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(max_length=65535, title="Value")]
-
-
-class AssetStateResponse(BaseModel):
-    """
-    A single asset state key/value pair with metadata.
-    """
-
-    key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
-
-
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -981,7 +960,7 @@ class TaskStateBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(max_length=65535, title="Value")]
+    value: JsonValue
 
 
 class TaskStateResponse(BaseModel):
@@ -990,7 +969,7 @@ class TaskStateResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
     expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
 
@@ -1225,13 +1204,25 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStateCollectionResponse(BaseModel):
+class AssetStateBody(BaseModel):
     """
-    All asset state entries for an asset.
+    Request body for setting an asset state value.
     """
 
-    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateResponse(BaseModel):
+    """
+    A single asset state key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: JsonValue
+    updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
 class BackfillPostBody(BaseModel):
@@ -2014,6 +2005,15 @@ class AssetEventCollectionResponse(BaseModel):
     """
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetStateCollectionResponse(BaseModel):
+    """
+    All asset state entries for an asset.
+    """
+
+    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
