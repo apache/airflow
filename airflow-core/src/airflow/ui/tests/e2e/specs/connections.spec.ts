@@ -38,7 +38,7 @@ test.describe("Connections Page - List and Display", () => {
     expect([200, 201, 409]).toContain(response.status());
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     const response = await authenticatedRequest.delete(
       `/api/v2/connections/${seedConnection.connection_id}`,
       { timeout: 30_000 },
@@ -115,7 +115,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     });
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     for (const connId of [existingConnection.connection_id, ...createdConnIds]) {
       const response = await authenticatedRequest.delete(`/api/v2/connections/${connId}`, {
         timeout: 30_000,
@@ -247,7 +247,7 @@ test.describe("Connections Page - Search and Filter", () => {
     }
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     for (const conn of searchTestConnections) {
       const response = await authenticatedRequest.delete(`/api/v2/connections/${conn.connection_id}`, {
         timeout: 30_000,

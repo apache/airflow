@@ -9,7 +9,7 @@
     "manual": {
       "description": "Direkt ein Ereignis zum Datenset (Asset) erstellen",
       "extra": "Extra Daten zu Ereignis",
-      "label": "Manuell"
+      "label": "Manual"
     },
     "materialize": {
       "description": "Das Dag das dieses Datenset (Asset) produziert direkt auslösen",

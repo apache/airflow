@@ -34,7 +34,7 @@
   },
   "source": "Bron",
   "stats": {
-    "activeDags": "Actieve Dags",
+    "activeDags": "Active Dags",
     "failedDags": "Mislukte Dags",
     "queuedDags": "Dags in de wachtrij",
     "requiredActions": "Vereiste acties",

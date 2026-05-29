@@ -102,7 +102,7 @@
     "noTryNumber": "Aucun essai",
     "search": {
       "matchCount": "{{current}} sur {{total}}",
-      "noMatches": "Aucune correspondance",
+      "noMatches": "Aucune correspondence",
       "placeholder": "Rechercher dans les journaux..."
     },
     "settings": "Paramètres des journaux",
@@ -112,7 +112,7 @@
   "navigation": {
     "navigation": "Navigation : {{arrow}}",
     "openGraphFilters": "Filtres de tâches : Ctrl+Maj+F",
-    "toggleGroup": "Basculer le groupe : Espace"
+    "toggleGroup": "Basculer le groupe : Escape"
   },
   "notFound": {
     "back": "Retour",
@@ -145,7 +145,7 @@
       "hideLogs": "Masquer les journaux",
       "showLogs": "Afficher les journaux",
       "title": "Journaux des tâches échouées récemment",
-      "viewFullLogs": "Voir les journaux complets"
+      "viewFullLogs": "Voir les journaux completes"
     }
   },
   "panel": {
@@ -173,7 +173,7 @@
     "graphFilters": {
       "clearFilters": "Effacer les filtres",
       "durationGte": "Durée min. (s)",
-      "durationGteHint": "Pour les tâches mappées, mesure la durée totale sur toutes les instances",
+      "durationGteHint": "Pour les tâches mappées, measure la durée totale sur toutes les instances",
       "mapIndex": "Map Index min.",
       "mapIndexHint": "Affiche les tâches mappées développées jusqu'à au moins cet index",
       "selectStatus": "Sélectionner le statut",

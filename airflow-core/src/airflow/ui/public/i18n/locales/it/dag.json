@@ -124,7 +124,7 @@
       "label": "Direzione del Grafico"
     }
   },
-  "paramsFailed": "Impossibile caricare i parametri",
+  "paramsFailed": "Impossible caricare i parametri",
   "parse": {
     "toaster": {
       "error": {

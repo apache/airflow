@@ -5,7 +5,7 @@
     "Plugins": "Plug-ins",
     "Pools": "Pools",
     "Providers": "Providers",
-    "Variables": "Variablen"
+    "Variables": "Variable"
   },
   "allOperators": "Alle Operatoren",
   "appearance": {
@@ -46,8 +46,8 @@
     "lastParsed": "Letztmalig Eingelesen",
     "latestDagVersion": "Letzte Dag Version",
     "latestRun": "Letzter Lauf",
-    "maxActiveRuns": "Maximal aktive Läufe",
-    "maxActiveTasks": "Maximal aktive Tasks",
+    "maxActiveRuns": "Maximal active Läufe",
+    "maxActiveTasks": "Maximal active Tasks",
     "maxConsecutiveFailedDagRuns": "Maximal fortlaufende fehlerhafte Dag Läufe",
     "nextRun": "Nächster Lauf",
     "owner": "Eigentümer",
@@ -59,7 +59,7 @@
   "dagRun": {
     "conf": "Konfiguration",
     "dagVersions": "Dag Versionen",
-    "dataIntervalEnd": "Datenintervall Ende",
+    "dataIntervalEnd": "Datenintervall End",
     "dataIntervalStart": "Datenintervall Start",
     "durationStats": {
       "mean": "Mittelwert",
@@ -80,8 +80,8 @@
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
   "dagWarnings": "Dag Warnungen und Fehler",
-  "defaultToGraphView": "Graph-Ansicht als Standard",
-  "defaultToGridView": "Gitter-Ansicht als Standard",
+  "defaultToGraphView": "Graph-Ansicht also Standard",
+  "defaultToGridView": "Gitter-Ansicht also Standard",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",
@@ -91,7 +91,7 @@
   "docs": {
     "documentation": "Dokumentation",
     "githubRepo": "GitHub Ablage",
-    "restApiReference": "REST API Referenz"
+    "restApiReference": "REST API Reference"
   },
   "download": {
     "download": "Herunterladen",
@@ -111,7 +111,7 @@
   },
   "errors": {
     "forbidden": {
-      "description": "Sie haben keine Berechtigung, diese Aktion auszuführen.",
+      "description": "Sie haben keine Berechtigung, diese Action auszuführen.",
       "title": "Zugriff verweigert"
     }
   },
@@ -152,7 +152,7 @@
     "confirm": "Bestätigen",
     "delete": {
       "button": "Löschen",
-      "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Aktion kann nicht rückgängig gemacht werden."
+      "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Action kann nicht rückgängig gemacht werden."
     },
     "save": "Speichern"
   },
@@ -188,7 +188,7 @@
     "asset_materialization": "Datenset (Asset) Materialisierung",
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
-    "manual": "Manuell",
+    "manual": "Manual",
     "scheduled": "Geplant"
   },
   "scroll": {
@@ -214,7 +214,7 @@
   "selectLanguage": "Sprache wählen",
   "selected": "Ausgewählt",
   "showDetailsPanel": "Detailansicht einblenden",
-  "signedInAs": "Angemeldet als",
+  "signedInAs": "Angemeldet also",
   "source": {
     "hide": "Log-Quelle ausblenden",
     "hotkey": "s",
@@ -250,7 +250,7 @@
     "filterReset_one": "Filter zurücksetzen",
     "filterReset_other": "Filter zurücksetzen",
     "from": "Von",
-    "maxActiveRuns": "Maximal aktive Läufe",
+    "maxActiveRuns": "Maximal active Läufe",
     "noTagsFound": "Keine Markierungen gefunden",
     "tagMode": {
       "all": "Alle",

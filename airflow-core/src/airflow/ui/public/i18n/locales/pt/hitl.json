@@ -24,7 +24,7 @@
     "optionsLabel": "Opções",
     "received": "Resposta recebida em ",
     "respond": "Responder",
-    "responded_by_user_name": "Respondido por (Nome de usuário)",
+    "responded_by_user_name": "Respondido por (Gnome de usuário)",
     "success": "Resposta de {{taskId}} bem-sucedida",
     "title": "Instância de Tarefa Humana - {{taskId}}"
   },

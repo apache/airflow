@@ -6,7 +6,7 @@
     "allRuns": "Totes les execucions",
     "backwards": "Executar enrere",
     "dateRange": "Interval de dates",
-    "errorStartDateBeforeEndDate": "La data d'inici ha de ser anterior a la data de finalització",
+    "errorStartDateBeforeEndDate": "La data d'inici ha de set anterior a la data de finalització",
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",
     "missingRuns": "Execucions absents",
@@ -27,7 +27,7 @@
     "unpause": "Reactivar {{dag_display_name}} a l'executar",
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",
-      "startBeforeEnd": "La data d'inici de l'interval de dates ha de ser anterior o igual a la data de finalització de l'interval de dates."
+      "startBeforeEnd": "La data d'inici de l'interval de dates ha de set anterior o igual a la data de finalització de l'interval de dates."
     }
   },
   "banner": {
@@ -55,7 +55,7 @@
     "validation": {
       "invalidDateFormat": "Format de data no vàlid.",
       "invalidTimeFormat": "Format d'hora no vàlid.",
-      "startBeforeEnd": "La data/hora d'inici ha de ser anterior a la data/hora de finalització"
+      "startBeforeEnd": "La data/hora d'inici ha de set anterior a la data/hora de finalització"
     }
   },
   "durationChart": {
@@ -77,9 +77,9 @@
     "placeholderArray": "Escriu cada cadena en una nova línia",
     "placeholderExamples": "Comença a escriure per veure opcions",
     "placeholderMulti": "Selecciona un o diversos valors",
-    "validationErrorArrayNotArray": "El valor ha de ser un array.",
-    "validationErrorArrayNotNumbers": "Tots els elements de l'array han de ser números.",
-    "validationErrorArrayNotObject": "Tots els elements de l'array han de ser objectes.",
+    "validationErrorArrayNotArray": "El valor ha de set un array.",
+    "validationErrorArrayNotNumbers": "Tots els elements de l'array han de set números.",
+    "validationErrorArrayNotObject": "Tots els elements de l'array han de set objectes.",
     "validationErrorRequired": "Aquest camp és obligatori"
   },
   "graph": {
@@ -93,7 +93,7 @@
     "otherDagRuns": "+Altres execucions de Dag",
     "taskCount_one": "{{count}} Tasca",
     "taskCount_other": "{{count}} Tasques",
-    "taskGroup": "Grup de tasques",
+    "taskGroup": "Group de tasques",
     "zoomToTask": "Zoom a la tasca seleccionada"
   },
   "limitedList": "+{{count}} més",
@@ -152,7 +152,7 @@
   },
   "trimText": {
     "details": "Detalls",
-    "empty": "Buit",
+    "empty": "Built",
     "noContent": "No hi ha contingut disponible."
   },
   "versionDetails": {

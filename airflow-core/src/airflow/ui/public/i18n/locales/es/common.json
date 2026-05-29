@@ -39,7 +39,7 @@
   "dagDetails": {
     "catchup": "Catchup",
     "dagRunTimeout": "Tiempo de Ejecución del Dag",
-    "defaultArgs": "Argumentos por Defecto",
+    "defaultArgs": "Arguments por Defecto",
     "description": "Descripción",
     "documentation": "Documentación del Dag",
     "fileLocation": "Ubicación del Archivo",
@@ -135,7 +135,7 @@
     "confirm": "Confirmar",
     "delete": {
       "button": "Eliminar",
-      "confirmation": "¿Confirmas de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
+      "confirmation": "¿Confirms de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
     }
   },
   "nav": {

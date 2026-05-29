@@ -30,7 +30,7 @@
       "success": "Task Kommunikation (XCom) erfolgreich gelöscht",
       "successTitle": "Task Kommunikation (XCom) gelöscht",
       "title": "Task Kommunikation (XCom) löschen",
-      "warning": "Sind Sie sicher, dass Sie diese Task Kommunikation (XCom) löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
+      "warning": "Sind Sie sicher, dass Sie diese Task Kommunikation (XCom) löschen möchten? Diese Action kann nicht rückgängig gemacht werden."
     },
     "edit": {
       "error": "Fehler beim Aktualisieren von Task Kommunikation (XCom)",

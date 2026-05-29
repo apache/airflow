@@ -3,10 +3,10 @@
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
-      "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
+      "warning": "Diese Action löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     }
   },
-  "favoriteDag": "Dag als Favorit hinzufügen",
+  "favoriteDag": "Dag also Favorit hinzufügen",
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
@@ -48,7 +48,7 @@
       "dialog": {
         "resourceName": "{{type}} {{id}}",
         "title": "{{type}} löschen",
-        "warning": "Diese Aktion löscht alle Metadaten zu dem Typ {{type}}."
+        "warning": "Diese Action löscht alle Metadaten zu dem Typ {{type}}."
       },
       "error": "Fehler beim Löschen von dem Typ {{type}}",
       "success": {
@@ -59,8 +59,8 @@
     "markAs": {
       "button": "{{type}} markieren...",
       "buttonTooltip": {
-        "failed": "Umschalttaste+F tippen um als fehlgeschlagen zu markieren",
-        "success": "Umschalttaste+S tippen um als erfolgreich zu markieren"
+        "failed": "Umschalttaste+F tippen um also fehlgeschlagen zu markieren",
+        "success": "Umschalttaste+S tippen um also erfolgreich zu markieren"
       },
       "title": "{{type}} auf den Status {{state}} setzen"
     },

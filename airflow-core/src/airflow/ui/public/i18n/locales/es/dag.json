@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "Dependencia",
     "reason": "Razón",
-    "title": "Dependencias que bloquean la tarea de ser programada"
+    "title": "Dependencias que bloquean la tarea de set programada"
   },
   "calendar": {
     "daily": "Diario",
@@ -25,7 +25,7 @@
     "totalRuns": "Total de Ejecuciones",
     "week": "Semana {{weekNumber}}",
     "weekdays": {
-      "friday": "Vie",
+      "friday": "Via",
       "monday": "Lun",
       "saturday": "Sáb",
       "sunday": "Dom",
@@ -124,8 +124,8 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "El Dag no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
-        "title": "El Dag no pudo ser reparado"
+        "description": "El Dag no pudo set reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
+        "title": "El Dag no pudo set reparado"
       },
       "success": {
         "description": "El Dag debería reparsearse pronto.",

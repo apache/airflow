@@ -39,10 +39,10 @@
       "helperText": "Bağlantı tipi eksik mi? İlgili Airflow Providers paketini yüklediğinizden emin olun.",
       "helperTextForRedactedFields": "Gizlenmiş alanlar ('***') değiştirilmedikçe kaydedilmeyecektir.",
       "selectConnectionType": "Bağlantı Tipi Seçin",
-      "standardFields": "Standart Alanlar"
+      "standardFields": "Standard Alanlar"
     },
     "nothingFound": {
-      "description": "Sistem Ortam değişkenleri veya gizli sır yönetimi ile tanımlanan bağlantılar burada listelenmez.",
+      "description": "System Ortam değişkenleri veya gizli sır yönetimi ile tanımlanan bağlantılar burada listelenmez.",
       "documentationLink": "Airflow dokümantasyonuna daha fazla bilgi edinin.",
       "learnMore": "Bunlar çalışma zamanında çözümlenir ve arayüzde görünmez.",
       "title": "Bağlantı bulunamadı!"
@@ -134,7 +134,7 @@
   },
   "providers": {
     "columns": {
-      "packageName": "Paket Adı",
+      "packageName": "Packet Adı",
       "version": "Versiyon"
     }
   },

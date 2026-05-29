@@ -91,7 +91,7 @@
     "directionRight": "Da Sinistra a Destra",
     "directionUp": "Da Inferiore a Superiore",
     "downloadImage": "Scarica l'immagine del grafico",
-    "downloadImageError": "Impossibile scaricare l'immagine del grafico.",
+    "downloadImageError": "Impossible scaricare l'immagine del grafico.",
     "downloadImageErrorTitle": "Scaricamento Fallito",
     "otherDagRuns": "+Altri Runs del Dag",
     "taskCount_many": "{{count}} Tasks",
@@ -127,7 +127,7 @@
   "triggerDag": {
     "button": "Trigger",
     "loading": "Caricamento informazioni del Dag...",
-    "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
+    "loadingFailed": "Impossible caricare le informazioni del Dag. Per favore, riprova.",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
     "selectDescription": "Triggera un singolo run di questo Dag",
     "selectLabel": "Singolo Run",
@@ -147,7 +147,7 @@
   },
   "versionDetails": {
     "bundleLink": "Link del Bundle",
-    "bundleName": "Nome del Bundle",
+    "bundleName": "Gnome del Bundle",
     "bundleVersion": "Versione del Bundle",
     "createdAt": "Creato il",
     "versionId": "ID della Versione"

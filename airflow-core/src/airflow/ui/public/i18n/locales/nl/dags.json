@@ -35,7 +35,7 @@
       "title": "Wis {{type}}"
     },
     "confirmationDialog": {
-      "description": "Taak is momenteel in een {{state}} status gestart door gebruiker {{user}} op {{time}}. \nDe gebruiker kan deze taak niet wissen totdat deze klaar is met uitvoeren of een gebruiker de optie \"Voorkom opnieuw uitvoeren als task bezig is\" in het dialoogvenster voor het wissen van taken uitschakelt.",
+      "description": "Taak is momenteel in een {{state}} status gestart door gebruiker {{user}} op {{time}}. \nDe gebruiker kan deze taak niet wissen totdat deze klaar is met uitvoeren of een gebruiker de optie \"Voorkom opnieuw uitvoeren also task bezig is\" in het dialoogvenster voor het wissen van taken uitschakelt.",
       "title": "Kan Task Instance niet wissen"
     },
     "delete": {
@@ -52,12 +52,12 @@
       }
     },
     "markAs": {
-      "button": "Makeer {{type}} als ...",
+      "button": "Makeer {{type}} also ...",
       "buttonTooltip": {
-        "failed": "Druk op Shift+F om te markeren als mislukt",
-        "success": "Druk op Shift+S om te markeren als succesvol"
+        "failed": "Druk op Shift+F om te markeren also mislukt",
+        "success": "Druk op Shift+S om te markeren also succesvol"
       },
-      "title": "Markeer {{type}} als {{state}}"
+      "title": "Markeer {{type}} also {{state}}"
     },
     "options": {
       "downstream": "Downstream",
@@ -65,7 +65,7 @@
       "future": "Toekomst",
       "onlyFailed": "Wis enkel mislukte Tasks",
       "past": "Verleden",
-      "preventRunningTasks": "Voorkom opnieuw uitvoeren als task bezig is",
+      "preventRunningTasks": "Voorkom opnieuw uitvoeren also task bezig is",
       "queueNew": "Zet nieuwe Tasks in de wachtrij",
       "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
       "upstream": "Upstream"

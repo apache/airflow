@@ -2,7 +2,7 @@
   "columns": {
     "description": "Descrição",
     "key": "Chave",
-    "name": "Nome",
+    "name": "Gnome",
     "team": "Equipa",
     "value": "Valor"
   },
@@ -78,7 +78,7 @@
     "button": "Excluir",
     "modal": {
       "confirmButton": "Sim, Excluir",
-      "secondConfirmMessage": "Esta ação é permanente e não pode ser desfeita.",
+      "secondConfirmMessage": "Esta ação é permanente e não pode set desfeita.",
       "thirdConfirmMessage": "Tem certeza que deseja prosseguir?"
     },
     "selected": "Selecionado",
@@ -94,7 +94,7 @@
       "id": "ID",
       "jobType": "Tipo de Tarefa",
       "latestHeartbeat": "Último Heartbeat",
-      "unixname": "Nome Unix"
+      "unixname": "Gnome Unix"
     },
     "filters": {
       "allStates": "Todos os Estados",
@@ -108,10 +108,10 @@
     "columns": {
       "source": "Origem"
     },
-    "importError_many": "Erros de Importação de Plugins",
-    "importError_one": "Erro de Importação de Plugin",
-    "importError_other": "Erros de Importação de Plugins",
-    "importError_zero": "Nenhum erro de importação de plugin",
+    "importError_many": "Errors de Importação de Plugins",
+    "importError_one": "Error de Importação de Plugin",
+    "importError_other": "Errors de Importação de Plugins",
+    "importError_zero": "Nenhum error de importação de plugin",
     "searchPlaceholder": "Pesquisar por arquivo"
   },
   "pools": {
@@ -126,8 +126,8 @@
       "checkbox": "Marcar para incluir tarefas deferidas ao calcular slots abertos do pool",
       "description": "Descrição",
       "includeDeferred": "Incluir Deferidos",
-      "nameMaxLength": "Nome pode conter um máximo de 256 caracteres",
-      "nameRequired": "Nome é obrigatório",
+      "nameMaxLength": "Gnome pode conter um máximo de 256 characters",
+      "nameRequired": "Gnome é obrigatório",
       "slots": "Slots"
     },
     "noPoolsFound": "Nenhum pool encontrado",
@@ -137,14 +137,14 @@
     "pool_zero": "Nenhum pool",
     "searchPlaceholder": "Pesquisar Pools",
     "sort": {
-      "asc": "Nome (A-Z)",
-      "desc": "Nome (Z-A)",
+      "asc": "Gnome (A-Z)",
+      "desc": "Gnome (Z-A)",
       "placeholder": "Ordenar por"
     }
   },
   "providers": {
     "columns": {
-      "packageName": "Nome do Pacote",
+      "packageName": "Gnome do Pacote",
       "version": "Versão"
     }
   },
@@ -168,14 +168,14 @@
     "edit": "Editar Variável",
     "form": {
       "invalidJson": "JSON Inválido",
-      "keyMaxLength": "Chave pode conter um máximo de 250 caracteres",
+      "keyMaxLength": "Chave pode conter um máximo de 250 characters",
       "keyRequired": "Chave é obrigatória",
       "valueRequired": "Valor é obrigatório"
     },
     "import": {
       "button": "Importar",
       "conflictResolution": "Selecionar Resolução de Conflito de Variável",
-      "errorParsingJsonFile": "Erro ao Analisar Arquivo JSON: Upload um arquivo JSON contendo variáveis (exemplo: {\"key\": \"value\", ...}).",
+      "errorParsingJsonFile": "Error ao Analisar Arquivo JSON: Upload um arquivo JSON contendo variáveis (exemplo: {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Falha na importação se forem detetadas variáveis que já existem.",
@@ -186,7 +186,7 @@
           "title": "Sobreescrever"
         },
         "skip": {
-          "description": "Ignora a importação de variáveis que já existem.",
+          "description": "Ignore a importação de variáveis que já existem.",
           "title": "Ignorar"
         }
       },

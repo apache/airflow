@@ -7,7 +7,7 @@
     "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
     "dateRange": "Rango de Fechas",
-    "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
+    "errorStartDateBeforeEndDate": "La Fecha Inicial debe set antes de la Fecha Final",
     "maxRuns": "Máximo de Ejecuciones Activas",
     "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
     "missingRuns": "Ejecutaciones Faltantes",
@@ -24,8 +24,8 @@
     },
     "unpause": "Reanudar {{dag_display_name}} al activarse",
     "validation": {
-      "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",
-      "startBeforeEnd": "El intervalo de Fecha Inicial debe ser menor o igual a la Fecha Final."
+      "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben set proporcionados.",
+      "startBeforeEnd": "El intervalo de Fecha Inicial debe set menor o igual a la Fecha Final."
     }
   },
   "banner": {
@@ -74,9 +74,9 @@
     "placeholderArray": "Ingrese cada cadena en una nueva línea",
     "placeholderExamples": "Comience a escribir para ver opciones",
     "placeholderMulti": "Seleccionar uno o múltiples valores",
-    "validationErrorArrayNotArray": "El valor debe ser un array.",
-    "validationErrorArrayNotNumbers": "Todos los elementos en el array deben ser números.",
-    "validationErrorArrayNotObject": "Todos los elementos en el array deben ser objetos.",
+    "validationErrorArrayNotArray": "El valor debe set un array.",
+    "validationErrorArrayNotNumbers": "Todos los elementos en el array deben set números.",
+    "validationErrorArrayNotObject": "Todos los elementos en el array deben set objetos.",
     "validationErrorRequired": "Este campo es requerido"
   },
   "graph": {

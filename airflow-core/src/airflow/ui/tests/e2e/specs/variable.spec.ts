@@ -140,7 +140,7 @@ test.describe("Variables Page", () => {
   test("verify importing variables using Import Variables button", async ({ page, variablePage }) => {
     const uniqueId = uniqueRunId("import");
 
-    // Pre-register before UI interactions so afterAll cleans up even on test failure.
+    // Pre-register before UI interactions so after all cleans up even on test failure.
     importVarKeys.push(`import_var_${uniqueId}_1`, `import_var_${uniqueId}_2`);
 
     const importPayload = {
@@ -189,7 +189,7 @@ test.describe("Variables Page", () => {
     }
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     test.slow();
 
     // Merge all tracked keys: some may not be in createdVariables if a test failed early.

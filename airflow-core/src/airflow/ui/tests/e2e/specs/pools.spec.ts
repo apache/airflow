@@ -44,7 +44,7 @@ test.describe("Pools Page", () => {
     expect([200, 201, 409]).toContain(response.status());
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     for (const name of [testPoolName, ...createdPoolNames]) {
       const response = await authenticatedRequest.delete(`/api/v2/pools/${encodeURIComponent(name)}`);
 

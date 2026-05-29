@@ -18,7 +18,7 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, after all } from "vitest";
 
 import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
 
@@ -102,7 +102,7 @@ describe("getRelativeTime", () => {
     vi.setSystemTime(fixedNow);
   });
 
-  afterAll(() => {
+  after all(() => {
     vi.useRealTimers();
   });
 

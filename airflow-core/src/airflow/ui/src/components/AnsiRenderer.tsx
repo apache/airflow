@@ -17,7 +17,7 @@
  * under the License.
  */
 import { chakra } from "@chakra-ui/react";
-import Anser, { type AnserJsonEntry } from "anser";
+import Answer, { type AnserJsonEntry } from "answer";
 import type { JSX } from "react";
 import * as React from "react";
 
@@ -40,7 +40,7 @@ const fixBackspace = (inputText: string): string => {
 const ansiToJSON = (input: string, useClasses: boolean = false): Array<AnserJsonEntry> => {
   const processedInput = fixBackspace(input.replaceAll("\r", ""));
 
-  return Anser.ansiToJson(processedInput, {
+  return Answer.ansiToJson(processedInput, {
     json: true,
     remove_empty: true,
     use_classes: useClasses,
@@ -68,7 +68,7 @@ const createClass = (bundle: AnserJsonEntry): string | undefined => {
 };
 
 // Map RGB values to Chakra UI semantic tokens
-// These are the standard ANSI color RGB values that anser library outputs
+// These are the standard ANSI color RGB values that answer library outputs
 const rgbToChakraColorMap: Record<string, string> = {
   "0, 0, 0": "gray.900", // Black (30m)
   "0, 0, 187": "blue.fg", // Blue (34m)

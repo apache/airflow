@@ -44,12 +44,12 @@
   "dag_zero": "Nenhum Dag",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "Tempo Limite da Execução do Dag",
-    "defaultArgs": "Argumentos Padrão",
+    "dagRunTimeout": "Tempo Limit da Execução do Dag",
+    "defaultArgs": "Arguments Padrão",
     "description": "Descrição",
     "documentation": "Documentação do Dag",
     "fileLocation": "Local do Arquivo",
-    "hasTaskConcurrencyLimits": "Tem Limite de Concorrência de Tarefas",
+    "hasTaskConcurrencyLimits": "Tem Limit de Concorrência de Tarefas",
     "lastExpired": "Último Expirado",
     "lastParseDuration": "Duração do Último Parse",
     "lastParsed": "Último Parseado",
@@ -83,14 +83,14 @@
     "runType": "Tipo de Execução",
     "sourceAssetEvent": "Evento de Asset de Origem",
     "triggeredBy": "Acionado por",
-    "triggeringUser": "Nome do Usuário que Disparou"
+    "triggeringUser": "Gnome do Usuário que Disparou"
   },
   "dagRun_many": "Execuções do Dag",
   "dagRun_one": "Execução do Dag",
   "dagRun_other": "Execuções do Dag",
   "dagRun_zero": "Nenhuma execução do Dag",
   "dagRunId": "ID da Execução do Dag",
-  "dagWarnings": "Avisos/Erros do Dag",
+  "dagWarnings": "Avisos/Errors do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
   "delete": "Excluir",
@@ -114,11 +114,11 @@
   "endDate": "Data Final",
   "error": {
     "back": "Voltar",
-    "defaultMessage": "Ocorreu um erro inesperado",
+    "defaultMessage": "Ocorreu um error inesperado",
     "home": "Início",
     "invalidUrl": "Página não encontrada. Verifique o URL e tente novamente.",
     "notFound": "Página Não Encontrada",
-    "title": "Erro"
+    "title": "Error"
   },
   "expand": {
     "collapse": "Recolher",
@@ -142,7 +142,7 @@
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
     "runAfterTo": "Executar Depois Para",
-    "selectDateRange": "Selecionar intervalo de datas",
+    "selectDateRange": "Selecionar intervalo de data",
     "startTime": "Hora de Início"
   },
   "logicalDate": "Data Lógica",
@@ -155,7 +155,7 @@
     "confirm": "Confirmar",
     "delete": {
       "button": "Excluir",
-      "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
+      "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode set desfeita."
     },
     "save": "Guardar"
   },
@@ -294,7 +294,7 @@
       "latestHeartbeat": "Último heartbeat do Trigger",
       "title": "Informações do Trigger"
     },
-    "unixname": "Nome do Unix"
+    "unixname": "Gnome do Unix"
   },
   "taskInstance_many": "Instâncias de Tarefa",
   "taskInstance_one": "Instância de Tarefa",
@@ -313,7 +313,7 @@
   },
   "timezone": "Fuso Horário",
   "timezoneModal": {
-    "current-timezone": "Hora atual em",
+    "current-timezone": "Hora actual em",
     "placeholder": "Selecionar um fuso horário",
     "title": "Selecionar Fuso Horário",
     "utc": "UTC (Tempo Universal Coordenado)"

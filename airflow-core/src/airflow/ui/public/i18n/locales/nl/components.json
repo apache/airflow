@@ -7,7 +7,7 @@
     "backwards": "Run achterstevoren",
     "dateRange": "Datumbereik",
     "errorStartDateBeforeEndDate": "Startdatum moet voor de einddatum",
-    "maxRuns": "Maximaal aantal actieve Runs",
+    "maxRuns": "Maximaal aantal active Runs",
     "missingAndErroredRuns": "Missende en mislukte Runs",
     "missingRuns": "Missende Runs",
     "permissionDenied": "Dry Run mislukt: Gebruiker heeft geen toestemming om backfills te maken.",
@@ -99,7 +99,7 @@
   "limitedList.allTags_other": "Alle labels ({{count}})",
   "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
   "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
-  "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
+  "limitedList.copyPasteText": "Je kunt de bovenstaande text kopiëren en plakken",
   "limitedList.showingItems_one": "Toont 1 item",
   "limitedList.showingItems_other": "Toont {{count}} items",
   "logs": {
@@ -149,7 +149,7 @@
   },
   "trimText": {
     "details": "Details",
-    "empty": "Leeg",
+    "empty": "League",
     "noContent": "Geen inhoud beschikbaar."
   },
   "versionDetails": {

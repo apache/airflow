@@ -72,7 +72,7 @@
     "button": "Löschen",
     "modal": {
       "confirmButton": "Ja, löschen",
-      "secondConfirmMessage": "Diese Aktion kann nicht rückgängig gemacht werden. ",
+      "secondConfirmMessage": "Diese Action kann nicht rückgängig gemacht werden. ",
       "thirdConfirmMessage": "Sind Sie sich sicher?"
     },
     "selected": "Ausgewählt",
@@ -146,11 +146,11 @@
     },
     "delete": {
       "deleteVariable_one": "1 Variable löschen",
-      "deleteVariable_other": "{{count}} Variablen löschen",
+      "deleteVariable_other": "{{count}} Variable löschen",
       "firstConfirmMessage_one": "Die folgende Variable wird gelöscht:",
-      "firstConfirmMessage_other": "Die folgenden Variablen werden gelöscht:",
+      "firstConfirmMessage_other": "Die folgenden Variable werden gelöscht:",
       "title": "Variable löschen",
-      "tooltip": "Ausgewählte Variablen löschen"
+      "tooltip": "Ausgewählte Variable löschen"
     },
     "edit": "Variable bearbeiten",
     "form": {
@@ -177,13 +177,13 @@
           "title": "Überspringen"
         }
       },
-      "title": "Variablen importieren",
+      "title": "Variable importieren",
       "upload": "JSON-Datei hochladen",
-      "uploadPlaceholder": "JSON-Datei mit Variablen auswählen (z.B., {\"name\": \"wert\", ...})"
+      "uploadPlaceholder": "JSON-Datei mit Variable auswählen (z.B., {\"name\": \"wert\", ...})"
     },
-    "noRowsMessage": "Keine Variablen gefunden",
+    "noRowsMessage": "Keine Variable gefunden",
     "searchPlaceholder": "Nach Namen suchen",
     "variable_one": "Variable",
-    "variable_other": "Variablen"
+    "variable_other": "Variable"
   }
 }

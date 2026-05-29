@@ -134,18 +134,18 @@
     "taskStreamFilter": {
       "activeFilter": "Actief filter",
       "clearFilter": "Filter wissen",
-      "clickTask": "Klik op een taak om deze als filterbasis te selecteren",
+      "clickTask": "Klik op een taak om deze also filterbasis te selecteren",
       "depth": "Diepte",
       "direction": "Richting",
       "label": "Filter",
       "mode": "Modus",
-      "modeTooltip": "Statische mode houdt de huidige weergave bij bij het navigeren naar verschillende taken, terwijl Traverse mode automatisch het actieve filter bijwerkt naar de geselecteerde taak voor eenvoudigere DAG-traversal.",
+      "modeTooltip": "Statische mode houdt de huidige weergave bij bij het navigeren naar verschillende taken, terwijl Traverse mode automatisch het active filter bijwerkt naar de geselecteerde taak voor eenvoudigere DAG-traversal.",
       "modes": {
         "static": "Statisch",
         "traverse": "Traverse"
       },
       "options": {
-        "both": "Zowel upstream als downstream",
+        "both": "Zowel upstream also downstream",
         "downstream": "Downstream",
         "upstream": "Upstream"
       },

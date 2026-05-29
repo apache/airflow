@@ -9,7 +9,7 @@
   },
   "allOperators": "Tous les opérateurs",
   "appearance": {
-    "appearance": "Apparence",
+    "appearance": "Appearance",
     "darkMode": "Mode sombre",
     "lightMode": "Mode clair",
     "systemMode": "Suivre les paramètres du système"
@@ -209,13 +209,13 @@
   "search": {
     "advanced": {
       "description": "Correspond n'importe où dans la valeur (recherche par sous-chaîne). Plus lent sur les grands déploiements car cela ne peut pas utiliser l'index B-tree par défaut. Consultez la section de la documentation sur les index de métadonnées personnalisés pour plus de détails.",
-      "title": "Correspondance n'importe où"
+      "title": "Correspondence n'importe où"
     }
   },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
-    "resources": "Ressources",
+    "resources": "Resources",
     "roles": "Rôles",
     "users": "Utilisateurs"
   },
@@ -396,7 +396,7 @@
   "user": "Utilisateur",
   "validation": {
     "mustBeAtLeast": "Doit être au moins {{min}}.",
-    "mustBeValidNumber": "Doit être un nombre valide."
+    "mustBeValidNumber": "Doit être un nombre valid."
   },
   "wrap": {
     "hotkey": "w",

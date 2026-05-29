@@ -71,7 +71,7 @@
       "onlyFailed": "Wyczyść tylko nieudane zadania",
       "past": "Przeszłe zadania",
       "preventRunningTasks": "Zapobiegaj ponownemu uruchomieniu, jeśli zadanie jest uruchomione",
-      "queueNew": "Kolejkuj nowe zadania",
+      "queueNew": "Kolejkuj now zadania",
       "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
       "upstream": "Taski nadrzędne"
     }

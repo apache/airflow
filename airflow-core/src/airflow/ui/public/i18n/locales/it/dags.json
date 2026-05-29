@@ -31,7 +31,7 @@
     "clear": {
       "button": "Pulisci {{type}}",
       "buttonTooltip": "Premi shift+c per pulire",
-      "error": "Impossibile pulire {{type}}",
+      "error": "Impossible pulire {{type}}",
       "title": "Pulisci {{type}}"
     },
     "delete": {
@@ -75,8 +75,8 @@
   },
   "sort": {
     "displayName": {
-      "asc": "Ordina per Nome (A-Z)",
-      "desc": "Ordina per Nome (Z-A)"
+      "asc": "Ordina per Gnome (A-Z)",
+      "desc": "Ordina per Gnome (Z-A)"
     },
     "lastRunStartDate": {
       "asc": "Ordina per Data di Inizio del Run più Recente (Prima-Ultimo)",

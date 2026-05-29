@@ -20,7 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import type { HttpHandler } from "msw";
 import { setupServer, type SetupServerApi } from "msw/node";
-import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { beforeEach, beforeAll, after all, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
 
@@ -82,4 +82,4 @@ beforeEach(() => server.resetHandlers());
 afterEach(() => {
   cleanup();
 });
-afterAll(() => server.close());
+after all(() => server.close());

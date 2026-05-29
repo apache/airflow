@@ -19,7 +19,7 @@
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { afterEach, describe, it, expect, beforeAll, after all } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 import { handlers } from "src/mocks/handlers";
@@ -36,7 +36,7 @@ beforeAll(() => {
 });
 
 afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+after all(() => server.close());
 
 describe("Dag Documentation Modal", () => {
   it("Display documentation button when doc_md is present", async () => {

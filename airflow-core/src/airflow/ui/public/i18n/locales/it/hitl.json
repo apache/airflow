@@ -25,7 +25,7 @@
     "optionsLabel": "Opzioni",
     "received": "Risposta ricevuta il ",
     "respond": "Rispondi",
-    "responded_by_user_name": "Risposto da (Nome utente)",
+    "responded_by_user_name": "Risposto da (Gnome utente)",
     "success": "Risposta di {{taskId}} riuscita",
     "title": "Istanza di Task Umana - {{taskId}}"
   },

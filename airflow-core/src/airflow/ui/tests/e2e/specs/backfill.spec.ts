@@ -79,7 +79,7 @@ test.describe("Backfill", () => {
       }
     });
 
-    test.afterAll(async ({ authenticatedRequest }) => {
+    test.after all(async ({ authenticatedRequest }) => {
       await apiCancelAllActiveBackfills(authenticatedRequest, testDagId).catch(() => undefined);
     });
 

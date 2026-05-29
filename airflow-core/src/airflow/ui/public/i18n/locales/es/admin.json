@@ -34,7 +34,7 @@
     "edit": "Editar Conexión",
     "form": {
       "connectionIdRequired": "El ID de la conexión es requerido",
-      "connectionIdRequirement": "El ID de la conexión no puede contener solo espacios",
+      "connectionIdRequirement": "El ID de la conexión no puede container solo espacios",
       "connectionTypeRequired": "El Tipo de Conexión es requerido",
       "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra (tipo JSON)",
@@ -69,7 +69,7 @@
     "modal": {
       "confirmButton": "Sí, Eliminar",
       "secondConfirmMessage": "Esta acción es permanente y no se puede deshacer.",
-      "thirdConfirmMessage": "¿Confirmas de que quieres proceder?"
+      "thirdConfirmMessage": "¿Confirms de que quieres proceder?"
     },
     "selected": "Seleccionado",
     "tooltip": "Eliminar conexiones seleccionadas"
@@ -98,7 +98,7 @@
       "checkbox": "Marcar para incluir tareas diferidas cuando se calculan los slots abiertos del pool",
       "description": "Descripción",
       "includeDeferred": "Incluir diferidos",
-      "nameMaxLength": "El nombre puede contener un máximo de 256 caracteres",
+      "nameMaxLength": "El nombre puede container un máximo de 256 characters",
       "nameRequired": "El nombre es requerido",
       "slots": "Slots"
     },
@@ -137,7 +137,7 @@
     "edit": "Editar Variable",
     "form": {
       "invalidJson": "JSON inválido",
-      "keyMaxLength": "La clave puede contener un máximo de 250 caracteres",
+      "keyMaxLength": "La clave puede container un máximo de 250 characters",
       "keyRequired": "La clave es requerida",
       "valueRequired": "El valor es requerido"
     },

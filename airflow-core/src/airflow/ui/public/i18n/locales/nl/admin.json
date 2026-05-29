@@ -37,7 +37,7 @@
       "extraFields": "Extra velden",
       "extraFieldsJson": "Extra velden JSON",
       "helperText": "Missend connectie type? Controller of je de bijbehorende Airflow Providers Package hebt geïnstalleerd.",
-      "helperTextForRedactedFields": "Gemaskeerde velden ('***') blijven onveranderd als ze niet worden gewijzigd.",
+      "helperTextForRedactedFields": "Gemaskeerde velden ('***') blijven onveranderd also ze niet worden gewijzigd.",
       "selectConnectionType": "Selecteer connectie type",
       "standardFields": "Standaard velden"
     },
@@ -140,19 +140,19 @@
     }
   },
   "variables": {
-    "add": "Variabele toevoegen",
+    "add": "Variable toevoegen",
     "columns": {
       "isEncrypted": "Is versleuteld"
     },
     "delete": {
-      "deleteVariable_one": "1 variabele verwijderen",
+      "deleteVariable_one": "1 variable verwijderen",
       "deleteVariable_other": "Verwijder {{count}} variabelen",
-      "firstConfirmMessage_one": "Je staat op het punt om de volgende variabele te verwijderen:",
+      "firstConfirmMessage_one": "Je staat op het punt om de volgende variable te verwijderen:",
       "firstConfirmMessage_other": "Je staat op het punt om de volgende variabelen te verwijderen:",
-      "title": "Verwijder variabele",
+      "title": "Verwijder variable",
       "tooltip": "Verwijder geselecteerde variabelen"
     },
-    "edit": "Wijzig variabele",
+    "edit": "Wijzig variable",
     "form": {
       "invalidJson": "Ongeldige JSON",
       "keyMaxLength": "Sleutel mag maximaal 250 karakters bevatten",
@@ -161,11 +161,11 @@
     },
     "import": {
       "button": "Importeer",
-      "conflictResolution": "Selecteer variabele conflict oplossing",
+      "conflictResolution": "Selecteer variable conflict oplossing",
       "errorParsingJsonFile": "Fout bij parsen van JSON bestand: Upload een JSON bestand met variabelen (bijv., {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
-          "description": "Misluk de import als bestaande variabelen gedetecteerd zijn.",
+          "description": "Misluk de import also bestaande variabelen gedetecteerd zijn.",
           "title": "Mislukken"
         },
         "overwrite": {
@@ -183,7 +183,7 @@
     },
     "noRowsMessage": "Geen variabelen gevonden",
     "searchPlaceholder": "Sleutels zoeken",
-    "variable_one": "Variabele",
+    "variable_one": "Variable",
     "variable_other": "Variabelen"
   }
 }

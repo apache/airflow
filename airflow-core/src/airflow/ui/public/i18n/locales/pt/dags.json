@@ -35,7 +35,7 @@
       "title": "Limpar {{type}}"
     },
     "confirmationDialog": {
-      "description": "A tarefa está atualmente em estado {{state}} iniciado pelo utilizador {{user}} às {{time}}. O utilizador não pode limpar esta tarefa até que termine de executar ou até que um utilizador desmarque a opção \"Impedir nova execução se a tarefa estiver em execução\" no diálogo de limpeza.",
+      "description": "A tarefa está atualmente em estado {{state}} iniciado pelo utilizador {{user}} às {{time}}. O utilizador não pode limpar esta tarefa até que determine de executar ou até que um utilizador desmarque a opção \"Impedir nova execução se a tarefa estiver em execução\" no diálogo de limpeza.",
       "title": "Não é Possível Limpar a Instância de Tarefa"
     },
     "delete": {
@@ -45,7 +45,7 @@
         "title": "Excluir {{type}}",
         "warning": "Isso removerá todas as metadados relacionados ao {{type}}."
       },
-      "error": "Erro ao excluir {{type}}",
+      "error": "Error ao excluir {{type}}",
       "success": {
         "description": "A solicitação de exclusão do {{type}} foi bem-sucedida.",
         "title": "{{type}} Excluído com Sucesso"
@@ -80,8 +80,8 @@
   },
   "sort": {
     "displayName": {
-      "asc": "Ordenar por Nome (A-Z)",
-      "desc": "Ordenar por Nome (Z-A)"
+      "asc": "Ordenar por Gnome (A-Z)",
+      "desc": "Ordenar por Gnome (Z-A)"
     },
     "lastRunStartDate": {
       "asc": "Ordenar por Data de Início da Última Execução (Mais Antiga-Mais Recente)",

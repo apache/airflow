@@ -675,7 +675,7 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
     [`${typescriptNamespace}/no-explicit-any`]: ERROR,
 
     /**
-     * A class with all statics can be turned into an object.
+     * A class with all statistics can be turned into an object.
      *
      * @example
      * ```typescript

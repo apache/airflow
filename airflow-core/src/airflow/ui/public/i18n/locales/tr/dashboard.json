@@ -5,7 +5,7 @@
     "noDagRuns": "Bu dag için henüz Dag Çalıştırması yok.",
     "noFavoriteDags": "Henüz favori yok. Favorilere eklemek için listede bir Dag'ın yanındaki yıldız simgesine tıklayın."
   },
-  "group": "Grup",
+  "group": "Group",
   "health": {
     "dagProcessor": "Dag İşlemcisi",
     "health": "Sağlık",

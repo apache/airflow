@@ -13,59 +13,59 @@
     "title": "Configuration d'Airflow"
   },
   "connections": {
-    "add": "Ajouter une connexion",
+    "add": "Ajouter une connection",
     "columns": {
-      "connectionId": "ID de connexion",
-      "connectionType": "Type de connexion",
+      "connectionId": "ID de connection",
+      "connectionType": "Type de connection",
       "host": "Hôte",
       "port": "Port"
     },
     "connection_many": "Connexions",
-    "connection_one": "Connexion",
+    "connection_one": "Connection",
     "connection_other": "Connexions",
     "delete": {
       "deleteConnection_many": "Supprimer {{count}} connexions",
-      "deleteConnection_one": "Supprimer 1 connexion",
+      "deleteConnection_one": "Supprimer 1 connection",
       "deleteConnection_other": "Supprimer {{count}} connexions",
       "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les connexions suivantes :",
-      "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connexion suivante :",
+      "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connection suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
-      "title": "Supprimer la Connexion"
+      "title": "Supprimer la Connection"
     },
-    "edit": "Modifier la connexion",
+    "edit": "Modifier la connection",
     "form": {
-      "connectionIdRequired": "L'ID de la connexion est requis",
-      "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
-      "connectionTypeRequired": "Le type de la connexion est requis",
+      "connectionIdRequired": "L'ID de la connection est requis",
+      "connectionIdRequirement": "L'ID de la connection ne peut pas contenir uniquement des escapes",
+      "connectionTypeRequired": "Le type de la connection est requis",
       "extraFields": "Champs Supplémentaires",
       "extraFieldsJson": "Champs Supplémentaires JSON",
-      "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
+      "helperText": "Le type de la connection est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondent.",
       "helperTextForRedactedFields": "Les champs masqués ('***') resteront inchangés s'ils ne sont pas modifiés.",
-      "selectConnectionType": "Sélectionner le type de connexion",
+      "selectConnectionType": "Sélectionner le type de connection",
       "standardFields": "Champs standards"
     },
     "nothingFound": {
       "description": "Les connexions définies via des variables d'environnement ou des gestionnaires de secrets ne sont pas listées ici.",
       "documentationLink": "En savoir plus dans la documentation Airflow.",
-      "learnMore": "Celles-ci sont résolues à l'exécution et ne sont pas visibles dans l'UI.",
-      "title": "Aucune connexion trouvée !"
+      "learnMore": "Celles-ci sont résolues à l'exécution et ne sont pas visible dans l'UI.",
+      "title": "Aucune connection trouvée !"
     },
     "searchPlaceholder": "Rechercher les connexions",
-    "test": "Tester la connexion",
-    "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",
+    "test": "Tester la connection",
+    "testDisabled": "Le test de connection est désactivé. Veuillez contacter un administrateur pour l'activer.",
     "testError": {
-      "title": "Échec du test de connexion"
+      "title": "Échec du test de connection"
     },
     "testSuccess": {
-      "title": "Test de connexion réussi"
+      "title": "Test de connection réussi"
     },
     "typeMeta": {
-      "error": "Échec de la récupération des métadonnées du type de connexion",
+      "error": "Échec de la récupération des métadonnées du type de connection",
       "standardFields": {
         "description": "Description",
         "host": "Hôte",
         "login": "Identifiant",
-        "password": "Mot de passe",
+        "password": "Not de passe",
         "port": "Port",
         "url_schema": "Schéma"
       }
@@ -161,22 +161,22 @@
     },
     "edit": "Modifier la variable",
     "form": {
-      "invalidJson": "JSON invalide",
+      "invalidJson": "JSON invalid",
       "keyMaxLength": "La clé peut contenir un maximum de 250 caractères",
       "keyRequired": "La clé est requise",
       "valueRequired": "La valeur est requise"
     },
     "import": {
       "button": "Importer",
-      "conflictResolution": "Sélectionner la Résolution de Conflit de Variable",
-      "errorParsingJsonFile": "Erreur lors de l'analyse du fichier JSON : Soumettez un fichier JSON contenant des variables (par exemple, {\"key\": \"value\", ...}).",
+      "conflictResolution": "Sélectionner la Résolution de Conflict de Variable",
+      "errorParsingJsonFile": "Erreur lors de l'analyse du fichier JSON : Soumettez un fichier JSON contenant des variables (par example, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Refuser l'importation si une variable avec la même clé existe déjà.",
           "title": "Échouer"
         },
         "overwrite": {
-          "description": "Écraser la variable en cas de conflit.",
+          "description": "Écraser la variable en cas de conflict.",
           "title": "Écraser"
         },
         "skip": {
@@ -186,7 +186,7 @@
       },
       "title": "Importer des Variables",
       "upload": "Soumettre un Fichier JSON",
-      "uploadPlaceholder": "Soumettre un fichier JSON contenant des variables (par exemple, {\"key\": \"value\", ...})"
+      "uploadPlaceholder": "Soumettre un fichier JSON contenant des variables (par example, {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "Aucune variable trouvée",
     "searchPlaceholder": "Rechercher des Variables",

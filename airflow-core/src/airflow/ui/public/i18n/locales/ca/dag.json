@@ -72,7 +72,7 @@
       "newerRuns": "Execucions més recents",
       "olderRuns": "Execucions més antigues",
       "resetToLatest": "Restablir a l'últim",
-      "toggleGroup": "Alternar grup"
+      "toggleGroup": "Alternar group"
     },
     "runTypeLegend": "Llegenda del tipus d'execució"
   },
@@ -109,11 +109,11 @@
   "navigation": {
     "navigation": "Navegació: Shift+{{arrow}}",
     "openGraphFilters": "Filtres de tasques: Ctrl+Maj+F",
-    "toggleGroup": "Alternar grup: Espai"
+    "toggleGroup": "Alternar group: Espai"
   },
   "notFound": {
     "back": "Enrere",
-    "backToDags": "Tornar als Dags",
+    "backToDags": "Tornar also Dags",
     "message": "El Dag \"{{dagId}}\" no existeix.",
     "title": "Dag no trobat"
   },
@@ -128,7 +128,7 @@
     },
     "charts": {
       "assetEvent_one": "Esdeveniment d'Asset creat",
-      "assetEvent_other": "Esdeveniments d'Asset creats"
+      "assetEvent_other": "Esdeveniments d'Asset creates"
     },
     "deadlines": {
       "showAll": "Mostrar tot",
@@ -138,7 +138,7 @@
       "hideLogs": "Amagar registres",
       "showLogs": "Mostrar registres",
       "title": "Registres de tasques fallides recents",
-      "viewFullLogs": "Veure els registres complets"
+      "viewFullLogs": "Veure els registres completes"
     }
   },
   "panel": {
@@ -170,7 +170,7 @@
       "mapIndex": "Índex de mapa mín.",
       "mapIndexHint": "Mostra les tasques mapejades expandides almenys fins a aquest índex",
       "selectStatus": "Seleccionar estat",
-      "selectTaskGroup": "Seleccionar grup de tasques",
+      "selectTaskGroup": "Seleccionar group de tasques",
       "title": "Filtres de tasques"
     },
     "showVersionIndicator": {
@@ -196,9 +196,9 @@
         "traverse": "Recórrer"
       },
       "options": {
-        "both": "Aigües amunt i aigües avall",
+        "both": "Aigües amount i aigües avall",
         "downstream": "Aigües avall",
-        "upstream": "Aigües amunt"
+        "upstream": "Aigües amount"
       },
       "selectedTask": "Tasca seleccionada"
     }
@@ -235,7 +235,7 @@
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "Col·lapsar tots els grups de tasques",
-    "expandAll": "Expandir tots els grups de tasques"
+    "collapseAll": "Col·lapsar tots els groups de tasques",
+    "expandAll": "Expandir tots els groups de tasques"
   }
 }

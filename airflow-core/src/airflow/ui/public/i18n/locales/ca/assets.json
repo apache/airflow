@@ -12,21 +12,21 @@
       "label": "Manual"
     },
     "materialize": {
-      "description": "Executa el Dag en amunt d'aquest Asset",
-      "descriptionWithDag": "Executa el Dag en amunt d'aquest Asset: {{dagName}}",
+      "description": "Executa el Dag en amount d'aquest Asset",
+      "descriptionWithDag": "Executa el Dag en amount d'aquest Asset: {{dagName}}",
       "label": "Materialitzar",
       "unpauseDag": "Reactivar {{dagName}} a l'executar"
     },
     "success": {
       "manualDescription": "La creació manual de l'esdeveniment d'Asset ha estat exitosa.",
       "manualTitle": "Esdeveniment d'Asset creat",
-      "materializeDescription": "El Dag aigües amunt {{dagId}} s'ha executat exitosament.",
+      "materializeDescription": "El Dag aigües amount {{dagId}} s'ha executat exitosament.",
       "materializeTitle": "Materialitzant l'Asset"
     },
     "title": "Crear esdeveniment d'Asset per {{name}}"
   },
   "extra": "Extra",
-  "group": "Grup",
+  "group": "Group",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
   "producingTasks": "Tasques productores",

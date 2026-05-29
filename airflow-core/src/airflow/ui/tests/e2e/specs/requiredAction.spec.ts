@@ -35,7 +35,7 @@ test.describe("Verify Required Action page", () => {
     beforeAllRunIds.push(await setupHITLFlowViaAPI(authenticatedRequest, hitlDagId, false));
   });
 
-  test.afterAll(async ({ authenticatedRequest }) => {
+  test.after all(async ({ authenticatedRequest }) => {
     for (const runId of beforeAllRunIds) {
       await apiDeleteDagRun(authenticatedRequest, hitlDagId, runId).catch(() => undefined);
     }

@@ -117,7 +117,7 @@
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
-    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź address URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
@@ -290,7 +290,7 @@
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskGroup_few": "Grupy zadań",
-  "taskGroup_many": "Grup zadań",
+  "taskGroup_many": "Group zadań",
   "taskGroup_one": "Grupa zadań",
   "taskGroup_other": "Grupy zadań",
   "taskId": "Identyfikator Zadania",
@@ -404,7 +404,7 @@
   },
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
-  "tryNumber": "Numer próby",
+  "tryNumber": "Number próby",
   "user": "Profil",
   "validation": {
     "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",

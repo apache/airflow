@@ -30,7 +30,7 @@
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
   "consumingAsset": "Asset consumidor",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
-  "createdAssetEvent_other": "Esdeveniments d'Asset creats",
+  "createdAssetEvent_other": "Esdeveniments d'Asset creates",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -194,7 +194,7 @@
   "scroll": {
     "direction": {
       "bottom": "Avall",
-      "top": "Amunt"
+      "top": "Amount"
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
@@ -240,7 +240,7 @@
     "success": "Exitós",
     "up_for_reschedule": "A reprogramar",
     "up_for_retry": "A reintentar",
-    "upstream_failed": "Fallit aigües amunt"
+    "upstream_failed": "Fallit aigües amount"
   },
   "table": {
     "completedAt": "Completat a",
@@ -267,8 +267,8 @@
   },
   "task_one": "Tasca",
   "task_other": "Tasques",
-  "taskGroup_one": "Grup de tasques",
-  "taskGroup_other": "Grups de tasques",
+  "taskGroup_one": "Group de tasques",
+  "taskGroup_other": "Groups de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
     "dagVersion": "Versió del Dag",
@@ -317,21 +317,21 @@
     "bulkClear": {
       "error": "Error en la sol·licitud de neteja massiva de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} s'han netejat correctament. Claus: {{keys}}",
+        "description": "{{count}} {{resourceName}} s'han netejat correctament. Clause: {{keys}}",
         "title": "Sol·licitud de neteja massiva de {{resourceName}} enviada"
       }
     },
     "bulkDelete": {
       "error": "Error en la sol·licitud de supressió massiva de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} s'han suprimit correctament. Claus: {{keys}}",
+        "description": "{{count}} {{resourceName}} s'han suprimit correctament. Clause: {{keys}}",
         "title": "Sol·licitud de supressió massiva de {{resourceName}} enviada"
       }
     },
     "bulkUpdate": {
       "error": "Error en la sol·licitud d'actualització massiva de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} s'han actualitzat correctament. Claus: {{keys}}",
+        "description": "{{count}} {{resourceName}} s'han actualitzat correctament. Clause: {{keys}}",
         "title": "Sol·licitud d'actualització massiva de {{resourceName}} enviada"
       }
     },
@@ -352,7 +352,7 @@
     "import": {
       "error": "Error en la sol·licitud d'importació de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} s'han importat correctament.",
+        "description": "{{count}} {{resourceName}} s'han important correctament.",
         "title": "Sol·licitud d'importació de {{resourceName}} enviada"
       }
     },
@@ -381,8 +381,8 @@
   "tryNumber": "Número d'intent",
   "user": "Usuari",
   "validation": {
-    "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
-    "mustBeValidNumber": "Ha de ser un número vàlid."
+    "mustBeAtLeast": "Ha de set com a mínim {{min}}.",
+    "mustBeValidNumber": "Ha de set un número vàlid."
   },
   "wrap": {
     "hotkey": "w",

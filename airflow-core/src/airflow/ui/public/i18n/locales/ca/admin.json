@@ -36,7 +36,7 @@
       "connectionTypeRequired": "El tipus de connexió és obligatori",
       "extraFields": "Camps addicionals",
       "extraFieldsJson": "Camps addicionals JSON",
-      "helperText": "Falta el tipus de connexió? Assegureu-vos d'haver instal·lat el paquet de proveïdors d'Airflow corresponent.",
+      "helperText": "Falta el tipus de connexió? Assegureu-vos d'haver install·lat el paquet de proveïdors d'Airflow correspondent.",
       "helperTextForRedactedFields": "Els camps redactats ('***') romandran sense canvis si no es modifiquen.",
       "selectConnectionType": "Seleccioneu el tipus de connexió",
       "standardFields": "Camps estàndard"
@@ -44,7 +44,7 @@
     "nothingFound": {
       "description": "Les connexions definides a través de variables d'entorn o gestors de secrets no es mostren aquí.",
       "documentationLink": "Més informació a la documentació d'Airflow.",
-      "learnMore": "Aquestes es resolen en temps d'execució i no són visibles a la interfície d'usuari.",
+      "learnMore": "Aquestes es resolen en temps d'execució i no són visible a la interfície d'usuari.",
       "title": "No s'ha trobat cap connexió!"
     },
     "searchPlaceholder": "Cercar connexions",
@@ -162,7 +162,7 @@
     "import": {
       "button": "Importar",
       "conflictResolution": "Seleccionar resolució de conflicte de variables",
-      "errorParsingJsonFile": "Error a l'analitzar el fitxer JSON: Puja un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...}).",
+      "errorParsingJsonFile": "Error a l'analitzar el fitxer JSON: Puja un fitxer JSON que contingui variables (per example, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Error en la importació si es detecten variables existents.",
@@ -173,16 +173,16 @@
           "title": "Sobreescriure"
         },
         "skip": {
-          "description": "Ignora la importació de variables que ja existeixen.",
+          "description": "Ignore la importació de variables que ja existeixen.",
           "title": "Ignorar"
         }
       },
       "title": "Importar Variables",
       "upload": "Penjar un fitxer JSON",
-      "uploadPlaceholder": "Penjar un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...})"
+      "uploadPlaceholder": "Penjar un fitxer JSON que contingui variables (per example, {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "No s'han trobat variables",
-    "searchPlaceholder": "Cercar claus",
+    "searchPlaceholder": "Cercar clause",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }

@@ -3,9 +3,9 @@
     "favoriteDags_one": "Primer {{count}} Dag favorit",
     "favoriteDags_other": "Primers {{count}} Dags favorits",
     "noDagRuns": "No hi ha execucions per a aquest Dag encara.",
-    "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per a afegir-lo als teus favorits."
+    "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per a afegir-lo also teus favorits."
   },
-  "group": "Grup",
+  "group": "Group",
   "health": {
     "dagProcessor": "Processador de Dags",
     "health": "Estat de salut",
@@ -17,7 +17,7 @@
     "triggerer": "Triggerer",
     "unhealthy": "No saludable"
   },
-  "history": "Historial",
+  "history": "Historical",
   "importErrors": {
     "dagImportError_one": "Error d'importació de Dag",
     "dagImportError_other": "Errors d'importació de Dag",

@@ -2,7 +2,7 @@
   "columns": {
     "description": "Descrizione",
     "key": "Chiave",
-    "name": "Nome",
+    "name": "Gnome",
     "value": "Valore"
   },
   "config": {
@@ -56,7 +56,7 @@
     "test": "Test Connessione",
     "testDisabled": "La funzione di test della connessione è disabilitata. Per favore contatta un amministratore per abilitarla.",
     "typeMeta": {
-      "error": "Impossibile recuperare il tipo di connessione",
+      "error": "Impossible recuperare il tipo di connessione",
       "standardFields": {
         "description": "Descrizione",
         "host": "Host",
@@ -102,8 +102,8 @@
       "checkbox": "Seleziona per includere le tare deferite quando si calcolano gli slot liberi del pool",
       "description": "Descrizione",
       "includeDeferred": "Includi Deferiti",
-      "nameMaxLength": "Il nome può contenere un massimo di 256 caratteri",
-      "nameRequired": "Il nome è obbligatorio",
+      "nameMaxLength": "Il gnome può contenere un massimo di 256 caratteri",
+      "nameRequired": "Il gnome è obbligatorio",
       "slots": "Slot"
     },
     "noPoolsFound": "Nessun pool trovato",
@@ -113,14 +113,14 @@
     "pool_zero": "Nessun pool",
     "searchPlaceholder": "Cercare Pools",
     "sort": {
-      "asc": "Nome (A-Z)",
-      "desc": "Nome (Z-A)",
+      "asc": "Gnome (A-Z)",
+      "desc": "Gnome (Z-A)",
       "placeholder": "Ordina per"
     }
   },
   "providers": {
     "columns": {
-      "packageName": "Nome del Pacchetto",
+      "packageName": "Gnome del Pacchetto",
       "version": "Versione"
     }
   },

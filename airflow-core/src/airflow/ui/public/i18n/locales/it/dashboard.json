@@ -9,7 +9,7 @@
   },
   "group": "Gruppo",
   "health": {
-    "dagProcessor": "Processore del Dag",
+    "dagProcessor": "Processor del Dag",
     "health": "Salute",
     "healthy": "Sano",
     "lastHeartbeat": "Ultimo Heartbeat",

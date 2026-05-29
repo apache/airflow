@@ -35,7 +35,7 @@
     }
   },
   "code": {
-    "bundleUrl": "Paket URL'i",
+    "bundleUrl": "Packet URL'i",
     "noCode": "Kod Bulunamadı",
     "parseDuration": "Ayrıştırılma süresi:",
     "parsedAt": "Ayrıştırıldı:"
@@ -127,7 +127,7 @@
       "options": {
         "hideAll": "Hepsini gizle",
         "showAll": "Hepsini göster",
-        "showBundleVersion": "Paket versiyonunu göster",
+        "showBundleVersion": "Packet versiyonunu göster",
         "showDagVersion": "Dag versiyonunu göster"
       }
     },

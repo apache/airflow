@@ -8,11 +8,11 @@
       "received": "Überprüft"
     }
   },
-  "requiredAction_one": "Erforderliche Interaktion",
+  "requiredAction_one": "Erforderliche Interaction",
   "requiredAction_other": "Erforderliche Interaktionen",
-  "requiredActionCount_one": "{{count}} offene Interaktion",
+  "requiredActionCount_one": "{{count}} offene Interaction",
   "requiredActionCount_other": "{{count}} offene Interaktionen",
-  "requiredActionState": "Status der Interaktion",
+  "requiredActionState": "Status der Interaction",
   "response": {
     "created": "Antwort erstellt um ",
     "error": "Senden der Antwort fehlgeschlagen",
@@ -21,8 +21,8 @@
     "received": "Antwort empfangen um ",
     "respond": "Antworten",
     "responded_by_user_name": "Beantwortet von (Benutzername)",
-    "success": "{{taskId}} Interaktion erfolgreich",
-    "title": "Erforderliche Interaktion - {{taskId}}"
+    "success": "{{taskId}} Interaction erfolgreich",
+    "title": "Erforderliche Interaction - {{taskId}}"
   },
   "state": {
     "approvalReceived": "Genehmigung erhalten",

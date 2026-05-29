@@ -44,7 +44,7 @@
   "configForm": {
     "advancedOptions": "Options avancées",
     "configJson": "Configuration JSON",
-    "invalidJson": "Format JSON invalide : {{errorMessage}}"
+    "invalidJson": "Format JSON invalid : {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 erreur",
@@ -55,8 +55,8 @@
   },
   "dateRangeFilter": {
     "validation": {
-      "invalidDateFormat": "Format de date invalide.",
-      "invalidTimeFormat": "Format d'heure invalide.",
+      "invalidDateFormat": "Format de date invalid.",
+      "invalidTimeFormat": "Format d'heure invalid.",
       "startBeforeEnd": "La date/heure de début doit être antérieure à la date/heure de fin"
     }
   },
@@ -79,12 +79,12 @@
   },
   "flexibleForm": {
     "placeholder": "Sélectionner une valeur",
-    "placeholderArray": "Entrez chaque mot sur une ligne séparée",
+    "placeholderArray": "Entrez chaque not sur une ligne séparée",
     "placeholderExamples": "Commencez à taper pour voir les options",
     "placeholderMulti": "Sélectionner une ou plusieurs valeurs",
     "validationErrorArrayNotArray": "La valeur doit être un tableau.",
     "validationErrorArrayNotNumbers": "Tous les éléments du tableau doivent être des nombres.",
-    "validationErrorArrayNotObject": "Tous les éléments du tableau doivent être des objets.",
+    "validationErrorArrayNotObject": "Tous les éléments du tableau doivent être des objects.",
     "validationErrorRequired": "Ce champ est requis"
   },
   "graph": {
@@ -139,8 +139,8 @@
     "dataIntervalManual": "Spécifier manuellement",
     "intervalEnd": "Fin",
     "intervalStart": "Début",
-    "loading": "Chargement des informations du Dag...",
-    "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
+    "loading": "Chargement des information du Dag...",
+    "loadingFailed": "Échec du chargement des information du Dag. Veuillez réessayer.",
     "manualRunDenied": "Les exécutions manuelles ne sont pas autorisées pour ce Dag",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
     "selectDescription": "Déclencher une exécution unique de ce Dag",

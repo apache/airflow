@@ -34,7 +34,7 @@
   },
   "source": "Quellcode",
   "stats": {
-    "activeDags": "Aktive Dags",
+    "activeDags": "Active Dags",
     "failedDags": "Fehlgeschlagene Dags",
     "queuedDags": "Dags in Warteschlange",
     "requiredActions": "Erforderliche Interaktionen",

@@ -42,7 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
-    "count_one": "{{count}} Frist",
+    "count_one": "{{count}} First",
     "count_other": "{{count}} Fristen",
     "referenceType": {
       "AverageRuntimeDeadline": "durchschnittlicher Laufzeit",
@@ -53,17 +53,17 @@
   "deadlineStatus": {
     "actual": "Tatsächlich",
     "expected": "Erwartet",
-    "finishedEarly": "{{duration}} vor der Frist abgeschlossen",
-    "finishedLate": "{{duration}} nach der Frist abgeschlossen",
-    "label": "Frist",
+    "finishedEarly": "{{duration}} for der First abgeschlossen",
+    "finishedLate": "{{duration}} nach der First abgeschlossen",
+    "label": "First",
     "met": "Erfüllt",
     "missed": "Verpasst",
-    "missedCount_one": "{{count}} verpasste Frist",
+    "missedCount_one": "{{count}} verpasste First",
     "missedCount_other": "{{count}} verpasste Fristen",
     "mixedCount": "{{missedCount}} verpasst, {{upcomingCount}} bevorstehend",
     "stillRunning": "Noch laufend",
     "upcoming": "Bevorstehend",
-    "upcomingCount_one": "{{count}} bevorstehende Frist",
+    "upcomingCount_one": "{{count}} bevorstehende First",
     "upcomingCount_other": "{{count}} bevorstehende Fristen"
   },
   "extraLinks": "Extra Links",
@@ -185,7 +185,7 @@
     "taskStreamFilter": {
       "activeFilter": "Aktiver Filter",
       "clearFilter": "Filter zurücksetzen",
-      "clickTask": "Klicken Sie auf einen Task, um ihn als Filterbasis auszuwählen",
+      "clickTask": "Klicken Sie auf einen Task, um ihn also Filterbasis auszuwählen",
       "depth": "Tiefe",
       "direction": "Richtung",
       "label": "Filter",
@@ -196,7 +196,7 @@
         "traverse": "Traversieren"
       },
       "options": {
-        "both": "Sowohl Vorgänger als auch Nachfolger",
+        "both": "Sowohl Vorgänger also auch Nachfolger",
         "downstream": "Nachfolger",
         "upstream": "Vorgänger"
       },

@@ -80,7 +80,7 @@
     "runType": "Tipo di Run",
     "sourceAssetEvent": "Evento Asset di Origine",
     "triggeredBy": "Triggered da",
-    "triggeringUser": "Nome Utente che ha Attivato"
+    "triggeringUser": "Gnome Utente che ha Attivato"
   },
   "dagRun_many": "Run del Dag",
   "dagRun_one": "Run del Dag",
@@ -260,7 +260,7 @@
     "dagVersion": "Versione del Dag",
     "executor": "Executor",
     "executorConfig": "Configurazione dell'Executor",
-    "hostname": "Nome delHost",
+    "hostname": "Gnome delHost",
     "maxTries": "Numero massimo di Tentativi",
     "pid": "PID",
     "pool": "Pool",
@@ -277,15 +277,15 @@
       "latestHeartbeat": "Ultimo Heartbeat del Trigger",
       "title": "Info del Trigger"
     },
-    "unixname": "Nome Unix"
+    "unixname": "Gnome Unix"
   },
   "taskInstance_many": "Istanze di Task",
   "taskInstance_one": "Istanza di Task",
   "taskInstance_other": "Istanze di Task",
   "taskInstance_zero": "Nessuna istanza di task",
   "timeRange": {
-    "last12Hours": "Ultimi 12 Ore",
-    "last24Hours": "Ultimi 24 Ore",
+    "last12Hours": "Ultimi 12 Or",
+    "last24Hours": "Ultimi 24 Or",
     "lastHour": "Ultima Ora",
     "pastWeek": "Settimana Scorsa"
   },

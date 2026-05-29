@@ -154,9 +154,9 @@
     "noContent": "İçerik bulunamadı."
   },
   "versionDetails": {
-    "bundleLink": "Paket Bağlantısı",
-    "bundleName": "Paket Adı",
-    "bundleVersion": "Paket Versiyonu",
+    "bundleLink": "Packet Bağlantısı",
+    "bundleName": "Packet Adı",
+    "bundleVersion": "Packet Versiyonu",
     "createdAt": "Oluşturulma",
     "versionId": "Versiyon Kimliği"
   },

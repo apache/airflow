@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "Dependência",
     "reason": "Motivo",
-    "title": "Dependências Bloqueando Tarefa de Ser Agendada"
+    "title": "Dependências Bloqueando Tarefa de Set Agendada"
   },
   "calendar": {
     "daily": "Diário",
@@ -58,7 +58,7 @@
     "allSources": "Todas as Fontes",
     "critical": "CRÍTICO",
     "debug": "DEBUG",
-    "error": "ERRO",
+    "error": "ERROR",
     "fullscreen": {
       "button": "Tela cheia",
       "tooltip": "Pressione {{hotkey}} para tela cheia"
@@ -146,7 +146,7 @@
       "direction": "Direção",
       "label": "Filtro",
       "mode": "Modo",
-      "modeTooltip": "O modo estático mantém a vista atual ao navegar entre tarefas; o modo percorrer atualiza automaticamente o filtro ativo para a tarefa clicada para facilitar a travessia do DAG.",
+      "modeTooltip": "O modo estático mantém a vista actual ao navegar entre tarefas; o modo percorrer atualiza automaticamente o filtro ativo para a tarefa clicada para facilitar a travessia do DAG.",
       "modes": {
         "static": "Estático",
         "traverse": "Percorrer"
@@ -167,7 +167,7 @@
         "title": "Falha ao Reprocessar o Dag"
       },
       "success": {
-        "description": "O Dag deve ser reprocessado em breve.",
+        "description": "O Dag deve set reprocessado em breve.",
         "title": "Solicitação de Reprocessamento Enviada com Sucesso"
       }
     }
