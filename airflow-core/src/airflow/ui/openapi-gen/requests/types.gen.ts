@@ -100,7 +100,7 @@ export type AssetResponse = {
  * Request body for setting an asset state value.
  */
 export type AssetStateBody = {
-    value: string;
+    value: JsonValue;
 };
 
 /**
@@ -116,7 +116,7 @@ export type AssetStateCollectionResponse = {
  */
 export type AssetStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
 };
 
@@ -1721,7 +1721,7 @@ export type TaskResponse = {
  * - aware datetime: expire at that time.
  */
 export type TaskStateBody = {
-    value: string;
+    value: JsonValue;
     expires_at?: string | "default" | null;
 };
 
@@ -1745,7 +1745,7 @@ export type TaskStatePatchBody = {
  */
 export type TaskStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
     expires_at: string | null;
 };
