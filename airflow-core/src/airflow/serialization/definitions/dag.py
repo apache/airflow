@@ -41,6 +41,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -653,10 +654,15 @@ class SerializedDAG:
                 }
             )
 
+            interval = deserialized_deadline_alert.interval
+
+            if isinstance(interval, VariableInterval):
+                interval = interval.resolve()
+
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
-                    interval=deserialized_deadline_alert.interval,
+                    interval=interval,
                     # TODO : Pretty sure we can drop these last two; verify after testing is complete
                     dag_id=self.dag_id,
                     run_id=orm_dagrun.run_id,

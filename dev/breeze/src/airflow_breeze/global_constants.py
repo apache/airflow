@@ -263,7 +263,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.15"
+UV_VERSION = "0.11.16"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -806,7 +806,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.2.1",
+        "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
