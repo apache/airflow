@@ -509,3 +509,51 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    @patch("airflow.providers.imap.hooks.imap.os.path.isfile", return_value=True)
+    def test_download_mail_attachments_skips_existing_file_when_overwrite_false(
+        self, mock_isfile, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "test1.csv", "test_directory", overwrite_file=False
+            )
+
+        mock_open_method.assert_not_called()
+        mock_open_method.return_value.write.assert_not_called()
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    @patch("airflow.providers.imap.hooks.imap.os.path.isfile", return_value=False)
+    def test_download_mail_attachments_writes_when_file_not_exists_and_overwrite_false(
+        self, mock_isfile, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "test1.csv", "test_directory", overwrite_file=False
+            )
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    @patch("airflow.providers.imap.hooks.imap.os.path.isfile", return_value=True)
+    def test_download_mail_attachments_overwrites_existing_file_when_overwrite_true(
+        self, mock_isfile, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "test1.csv", "test_directory", overwrite_file=True
+            )
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
