@@ -530,6 +530,12 @@ def _migrate_deadline_alerts() -> None:
             ")"
         )
 
+    # On MySQL, create a temporary index on dag_id to avoid sort buffer overflow
+    # when paginating over large serialized_dag tables (100K+ rows).
+    _tmp_idx = "_tmp_sd_dag_id_idx"
+    if dialect == "mysql":
+        conn.execute(sa.text(f"CREATE INDEX {_tmp_idx} ON serialized_dag (dag_id)"))
+
     total_dags = conn.execute(
         sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")
     ).scalar()
@@ -541,7 +547,7 @@ def _migrate_deadline_alerts() -> None:
         batch_num += 1
 
         if dialect == "mysql":
-            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            # Use subquery to avoid sorting large blob columns in the ORDER BY
             result = conn.execute(
                 sa.text(f"""
                     SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
@@ -766,6 +772,9 @@ def _migrate_deadline_alerts() -> None:
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
+    if dialect == "mysql":
+        conn.execute(sa.text(f"DROP INDEX {_tmp_idx} ON serialized_dag"))
+
     log.info(
         "Migration complete",
         processed_records=len(processed_dags),
@@ -806,6 +815,12 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     conn = op.get_bind()
     dialect = conn.dialect.name
 
+    # On MySQL, create a temporary index on dag_id to avoid sort buffer overflow
+    # when paginating over large serialized_dag tables (100K+ rows).
+    _tmp_idx = "_tmp_sd_dag_id_idx"
+    if dialect == "mysql":
+        conn.execute(sa.text(f"CREATE INDEX {_tmp_idx} ON serialized_dag (dag_id)"))
+
     # Count all dags - we'll filter in the loop for those with deadline data
     total_dags = conn.execute(
         sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")
@@ -819,7 +834,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
         batch_num += 1
 
         if dialect == "mysql":
-            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            # Use subquery to avoid sorting large blob columns in the ORDER BY
             result = conn.execute(
                 sa.text("""
                     SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed
@@ -918,6 +933,9 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                 dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
+
+    if dialect == "mysql":
+        conn.execute(sa.text(f"DROP INDEX {_tmp_idx} ON serialized_dag"))
 
     log.info(
         "Downgrade complete",
