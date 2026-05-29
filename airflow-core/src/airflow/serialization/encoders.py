@@ -41,6 +41,7 @@ from airflow.sdk import (
     DayWindow,
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
+    DynamicSegmentWindow,
     EventsTimetable,
     HourWindow,
     IdentityMapper,
@@ -501,6 +502,7 @@ class _Serializer:
         }
 
     BUILTIN_WINDOWS: dict[type, str] = {
+        DynamicSegmentWindow: "airflow.partition_mappers.window.DynamicSegmentWindow",
         HourWindow: "airflow.partition_mappers.window.HourWindow",
         DayWindow: "airflow.partition_mappers.window.DayWindow",
         WeekWindow: "airflow.partition_mappers.window.WeekWindow",
@@ -531,6 +533,10 @@ class _Serializer:
     @serialize_window.register
     def _(self, window: SegmentWindow) -> dict[str, Any]:
         return {"segments": sorted(window._segments)}
+
+    @serialize_window.register
+    def _(self, window: DynamicSegmentWindow) -> dict[str, Any]:
+        return {"resolver": window._resolver_path}
 
 
 _serializer = _Serializer()

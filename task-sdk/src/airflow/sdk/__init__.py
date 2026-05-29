@@ -48,6 +48,7 @@ __all__ = [
     "DagRunState",
     "DayWindow",
     "DeadlineAlert",
+    "DynamicSegmentWindow",
     "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
@@ -166,6 +167,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.partition_mappers.window import (
         DayWindow,
+        DynamicSegmentWindow,
         HourWindow,
         MonthWindow,
         QuarterWindow,
@@ -237,6 +239,7 @@ __lazy_imports: dict[str, str] = {
     "DagRunState": ".api.datamodels._generated",
     "DayWindow": ".definitions.partition_mappers.window",
     "DeadlineAlert": ".definitions.deadline",
+    "DynamicSegmentWindow": ".definitions.partition_mappers.window",
     "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",

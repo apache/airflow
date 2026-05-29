@@ -22,9 +22,11 @@ from typing import ClassVar
 import pytest
 
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
+    DynamicSegmentWindow,
     HourWindow,
     MonthWindow,
     QuarterWindow,
@@ -33,6 +35,12 @@ from airflow.sdk.definitions.partition_mappers.window import (
     Window,
     YearWindow,
 )
+
+
+# Module-level resolver — must be at module scope so it is importable via its dotted path.
+def _sdk_test_resolver_two_regions() -> list[str]:
+    """Return a fixed two-region list for use in SDK tests."""
+    return ["us-east", "eu-west"]
 
 
 class TestSdkRollupMapperInit:
@@ -134,3 +142,80 @@ class TestSdkSegmentWindow:
             window=SegmentWindow(["us-east", "eu-west"]),
         )
         assert mapper.window._segments == frozenset({"us-east", "eu-west"})
+
+
+class TestSdkDynamicSegmentWindow:
+    """SDK-side DynamicSegmentWindow construction and validation mirrors the core implementation."""
+
+    def test_construction_stores_resolver_path(self):
+        w = DynamicSegmentWindow(_sdk_test_resolver_two_regions)
+        # The resolver path is the dotted path used to re-import the function.
+        assert w._resolver_path.endswith("._sdk_test_resolver_two_regions")
+
+    def test_construction_stores_resolver_callable(self):
+        w = DynamicSegmentWindow(_sdk_test_resolver_two_regions)
+        assert w._resolver is _sdk_test_resolver_two_regions
+
+    def test_expected_decoded_type_is_str(self):
+        assert DynamicSegmentWindow.expected_decoded_type is str
+
+    # --- rejection at construction ---
+
+    @pytest.mark.parametrize(
+        ("bad_resolver", "exc_type", "match"),
+        [
+            pytest.param(
+                lambda: ["a"],
+                ValueError,
+                "Lambdas are rejected",
+                id="lambda",
+            ),
+            pytest.param(
+                42,
+                TypeError,
+                "plain function",
+                id="not-a-function",
+            ),
+        ],
+    )
+    def test_rejects_invalid_resolver_at_construction(self, bad_resolver, exc_type, match):
+        with pytest.raises(exc_type, match=match):
+            DynamicSegmentWindow(bad_resolver)
+
+    def test_rejects_closure_at_construction(self):
+        def _make_closure():
+            items = ["a"]
+
+            def _inner():
+                return items
+
+            return _inner
+
+        closure = _make_closure()
+        with pytest.raises(ValueError, match="Closures and nested functions are rejected"):
+            DynamicSegmentWindow(closure)
+
+    def test_rejects_nested_function_at_construction(self):
+        def _nested():
+            return ["x"]
+
+        with pytest.raises(ValueError, match="Closures and nested functions are rejected"):
+            DynamicSegmentWindow(_nested)
+
+    def test_rejects_bound_method_at_construction(self):
+        class _Helper:
+            def resolve(self):
+                return ["a"]
+
+        obj = _Helper()
+        with pytest.raises(TypeError, match="plain function"):
+            DynamicSegmentWindow(obj.resolve)
+
+    def test_rollup_mapper_accepts_dynamic_segment_window(self):
+        """SDK RollupMapper must accept DynamicSegmentWindow without raising."""
+        # Should not raise: expected_decoded_type is str, IdentityMapper is str-based.
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=DynamicSegmentWindow(_sdk_test_resolver_two_regions),
+        )
+        assert mapper.window._resolver is _sdk_test_resolver_two_regions

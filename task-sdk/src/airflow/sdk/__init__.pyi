@@ -78,6 +78,7 @@ from airflow.sdk.definitions.partition_mappers.temporal import (
 )
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
+    DynamicSegmentWindow,
     HourWindow,
     MonthWindow,
     QuarterWindow,
@@ -149,6 +150,7 @@ __all__ = [
     "DayWindow",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
+    "DynamicSegmentWindow",
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",

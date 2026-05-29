@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from airflow.sdk._shared.module_loading import import_string
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -126,3 +130,98 @@ class SegmentWindow(Window):
                     f"SegmentWindow segment keys must be non-empty strings; got an empty string at index {i}."
                 )
         self._segments: frozenset[str] = frozenset(collected)
+
+
+def _validate_resolver(fn: Callable) -> str:
+    """
+    Validate that *fn* is a module-level function and return its dotted import path.
+
+    Mirrors the same helper in ``airflow.partition_mappers.window`` so parse-time
+    validation on the SDK side is identical to what the scheduler side enforces.
+
+    :raises TypeError: if *fn* is not a plain function.
+    :raises ValueError: if *fn* is a lambda, closure, nested function, or non-importable.
+    """
+    if not inspect.isfunction(fn):
+        raise TypeError(
+            f"DynamicSegmentWindow resolver must be a plain function, got {type(fn).__name__!r}. "
+            "Must be a module-level function so it is serializable as a dotted path and "
+            "re-importable by the scheduler. Bound methods are rejected."
+        )
+    if fn.__name__ == "<lambda>":
+        raise ValueError(
+            "DynamicSegmentWindow resolver must be a module-level function so it is "
+            "serializable as a dotted path. Lambdas are rejected at construction."
+        )
+    if "<locals>" in fn.__qualname__:
+        raise ValueError(
+            "DynamicSegmentWindow resolver must be a module-level function so it is "
+            "serializable as a dotted path and re-importable by the scheduler. "
+            "Closures and nested functions are rejected at construction."
+        )
+    dotted_path = f"{fn.__module__}.{fn.__qualname__}"
+    try:
+        imported = import_string(dotted_path)
+    except ImportError as exc:
+        raise ValueError(
+            f"DynamicSegmentWindow resolver {dotted_path!r} is not importable via its dotted "
+            f"path; the scheduler stores the path and re-imports at scheduling time. "
+            f"Ensure the function is defined at module level and exported from its module. "
+            f"ImportError: {exc}"
+        ) from exc
+    if imported is not fn:
+        raise ValueError(
+            f"DynamicSegmentWindow resolver {dotted_path!r} does not round-trip via import: "
+            f"import_string({dotted_path!r}) returned a different object. "
+            "The function must be accessible at its dotted path without any re-binding."
+        )
+    return dotted_path
+
+
+class DynamicSegmentWindow(Window):
+    """
+    A runtime-resolved categorical rollup window.
+
+    Unlike :class:`SegmentWindow`, the expected set of segment keys is produced at
+    scheduling time by calling a **module-level callable** (the *resolver*). The
+    scheduler re-imports the callable from its dotted path, invokes it with no
+    arguments, and expects an iterable of non-empty ``str`` segment keys.
+
+    Like :class:`SegmentWindow`, the downstream anchor is ignored completely. Pair with
+    :class:`~airflow.sdk.definitions.partition_mappers.identity.IdentityMapper` inside a
+    :class:`~airflow.sdk.definitions.partition_mappers.base.RollupMapper`::
+
+        from airflow.sdk import RollupMapper, IdentityMapper, DynamicSegmentWindow
+
+
+        def list_active_regions() -> list[str]:
+            return ["us-east", "eu-west", "ap-south"]
+
+
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=DynamicSegmentWindow(list_active_regions),
+        )
+
+    Runtime logic (``to_upstream``) lives in
+    ``airflow.partition_mappers.window.DynamicSegmentWindow`` on the scheduler side.
+
+    .. warning:: **Resolver is called on every scheduler tick (commit 1 behavior)**
+
+        In this implementation, ``to_upstream`` re-invokes the resolver on every
+        scheduler tick. The resolver must be deterministic and side-effect-free across
+        calls. A follow-up commit will add a per-period snapshot to freeze the resolved
+        set.
+
+    :param resolver: A module-level callable with signature ``() -> Iterable[str]``.
+        Must not be a lambda, closure/nested function, or bound method.
+    :raises TypeError: if *resolver* is not a plain function.
+    :raises ValueError: if *resolver* is a lambda, closure, nested function, or not
+        importable via its dotted path at construction time.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, resolver: Callable[[], Any]) -> None:
+        self._resolver_path: str = _validate_resolver(resolver)
+        self._resolver: Callable[[], Any] = resolver

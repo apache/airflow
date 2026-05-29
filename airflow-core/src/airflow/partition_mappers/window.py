@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from airflow._shared.module_loading import import_string
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -256,3 +260,151 @@ class SegmentWindow(Window):
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> SegmentWindow:
         return cls(data["segments"])
+
+
+def _validate_resolver(fn: Callable) -> str:
+    """
+    Validate that *fn* is a module-level function and return its dotted import path.
+
+    Rejects lambdas, closures/nested functions, bound methods, and anything not a
+    plain function. Also verifies the function round-trips via ``import_string`` so
+    the scheduler can re-import it.
+
+    :raises TypeError: if *fn* is not a plain function.
+    :raises ValueError: if *fn* is a lambda, closure, nested function, or non-importable.
+    """
+    if not inspect.isfunction(fn):
+        raise TypeError(
+            f"DynamicSegmentWindow resolver must be a plain function, got {type(fn).__name__!r}. "
+            "Must be a module-level function so it is serializable as a dotted path and "
+            "re-importable by the scheduler. Bound methods are rejected."
+        )
+    if fn.__name__ == "<lambda>":
+        raise ValueError(
+            "DynamicSegmentWindow resolver must be a module-level function so it is "
+            "serializable as a dotted path. Lambdas are rejected at construction."
+        )
+    if "<locals>" in fn.__qualname__:
+        raise ValueError(
+            "DynamicSegmentWindow resolver must be a module-level function so it is "
+            "serializable as a dotted path and re-importable by the scheduler. "
+            "Closures and nested functions are rejected at construction."
+        )
+    dotted_path = f"{fn.__module__}.{fn.__qualname__}"
+    try:
+        imported = import_string(dotted_path)
+    except ImportError as exc:
+        raise ValueError(
+            f"DynamicSegmentWindow resolver {dotted_path!r} is not importable via its dotted "
+            f"path; the scheduler stores the path and re-imports at scheduling time. "
+            f"Ensure the function is defined at module level and exported from its module. "
+            f"ImportError: {exc}"
+        ) from exc
+    if imported is not fn:
+        raise ValueError(
+            f"DynamicSegmentWindow resolver {dotted_path!r} does not round-trip via import: "
+            f"import_string({dotted_path!r}) returned a different object. "
+            "The function must be accessible at its dotted path without any re-binding."
+        )
+    return dotted_path
+
+
+class DynamicSegmentWindow(Window):
+    """
+    A runtime-resolved categorical rollup window.
+
+    Unlike :class:`SegmentWindow`, the expected set of segment keys is produced at
+    scheduling time by calling a **module-level callable** (the *resolver*). The
+    scheduler re-imports the callable from its dotted path, invokes it with no
+    arguments, and expects an iterable of non-empty ``str`` segment keys.
+
+    Like :class:`SegmentWindow`, the downstream anchor is ignored completely —
+    ``to_upstream`` always returns the full set that the resolver produces,
+    regardless of the downstream key. Pair with :class:`~airflow.partition_mappers.identity.IdentityMapper`
+    inside a :class:`~airflow.partition_mappers.base.RollupMapper`::
+
+        from airflow.sdk import RollupMapper, IdentityMapper, DynamicSegmentWindow
+
+
+        def list_active_regions() -> list[str]:
+            # Could read from a config file, environment variable, etc.
+            return ["us-east", "eu-west", "ap-south"]
+
+
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=DynamicSegmentWindow(list_active_regions),
+        )
+
+    The downstream Dag run is held until every segment key returned by the resolver
+    has emitted an upstream asset event. This only works with ``WAIT_FOR_ALL`` trigger
+    semantics (the default).
+
+    .. warning:: **Resolver is called on every scheduler tick (commit 1 behavior)**
+
+        In this implementation, ``to_upstream`` re-invokes the resolver on every
+        scheduler tick. This means the expected segment set can **drift between ticks**
+        if the resolver is non-deterministic. A follow-up commit will add a per-period
+        snapshot to freeze the resolved set at the moment the Dag run is created.
+
+        Until that snapshot is in place:
+
+        - The resolver **must be deterministic and side-effect-free** across calls.
+          Returning different values on different calls may cause the scheduler to
+          simultaneously hold and release a Dag run, or never release it.
+        - The resolver is **invoked by the scheduler process**, not by user task code.
+          Do not use logic that requires task-side context (XCom, task parameters, etc.).
+
+    **Serialization**: the scheduler stores the resolver's dotted import path
+    (``module.function``) in the Dag serialization. At scheduling time the scheduler
+    re-imports the function from that path. The callable must therefore be:
+
+    - A **module-level function** (not a lambda, closure, or nested function).
+    - Accessible at its dotted path without re-binding (i.e.
+      ``import_string("module.function")`` must return the same object).
+
+    :param resolver: A module-level callable with signature ``() -> Iterable[str]``.
+        Must not be a lambda, closure/nested function, or bound method.
+    :raises TypeError: if *resolver* is not a plain function.
+    :raises ValueError: if *resolver* is a lambda, closure, nested function, or not
+        importable via its dotted path at construction time.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, resolver: Callable[[], Any]) -> None:
+        self._resolver_path: str = _validate_resolver(resolver)
+        self._resolver: Callable[[], Any] = resolver
+
+    def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
+        """
+        Invoke the resolver and return the resulting segment set, ignoring the downstream anchor.
+
+        The resolver is called with no arguments and must return an iterable of
+        non-empty ``str`` values. The downstream anchor is intentionally ignored —
+        every downstream key maps to the same resolver-produced set.
+
+        :raises ValueError: if the resolver returns a non-str or empty-string element.
+        """
+        results: list[str] = list(self._resolver())
+        for i, item in enumerate(results):
+            if not isinstance(item, str):
+                raise ValueError(
+                    f"DynamicSegmentWindow resolver {self._resolver_path!r} returned a non-str "
+                    f"value at index {i}: got {type(item).__name__!r} ({item!r}). "
+                    "The resolver must return an iterable of non-empty str segment keys."
+                )
+            if item == "":
+                raise ValueError(
+                    f"DynamicSegmentWindow resolver {self._resolver_path!r} returned an empty "
+                    f"string at index {i}. Segment keys must be non-empty strings."
+                )
+        return frozenset(results)
+
+    def serialize(self) -> dict[str, Any]:
+        return {"resolver": self._resolver_path}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> DynamicSegmentWindow:
+        resolver = import_string(data["resolver"])
+        return cls(resolver)

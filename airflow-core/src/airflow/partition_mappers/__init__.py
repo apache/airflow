@@ -31,6 +31,7 @@ from airflow.partition_mappers.temporal import (
 )
 from airflow.partition_mappers.window import (
     DayWindow,
+    DynamicSegmentWindow,
     HourWindow,
     MonthWindow,
     QuarterWindow,
@@ -44,6 +45,7 @@ __all__ = [
     "AllowedKeyMapper",
     "ChainMapper",
     "DayWindow",
+    "DynamicSegmentWindow",
     "HourWindow",
     "IdentityMapper",
     "MonthWindow",

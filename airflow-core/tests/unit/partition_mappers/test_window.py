@@ -21,6 +21,7 @@ from datetime import datetime
 import pytest
 
 from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
     StartOfHourMapper,
@@ -31,6 +32,7 @@ from airflow.partition_mappers.temporal import (
 )
 from airflow.partition_mappers.window import (
     DayWindow,
+    DynamicSegmentWindow,
     HourWindow,
     MonthWindow,
     QuarterWindow,
@@ -38,6 +40,13 @@ from airflow.partition_mappers.window import (
     WeekWindow,
     YearWindow,
 )
+
+
+# Module-level resolver used by TestDynamicSegmentWindow — must be at module scope so it
+# is importable via its dotted path (the serialization round-trip requirement).
+def _test_resolver_three_regions() -> list[str]:
+    """Return a fixed three-region list for use in tests."""
+    return ["us-east", "eu-west", "ap-south"]
 
 
 class TestHourWindow:
@@ -424,6 +433,198 @@ class TestSegmentWindow:
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
         assert isinstance(restored.window, SegmentWindow)
+        assert restored.to_upstream("any-key") == mapper.to_upstream("any-key")
+
+
+class TestDynamicSegmentWindow:
+    """Tests for DynamicSegmentWindow construction, validation, and serialization."""
+
+    def test_to_upstream_returns_resolver_set(self):
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        result = w.to_upstream("any-downstream-key")
+        assert result == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_to_upstream_ignores_downstream_anchor(self):
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        assert w.to_upstream("key-1") == w.to_upstream("key-2") == w.to_upstream("")
+
+    def test_stores_resolver_path(self):
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        # The path ends with the function name; the module prefix varies by test runner.
+        assert w._resolver_path.endswith("._test_resolver_three_regions")
+
+    def test_stores_resolver_callable(self):
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        assert w._resolver is _test_resolver_three_regions
+
+    # --- rejection at construction ---
+
+    @pytest.mark.parametrize(
+        ("bad_resolver", "exc_type", "match"),
+        [
+            pytest.param(
+                lambda: ["a"],
+                ValueError,
+                "Lambdas are rejected",
+                id="lambda",
+            ),
+            pytest.param(
+                42,
+                TypeError,
+                "plain function",
+                id="not-a-function",
+            ),
+        ],
+    )
+    def test_rejects_invalid_resolver_at_construction(self, bad_resolver, exc_type, match):
+        with pytest.raises(exc_type, match=match):
+            DynamicSegmentWindow(bad_resolver)
+
+    def test_rejects_closure_at_construction(self):
+        def _make_closure():
+            items = ["a"]
+
+            def _inner():
+                return items
+
+            return _inner
+
+        closure = _make_closure()
+        with pytest.raises(ValueError, match="Closures and nested functions are rejected"):
+            DynamicSegmentWindow(closure)
+
+    def test_rejects_nested_function_at_construction(self):
+        def _nested():
+            return ["x"]
+
+        with pytest.raises(ValueError, match="Closures and nested functions are rejected"):
+            DynamicSegmentWindow(_nested)
+
+    def test_rejects_bound_method_at_construction(self):
+        class _Helper:
+            def resolve(self):
+                return ["a"]
+
+        obj = _Helper()
+        with pytest.raises(TypeError, match="plain function"):
+            DynamicSegmentWindow(obj.resolve)
+
+    def test_rejects_non_importable_function(self):
+        """A function whose dotted path does not round-trip is rejected at construction."""
+
+        # Create a function in a fake module that cannot be re-imported.
+        code = compile("def my_resolver(): return ['a']", "<string>", "exec")
+        globs = {"__name__": "_fake_test_module_xyz"}
+        exec(code, globs)
+        fn = globs["my_resolver"]
+        fn.__module__ = "_fake_test_module_xyz"
+        # _fake_test_module_xyz is not in sys.modules, so import_string will fail.
+        with pytest.raises(ValueError, match="is not importable via its dotted path"):
+            DynamicSegmentWindow(fn)
+
+    # --- validation at to_upstream ---
+
+    def test_to_upstream_raises_on_non_str_element(self):
+        import sys
+        import types
+
+        # Build a module-level resolver that returns a non-str element, importable via sys.modules.
+        mod_name = "tests.unit.partition_mappers._helper_non_str_resolver"
+        mod = types.ModuleType(mod_name)
+        code = compile("def resolve(): return [42, 'b']", "<string>", "exec")
+        globs = {"__name__": mod_name}
+        exec(code, globs)
+        mod.resolve = globs["resolve"]
+        mod.resolve.__module__ = mod_name
+        sys.modules[mod_name] = mod
+
+        try:
+            w = DynamicSegmentWindow(mod.resolve)
+            with pytest.raises(ValueError, match="non-str"):
+                w.to_upstream("anchor")
+        finally:
+            sys.modules.pop(mod_name, None)
+
+    def test_to_upstream_raises_on_empty_string_element(self):
+        import sys
+        import types
+
+        mod_name = "tests.unit.partition_mappers._helper_empty_str_resolver"
+        mod = types.ModuleType(mod_name)
+        code = compile("def resolve(): return ['a', '', 'c']", "<string>", "exec")
+        globs = {"__name__": mod_name}
+        exec(code, globs)
+        mod.resolve = globs["resolve"]
+        mod.resolve.__module__ = mod_name
+        sys.modules[mod_name] = mod
+
+        try:
+            w = DynamicSegmentWindow(mod.resolve)
+            with pytest.raises(ValueError, match="empty string"):
+                w.to_upstream("anchor")
+        finally:
+            sys.modules.pop(mod_name, None)
+
+    # --- serialization ---
+
+    def test_serialize_returns_resolver_path(self):
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        data = w.serialize()
+        # The exact module prefix varies by test runner; check the key and suffix.
+        assert "resolver" in data
+        assert data["resolver"].endswith("._test_resolver_three_regions")
+
+    def test_core_serialize_round_trip(self):
+        """Core-class encode → decode preserves the resolver path and produces the same set."""
+        from airflow.serialization.decoders import decode_window
+        from airflow.serialization.encoders import encode_window
+
+        w = DynamicSegmentWindow(_test_resolver_three_regions)
+        restored = decode_window(encode_window(w))
+        assert isinstance(restored, DynamicSegmentWindow)
+        assert restored._resolver_path == w._resolver_path
+        assert restored.to_upstream("anchor") == w.to_upstream("anchor")
+
+    def test_sdk_window_serialize_round_trip(self):
+        """
+        SDK-class encode → decode must not drop the resolver path.
+
+        User code authors with the SDK class (``from airflow.sdk import DynamicSegmentWindow``);
+        the scheduler serializes that SDK instance. This test exercises the SDK-type dispatch path
+        in ``serialize_window`` — the path that was missing for ``SegmentWindow`` before the fix.
+        The core-class round-trip (``test_core_serialize_round_trip``) does NOT cover this path.
+        """
+        from airflow.sdk import DynamicSegmentWindow as SdkDynamicSegmentWindow
+        from airflow.serialization.decoders import decode_window
+        from airflow.serialization.encoders import encode_window
+
+        sdk_window = SdkDynamicSegmentWindow(_test_resolver_three_regions)
+        restored = decode_window(encode_window(sdk_window))
+        assert isinstance(restored, DynamicSegmentWindow)
+        assert restored._resolver_path.endswith("._test_resolver_three_regions")
+        assert restored.to_upstream("anchor") == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_rollup_mapper_with_identity_mapper(self):
+        """DynamicSegmentWindow composes correctly with IdentityMapper inside RollupMapper."""
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=DynamicSegmentWindow(_test_resolver_three_regions),
+        )
+        result = mapper.to_upstream("any-downstream")
+        assert result == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_rollup_mapper_serialize_round_trip(self):
+        """RollupMapper containing DynamicSegmentWindow survives a full encode → decode cycle."""
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=DynamicSegmentWindow(_test_resolver_three_regions),
+        )
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert isinstance(restored, RollupMapper)
+        assert isinstance(restored.window, DynamicSegmentWindow)
         assert restored.to_upstream("any-key") == mapper.to_upstream("any-key")
 
 
