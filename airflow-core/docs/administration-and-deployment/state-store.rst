@@ -129,26 +129,26 @@ There are four synchronous methods and four async equivalents:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 70
+   :widths: 55 45
 
-   * - Method
+   * - Signature
      - Description
-   * - ``get(scope, key, *, session)``
+   * - ``def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None``
      - Return the stored value, or ``None``.
-   * - ``set(scope, key, value, *, expires_at, session)``
+   * - ``def set(self, scope: StateScope, key: str, value: str, *, expires_at: datetime | None = None, session: Session | None = None) -> None``
      - Write or overwrite a key. ``expires_at`` is a UTC datetime or ``None``
        for non-expiring keys.
-   * - ``delete(scope, key, *, session)``
+   * - ``def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None``
      - Delete a single key; no-op if absent.
-   * - ``clear(scope, *, all_map_indices, session)``
+   * - ``def clear(self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None) -> None``
      - Delete all keys under the scope.
-   * - ``aget(scope, key, *, session)``
+   * - ``async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None``
      - Async variant of ``get``.
-   * - ``aset(scope, key, value, *, expires_at, session)``
+   * - ``async def aset(self, scope: StateScope, key: str, value: str, *, expires_at: datetime | None = None, session: AsyncSession | None = None) -> None``
      - Async variant of ``set``.
-   * - ``adelete(scope, key, *, session)``
+   * - ``async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None``
      - Async variant of ``delete``.
-   * - ``aclear(scope, *, all_map_indices, session)``
+   * - ``async def aclear(self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None) -> None``
      - Async variant of ``clear``.
 
 Dispatching on scope type
@@ -185,23 +185,23 @@ Worker-side backends extend ``BaseStateBackend`` with two pairs of serialization
 
 Override these four methods:
 
-``serialize_task_state_to_ref(*, value, key, ti_id)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Called by ``TaskStateAccessor.set()`` before sending the value to the Execution API. Return a reference string (e.g. an S3 key) that will be stored in the database instead of the raw value.
 
-``deserialize_task_state_from_ref(stored)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``def deserialize_task_state_from_ref(self, stored: str) -> str``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Called by ``TaskStateAccessor.get()`` after retrieving the reference string from the Execution API. Return the actual value.
 
-``serialize_asset_state_to_ref(*, value, key, asset_ref)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Same as the task variant, but for asset state. ``asset_ref`` is the asset name or URI, depending on how the accessor was constructed.
 
-``deserialize_asset_state_from_ref(stored)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``def deserialize_asset_state_from_ref(self, stored: str) -> str``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Called by ``AssetStateAccessor.get()`` to resolve the stored reference back to the actual value.
 

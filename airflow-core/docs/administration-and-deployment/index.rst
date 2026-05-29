@@ -39,3 +39,4 @@ This section contains information about deploying Dags into production and the a
     web-stack
     plugins
     state-store
+    state-cleanup
