@@ -931,6 +931,17 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
+      - id: sync-provider-readme
+        name: Sync provider README.rst Requirements table with pyproject.toml
+        description: |
+          Provider README.rst files are regenerated from pyproject.toml at distribution-build
+          time. Between releases, dependency bumps in pyproject.toml do not propagate to the
+          committed README, leading to drift. This hook re-renders the Requirements table from
+          the current pyproject.toml whenever the latter changes.
+        entry: ./scripts/ci/prek/sync_provider_readme.py
+        language: python
+        files: ^providers/.*/pyproject\.toml$
+        pass_filenames: true
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
