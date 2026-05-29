@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -160,3 +161,73 @@ class TestCallbackTrigger:
         mock_callback.assert_called_once_with(message=TEST_MESSAGE)
         assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
+
+
+class TestEnsureBundleModuleRegistered:
+    """Tests for _ensure_bundle_module_registered."""
+
+    def test_registers_module_from_matching_bundle(self, tmp_path):
+        from airflow.triggers.callback import _ensure_bundle_module_registered
+
+        stem = "my_dag_file"
+        mod_name = f"unusual_prefix_{'e' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("LOADED = True\n")
+
+        fake_bundle = mock.Mock()
+        fake_bundle.name = "test-bundle"
+        fake_bundle.path = tmp_path
+
+        with mock.patch(
+            "airflow.dag_processing.bundles.manager.DagBundlesManager"
+        ) as mock_mgr:
+            mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
+            _ensure_bundle_module_registered(f"{mod_name}.my_func")
+
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].LOADED is True
+        sys.modules.pop(mod_name)
+
+    def test_noop_when_module_already_in_sys_modules(self, tmp_path):
+        from airflow.triggers.callback import _ensure_bundle_module_registered
+
+        stem = "cached_mod"
+        mod_name = f"unusual_prefix_{'f' * 40}_{stem}"
+
+        sentinel = mock.Mock()
+        sys.modules[mod_name] = sentinel
+        try:
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_mgr:
+                _ensure_bundle_module_registered(f"{mod_name}.fn")
+                mock_mgr.assert_not_called()
+        finally:
+            sys.modules.pop(mod_name, None)
+
+    def test_graceful_when_no_bundle_contains_module(self, tmp_path):
+        from airflow.triggers.callback import _ensure_bundle_module_registered
+
+        mod_name = "unusual_prefix_" + "a" * 40 + "_absent_module"
+        fake_bundle = mock.Mock()
+        fake_bundle.name = "empty-bundle"
+        fake_bundle.path = tmp_path  # stem file doesn't exist here
+
+        with mock.patch(
+            "airflow.dag_processing.bundles.manager.DagBundlesManager"
+        ) as mock_mgr:
+            mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
+            # Should not raise
+            _ensure_bundle_module_registered(f"{mod_name}.fn")
+
+        assert mod_name not in sys.modules
+
+    def test_noop_for_non_mangled_path(self):
+        from airflow.triggers.callback import _ensure_bundle_module_registered
+
+        # A normal dotted path has no unusual_prefix_ prefix — the function returns
+        # early when split("_", 3) doesn't yield at least 4 parts, so no bundle
+        # manager is ever instantiated.
+        before = set(sys.modules)
+        _ensure_bundle_module_registered("airflow.providers.slack.notifiers.MyNotifier")
+        after = set(sys.modules)
+        assert after == before  # no new modules added

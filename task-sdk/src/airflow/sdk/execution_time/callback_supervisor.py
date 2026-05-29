@@ -356,7 +356,11 @@ def _load_mangled_module(mod_name: str, file_path: str, _log) -> bool:
         spec = importlib.util.spec_from_loader(mod_name, loader)
         module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
         sys.modules[mod_name] = module
-        loader.exec_module(module)
+        try:
+            loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(mod_name, None)
+            raise
         _log.debug("Registered bundle module", mod_name=mod_name, file=file_path)
         return True
     except Exception:
