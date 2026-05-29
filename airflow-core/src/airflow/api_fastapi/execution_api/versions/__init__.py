@@ -50,6 +50,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
     AddVariableKeysEndpoint,
+    AddQueuedDttmField,
 )
 
 bundle = VersionBundle(
@@ -59,6 +60,7 @@ bundle = VersionBundle(
         AddVariableKeysEndpoint,
         AddConnectionTestEndpoint,
         AddAwaitingInputStatePayload,
+        AddQueuedDttmField,
     ),
     Version(
         "2026-06-16",
