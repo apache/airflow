@@ -3487,6 +3487,66 @@ def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
             },
             id="Single large file with 1000 lines",
         ),
+        pytest.param(
+            tuple(f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(10)),
+            "\n".join([f"100\t100\tairflow-core/tests/unit/models/test_file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large test-only PR (2000 lines) does not trigger full tests",
+        ),
+        pytest.param(
+            ("docs/index.rst", "airflow-core/docs/security/security_model.rst"),
+            "600\t600\tdocs/index.rst\n400\t400\tairflow-core/docs/security/security_model.rst",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large docs-only PR does not trigger full tests",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
+                "airflow-ctl/src/airflowctl/api/datamodels/generated.py",
+                "task-sdk/src/airflow/sdk/api/datamodels/_generated.py",
+            ),
+            "\n".join(
+                [
+                    "400\t400\tairflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
+                    "400\t400\tairflow-ctl/src/airflowctl/api/datamodels/generated.py",
+                    "400\t400\ttask-sdk/src/airflow/sdk/api/datamodels/_generated.py",
+                ]
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Generated-only large PR does not trigger full tests",
+        ),
+        # In mixed PRs the production-file filter narrows the `git diff --numstat`
+        # call to the production paths, so the mocked stdout below only contains
+        # the production-file rows (mirroring what real git would return for
+        # that filtered argument list).
+        pytest.param(
+            tuple(
+                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
+                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
+            ),
+            "\n".join([f"60\t60\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
+            {
+                "full-tests-needed": "true",
+            },
+            id="Mixed PR with 600 production lines triggers (test lines excluded but prod >= 500)",
+        ),
+        pytest.param(
+            tuple(
+                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
+                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
+            ),
+            "\n".join([f"20\t20\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Mixed PR with only 200 production lines does not trigger (test lines excluded)",
+        ),
     ],
 )
 def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[str, str]):

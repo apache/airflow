@@ -214,15 +214,27 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.py",
-            r"^providers/.*\.py",
-            r"^pyproject.toml",
-            r"^hatch_build.py",
+            # Production Python source the runtime ships — excludes tests, docs,
+            # dev tooling, and generated files within those trees. Used by
+            # `run_python_scans` (SAST/SCA target) and the line-threshold check
+            # in `_is_large_enough_pr` to decide whether a PR's diff is large
+            # enough to force the full test matrix.
+            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
+            r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
+            r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
+            r"^providers/(?:[^/]+/)+src/.*\.py$",
+            r"^shared/[^/]+/src/.*\.py$",
+            r"^pyproject\.toml$",
+            r"^hatch_build\.py$",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.[jt]sx?",
-            r"^airflow-core/src/airflow/.*\.lock",
-            r"^airflow-core/src/airflow/ui/.*\.yaml$",
+            # Exclude the openapi-gen tree and translation bundles — those are
+            # generated / data files that ride under the same prefixes but
+            # carry no behavioral risk and would otherwise distort the
+            # production-code line-count gate.
+            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.[jt]sx?$",
+            r"^airflow-core/src/airflow/.*\.lock$",
+            r"^airflow-core/src/airflow/ui/(?!.*/(?:openapi-gen|i18n/locales)/).*\.yaml$",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_FILES: [
@@ -708,6 +720,12 @@ class SelectiveChecks:
 
         The heuristics are based on number of files changed and total lines changed,
         while excluding generated files which can be ignored.
+
+        The line-count check (``LINE_THRESHOLD``) only counts lines in production-code
+        files — tests, docs, newsfragments, generated files, translations, dev tooling,
+        and similar low-risk paths do not contribute to the line count. A 1000-line test
+        or docs PR is not the same shape of risk as a 1000-line change to scheduler
+        code, and only the latter should trigger the full test matrix.
         """
         FILE_THRESHOLD = 25
         LINE_THRESHOLD = 500
@@ -738,9 +756,24 @@ class SelectiveChecks:
             console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
             return False
 
+        # The line-count gate only counts churn in production code. We compose
+        # the existing `*_PRODUCTION_FILES` and helm groups rather than rolling
+        # a bespoke pattern set, so the definition of "production code" stays
+        # in lockstep with the rest of CI (e.g. SAST scans targeted by
+        # `run_python_scans` / `run_javascript_scans`).
+        production_files = list(
+            dict.fromkeys(
+                self._matching_files(FileGroupForCi.PYTHON_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
+                + self._matching_files(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
+                + self._matching_files(FileGroupForCi.HELM_FILES, CI_FILE_GROUP_MATCHES)
+            )
+        )
+        if not production_files:
+            return False
+
         try:
             result = run_command(
-                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
+                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + production_files,
                 capture_output=True,
                 text=True,
                 cwd=AIRFLOW_ROOT_PATH,
@@ -762,7 +795,8 @@ class SelectiveChecks:
                 if total_lines >= LINE_THRESHOLD:
                     console_print(
                         f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"in {files_changed} files[/]"
+                        f"of production code in {len(production_files)} file(s) "
+                        f"(of {files_changed} relevant file(s))[/]"
                     )
                     return True
         except Exception:
