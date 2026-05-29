@@ -19,9 +19,11 @@ Node.js Environment Setup
 =========================
 
 Contributing to the REST API in Airflow
----------------------------------
+---------------------------------------
 
-Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_fastapi/public`` versus the private ``airflow/api_fastapi/ui``
+Committers will exercise their judgement on which endpoints should exist in the public
+``airflow-core/src/airflow/api_fastapi/core_api/routes/public`` API versus the private
+``airflow-core/src/airflow/api_fastapi/core_api/routes/ui`` API used by the Airflow UI.
 
 Airflow UI
 ----------
