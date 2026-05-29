@@ -36,7 +36,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_SIZE,
     ExecutableCoordinator,
     _Bundle,
-    _cached_binary_region_digest,
+    _clear_digest_cache,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -189,7 +189,7 @@ class TestBundleFind:
         data[0] ^= 0xFF
         bundle_path.write_bytes(bytes(data))
         bundle_path.chmod(bundle_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        _cached_binary_region_digest.cache_clear()
+        _clear_digest_cache()
 
         with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
             with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
