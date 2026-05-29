@@ -22,7 +22,7 @@ from types import SimpleNamespace
 import pytest
 
 from airflow.sdk import Asset
-from airflow.sdk.definitions.context import get_current_context, clone_context, Context
+from airflow.sdk.definitions.context import Context, clone_context, get_current_context
 from airflow.sdk.execution_time.context import InletEventsAccessors
 
 
@@ -68,15 +68,17 @@ class TestCurrentContext:
         )
 
         actual = Context()
-        actual.update({
-            "params": {"p": {"n": 1}},
-            "templates_dict": {"tpl": ["a", {"x": 1}]},
-            "inlets": [object()],
-            "outlets": [object()],
-            "outlet_events": outlet_events,
-            "inlet_events": inlet_events,
-            "dag_run": dag_run,
-        })
+        actual.update(
+            {
+                "params": {"p": {"n": 1}},
+                "templates_dict": {"tpl": ["a", {"x": 1}]},
+                "inlets": [object()],
+                "outlets": [object()],
+                "outlet_events": outlet_events,
+                "inlet_events": inlet_events,
+                "dag_run": dag_run,
+            }
+        )
         cloned = clone_context(actual)
 
         assert cloned is not actual
