@@ -966,6 +966,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     _const_fields: ClassVar[set[str] | None] = None
 
+    # Parameters of BaseOperator.__init__ that must not appear in template_fields.
+    # Computed once at class-load time: the signature never changes during a process.
+    _FORBIDDEN_TEMPLATE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        signature(BaseOperator.__init__).parameters
+    ) - {"email"}
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -1046,9 +1052,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
-        forbidden_fields = set(signature(BaseOperator.__init__).parameters.keys())
-        # Though allow some of the BaseOperator fields to be templated anyway
-        forbidden_fields.difference_update({"email"})
+        forbidden_fields = cls._FORBIDDEN_TEMPLATE_FIELDS
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
