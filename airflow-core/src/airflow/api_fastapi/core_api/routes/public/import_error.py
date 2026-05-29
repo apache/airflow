@@ -214,7 +214,15 @@ def get_import_errors(
         filters=[filename_pattern, filename_prefix_pattern],
     )
     import_error_ids_stmt = (
-        filtered_import_errors_stmt.with_only_columns(ParseImportError.id).distinct().order_by(None)
+        filtered_import_errors_stmt.with_only_columns(
+            ParseImportError.id,
+            ParseImportError.timestamp,
+            ParseImportError.filename,
+            ParseImportError.bundle_name,
+            ParseImportError.stacktrace,
+        )
+        .distinct()
+        .order_by(None)
     )
     total_entries = session.scalar(select(func.count()).select_from(import_error_ids_stmt.subquery())) or 0
 
