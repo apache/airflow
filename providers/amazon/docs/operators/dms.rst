@@ -69,7 +69,7 @@ The task must be stopped before modification — use :class:`~airflow.providers.
 upstream in the Dag, and :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator`
 downstream to restart it afterwards if needed.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_modify_task]
