@@ -410,7 +410,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 1662ec573c55eb9648db2797a66f74bcc6216d62  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -712,6 +712,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/docs/connections/spark-submit.rst$|
+          ^providers/apache/spark/docs/operators\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -1071,6 +1072,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-provide-session-positional
+        name: Check that no new @provide_session functions declare `session` positionally
+        entry: ./scripts/ci/prek/check_provide_session_kwargs.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py

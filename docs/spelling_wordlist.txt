@@ -27,6 +27,7 @@ agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +185,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -784,7 +786,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -1049,6 +1054,8 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
