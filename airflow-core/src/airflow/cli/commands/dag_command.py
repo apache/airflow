@@ -126,7 +126,15 @@ def dag_delete(args) -> None:
 @providers_configuration_loaded
 @provide_session
 def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
-    """Clear Dag runs selected by run_id, partition_key, or a partition_date window."""
+    """
+    Clear Dag runs selected by run_id, partition_key, or a partition_date window.
+
+    When a partition_date window is given, both bounds are **day-granular** and
+    anchored in the timetable's timezone for tz-aware partitioned timetables.
+    --partition-date-start is the inclusive start local calendar day;
+    --partition-date-end is the inclusive end local calendar day (any
+    time-of-day component in either value is ignored).
+    """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
     if selectors_used == 0:
@@ -157,10 +165,52 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         query = query.where(DagRun.partition_key == args.partition_key)
     else:
         query = query.where(DagRun.partition_date.is_not(None))
-        if args.partition_date_start is not None:
-            query = query.where(DagRun.partition_date >= args.partition_date_start)
-        if args.partition_date_end is not None:
-            query = query.where(DagRun.partition_date <= args.partition_date_end)
+        tt_tz = getattr(dag.timetable, "timezone", None) if dag.timetable.partitioned else None
+        if tt_tz is not None:
+            # Partitioned runs are stored as local-midnight UTC instants; compare at day
+            # granularity in the timetable's timezone rather than at the raw UTC instant.
+            if args.partition_date_start is not None:
+                start_label = args.partition_date_start.date()
+                lower_utc = timezone.convert_to_utc(
+                    timezone.make_aware(
+                        datetime.datetime(start_label.year, start_label.month, start_label.day),
+                        tt_tz,
+                    )
+                )
+                query = query.where(DagRun.partition_date >= lower_utc)
+            if args.partition_date_end is not None:
+                end_label = args.partition_date_end.date()
+                # Half-open upper bound: include all of the end local calendar day.
+                next_day = datetime.date(end_label.year, end_label.month, end_label.day) + datetime.timedelta(
+                    days=1
+                )
+                upper_utc = timezone.convert_to_utc(
+                    timezone.make_aware(
+                        datetime.datetime(next_day.year, next_day.month, next_day.day),
+                        tt_tz,
+                    )
+                )
+                query = query.where(DagRun.partition_date < upper_utc)
+        else:
+            # No timetable timezone: partition_date values are midnight-anchored UTC dates,
+            # so time-of-day on the CLI flags is not meaningful — truncate to calendar day.
+            if args.partition_date_start is not None:
+                start_day = args.partition_date_start.date()
+                query = query.where(
+                    DagRun.partition_date
+                    >= datetime.datetime(
+                        start_day.year, start_day.month, start_day.day, tzinfo=datetime.timezone.utc
+                    )
+                )
+            if args.partition_date_end is not None:
+                end_day = args.partition_date_end.date()
+                next_day = end_day + datetime.timedelta(days=1)
+                query = query.where(
+                    DagRun.partition_date
+                    < datetime.datetime(
+                        next_day.year, next_day.month, next_day.day, tzinfo=datetime.timezone.utc
+                    )
+                )
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
     runs = list(session.execute(query).all())
