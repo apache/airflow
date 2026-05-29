@@ -102,7 +102,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.29.0
+    tag: v0.30.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
