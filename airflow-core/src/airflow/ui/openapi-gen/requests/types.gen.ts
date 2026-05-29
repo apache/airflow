@@ -301,6 +301,27 @@ export type BulkDAGRunBody = {
     dag_id?: string | null;
 };
 
+/**
+ * Request body for the bulk clear Dag Runs endpoint.
+ */
+export type BulkDAGRunClearBody = {
+    dry_run?: boolean;
+    only_failed?: boolean;
+    /**
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing each Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
+     */
+    run_on_latest_version?: boolean | null;
+    note?: string | null;
+    /**
+     * Dag Runs to clear. When the URL ``dag_id`` is ``~``, every entity must provide its own ``dag_id``. When the URL ``dag_id`` is a specific Dag, entities may omit ``dag_id`` and inherit from the URL.
+     */
+    dag_runs: Array<BulkDAGRunBody>;
+};
+
 export type BulkDeleteAction_BulkDAGRunBody_ = {
     /**
      * The action to be performed on the entities.
@@ -751,6 +772,7 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
      */
     run_on_latest_version?: boolean | null;
+    note?: string | null;
 };
 
 /**
@@ -2908,6 +2930,13 @@ export type GetUpstreamAssetEventsData = {
 };
 
 export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
+
+export type BulkClearDagRunsData = {
+    dagId: string;
+    requestBody: BulkDAGRunClearBody;
+};
+
+export type BulkClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
 
 export type ClearDagRunData = {
     dagId: string;
@@ -5350,6 +5379,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: AssetEventCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearDagRuns': {
+        post: {
+            req: BulkClearDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

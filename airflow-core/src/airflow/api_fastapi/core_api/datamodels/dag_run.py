@@ -73,11 +73,48 @@ class DAGRunClearBody(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``False`` (the historical default for clear/rerun).",
     )
+    note: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
 
     @model_validator(mode="before")
     @classmethod
     def validate_model(cls, data: Any) -> Any:
         """Validate clear Dag run form."""
+        if data.get("only_new") and data.get("only_failed"):
+            raise ValueError("only_new and only_failed are mutually exclusive")
+        return data
+
+
+class BulkDAGRunClearBody(StrictBaseModel):
+    """Request body for the bulk clear Dag Runs endpoint."""
+
+    dry_run: bool = True
+    only_failed: bool = False
+    only_new: bool = Field(
+        default=False,
+        description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+    )
+    run_on_latest_version: bool | None = Field(
+        default=None,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing each Dag Run. "
+        "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
+        "then the ``[core] rerun_with_latest_version`` config option, "
+        "and finally ``False`` (the historical default for clear/rerun).",
+    )
+    note: str | None = Field(default=None, max_length=1000)
+    dag_runs: list[BulkDAGRunBody] = Field(
+        description="Dag Runs to clear. When the URL ``dag_id`` is ``~``, every entity must "
+        "provide its own ``dag_id``. When the URL ``dag_id`` is a specific Dag, entities may "
+        "omit ``dag_id`` and inherit from the URL.",
+        min_length=1,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_model(cls, data: Any) -> Any:
+        """Validate bulk clear Dag run form."""
         if data.get("only_new") and data.get("only_failed"):
             raise ValueError("only_new and only_failed are mutually exclusive")
         return data
