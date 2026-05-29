@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import gc
 import inspect
@@ -31,7 +30,7 @@ import signal
 import sys
 import time
 import zipfile
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -237,7 +236,11 @@ class DagFileProcessorManager(LoggingMixin):
     heartbeat: Callable[[], None] = attrs.field(default=lambda: None)
     """An overridable heartbeat called once every time around the loop"""
 
-    _file_queue: deque[DagFileInfo] = attrs.field(factory=deque, init=False)
+    # An insertion-ordered mapping used as an ordered set: keys are the queued files (values
+    # are unused). OrderedDict gives O(1) membership, push-front (``move_to_end(last=False)``),
+    # pop-front (``popitem(last=False)``) and de-dup, keeping queue maintenance linear in the
+    # number of files instead of quadratic (a ``deque`` makes ``x in q`` and ``q.remove(x)`` O(N)).
+    _file_queue: OrderedDict[DagFileInfo, None] = attrs.field(factory=OrderedDict, init=False)
     _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
     )
@@ -1065,7 +1068,7 @@ class DagFileProcessorManager(LoggingMixin):
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
-        self._file_queue = deque(x for x in self._file_queue if x.presence_key in present_keys)
+        self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
@@ -1298,7 +1301,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         while self._parallelism > len(self._processors) and self._file_queue:
-            file = self._file_queue.popleft()
+            file, _ = self._file_queue.popitem(last=False)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors:
                 continue
@@ -1345,7 +1348,7 @@ class DagFileProcessorManager(LoggingMixin):
             sorted_regular_files, _ = self._sort_by_mtime(regular_files)
 
             # Put callback files at the front, then sorted regular files
-            self._file_queue = deque(callback_files + sorted_regular_files)
+            self._file_queue = OrderedDict.fromkeys(callback_files + sorted_regular_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
@@ -1509,18 +1512,23 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """Add stuff to the back or front of the file queue, unless it's already present."""
         if mode == "frontprio":
+            # Move (or insert) each file to the front, even if already queued. Iterating in
+            # order and pushing each to the front reproduces the old remove()+appendleft() order.
             for file in files:
-                # Try removing the file if already present
-                with contextlib.suppress(ValueError):
-                    self._file_queue.remove(file)
-                # enqueue file to the start of the queue.
-                self._file_queue.appendleft(file)
+                self._file_queue[file] = None
+                self._file_queue.move_to_end(file, last=False)
         elif mode == "front":
-            new_files = list(f for f in files if f not in self._file_queue)
-            self._file_queue.extendleft(new_files)
+            # Insert only files not already queued, at the front. Pushing each new file to the
+            # front in order reproduces the reversed ordering of the old deque.extendleft().
+            for file in files:
+                if file not in self._file_queue:
+                    self._file_queue[file] = None
+                    self._file_queue.move_to_end(file, last=False)
         elif mode == "back":
-            new_files = list(f for f in files if f not in self._file_queue)
-            self._file_queue.extend(new_files)
+            # Insert only files not already queued, at the back (default OrderedDict insert order).
+            for file in files:
+                if file not in self._file_queue:
+                    self._file_queue[file] = None
         else:
             assert_never(mode)
 
