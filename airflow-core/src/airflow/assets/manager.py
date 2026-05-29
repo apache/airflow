@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select, text
+from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -142,20 +142,30 @@ class AssetManager(LoggingMixin):
         """
         Persist an :class:`AssetEvent` row and return it, bound to *session*.
 
-        For non-SQLite backends a short-lived independent session is used so
-        that the row is committed (and therefore visible to the scheduler's
-        session) before the caller continues.  SQLite does not support
-        concurrent connections, so the event is added directly to the caller's
-        *session* and flushed instead.
+        On SQLite the event is added directly to the caller's *session* and
+        flushed. SQLite serialises writes at the database-file level: opening
+        a second connection here would compete with any write locks the
+        caller's transaction already holds (for example, an UPDATE on
+        ``dag_run`` flushed earlier in ``register_asset_changes_in_db``) and
+        deadlock with ``database is locked``.
+
+        On Postgres/MySQL a short-lived independent session is used so the
+        row is committed — and therefore visible to the scheduler's session
+        via MVCC — before the caller continues. The committed row is then
+        re-loaded into the caller's *session* so subsequent relationship
+        operations work correctly.
         """
-        # Create a short-lived session to populate asset event in db.
-        # This is to ensure the asset event is committed and visible to other sessions.
-        # e.g. Scheduler's session when it looks for new asset events to trigger dags via ADRQ.
+        if get_dialect_name(session) == "sqlite":
+            asset_event = AssetEvent(**event_kwargs)
+            session.add(asset_event)
+            session.flush()
+            return asset_event
+
+        # Create a short-lived session to populate the asset event in db.
+        # This is to ensure the asset event is committed and visible to other sessions
+        # (e.g. Scheduler's session when it looks for new asset events to trigger dags via ADRQ).
         # Use ``scoped=False`` to get a truly independent session with its own connection/transaction.
         with create_session(scoped=False) as ae_session:
-            # SQLite cannot have two concurrent connections to the same file, so opening a second session would deadlock.
-            if get_dialect_name(session) == "sqlite":
-                ae_session.execute(text("BEGIN IMMEDIATE"))
             _asset_event = AssetEvent(**event_kwargs)
             ae_session.add(_asset_event)
             ae_session.flush()
