@@ -122,6 +122,7 @@ type Edge = {
 } & ElkExtendedEdge;
 
 export type EdgeData = {
+  isManualLayout?: boolean;
   rest: {
     edgeType?: "data" | "scheduling";
     isFiltered?: boolean;
