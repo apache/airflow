@@ -256,7 +256,15 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         self._session.commit()
 
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"}).status_code == 200
-        assert test_client.get(f"{BASE_URL}/job_id").json()["value"] == "v2"
+        row = self._session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.run_id == RUN_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "job_id",
+            )
+        )
+        assert row.value == '"v2"'
 
     def test_patch_missing_key_returns_404(self, test_client):
         assert test_client.patch(f"{BASE_URL}/nonexistent", json={"value": "v"}).status_code == 404
