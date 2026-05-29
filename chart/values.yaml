@@ -331,6 +331,55 @@ ingress:
     # The Ingress Class for the PgBouncer Ingress
     ingressClassName: ""
 
+# Kubernetes Gateway API (HTTPRoute) configuration.
+# Requires the Gateway API CRDs to be installed in the cluster
+# (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
+# The HTTPRoute resources reference an externally managed Gateway via `parentRefs`.
+httpRoute:
+  # Enable all HTTPRoute resources (deprecated, use
+  #   `httpRoute.apiServer.enabled`,
+  # instead). Reserved for future expansion to flower/statsd/pgbouncer.
+  enabled: ~
+
+  # Configs for the HTTPRoute of the API Server (Airflow 3+)
+  apiServer:
+    # Enable API Server HTTPRoute resource
+    enabled: false
+
+    # Extra labels for the API Server HTTPRoute
+    labels: {}
+
+    # Annotations for the API Server HTTPRoute
+    annotations: {}
+
+    # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: []
+    # - name: my-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+    # Hostnames this HTTPRoute should match (templated). Empty matches all.
+    hostnames: []
+    # - "airflow.example.com"
+
+    # Default routing rule path (used only when `httpRoute.apiServer.rules` is empty)
+    path: "/"
+
+    # The pathType for the default path. PathPrefix | Exact | RegularExpression
+    pathType: PathPrefix
+
+    # Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteRule
+    rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /api/
+    #   backendRefs:
+    #     - name: my-release-api-server
+    #       port: 8080
+
 # Network policy configuration
 networkPolicies:
   # Enabled network policies
