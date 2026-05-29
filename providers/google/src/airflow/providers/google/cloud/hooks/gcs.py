@@ -1362,6 +1362,7 @@ class GCSHook(GoogleBaseHook):
         gcs_bucket = self.get_bucket(bucket_name)
         local_gcs_objects = []
 
+        local_dir_resolved = local_dir_path.resolve()
         for blob in gcs_bucket.list_blobs(prefix=prefix):
             # GCS lists "directories" as objects ending with a slash. We should skip them.
             if blob.name.endswith("/"):
@@ -1369,6 +1370,16 @@ class GCSHook(GoogleBaseHook):
 
             blob_path = Path(blob.name)
             local_target_path = local_dir_path.joinpath(blob_path.relative_to(prefix))
+            # Containment check: ``blob.name`` originates outside the worker, and GCS allows
+            # object names containing ``..``. Resolve the target and assert it stays under
+            # ``local_dir`` so a hostile blob name cannot write outside the intended directory
+            # (CWE-22).
+            if not local_target_path.resolve().is_relative_to(local_dir_resolved):
+                raise ValueError(
+                    f"Refusing to write GCS blob {blob.name!r}: resolved path "
+                    f"{local_target_path} escapes the target directory {local_dir_path}."
+                )
+
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)
