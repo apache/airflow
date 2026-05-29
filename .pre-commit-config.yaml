@@ -609,6 +609,7 @@ repos:
         files: >
           (?x)
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
           ^scripts/ci/prek/extract_permissions\.py$|
           ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
