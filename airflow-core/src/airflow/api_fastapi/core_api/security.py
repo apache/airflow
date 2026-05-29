@@ -63,7 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -769,6 +769,43 @@ def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUs
                             ),
                         }
                     )
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseUser, str], None]:
+    def inner(
+        body: BulkDAGRunClearBody,
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        resolved_dag_ids: set[str] = set()
+        for run in body.dag_runs:
+            entity_dag_id = run.dag_id or dag_id
+            if entity_dag_id and entity_dag_id != "~":
+                resolved_dag_ids.add(entity_dag_id)
+
+        dag_id_to_team = {d: DagModel.get_team_name(d) for d in resolved_dag_ids}
+
+        requests: list[IsAuthorizedDagRequest] = []
+        for run in body.dag_runs:
+            entity_dag_id = run.dag_id or dag_id
+            if not entity_dag_id or entity_dag_id == "~":
+                continue
+            requests.append(
+                {
+                    "method": "PUT",
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id=entity_dag_id, team_name=dag_id_to_team.get(entity_dag_id)),
+                }
+            )
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(

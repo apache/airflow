@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateBody, TaskStatePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateBody, TaskStatePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -2175,6 +2175,28 @@ export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTrigge
   dagId: unknown;
   requestBody: TriggerDAGRunPostBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Bulk Clear Dag Runs
+* Clear multiple Dag Runs in a single request.
+*
+* When the URL ``dag_id`` is ``~``, every entry in ``dag_runs`` must
+* carry its own ``dag_id``. When the URL ``dag_id`` is a specific Dag,
+* entries may omit ``dag_id`` and inherit from the URL. ``dry_run``
+* returns the union of affected task instances across the listed runs
+* without mutating state; the real clear returns the post-clear Dag Runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceBulkClearDagRuns = <TData = Common.DagRunServiceBulkClearDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.bulkClearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Clear Dag Run
 * @param data The data for the request.
