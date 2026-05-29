@@ -17,12 +17,11 @@
 # under the License.
 
 """
-Add allow_producer_teams column to dag_schedule_asset_reference table.
+Add team_name to trigger table.
 
-Revision ID: a7f3b2c1d4e5
-Revises: b8f3e4a1d2c9
-Create Date: 2026-05-06 12:00:00.000000
-
+Revision ID: acc215baed80
+Revises: a1b2c3d4e5f6
+Create Date: 2026-05-21 21:38:00.122692
 """
 
 from __future__ import annotations
@@ -30,23 +29,27 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "a7f3b2c1d4e5"
-down_revision = "b8f3e4a1d2c9"
+# revision identifiers, used by Alembic.
+revision = "acc215baed80"
+down_revision = "a1b2c3d4e5f6"
 branch_labels = None
 depends_on = None
 airflow_version = "3.3.0"
 
 
 def upgrade():
-    """Add allow_producer_teams column to dag_schedule_asset_reference."""
-    with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("allow_producer_teams", sa.JSON(), nullable=True))
+    """Add team_name to trigger table."""
+    with op.batch_alter_table("trigger", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("team_name", sa.String(length=50), nullable=True))
+        batch_op.create_index(batch_op.f("idx_trigger_team_name"), ["team_name"], unique=False)
+        batch_op.create_foreign_key(
+            batch_op.f("trigger_team_name_fkey"), "team", ["team_name"], ["name"], ondelete="SET NULL"
+        )
 
 
 def downgrade():
-    """Remove allow_producer_teams column from dag_schedule_asset_reference."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
-    with disable_sqlite_fkeys(op):
-        with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-            batch_op.drop_column("allow_producer_teams")
+    """Remove team_name from trigger table."""
+    with op.batch_alter_table("trigger", schema=None) as batch_op:
+        batch_op.drop_constraint(batch_op.f("trigger_team_name_fkey"), type_="foreignkey")
+        batch_op.drop_index(batch_op.f("idx_trigger_team_name"))
+        batch_op.drop_column("team_name")

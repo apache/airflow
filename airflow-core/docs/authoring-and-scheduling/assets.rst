@@ -404,10 +404,10 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
-.. _asset_allow_producer_teams:
+.. _asset_access_control:
 
-Cross-team asset event filtering with ``allow_producer_teams``
---------------------------------------------------------------
+Cross-team asset event filtering with ``access_control``
+--------------------------------------------------------
 
 .. versionadded:: 3.3.0
 
@@ -415,40 +415,82 @@ When :doc:`Multi-Team mode </core-concepts/multi-team>` is enabled, asset events
 membership. By default, a consuming Dag only receives asset events produced by Dags within the same team
 or by global (teamless) Dags. This prevents unintended cross-team triggers.
 
-To allow specific other teams to produce events that trigger your Dag, use the ``allow_producer_teams`` parameter
-on the ``Asset`` definition:
+To configure cross-team access, use the ``access_control`` parameter on the ``Asset`` definition with an
+``AssetAccessControl`` instance:
 
 .. code-block:: python
 
-    from airflow.sdk import Asset
+    from airflow.sdk import Asset, AssetAccessControl
 
     shared_data = Asset(
         name="my_data",
         uri="s3://bucket/shared/data.csv",
-        allow_producer_teams=["team_analytics", "team_ml"],
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
     )
 
 In this example, asset events produced by Dags belonging to ``team_analytics`` or ``team_ml`` will be
 accepted by any consuming Dag that schedules on ``shared_data``, in addition to events from the consuming
 Dag's own team.
 
+``AssetAccessControl`` parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``AssetAccessControl`` class accepts the following parameters:
+
+- **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
+  consumed by this asset's consumers, in addition to the consumer's own team.
+- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dag producers can trigger
+  consumers of this asset. When set to ``False``, only Dags with an explicit team association
+  (same team or listed in ``producer_teams``) can trigger consumers.
+
+Blocking global producers
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, global (teamless) Dags can trigger any consumer. In strict team isolation scenarios, you
+may want to block teamless producers:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+With ``allow_global=False``, only Dags belonging to the consumer's own team or to ``team_analytics`` can
+trigger consumers of ``strict_data``. Teamless Dag producers are blocked.
+
+.. note::
+
+   The ``allow_global`` flag only affects Dag producers. Teamless API users are always restricted to
+   triggering teamless consumers only, regardless of this setting.
+
 Default behavior
 ~~~~~~~~~~~~~~~~
 
-When ``allow_producer_teams`` is not specified (or set to an empty list), the default same-team filtering applies.
-The rules depend on whether the producer and consumer have a team association:
+When ``access_control`` is not specified, a default ``AssetAccessControl()`` is used (empty
+``producer_teams`` and ``allow_global=True``). The rules depend on whether the producer and consumer
+have a team association:
 
 - **Both have the same team**: The event is always delivered.
 - **Producer has a team, consumer has a different team**: The event is blocked (unless the
-  producer's team is in the asset's ``allow_producer_teams``).
-- **Producer has no team (global Dag)**: The event is delivered to all consumers, regardless of
-  the consumer's team. Global Dags act as shared infrastructure that any team can depend on.
+  producer's team is in the asset's ``producer_teams``).
+- **Producer has no team (global Dag)**: The event is delivered to all consumers whose asset has
+  ``allow_global=True`` (the default). Global Dags act as shared infrastructure that any team can
+  depend on.
 - **Consumer has no team (global Dag)**: The consumer accepts events from any source,
   regardless of the producer's team. Teamless consumers act as shared infrastructure that any
   team can feed into.
 - **Neither has a team**: The event is delivered (both are global).
 
-When Multi-Team mode is disabled, ``allow_producer_teams`` is ignored and all asset events are delivered to all
+When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
 
 Asset partitions
@@ -595,6 +637,48 @@ including ``partition_key`` in the request body):
         "logical_date": "2026-03-10T00:00:00Z",
         "partition_key": "us|2026-03-10T09:00:00"
       }'
+
+Setting partition keys at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the partition key is not known ahead of time (for example, a watermark
+discovered from the source data, a late-arriving file, or a backfill request),
+let the producing task decide it while it runs. Schedule the producer with
+``PartitionAtRuntime()`` and record the key(s) on the emitted event with
+``outlet_events[self].add_partitions(...)``:
+
+.. code-block:: python
+
+    from airflow.sdk import PartitionAtRuntime, asset
+
+
+    @asset(
+        uri="file://incoming/player-stats/live-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def live_region_player_stats(self, outlet_events):
+        # The key is only known once the task runs.
+        outlet_events[self].add_partitions("us")
+
+Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
+``outlet_events`` (the outlet event accessor) are reserved parameter names that
+Airflow populates at runtime. Pass a single key, or a list to fan out to several
+partitions in one run. Each key produces its own asset event, and duplicate
+keys collapse to a single event:
+
+.. code-block:: python
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+When a runtime run emits exactly one partition key, the producing
+``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
+these events the same way as timetable-produced partitions, through
+``PartitionedAssetTimetable``.
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.

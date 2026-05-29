@@ -171,6 +171,9 @@ labelPRBasedOnFilePath:
   provider:http:
     - providers/http/**
 
+  provider:ibm-mq:
+    - providers/ibm/mq/**
+
   provider:imap:
     - providers/imap/**
 

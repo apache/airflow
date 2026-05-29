@@ -27,6 +27,7 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -37,11 +38,20 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { DagRunsFilters } from "src/pages/DagRunsFilters";
-import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+
+import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
+import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
+import { DagRunsFilters } from "./DagRunsFilters";
+import DeleteRunButton from "./DeleteRunButton";
+
+// Matches the identifier the bulk Dag Run endpoint echoes back in its ``success`` /
+// ``errors`` lists, so the bulk response can deselect rows directly.
+const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}.${dagRun.dag_run_id}`;
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -67,7 +77,43 @@ const {
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+type ColumnProps = {
+  readonly dagId?: string;
+  readonly translate: TFunction;
+} & GetColumnsParams;
+
+const runColumns = ({
+  allRowsSelected,
+  dagId,
+  onRowSelect,
+  onSelectAll,
+  selectedRows,
+  translate,
+}: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+  {
+    accessorKey: "select",
+    cell: ({ row }) => (
+      <Checkbox
+        borderWidth={1}
+        checked={selectedRows.get(getRowKey(row.original))}
+        colorPalette="brand"
+        onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
+      />
+    ),
+    enableHiding: false,
+    enableSorting: false,
+    header: () => (
+      <Checkbox
+        borderWidth={1}
+        checked={allRowsSelected}
+        colorPalette="brand"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   ...(Boolean(dagId)
     ? []
     : [
@@ -287,10 +333,26 @@ export const DagRuns = () => {
     },
   );
 
-  const columns = runColumns(translate, dagId);
-
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
+
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.dag_runs,
+      getKey: getRowKey,
+    });
+
+  const selectedDagRuns = (data?.dag_runs ?? []).filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
+
+  const columns = runColumns({
+    allRowsSelected,
+    dagId,
+    multiTeam: false,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   return (
     <>
@@ -306,6 +368,17 @@ export const DagRuns = () => {
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
+          <BulkDeleteDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };

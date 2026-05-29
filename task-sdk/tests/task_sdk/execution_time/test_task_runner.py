@@ -32,7 +32,7 @@ from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
-from opentelemetry import trace as otel_trace
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -40,7 +40,11 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow._shared.observability.traces import OverrideableRandomIdGenerator, new_task_run_carrier
+from airflow._shared.observability.traces import (
+    OverrideableRandomIdGenerator,
+    new_dagrun_trace_carrier,
+    new_task_run_carrier,
+)
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
@@ -159,12 +163,14 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _serialize_outlet_events,
     _xcom_push,
+    detail_span,
     finalize,
     get_startup_details,
     parse,
     run,
     startup,
 )
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.serde import deserialize
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
@@ -196,13 +202,16 @@ class CustomOperator(BaseOperator):
 def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -243,13 +252,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     mock_dag.task_dict = {"a": mock_task}
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -303,13 +315,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
 def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
     """Check for nice error messages on dag not found."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id=task_id,
             dag_id=dag_id,
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -349,13 +364,16 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
     and should surface as a hard failure (SystemExit in the task runner process).
     """
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="madeup_dag_id",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -410,13 +428,16 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     mock_comms_instance.socket = None
     mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="my_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier={},
         ),
         dag_rel_path="",
@@ -577,19 +598,22 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
         ti_carrier = new_task_run_carrier(dag_run_carrier)
 
     # Extract the parent task span context (the stable span ID stored in ti_carrier).
-    parent_task_span_ctx = otel_trace.get_current_span(
+    parent_task_span_ctx = trace.get_current_span(
         context=TraceContextTextMapPropagator().extract(ti_carrier)
     ).get_span_context()
 
     # Step 3: build StartupDetails with ti.context_carrier = ti_carrier.
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="my_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier=ti_carrier,
         ),
         dag_rel_path="",
@@ -651,13 +675,16 @@ def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
     provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="standalone_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier=None,
         ),
         dag_rel_path="",
@@ -692,13 +719,16 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     dag1_path.write_text(textwrap.dedent(dag1_code))
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="dag_name",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -1139,13 +1169,16 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     )
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="templated_task",
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -1255,13 +1288,16 @@ def test_startup_and_run_dag_with_rtif(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="templated_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1303,13 +1339,16 @@ def test_task_run_with_user_impersonation(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1351,13 +1390,16 @@ def test_task_run_with_user_impersonation_default_user(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1391,13 +1433,16 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1564,8 +1609,16 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     task_id = "conditional_task"
 
     what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, dag_version_id=uuid7()
+        ti=TaskInstanceDTO(
+            id=uuid7(),
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -2204,8 +2257,10 @@ class TestRuntimeTaskInstance:
         test_task_id = "pull_task"
         task = CustomOperator(task_id=test_task_id)
 
-        # In case of the specific map_index or None we should check it is passed to TI
-        extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
+        # In case of the specific map_index we should check it is passed to TI.
+        # ``None`` is not a valid TaskInstanceDTO.map_index value, but xcom_pull's
+        # behaviour with ``map_indexes=None`` is independent of the TI's own map_index.
+        extra_for_ti = {"map_index": map_indexes} if isinstance(map_indexes, int) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         ser_value = BaseXCom.serialize_value(xcom_values)
@@ -4100,13 +4155,16 @@ class TestTaskRunnerCallsListeners:
             task_id="test_task_runner_calls_listeners", do_xcom_push=True, multiple_outputs=True
         )
         what = StartupDetails(
-            ti=TaskInstance(
+            ti=TaskInstanceDTO(
                 id=uuid7(),
                 task_id="templated_task",
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
@@ -5113,6 +5171,102 @@ class TestTaskInstanceMetrics:
             backend.incr.assert_any_call("ti_failures", tags=stats_tags)
 
 
+class TestDetailSpan:
+    """Tests for the detail_span decorator / context manager."""
+
+    def test_level_1_no_child_span_as_context_manager(self):
+        """At detail level 1, entering detail_span should not create a real recorded span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                with detail_span("child") as span:
+                    assert span is trace.INVALID_SPAN
+
+        # Only the "parent" span should be recorded; no "child".
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "child" not in names
+
+    def test_level_2_creates_child_span_as_context_manager(self):
+        """At detail level 2, detail_span should create a real recorded child span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                with detail_span("child"):
+                    pass
+
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "child" in names
+
+    def test_decorator_at_level_1_does_not_create_span(self):
+        """@detail_span at level 1 should not produce a recorded span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        @detail_span("decorated")
+        def my_func():
+            return 42
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = my_func()
+
+        assert result == 42
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "decorated" not in names
+
+    def test_decorator_at_level_2_creates_span_and_preserves_return_value(self):
+        """@detail_span at level 2 creates a span and the wrapped function's return value is preserved."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        @detail_span("decorated")
+        def my_func(x):
+            return x * 2
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = my_func(7)
+
+        assert result == 14
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "decorated" in names
+
+    def test_exception_in_context_manager_propagates(self):
+        """Exceptions inside `with detail_span(...)` propagate normally."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                with pytest.raises(ValueError, match="boom"):
+                    with detail_span("child"):
+                        raise ValueError("boom")
+
+
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
     with DAG(dag_id="test_dag_add_result") as dag:
         task = PythonOperator(task_id="t", python_callable=lambda: 123)
@@ -5161,6 +5315,40 @@ class TestTaskInstanceStateOperations:
             )
         )
         mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
+
+    def test_task_state_set_sends_typed_values(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        """set() accepts any JsonValue — dict, int, list — not just strings."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                ts = context["task_state"]
+                ts.set("retry_count", 3)
+                ts.set("poll_result", {"status": "succeeded", "rows": 1234})
+                ts.set("checkpoints", [1, 2, 3])
+
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        expires_at = frozen_dt + timedelta(days=30)
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(ti_id=runtime_ti.id, key="retry_count", value=3, expires_at=expires_at)
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(
+                ti_id=runtime_ti.id,
+                key="poll_result",
+                value={"status": "succeeded", "rows": 1234},
+                expires_at=expires_at,
+            )
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(ti_id=runtime_ti.id, key="checkpoints", value=[1, 2, 3], expires_at=expires_at)
+        )
 
     def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):

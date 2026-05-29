@@ -31,6 +31,10 @@ from airflow.api_fastapi.common.parameters import (
     NullableDatetimeRangeFilter,
     RangeFilter,
     SortParam,
+    _AssetDependencyFilter,
+    _ConsumingAssetFilter,
+    _escape_like_pattern,
+    _OwnersFilter,
     _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
@@ -218,6 +222,67 @@ class TestSearchParam:
         sql = _compile(statement)
         assert _has_ilike(sql, "example_bash")
         assert " or " not in sql
+
+
+class TestEscapeLikePattern:
+    """The escape helper turns user input into a literal substring pattern.
+
+    Filter parameters that do *not* document wildcard semantics must call this so a user-supplied
+    ``%`` or ``_`` does not widen the match beyond the filter's intent. Search parameters that
+    explicitly expose wildcard semantics (see ``_SearchParam``) deliberately do not call it.
+    """
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("plain", "plain"),
+            ("a%b", r"a\%b"),
+            ("a_b", r"a\_b"),
+            (r"a\b", r"a\\b"),
+            (r"a\%b", r"a\\\%b"),
+            ("%_\\", r"\%\_\\"),
+            ("", ""),
+        ],
+    )
+    def test_escapes_metacharacters(self, raw, expected):
+        assert _escape_like_pattern(raw) == expected
+
+
+class TestNonSearchFilterEscaping:
+    """``_OwnersFilter`` / ``_AssetDependencyFilter`` / ``_ConsumingAssetFilter`` escape ``%`` and ``_``.
+
+    Compile-time check: the rendered SQL must wrap the *escaped* user value in ``%...%`` and
+    declare an ``ESCAPE`` clause so the database treats user-supplied wildcards literally.
+    """
+
+    def test_owners_filter_escapes_user_wildcards(self):
+        param = _OwnersFilter().set_value(["100%_alice"])
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        assert r"'%100\%\_alice%'" in sql
+        assert "escape" in sql
+
+    def test_asset_dependency_filter_escapes_user_wildcards(self):
+        param = _AssetDependencyFilter().set_value("ledger_%")
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        assert r"'%ledger\_\%%'" in sql
+        assert "escape" in sql
+
+    def test_consuming_asset_filter_escapes_user_wildcards(self):
+        param = _ConsumingAssetFilter().set_value("foo_%bar")
+        statement = param.to_orm(select(DagRun))
+        sql = _compile(statement)
+        assert r"'%foo\_\%bar%'" in sql
+        assert "escape" in sql
+
+    def test_search_param_does_not_escape_user_wildcards(self):
+        """Counter-test: ``_SearchParam`` deliberately passes wildcards through."""
+        param = _SearchParam(DagModel.dag_id).set_value("foo_%bar")
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        # Raw user wildcards are present, not the escaped form.
+        assert "'%foo_%bar%'" in sql
 
 
 class TestPrefixSearchParam:

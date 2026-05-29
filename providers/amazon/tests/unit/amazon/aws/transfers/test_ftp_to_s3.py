@@ -17,7 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from unittest import mock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
 
@@ -128,3 +132,34 @@ class TestFTPToS3Operator:
         operator.execute(None)
 
         mock_ftp_hook_list_directory.assert_called_once_with(path=FTP_PATH_MULTIPLE)
+
+
+class TestFTPToS3OperatorInit:
+    """Unit tests for FTPToS3Operator.__init__ that do not require an FTP server."""
+
+    def test_fail_on_file_not_exist_default(self):
+        """fail_on_file_not_exist defaults to True."""
+        op = FTPToS3Operator(task_id="test_fail_default", s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
+        assert op.fail_on_file_not_exist is True
+
+    @pytest.mark.parametrize("fail_on_file_not_exist", [True, False])
+    def test_fail_on_file_not_exist_skip(self, fail_on_file_not_exist):
+        """When FTP file is missing (error_perm 550): raise if True, skip if False."""
+        op = FTPToS3Operator(
+            task_id="test_skip",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            ftp_path=FTP_PATH,
+            fail_on_file_not_exist=fail_on_file_not_exist,
+        )
+        op.ftp_hook = MagicMock()
+        op.s3_hook = MagicMock()
+        op.ftp_hook.retrieve_file.side_effect = ftplib.error_perm("550 No such file or directory")
+
+        if fail_on_file_not_exist:
+            with pytest.raises(ftplib.error_perm):
+                op._FTPToS3Operator__upload_to_s3_from_ftp(FTP_PATH, S3_KEY)
+        else:
+            with patch.object(op.log, "info") as mock_log:
+                op._FTPToS3Operator__upload_to_s3_from_ftp(FTP_PATH, S3_KEY)
+            mock_log.assert_called_once()

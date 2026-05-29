@@ -811,7 +811,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_conn_id_to_team_name_mapping.return_value = {"test1": "team1"}
+        # test4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_conn_id_to_team_name_mapping.return_value = {"test4": "team1"}
 
         request = BulkBody[ConnectionBody].model_validate(
             {
@@ -840,11 +842,18 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_connection_bulk()(request, user)
 
+        # CREATE+OVERWRITE entities are now included in the existing-team lookup so the PUT check
+        # gets the actual team of the resource being overwritten (regression test for the bypass
+        # where the PUT check ran with team_name=None).
+        mock_get_conn_id_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_conn_id_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"test3", "test4"}
+
         auth_manager.batch_is_authorized_connection.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test1", team_name="team1"),
+                    "details": ConnectionDetails(conn_id="test1"),
                 },
                 {
                     "method": "POST",
@@ -856,11 +865,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test4"),
+                    "details": ConnectionDetails(conn_id="test4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": ConnectionDetails(conn_id="test4"),
+                    "details": ConnectionDetails(conn_id="test4", team_name="team1"),
                 },
             ],
             user=user,
@@ -982,7 +991,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_key_to_team_name_mapping.return_value = {"var1": "team1", "dummy": "team2"}
+        # var4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_key_to_team_name_mapping.return_value = {"var4": "team1"}
         request = BulkBody[VariableBody].model_validate(
             {
                 "actions": [
@@ -1010,11 +1021,15 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_variable_bulk()(request, user)
 
+        mock_get_key_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_key_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"var3", "var4"}
+
         auth_manager.batch_is_authorized_variable.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var1", team_name="team1"),
+                    "details": VariableDetails(key="var1"),
                 },
                 {
                     "method": "POST",
@@ -1026,11 +1041,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var4"),
+                    "details": VariableDetails(key="var4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": VariableDetails(key="var4"),
+                    "details": VariableDetails(key="var4", team_name="team1"),
                 },
             ],
             user=user,
@@ -1150,7 +1165,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team1"}
+        # pool4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_name_to_team_name_mapping.return_value = {"pool4": "team1"}
         request = BulkBody[PoolBody].model_validate(
             {
                 "actions": [
@@ -1178,11 +1195,15 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_pool_bulk()(request, user)
 
+        mock_get_name_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_name_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"pool3", "pool4"}
+
         auth_manager.batch_is_authorized_pool.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool1", team_name="team1"),
+                    "details": PoolDetails(name="pool1"),
                 },
                 {
                     "method": "POST",
@@ -1194,11 +1215,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool4"),
+                    "details": PoolDetails(name="pool4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": PoolDetails(name="pool4"),
+                    "details": PoolDetails(name="pool4", team_name="team1"),
                 },
             ],
             user=user,
