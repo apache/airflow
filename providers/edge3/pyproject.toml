@@ -74,6 +74,11 @@ dependencies = [
     "aiohttp>=3.9.2",
 ]
 
+[project.optional-dependencies]
+"airflowctl" = [
+    "apache-airflow-ctl",
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",

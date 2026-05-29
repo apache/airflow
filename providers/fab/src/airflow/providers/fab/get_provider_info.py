@@ -197,4 +197,5 @@ def get_provider_info():
         "auth-managers": ["airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"],
         "db-managers": ["airflow.providers.fab.auth_manager.models.db.FABDBManager"],
         "cli": ["airflow.providers.fab.cli.definition.get_fab_cli_commands"],
+        "ctl": ["airflow.providers.fab.auth_manager.ctl_commands.definition.get_fab_airflowctl_commands"],
     }
