@@ -16,8 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import json
 
+import pytest
+from pydantic import ValidationError
+from sqlalchemy import select
+
+from airflow.api_fastapi.core_api.datamodels.asset_state import AssetStateBody
 from airflow.models.asset import AssetModel
 from airflow.models.asset_state import AssetStateModel
 
@@ -37,7 +42,7 @@ def _create_asset(session) -> AssetModel:
 
 
 def _create_asset_state(session, asset_id: int, key: str, value: str) -> None:
-    row = AssetStateModel(asset_id=asset_id, key=key, value=value)
+    row = AssetStateModel(asset_id=asset_id, key=key, value=json.dumps(value))
     session.add(row)
     session.flush()
 
@@ -172,8 +177,49 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={}).status_code == 422
 
+    def test_null_value_returns_422(self, test_client):
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": None}).status_code == 422
+
     def test_oversized_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+
+    @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
+    def test_non_finite_float_rejected_by_validator(self, bad_value):
+        with pytest.raises(ValidationError, match="non-finite"):
+            AssetStateBody(value=bad_value)
+
+    @pytest.mark.parametrize(
+        ("value", "expected_db"),
+        [
+            (42, "42"),
+            ("hello", '"hello"'),
+            ({"k": 1}, '{"k": 1}'),
+            ([1, 2], "[1, 2]"),
+        ],
+    )
+    def test_put_stores_json_encoded_value(self, test_client, value, expected_db):
+        test_client.put(f"{self._base_url}/k", json={"value": value})
+        row = self._session.scalar(
+            select(AssetStateModel).where(
+                AssetStateModel.asset_id == self.asset.id,
+                AssetStateModel.key == "k",
+            )
+        )
+        assert row is not None
+        assert row.value == expected_db
+
+    @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
+    def test_core_api_write_read_roundtrip(self, test_client, value):
+        """Core API write then Core API read returns the same native value."""
+        test_client.put(f"{self._base_url}/k", json={"value": value})
+        assert test_client.get(f"{self._base_url}/k").json()["value"] == value
+
+    @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
+    def test_worker_write_core_api_read_roundtrip(self, test_client, value):
+        """Worker write (json.dumps in DB) then Core API read returns native value."""
+        _create_asset_state(self._session, self.asset.id, "k", value)
+        self._session.commit()
+        assert test_client.get(f"{self._base_url}/k").json()["value"] == value
 
     def test_key_with_slash_is_supported(self, test_client):
         response = test_client.put(f"{self._base_url}/partition/date", json={"value": "2026-05-01"})

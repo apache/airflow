@@ -153,6 +153,7 @@ from airflow.sdk.execution_time.context import (
     TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _wrap_external_ref,
 )
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
@@ -5593,7 +5594,11 @@ class TestTaskInstanceStateOperations:
             value="2026-05-01", key="watermark", asset_ref="my_asset"
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStateByName(name="my_asset", key="watermark", value="mem://my_asset/watermark")
+            SetAssetStateByName(
+                name="my_asset",
+                key="watermark",
+                value=_wrap_external_ref("mem://my_asset/watermark"),
+            )
         )
 
     def test_task_state_set_sends_reference_via_custom_backend(
@@ -5625,7 +5630,10 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(
             SetTaskState(
-                ti_id=runtime_ti.id, key="job_id", value=ref, expires_at=frozen_dt + timedelta(days=30)
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value=_wrap_external_ref(ref),
+                expires_at=frozen_dt + timedelta(days=30),
             )
         )
 
