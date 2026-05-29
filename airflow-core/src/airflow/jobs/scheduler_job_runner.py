@@ -2838,6 +2838,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .values(state=JobState.FAILED)
                     )
                     num_failed: int = getattr(result, "rowcount", 0)
+                    session.commit()  # Release any lock caused by flagging tasks
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
