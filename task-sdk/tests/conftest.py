@@ -233,6 +233,7 @@ class MakeTIContextCallable(Protocol):
         should_retry: bool = ...,
         max_tries: int = ...,
         consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
+        queued_dttm: datetime | None = ...,
     ) -> TIRunContext: ...
 
 
@@ -275,6 +276,7 @@ def make_ti_context() -> MakeTIContextCallable:
         should_retry: bool = False,
         max_tries: int = 0,
         consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
+        queued_dttm: datetime | None = None,
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -294,6 +296,7 @@ def make_ti_context() -> MakeTIContextCallable:
             task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,
             should_retry=should_retry,
+            queued_dttm=queued_dttm,
         )
 
     return _make_context
