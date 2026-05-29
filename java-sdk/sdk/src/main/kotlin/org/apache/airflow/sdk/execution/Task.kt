@@ -62,9 +62,8 @@ internal object TaskRunner {
     client: Client,
   ): Any {
     val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
-    val instance = task.getDeclaredConstructor().newInstance()
     return try {
-      instance.execute(Context.from(request), client)
+      task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
       TaskResult.success()
     } catch (e: Exception) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
