@@ -41,6 +41,7 @@ except NameError:
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import PartitionedExpandInput
+from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
@@ -380,7 +381,7 @@ class IterableOperator(BaseOperator):
         with TaskExecutor(task_instance=task_instance) as executor:
             return executor.run(
                 context={
-                    **self._clone_context(context),
+                    **clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
@@ -392,25 +393,13 @@ class IterableOperator(BaseOperator):
         async with TaskExecutor(task_instance=task_instance) as executor:
             return await executor.arun(
                 context={
-                    **self._clone_context(context),
+                    **clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
                     },
                 }
             )
-
-    @classmethod
-    def _clone_context(cls, context: Context) -> Context:
-        # We need to clone the context for each task to avoid concurrency issues with mutable objects in the context.
-        cloned_context: Context = copy.copy(context)
-        cloned_context["params"] = copy.deepcopy(context["params"])
-        cloned_context["inlets"] = list(context["inlets"])
-        cloned_context["outlets"] = list(context["outlets"])
-        cloned_context["templates_dict"] = copy.deepcopy(context["templates_dict"])
-        cloned_context["outlet_events"] = copy.deepcopy(context["outlet_events"])
-        cloned_context["dag_run"] = copy.deepcopy(context["dag_run"])
-        return cloned_context
 
     def _create_task(
         self,
