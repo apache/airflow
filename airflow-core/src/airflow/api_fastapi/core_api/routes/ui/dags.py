@@ -191,8 +191,8 @@ def get_dags(
             for dag in dags
         ]
         recent_runs_union = union_all(*(select(branch) for branch in recent_runs_branches)).subquery()
-        recent_dag_runs = session.execute(
-            select(recent_runs_union).order_by(recent_runs_union.c.run_after.desc())
+        recent_dag_runs = list(
+            session.execute(select(recent_runs_union).order_by(recent_runs_union.c.run_after.desc()))
         )
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
