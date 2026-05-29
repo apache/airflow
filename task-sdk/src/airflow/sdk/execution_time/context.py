@@ -772,7 +772,7 @@ class AssetStateAccessors:
     def _single_accessor(self) -> AssetStateAccessor:
         if self._total != 1:
             raise ValueError(
-                f"Task has {self._total} concrete inlets — use context['asset_state'][MY_ASSET] to specify which"
+                f"Task has {self._total} concrete inlets and outlets — use context['asset_state'][MY_ASSET] to specify which"
             )
         if self._by_name:
             return next(iter(self._by_name.values()))

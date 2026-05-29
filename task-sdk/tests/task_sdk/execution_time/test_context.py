@@ -1398,7 +1398,7 @@ class TestAssetStateAccessors:
         a1 = Asset(name="asset_one", uri="s3://one")
         a2 = Asset(name="asset_two", uri="s3://two")
 
-        with pytest.raises(ValueError, match="2 concrete inlets"):
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
             AssetStateAccessors([a1, a2]).get("watermark")
 
     def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
@@ -1431,6 +1431,17 @@ class TestAssetStateAccessors:
         result = AssetStateAccessors([], [asset])[asset].get("watermark")
 
         assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_name_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetNameRef(name=self.ASSET_NAME)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v2")
+
+        result = AssetStateAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
         mock_supervisor_comms.send.assert_called_once_with(
             GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
         )
