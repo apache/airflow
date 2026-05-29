@@ -80,7 +80,6 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
-    TaskInstance,
     TaskInstanceState,
     TaskStateResponse,
     TaskStatesResponse,
@@ -98,6 +97,10 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.workloads.task import (
+    # Pydantic needs this at runtime since we don't model_rebuild() StartupDetails.
+    TaskInstanceDTO,  # noqa: TC001
+)
 
 try:
     from socket import recv_fds
@@ -334,7 +337,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    ti: TaskInstance
+    ti: TaskInstanceDTO
     dag_rel_path: str
     bundle_info: BundleInfo
     start_date: datetime

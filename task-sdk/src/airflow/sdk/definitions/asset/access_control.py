@@ -19,10 +19,10 @@ from __future__ import annotations
 import attrs
 
 
-def _validate_producer_teams(instance, attribute, value):
+def _validate_teams(instance, attribute, value):
     for entry in value:
         if not isinstance(entry, str) or not entry or entry.isspace():
-            raise ValueError("Each entry in producer_teams must be a non-empty string")
+            raise ValueError(f"Each entry in {attribute.name} must be a non-empty string")
     return value
 
 
@@ -32,6 +32,10 @@ class AssetAccessControl:
 
     producer_teams: list[str] = attrs.field(
         factory=list,
-        validator=[_validate_producer_teams],
+        validator=[_validate_teams],
+    )
+    consumer_teams: list[str] = attrs.field(
+        factory=list,
+        validator=[_validate_teams],
     )
     allow_global: bool = attrs.field(default=True, validator=[attrs.validators.instance_of(bool)])

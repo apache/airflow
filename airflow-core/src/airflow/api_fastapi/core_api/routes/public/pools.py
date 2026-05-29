@@ -95,7 +95,6 @@ def get_pool(
 
 @pools_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pools(

@@ -23,15 +23,15 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Accordion, Dialog } from "src/components/ui";
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedDagRuns: Array<DAGRunResponse>;
 };
 
@@ -58,11 +58,11 @@ const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
   },
 ];
 
-const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
+const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkAction, error, isPending } = useBulkDeleteDagRuns({
-    clearSelections,
+  const { bulkAction, data, error, isPending } = useBulkDeleteDagRuns({
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 
@@ -142,7 +142,7 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
               )}
             </Box>
 
-            <ErrorAlert error={error} />
+            <ActionErrors actionResponse={data?.delete} error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"

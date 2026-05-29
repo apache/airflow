@@ -74,6 +74,49 @@ def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
+def allow_class(cls: type) -> None:
+    """
+    Register a class as deserialization-allowed for the current process.
+
+    Equivalent to adding ``cls``'s qualname to ``[core] allowed_deserialization_classes``,
+    but scoped to this Python process rather than the deployment.
+
+    Intended for operators and framework code that know their output class at
+    construction time (e.g. ``LLMOperator(output_type=MyModel)``). The class
+    must be defined at module scope and round-trippable through ``import_string``:
+    classes nested inside a function or another class, dynamically-built classes
+    whose ``__name__`` does not match the attribute they are bound to, and
+    parametrised generics (e.g. ``Result[int]``) are rejected here so the failure
+    surfaces at DAG parse time rather than at XCom-consume time.
+    """
+    nested_qualname = getattr(cls, "__qualname__", "")
+    if "<locals>" in nested_qualname:
+        raise ValueError(
+            f"{qualname(cls)!r} is defined inside a function and cannot be deserialized from XCom. "
+            "Define the class at module scope."
+        )
+    if "." in nested_qualname:
+        raise ValueError(
+            f"{qualname(cls)!r} is nested inside another class and cannot be deserialized from XCom. "
+            "Define the class at module scope."
+        )
+    qn = qualname(cls)
+    try:
+        resolved = import_string(qn)
+    except ImportError as exc:
+        raise ValueError(
+            f"{qn!r} cannot be re-imported by qualified name ({exc}). "
+            "Define the class at module scope and bind it to an attribute matching its __name__."
+        ) from exc
+    if resolved is not cls:
+        raise ValueError(
+            f"{qn!r} does not resolve to the registered class via import_string "
+            "(its __name__ differs from the module attribute that holds it). "
+            "Bind the class to an attribute matching its __name__ at module scope."
+        )
+    _extra_allowed.add(qn)
+
+
 def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     classname = d[CLASSNAME]
     version = d[VERSION]

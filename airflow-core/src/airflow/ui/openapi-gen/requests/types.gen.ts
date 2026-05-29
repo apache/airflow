@@ -100,7 +100,7 @@ export type AssetResponse = {
  * Request body for setting an asset state value.
  */
 export type AssetStateBody = {
-    value: string;
+    value: JsonValue;
 };
 
 /**
@@ -116,7 +116,7 @@ export type AssetStateCollectionResponse = {
  */
 export type AssetStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
 };
 
@@ -1715,7 +1715,7 @@ export type TaskResponse = {
  * Request body for setting a task state value.
  */
 export type TaskStateBody = {
-    value: string;
+    value: JsonValue;
 };
 
 /**
@@ -1731,7 +1731,7 @@ export type TaskStateCollectionResponse = {
  */
 export type TaskStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
     expires_at: string | null;
 };
@@ -2246,6 +2246,7 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+    doc_md?: string | null;
 };
 
 /**
@@ -6953,10 +6954,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7764,6 +7761,10 @@ export type $OpenApiTs = {
                  * Temporary Redirect
                  */
                 307: HTTPExceptionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
