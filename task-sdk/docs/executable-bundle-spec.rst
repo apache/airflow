@@ -153,8 +153,10 @@ Top-level keys:
       ``YYYY-MM-DD`` format (e.g. ``"2026-06-16"``). The coordinator passes
       this value to the supervisor so it can downgrade outbound messages /
       upgrade inbound messages to a shape the bundle understands. The value
-      MUST resolve against the supervisor's schema bundle; an unknown
-      version is rejected at coordinator start.
+      MUST resolve against the supervisor's schema bundle; the coordinator
+      validates it lazily when matching a bundle to a task at
+      task-execution time, and an unknown version causes that bundle to be
+      skipped.
 
 ``source`` (string, required)
     Original filename of the primary DAG source file (e.g. ``example.go``).

@@ -201,10 +201,16 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
 
     try:
         data = yaml.safe_load(metadata_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, yaml.YAMLError):
+    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
         return None
 
     if not isinstance(data, dict):
+        log.debug(
+            "Bundle metadata is not a mapping; skipping",
+            path=str(path),
+            type=type(data).__name__,
+        )
         return None
 
     return data
@@ -250,25 +256,41 @@ def _validate_schema_version(instance, _, value) -> str:
 @attrs.define
 class _Bundle:
     path: pathlib.Path
-    schema_version: str | None = attrs.field(validator=_validate_schema_version)
+    schema_version: str = attrs.field(validator=_validate_schema_version)
 
     @classmethod
     def find(cls, executables_root: Sequence[pathlib.Path], dag_id: str) -> Self:
         log.debug("Finding executable bundles recursively", roots=executables_root)
+        rejected: list[tuple[pathlib.Path, str]] = []
         for p in _find_executables(executables_root):
             if (metadata := _read_bundle_metadata(p)) is None:
                 continue
             if dag_id not in _dag_ids(metadata):
                 continue
+
             try:
-                return cls(path=p.resolve(), schema_version=_supervisor_schema_version(metadata))
+                if (schema_version := _supervisor_schema_version(metadata)) is None:
+                    reason = "missing or invalid sdk.supervisor_schema_version"
+                    log.debug("Bundle metadata rejected; skipping", path=str(p), error=reason)
+                    rejected.append((p.resolve(), reason))
+                    continue
+                return cls(path=p.resolve(), schema_version=schema_version)
             except (TypeError, ValueError) as exc:
-                log.debug("Bundle metadata rejected by validator; skipping", path=str(p), error=str(exc))
+                log.debug("Bundle metadata rejected; skipping", path=str(p), error=str(exc))
+                rejected.append((p.resolve(), str(exc)))
                 continue
+
         resolved_paths = os.pathsep.join(str(r.resolve()) for r in executables_root)
-        raise FileNotFoundError(
-            f"cannot find executable bundle containing dag_id={dag_id!r} in {resolved_paths}"
-        )
+        if rejected:
+            details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
+            tp = (
+                "cannot find executable bundle with usable supervisor_schema_version "
+                "for dag_id={0!r} in {1}: matching bundles were rejected ({2})"
+            )
+        else:
+            tp = "cannot find executable bundle containing dag_id={0!r} in {1}"
+            details = ""
+        raise FileNotFoundError(tp.format(dag_id, resolved_paths, details))
 
 
 def _convert_executables_root(
