@@ -56,6 +56,13 @@ class Window:
     #: Default ``str`` matches the identity mapper; temporal windows declare
     #: ``datetime``. Mirrors the same attribute on the core ``Window``.
     expected_decoded_type: ClassVar[type] = str
+    #: Whether this window's ``to_upstream`` ignores the downstream anchor and
+    #: returns the same upstream set for every downstream key. Such windows only
+    #: roll up correctly when paired with a mapper that collapses every upstream
+    #: key onto one downstream partition (see
+    #: :attr:`PartitionMapper.collapses_to_constant`); ``RollupMapper.__init__``
+    #: enforces this. Segment windows set this to ``True``.
+    requires_collapsing_mapper: ClassVar[bool] = False
 
 
 class HourWindow(Window):
@@ -99,13 +106,19 @@ class SegmentWindow(Window):
     A fixed categorical rollup window.
 
     Represents a static set of segment keys (e.g. regions, tenants, variants). Pair with
-    ``IdentityMapper`` inside a ``RollupMapper`` so the downstream Dag run is held until
-    every declared segment has emitted an upstream asset event.
+    :class:`~airflow.sdk.definitions.partition_mappers.constant.ConstantMapper` inside a
+    ``RollupMapper`` so that every segment event collapses onto one downstream partition
+    and the downstream Dag run is held until every declared segment has emitted an
+    upstream asset event.
 
     Unlike temporal windows, ``SegmentWindow`` ignores the downstream anchor completely —
     the runtime ``to_upstream`` on the core side always returns the same declared segment
-    set regardless of the downstream key. Runtime logic lives in
-    ``airflow.partition_mappers.window.SegmentWindow`` on the scheduler side.
+    set regardless of the downstream key. Because the same set is expected for every
+    downstream key, all upstream events must land in a single downstream partition; pairing
+    with a non-collapsing mapper (e.g. ``IdentityMapper``) fans each segment into its own
+    partition so the rollup never completes — ``RollupMapper.__init__`` rejects that pairing.
+    Runtime logic lives in ``airflow.partition_mappers.window.SegmentWindow`` on the
+    scheduler side.
 
     :param segments: Non-empty iterable of non-empty string segment keys. Duplicates are
         silently de-duplicated.
@@ -114,6 +127,7 @@ class SegmentWindow(Window):
     """
 
     expected_decoded_type: ClassVar[type] = str
+    requires_collapsing_mapper: ClassVar[bool] = True
 
     def __init__(self, segments: Iterable[str]) -> None:
         collected: list[str] = list(segments)
@@ -188,10 +202,11 @@ class DynamicSegmentWindow(Window):
     arguments, and expects an iterable of non-empty ``str`` segment keys.
 
     Like :class:`SegmentWindow`, the downstream anchor is ignored completely. Pair with
-    :class:`~airflow.sdk.definitions.partition_mappers.identity.IdentityMapper` inside a
-    :class:`~airflow.sdk.definitions.partition_mappers.base.RollupMapper`::
+    :class:`~airflow.sdk.definitions.partition_mappers.constant.ConstantMapper` inside a
+    :class:`~airflow.sdk.definitions.partition_mappers.base.RollupMapper` so every segment
+    event collapses onto one downstream partition::
 
-        from airflow.sdk import RollupMapper, IdentityMapper, DynamicSegmentWindow
+        from airflow.sdk import RollupMapper, ConstantMapper, DynamicSegmentWindow
 
 
         def list_active_regions() -> list[str]:
@@ -199,11 +214,13 @@ class DynamicSegmentWindow(Window):
 
 
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=DynamicSegmentWindow(list_active_regions),
         )
 
-    Runtime logic (``to_upstream``) lives in
+    Pairing with a non-collapsing mapper (e.g. ``IdentityMapper``) fans each segment into
+    its own partition so the rollup never completes; ``RollupMapper.__init__`` rejects that
+    pairing. Runtime logic (``to_upstream``) lives in
     ``airflow.partition_mappers.window.DynamicSegmentWindow`` on the scheduler side.
 
     .. warning:: **Resolver is called on every scheduler tick (commit 1 behavior)**
@@ -221,6 +238,7 @@ class DynamicSegmentWindow(Window):
     """
 
     expected_decoded_type: ClassVar[type] = str
+    requires_collapsing_mapper: ClassVar[bool] = True
 
     def __init__(self, resolver: Callable[[], Any]) -> None:
         self._resolver_path: str = _validate_resolver(resolver)

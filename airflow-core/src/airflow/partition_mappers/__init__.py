@@ -19,6 +19,7 @@ from __future__ import annotations
 from airflow.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.partition_mappers.chain import ChainMapper
+from airflow.partition_mappers.constant import ConstantMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.product import ProductMapper
 from airflow.partition_mappers.temporal import (
@@ -44,6 +45,7 @@ from airflow.partition_mappers.window import (
 __all__ = [
     "AllowedKeyMapper",
     "ChainMapper",
+    "ConstantMapper",
     "DayWindow",
     "DynamicSegmentWindow",
     "HourWindow",

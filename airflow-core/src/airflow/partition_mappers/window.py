@@ -91,6 +91,13 @@ class Window(ABC):
     #: mapper's ``decode_downstream`` leaves the value as ``str`` (base identity)
     #: but the window needs a different type. Temporal windows declare ``datetime``.
     expected_decoded_type: ClassVar[type] = str
+    #: Whether this window's ``to_upstream`` ignores the downstream anchor and
+    #: returns the same upstream set for every downstream key. Such windows only
+    #: roll up correctly when paired with a mapper that collapses every upstream
+    #: key onto one downstream partition (see
+    #: :attr:`PartitionMapper.collapses_to_constant`); ``RollupMapper.__init__``
+    #: enforces this. Segment windows set this to ``True``.
+    requires_collapsing_mapper: ClassVar[bool] = False
 
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
@@ -209,17 +216,22 @@ class SegmentWindow(Window):
 
     Unlike temporal windows, ``SegmentWindow`` ignores the downstream anchor completely —
     ``to_upstream`` always returns the same declared segment set regardless of the key passed
-    in. Pair with ``IdentityMapper`` inside a ``RollupMapper`` so that both the upstream and
-    downstream keys are plain strings and no encode/decode conversion is needed.
+    in. Because the same set is expected for every downstream key, every upstream event must
+    collapse onto one downstream partition; pair with ``ConstantMapper`` inside a
+    ``RollupMapper`` so all segment events accumulate into a single partition.
 
     Example::
 
-        from airflow.sdk import RollupMapper, IdentityMapper, SegmentWindow
+        from airflow.sdk import RollupMapper, ConstantMapper, SegmentWindow
 
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=SegmentWindow(["us-east", "eu-west", "ap-south"]),
         )
+
+    Pairing with a non-collapsing mapper such as ``IdentityMapper`` fans each segment into
+    its own downstream partition, so no partition ever collects the full set and the rollup
+    never completes — ``RollupMapper.__init__`` rejects that pairing.
 
     The scheduler holds the downstream Dag run until every segment key in the declared
     set has emitted an upstream asset event. This only works with ``WAIT_FOR_ALL``
@@ -233,6 +245,7 @@ class SegmentWindow(Window):
     """
 
     expected_decoded_type: ClassVar[type] = str
+    requires_collapsing_mapper: ClassVar[bool] = True
 
     def __init__(self, segments: Iterable[str]) -> None:
         collected: list[str] = list(segments)
@@ -320,10 +333,11 @@ class DynamicSegmentWindow(Window):
 
     Like :class:`SegmentWindow`, the downstream anchor is ignored completely —
     ``to_upstream`` always returns the full set that the resolver produces,
-    regardless of the downstream key. Pair with :class:`~airflow.partition_mappers.identity.IdentityMapper`
-    inside a :class:`~airflow.partition_mappers.base.RollupMapper`::
+    regardless of the downstream key. Pair with :class:`~airflow.partition_mappers.constant.ConstantMapper`
+    inside a :class:`~airflow.partition_mappers.base.RollupMapper` so every segment event
+    collapses onto one downstream partition::
 
-        from airflow.sdk import RollupMapper, IdentityMapper, DynamicSegmentWindow
+        from airflow.sdk import RollupMapper, ConstantMapper, DynamicSegmentWindow
 
 
         def list_active_regions() -> list[str]:
@@ -332,9 +346,13 @@ class DynamicSegmentWindow(Window):
 
 
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=DynamicSegmentWindow(list_active_regions),
         )
+
+    Pairing with a non-collapsing mapper such as ``IdentityMapper`` fans each segment into
+    its own downstream partition, so the rollup never completes — ``RollupMapper.__init__``
+    rejects that pairing.
 
     The downstream Dag run is held until every segment key returned by the resolver
     has emitted an upstream asset event. This only works with ``WAIT_FOR_ALL`` trigger
@@ -371,6 +389,7 @@ class DynamicSegmentWindow(Window):
     """
 
     expected_decoded_type: ClassVar[type] = str
+    requires_collapsing_mapper: ClassVar[bool] = True
 
     def __init__(self, resolver: Callable[[], Any]) -> None:
         self._resolver_path: str = _validate_resolver(resolver)

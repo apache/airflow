@@ -21,6 +21,7 @@ from datetime import datetime
 import pytest
 
 from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.constant import ConstantMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
@@ -408,31 +409,38 @@ class TestSegmentWindow:
         assert isinstance(restored, SegmentWindow)
         assert restored._segments == frozenset({"eu-west", "us-east", "ap-south"})
 
-    def test_rollup_mapper_with_identity_mapper(self):
-        from airflow.partition_mappers.base import RollupMapper
-        from airflow.partition_mappers.identity import IdentityMapper
-
+    def test_rollup_mapper_with_constant_mapper(self):
         segments = {"us-east", "eu-west", "ap-south"}
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=SegmentWindow(sorted(segments)),
         )
-        result = mapper.to_upstream("2024-06-10")
-        assert result == frozenset(segments)
+        # Every segment collapses onto the one downstream partition...
+        assert {mapper.to_downstream(s) for s in segments} == {"all_regions"}
+        # ...and that partition expects the full segment set.
+        assert mapper.to_upstream("all_regions") == frozenset(segments)
+
+    def test_rollup_mapper_rejects_non_collapsing_mapper(self):
+        with pytest.raises(TypeError, match="collapse onto one downstream partition"):
+            RollupMapper(
+                upstream_mapper=IdentityMapper(),
+                window=SegmentWindow(["us-east", "eu-west", "ap-south"]),
+            )
 
     def test_rollup_mapper_serialize_round_trip(self):
-        from airflow.partition_mappers.base import RollupMapper
-        from airflow.partition_mappers.identity import IdentityMapper
         from airflow.serialization.decoders import decode_partition_mapper
         from airflow.serialization.encoders import encode_partition_mapper
 
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=SegmentWindow(["us-east", "eu-west"]),
         )
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
         assert isinstance(restored.window, SegmentWindow)
+        assert isinstance(restored.upstream_mapper, ConstantMapper)
+        assert restored.upstream_mapper.downstream_key == "all_regions"
+        assert restored.to_downstream("anything") == "all_regions"
         assert restored.to_upstream("any-key") == mapper.to_upstream("any-key")
 
 
@@ -604,14 +612,21 @@ class TestDynamicSegmentWindow:
         assert restored._resolver_path.endswith("._test_resolver_three_regions")
         assert restored.to_upstream("anchor") == frozenset({"us-east", "eu-west", "ap-south"})
 
-    def test_rollup_mapper_with_identity_mapper(self):
-        """DynamicSegmentWindow composes correctly with IdentityMapper inside RollupMapper."""
+    def test_rollup_mapper_with_constant_mapper(self):
+        """DynamicSegmentWindow composes correctly with ConstantMapper inside RollupMapper."""
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=DynamicSegmentWindow(_test_resolver_three_regions),
         )
-        result = mapper.to_upstream("any-downstream")
-        assert result == frozenset({"us-east", "eu-west", "ap-south"})
+        assert {mapper.to_downstream(s) for s in ("us-east", "eu-west", "ap-south")} == {"all_regions"}
+        assert mapper.to_upstream("all_regions") == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_rollup_mapper_rejects_non_collapsing_mapper(self):
+        with pytest.raises(TypeError, match="collapse onto one downstream partition"):
+            RollupMapper(
+                upstream_mapper=IdentityMapper(),
+                window=DynamicSegmentWindow(_test_resolver_three_regions),
+            )
 
     def test_rollup_mapper_serialize_round_trip(self):
         """RollupMapper containing DynamicSegmentWindow survives a full encode → decode cycle."""
@@ -619,12 +634,14 @@ class TestDynamicSegmentWindow:
         from airflow.serialization.encoders import encode_partition_mapper
 
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=DynamicSegmentWindow(_test_resolver_three_regions),
         )
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
         assert isinstance(restored.window, DynamicSegmentWindow)
+        assert isinstance(restored.upstream_mapper, ConstantMapper)
+        assert restored.to_downstream("anything") == "all_regions"
         assert restored.to_upstream("any-key") == mapper.to_upstream("any-key")
 
 

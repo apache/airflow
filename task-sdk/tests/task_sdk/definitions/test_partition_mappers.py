@@ -22,6 +22,7 @@ from typing import ClassVar
 import pytest
 
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.sdk.definitions.partition_mappers.constant import ConstantMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
@@ -131,17 +132,22 @@ class TestSdkSegmentWindow:
         with pytest.raises(ValueError, match=match):
             SegmentWindow(segments)
 
-    def test_rollup_mapper_accepts_segment_window(self):
-        """SDK RollupMapper must accept SegmentWindow without raising."""
-        from airflow.sdk.definitions.partition_mappers.base import RollupMapper
-        from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
-
-        # Should not raise: SegmentWindow.expected_decoded_type is str, IdentityMapper is str-based.
+    def test_rollup_mapper_accepts_constant_mapper(self):
+        """SDK RollupMapper must accept SegmentWindow paired with a collapsing mapper."""
+        # Should not raise: ConstantMapper collapses every segment onto one partition.
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=SegmentWindow(["us-east", "eu-west"]),
         )
         assert mapper.window._segments == frozenset({"us-east", "eu-west"})
+
+    def test_rollup_mapper_rejects_non_collapsing_mapper(self):
+        """SDK RollupMapper must reject SegmentWindow paired with a non-collapsing mapper."""
+        with pytest.raises(TypeError, match="collapse onto one downstream partition"):
+            RollupMapper(
+                upstream_mapper=IdentityMapper(),
+                window=SegmentWindow(["us-east", "eu-west"]),
+            )
 
 
 class TestSdkDynamicSegmentWindow:
@@ -211,11 +217,43 @@ class TestSdkDynamicSegmentWindow:
         with pytest.raises(TypeError, match="plain function"):
             DynamicSegmentWindow(obj.resolve)
 
-    def test_rollup_mapper_accepts_dynamic_segment_window(self):
-        """SDK RollupMapper must accept DynamicSegmentWindow without raising."""
-        # Should not raise: expected_decoded_type is str, IdentityMapper is str-based.
+    def test_rollup_mapper_accepts_constant_mapper(self):
+        """SDK RollupMapper must accept DynamicSegmentWindow paired with a collapsing mapper."""
+        # Should not raise: ConstantMapper collapses every segment onto one partition.
         mapper = RollupMapper(
-            upstream_mapper=IdentityMapper(),
+            upstream_mapper=ConstantMapper("all_regions"),
             window=DynamicSegmentWindow(_sdk_test_resolver_two_regions),
         )
         assert mapper.window._resolver is _sdk_test_resolver_two_regions
+
+    def test_rollup_mapper_rejects_non_collapsing_mapper(self):
+        """SDK RollupMapper must reject DynamicSegmentWindow paired with a non-collapsing mapper."""
+        with pytest.raises(TypeError, match="collapse onto one downstream partition"):
+            RollupMapper(
+                upstream_mapper=IdentityMapper(),
+                window=DynamicSegmentWindow(_sdk_test_resolver_two_regions),
+            )
+
+
+class TestSdkConstantMapper:
+    """SDK-side ConstantMapper construction and validation."""
+
+    def test_collapses_every_key_onto_constant(self):
+        pm = ConstantMapper("all_regions")
+        assert pm.to_downstream("us") == "all_regions"
+        assert pm.to_downstream("eu") == "all_regions"
+
+    def test_collapses_to_constant_flag(self):
+        assert ConstantMapper.collapses_to_constant is True
+
+    @pytest.mark.parametrize(
+        "downstream_key",
+        [
+            pytest.param("", id="empty-string"),
+            pytest.param(None, id="none"),
+            pytest.param(1, id="int"),
+        ],
+    )
+    def test_rejects_invalid_downstream_key(self, downstream_key):
+        with pytest.raises(ValueError, match="non-empty str"):
+            ConstantMapper(downstream_key)

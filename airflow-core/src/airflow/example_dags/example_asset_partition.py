@@ -23,14 +23,17 @@ from airflow.sdk import (
     DAG,
     AllowedKeyMapper,
     Asset,
+    ConstantMapper,
     CronPartitionTimetable,
     DayWindow,
+    DynamicSegmentWindow,
     IdentityMapper,
     MonthWindow,
     PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -357,3 +360,88 @@ with DAG(
         print(f"All daily partitions received. Month: {dag_run.partition_key}")
 
     summarise_team_a_month()
+
+
+# --- Segment (categorical) rollup -------------------------------------------
+# ``multi_region_player_stats`` (defined above) emits one partition per region
+# (``us``, ``eu``, ``apac``) from a single run.  The two Dags below demonstrate
+# how to hold a downstream run until every declared region key has arrived.
+
+with DAG(
+    dag_id="segment_region_stats_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=ConstantMapper("all_regions"),
+            window=SegmentWindow(["us", "eu", "apac"]),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Categorical rollup: hold until all three region partitions arrive.
+
+    ``SegmentWindow(["us", "eu", "apac"])`` declares the fixed set of region
+    keys required for one downstream run.  ``ConstantMapper("all_regions")``
+    collapses every region key onto a single ``all_regions`` partition so the
+    three region events accumulate into one downstream run.  The run is held
+    until ``us``, ``eu``, and ``apac`` have all arrived from
+    ``multi_region_player_stats``; partial arrivals remain pending in the
+    next-run-assets view so operators can track progress.
+    """
+
+    @task
+    def aggregate_all_regions(dag_run=None):
+        """Produce the cross-region summary once every region partition has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_all_regions()
+
+
+def active_player_regions() -> list[str]:
+    """
+    Return the active region codes for the current rollup.
+
+    The scheduler re-imports this function by dotted path and calls it on every
+    scheduling tick, so it MUST be deterministic and side-effect-free.  In
+    production, this might read from an Airflow Variable or a lightweight config
+    store — but must never perform writes or have observable side effects.
+    """
+    return ["us", "eu", "apac"]
+
+
+with DAG(
+    dag_id="dynamic_segment_region_stats_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=ConstantMapper("all_regions"),
+            window=DynamicSegmentWindow(active_player_regions),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Dynamic categorical rollup: region set resolved at scheduling time.
+
+    ``DynamicSegmentWindow(active_player_regions)`` calls the module-level
+    resolver on every scheduler tick to obtain the current segment set.  The
+    resolver must be a plain module-level function (lambdas, closures, and
+    bound methods are rejected at construction).  ``ConstantMapper("all_regions")``
+    collapses every region key onto one ``all_regions`` partition so the events
+    accumulate into a single downstream run, which is held until all keys
+    returned by the resolver have arrived from ``multi_region_player_stats``.
+    """
+
+    @task
+    def aggregate_dynamic_regions(dag_run=None):
+        """Produce the cross-region summary once every resolved region has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All dynamic region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_dynamic_regions()

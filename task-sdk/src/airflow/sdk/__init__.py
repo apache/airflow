@@ -40,6 +40,7 @@ __all__ = [
     "BranchMixIn",
     "ChainMapper",
     "Connection",
+    "ConstantMapper",
     "Context",
     "CronDataIntervalTimetable",
     "CronTriggerTimetable",
@@ -155,6 +156,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
+    from airflow.sdk.definitions.partition_mappers.constant import ConstantMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
@@ -231,6 +233,7 @@ __lazy_imports: dict[str, str] = {
     "BranchMixIn": ".bases.branch",
     "ChainMapper": ".definitions.partition_mappers.chain",
     "Connection": ".definitions.connection",
+    "ConstantMapper": ".definitions.partition_mappers.constant",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
     "CronTriggerTimetable": ".definitions.timetables.trigger",

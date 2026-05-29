@@ -565,6 +565,10 @@ downstream Dag partition key:
   passes the key through unchanged if valid.
   For example, ``AllowedKeyMapper(["us", "eu", "apac"])`` accepts only those
   region keys and rejects all others.
+* ``ConstantMapper`` collapses every key onto a single downstream key. For
+  example, ``ConstantMapper("all_regions")`` maps ``us``, ``eu``, and ``apac``
+  all to ``all_regions``. It is the mapper to pair with a ``SegmentWindow`` in a
+  categorical rollup (see :ref:`segment-rollup <segment-categorical-rollup>`).
 
 Example of per-asset mapper configuration and composite-key mapping:
 
@@ -718,6 +722,112 @@ day has only twenty-three real hours (one window member never has a matching eve
 so the run is held indefinitely) and the fall-back day has twenty-five (the repeated
 hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
 boundary; see the ``DayWindow`` class docstring for the full discussion.
+
+.. _segment-categorical-rollup:
+
+Segment (categorical) rollup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+For categorical partitioning — regions, tenants, experiment variants — use
+``SegmentWindow`` instead of a temporal window. A ``SegmentWindow`` holds the
+downstream Dag run until every declared string key has arrived from the upstream
+producer.  Because a ``SegmentWindow`` expects the *same* set of upstream keys for
+every downstream key, every upstream event must collapse onto a single downstream
+partition; pair it with ``ConstantMapper`` so all the segment events accumulate into
+one downstream run.  Pairing with a non-collapsing mapper such as ``IdentityMapper``
+fans each segment into its own partition, so the rollup never completes —
+``RollupMapper`` rejects that pairing at parse time.  ``SegmentWindow`` only makes
+sense under ``WAIT_FOR_ALL`` semantics (the default).
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        ConstantMapper,
+        PartitionAtRuntime,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        SegmentWindow,
+        asset,
+        task,
+    )
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        # Emit one event per region in a single run.
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+    # Consumer: fires once all three region partitions have arrived.
+    with DAG(
+        dag_id="segment_region_stats_rollup",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset.ref(name="multi_region_player_stats"),
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=ConstantMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def aggregate_all_regions(dag_run=None):
+            # dag_run.partition_key is the downstream key once all segments arrive.
+            print(dag_run.partition_key)
+
+        aggregate_all_regions()
+
+Construction validates the segment list: an empty list, non-string items, or
+empty-string keys each raise ``ValueError``.  Duplicate entries are silently
+deduplicated.
+
+Dynamic segment windows
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When the segment set changes between deployments, use ``DynamicSegmentWindow``
+with a module-level resolver callable.  The scheduler re-imports the function
+by its dotted path and calls it on every scheduling tick to obtain the current
+set of required keys.
+
+The resolver must be a plain module-level function — lambdas, closures, nested
+functions, and bound methods are all rejected at construction with a
+``ValueError``.  Because the resolver is called on every tick, it must be
+deterministic and side-effect-free; avoid writes, network calls with observable
+side effects, or any operation that changes state in the outside world.
+
+.. code-block:: python
+
+    from airflow.sdk import ConstantMapper, DynamicSegmentWindow, RollupMapper
+
+    # Must be a module-level function so the scheduler can import it by
+    # dotted path.  Must be deterministic and side-effect-free.
+    def active_player_regions() -> list[str]:
+        return ["us", "eu", "apac"]
+
+    with DAG(
+        dag_id="dynamic_segment_region_stats_rollup",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset.ref(name="multi_region_player_stats"),
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=ConstantMapper("all_regions"),
+                window=DynamicSegmentWindow(active_player_regions),
+            ),
+        ),
+        catchup=False,
+    ):
+        ...
+
+The resolver is invoked on each scheduler tick, so the segment set it returns
+determines which upstream keys the window waits for at that moment.  If the
+resolver returns a different set after some upstream keys have already arrived,
+the window re-evaluates against the new set.  Keep the resolver fast and free
+of writes or calls that change external state.
 
 Setting partition keys at runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -34,6 +34,12 @@ class PartitionMapper(ABC):
     """
 
     is_rollup: ClassVar[bool] = False
+    #: Whether ``to_downstream`` collapses every upstream key onto a single
+    #: downstream partition key. Anchor-independent windows (segment windows,
+    #: see :attr:`Window.requires_collapsing_mapper`) require this so that every
+    #: upstream event lands in the same downstream partition and can accumulate
+    #: into one rollup. Only :class:`ConstantMapper` sets this to ``True``.
+    collapses_to_constant: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -123,6 +129,21 @@ class RollupMapper(PartitionMapper):
                 f"with an upstream mapper that decodes to "
                 f"{window.expected_decoded_type.__name__}, or use a window whose "
                 f"'expected_decoded_type' accepts str."
+            )
+        # Anchor-independent windows return the same upstream set for every
+        # downstream key, so the rollup only fills up if every upstream event
+        # collapses onto a single downstream partition. A non-collapsing mapper
+        # (e.g. IdentityMapper) instead fans each upstream key into its own
+        # partition, so no partition ever accumulates the full set and the gate
+        # never opens. Reject the pairing up front rather than holding the Dag
+        # run forever on the scheduler.
+        if window.requires_collapsing_mapper and not upstream_mapper.collapses_to_constant:
+            raise TypeError(
+                f"{type(window).__name__} returns the same upstream set for every downstream "
+                f"key, so all upstream events must collapse onto one downstream partition. "
+                f"{type(upstream_mapper).__name__} maps each upstream key to a distinct "
+                f"downstream partition, so the rollup gate can never be satisfied. Pair the "
+                f"window with a collapsing mapper such as ConstantMapper."
             )
         self.upstream_mapper = upstream_mapper
         self.window = window

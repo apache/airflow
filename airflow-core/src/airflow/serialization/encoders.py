@@ -36,6 +36,7 @@ from airflow.sdk import (
     AssetAny,
     AssetOrTimeSchedule,
     ChainMapper,
+    ConstantMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
     DayWindow,
@@ -435,6 +436,7 @@ class _Serializer:
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
         ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        ConstantMapper: "airflow.partition_mappers.constant.ConstantMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         RollupMapper: "airflow.partition_mappers.base.RollupMapper",
@@ -461,6 +463,10 @@ class _Serializer:
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ConstantMapper) -> dict[str, Any]:
+        return {"downstream_key": partition_mapper.downstream_key}
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)
