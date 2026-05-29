@@ -402,6 +402,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         results: KubernetesResults,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """Change state of the task based on KubernetesResults."""
