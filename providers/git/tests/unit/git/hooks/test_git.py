@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 
 import pytest
@@ -352,3 +353,44 @@ class TestGitHook:
             assert os.path.exists(askpass_path)
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
+
+    def test_https_auth_sets_extra_header(self):
+        """Test that HTTPS connections with auth token set URL-scoped http.<URL>.extraHeader env vars.
+
+        This forces git to send credentials on the first request, even for public
+        repositories that don't issue a 401 challenge (issue #54829). The URL
+        scope limits the Authorization header to the configured repository so it
+        is not leaked to cross-host redirects or submodule origins.
+        """
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+        expected_creds = base64.b64encode(f"user:{ACCESS_TOKEN}".encode()).decode()
+        assert hook.env["GIT_CONFIG_COUNT"] == "1"
+        assert hook.env["GIT_CONFIG_KEY_0"] == f"http.{AIRFLOW_HTTPS_URL}.extraHeader"
+        assert hook.env["GIT_CONFIG_VALUE_0"] == f"Authorization: Basic {expected_creds}"
+
+    def test_http_auth_sets_extra_header(self):
+        """Test that HTTP connections with auth token also set URL-scoped http.<URL>.extraHeader."""
+        hook = GitHook(git_conn_id=CONN_HTTP)
+        expected_creds = base64.b64encode(f"user:{ACCESS_TOKEN}".encode()).decode()
+        assert hook.env["GIT_CONFIG_COUNT"] == "1"
+        assert hook.env["GIT_CONFIG_KEY_0"] == f"http.{AIRFLOW_HTTP_URL}.extraHeader"
+        assert hook.env["GIT_CONFIG_VALUE_0"] == f"Authorization: Basic {expected_creds}"
+
+    def test_old_git_does_not_set_extra_header(self, monkeypatch):
+        """Test that git<2.31 skips GIT_CONFIG_* injection used to force HTTP auth."""
+        monkeypatch.setattr(GitHook, "_get_git_version_info", staticmethod(lambda: (2, 30, 0)))
+
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+
+        assert hook.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"
+        assert "GIT_CONFIG_COUNT" not in hook.env
+
+    def test_no_auth_does_not_set_extra_header(self):
+        """Test that connections without auth token do not set http.extraHeader."""
+        hook = GitHook(git_conn_id=CONN_HTTP_NO_AUTH)
+        assert "GIT_CONFIG_COUNT" not in hook.env
+
+    def test_ssh_does_not_set_extra_header(self):
+        """Test that SSH connections do not set http.extraHeader."""
+        hook = GitHook(git_conn_id=CONN_DEFAULT)
+        assert "GIT_CONFIG_COUNT" not in hook.env
