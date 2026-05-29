@@ -19,12 +19,12 @@
 
 from __future__ import annotations
 
-import functools
 import hashlib
 import os
 import pathlib
 import struct
-from typing import TYPE_CHECKING, Any
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 import attrs
 import structlog
@@ -72,20 +72,22 @@ class _Footer:
     metadata_start: int
 
     @classmethod
-    def read(cls, path: pathlib.Path) -> Self | None:
+    def read(cls, f: BinaryIO, path: pathlib.Path, file_size: int) -> Self | None:
         """
-        Parse the trailer of *path* and return the resulting footer.
+        Parse the trailer from an already-open binary handle on *path*.
 
-        Returns ``None`` only when *path* is provably not a bundle (file is
-        smaller than the trailer, or the magic does not match).
+        *file_size* MUST come from a stat of the same fd so the trailer
+        offsets refer to the file currently held open (not whatever the
+        path resolves to at some later moment).
+
+        Returns ``None`` only when the file is provably not a bundle
+        (smaller than the trailer, or the magic does not match).
         """
-        size = path.stat().st_size
-        if size < FOOTER_SIZE:
+        if file_size < FOOTER_SIZE:
             return None
 
-        with open(path, "rb") as f:
-            f.seek(size - FOOTER_SIZE)
-            trailer = f.read(FOOTER_SIZE)
+        f.seek(file_size - FOOTER_SIZE)
+        trailer = f.read(FOOTER_SIZE)
 
         if len(trailer) != FOOTER_SIZE or trailer[56:64] != FOOTER_MAGIC:
             return None
@@ -102,7 +104,7 @@ class _Footer:
         if reserved != b"\x00" * 12:
             raise ValueError(f"Bundle trailer in {path} has non-zero reserved bytes.")
 
-        metadata_start = size - FOOTER_SIZE - metadata_len
+        metadata_start = file_size - FOOTER_SIZE - metadata_len
         source_start = metadata_start - source_len
         if source_start < 0:
             raise ValueError(f"Bundle trailer in {path} declares regions that extend past the start of file.")
@@ -112,7 +114,7 @@ class _Footer:
 
         return cls(
             path=path,
-            file_size=size,
+            file_size=file_size,
             source_len=source_len,
             metadata_len=metadata_len,
             footer_ver=footer_ver,
@@ -122,82 +124,98 @@ class _Footer:
         )
 
 
-def _hash_binary_region(path: pathlib.Path, source_start: int) -> bytes:
-    """Compute SHA-256 over bytes ``[0, source_start)`` of *path*."""
+def _hash_open_file(f: BinaryIO, length: int, path: pathlib.Path) -> bytes:
+    """Compute SHA-256 over the first *length* bytes of *f* (seeks to 0 first)."""
+    f.seek(0)
     digest = hashlib.sha256()
-    remaining = source_start
-    with open(path, "rb") as f:
-        while remaining > 0:
-            chunk = f.read(min(_HASH_READ_CHUNK, remaining))
-            if not chunk:
-                raise ValueError(
-                    f"Bundle {path} truncated while hashing binary region "
-                    f"(expected {source_start} bytes, got {source_start - remaining})."
-                )
-            digest.update(chunk)
-            remaining -= len(chunk)
+    remaining = length
+    while remaining > 0:
+        chunk = f.read(min(_HASH_READ_CHUNK, remaining))
+        if not chunk:
+            raise ValueError(
+                f"Bundle {path} truncated while hashing binary region "
+                f"(expected {length} bytes, got {length - remaining})."
+            )
+        digest.update(chunk)
+        remaining -= len(chunk)
     return digest.digest()
 
 
 # LRU-bounded cache of computed binary-region digests keyed by
-# (path, inode, mtime_ns, size). A cache hit means the file at *path* still
-# has the same identity as when we last hashed it, so re-hashing on every
-# exec is unnecessary. A miss (file replaced, mtime bumped, inode swapped
-# under us) yields a different key and forces re-verification;
-@functools.lru_cache(maxsize=_VERIFY_CACHE_MAXSIZE)
-def _cached_binary_region_digest(
-    path_str: str,
-    source_start: int,
-    st_ino: int,
-    st_mtime_ns: int,
-    st_size: int,
-) -> bytes:
-    # st_ino / st_mtime_ns / st_size participate in the cache key only; if any
-    # of them change, the LRU treats it as a different entry and re-hashes.
-    del st_ino, st_mtime_ns, st_size
-    return _hash_binary_region(pathlib.Path(path_str), source_start)
+# (path, source_start, inode, mtime_ns, size). A cache hit means the file
+# at *path* still has the same identity as when we last hashed it, so
+# re-hashing on every exec is unnecessary. A miss (file replaced, mtime
+# bumped, inode swapped under us) yields a different key and forces
+# re-verification.
+_digest_cache: OrderedDict[tuple[str, int, int, int, int], bytes] = OrderedDict()
 
 
-def _verify_binary_sha256(footer: _Footer) -> bool:
-    """Verify *footer.binary_sha256* against the binary region of ``footer.path``."""
-    try:
-        st = footer.path.stat()
-    except OSError:
-        return False
+def _clear_digest_cache() -> None:
+    """Drop all cached binary-region digests. Intended for tests."""
+    _digest_cache.clear()
 
-    try:
-        actual = _cached_binary_region_digest(
-            str(footer.path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size
-        )
-    except (OSError, ValueError) as exc:
-        log.debug("Failed to hash bundle binary region", path=str(footer.path), error=str(exc))
-        return False
 
-    if actual != footer.binary_sha256:
-        log.debug(
-            "Bundle binary_sha256 mismatch; skipping",
-            path=str(footer.path),
-            expected=footer.binary_sha256.hex(),
-            actual=actual.hex(),
-        )
-        return False
-    return True
+def _store_digest(key: tuple[str, int, int, int, int], digest: bytes) -> None:
+    _digest_cache[key] = digest
+    _digest_cache.move_to_end(key)
+    while len(_digest_cache) > _VERIFY_CACHE_MAXSIZE:
+        _digest_cache.popitem(last=False)
 
 
 def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
+    # One open per bundle: trailer-parse, hash (on cache miss), and
+    # metadata-read all share the same fd, and the stat that keys the
+    # digest cache comes from that fd too. This both halves the syscall
+    # cost of the hot path and removes the trailer-vs-hash TOCTOU window
+    # where a path could be swapped between separate opens.
     try:
-        if (footer := _Footer.read(path)) is None:
+        f = open(path, "rb")
+    except OSError as exc:
+        log.debug("Cannot open bundle file; skipping", path=str(path), error=str(exc))
+        return None
+
+    with f:
+        try:
+            st = os.fstat(f.fileno())
+        except OSError as exc:
+            log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
             return None
-    except (OSError, ValueError) as exc:
-        log.debug("Invalid bundle trailer; skipping", path=str(path), error=str(exc))
-        return None
 
-    if not _verify_binary_sha256(footer):
-        return None
+        try:
+            footer = _Footer.read(f, path, st.st_size)
+        except (OSError, ValueError) as exc:
+            log.debug("Invalid bundle trailer; skipping", path=str(path), error=str(exc))
+            return None
+        if footer is None:
+            return None
 
-    with open(path, "rb") as f:
-        f.seek(footer.metadata_start)
-        metadata_bytes = f.read(footer.metadata_len)
+        cache_key = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
+        actual_digest = _digest_cache.get(cache_key)
+        if actual_digest is not None:
+            _digest_cache.move_to_end(cache_key)
+        else:
+            try:
+                actual_digest = _hash_open_file(f, footer.source_start, path)
+            except (OSError, ValueError) as exc:
+                log.debug("Failed to hash bundle binary region", path=str(path), error=str(exc))
+                return None
+            _store_digest(cache_key, actual_digest)
+
+        if actual_digest != footer.binary_sha256:
+            log.debug(
+                "Bundle binary_sha256 mismatch; skipping",
+                path=str(path),
+                expected=footer.binary_sha256.hex(),
+                actual=actual_digest.hex(),
+            )
+            return None
+
+        try:
+            f.seek(footer.metadata_start)
+            metadata_bytes = f.read(footer.metadata_len)
+        except OSError as exc:
+            log.debug("Cannot read bundle metadata; skipping", path=str(path), error=str(exc))
+            return None
 
     try:
         data = yaml.safe_load(metadata_bytes.decode("utf-8"))
