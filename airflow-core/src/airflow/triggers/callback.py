@@ -36,12 +36,10 @@ def _ensure_bundle_module_registered(callback_path: str) -> None:
     """
     Register an unusual_prefix_{hash}_{stem} module so import_string can find it.
 
-    DAG files in bundles are loaded with a mangled module name by the DAG processor.
-    The triggerer event loop doesn't run the DAG processor, so we must register the
-    module manually before calling import_string.
+    The triggerer event loop doesn't run the DAG processor, so DAG files with mangled
+    module names must be registered manually. Walks all configured bundles to find the
+    file, then delegates the actual loading to _load_mangled_module in callback_supervisor.
     """
-    import importlib.machinery
-    import importlib.util
     import sys
     from pathlib import Path
 
@@ -49,28 +47,27 @@ def _ensure_bundle_module_registered(callback_path: str) -> None:
     if mod_name in sys.modules:
         return
 
-    # Reconstruct stem: unusual_prefix_{40-char hex}_{stem} → {stem}.py
+    # unusual_prefix_{hex40}_{stem}  →  {stem}.py
     parts = mod_name.split("_", 3)
     if len(parts) < 4:
         return
     stem = parts[3]
 
     try:
-        from airflow.dag_processing.bundles.manager import DagBundlesManager
+        import structlog
 
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+        from airflow.sdk.execution_time.callback_supervisor import _load_mangled_module
+
+        _log = structlog.get_logger()
         for bundle in DagBundlesManager().get_all_dag_bundles():
             try:
                 bundle.initialize()
                 file_path = Path(bundle.path) / f"{stem}.py"
                 if not file_path.exists():
                     continue
-                loader = importlib.machinery.SourceFileLoader(mod_name, str(file_path))
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-                sys.modules[mod_name] = module
-                loader.exec_module(module)
-                log.debug("Registered bundle module on triggerer: %s from %s", mod_name, file_path)
-                return
+                if _load_mangled_module(mod_name, str(file_path), _log):
+                    return
             except Exception:
                 log.debug("Bundle %s did not contain module stem %s", bundle.name, stem)
                 continue

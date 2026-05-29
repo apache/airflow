@@ -218,8 +218,9 @@ class Deadline(Base):
         """Handle a missed deadline by queueing the callback."""
         # Routing identifiers: stored at the top level of callback.data so the triggerer/executor
         # can locate the DagRun and build execution context *before* invoking the callback.
-        # These are NOT user payload — they are consumed by infrastructure (fetch_dag_run_for_callback,
-        # _fetch_and_build_context) and stripped before the callback function is called.
+        # These are NOT user payload — they are consumed by infrastructure (_fetch_callback_dag_run_data
+        # in triggerer_job_runner and _fetch_and_build_context in callback_supervisor) and stripped
+        # before the callback function is called.
         # TODO: A dedicated `routing_data` field on Callback would make this separation explicit
         # and avoid mixing routing metadata with user kwargs in the same JSON blob. Deferred because
         # changing the Callback model would require a migration and coordination with the executor path.

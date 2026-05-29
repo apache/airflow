@@ -327,48 +327,62 @@ class CallbackSubprocess(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
-def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> None:
+def _load_mangled_module(mod_name: str, file_path: str, _log) -> bool:
     """
-    Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
+    Load a DAG file into sys.modules under its mangled unusual_prefix_{hash}_{stem} name.
 
-    DAG files loaded by the DAG processor get a mangled module name
-    (unusual_prefix_{sha1_of_filepath}_{stem}) to prevent import collisions between
-    bundles. The callback path was serialized with that mangled name, so the subprocess
-    must load the file under exactly that name before calling import_string().
+    DAG files in bundles are assigned a mangled module name by the DAG processor
+    (unusual_prefix_{sha1_of_filepath}_{stem}) to prevent import collisions between bundles.
+    The callback path is serialized with that name, so both the executor subprocess and the
+    triggerer must register the file under that exact name before calling import_string().
+
+    Returns True if the module was registered, False if the file was not found or load failed.
     """
     import importlib.machinery
     import importlib.util
     from pathlib import Path
 
-    # Extract the mangled module name (everything before the first dot).
-    mod_name = callback_path.split(".")[0]
-    if mod_name in sys.modules:
-        return
-
-    # Reconstruct the original filename: strip "unusual_prefix_{40-char hash}_" prefix.
-    # Format: unusual_prefix_{hex40}_{stem}  →  {stem}.py
-    parts = mod_name.split("_", 3)  # ["unusual", "prefix", "{hash}", "{stem}"]
-    if len(parts) < 4:
-        return
-    stem = parts[3]
-    file_path = Path(bundle_path) / f"{stem}.py"
-    if not file_path.exists():
+    path = Path(file_path)
+    if not path.exists():
         _log.warning(
-            "Cannot register unusual_prefix module: file not found",
+            "Cannot register mangled bundle module: file not found",
             mod_name=mod_name,
-            expected_path=str(file_path),
+            expected_path=file_path,
         )
-        return
+        return False
 
     try:
-        loader = importlib.machinery.SourceFileLoader(mod_name, str(file_path))
+        loader = importlib.machinery.SourceFileLoader(mod_name, str(path))
         spec = importlib.util.spec_from_loader(mod_name, loader)
         module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
         sys.modules[mod_name] = module
         loader.exec_module(module)
-        _log.debug("Registered bundle module", mod_name=mod_name, file=str(file_path))
+        _log.debug("Registered bundle module", mod_name=mod_name, file=file_path)
+        return True
     except Exception:
         _log.warning("Failed to register bundle module", mod_name=mod_name, exc_info=True)
+        return False
+
+
+def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> None:
+    """
+    Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
+
+    Resolves the stem from the mangled module name, constructs the file path from
+    bundle_path, then delegates to _load_mangled_module.
+    """
+    from pathlib import Path
+
+    mod_name = callback_path.split(".")[0]
+    if mod_name in sys.modules:
+        return
+
+    # unusual_prefix_{hex40}_{stem}  →  {stem}.py
+    parts = mod_name.split("_", 3)  # ["unusual", "prefix", "{hash}", "{stem}"]
+    if len(parts) < 4:
+        return
+    stem = parts[3]
+    _load_mangled_module(mod_name, str(Path(bundle_path) / f"{stem}.py"), _log)
 
 
 def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
