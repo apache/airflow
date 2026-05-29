@@ -28,7 +28,7 @@ from airflow.providers.common.compat.sdk import dag
 
 
 # [START howto_toolset_mcp_connection]
-@dag
+@dag(tags=["example"])
 def example_mcp_toolset():
     """Use an MCP server configured via an Airflow connection."""
     AgentOperator(
@@ -53,7 +53,7 @@ example_mcp_toolset()
 
 
 # [START howto_toolset_mcp_multiple]
-@dag
+@dag(tags=["example"])
 def example_mcp_multiple_servers():
     """Combine multiple MCP servers with prefixes to avoid tool name collisions."""
     AgentOperator(

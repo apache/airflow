@@ -254,7 +254,9 @@
   },
   "task_one": "Задача",
   "task_other": "Задач",
-  "taskGroup": "Группа задач",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskId": "ID задачи",
   "taskInstance": {
     "dagVersion": "Версия Dag-а",

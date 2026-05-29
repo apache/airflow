@@ -392,9 +392,16 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     # * pyarrow>=22.0.0 on Python 3.14 — older pyarrow releases have no prebuilt wheels for
     #   Python 3.14 and uv falls back to building from source, which fails. pyarrow 22.0.0 is
     #   the first release shipping cp314 wheels.
+    # * pymysql<1.2 — pymysql 1.2.0 changed Connection.ping() to require `reconnect` as a
+    #   positional arg, which breaks SQLAlchemy's AsyncAdapt_aiomysql_connection.ping() (it
+    #   has no default for `reconnect`). The released apache-airflow-providers-mysql on PyPI
+    #   does not yet carry this cap, so we mirror it here so PyPI constraints stay installable
+    #   until the SQLAlchemy fix is released. Tracked upstream at
+    #   https://github.com/sqlalchemy/sqlalchemy/issues/13306
     #
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
+        "pymysql>=1.0.3,<1.2",
     ]
 
     result = run_command(

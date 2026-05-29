@@ -566,6 +566,15 @@ class PodManager(LoggingMixin):
                         line = raw_line.decode("utf-8", errors="backslashreplace")
                         line_timestamp, message = parse_log_line(line)
                         if line_timestamp:  # detect new log line
+                            if not message:
+                                # Empty container write: advance the resume
+                                # marker but do not emit a noisy ``[base] ``
+                                # row or break the previous buffered message
+                                # with a stray continuation (#36571).
+                                self.container_log_times[
+                                    (pod.metadata.namespace, pod.metadata.name, container_name)
+                                ] = line_timestamp
+                                continue
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -1108,12 +1117,17 @@ def parse_log_line(line: str) -> tuple[DateTime | None, str]:
     :param line: k8s log line
     :return: timestamp and log message
     """
-    timestamp, sep, message = line.strip().partition(" ")
-    if not sep:
-        return None, line
+    # Strip only the trailing newline so an empty container write (which
+    # kubelet streams back as "<rfc3339-ts> \n" under ``timestamps=True``)
+    # keeps the separator space and is recognised as a real log line, not a
+    # continuation of the previous one (#36571). When kubelet emits "<ts>\n"
+    # with no trailing space, ``partition`` returns the whole line as
+    # ``timestamp`` and ``message`` as ``""`` -- the parse below handles both.
+    stripped = line.rstrip("\n")
+    timestamp, _, message = stripped.partition(" ")
     try:
         last_log_time = cast("DateTime", pendulum.parse(timestamp))
-    except ParserError:
+    except (ParserError, ValueError):
         return None, line
     return last_log_time, message
 
@@ -1220,6 +1234,11 @@ class AsyncPodManager(LoggingMixin):
                 if line_timestamp and line_timestamp.replace(microsecond=0) == now_seconds:
                     break
                 if line_timestamp:  # detect new log line
+                    if not message:
+                        # Empty container write -- drop it instead of letting
+                        # it overwrite the buffered message with "" or be
+                        # emitted as a noisy ``[base] `` row (#36571).
+                        continue
                     if message_to_log is None:  # first line in the log
                         message_to_log = message
                     else:  # previous log line is complete

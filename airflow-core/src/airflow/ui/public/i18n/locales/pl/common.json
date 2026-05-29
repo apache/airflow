@@ -289,7 +289,9 @@
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
-  "taskGroup": "Grupa zadań",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskGroup_few": "Grupy zadań",
   "taskGroup_many": "Grup zadań",
   "taskGroup_one": "Grupa zadań",

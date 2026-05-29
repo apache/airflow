@@ -71,7 +71,9 @@ def generate_mprocs_config() -> str:
         # forwards both IPv4 and IPv6 host ports into the container). The default `0.0.0.0`
         # binds IPv4 only, causing the IPv6 attempt to land inside the container with no
         # listener and TCP RST → opaque chrome-error://chromewebdata/ page.
-        api_host_arg = "--host '::'"
+
+        # If host is empty or None, uvicorn listens on all available (IPv4 and IPv6) interfaces.
+        api_host_arg = "--host ''"
         if get_env_bool("BREEZE_DEBUG_APISERVER"):
             port = get_env("BREEZE_DEBUG_APISERVER_PORT", "5679")
             api_cmd = (

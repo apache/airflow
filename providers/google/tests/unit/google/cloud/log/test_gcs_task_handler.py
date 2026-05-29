@@ -27,6 +27,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
@@ -596,3 +597,49 @@ class TestGCSTaskHandler:
             gcs_log_folder="gs://bucket/remote/log/location",
             filename_template=None,
         )
+
+
+class TestGCSRemoteLogIOMisconfiguredConn:
+    """A misconfigured ``remote_log_conn_id`` must surface as a warning.
+
+    Silently swallowing the ``AirflowNotFoundException`` lets an operator believe they had
+    configured a specific service-account key for log uploads when in fact Application
+    Default Credentials are being used — a security-control failure that should be visible.
+    """
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
+    def test_hook_warns_when_remote_log_conn_id_missing(self, mock_hook, caplog):
+        mock_hook.side_effect = AirflowNotFoundException("conn 'nonexistent' not found")
+        remote_io = GCSRemoteLogIO(
+            remote_base="gs://bucket/remote/log/location",
+            base_log_folder="/tmp/airflow-test-logs",
+            delete_local_copy=False,
+        )
+
+        with conf_vars({("logging", "remote_log_conn_id"): "nonexistent"}):
+            with caplog.at_level(logging.WARNING):
+                assert remote_io.hook is None
+
+        warnings_emitted = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("nonexistent" in r.getMessage() for r in warnings_emitted), (
+            "expected a warning mentioning the misconfigured conn_id, got: "
+            f"{[r.getMessage() for r in warnings_emitted]}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
+    def test_hook_silent_when_no_remote_log_conn_id_configured(self, mock_hook, caplog):
+        """No ``remote_log_conn_id`` set → silent fall-through to ADC; no warning."""
+        remote_io = GCSRemoteLogIO(
+            remote_base="gs://bucket/remote/log/location",
+            base_log_folder="/tmp/airflow-test-logs",
+            delete_local_copy=False,
+        )
+
+        with conf_vars({("logging", "remote_log_conn_id"): ""}):
+            with caplog.at_level(logging.WARNING):
+                assert remote_io.hook is None
+
+        assert not any(
+            "remote_log_conn_id" in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+        )
+        mock_hook.assert_not_called()

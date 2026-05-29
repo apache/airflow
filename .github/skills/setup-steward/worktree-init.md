@@ -1,6 +1,3 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
-
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -104,9 +101,26 @@ For each framework skill in the effective family set:
   repair it.
 
 Reuse the convention detection from
-[`conventions.md`](conventions.md): flat vs double-symlinked
-layout drives where the inner / outer links land. Both
-layers gitignored.
+[`conventions.md`](conventions.md). The pattern drives how
+many layers the worktree's `<adopter-skills-dir>` needs:
+
+- **Pattern A (flat)** — one layer at
+  `.claude/skills/<n>`.
+- **Pattern B (double-symlinked)** — two layers (inner at
+  `.github/skills/<n>`, outer at `.claude/skills/<n>` →
+  inner). Both gitignored.
+- **Pattern D (single directory symlink)** — one layer at
+  the canonical side (D.1: `.github/skills/<n>`;
+  D.2: `.claude/skills/<n>`). The symlinked side resolves
+  automatically through the directory symlink, so there is
+  no per-skill plumbing to add or repair on that side.
+
+The worktree's `.claude/skills` / `.github/skills` directory
+symlink itself (for Pattern D) is **not** a framework
+artefact — it is checked into the repo as part of the
+adopter's layout, so every worktree inherits it via the
+ordinary `git worktree add` flow. `worktree-init` does not
+touch it.
 
 Pick any framework skill symlink that should now exist (e.g.
 `<worktree>/.claude/skills/security-issue-sync/SKILL.md`) and

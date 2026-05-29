@@ -60,7 +60,7 @@ class AddAssetsByAliasEndpoint(VersionChange):
 
 
 class AddStateEndpoints(VersionChange):
-    """Add task state and asset state CRUD endpoints."""
+    """Add task state and asset state API endpoints."""
 
     description = __doc__
 

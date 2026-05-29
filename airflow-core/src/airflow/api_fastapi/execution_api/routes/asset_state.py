@@ -28,6 +28,7 @@ Per-task asset registration checks are intentionally not implemented here
 
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from cadwyn import VersionedAPIRouter
@@ -93,7 +94,7 @@ def get_asset_state_by_name(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Asset state key {key!r} not found"},
         )
-    return AssetStateResponse(value=value)
+    return AssetStateResponse(value=json.loads(value))
 
 
 @router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -105,7 +106,7 @@ def set_asset_state_by_name(
 ) -> None:
     """Set an asset state value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -143,7 +144,7 @@ def get_asset_state_by_uri(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Asset state key {key!r} not found"},
         )
-    return AssetStateResponse(value=value)
+    return AssetStateResponse(value=json.loads(value))
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -155,7 +156,7 @@ def set_asset_state_by_uri(
 ) -> None:
     """Set an asset state value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)

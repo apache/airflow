@@ -111,7 +111,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
-                    timeout=self.execution_timeout,
+                    timeout=None,
                     trigger=AirbyteSyncTrigger(
                         conn_id=self.airbyte_conn_id,
                         job_id=self.job_id,

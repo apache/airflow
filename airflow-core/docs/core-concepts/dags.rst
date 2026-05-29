@@ -26,7 +26,7 @@ Dags
 
 Here's a basic example Dag:
 
-.. image:: /img/ui-light/basic_dag.png
+.. image:: ../img/ui-light/basic_dag.png
 
 It defines four Tasks - A, B, C, and D - and dictates the order in which they have to run, and which tasks depend on what others. It will also say how often to run the Dag - maybe "every 5 minutes starting tomorrow", or "every day since January 1st, 2020".
 
@@ -331,7 +331,7 @@ The task_id returned by the Python function has to reference a task directly dow
 .. note::
     When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
 
-    .. image:: /img/ui-light/branch_note.png
+    .. image:: ../img/ui-light/branch_note.png
 
     The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
@@ -411,7 +411,7 @@ In the case of this Dag:
 * ``task3`` is downstream of ``task1`` and ``task2`` and because of the default :ref:`trigger rule <concepts:trigger-rules>` being ``all_success`` will receive a cascaded skip from ``task1``.
 * ``task4`` is downstream of ``task1`` and ``task2``, but it will not be skipped, since its ``trigger_rule`` is set to ``all_done``.
 
-.. image:: /img/latest_only_with_trigger.png
+.. image:: ../img/latest_only_with_trigger.png
 
 .. _concepts:depends-on-past:
 
@@ -492,11 +492,11 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     ``join`` is downstream of ``follow_branch_a`` and ``branch_false``. The ``join`` task will show up as skipped because its ``trigger_rule`` is set to ``all_success`` by default, and the skip caused by the branching operation cascades down to skip a task marked as ``all_success``.
 
-    .. image:: /img/ui-light/branch_without_trigger.png
+    .. image:: ../img/ui-light/branch_without_trigger.png
 
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
-    .. image:: /img/ui-light/branch_with_trigger.png
+    .. image:: ../img/ui-light/branch_with_trigger.png
 
 
 Setup and teardown
@@ -554,7 +554,7 @@ Tasks in TaskGroups live on the same original Dag, and honor all the Dag setting
 .. seealso::
    API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
 
-.. image:: /img/ui-light/task_group.gif
+.. image:: ../img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
@@ -638,17 +638,17 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
 Here's an example Dag which illustrates labeling different branches:
 
-.. image:: /img/ui-light/edge_label_example.png
+.. image:: ../img/ui-light/edge_label_example.png
 
 .. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
     :start-after: from airflow.sdk import DAG, Label
 
 
-Dag & Task Documentation
-------------------------
+Dag, Task Group & Task Documentation
+------------------------------------
 
-It's possible to add documentation or notes to your Dags & task objects that are visible in the web interface ("Graph" & "Tree" for Dags, "Task Instance Details" for tasks).
+It's possible to add documentation or notes to your Dags, TaskGroups, and task objects that are visible in the web interface.
 
 There are a set of special task attributes that get rendered as rich content if defined:
 
@@ -662,7 +662,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for Dags, ``doc_md`` is the only attribute interpreted. For Dags it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+Please note that for Dags and TaskGroups, ``doc_md`` is the only attribute interpreted. It can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
 If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or Dag parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during Dag parsing, changes to the markdown content take one Dag parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
@@ -674,20 +674,25 @@ This is especially useful if your tasks are built dynamically from configuration
     """
 
     import pendulum
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import DAG, TaskGroup
 
-    dag = DAG(
+    with DAG(
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily",
         catchup=False,
-    )
-    dag.doc_md = __doc__
+    ) as dag:
+        dag.doc_md = __doc__
 
-    t = BashOperator("foo", dag=dag)
-    t.doc_md = """\
-    #Title"
-    Here's a [url](www.airbnb.com)
-    """
+        t = EmptyOperator(task_id="foo")
+        t.doc_md = """\
+        #Title"
+        Here's a [url](www.airbnb.com)
+        """
+
+        with TaskGroup("extract", doc_md="### Extract tasks"):
+            EmptyOperator(task_id="extract_orders")
 
 
 Packaging Dags

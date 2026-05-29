@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_hook_langchain_chat]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_langchain_chat():
     @task
     def summarize(text: str) -> str:
@@ -51,7 +51,7 @@ example_langchain_chat()
 
 
 # [START howto_hook_langchain_embedding]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_langchain_embedding():
     @task
     def embed_documents(texts: list[str]) -> int:
@@ -77,7 +77,7 @@ example_langchain_embedding()
 
 
 # [START howto_hook_langchain_chat_and_embedding]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_langchain_chat_and_embedding():
     """One hook instance serves both chat and embeddings when both models are set."""
 
@@ -104,7 +104,7 @@ example_langchain_chat_and_embedding()
 
 
 # [START howto_hook_langchain_different_conns]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_langchain_different_conns():
     """Use separate connections when chat and embeddings live on different API keys."""
 

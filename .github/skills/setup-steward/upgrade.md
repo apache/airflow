@@ -1,6 +1,3 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
-
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -163,18 +160,29 @@ bootstrap logic. It implements
    over the committed copy:
 
    ```bash
-   # For the flat layout:
+   # For the flat layout (Pattern A):
    rm -rf .claude/skills/setup-steward
    cp -r .apache-steward/.claude/skills/setup-steward \
          .claude/skills/setup-steward
 
-   # For the double-symlinked layout (e.g. apache/airflow):
+   # For the double-symlinked layout (Pattern B):
    rm -rf .github/skills/setup-steward
    cp -r .apache-steward/.claude/skills/setup-steward \
          .github/skills/setup-steward
-   # The .claude/skills/setup-steward symlink does not need
-   # touching — it points at .github/skills/setup-steward
+   # The .claude/skills/setup-steward per-skill symlink does
+   # not need touching — it points at .github/skills/setup-steward
    # which is now the new content.
+
+   # For the single directory-symlink layout (Pattern D),
+   # write to the *canonical* side only. With D.1
+   # (canonical = .github/skills/):
+   rm -rf .github/skills/setup-steward
+   cp -r .apache-steward/.claude/skills/setup-steward \
+         .github/skills/setup-steward
+   # With D.2 (canonical = .claude/skills/), write to
+   # .claude/skills/setup-steward instead. Either way: the
+   # symlinked side resolves to the refreshed content
+   # automatically — nothing to touch there.
    ```
 
 4. **Reload in-flight.** Immediately after the copy lands —
@@ -262,12 +270,23 @@ family, reconcile the adopter's `.gitignore` so the new
 family's snapshot symlinks are gitignored. Append the
 `.gitignore` lines from
 [`adopt.md` Step 7](adopt.md#step-7--gitignore-entries-fresh-only)
-for the new family's prefix (e.g. `/.claude/skills/issue-*`
-and the `.github/skills/` mirror when the adopter uses the
-double-symlinked convention). The append is idempotent —
-skip lines that already exist. The same idempotence covers
-adopters whose `.gitignore` already had the entries (e.g.
-from a manually-edited block or a previous adopt run).
+for the new family's prefix, matching the adopter's
+[skills-dir convention](conventions.md):
+
+- Pattern A — `/.claude/skills/<prefix>-*` only.
+- Pattern B — both `/.claude/skills/<prefix>-*` and
+  `/.github/skills/<prefix>-*` (two physical symlinks per
+  skill).
+- Pattern D — only the *canonical-side* `<canonical>/<prefix>-*`
+  ignore line. D.1 → `/.github/skills/<prefix>-*`; D.2 →
+  `/.claude/skills/<prefix>-*`. The symlinked side's
+  directory symlink does not need its own ignore line — git
+  does not descend into it.
+
+The append is idempotent — skip lines that already exist.
+The same idempotence covers adopters whose `.gitignore`
+already had the entries (e.g. from a manually-edited block
+or a previous adopt run).
 
 The post-upgrade state must be: *every framework skill in
 the new snapshot that belongs to the effective family set
@@ -304,7 +323,19 @@ Run two passes:
      release notes), offer to re-symlink to the new name.
    - If removed, offer to remove the stale symlink.
 
-For the double-symlinked convention, refresh both layers.
+Per-pattern symlink layers to refresh:
+
+- **Pattern A (flat)** — refresh the single layer at
+  `.claude/skills/<n>`.
+- **Pattern B (double-symlinked)** — refresh both layers
+  (inner at `.github/skills/<n>`, outer at
+  `.claude/skills/<n>` → inner).
+- **Pattern D (single directory symlink)** — refresh only
+  the *canonical-side* layer at
+  `<canonical>/skills/<n>` (D.1 → `.github/skills/<n>`;
+  D.2 → `.claude/skills/<n>`). The symlinked-side path
+  resolves through the directory symlink and needs no
+  per-skill plumbing.
 
 ## Step 6b — Sync locally-installed hooks and configuration
 
@@ -439,6 +470,63 @@ upgrade — secure-agent setup is independent of framework
 upgrade). The recap row in Step 8's output goes under a new
 `Sandbox allowlist:` section.
 
+## Step 6d — Audit framework template genericity
+
+A defensive hygiene pass over the framework's
+`<snapshot-dir>/projects/_template/` directory. Templates
+are meant to be **project-agnostic scaffolds** that adopters
+copy and customise — they should contain placeholders
+(`<Project Name>`, `<github-org>/<team-slug>`, etc.),
+generic examples, and no hardcoded project identity.
+
+In practice the framework's `_template/` files have at
+times been seeded from one specific adopter's data
+(originally the project the framework grew out of) and
+not always generalised back. This step surfaces the
+residue so it can be filed as an issue against
+`apache/airflow-steward` and fixed upstream.
+
+For each file under `<snapshot-dir>/projects/_template/`,
+scan for adopter-specific signals:
+
+- **Hardcoded project names in titles or prose** — H1
+  headings, doc body text, calibration sentences. A
+  genuine template starts with `# TODO: <Project Name> —
+  ...` or uses a `<PROJECT>` placeholder; if a concrete
+  name appears there instead, that is the residue.
+- **Hardcoded URLs** pointing at a specific adopter —
+  `github.com/<org>/<repo>/...` paths in body text,
+  mailing-list addresses tied to a specific TLD,
+  project-specific chat URLs. Template URLs should be
+  `<placeholder>` or annotated "Example: …".
+- **Hardcoded org / team identifiers** — committer-team
+  slugs (e.g. `<org>/<team>-committers`), real maintainer
+  handles, project-specific issue-tracker keys. Same
+  rule: placeholder, or marked as an example.
+- **Project-specific calibration prose** — references
+  to contributor counts, specific issue numbers,
+  incident postmortems, or other particulars an
+  arbitrary adopter wouldn't share.
+
+Surface the findings as a `Framework templates:` block in
+the upgrade summary (see [Step 8 output](#output-to-the-user))
+— one ⚠ row per file with a short summary of what looks
+adopter-specific. **Do not modify the snapshot** (it is
+read-only per
+[`SKILL.md` Golden rule 1](SKILL.md#golden-rules)). The
+recap is purely advisory; the operator decides whether to
+open a tracking issue / PR against
+`apache/airflow-steward`.
+
+The check is intentionally heuristic — false positives are
+acceptable because the cost is one line in the summary, not
+a blocked upgrade. False negatives are also acceptable; the
+operator's read of the upgrade summary is the real signal.
+**Never attempt to auto-fix.**
+
+If every template scans clean, surface the section as
+`✓ all framework templates look generic`.
+
 ## Step 7 — Update `<local-lock>`
 
 Write the new local lock with the values captured in Step
@@ -506,6 +594,12 @@ Overrides:
   ✓ <list of overrides whose target is unchanged>
   ⚠ <list of overrides flagged for re-anchoring> (open the
      file and update against the new framework structure)
+
+Framework templates (projects/_template/):
+  ✓ all templates look generic   OR
+  ⚠ <_template/foo.md>           (e.g. H1 title hardcoded to a specific project name)
+  ⚠ <_template/bar.md>           (e.g. `committers_team` set to a concrete org/team without placeholder)
+  → file an issue against apache/airflow-steward to upstream a fix
 
 Recommended follow-ups:
   - Run /setup-isolated-setup-update if the secure-setup blast

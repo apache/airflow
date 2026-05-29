@@ -23,10 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
-from airflow.api_fastapi.core_api.routes.public.import_error import (
-    REDACTED_STACKTRACE,
-    REDACTED_STACKTRACE_NO_DAG,
-)
+from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
@@ -280,14 +277,12 @@ class TestGetImportError:
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_error__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import error is returned with the no-Dag redaction message when no Dag
-        exists in ``DagModel`` for the file.
+        """Import error is returned with the raw stacktrace when no Dag exists
+        in ``DagModel`` for the file.
 
-        When the file-to-Dag set resolves empty there is no Dag anchor to
-        authorize against, so the stacktrace is redacted. The message must be
-        the no-Dag variant, not the per-Dag-scope variant, so callers with
-        full Dag read access (admins) understand the redaction is about the
-        file's parse state and not their permissions.
+        Proper handling of unregistered files (separate admin-only permission,
+        multi-team isolation) is tracked as follow-up work; for now the endpoint
+        returns the raw error rather than redacting it.
         """
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
@@ -299,7 +294,7 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
-            "stack_trace": REDACTED_STACKTRACE_NO_DAG,
+            "stack_trace": STACKTRACE1,
             "bundle_name": BUNDLE_NAME,
         }
 
@@ -525,8 +520,12 @@ class TestGetImportErrors:
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_errors__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import errors are returned with the no-Dag redaction message when no Dag
-        exists in ``DagModel`` for the file."""
+        """Import errors are returned with their raw stacktraces when no Dag
+        exists in ``DagModel`` for the file.
+
+        Proper handling of unregistered files is deferred to a follow-up issue
+        that introduces a dedicated permission and respects multi-team isolation.
+        """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
 
         response = test_client.get("/importErrors")
@@ -534,12 +533,14 @@ class TestGetImportErrors:
         assert response.status_code == 200
         response_json = response.json()
         assert response_json["total_entries"] == 3
-        filenames = [error["filename"] for error in response_json["import_errors"]]
-        assert FILENAME1 in filenames
-        assert FILENAME2 in filenames
-        assert FILENAME3 in filenames
-        for entry in response_json["import_errors"]:
-            assert entry["stack_trace"] == REDACTED_STACKTRACE_NO_DAG
+        stacktrace_by_filename = {
+            error["filename"]: error["stack_trace"] for error in response_json["import_errors"]
+        }
+        assert stacktrace_by_filename == {
+            FILENAME1: STACKTRACE1,
+            FILENAME2: STACKTRACE2,
+            FILENAME3: STACKTRACE3,
+        }
 
 
 class TestImportErrorFileAuthorization:
@@ -666,23 +667,24 @@ class TestImportErrorFileAuthorization:
         assert response.status_code == 403
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_single_endpoint_redacts_when_file_has_no_known_dags(
+    def test_single_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
     ):
-        """Single endpoint must redact the stacktrace with the no-Dag
-        message when the ``ParseImportError`` refers to a file with no
-        matching ``DagModel`` rows at all -- for example a file that
-        failed to parse before any Dag was defined.
+        """Single endpoint returns the raw stacktrace when the
+        ``ParseImportError`` refers to a file with no matching ``DagModel``
+        rows at all -- for example a file that failed to parse before any
+        Dag was defined. Proper handling of this case (dedicated permission,
+        multi-team isolation) is tracked as follow-up work.
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
         response = test_client.get(f"/importErrors/{import_errors[0].id}")
         assert response.status_code == 200
         body = response.json()
         assert body["filename"] == FILENAME1
-        assert body["stack_trace"] == REDACTED_STACKTRACE_NO_DAG
+        assert body["stack_trace"] == STACKTRACE1
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_list_endpoint_redacts_mixed_file_with_colocated_dag_outside_callers_scope(
@@ -721,21 +723,25 @@ class TestImportErrorFileAuthorization:
         assert mixed_entries[0]["stack_trace"] == REDACTED_STACKTRACE
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_list_endpoint_redacts_when_file_has_no_known_dags(
+    def test_list_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
     ):
-        """List endpoint must redact the stacktrace with the no-Dag
-        message for import errors whose file has no matching ``DagModel``
-        rows -- closing the ``if not dag_ids: import_errors.append(import_error)``
-        fall-through that previously returned the raw error.
+        """List endpoint returns the raw stacktrace for import errors whose
+        file has no matching ``DagModel`` rows. Proper handling of this case
+        (dedicated permission, multi-team isolation) is tracked as follow-up
+        work.
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
         response = test_client.get("/importErrors")
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 3
-        for entry in body["import_errors"]:
-            assert entry["stack_trace"] == REDACTED_STACKTRACE_NO_DAG
+        stacktrace_by_filename = {entry["filename"]: entry["stack_trace"] for entry in body["import_errors"]}
+        assert stacktrace_by_filename == {
+            FILENAME1: STACKTRACE1,
+            FILENAME2: STACKTRACE2,
+            FILENAME3: STACKTRACE3,
+        }

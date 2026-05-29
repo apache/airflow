@@ -29,6 +29,10 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
+from airflow.providers.common.ai.utils.output_type import (
+    iter_base_model_classes,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -36,6 +40,11 @@ from airflow.providers.common.compat.sdk import (
     conf,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
+
+try:
+    from airflow.sdk.serde import allow_class
+except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
+    allow_class = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -95,7 +104,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output.
+        ``BaseModel`` subclass for structured output; the model instance is
+        returned to XCom unchanged so downstream tasks can type-hint it
+        directly. The class must be defined at module scope -- nested classes
+        cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``).
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
@@ -131,6 +143,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         operator blocks until a terminal action).
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
+    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
+        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+        ``model_dump()`` before being pushed to XCom. Default ``False`` --
+        the Pydantic instance flows through XCom unchanged. Set to ``True``
+        when a downstream consumer needs the dict shape.
     """
 
     template_fields: Sequence[str] = (
@@ -161,6 +178,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         max_hitl_iterations: int = 5,
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 10.0,
+        serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -170,6 +188,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
+        self.serialize_output = serialize_output
+        self._serialize_model_output = serialize_output or allow_class is None
+        if not serialize_output and allow_class is not None:
+            for model_cls in iter_base_model_classes(output_type):
+                allow_class(model_cls)
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
@@ -225,6 +248,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
 
     def execute(self, context: Context) -> Any:
+        if self.enable_hitl_review and not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__}: enable_hitl_review=True is not supported "
+                f"with a non-string prompt (got {type(self.prompt).__name__}). "
+                f"The HITL session model requires a string prompt. Return a str "
+                f"prompt, or disable enable_hitl_review."
+            )
+
         self._durable_storage = None
         self._durable_counter = None
 
@@ -288,14 +319,19 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 output,
                 message_history=result.all_messages(),
             )
-            # Deserialize back to dict
+            if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
+                return rehydrate_pydantic_output(
+                    self.output_type,
+                    result_str,
+                    serialize_output=self._serialize_model_output,
+                )
             try:
                 return json.loads(result_str)
             except (ValueError, TypeError):
                 return result_str
 
-        if isinstance(output, BaseModel):
-            return output.model_dump()
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            output = output.model_dump()
         return output
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:

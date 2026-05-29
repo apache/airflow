@@ -92,6 +92,18 @@ class TestBaseStateBackend:
         deserialized = backend.deserialize_task_state_from_ref(serialized)
         assert deserialized == original
 
+    def test_task_state_serialize_deserialize_typed_values(self, backend):
+        """Default backend passes typed values through unchanged (custom backends handle storage)."""
+        assert (
+            backend.deserialize_task_state_from_ref(
+                backend.serialize_task_state_to_ref(value=42, key="count", ti_id="abc-123")
+            )
+            == 42
+        )
+        assert backend.deserialize_task_state_from_ref(
+            backend.serialize_task_state_to_ref(value={"status": "ok"}, key="result", ti_id="abc-123")
+        ) == {"status": "ok"}
+
     def test_custom_backend_overrides_task_state_ser_deser(self):
         class MyBackend(BaseStateBackend):
             def get(self, scope, key): ...
@@ -125,6 +137,17 @@ class TestBaseStateBackend:
         )
         deserialized = backend.deserialize_asset_state_from_ref(serialized)
         assert deserialized == original
+
+    def test_asset_state_serialize_deserialize_typed_values(self, backend):
+        assert (
+            backend.deserialize_asset_state_from_ref(
+                backend.serialize_asset_state_to_ref(value=5, key="total_runs", asset_ref="my_asset")
+            )
+            == 5
+        )
+        assert backend.deserialize_asset_state_from_ref(
+            backend.serialize_asset_state_to_ref(value={"rows": 1234}, key="last_run", asset_ref="my_asset")
+        ) == {"rows": 1234}
 
     def test_custom_backend_overrides_asset_state_ser_deser(self):
         class MyBackend(BaseStateBackend):

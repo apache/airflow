@@ -87,11 +87,55 @@ the prompt string; all other parameters are passed to the operator.
     :end-before: [END howto_decorator_agent]
 
 
+.. _howto/operator:agent-multimodal:
+
+Multimodal prompts
+^^^^^^^^^^^^^^^^^^
+
+The decorated callable may also return a ``Sequence[UserContent]`` -- for
+example, a list mixing strings with ``ImageUrl``, ``BinaryContent``, or other
+pydantic-ai user-content types -- to send vision, audio, or document inputs
+to the model. This mirrors the input types accepted by pydantic-ai's
+``Agent.run_sync``.
+
+.. code-block:: python
+
+    from pydantic_ai.messages import ImageUrl
+
+
+    @task.agent(llm_conn_id="pydanticai_default", system_prompt="You are an image analyst.")
+    def analyze_review(image_url: str):
+        return ["Describe what you see:", ImageUrl(url=image_url)]
+
+.. note::
+
+    Combining a non-string prompt with ``enable_hitl_review=True`` is not
+    currently supported -- the HITL session model stores the prompt as a
+    string, so a ``Sequence`` prompt will raise at the review boundary.
+    Widening HITL review to multimodal prompts is tracked as a follow-up.
+
+
 Structured Output
 -----------------
 
-Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured
-data back. The result is serialized via ``model_dump()`` for XCom.
+Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured data
+back. The model instance is pushed to XCom unchanged so downstream tasks can
+type-hint the class directly (``def downstream(result: MyModel)``) and use
+attribute access (``result.field``).
+
+The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable
+from ``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
+process that parses the DAG. The Pydantic class must be defined at **module
+scope** and bound to an attribute matching its ``__name__``. Same-DAG
+downstream tasks need no configuration. The UI's XCom viewer renders the value
+via the ``stringify`` path (no configuration needed; see the ``LLMOperator``
+guide for the exact representation). Cross-DAG ``xcom_pull`` consumers still
+need the class ``qualname`` added to ``[core] allowed_deserialization_classes``.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_decorator_agent_structured_output_class]
+    :end-before: [END howto_decorator_agent_structured_output_class]
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python

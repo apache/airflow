@@ -24,8 +24,22 @@ from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnaly
 from airflow.providers.common.compat.sdk import dag, task
 
 
+# [START howto_operator_llm_file_analysis_structured_output_class]
+# Pydantic output classes must be defined at module scope so they can be
+# imported by name when downstream tasks deserialize the XCom payload.
+class FileAnalysisSummary(BaseModel):
+    """Structured output schema for the file-analysis examples."""
+
+    findings: list[str]
+    highest_severity: str
+    truncated_inputs: bool
+
+
+# [END howto_operator_llm_file_analysis_structured_output_class]
+
+
 # [START howto_operator_llm_file_analysis_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_file_analysis_basic():
     LLMFileAnalysisOperator(
         task_id="analyze_error_logs",
@@ -42,7 +56,7 @@ example_llm_file_analysis_basic()
 
 
 # [START howto_operator_llm_file_analysis_prefix]
-@dag
+@dag(tags=["example"])
 def example_llm_file_analysis_prefix():
     LLMFileAnalysisOperator(
         task_id="summarize_partitioned_logs",
@@ -65,7 +79,7 @@ example_llm_file_analysis_prefix()
 
 
 # [START howto_operator_llm_file_analysis_multimodal]
-@dag
+@dag(tags=["example"])
 def example_llm_file_analysis_multimodal():
     LLMFileAnalysisOperator(
         task_id="validate_dashboards",
@@ -83,16 +97,8 @@ example_llm_file_analysis_multimodal()
 
 
 # [START howto_operator_llm_file_analysis_structured]
-@dag
+@dag(tags=["example"])
 def example_llm_file_analysis_structured():
-
-    class FileAnalysisSummary(BaseModel):
-        """Structured output schema for the file-analysis examples."""
-
-        findings: list[str]
-        highest_severity: str
-        truncated_inputs: bool
-
     LLMFileAnalysisOperator(
         task_id="analyze_parquet_quality",
         prompt=(
@@ -114,7 +120,7 @@ example_llm_file_analysis_structured()
 
 
 # [START howto_decorator_llm_file_analysis]
-@dag
+@dag(tags=["example"])
 def example_llm_file_analysis_decorator():
     @task.llm_file_analysis(
         llm_conn_id="pydanticai_default",
