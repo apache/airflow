@@ -313,6 +313,12 @@ dev/registry/providers.json
 # detect drift.
 /.apache-steward.local.lock
 
+# Per-machine session-state file. Records adopter-local persistence
+# anchors written by steward skills (e.g. the session-history gist
+# URL written by pr-management-triage Step 6b, per
+# https://github.com/apache/airflow-steward/pull/343).
+/.apache-steward.session-state.json
+
 # Per-machine project-scope Claude Code settings (sandbox-allowlist
 # absolute paths written by sandbox-add-project-root.sh; per
 # https://github.com/apache/airflow-steward/issues/197).

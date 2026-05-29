@@ -30,6 +30,7 @@ when_to_use: |
   maintenance: "upgrade steward", "verify steward setup",
   "check steward drift", "the snapshot is stale".
 argument-hint: "[adopt|upgrade|worktree-init|verify|override skill-name|unadopt]"
+capability: capability:setup
 license: Apache-2.0
 ---
 
