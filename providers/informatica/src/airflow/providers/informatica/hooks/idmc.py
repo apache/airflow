@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit, urlunsplit
 
 import aiohttp
 import requests
@@ -66,18 +68,21 @@ _TASK_TYPE_ALIASES: Mapping[str, str] = {
     "DMASK": "DMASK",
     "POWERCENTER": "PCS",
     "PCS": "PCS",
-    "REPLICATION_TASK": "RTM",
-    "RTM": "RTM",
+    "REPLICATION_TASK": "DRS",
     "WORKFLOW": "WORKFLOW",
-    "TASKFLOW": "TASKFLOW",
+    "TASKFLOW": "WORKFLOW",
+    "LINEAR_TASKFLOW": "WORKFLOW",
 }
 
 # Run-status values that the v2 activity log uses.  IDMC's v3 ``/jobs`` API
 # uses similar (but capitalised) labels — both flow through ``_normalise_status``.
 _TERMINAL_SUCCESS_STATUSES = {"SUCCESS", "COMPLETED", "OK"}
 _TERMINAL_WARNING_STATUSES = {"WARNING"}
-_TERMINAL_FAILURE_STATUSES = {"FAILED", "FAILURE", "ERROR"}
+_TERMINAL_FAILURE_STATUSES = {"FAILED", "FAILURE", "ERROR", "SUSPENDED"}
 _TERMINAL_CANCELLED_STATUSES = {"STOPPED", "CANCELLED", "CANCELED", "ABORTED"}
+_V2_SESSION_HEADER = "icSessionId"
+_V3_SESSION_HEADER = "INFA-SESSION-ID"
+_SERVICE_SESSION_HEADER = "IDS-SESSION-ID"
 
 
 @dataclass
@@ -86,6 +91,7 @@ class _IDMCSession:
 
     session_id: str
     base_api_url: str
+    root_api_url: str
     session_header_name: str
     extra_products: dict[str, str] = field(default_factory=dict)
 
@@ -125,6 +131,25 @@ def _normalise_status(raw: str | None) -> str:
     if upper in _TERMINAL_CANCELLED_STATUSES:
         return IDMCRunStatus.CANCELLED.value
     if upper in {"QUEUED", "STARTING", "INITIALIZED", "PENDING"}:
+        return IDMCRunStatus.QUEUED.value
+    return IDMCRunStatus.RUNNING.value
+
+
+def _normalise_activity_state(raw: Any, *, is_stopped: bool = False) -> str:
+    """Map the v2 activity log numeric state to :class:`IDMCRunStatus`."""
+    if is_stopped:
+        return IDMCRunStatus.CANCELLED.value
+    try:
+        state = int(raw)
+    except (TypeError, ValueError):
+        return _normalise_status(raw if isinstance(raw, str) else None)
+    if state == 1:
+        return IDMCRunStatus.SUCCESS.value
+    if state == 2:
+        return IDMCRunStatus.WARNING.value
+    if state == 3:
+        return IDMCRunStatus.FAILED.value
+    if state == 4:
         return IDMCRunStatus.QUEUED.value
     return IDMCRunStatus.RUNNING.value
 
@@ -222,6 +247,15 @@ class InformaticaIDMCHook(BaseHook):
         return base
 
     @staticmethod
+    def _root_url_from_base(base_url: str) -> str:
+        """Return the pod root URL for service endpoints such as ``/active-bpel``."""
+        parsed = urlsplit(str(base_url).rstrip("/"))
+        path = parsed.path.rstrip("/")
+        if path.endswith("/saas"):
+            path = path.removesuffix("/saas")
+        return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+    @staticmethod
     def _verify_ssl(connection: Connection) -> bool:
         extras: Mapping[str, Any] = connection.extra_dejson or {}
         raw = extras.get("verify_ssl", extras.get("verify", True))
@@ -256,10 +290,6 @@ class InformaticaIDMCHook(BaseHook):
                 base = product.get("baseApiUrl")
                 if base:
                     return str(base).rstrip("/")
-        if products and isinstance(products[0], Mapping):
-            base = products[0].get("baseApiUrl")
-            if base:
-                return str(base).rstrip("/")
         raise InformaticaIDMCError(
             f"IDMC v3 login response did not include a product with name {product_key!r}."
         )
@@ -287,7 +317,8 @@ class InformaticaIDMCHook(BaseHook):
         return _IDMCSession(
             session_id=str(session_id),
             base_api_url=str(server_url).rstrip("/"),
-            session_header_name="icSessionId",
+            root_api_url=self._root_url_from_base(str(server_url)),
+            session_header_name=_V2_SESSION_HEADER,
         )
 
     def _login_v3(self, connection: Connection, *, timeout: int, verify: bool) -> _IDMCSession:
@@ -316,7 +347,8 @@ class InformaticaIDMCHook(BaseHook):
         return _IDMCSession(
             session_id=str(session_id),
             base_api_url=base_api_url,
-            session_header_name="INFA-SESSION-ID",
+            root_api_url=self._root_url_from_base(base_api_url),
+            session_header_name=_V3_SESSION_HEADER,
         )
 
     def _raw_post(
@@ -360,16 +392,18 @@ class InformaticaIDMCHook(BaseHook):
         *,
         json_body: Mapping[str, Any] | None = None,
         params: Mapping[str, Any] | None = None,
+        base_url: str = "api",
+        session_header_name: str | None = None,
     ) -> Any:
         session = self.session()
         connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
-        url = self._build_url(session, endpoint)
+        url = self._build_url(session, endpoint, base_url=base_url)
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            session.session_header_name: session.session_id,
+            (session_header_name or self._session_header_for_endpoint(endpoint, session)): session.session_id,
         }
         try:
             response = requests.request(
@@ -396,9 +430,20 @@ class InformaticaIDMCHook(BaseHook):
             return {"raw": response.text}
 
     @staticmethod
-    def _build_url(session: _IDMCSession, endpoint: str) -> str:
+    def _build_url(session: _IDMCSession, endpoint: str, *, base_url: str = "api") -> str:
         endpoint = endpoint if endpoint.startswith("/") else f"/{endpoint}"
-        return f"{session.base_api_url}{endpoint}"
+        base = session.root_api_url if base_url == "root" else session.base_api_url
+        return f"{base}{endpoint}"
+
+    @staticmethod
+    def _session_header_for_endpoint(endpoint: str, session: _IDMCSession) -> str:
+        if endpoint.startswith("/api/v2/"):
+            return _V2_SESSION_HEADER
+        if endpoint.startswith("/active-bpel/rt/"):
+            return _SERVICE_SESSION_HEADER
+        if endpoint.startswith("/active-bpel/"):
+            return _V3_SESSION_HEADER
+        return session.session_header_name
 
     @staticmethod
     def _normalise_task_type(task_type: str) -> str:
@@ -424,8 +469,8 @@ class InformaticaIDMCHook(BaseHook):
 
         Either ``task_id`` (the IDMC internal id) or ``task_federated_id`` must be
         supplied.  ``task_type`` accepts both short codes (``MTT``, ``DSS``,
-        ``DRS``, ``DMASK``, ``PCS``, ``RTM``, ``WORKFLOW``, ``TASKFLOW``) and the
-        full UI labels (e.g. ``"Mapping Task"`` / ``"MAPPING_TASK"``).
+        ``DRS``, ``DMASK``, ``PCS``, ``WORKFLOW``) and common UI labels
+        (e.g. ``"Mapping Task"`` / ``"MAPPING_TASK"`` / ``"Taskflow"``).
 
         The returned dictionary always contains a normalised ``run_id`` key
         alongside the raw IDMC response.
@@ -444,7 +489,17 @@ class InformaticaIDMCHook(BaseHook):
         run_id = response.get("runId") or response.get("id")
         if run_id is None:
             raise InformaticaIDMCError(f"IDMC start_task response did not include a runId: {response!r}")
-        return {"run_id": str(run_id), "task_type": normalised_type, "raw": response}
+        response_task_id = response.get("taskId") or task_id
+        response_task_federated_id = response.get("taskFederatedId") or task_federated_id
+        return {
+            "run_id": str(run_id),
+            "task_id": str(response_task_id) if response_task_id is not None else None,
+            "task_federated_id": (
+                str(response_task_federated_id) if response_task_federated_id is not None else None
+            ),
+            "task_type": normalised_type,
+            "raw": response,
+        }
 
     def start_taskflow(
         self,
@@ -466,28 +521,54 @@ class InformaticaIDMCHook(BaseHook):
         if not taskflow_api_name:
             raise InformaticaIDMCError("start_taskflow requires a non-empty taskflow_api_name.")
         endpoint = f"/active-bpel/rt/{taskflow_api_name}"
-        body: dict[str, Any] = {}
-        if input_parameters:
-            body["inputs"] = dict(input_parameters)
+        body: dict[str, Any] = dict(input_parameters or {})
         if callback_url:
             body["callbackURL"] = callback_url
-        response = self._request("POST", endpoint, json_body=body or None)
-        run_id = response.get("RunId") or response.get("runId") or response.get("id")
+        response = self._request("POST", endpoint, json_body=body or None, base_url="root")
+        if isinstance(response, Mapping):
+            run_id = (
+                response.get("RunId") or response.get("runId") or response.get("id") or response.get("raw")
+            )
+        else:
+            run_id = response
         if run_id is None:
             raise InformaticaIDMCError(f"IDMC start_taskflow response did not include a RunId: {response!r}")
         return {"run_id": str(run_id), "raw": response}
 
-    def get_task_run_status(self, run_id: str | int) -> dict[str, Any]:
+    @staticmethod
+    def _activity_log_entries(response: Any) -> list[Mapping[str, Any]]:
+        if isinstance(response, list):
+            return [entry for entry in response if isinstance(entry, Mapping)]
+        if not isinstance(response, Mapping):
+            return []
+        if any(key in response for key in ("@type", "runId", "runStatus", "state", "status", "isStopped")):
+            return [response]
+        entries = response.get("entries")
+        if isinstance(entries, list):
+            return [entry for entry in entries if isinstance(entry, Mapping)]
+        return [response]
+
+    def get_task_run_status(self, run_id: str | int, *, task_id: str) -> dict[str, Any]:
         """Return normalised status info for a CDI task run."""
-        response = self._request("GET", "/api/v2/activity/activityLog", params={"runId": str(run_id)})
-        entries = response if isinstance(response, list) else response.get("entries", [response])
+        response = self._request(
+            "GET",
+            "/api/v2/activity/activityLog",
+            params={"runId": str(run_id), "taskId": task_id},
+        )
+        entries = self._activity_log_entries(response)
         if not entries:
             return {"run_id": str(run_id), "status": IDMCRunStatus.RUNNING.value, "raw": response}
         latest = entries[0]
         raw_status = latest.get("runStatus") or latest.get("state") or latest.get("status")
+        status = (
+            _normalise_activity_state(raw_status, is_stopped=bool(latest.get("isStopped")))
+            if "state" in latest or "isStopped" in latest
+            else _normalise_status(raw_status if isinstance(raw_status, str) else None)
+        )
         return {
             "run_id": str(run_id),
-            "status": _normalise_status(raw_status if isinstance(raw_status, str) else None),
+            "task_id": task_id,
+            "status": status,
             "raw_status": raw_status,
             "raw": latest,
         }
@@ -497,6 +578,7 @@ class InformaticaIDMCHook(BaseHook):
         response = self._request(
             "GET",
             f"/active-bpel/services/tf/status/{run_id}",
+            base_url="root",
         )
         raw_status = response.get("status") or response.get("state")
         return {
@@ -513,46 +595,51 @@ class InformaticaIDMCHook(BaseHook):
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
         login_base = self._login_base_url(connection)
-        async with aiohttp.ClientSession() as client:
-            if self.auth_version is IDMCAuthVersion.V3:
-                payload = self._build_v3_login_payload(connection)
-                url = f"{login_base}/saas/public/core/v3/login"
-                async with client.post(
-                    url, json=payload, ssl=verify, timeout=aiohttp.ClientTimeout(total=timeout)
-                ) as response:
-                    if response.status >= 400:
-                        text = await response.text()
-                        raise InformaticaIDMCError(f"IDMC v3 login returned {response.status}: {text}")
-                    data = await response.json()
-                user_info = data.get("userInfo") or {}
-                session_id = user_info.get("sessionId") or data.get("sessionId")
-                if not session_id:
-                    raise InformaticaIDMCError("IDMC v3 login response missing sessionId.")
-                extras: Mapping[str, Any] = connection.extra_dejson or {}
-                product_key = str(extras.get("product", self.DEFAULT_PRODUCT_KEY))
-                base_api_url = self._select_v3_product(data, product_key)
-                self._session = _IDMCSession(
-                    session_id=str(session_id),
-                    base_api_url=base_api_url,
-                    session_header_name="INFA-SESSION-ID",
-                )
-            else:
-                payload = self._build_v2_login_payload(connection)
-                url = f"{login_base}/ma/api/v2/user/login"
-                async with client.post(
-                    url, json=payload, ssl=verify, timeout=aiohttp.ClientTimeout(total=timeout)
-                ) as response:
-                    if response.status >= 400:
-                        text = await response.text()
-                        raise InformaticaIDMCError(f"IDMC v2 login returned {response.status}: {text}")
-                    data = await response.json()
-                if not data.get("icSessionId") or not data.get("serverUrl"):
-                    raise InformaticaIDMCError("IDMC v2 login response missing icSessionId/serverUrl.")
-                self._session = _IDMCSession(
-                    session_id=str(data["icSessionId"]),
-                    base_api_url=str(data["serverUrl"]).rstrip("/"),
-                    session_header_name="icSessionId",
-                )
+        try:
+            async with aiohttp.ClientSession() as client:
+                if self.auth_version is IDMCAuthVersion.V3:
+                    payload = self._build_v3_login_payload(connection)
+                    url = f"{login_base}/saas/public/core/v3/login"
+                    async with client.post(
+                        url, json=payload, ssl=verify, timeout=aiohttp.ClientTimeout(total=timeout)
+                    ) as response:
+                        if response.status >= 400:
+                            text = await response.text()
+                            raise InformaticaIDMCError(f"IDMC v3 login returned {response.status}: {text}")
+                        data = await response.json()
+                    user_info = data.get("userInfo") or {}
+                    session_id = user_info.get("sessionId") or data.get("sessionId")
+                    if not session_id:
+                        raise InformaticaIDMCError("IDMC v3 login response missing sessionId.")
+                    extras: Mapping[str, Any] = connection.extra_dejson or {}
+                    product_key = str(extras.get("product", self.DEFAULT_PRODUCT_KEY))
+                    base_api_url = self._select_v3_product(data, product_key)
+                    self._session = _IDMCSession(
+                        session_id=str(session_id),
+                        base_api_url=base_api_url,
+                        root_api_url=self._root_url_from_base(base_api_url),
+                        session_header_name=_V3_SESSION_HEADER,
+                    )
+                else:
+                    payload = self._build_v2_login_payload(connection)
+                    url = f"{login_base}/ma/api/v2/user/login"
+                    async with client.post(
+                        url, json=payload, ssl=verify, timeout=aiohttp.ClientTimeout(total=timeout)
+                    ) as response:
+                        if response.status >= 400:
+                            text = await response.text()
+                            raise InformaticaIDMCError(f"IDMC v2 login returned {response.status}: {text}")
+                        data = await response.json()
+                    if not data.get("icSessionId") or not data.get("serverUrl"):
+                        raise InformaticaIDMCError("IDMC v2 login response missing icSessionId/serverUrl.")
+                    self._session = _IDMCSession(
+                        session_id=str(data["icSessionId"]),
+                        base_api_url=str(data["serverUrl"]).rstrip("/"),
+                        root_api_url=self._root_url_from_base(str(data["serverUrl"])),
+                        session_header_name=_V2_SESSION_HEADER,
+                    )
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
+            raise InformaticaIDMCError(f"IDMC {self.auth_version.value} login failed: {exc}") from exc
         return self._session
 
     async def _async_request(
@@ -561,54 +648,70 @@ class InformaticaIDMCHook(BaseHook):
         endpoint: str,
         *,
         params: Mapping[str, Any] | None = None,
+        base_url: str = "api",
+        session_header_name: str | None = None,
     ) -> Any:
         session = self._session or await self._async_login()
         connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
-        url = self._build_url(session, endpoint)
+        url = self._build_url(session, endpoint, base_url=base_url)
         headers = {
             "Accept": "application/json",
-            session.session_header_name: session.session_id,
+            (session_header_name or self._session_header_for_endpoint(endpoint, session)): session.session_id,
         }
-        async with aiohttp.ClientSession() as client:
-            async with client.request(
-                method=method.upper(),
-                url=url,
-                headers=headers,
-                params=dict(params) if params else None,
-                ssl=verify,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as response:
-                if response.status >= 400:
-                    text = await response.text()
-                    raise InformaticaIDMCError(
-                        f"IDMC request to {endpoint} returned {response.status}: {text}"
-                    )
-                if response.content_length == 0:
-                    return {}
-                return await response.json(content_type=None)
+        try:
+            async with aiohttp.ClientSession() as client:
+                async with client.request(
+                    method=method.upper(),
+                    url=url,
+                    headers=headers,
+                    params=dict(params) if params else None,
+                    ssl=verify,
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                ) as response:
+                    if response.status >= 400:
+                        text = await response.text()
+                        raise InformaticaIDMCError(
+                            f"IDMC request to {endpoint} returned {response.status}: {text}"
+                        )
+                    if response.content_length == 0:
+                        return {}
+                    try:
+                        return await response.json(content_type=None)
+                    except ValueError:
+                        return {"raw": await response.text()}
+        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+            raise InformaticaIDMCError(f"IDMC request to {endpoint} failed: {exc}") from exc
 
-    async def aget_task_run_status(self, run_id: str | int) -> dict[str, Any]:
+    async def aget_task_run_status(self, run_id: str | int, *, task_id: str) -> dict[str, Any]:
         """Async variant of :meth:`get_task_run_status` for use from triggers."""
         response = await self._async_request(
-            "GET", "/api/v2/activity/activityLog", params={"runId": str(run_id)}
+            "GET", "/api/v2/activity/activityLog", params={"runId": str(run_id), "taskId": task_id}
         )
-        entries = response if isinstance(response, list) else response.get("entries", [response])
+        entries = self._activity_log_entries(response)
         if not entries:
             return {"run_id": str(run_id), "status": IDMCRunStatus.RUNNING.value, "raw": response}
         latest = entries[0]
         raw_status = latest.get("runStatus") or latest.get("state") or latest.get("status")
+        status = (
+            _normalise_activity_state(raw_status, is_stopped=bool(latest.get("isStopped")))
+            if "state" in latest or "isStopped" in latest
+            else _normalise_status(raw_status if isinstance(raw_status, str) else None)
+        )
         return {
             "run_id": str(run_id),
-            "status": _normalise_status(raw_status if isinstance(raw_status, str) else None),
+            "task_id": task_id,
+            "status": status,
             "raw_status": raw_status,
             "raw": latest,
         }
 
     async def aget_taskflow_run_status(self, run_id: str | int) -> dict[str, Any]:
         """Async variant of :meth:`get_taskflow_run_status` for use from triggers."""
-        response = await self._async_request("GET", f"/active-bpel/services/tf/status/{run_id}")
+        response = await self._async_request(
+            "GET", f"/active-bpel/services/tf/status/{run_id}", base_url="root"
+        )
         raw_status = response.get("status") or response.get("state")
         return {
             "run_id": str(run_id),
@@ -617,10 +720,35 @@ class InformaticaIDMCHook(BaseHook):
             "raw": response,
         }
 
-    def cancel_task(self, run_id: str | int) -> dict[str, Any]:
-        """Best-effort cancel of an IDMC CDI task run."""
+    def cancel_task(
+        self,
+        *,
+        task_id: str | None = None,
+        task_federated_id: str | None = None,
+        task_name: str | None = None,
+        task_type: str = "MTT",
+    ) -> dict[str, Any]:
+        """Send a best-effort, task-scoped stop request for an IDMC CDI task."""
+        if not task_id and not task_federated_id and not task_name:
+            raise InformaticaIDMCError("cancel_task requires task_id, task_federated_id, or task_name.")
+        body: dict[str, Any] = {"@type": "job", "taskType": self._normalise_task_type(task_type)}
+        if task_id:
+            body["taskId"] = task_id
+        if task_federated_id:
+            body["taskFederatedId"] = task_federated_id
+        if task_name:
+            body["taskName"] = task_name
         return self._request(
             "POST",
             "/api/v2/job/stop",
-            json_body={"@type": "stopJob", "runId": str(run_id)},
+            json_body=body,
+        )
+
+    def cancel_taskflow(self, run_id: str | int) -> dict[str, Any]:
+        """Best-effort cancel of an IDMC taskflow run."""
+        return self._request(
+            "PUT",
+            "/active-bpel/services/tf/terminate",
+            json_body={"runid": [str(run_id)]},
+            base_url="root",
         )

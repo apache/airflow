@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -80,7 +79,10 @@ class _BaseInformaticaIDMCRunSensor(BaseSensorOperator):
 
     def _get_run_status(self, run_id: str) -> dict[str, Any]:
         method = getattr(self.hook, self._status_method_name)
-        return method(run_id)
+        return method(run_id, **self._status_kwargs())
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        return {}
 
     def poke(self, context: Context) -> bool:
         info = self._get_run_status(self.run_id)
@@ -91,27 +93,28 @@ class _BaseInformaticaIDMCRunSensor(BaseSensorOperator):
             raise InformaticaIDMCError(f"IDMC run {self.run_id} was cancelled.")
         return IDMCRunStatus.is_successful(status)
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> str:
         if not self.deferrable:
             super().execute(context)
-            return
+            return self.run_id
 
         if self.poke(context):
-            return
+            return self.run_id
 
-        end_time = time.time() + self.timeout
         self.defer(
-            timeout=self.execution_timeout,
+            timeout=self.timeout,
             trigger=self._trigger_class(
                 conn_id=self.informatica_idmc_conn_id,
                 run_id=self.run_id,
-                end_time=end_time,
+                timeout=self.timeout,
                 poll_interval=self.poke_interval,
                 auth_version=self.auth_version,
                 hook_params=self.hook_params,
+                **self._status_kwargs(),
             ),
             method_name="execute_complete",
         )
+        return self.run_id  # pragma: no cover
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
         status = event.get("status", "")
@@ -133,6 +136,14 @@ class InformaticaIDMCTaskRunSensor(_BaseInformaticaIDMCRunSensor):
 
     _trigger_class = InformaticaIDMCTaskRunTrigger
     _status_method_name = "get_task_run_status"
+    template_fields = _BaseInformaticaIDMCRunSensor.template_fields + ("idmc_task_id",)
+
+    def __init__(self, *, idmc_task_id: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.idmc_task_id = idmc_task_id
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        return {"task_id": self.idmc_task_id}
 
 
 class InformaticaIDMCTaskflowRunSensor(_BaseInformaticaIDMCRunSensor):

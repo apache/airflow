@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
@@ -25,6 +25,7 @@ from airflow.providers.informatica.hooks.idmc import (
     IDMCRunStatus,
     IDMCTimeoutException,
     InformaticaIDMCError,
+    InformaticaIDMCHook,
 )
 from airflow.providers.informatica.operators.idmc import (
     InformaticaIDMCRunTaskflowOperator,
@@ -37,13 +38,17 @@ from airflow.providers.informatica.triggers.idmc import (
 
 
 def _context() -> dict:
-    return {"ti": MagicMock()}
+    return {"ti": MagicMock(spec=["xcom_push"])}
+
+
+def _hook_mock() -> MagicMock:
+    return create_autospec(InformaticaIDMCHook, instance=True)
 
 
 def _make_task_op(**overrides) -> InformaticaIDMCRunTaskOperator:
     """Build an ``InformaticaIDMCRunTaskOperator`` with sane defaults for tests."""
     kwargs = dict(
-        task_id="run_idmc_task",  # Airflow DAG-level task id
+        task_id="run_idmc_task",  # Airflow Dag-level task id
         idmc_task_id="cdi-task-1",
         task_federated_id=None,
         idmc_task_type="MTT",
@@ -79,8 +84,13 @@ def test_run_task_operator_requires_idmc_id_or_federated_id():
 
 def test_run_task_operator_no_wait_returns_run_id_immediately():
     op = _make_task_op()
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "777", "task_type": "MTT", "raw": {}}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {
+        "run_id": "777",
+        "task_id": "cdi-task-1",
+        "task_type": "MTT",
+        "raw": {},
+    }
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         ctx = _context()
         result = op.execute(ctx)
@@ -93,8 +103,8 @@ def test_run_task_operator_no_wait_returns_run_id_immediately():
 
 def test_run_task_operator_uses_federated_id_when_only_one_provided():
     op = _make_task_op(idmc_task_id=None, task_federated_id="fed-99")
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "1"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "1", "task_id": "resolved-task-id"}
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         op.execute(_context())
     fake_hook.start_task.assert_called_once_with(
@@ -104,8 +114,8 @@ def test_run_task_operator_uses_federated_id_when_only_one_provided():
 
 def test_run_task_operator_sync_wait_succeeds_then_returns_run_id():
     op = _make_task_op(wait_for_completion=True)
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "55"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "55", "task_id": "cdi-task-1"}
     fake_hook.get_task_run_status.side_effect = [
         {"status": IDMCRunStatus.RUNNING.value},
         {"status": IDMCRunStatus.SUCCESS.value},
@@ -114,12 +124,13 @@ def test_run_task_operator_sync_wait_succeeds_then_returns_run_id():
         result = op.execute(_context())
     assert result == "55"
     assert fake_hook.get_task_run_status.call_count == 2
+    fake_hook.get_task_run_status.assert_called_with("55", task_id="cdi-task-1")
 
 
 def test_run_task_operator_sync_wait_raises_on_failure():
     op = _make_task_op(wait_for_completion=True)
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "9"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "9", "task_id": "cdi-task-1"}
     fake_hook.get_task_run_status.return_value = {"status": IDMCRunStatus.FAILED.value}
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         with pytest.raises(InformaticaIDMCError, match="failed"):
@@ -128,8 +139,8 @@ def test_run_task_operator_sync_wait_raises_on_failure():
 
 def test_run_task_operator_sync_wait_raises_on_cancellation():
     op = _make_task_op(wait_for_completion=True)
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "9"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "9", "task_id": "cdi-task-1"}
     fake_hook.get_task_run_status.return_value = {"status": IDMCRunStatus.CANCELLED.value}
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         with pytest.raises(InformaticaIDMCError, match="cancelled"):
@@ -138,8 +149,8 @@ def test_run_task_operator_sync_wait_raises_on_cancellation():
 
 def test_run_task_operator_deferrable_returns_immediately_when_already_terminal():
     op = _make_task_op(wait_for_completion=True, deferrable=True)
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "11"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "11", "task_id": "cdi-task-1"}
     fake_hook.get_task_run_status.return_value = {"status": IDMCRunStatus.SUCCESS.value}
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         result = op.execute(_context())
@@ -148,18 +159,19 @@ def test_run_task_operator_deferrable_returns_immediately_when_already_terminal(
 
 def test_run_task_operator_deferrable_defers_with_trigger():
     op = _make_task_op(wait_for_completion=True, deferrable=True, check_interval=5)
-    fake_hook = MagicMock()
-    fake_hook.start_task.return_value = {"run_id": "21"}
+    fake_hook = _hook_mock()
+    fake_hook.start_task.return_value = {"run_id": "21", "task_id": "cdi-task-1"}
     fake_hook.get_task_run_status.return_value = {"status": IDMCRunStatus.RUNNING.value}
     with (
         patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook),
-        patch.object(InformaticaIDMCRunTaskOperator, "defer") as defer,
+        patch.object(InformaticaIDMCRunTaskOperator, "defer", autospec=True) as defer,
     ):
         op.execute(_context())
     defer.assert_called_once()
     trigger = defer.call_args.kwargs["trigger"]
     assert isinstance(trigger, InformaticaIDMCTaskRunTrigger)
     assert trigger.run_id == "21"
+    assert trigger.task_id == "cdi-task-1"
     assert defer.call_args.kwargs["method_name"] == "execute_complete"
 
 
@@ -167,7 +179,7 @@ def test_execute_complete_translates_terminal_event_to_status():
     op = _make_task_op(wait_for_completion=True, deferrable=True)
     op.run_id = "33"
     result = op.execute_complete(_context(), {"status": IDMCRunStatus.SUCCESS.value, "run_id": "33"})
-    assert result == IDMCRunStatus.SUCCESS.value
+    assert result == "33"
 
 
 def test_execute_complete_raises_on_timeout_event():
@@ -193,7 +205,7 @@ def test_execute_complete_raises_on_failed_terminal_event():
 
 def test_run_taskflow_operator_passes_inputs_through():
     op = _make_taskflow_op(input_parameters={"k": "v"})
-    fake_hook = MagicMock()
+    fake_hook = _hook_mock()
     fake_hook.start_taskflow.return_value = {"run_id": "tf-1", "raw": {}}
     with patch.object(InformaticaIDMCRunTaskflowOperator, "hook", new=fake_hook):
         result = op.execute(_context())
@@ -203,12 +215,12 @@ def test_run_taskflow_operator_passes_inputs_through():
 
 def test_run_taskflow_operator_uses_taskflow_trigger_when_deferring():
     op = _make_taskflow_op(wait_for_completion=True, deferrable=True)
-    fake_hook = MagicMock()
+    fake_hook = _hook_mock()
     fake_hook.start_taskflow.return_value = {"run_id": "tf-9"}
     fake_hook.get_taskflow_run_status.return_value = {"status": IDMCRunStatus.RUNNING.value}
     with (
         patch.object(InformaticaIDMCRunTaskflowOperator, "hook", new=fake_hook),
-        patch.object(InformaticaIDMCRunTaskflowOperator, "defer") as defer,
+        patch.object(InformaticaIDMCRunTaskflowOperator, "defer", autospec=True) as defer,
     ):
         op.execute(_context())
     trigger = defer.call_args.kwargs["trigger"]
@@ -216,28 +228,59 @@ def test_run_taskflow_operator_uses_taskflow_trigger_when_deferring():
     assert trigger.run_id == "tf-9"
 
 
-def test_on_kill_calls_cancel_task_when_run_id_known():
+def test_task_operator_on_kill_does_not_cancel_task_by_default():
     op = _make_task_op()
     op.run_id = "111"
-    fake_hook = MagicMock()
+    fake_hook = _hook_mock()
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         op.on_kill()
-    fake_hook.cancel_task.assert_called_once_with("111")
+    fake_hook.cancel_task.assert_not_called()
+
+
+def test_task_operator_on_kill_calls_cancel_task_when_opted_in():
+    op = _make_task_op(cancel_on_kill=True)
+    op.run_id = "111"
+    fake_hook = _hook_mock()
+    with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
+        op.on_kill()
+    fake_hook.cancel_task.assert_called_once_with(
+        task_id="cdi-task-1", task_federated_id=None, task_type="MTT"
+    )
 
 
 def test_on_kill_is_noop_without_run_id():
     op = _make_task_op()
-    fake_hook = MagicMock()
+    fake_hook = _hook_mock()
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         op.on_kill()
     fake_hook.cancel_task.assert_not_called()
 
 
 def test_on_kill_swallows_idmc_errors():
-    op = _make_task_op()
+    op = _make_task_op(cancel_on_kill=True)
     op.run_id = "222"
-    fake_hook = MagicMock()
+    fake_hook = _hook_mock()
     fake_hook.cancel_task.side_effect = InformaticaIDMCError("nope")
     with patch.object(InformaticaIDMCRunTaskOperator, "hook", new=fake_hook):
         op.on_kill()  # must not raise
-    fake_hook.cancel_task.assert_called_once_with("222")
+    fake_hook.cancel_task.assert_called_once_with(
+        task_id="cdi-task-1", task_federated_id=None, task_type="MTT"
+    )
+
+
+def test_taskflow_on_kill_calls_cancel_taskflow_when_run_id_known():
+    op = _make_taskflow_op()
+    op.run_id = "tf-222"
+    fake_hook = _hook_mock()
+    with patch.object(InformaticaIDMCRunTaskflowOperator, "hook", new=fake_hook):
+        op.on_kill()
+    fake_hook.cancel_taskflow.assert_called_once_with("tf-222")
+
+
+def test_taskflow_on_kill_respects_cancel_on_kill_opt_out():
+    op = _make_taskflow_op(cancel_on_kill=False)
+    op.run_id = "tf-222"
+    fake_hook = _hook_mock()
+    with patch.object(InformaticaIDMCRunTaskflowOperator, "hook", new=fake_hook):
+        op.on_kill()
+    fake_hook.cancel_taskflow.assert_not_called()

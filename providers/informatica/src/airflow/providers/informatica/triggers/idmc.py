@@ -47,7 +47,7 @@ class _BaseInformaticaIDMCRunTrigger(BaseTrigger):
         *,
         conn_id: str,
         run_id: str,
-        end_time: float,
+        timeout: float,
         poll_interval: float,
         auth_version: str | None = None,
         hook_params: dict[str, Any] | None = None,
@@ -55,7 +55,7 @@ class _BaseInformaticaIDMCRunTrigger(BaseTrigger):
         super().__init__()
         self.conn_id = conn_id
         self.run_id = run_id
-        self.end_time = end_time
+        self.timeout = timeout
         self.poll_interval = poll_interval
         self.auth_version = auth_version
         self.hook_params = hook_params or {}
@@ -67,7 +67,7 @@ class _BaseInformaticaIDMCRunTrigger(BaseTrigger):
         return {
             "conn_id": self.conn_id,
             "run_id": self.run_id,
-            "end_time": self.end_time,
+            "timeout": self.timeout,
             "poll_interval": self.poll_interval,
             "auth_version": self.auth_version,
             "hook_params": self.hook_params,
@@ -85,10 +85,14 @@ class _BaseInformaticaIDMCRunTrigger(BaseTrigger):
 
     async def _fetch_status(self, hook: InformaticaIDMCHook) -> dict[str, Any]:
         method = getattr(hook, self._status_method_name)
-        return await method(self.run_id)
+        return await method(self.run_id, **self._status_kwargs())
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        return {}
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self._build_hook()
+        deadline = time.monotonic() + self.timeout if self.timeout else None
         try:
             while True:
                 status_info = await self._fetch_status(hook)
@@ -104,7 +108,7 @@ class _BaseInformaticaIDMCRunTrigger(BaseTrigger):
                     )
                     return
 
-                if self.end_time < time.time():
+                if deadline is not None and deadline < time.monotonic():
                     # One last status check in case the run finished between
                     # the previous fetch and the timeout deadline.
                     final = await self._fetch_status(hook)
@@ -142,6 +146,18 @@ class InformaticaIDMCTaskRunTrigger(_BaseInformaticaIDMCRunTrigger):
     """Poll a CDI task run (mapping / sync / PowerCenter / etc.) until terminal."""
 
     _status_method_name = "aget_task_run_status"
+
+    def __init__(self, *, task_id: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.task_id = task_id
+
+    def _serialize_kwargs(self) -> dict[str, Any]:
+        kwargs = super()._serialize_kwargs()
+        kwargs["task_id"] = self.task_id
+        return kwargs
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        return {"task_id": self.task_id}
 
 
 class InformaticaIDMCTaskflowRunTrigger(_BaseInformaticaIDMCRunTrigger):

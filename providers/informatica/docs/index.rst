@@ -65,7 +65,7 @@ Apache Airflow Informatica Provider
 ===================================
 
 
-The Informatica provider integrates Apache Airflow with Informatica Enterprise Data Catalog (EDC) for advanced data lineage tracking and asset discovery.
+The Informatica provider integrates Apache Airflow with Informatica Enterprise Data Catalog (EDC) for lineage tracking and Informatica Intelligent Data Management Cloud (IDMC) for running Cloud Data Integration tasks and taskflows.
 
 Overview
 --------
@@ -75,6 +75,8 @@ This provider enables automatic lineage extraction and tracking between Airflow 
 - Resolves object identifiers using EDC API
 - Creates lineage relationships between source and target objects
 - Integrates with Airflow's native lineage system
+
+The provider also includes IDMC operators, sensors, hooks, and triggers for starting CDI task runs and taskflows, waiting for completion synchronously or deferrably, and cancelling active runs on task kill.
 
 Installation
 ------------

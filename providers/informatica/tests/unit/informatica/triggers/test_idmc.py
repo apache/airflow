@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
-from airflow.providers.informatica.hooks.idmc import IDMCRunStatus, InformaticaIDMCError
+from airflow.providers.informatica.hooks.idmc import IDMCRunStatus, InformaticaIDMCError, InformaticaIDMCHook
 from airflow.providers.informatica.triggers.idmc import (
     InformaticaIDMCTaskflowRunTrigger,
     InformaticaIDMCTaskRunTrigger,
@@ -34,9 +33,14 @@ def task_trigger() -> InformaticaIDMCTaskRunTrigger:
     return InformaticaIDMCTaskRunTrigger(
         conn_id="idmc_test",
         run_id="42",
-        end_time=time.time() + 3600,
+        task_id="cdi-task-1",
+        timeout=3600,
         poll_interval=0.01,
     )
+
+
+def _hook_mock() -> MagicMock:
+    return create_autospec(InformaticaIDMCHook, instance=True)
 
 
 def test_serialize_round_trips_arguments(task_trigger):
@@ -44,12 +48,14 @@ def test_serialize_round_trips_arguments(task_trigger):
     assert classpath == ("airflow.providers.informatica.triggers.idmc.InformaticaIDMCTaskRunTrigger")
     assert kwargs["conn_id"] == "idmc_test"
     assert kwargs["run_id"] == "42"
+    assert kwargs["task_id"] == "cdi-task-1"
+    assert kwargs["timeout"] == 3600
     assert kwargs["poll_interval"] == 0.01
 
 
 def test_taskflow_trigger_classpath():
     trigger = InformaticaIDMCTaskflowRunTrigger(
-        conn_id="idmc_test", run_id="x", end_time=time.time() + 1, poll_interval=0.01
+        conn_id="idmc_test", run_id="x", timeout=1, poll_interval=0.01
     )
     classpath, _ = trigger.serialize()
     assert classpath.endswith("InformaticaIDMCTaskflowRunTrigger")
@@ -57,7 +63,7 @@ def test_taskflow_trigger_classpath():
 
 @pytest.mark.asyncio
 async def test_run_emits_terminal_event_on_success(task_trigger):
-    fake_hook = AsyncMock()
+    fake_hook = _hook_mock()
     fake_hook.aget_task_run_status.return_value = {
         "status": IDMCRunStatus.SUCCESS.value,
         "raw_status": "SUCCESS",
@@ -69,11 +75,12 @@ async def test_run_emits_terminal_event_on_success(task_trigger):
     assert len(events) == 1
     assert events[0].payload["status"] == IDMCRunStatus.SUCCESS.value
     assert events[0].payload["run_id"] == "42"
+    fake_hook.aget_task_run_status.assert_awaited_once_with("42", task_id="cdi-task-1")
 
 
 @pytest.mark.asyncio
 async def test_run_polls_until_terminal(task_trigger):
-    fake_hook = AsyncMock()
+    fake_hook = _hook_mock()
     fake_hook.aget_task_run_status.side_effect = [
         {"status": IDMCRunStatus.RUNNING.value},
         {"status": IDMCRunStatus.RUNNING.value},
@@ -90,9 +97,9 @@ async def test_run_polls_until_terminal(task_trigger):
 @pytest.mark.asyncio
 async def test_run_returns_timeout_when_deadline_exceeded():
     trigger = InformaticaIDMCTaskRunTrigger(
-        conn_id="idmc_test", run_id="42", end_time=time.time() - 1, poll_interval=0.01
+        conn_id="idmc_test", run_id="42", task_id="cdi-task-1", timeout=-1, poll_interval=0.01
     )
-    fake_hook = AsyncMock()
+    fake_hook = _hook_mock()
     fake_hook.aget_task_run_status.return_value = {"status": IDMCRunStatus.RUNNING.value}
     with patch.object(trigger, "_build_hook", return_value=fake_hook):
         events = []
@@ -104,9 +111,9 @@ async def test_run_returns_timeout_when_deadline_exceeded():
 @pytest.mark.asyncio
 async def test_run_emits_terminal_when_final_check_succeeds_after_timeout():
     trigger = InformaticaIDMCTaskRunTrigger(
-        conn_id="idmc_test", run_id="42", end_time=time.time() - 1, poll_interval=0.01
+        conn_id="idmc_test", run_id="42", task_id="cdi-task-1", timeout=-1, poll_interval=0.01
     )
-    fake_hook = AsyncMock()
+    fake_hook = _hook_mock()
     fake_hook.aget_task_run_status.side_effect = [
         {"status": IDMCRunStatus.RUNNING.value},
         {"status": IDMCRunStatus.SUCCESS.value, "raw_status": "SUCCESS"},
@@ -120,7 +127,7 @@ async def test_run_emits_terminal_when_final_check_succeeds_after_timeout():
 
 @pytest.mark.asyncio
 async def test_run_emits_error_event_on_idmc_exception(task_trigger):
-    fake_hook = AsyncMock()
+    fake_hook = _hook_mock()
     fake_hook.aget_task_run_status.side_effect = InformaticaIDMCError("boom")
     with patch.object(task_trigger, "_build_hook", return_value=fake_hook):
         events = []

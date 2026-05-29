@@ -70,6 +70,7 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
         timeout: int = _DEFAULT_TIMEOUT,
         check_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        cancel_on_kill: bool = True,
         hook_params: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -80,6 +81,7 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.hook_params = hook_params or {}
         self.run_id: str | None = None
 
@@ -95,18 +97,24 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
     def _start_run(self, context: Context) -> dict[str, Any]:  # pragma: no cover - abstract
         raise NotImplementedError
 
+    def _after_start(self, result: Mapping[str, Any]) -> None:
+        """Allow subclasses to keep provider-specific run metadata."""
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        return {}
+
     def _get_run_status(self, run_id: str) -> dict[str, Any]:
         method = getattr(self.hook, self._status_method_name)
-        return method(run_id)
+        return method(run_id, **self._status_kwargs())
 
     def _wait_sync(self) -> str:
-        deadline = time.time() + self.timeout if self.timeout else None
+        deadline = time.monotonic() + self.timeout if self.timeout else None
         while True:
             info = self._get_run_status(self.run_id)  # type: ignore[arg-type]
             status = info.get("status", IDMCRunStatus.RUNNING.value)
             if IDMCRunStatus.is_terminal(status):
                 return status
-            if deadline is not None and time.time() > deadline:
+            if deadline is not None and time.monotonic() > deadline:
                 raise InformaticaIDMCError(f"IDMC run {self.run_id} did not finish within {self.timeout}s.")
             time.sleep(self.check_interval)
 
@@ -121,6 +129,7 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
     def execute(self, context: Context) -> str:
         result = self._start_run(context)
         self.run_id = str(result["run_id"])
+        self._after_start(result)
         context["ti"].xcom_push(key="idmc_run_id", value=self.run_id)
         self.log.info("Started IDMC run %s.", self.run_id)
 
@@ -140,16 +149,16 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
             self._handle_terminal_status(status)
             return self.run_id
 
-        end_time = time.time() + self.timeout
         self.defer(
-            timeout=None,
+            timeout=self.timeout,
             trigger=self._trigger_class(
                 conn_id=self.informatica_idmc_conn_id,
                 run_id=self.run_id,
-                end_time=end_time,
+                timeout=self.timeout,
                 poll_interval=self.check_interval,
                 auth_version=self.auth_version,
                 hook_params=self.hook_params,
+                **self._status_kwargs(),
             ),
             method_name="execute_complete",
         )
@@ -165,19 +174,23 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
             raise IDMCTimeoutException(event.get("message") or f"IDMC run {run_id} timed out.")
         if status == "error":
             raise InformaticaIDMCError(event.get("message") or f"IDMC run {run_id} errored.")
-        return self._handle_terminal_status(status)
+        self._handle_terminal_status(status)
+        return run_id
 
     def on_kill(self) -> None:
-        if not self.run_id:
+        if not self.run_id or not self.cancel_on_kill:
             return
         try:
-            self.hook.cancel_task(self.run_id)
+            self._cancel_run()
         except InformaticaIDMCError as exc:
             self.log.warning(
                 "Best-effort cancel of IDMC run %s failed during task kill: %s",
                 self.run_id,
                 exc,
             )
+
+    def _cancel_run(self) -> None:
+        raise NotImplementedError
 
 
 class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
@@ -190,17 +203,21 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
     the run reaches a terminal state.
 
     Note that ``idmc_task_id`` is the IDMC-side task identifier; the Airflow
-    DAG-level task id is still passed via the standard ``task_id`` operator
+    Dag-level task id is still passed via the standard ``task_id`` operator
     argument inherited from :class:`BaseOperator`.
 
     :param idmc_task_id: IDMC internal task id.
     :param task_federated_id: Federated (organization-scoped) task id.  Use
         when the same task lives in multiple sub-orgs.
     :param idmc_task_type: One of ``MTT`` (default, mapping task), ``DSS``,
-        ``DRS``, ``DMASK``, ``PCS``, ``RTM``, ``WORKFLOW``, or ``TASKFLOW``.
-        Long-form labels (``"Mapping Task"``) are also accepted.
+        ``DRS``, ``DMASK``, ``PCS``, or ``WORKFLOW``. Long-form labels
+        (``"Mapping Task"`` / ``"Taskflow"``) are also accepted.
     :param callback_url: Optional callback URL invoked by IDMC when the run
         finishes.
+    :param cancel_on_kill: Whether to send a best-effort IDMC stop request when
+        the Airflow task is killed. Disabled by default because IDMC stops CDI
+        tasks by task identity, not by run ID, so enabling it can stop another
+        active run of the same IDMC task.
     """
 
     _trigger_class = InformaticaIDMCTaskRunTrigger
@@ -220,17 +237,30 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
         task_federated_id: str | None = None,
         idmc_task_type: str = "MTT",
         callback_url: str | None = None,
+        cancel_on_kill: bool = False,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(cancel_on_kill=cancel_on_kill, **kwargs)
         if not idmc_task_id and not task_federated_id:
             raise ValueError(
                 "InformaticaIDMCRunTaskOperator requires either idmc_task_id or task_federated_id."
             )
         self.idmc_task_id = idmc_task_id
+        self._idmc_task_id_for_status = idmc_task_id
         self.task_federated_id = task_federated_id
         self.idmc_task_type = idmc_task_type
         self.callback_url = callback_url
+
+    def _after_start(self, result: Mapping[str, Any]) -> None:
+        if result.get("task_id"):
+            self._idmc_task_id_for_status = str(result["task_id"])
+
+    def _status_kwargs(self) -> dict[str, Any]:
+        if not self._idmc_task_id_for_status:
+            raise InformaticaIDMCError(
+                "IDMC task run status requires taskId; the start_task response did not include one."
+            )
+        return {"task_id": self._idmc_task_id_for_status}
 
     def _start_run(self, context: Context) -> dict[str, Any]:
         return self.hook.start_task(
@@ -240,6 +270,13 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
             callback_url=self.callback_url,
         )
 
+    def _cancel_run(self) -> None:
+        self.hook.cancel_task(
+            task_id=self.idmc_task_id,
+            task_federated_id=self.task_federated_id,
+            task_type=self.idmc_task_type,
+        )
+
 
 class InformaticaIDMCRunTaskflowOperator(_BaseInformaticaIDMCRunOperator):
     """
@@ -247,9 +284,12 @@ class InformaticaIDMCRunTaskflowOperator(_BaseInformaticaIDMCRunOperator):
 
     :param taskflow_api_name: The "API Name" property of the taskflow.
     :param input_parameters: Optional mapping of input parameters; passed
-        through to IDMC as ``inputs`` in the request body.
+        through to IDMC at the top level of the request body.
     :param callback_url: Optional callback URL invoked by IDMC when the
         taskflow finishes.
+    :param cancel_on_kill: Whether to send a best-effort, run-scoped IDMC
+        taskflow termination request when the Airflow task is killed. Enabled by
+        default.
     """
 
     _trigger_class = InformaticaIDMCTaskflowRunTrigger
@@ -267,9 +307,10 @@ class InformaticaIDMCRunTaskflowOperator(_BaseInformaticaIDMCRunOperator):
         taskflow_api_name: str,
         input_parameters: Mapping[str, Any] | None = None,
         callback_url: str | None = None,
+        cancel_on_kill: bool = True,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(cancel_on_kill=cancel_on_kill, **kwargs)
         self.taskflow_api_name = taskflow_api_name
         self.input_parameters = dict(input_parameters) if input_parameters else None
         self.callback_url = callback_url
@@ -280,3 +321,7 @@ class InformaticaIDMCRunTaskflowOperator(_BaseInformaticaIDMCRunOperator):
             input_parameters=self.input_parameters,
             callback_url=self.callback_url,
         )
+
+    def _cancel_run(self) -> None:
+        if self.run_id:
+            self.hook.cancel_taskflow(self.run_id)
