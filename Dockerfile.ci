@@ -1478,7 +1478,7 @@ function reinstall_shared_distributions() {
     uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
 }
 
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"

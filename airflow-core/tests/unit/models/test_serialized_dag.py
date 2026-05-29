@@ -849,7 +849,7 @@ class TestSerializedDagModel:
         # There should be a second serdag with a new hash and the new interval.
         assert new_serdag_count == 2
         assert new_serdag.dag_hash != orig_serdag.dag_hash
-        assert new_alert.interval == 600.0
+        assert new_alert.interval["__data__"] == 600.0
 
     def test_deadline_name_change_updates_db_and_returns_true(self, testing_dag_bundle, session):
         """Name-only deadline change: UUID reused, DB row updated, write_dag returns True."""

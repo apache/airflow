@@ -21,8 +21,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
-
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary
@@ -141,16 +139,6 @@ class LLMFileAnalysisOperator(LLMOperator):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if isinstance(output, BaseModel):
-            output = output.model_dump()
-
-        return output
-
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        """Resume after human review, restoring structured outputs for XCom consumers."""
-        output = super().execute_complete(context, generated_output, event)
-        if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-            return self.output_type.model_validate_json(output).model_dump()
         return output
 
     def _build_system_prompt(self) -> str:

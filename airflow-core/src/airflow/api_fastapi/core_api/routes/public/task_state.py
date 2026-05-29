@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -87,7 +88,9 @@ def list_task_states(
     )
     rows = session.execute(paginated).all()
     entries = [
-        TaskStateResponse(key=r.key, value=r.value, updated_at=r.updated_at, expires_at=r.expires_at)
+        TaskStateResponse(
+            key=r.key, value=json.loads(r.value), updated_at=r.updated_at, expires_at=r.expires_at
+        )
         for r in rows
     ]
     return TaskStateCollectionResponse(task_states=entries, total_entries=total_entries)
@@ -127,7 +130,7 @@ def get_task_state(
             detail=f"Task state key {key!r} not found",
         )
     return TaskStateResponse(
-        key=row.key, value=row.value, updated_at=row.updated_at, expires_at=row.expires_at
+        key=row.key, value=json.loads(row.value), updated_at=row.updated_at, expires_at=row.expires_at
     )
 
 
@@ -162,7 +165,7 @@ def set_task_state(
         )
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     try:
-        get_state_backend().set(scope, key, body.value, session=session)
+        get_state_backend().set(scope, key, json.dumps(body.value), session=session)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
