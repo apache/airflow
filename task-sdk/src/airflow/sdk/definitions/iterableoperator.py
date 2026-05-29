@@ -39,6 +39,15 @@ try:
 except NameError:
     from exceptiongroup import BaseExceptionGroup
 
+try:
+    from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+except ModuleNotFoundError:
+    # If the providers package with DateTimeTrigger is not available (e.g. in
+    # minimal installs or tests), set the symbol to None so callers can
+    # explicitly check for availability. Using hasattr(self, DateTimeTrigger)
+    # is incorrect because hasattr expects a string attribute name.
+    DateTimeTrigger = None
+
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import PartitionedExpandInput
@@ -358,17 +367,20 @@ class IterableOperator(BaseOperator):
             # slot is released. If the retry time has already passed we immediately re-run
             # the failed tasks without deferring.
             if reschedule_date > timezone.utcnow():
-                # TODO: This is tricky as that import doesn't exist in Task SDK
-                from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-
-                self.defer(
-                    trigger=DateTimeTrigger(reschedule_date),
-                    method_name=self.execute_failed_tasks.__name__,
-                    kwargs={
-                        "failed_tasks": {failed_task.index for failed_task in failed_tasks},
-                        "try_number": next(iter(failed_tasks)).try_number,
-                    },
-                )
+                if DateTimeTrigger is not None:
+                    self.defer(
+                        trigger=DateTimeTrigger(reschedule_date),
+                        method_name=self.execute_failed_tasks.__name__,
+                        kwargs={
+                            "failed_tasks": {failed_task.index for failed_task in failed_tasks},
+                            "try_number": next(iter(failed_tasks)).try_number,
+                        },
+                    )
+                else:
+                    self.log.warning(
+                        "DateTimeTrigger is not available; failed tasks cannot be rescheduled at %s and will be retried immediately",
+                        reschedule_date,
+                    )
 
             # Loop back to retry failed tasks without recursion
             tasks = list(failed_tasks)
