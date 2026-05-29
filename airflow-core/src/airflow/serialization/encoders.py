@@ -50,6 +50,7 @@ from airflow.sdk import (
     ProductMapper,
     QuarterWindow,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -505,6 +506,7 @@ class _Serializer:
         WeekWindow: "airflow.partition_mappers.window.WeekWindow",
         MonthWindow: "airflow.partition_mappers.window.MonthWindow",
         QuarterWindow: "airflow.partition_mappers.window.QuarterWindow",
+        SegmentWindow: "airflow.partition_mappers.window.SegmentWindow",
         YearWindow: "airflow.partition_mappers.window.YearWindow",
     }
 
@@ -525,6 +527,10 @@ class _Serializer:
         window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
     ) -> dict[str, Any]:
         return {}
+
+    @serialize_window.register
+    def _(self, window: SegmentWindow) -> dict[str, Any]:
+        return {"segments": sorted(window._segments)}
 
 
 _serializer = _Serializer()

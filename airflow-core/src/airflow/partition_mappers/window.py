@@ -194,3 +194,65 @@ class YearWindow(Window):
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
         return (_shift_months(period_start, i) for i in range(12))
+
+
+class SegmentWindow(Window):
+    """
+    A fixed categorical rollup window.
+
+    Represents a static set of segment keys (e.g. regions, tenants, variants) that must
+    all be present before the downstream Dag run is released.
+
+    Unlike temporal windows, ``SegmentWindow`` ignores the downstream anchor completely —
+    ``to_upstream`` always returns the same declared segment set regardless of the key passed
+    in. Pair with ``IdentityMapper`` inside a ``RollupMapper`` so that both the upstream and
+    downstream keys are plain strings and no encode/decode conversion is needed.
+
+    Example::
+
+        from airflow.sdk import RollupMapper, IdentityMapper, SegmentWindow
+
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(["us-east", "eu-west", "ap-south"]),
+        )
+
+    The scheduler holds the downstream Dag run until every segment key in the declared
+    set has emitted an upstream asset event. This only works with ``WAIT_FOR_ALL``
+    trigger semantics (the default). Dynamic or threshold-based semantics are out of
+    scope.
+
+    :param segments: Non-empty iterable of non-empty string segment keys. Duplicates are
+        silently de-duplicated; the resulting set order is deterministic across processes.
+    :raises ValueError: if *segments* is empty, contains a non-``str`` element, or
+        contains an empty-string key.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, segments: Iterable[str]) -> None:
+        collected: list[str] = list(segments)
+        if not collected:
+            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+        for i, item in enumerate(collected):
+            if not isinstance(item, str):
+                raise ValueError(
+                    f"SegmentWindow segment keys must be str; "
+                    f"got {type(item).__name__!r} at index {i}: {item!r}"
+                )
+            if item == "":
+                raise ValueError(
+                    f"SegmentWindow segment keys must be non-empty strings; got an empty string at index {i}."
+                )
+        self._segments: frozenset[str] = frozenset(collected)
+
+    def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
+        """Return the complete set of declared segment keys, ignoring the downstream anchor."""
+        return self._segments
+
+    def serialize(self) -> dict[str, Any]:
+        return {"segments": sorted(self._segments)}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> SegmentWindow:
+        return cls(data["segments"])

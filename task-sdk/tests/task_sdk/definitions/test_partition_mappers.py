@@ -28,6 +28,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     HourWindow,
     MonthWindow,
     QuarterWindow,
+    SegmentWindow,
     WeekWindow,
     Window,
     YearWindow,
@@ -73,3 +74,63 @@ class TestSdkWindowExpectedDecodedType:
     )
     def test_temporal_windows_declare_datetime(self, window_cls):
         assert window_cls.expected_decoded_type is datetime
+
+
+class TestSdkSegmentWindow:
+    """SDK-side SegmentWindow construction and validation mirrors the core implementation."""
+
+    def test_construction_stores_frozenset(self):
+        w = SegmentWindow(["us-east", "eu-west", "ap-south"])
+        assert w._segments == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_expected_decoded_type_is_str(self):
+        assert SegmentWindow.expected_decoded_type is str
+
+    def test_deduplication(self):
+        w = SegmentWindow(["a", "b", "a"])
+        assert w._segments == frozenset({"a", "b"})
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([], "at least one segment key", id="empty-list"),
+            pytest.param(iter([]), "at least one segment key", id="empty-iterator"),
+        ],
+    )
+    def test_rejects_empty_segments(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([42, "b"], "must be str", id="int-element"),
+            pytest.param([None, "b"], "must be str", id="none-element"),
+        ],
+    )
+    def test_rejects_non_str_elements(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param(["", "b"], "non-empty strings", id="empty-string-first"),
+            pytest.param(["a", ""], "non-empty strings", id="empty-string-second"),
+        ],
+    )
+    def test_rejects_empty_string_keys(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    def test_rollup_mapper_accepts_segment_window(self):
+        """SDK RollupMapper must accept SegmentWindow without raising."""
+        from airflow.sdk.definitions.partition_mappers.base import RollupMapper
+        from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+
+        # Should not raise: SegmentWindow.expected_decoded_type is str, IdentityMapper is str-based.
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(["us-east", "eu-west"]),
+        )
+        assert mapper.window._segments == frozenset({"us-east", "eu-west"})

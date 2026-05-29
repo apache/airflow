@@ -17,7 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class Window:
@@ -85,3 +88,41 @@ class YearWindow(Window):
     """Twelve consecutive monthly keys making up one calendar year."""
 
     expected_decoded_type: ClassVar[type] = datetime
+
+
+class SegmentWindow(Window):
+    """
+    A fixed categorical rollup window.
+
+    Represents a static set of segment keys (e.g. regions, tenants, variants). Pair with
+    ``IdentityMapper`` inside a ``RollupMapper`` so the downstream Dag run is held until
+    every declared segment has emitted an upstream asset event.
+
+    Unlike temporal windows, ``SegmentWindow`` ignores the downstream anchor completely —
+    the runtime ``to_upstream`` on the core side always returns the same declared segment
+    set regardless of the downstream key. Runtime logic lives in
+    ``airflow.partition_mappers.window.SegmentWindow`` on the scheduler side.
+
+    :param segments: Non-empty iterable of non-empty string segment keys. Duplicates are
+        silently de-duplicated.
+    :raises ValueError: if *segments* is empty, contains a non-``str`` element, or
+        contains an empty-string key.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, segments: Iterable[str]) -> None:
+        collected: list[str] = list(segments)
+        if not collected:
+            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+        for i, item in enumerate(collected):
+            if not isinstance(item, str):
+                raise ValueError(
+                    f"SegmentWindow segment keys must be str; "
+                    f"got {type(item).__name__!r} at index {i}: {item!r}"
+                )
+            if item == "":
+                raise ValueError(
+                    f"SegmentWindow segment keys must be non-empty strings; got an empty string at index {i}."
+                )
+        self._segments: frozenset[str] = frozenset(collected)

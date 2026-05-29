@@ -34,6 +34,7 @@ from airflow.partition_mappers.window import (
     HourWindow,
     MonthWindow,
     QuarterWindow,
+    SegmentWindow,
     WeekWindow,
     YearWindow,
 )
@@ -314,6 +315,116 @@ class TestRollupMapperComposition:
         assert isinstance(restored, RollupMapper)
         assert isinstance(restored.window, type(window))
         assert restored.to_upstream(downstream_key) == mapper.to_upstream(downstream_key)
+
+
+class TestSegmentWindow:
+    def test_construction_basic(self):
+        w = SegmentWindow(["us-east", "eu-west", "ap-south"])
+        assert w._segments == frozenset({"us-east", "eu-west", "ap-south"})
+
+    def test_to_upstream_returns_full_segment_set(self):
+        segments = ["us-east", "eu-west", "ap-south"]
+        w = SegmentWindow(segments)
+        assert w.to_upstream("anything") == frozenset(segments)
+
+    def test_to_upstream_ignores_downstream_anchor(self):
+        w = SegmentWindow(["a", "b"])
+        # Different anchor values must produce the same result.
+        assert w.to_upstream("key-1") == w.to_upstream("key-2") == w.to_upstream("")
+
+    def test_deduplication(self):
+        w = SegmentWindow(["x", "y", "x", "y", "z"])
+        assert w._segments == frozenset({"x", "y", "z"})
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([], "at least one segment key", id="empty-list"),
+            pytest.param(iter([]), "at least one segment key", id="empty-iterator"),
+        ],
+    )
+    def test_rejects_empty_segments(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([1, "b"], "must be str", id="int-element"),
+            pytest.param([None, "b"], "must be str", id="none-element"),
+            pytest.param([["nested"], "b"], "must be str", id="list-element"),
+        ],
+    )
+    def test_rejects_non_str_elements(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param(["", "b"], "non-empty strings", id="empty-string-first"),
+            pytest.param(["a", ""], "non-empty strings", id="empty-string-second"),
+        ],
+    )
+    def test_rejects_empty_string_keys(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    def test_serialize_round_trip(self):
+        from airflow.serialization.decoders import decode_window
+        from airflow.serialization.encoders import encode_window
+
+        w = SegmentWindow(["eu-west", "us-east", "ap-south"])
+        restored = decode_window(encode_window(w))
+        assert isinstance(restored, SegmentWindow)
+        assert restored._segments == w._segments
+        assert restored.to_upstream("anchor") == w.to_upstream("anchor")
+
+    def test_serialize_uses_sorted_order(self):
+        w = SegmentWindow(["z", "a", "m"])
+        data = w.serialize()
+        assert data == {"segments": ["a", "m", "z"]}
+
+    def test_sdk_window_serialize_round_trip(self):
+        # User code authors with the SDK class; the scheduler serializes that
+        # instance. This path dispatches on the SDK type (not the core class
+        # exercised by ``test_serialize_round_trip``), so it must survive the
+        # round trip without dropping the segment set.
+        from airflow.sdk import SegmentWindow as SdkSegmentWindow
+        from airflow.serialization.decoders import decode_window
+        from airflow.serialization.encoders import encode_window
+
+        sdk_window = SdkSegmentWindow(["eu-west", "us-east", "ap-south"])
+        restored = decode_window(encode_window(sdk_window))
+        assert isinstance(restored, SegmentWindow)
+        assert restored._segments == frozenset({"eu-west", "us-east", "ap-south"})
+
+    def test_rollup_mapper_with_identity_mapper(self):
+        from airflow.partition_mappers.base import RollupMapper
+        from airflow.partition_mappers.identity import IdentityMapper
+
+        segments = {"us-east", "eu-west", "ap-south"}
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(sorted(segments)),
+        )
+        result = mapper.to_upstream("2024-06-10")
+        assert result == frozenset(segments)
+
+    def test_rollup_mapper_serialize_round_trip(self):
+        from airflow.partition_mappers.base import RollupMapper
+        from airflow.partition_mappers.identity import IdentityMapper
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        mapper = RollupMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(["us-east", "eu-west"]),
+        )
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert isinstance(restored, RollupMapper)
+        assert isinstance(restored.window, SegmentWindow)
+        assert restored.to_upstream("any-key") == mapper.to_upstream("any-key")
 
 
 class TestWindowSerializationGate:
