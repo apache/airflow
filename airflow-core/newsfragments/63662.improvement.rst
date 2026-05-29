@@ -1,0 +1,1 @@
+Add tests for nested list indexing in RTIF template fields

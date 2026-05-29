@@ -34,7 +34,7 @@ from airflow._shared.template_rendering import truncate_rendered_value
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun
-from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF, _get_nested_value
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -171,6 +171,47 @@ class TestRenderedTaskInstanceFields:
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
         assert RTIF.get_templated_fields(ti=ti2) is None
+
+    @pytest.mark.parametrize(
+        ("obj", "path", "expected"),
+        [
+            ({"a": {"b": 1}}, "a.b", 1),
+            ({"a": [{"b": 1}, {"b": 2}]}, "a.1.b", 2),
+            ({"a": [{"b": 1}, {"b": 2}]}, "a.0.b", 1),
+            ({"a": [{"b": 1}, {"b": 2}]}, "a.2.b", None),
+            ({"a": ([{"b": 1}],)}, "a.0.0.b", 1),
+            (ClassWithCustomAttributes(a=[{"b": 1}]), "a.0.b", 1),
+            ({"a": {"b": 1}}, "a.c", None),
+            ({"a": 1}, "a.b", None),
+        ],
+    )
+    def test__get_nested_value(self, obj, path, expected):
+        assert _get_nested_value(obj, path) == expected
+
+    def test_get_templated_fields_nested_list(self, dag_maker):
+        """Test that nested list indexing in template_fields_renderers works."""
+        from airflow.models.baseoperator import BaseOperator
+
+        class NestedListOperator(BaseOperator):
+            template_fields = ("my_field",)
+            template_fields_renderers = {"my_field.0.name": "json"}
+
+            def __init__(self, my_field, **kwargs):
+                super().__init__(**kwargs)
+                self.my_field = my_field
+
+            def execute(self, context):
+                pass
+
+        with dag_maker("test_nested_list_rendering"):
+            task = NestedListOperator(task_id="test", my_field=[{"name": "foo"}, {"name": "bar"}])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        rtif = RTIF(ti=ti, render_templates=False)
+
+        assert rtif.rendered_fields.get("my_field.0.name") == "foo"
 
     @mock.patch("airflow.models.BaseOperator.render_template")
     def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
