@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 try:
     # Python 3.11+
@@ -119,7 +119,7 @@ class TestIterableOperator:
         retries: int = DEFAULT_RETRIES,
         do_xcom_push: bool = True,
         task_concurrency: int | None = None,
-        execution_timeout: timedelta | None = None
+        execution_timeout: timedelta | None = None,
     ) -> MappedOperator:
         """
         Create a MappedOperator and assign it to a DAG.
@@ -490,7 +490,9 @@ class TestIterableOperator:
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             execution_timeout = timedelta(seconds=7)
-            mapped_op = self.create_mapped_operator(dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout)
+            mapped_op = self.create_mapped_operator(
+                dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout
+            )
 
             iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
 
