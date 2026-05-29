@@ -41,6 +41,9 @@ with contextlib.suppress(ImportError, NameError):
 DEFAULT_SPARK_BINARY = "spark-submit"
 ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
 
+_K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
+_K8S_DELETE_ON_TERMINATION_CONF = "spark.kubernetes.driver.deleteOnTermination"
+
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
@@ -79,7 +82,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param name: Name of the job (default airflow-spark)
     :param num_executors: Number of executors to launch
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
-        mode (Default: 1)
+        mode. Used by the Spark standalone driver-status tracker and (when
+        ``track_driver_via_k8s_api=True``) by the Kubernetes API polling loop.
+        The Kubernetes polling loop enforces a 20-second minimum to avoid
+        excessive API server load on long-running jobs. (Default: 1)
     :param application_args: Arguments for the application being submitted
     :param env_vars: Environment variables for spark-submit. It
         supports yarn and k8s mode too.
@@ -99,6 +105,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         job finishes (on both success and on_kill). Useful for cleaning up sidecars such
         as Istio (e.g. ``["curl -X POST localhost:15020/quitquitquit"]``). Each command
         is executed via the shell; failures produce a warning but do not fail the task.
+    :param track_driver_via_k8s_api: If True (when master is Kubernetes and
+        ``deploy_mode`` is ``cluster``), release the ``spark-submit`` JVM once the
+        driver pod has been created, then poll the Kubernetes API for the pod phase
+        until the application reaches a terminal state. The polling interval is
+        controlled by ``status_poll_interval`` with a 20-second minimum. This frees
+        the worker from holding the long-lived submit JVM (~500 MB). Defaults to
+        ``False``.
     """
 
     conn_name_attr = "conn_id"
@@ -207,6 +220,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         *,
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
+        track_driver_via_k8s_api: bool = False,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -250,6 +264,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{self._connection['master']} specified by kubernetes dependencies are not installed!"
             )
 
+        self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._should_track_driver_status = self._resolve_should_track_driver_status()
         self._driver_id: str | None = None
         self._driver_status: str | None = None
@@ -267,6 +282,29 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :return: if the driver status should be tracked
         """
         return "spark://" in self._connection["master"] and self._connection["deploy_mode"] == "cluster"
+
+    def _should_track_driver_via_k8s_api(self) -> bool:
+        return (
+            self._track_driver_via_k8s_api
+            and self._is_kubernetes
+            and self._connection["deploy_mode"] == "cluster"
+        )
+
+    def _validate_track_driver_via_k8s_api_config(self) -> None:
+        if not self._is_kubernetes:
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires Spark master to be Kubernetes (k8s://...)."
+            )
+        if self._connection["deploy_mode"] != "cluster":
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires `deploy_mode='cluster'`; "
+                f"got deploy_mode={self._connection['deploy_mode']!r}."
+            )
+        if self._conf.get(_K8S_WAIT_APP_COMPLETION_CONF, "").lower() == "true":
+            raise ValueError(
+                f"`track_driver_via_k8s_api=True` is incompatible with "
+                f"`{_K8S_WAIT_APP_COMPLETION_CONF}=true`; remove it from your conf or set it to 'false'."
+            )
 
     def _resolve_connection(self) -> dict[str, Any]:
         # Build from connection master or default to yarn if not available
@@ -495,6 +533,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._connection["deploy_mode"]:
             args += ["--deploy-mode", self._connection["deploy_mode"]]
 
+        if self._should_track_driver_via_k8s_api():
+            if _K8S_WAIT_APP_COMPLETION_CONF not in self._conf:
+                args += ["--conf", f"{_K8S_WAIT_APP_COMPLETION_CONF}=false"]
+
         return args
 
     def _build_spark_submit_command(self, application: str) -> list[str]:
@@ -632,8 +674,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
+        # When polling via K8s API, spark-submit exits after pod creation (waitAppCompletion=false)
+        # so _spark_exit_code is never set by the JVM watcher — skip that check entirely.
         try:
-            if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
+            if returncode or (
+                self._is_kubernetes
+                and not self._should_track_driver_via_k8s_api()
+                and self._spark_exit_code != 0
+            ):
                 if self._is_kubernetes:
                     raise AirflowException(
                         f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
@@ -682,10 +730,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
+                # Two log formats exist across Spark versions:
+                # "pod name: <name>-driver" and "submission ID spark:<name>-driver"
                 match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
                 if match_driver_pod:
                     self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+                if not self._kubernetes_driver_pod:
+                    match_submission_id = re.search(r"submission ID spark:(.+-driver)", line)
+                    if match_submission_id:
+                        self._kubernetes_driver_pod = match_submission_id.group(1)
+                        self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
 
                 match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
                 if match_application_id:
@@ -802,6 +857,54 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"returncode = {returncode}"
                     )
 
+    def _poll_k8s_driver_via_api(self) -> None:
+        """Poll the K8s driver pod phase until it reaches a terminal state."""
+        pod_name = self._kubernetes_driver_pod
+        namespace = self._connection["namespace"]
+        app_id = self._kubernetes_application_id or pod_name
+
+        if not pod_name:
+            raise ValueError("K8s driver pod name not set; cannot poll status.")
+
+        client = kube_client.get_kube_client(in_cluster=False)
+        poll_interval = max(self._status_poll_interval, 20)
+        # similar to `missed_job_status_reports` tolerance in `_start_driver_status_tracking`:
+        # tolerate transient `Unknown` phases (node temporarily unreachable) before giving up.
+        consecutive_unknown = 0
+        max_consecutive_unknown = 3
+
+        while True:
+            pod = client.read_namespaced_pod(pod_name, namespace)
+            phase = pod.status.phase or "Initializing"
+            self.log.info("Application status for %s (phase: %s)", app_id, phase)
+            if phase == "Succeeded":
+                break
+            if phase == "Failed":
+                container_state = ""
+                if pod.status.container_statuses:
+                    cs = pod.status.container_statuses[0]
+                    if cs.state and cs.state.terminated:
+                        container_state = (
+                            f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
+                        )
+                raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
+            if phase == "Unknown":
+                consecutive_unknown += 1
+                if consecutive_unknown >= max_consecutive_unknown:
+                    raise RuntimeError(
+                        f"Spark application {app_id} reported Unknown phase "
+                        f"{consecutive_unknown} times consecutively; giving up."
+                    )
+            else:
+                consecutive_unknown = 0
+            time.sleep(poll_interval)
+        self._run_post_submit_commands()
+        try:
+            client.delete_namespaced_pod(pod_name, namespace)
+            self.log.info("Deleted driver pod %s", pod_name)
+        except kube_client.ApiException:
+            self.log.warning("Could not delete driver pod %s after completion", pod_name)
+
     def _build_spark_driver_kill_command(self) -> list[str]:
         """
         Construct the spark-submit command to kill a driver.
@@ -865,7 +968,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 try:
                     import kubernetes
 
-                    client = kube_client.get_kube_client()
+                    client = kube_client.get_kube_client(in_cluster=False)
                     api_response = client.delete_namespaced_pod(
                         self._kubernetes_driver_pod,
                         self._connection["namespace"],
