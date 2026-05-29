@@ -48,6 +48,7 @@ from airflow.triggers.base import (
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -230,6 +231,38 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
 
     # Check that the callback's handle_event was called
     mock_callback_handle_event.assert_called_once_with(event, session)
+
+
+@patch("airflow.models.trigger.AssetManager.register_asset_change")
+def test_submit_event_no_n_plus_one_for_assets(_, session):
+    """Ensure asset notifications do not trigger per-asset lazy-load queries."""
+
+    def _create_trigger_with_assets(asset_count: int) -> int:
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+
+        for i in range(asset_count):
+            asset = AssetModel(name=f"asset_{asset_count}_{i}")
+            asset.add_trigger(trigger, f"watcher_{i}")
+            session.add(asset)
+
+        session.commit()
+        session.expire_all()
+        return trigger.id
+
+    def _submit_event_query_count(trigger_id: int) -> int:
+        with count_queries(session=session) as query_result:
+            Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+        return sum(query_result.values())
+
+    small_query_count = _submit_event_query_count(_create_trigger_with_assets(1))
+    larger_query_count = _submit_event_query_count(_create_trigger_with_assets(5))
+
+    assert larger_query_count - small_query_count < 3, (
+        f"Added 4 assets but query count increased by {larger_query_count - small_query_count} "
+        f"({small_query_count} -> {larger_query_count}), suggesting n+1 queries for trigger assets"
+    )
 
 
 def test_submit_failure(session, create_task_instance):
