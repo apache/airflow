@@ -244,7 +244,9 @@
   },
   "task_one": "タスク",
   "task_other": "タスク",
-  "taskGroup": "タスクグループ",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskId": "タスク ID",
   "taskInstance": {
     "dagVersion": "Dag バージョン",

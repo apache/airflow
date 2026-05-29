@@ -645,10 +645,10 @@ Here's an example Dag which illustrates labeling different branches:
     :start-after: from airflow.sdk import DAG, Label
 
 
-Dag & Task Documentation
-------------------------
+Dag, Task Group & Task Documentation
+------------------------------------
 
-It's possible to add documentation or notes to your Dags & task objects that are visible in the web interface ("Graph" & "Tree" for Dags, "Task Instance Details" for tasks).
+It's possible to add documentation or notes to your Dags, TaskGroups, and task objects that are visible in the web interface.
 
 There are a set of special task attributes that get rendered as rich content if defined:
 
@@ -662,7 +662,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for Dags, ``doc_md`` is the only attribute interpreted. For Dags it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+Please note that for Dags and TaskGroups, ``doc_md`` is the only attribute interpreted. It can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
 If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or Dag parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during Dag parsing, changes to the markdown content take one Dag parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
@@ -674,20 +674,25 @@ This is especially useful if your tasks are built dynamically from configuration
     """
 
     import pendulum
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import DAG, TaskGroup
 
-    dag = DAG(
+    with DAG(
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily",
         catchup=False,
-    )
-    dag.doc_md = __doc__
+    ) as dag:
+        dag.doc_md = __doc__
 
-    t = BashOperator("foo", dag=dag)
-    t.doc_md = """\
-    #Title"
-    Here's a [url](www.airbnb.com)
-    """
+        t = EmptyOperator(task_id="foo")
+        t.doc_md = """\
+        #Title"
+        Here's a [url](www.airbnb.com)
+        """
+
+        with TaskGroup("extract", doc_md="### Extract tasks"):
+            EmptyOperator(task_id="extract_orders")
 
 
 Packaging Dags
