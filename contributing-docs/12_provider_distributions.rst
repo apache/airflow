@@ -117,6 +117,49 @@ you should do it before you make a PR with such changed dependency changes
 Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
 image for the new dependencies to be used in the Breeze CI environment.
 
+Non-default provider extras
+---------------------------
+
+Some providers depend on packages that cannot be installed in CI by default — for example a
+proprietary client library (IBM MQ's ``ibmmq``) or a native library that requires system packages
+(Google's ``leveldb``/``plyvel`` needs ``libleveldb-dev``). Pulling these into the default
+``uv sync`` would break CI on every runner that doesn't have the prerequisite installed.
+
+For these cases, declare the dependency as an extra on the provider and register it as its own
+group at the root, without adding it to ``dev``:
+
+1. **In the provider's ``pyproject.toml``** — keep the package under ``[project.optional-dependencies]``
+   so users can opt in with ``pip install apache-airflow-providers-<id>[<extra>]``.
+
+2. **In the root ``pyproject.toml``** — add a dedicated entry under ``[dependency-groups]``,
+   then include it from the ``ci-image`` aggregate group. The ``ci-image`` group is the single
+   source of truth referenced by ``Dockerfile``, ``Dockerfile.ci``,
+   ``scripts/docker/install_airflow_when_building_images.sh``, and the breeze constraints
+   checker — adding your group there is the only change required for the CI image to pick it up:
+
+   .. code:: toml
+
+       [dependency-groups]
+       my-non-default-extra = [
+           "some-package>=1.2.3",
+       ]
+
+       ci-image = [
+           {include-group = "dev"},
+           {include-group = "docs"},
+           {include-group = "docs-gen"},
+           {include-group = "leveldb"},
+           {include-group = "my-non-default-extra"},
+       ]
+
+3. **If system libraries are required**, add them to ``scripts/docker/install_os_dependencies.sh``
+   so the CI image has the prerequisites before ``uv sync`` runs.
+
+Because the new group is *not* part of ``dev``, a plain ``uv sync`` on a contributor's machine
+will not try to install it. The CI image installs it via ``ci-image``; provider unit tests that
+import the proprietary or hard-to-build module should mock it (see ``providers/google/leveldb``
+for the established pattern).
+
 Provider's cross-dependencies
 -----------------------------
 
