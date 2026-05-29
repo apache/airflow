@@ -49,7 +49,7 @@ Host
     Specify the IMAP host url.
 
 Port
-    Specify the IMAP port to connect to. The default depends on the whether you use ssl or not.
+    Specify the IMAP port to connect to. The default depends on whether you use ssl or not.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary)
