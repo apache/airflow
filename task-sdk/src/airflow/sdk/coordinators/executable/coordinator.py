@@ -141,25 +141,49 @@ def _hash_open_file(f: BinaryIO, length: int, path: pathlib.Path) -> bytes:
     return digest.digest()
 
 
-# LRU-bounded cache of computed binary-region digests keyed by
-# (path, source_start, inode, mtime_ns, size). A cache hit means the file
-# at *path* still has the same identity as when we last hashed it, so
-# re-hashing on every exec is unnecessary. A miss (file replaced, mtime
+_DigestKey = tuple[str, int, int, int, int]
+
+
+class _BinaryDigestCache:
+    """
+    Bounded LRU cache of bundle binary-region digests.
+
+    Entries are keyed by ``(path, source_start, st_ino, st_mtime_ns,
+    st_size)``; a hit means the file at *path* still has the same
+    identity as when we last hashed it. The bound prevents a
+    long-running supervisor that sees many bundle redeploys from
+    retaining every historical ``(ino, mtime_ns)`` tuple forever.
+    """
+
+    def __init__(self, maxsize: int) -> None:
+        self._maxsize = maxsize
+        self._entries: OrderedDict[_DigestKey, bytes] = OrderedDict()
+
+    def get(self, key: _DigestKey) -> bytes | None:
+        digest = self._entries.get(key)
+        if digest is not None:
+            self._entries.move_to_end(key)
+        return digest
+
+    def put(self, key: _DigestKey, digest: bytes) -> None:
+        self._entries[key] = digest
+        self._entries.move_to_end(key)
+        while len(self._entries) > self._maxsize:
+            self._entries.popitem(last=False)
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+
+# Single process-wide instance. A cache miss (file replaced, mtime
 # bumped, inode swapped under us) yields a different key and forces
 # re-verification.
-_digest_cache: OrderedDict[tuple[str, int, int, int, int], bytes] = OrderedDict()
+_digest_cache = _BinaryDigestCache(maxsize=_VERIFY_CACHE_MAXSIZE)
 
 
 def _clear_digest_cache() -> None:
     """Drop all cached binary-region digests. Intended for tests."""
     _digest_cache.clear()
-
-
-def _store_digest(key: tuple[str, int, int, int, int], digest: bytes) -> None:
-    _digest_cache[key] = digest
-    _digest_cache.move_to_end(key)
-    while len(_digest_cache) > _VERIFY_CACHE_MAXSIZE:
-        _digest_cache.popitem(last=False)
 
 
 def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
@@ -189,17 +213,15 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
         if footer is None:
             return None
 
-        cache_key = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
+        cache_key: _DigestKey = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
         actual_digest = _digest_cache.get(cache_key)
-        if actual_digest is not None:
-            _digest_cache.move_to_end(cache_key)
-        else:
+        if actual_digest is None:
             try:
                 actual_digest = _hash_open_file(f, footer.source_start, path)
             except (OSError, ValueError) as exc:
                 log.debug("Failed to hash bundle binary region", path=str(path), error=str(exc))
                 return None
-            _store_digest(cache_key, actual_digest)
+            _digest_cache.put(cache_key, actual_digest)
 
         if actual_digest != footer.binary_sha256:
             log.debug(
