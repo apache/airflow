@@ -4,7 +4,7 @@ AbstractFileSystem
 AbstractToolset
 accessor
 AccessSecretVersionResponse
-aci
+acpi
 Ack
 ack
 ackIds
@@ -22,7 +22,7 @@ adls
 adobjects
 AdsInsights
 adsinsights
-afterall
+after all
 agentic
 ai
 aio
@@ -40,7 +40,7 @@ airflowignore
 ajax
 Akeyless
 akeyless
-aks
+ask
 AlertApi
 alertPolicies
 Alibaba
@@ -62,8 +62,8 @@ analyzeSyntax
 Aneesh
 AnExampleDisplayName
 AnotherExampleDisplayName
-ans
-anser
+and
+answer
 Ansible
 anyOf
 apache
@@ -101,9 +101,9 @@ AspectType
 AspectTypes
 AssetEvent
 AssetEvents
-assigment
+assignment
 ast
-astroid
+asteroid
 Async
 async
 asyncio
@@ -296,7 +296,7 @@ configs
 conftest
 conn
 connectTimeoutMS
-connexion
+connection
 conns
 containerConfiguration
 containerd
@@ -900,7 +900,7 @@ js
 Json
 json
 jsonl
-juli
+july
 Jupyter
 jupyter
 jvm
@@ -1151,7 +1151,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
-OptIn
+option
 optionality
 ora
 oracledb
@@ -1258,7 +1258,7 @@ preselected
 presign
 presigned
 prestodb
-pretify
+prettify
 prev
 Proc
 proc
@@ -1413,7 +1413,7 @@ runtime
 runTimeoutInMinutes
 runtimes
 SaaS
-sade
+sad
 Sagemaker
 sagemaker
 salesforce
@@ -1456,7 +1456,7 @@ selectin
 Sendgrid
 sendgrid
 sentimentMax
-ser
+set
 serde
 serialise
 serializable
@@ -1555,7 +1555,7 @@ starttls
 stateful
 StatefulSet
 StatefulSets
-statics
+statistics
 StatsD
 statsd
 stderr
@@ -1854,7 +1854,7 @@ whitespace
 whl
 wildcarded
 winrm
-WIT
+WITH
 workgroup
 workspaces
 writeable
