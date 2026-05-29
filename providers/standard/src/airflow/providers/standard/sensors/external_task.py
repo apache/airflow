@@ -414,7 +414,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def _poke_af2(self, dttm_filter: Sequence[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+        def _poke_af2(
+            self, dttm_filter: Sequence[datetime.datetime], *, session: Session = NEW_SESSION
+        ) -> bool:
             if self.check_existence and not self._has_checked_existence:
                 self._check_for_existence(session=session)
 

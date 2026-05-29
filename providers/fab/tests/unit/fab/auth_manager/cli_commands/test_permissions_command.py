@@ -280,7 +280,7 @@ class TestDagPermissions:
             session.commit()
 
             # Execute cleanup
-            cleanup_dag_permissions("target_dag", session)
+            cleanup_dag_permissions("target_dag", session=session)
 
             # Verify: target resource deleted, keep resource remains
             assert not session.get(Resource, target_resource.id)
@@ -300,7 +300,7 @@ class TestDagPermissions:
 
         with create_session() as session:
             initial_count = session.scalar(select(func.count(Resource.id)))
-            cleanup_dag_permissions("non_existent_dag", session)
+            cleanup_dag_permissions("non_existent_dag", session=session)
             assert session.scalar(select(func.count(Resource.id))) == initial_count
 
     def test_cleanup_dag_permissions_handles_resources_without_permissions(self):
@@ -319,7 +319,7 @@ class TestDagPermissions:
             session.commit()
             resource_id = resource.id
 
-            cleanup_dag_permissions("test_dag", session)
+            cleanup_dag_permissions("test_dag", session=session)
             assert not session.get(Resource, resource_id)
 
     def test_cleanup_dag_permissions_with_default_session(self):
