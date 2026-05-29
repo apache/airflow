@@ -193,6 +193,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        overwrite_file: bool = True,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -211,6 +212,10 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
+        :param overwrite_file: If set to False, files with duplicate names will be saved
+            with a unique suffix (e.g., ``_1``, ``_2``) to prevent data loss.
+            If set to True (default), the original behavior is preserved and files
+            may be silently overwritten.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, max_mails, mail_folder, mail_filter
@@ -219,7 +224,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite_file)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -287,14 +292,27 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(self, mail_attachments: list, local_output_directory: str, overwrite_file: bool = True) -> None:
+        seen_filenames: dict[str, int] = {}
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
+                if not overwrite_file:
+                    name = self._make_unique_filename(name, seen_filenames)
                 self._create_file(name, payload, local_output_directory)
+
+    def _make_unique_filename(self, name: str, seen_filenames: dict[str, int]) -> str:
+        """Generate a unique filename by appending a suffix when duplicates are detected."""
+        if name in seen_filenames:
+            seen_filenames[name] += 1
+            base, ext = os.path.splitext(name)
+            return f"{base}_{seen_filenames[name]}{ext}"
+        else:
+            seen_filenames[name] = 0
+            return name
 
     def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks

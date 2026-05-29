@@ -509,3 +509,130 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_file_default(self, mock_imaplib, mock_open_method):
+        """When overwrite_file=True (default), files with same name overwrite each other."""
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="report.csv")
+        mock_conn.search.return_value = ("OK", [b"1 2"])
+        # Make fetch return the same attachment for both mail IDs
+        mail_string = (
+            "Content-Type: multipart/mixed; "
+            "boundary=123\r\n--123\r\n"
+            "Content-Disposition: attachment; "
+            'filename="report.csv";'
+            "Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("report.csv", "test_directory")
+
+        # Default overwrite_file=True: both files written to same path -> second overwrites first
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/report.csv", "wb")
+        # Both calls should use the same path (no suffix)
+        calls = [call for call in mock_open_method.call_args_list if call[0][0].endswith("report.csv")]
+        assert len(calls) == 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_file_true(self, mock_imaplib, mock_open_method):
+        """With explicit overwrite_file=True, files with same name overwrite each other."""
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="report.csv")
+        mock_conn.search.return_value = ("OK", [b"1 2"])
+        mail_string = (
+            "Content-Type: multipart/mixed; "
+            "boundary=123\r\n--123\r\n"
+            "Content-Disposition: attachment; "
+            'filename="report.csv";'
+            "Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "report.csv", "test_directory", overwrite_file=True
+            )
+
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/report.csv", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_file_false(self, mock_imaplib, mock_open_method):
+        """With overwrite_file=False, duplicate filenames get unique suffixes."""
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="report.csv")
+        mock_conn.search.return_value = ("OK", [b"1 2"])
+        mail_string = (
+            "Content-Type: multipart/mixed; "
+            "boundary=123\r\n--123\r\n"
+            "Content-Disposition: attachment; "
+            'filename="report.csv";'
+            "Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "report.csv", "test_directory", overwrite_file=False
+            )
+
+        # First file gets original name, second gets _1 suffix
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/report.csv", "wb")
+        mock_open_method.assert_any_call("test_directory/report_1.csv", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_file_false_multiple_duplicates(
+        self, mock_imaplib, mock_open_method
+    ):
+        """With overwrite_file=False, three duplicate files get _1, _2 suffixes."""
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="data.xlsx")
+        mock_conn.search.return_value = ("OK", [b"1 2 3"])
+        mail_string = (
+            "Content-Type: multipart/mixed; "
+            "boundary=123\r\n--123\r\n"
+            "Content-Disposition: attachment; "
+            'filename="data.xlsx";'
+            "Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "data.xlsx", "test_directory", overwrite_file=False
+            )
+
+        assert mock_open_method.call_count == 3
+        mock_open_method.assert_any_call("test_directory/data.xlsx", "wb")
+        mock_open_method.assert_any_call("test_directory/data_1.xlsx", "wb")
+        mock_open_method.assert_any_call("test_directory/data_2.xlsx", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_file_false_no_extension(
+        self, mock_imaplib, mock_open_method
+    ):
+        """With overwrite_file=False and files without extensions, suffix is appended correctly."""
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="README")
+        mock_conn.search.return_value = ("OK", [b"1 2"])
+        mail_string = (
+            "Content-Type: multipart/mixed; "
+            "boundary=123\r\n--123\r\n"
+            "Content-Disposition: attachment; "
+            'filename="README";'
+            "Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "README", "test_directory", overwrite_file=False
+            )
+
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/README", "wb")
+        mock_open_method.assert_any_call("test_directory/README_1", "wb")
