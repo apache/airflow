@@ -51,8 +51,8 @@ API_PREFIX = "/api/v2"
 class PermissionEntry:
     """One HTTP operation's permission requirement."""
 
-    http_method: str  # GET / POST / PATCH / PUT / DELETE
     full_path: str  # full route path, e.g. /api/v2/dags/{dag_id}
+    http_method: str  # GET / POST / PATCH / PUT / DELETE
     tag: str  # OpenAPI tag, e.g. "DAG", "Variable"
     resource: str  # e.g. "DAG", "DAG.RUN", "Variable", "View"
     required_permission: str  # e.g. "GET", "POST", "DELETE", "multi", "PLUGINS"

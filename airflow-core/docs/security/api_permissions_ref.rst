@@ -46,74 +46,6 @@ source code so it stays up to date as endpoints are added or changed.
      - Endpoint path
      - Resource
      - Required permission
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - ``Asset``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - ``DAG``
-     - ``GET``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/states``
-     - ``Asset``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/states/{key:path}``
-     - ``Asset``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/connections/{connection_id}``
-     - ``Connection``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}``
-     - ``DAG``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
-     - ``Asset``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
-     - ``DAG``
-     - ``GET``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
-     - ``Asset``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
-     - ``DAG``
-     - ``GET``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}``
-     - ``DAG.RUN``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
-     - ``DAG.TASK_INSTANCE``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states``
-     - ``DAG.TASK_INSTANCE``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
-     - ``DAG.TASK_INSTANCE``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
-     - ``DAG.XCOM``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/pools/{pool_name:path}``
-     - ``Pool``
-     - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/variables/{variable_key:path}``
-     - ``Variable``
-     - ``DELETE``
    * - ``GET``
      - ``/api/v2/assets``
      - ``Asset``
@@ -134,6 +66,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/events``
      - ``Asset``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/assets/events``
+     - ``Asset``
+     - ``POST``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}``
      - ``Asset``
@@ -142,22 +78,54 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}``
      - ``AssetAlias``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/assets/{asset_id}/materialize``
+     - ``Asset``
+     - ``POST``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/queuedEvents``
+     - ``Asset``
+     - ``DELETE``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/queuedEvents``
+     - ``DAG``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
      - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/states``
+     - ``Asset``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/states``
      - ``Asset``
      - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/states/{key:path}``
+     - ``Asset``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/states/{key:path}``
      - ``Asset``
      - ``GET``
+   * - ``PUT``
+     - ``/api/v2/assets/{asset_id}/states/{key:path}``
+     - ``Asset``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/backfills``
      - ``DAG.RUN``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/backfills``
+     - ``DAG.RUN``
+     - ``POST``
+   * - ``PUT``
+     - ``/api/v2/backfills``
+     - ``DAG.RUN``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/config``
      - ``Configuration``
@@ -170,10 +138,34 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/connections``
      - ``Connection``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/connections``
+     - ``Connection``
+     - ``multi``
+   * - ``POST``
+     - ``/api/v2/connections``
+     - ``Connection``
+     - ``POST``
+   * - ``POST``
+     - ``/api/v2/connections/defaults``
+     - ``Connection``
+     - ``POST``
+   * - ``POST``
+     - ``/api/v2/connections/test``
+     - ``Connection``
+     - ``POST``
+   * - ``DELETE``
+     - ``/api/v2/connections/{connection_id}``
+     - ``Connection``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/connections/{connection_id}``
      - ``Connection``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/connections/{connection_id}``
+     - ``Connection``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
@@ -194,16 +186,44 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags``
+     - ``DAG``
+     - ``PUT``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}``
+     - ``DAG``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}``
+     - ``DAG``
+     - ``PUT``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
+     - ``Asset``
+     - ``DELETE``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
+     - ``DAG``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
      - ``Asset``
      - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
+     - ``DAG``
+     - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
+     - ``Asset``
+     - ``DELETE``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``DAG``
      - ``GET``
    * - ``GET``
@@ -214,30 +234,86 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``DAG``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/clearTaskInstances``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns``
      - ``DAG.RUN``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns``
+     - ``DAG.RUN``
+     - ``multi``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns``
+     - ``DAG.RUN``
+     - ``POST``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/list``
+     - ``DAG.RUN``
+     - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}``
+     - ``DAG.RUN``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}``
      - ``DAG.RUN``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}``
+     - ``DAG.RUN``
+     - ``PUT``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear``
+     - ``DAG.RUN``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails``
      - ``DAG.HITL_DETAIL``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list``
+     - ``DAG.TASK_INSTANCE``
+     - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
+     - ``DAG.TASK_INSTANCE``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}``
      - ``DAG``
@@ -254,14 +330,26 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}``
      - ``DAG``
      - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states``
+     - ``DAG.TASK_INSTANCE``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
+     - ``DAG.TASK_INSTANCE``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PUT``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries``
      - ``DAG.TASK_INSTANCE``
@@ -274,22 +362,46 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
      - ``DAG.XCOM``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
+     - ``DAG.XCOM``
+     - ``POST``
+   * - ``DELETE``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+     - ``DAG.XCOM``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
      - ``DAG.XCOM``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+     - ``DAG.XCOM``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails``
      - ``DAG.HITL_DETAIL``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails``
+     - ``DAG.HITL_DETAIL``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}``
      - ``DAG.HITL_DETAIL``
@@ -326,6 +438,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/details``
      - ``DAG``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/favorite``
+     - ``DAG``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/tasks``
      - ``DAG.TASK``
@@ -333,6 +449,10 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/tasks/{task_id}``
      - ``DAG.TASK``
+     - ``GET``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/unfavorite``
+     - ``DAG``
      - ``GET``
    * - ``GET``
      - ``/api/v2/eventLogs``
@@ -354,6 +474,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/jobs``
      - ``View.JOBS``
      - ``JOBS``
+   * - ``PUT``
+     - ``/api/v2/parseDagFile/{file_token}``
+     - ``DAG``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/plugins``
      - ``View.PLUGINS``
@@ -366,10 +490,26 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/pools``
      - ``Pool``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/pools``
+     - ``Pool``
+     - ``multi``
+   * - ``POST``
+     - ``/api/v2/pools``
+     - ``Pool``
+     - ``POST``
+   * - ``DELETE``
+     - ``/api/v2/pools/{pool_name:path}``
+     - ``Pool``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/pools/{pool_name:path}``
      - ``Pool``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/pools/{pool_name:path}``
+     - ``Pool``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/providers``
      - ``View.PROVIDERS``
@@ -378,163 +518,23 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/variables``
      - ``Variable``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/variables``
+     - ``Variable``
+     - ``multi``
+   * - ``POST``
+     - ``/api/v2/variables``
+     - ``Variable``
+     - ``POST``
+   * - ``DELETE``
+     - ``/api/v2/variables/{variable_key:path}``
+     - ``Variable``
+     - ``DELETE``
    * - ``GET``
      - ``/api/v2/variables/{variable_key:path}``
      - ``Variable``
      - ``GET``
    * - ``PATCH``
-     - ``/api/v2/connections``
-     - ``Connection``
-     - ``multi``
-   * - ``PATCH``
-     - ``/api/v2/connections/{connection_id}``
-     - ``Connection``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags``
-     - ``DAG``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}``
-     - ``DAG``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns``
-     - ``DAG.RUN``
-     - ``multi``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}``
-     - ``DAG.RUN``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
-     - ``DAG.XCOM``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails``
-     - ``DAG.HITL_DETAIL``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/pools``
-     - ``Pool``
-     - ``multi``
-   * - ``PATCH``
-     - ``/api/v2/pools/{pool_name:path}``
-     - ``Pool``
-     - ``PUT``
-   * - ``PATCH``
-     - ``/api/v2/variables``
-     - ``Variable``
-     - ``multi``
-   * - ``PATCH``
      - ``/api/v2/variables/{variable_key:path}``
      - ``Variable``
-     - ``PUT``
-   * - ``POST``
-     - ``/api/v2/assets/events``
-     - ``Asset``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/assets/{asset_id}/materialize``
-     - ``Asset``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/backfills``
-     - ``DAG.RUN``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/connections``
-     - ``Connection``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/connections/defaults``
-     - ``Connection``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/connections/test``
-     - ``Connection``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/clearTaskInstances``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns``
-     - ``DAG.RUN``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns/list``
-     - ``DAG.RUN``
-     - ``GET``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear``
-     - ``DAG.RUN``
-     - ``PUT``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list``
-     - ``DAG.TASK_INSTANCE``
-     - ``GET``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
-     - ``DAG.XCOM``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/favorite``
-     - ``DAG``
-     - ``GET``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/unfavorite``
-     - ``DAG``
-     - ``GET``
-   * - ``POST``
-     - ``/api/v2/pools``
-     - ``Pool``
-     - ``POST``
-   * - ``POST``
-     - ``/api/v2/variables``
-     - ``Variable``
-     - ``POST``
-   * - ``PUT``
-     - ``/api/v2/assets/{asset_id}/states/{key:path}``
-     - ``Asset``
-     - ``PUT``
-   * - ``PUT``
-     - ``/api/v2/backfills``
-     - ``DAG.RUN``
-     - ``PUT``
-   * - ``PUT``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
-     - ``DAG.TASK_INSTANCE``
-     - ``PUT``
-   * - ``PUT``
-     - ``/api/v2/parseDagFile/{file_token}``
-     - ``DAG``
      - ``PUT``
