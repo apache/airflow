@@ -181,10 +181,10 @@ class TestAssetModelOperation:
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
         """When a producer bundle (without access_control) is synced after a consumer bundle
         (with access_control), the stored access control fields must not be wiped out."""
-        from airflow.models.asset import DagScheduleAssetReference
+        from airflow.models.asset import DagScheduleAssetReference, TaskOutletAssetReference
         from airflow.sdk import AssetAccessControl
 
-        # First sync: consumer bundle sets access_control on the asset.
+        # First sync: consumer bundle sets access_control on the asset (producer_teams on schedule side).
         consumer_asset = Asset(
             "shared_asset",
             access_control=AssetAccessControl(producer_teams=["team1", "team2"], allow_global=False),
@@ -206,21 +206,100 @@ class TestAssetModelOperation:
         assert ref.allow_producer_teams == ["team1", "team2"]
         assert ref.allow_global_producers is False
 
-        # Second sync: producer bundle references the same asset WITHOUT access_control.
-        producer_asset = Asset("shared_asset")
+        # Second sync: producer bundle references the same asset with consumer_teams on the outlet.
+        producer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(consumer_teams=["team_ml"], allow_global=False),
+        )
         with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
             EmptyOperator(task_id="produce", outlets=[producer_asset])
 
         producer_dags = {producer_dag.dag_id: LazyDeserializedDAG.from_dag(producer_dag)}
-        DagModelOperation(producer_dags, "testing", None).add_dags(session=session)
+        producer_orm_dags = DagModelOperation(producer_dags, "testing", None).add_dags(session=session)
         asset_op = AssetModelOperation.collect(producer_dags)
-        asset_op.sync_assets(session=session)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(producer_orm_dags, orm_assets, session=session)
         session.flush()
 
-        # Consumer's access control must still be preserved.
+        # Consumer's schedule-side access control must still be preserved.
         session.expire(ref)
         assert ref.allow_producer_teams == ["team1", "team2"]
         assert ref.allow_global_producers is False
+
+        # Producer's outlet-side access control must be stored.
+        outlet_ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "producer_dag")
+        )
+        assert outlet_ref.allow_consumer_teams == ["team_ml"]
+        assert outlet_ref.allow_global_consumers is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_task_outlet_asset_references_updates_consumer_teams_on_change(self, dag_maker, session):
+        """When access_control changes, existing outlet references are updated in place."""
+        from airflow.models.asset import TaskOutletAssetReference
+        from airflow.sdk import AssetAccessControl
+
+        asset = Asset(
+            "evolving_asset",
+            access_control=AssetAccessControl(consumer_teams=["team_old"], allow_global=True),
+        )
+
+        with dag_maker(dag_id="evolving_producer", schedule="@once") as dag:
+            EmptyOperator(task_id="produce", outlets=[asset])
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "evolving_producer")
+        )
+        assert ref.allow_consumer_teams == ["team_old"]
+        assert ref.allow_global_consumers is True
+
+        # Change access_control and re-sync.
+        asset.access_control = AssetAccessControl(consumer_teams=["team_new"], allow_global=False)
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        session.expire(ref)
+        assert ref.allow_consumer_teams == ["team_new"]
+        assert ref.allow_global_consumers is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_task_outlet_asset_references_defaults_when_no_access_control(self, dag_maker, session):
+        """Outlet references default to empty consumer_teams and allow_global_consumers=True."""
+        from airflow.models.asset import TaskOutletAssetReference
+
+        asset = Asset("plain_asset")
+
+        with dag_maker(dag_id="plain_producer_dag", schedule="@once") as dag:
+            EmptyOperator(task_id="produce", outlets=[asset])
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "plain_producer_dag")
+        )
+        assert ref is not None
+        assert ref.allow_consumer_teams == []
+        assert ref.allow_global_consumers is True
 
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),
