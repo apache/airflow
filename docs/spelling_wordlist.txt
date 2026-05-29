@@ -499,6 +499,7 @@ doesn
 doesnt
 dom
 Dont
+dotfiles
 DownloadReportV
 downscaling
 downstreams
@@ -551,6 +552,7 @@ enableAutoScale
 enablement
 encodable
 encryptor
+endian
 enqueue
 enqueued
 Entra
@@ -758,6 +760,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honour
 hookimpl
 hookspec
 HostAliases
@@ -1053,6 +1056,7 @@ msfabric
 msg
 msgraph
 mssql
+mtime
 mTLS
 multi-cloud
 multimodal
@@ -1450,6 +1454,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1759,6 +1764,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+Unrecognised
 unsanitized
 unscoped
 untestable
