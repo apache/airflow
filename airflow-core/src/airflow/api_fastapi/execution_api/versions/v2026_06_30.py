@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
+
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 
 
 class AddVariableKeysEndpoint(VersionChange):
@@ -26,3 +28,16 @@ class AddVariableKeysEndpoint(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (endpoint("/variables/keys", ["GET"]).didnt_exist,)
+
+
+class AddQueuedDttmField(VersionChange):
+    """Add ``queued_dttm`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("queued_dttm").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_queued_dttm_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove queued_dttm field for older API versions."""
+        response.body.pop("queued_dttm", None)

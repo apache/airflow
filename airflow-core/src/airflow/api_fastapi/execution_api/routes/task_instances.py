@@ -150,6 +150,7 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -308,6 +309,8 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
+        if ti.queued_dttm:
+            context.queued_dttm = ti.queued_dttm
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
