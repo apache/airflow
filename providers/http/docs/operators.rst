@@ -109,9 +109,9 @@ For example, a health-check endpoint can determine whether to proceed with proce
 
 .. code-block:: python
 
+    import datetime
     from airflow.providers.http.operators.http import HttpOperator
     from airflow.sdk import DAG, task
-    import datetime
 
     with DAG(
         dag_id="example_http_branch",
@@ -135,15 +135,15 @@ For example, a health-check endpoint can determine whether to proceed with proce
             if status == "ready":
                 return "process_data"
             return "notify_failure"
-        
+
         @task
         def process_data():
             print("Processing...")
-        
+
         @task
         def notify_failure():
             print("Service not ready, skipping processing.")
-        
+
         decide_next(check_health.output) >> [process_data(), notify_failure()]
 
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
