@@ -3450,7 +3450,6 @@ export class PoolService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -4480,6 +4479,7 @@ export class LoginService {
             },
             errors: {
                 307: 'Temporary Redirect',
+                400: 'Bad Request',
                 422: 'Validation Error'
             }
         });
