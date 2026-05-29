@@ -1049,7 +1049,7 @@ class TestSparkSubmitHook:
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_legacy_on_kill_skips_yarn_cli_when_submit_sp_already_exited(self, mock_popen):
-        """Regression guard for #65991: when `yarn_track_via_rm_api=False` (legacy
+        """Regression guard when `yarn_track_via_rm_api=False` (legacy
         path), the YARN CLI kill must stay gated on a live `_submit_sp`. If the
         spark-submit subprocess has already exited, `on_kill` must not spawn
         `yarn application -kill` — preserving pre-PR behavior for users who have
