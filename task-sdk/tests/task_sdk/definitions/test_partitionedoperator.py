@@ -95,7 +95,7 @@ class TestPartitionedOperator:
         with DAG(dag_id=f"test_partition_{partition_size}") as dag:
             op = EmptyOperator.partial(task_id="test_task", dag=dag).partition(size=partition_size)
 
-            expand_input = DictOfListsExpandInput({"x": list(range(expand_size))})
+            expand_input = DictOfListsExpandInput({"retry_delay": list(range(expand_size))})
             iterable_op = op._iterate(expand_input, strict=False)
 
             # Check if partitioned or non-partitioned
@@ -120,7 +120,7 @@ class TestPartitionedOperator:
                 assert deserialized_op.partial_kwargs["partition_size"] == partition_size
 
                 # 4. Verify partition_size is removed before operator instantiation (only for partitioned)
-                unmapped = iterable_op.unmap({"x": 1})
+                unmapped = iterable_op.unmap({"retry_delay": 1})
                 # Verify unmapped task doesn't have partition_size attribute
                 assert not hasattr(unmapped, "partition_size")
             else:
@@ -133,10 +133,8 @@ class TestPartitionedOperator:
         from airflow.sdk.definitions.iterableoperator import MappedIterableOperator
 
         with DAG(dag_id="test_mapped_iterable_retries") as dag:
-            op = EmptyOperator.partial(task_id="test_task", dag=dag, retries=3).partition(size=2)
-
-            expand_input = DictOfListsExpandInput({"x": [1, 2]})
-            iterable_op = op._iterate(expand_input, strict=False)
+            expand_input = DictOfListsExpandInput({"retry_delay": [1.0, 2.0]})
+            iterable_op = EmptyOperator.partial(task_id="test_task", dag=dag, retries=3).partition(size=2)._iterate(expand_input, strict=False)
 
             assert isinstance(iterable_op, MappedIterableOperator)
             assert iterable_op.retries == 0
@@ -144,5 +142,5 @@ class TestPartitionedOperator:
             mapped_op = iterable_op.delegate
             assert mapped_op.retries == 3
 
-            unmapped = mapped_op.unmap({"x": 1})
+            unmapped = mapped_op.unmap({"retry_delay": 1.0})
             assert unmapped.retries == 3
