@@ -261,6 +261,18 @@ ARG_AUTH_PASSWORD = Arg(
     help="The password to use for authentication",
 )
 
+# Task Commands Args
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The Task ID of the task instance",
+)
+ARG_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The Dag Run ID of the task instance",
+)
+
 # Dag Commands Args
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
@@ -1015,6 +1027,20 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="state",
+        help="Show the state of a specific task instance",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1041,6 +1067,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Interact with Airflow task instances",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

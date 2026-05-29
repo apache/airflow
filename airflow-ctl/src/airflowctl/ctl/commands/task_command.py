@@ -1,0 +1,48 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+import sys
+
+import rich
+
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
+from airflowctl.api.datamodels.generated import TaskInstanceResponse
+from airflowctl.ctl.console_formatting import AirflowConsole
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def state(args, api_client=NEW_API_CLIENT) -> None:
+    """Show the state of a specific task instance."""
+    try:
+        response = api_client.get(
+            f"dags/{args.dag_id}/dagRuns/{args.dag_run_id}/taskInstances/{args.task_id}"
+        )
+        task_instance = TaskInstanceResponse.model_validate_json(response.content)
+    except ServerResponseError as e:
+        rich.print(f"[red]Error retrieving task instance state: {e}[/red]")
+        sys.exit(1)
+
+    state_value = task_instance.state.value if task_instance.state else "None"
+    rich.print(f"[green]Task {args.task_id} state: {state_value}[/green]")
+
+    result = task_instance.model_dump(mode="json")
+    AirflowConsole().print_as(
+        data=[result],
+        output=args.output,
+    )
