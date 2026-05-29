@@ -804,7 +804,7 @@ Misc
 * ``Replace usage of 'set_extra' with 'extra' for athena sql hook (#52340)``
 * ``Drop support for Python 3.9 (#52072)``
 * ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
-* ``Replace occurences of 'get_password' with 'password' to ease migration (#52333)``
+* ``Replace occurrences of 'get_password' with 'password' to ease migration (#52333)``
 * ``Use BaseSensorOperator from task sdk in providers (#52296)``
 * ``Use base AWS classes in Glue Trigger / Sensor and implement custom waiter (#52243)``
 * ``Add Airflow 3.0+ Task SDK support to AWS Batch Executor (#52121)``
