@@ -329,6 +329,27 @@ class TestExtractFromFile:
         assert entries[0].required_permission == "DELETE"
         assert entries[0].resource == "Variable"
 
+    def test_dag_access_entity_positional(self, tmp_path):
+        """The second positional arg to requires_access_dag is the access_entity."""
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            dag_router = AirflowRouter(tags=["DAG"], prefix="/dags/{dag_id}")
+
+            @dag_router.get(
+                "/taskLogs",
+                dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
+            )
+            def get_task_logs(dag_id: str): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert len(entries) == 1
+        e = entries[0]
+        assert e.resource == "DAG.TASK_LOGS"
+        assert e.required_permission == "GET"
+
     def test_binop_path_resolved(self, tmp_path):
         # Mirrors the task_instances.py pattern exactly
         f = _make_route_file(
