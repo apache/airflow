@@ -214,3 +214,32 @@ See :doc:`connections/spark-submit` for how to configure these fields.
 .. note::
     Crash recovery in cluster mode requires Airflow 3.3+ (``task_state`` support). On earlier
     versions the operator falls back to the previous behavior of always submitting fresh.
+
+Tracking driver status via Kubernetes API
+""""""""""""""""""""""""""""""""""""""""""
+
+When running in Kubernetes cluster mode, ``spark-submit`` blocks for the duration of the job.
+The JVM runs processes which does nothing but polling of the pod phase and holds heap space for
+the entire duration. This is not ideal for long-running jobs, especially when the driver is idle
+for long periods (e.g. waiting for data or user input).
+
+Set ``track_driver_via_k8s_api=True`` to have the operator track the driver pod status via the
+Python Kubernetes client rather than holding ``spark-submit`` open for the full job duration:
+
+.. code-block:: python
+
+   from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+
+   run_spark = SparkSubmitOperator(
+       task_id="run_spark",
+       application="local:///opt/spark/examples/jars/spark-examples.jar",
+       conn_id="spark_k8s",
+       deploy_mode="cluster",
+       track_driver_via_k8s_api=True,
+   )
+
+**Requirements**
+
+* The Spark connection ``master`` must be ``k8s://...`` and ``deploy_mode`` must be ``cluster``.
+* Do not set ``spark.kubernetes.submission.waitAppCompletion=true`` in your ``conf`` — this
+  conflicts with the flag and a ``ValueError`` will be raised at task start.
