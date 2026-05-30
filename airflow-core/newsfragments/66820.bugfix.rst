@@ -1,0 +1,1 @@
+Fix cross-replica deadlocks in HA scheduler by clearing the SQLAlchemy identity map between the two phases of ``_do_scheduling``, preventing stale ``DagRun`` rows from phase 1 being re-dirtied and committed in an unpredictable lock order during phase 2.
