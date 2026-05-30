@@ -1718,3 +1718,61 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert "branch_file.py" in files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_fetch_submodules_applies_ssh_env_during_initialize(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that git submodule command runs in custom_environment(GIT_SSH_COMMAND=...)."""
+        SSH_CMD = "ssh -i /id_rsa -o StrictHostKeyChecking=no"
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {"GIT_SSH_COMMAND": SSH_CMD}
+        mock_exists.return_value = True  # Skips clone
+
+        mock_submodules_repo_instance = mock.MagicMock()
+        mock_repo_class.side_effect = [mock.MagicMock(), mock_submodules_repo_instance]
+        mock_submodules_repo_instance.commit.return_value = mock.MagicMock()
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+        bundle.initialize()
+
+        mock_submodules_repo_instance.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=SSH_CMD)
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_fetch_submodules_applies_ssh_env_during_refresh(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodule sync/update run inside custom_environment(GIT_SSH_COMMAND=...) during refresh."""
+        SSH_CMD = "ssh -i /id_rsa -o StrictHostKeyChecking=no"
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {"GIT_SSH_COMMAND": SSH_CMD}
+        mock_exists.return_value = True
+
+        mock_working_repo = mock.MagicMock()
+        mock_repo_class.side_effect = [mock.MagicMock(), mock_working_repo]
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            submodules=True,
+        )
+
+        # Calling initialize without a specific version triggers refresh()
+        bundle.initialize()
+
+        mock_working_repo.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=SSH_CMD)
+        mock_rmtree.assert_not_called()
