@@ -81,7 +81,7 @@ class LLMRetryPolicy(RetryPolicy):
     """
     Retry policy that uses an LLM to classify errors and decide retry behaviour.
 
-    Uses :class:`~airflow.providers.common.ai.hooks.base_ai.BaseAIHook`
+    Uses :class:`~airflow.providers.common.ai.hooks.base.BaseAIHook`
     to call any configured LLM provider (OpenAI, Anthropic, Bedrock, Vertex,
     Ollama, etc.) for error classification with structured output.
 
@@ -141,7 +141,7 @@ class LLMRetryPolicy(RetryPolicy):
     ) -> RetryDecision:
         from pydantic_ai.settings import ModelSettings
 
-        from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook
+        from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook
 
         hook = BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 

@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.common.ai.decorators.llm_file_analysis import _LLMFileAnalysisDecoratedOperator
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
 

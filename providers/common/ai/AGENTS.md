@@ -70,7 +70,7 @@ building a wrapper here.
 ## Key Paths
 
 - Hooks: `src/airflow/providers/common/ai/hooks/pydantic_ai.py` (pydantic-ai)
-- Base hook contract: `src/airflow/providers/common/ai/hooks/base_ai.py`
+- Base hook contract: `src/airflow/providers/common/ai/hooks/base.py`
 - Operators: `src/airflow/providers/common/ai/operators/`
 - Decorators: `src/airflow/providers/common/ai/decorators/`
 - Toolsets: `src/airflow/providers/common/ai/toolsets/`

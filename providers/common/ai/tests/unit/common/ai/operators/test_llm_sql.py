@@ -22,7 +22,7 @@ from uuid import uuid4
 
 import pytest
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )

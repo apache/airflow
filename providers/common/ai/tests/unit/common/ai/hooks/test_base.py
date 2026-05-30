@@ -25,7 +25,7 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
 
-from airflow.providers.common.ai.hooks.base_ai import (
+from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
     AgentRunResult,
     AgentUsage,
@@ -39,8 +39,8 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 
 class TestBaseAIHookGetAgentHook:
-    @patch("airflow.providers.common.ai.hooks.base_ai.BaseHook.get_hook", autospec=True)
-    def test_returns_hook_when_instance_is_base_ai_hook(self, mock_get_hook):
+    @patch("airflow.providers.common.ai.hooks.base.BaseHook.get_hook", autospec=True)
+    def test_returns_hook_when_instance_is_base_hook(self, mock_get_hook):
         mock_hook = MagicMock(spec=BaseAIHook)
         mock_get_hook.return_value = mock_hook
 
@@ -49,8 +49,8 @@ class TestBaseAIHookGetAgentHook:
         assert result is mock_hook
         mock_get_hook.assert_called_once_with("my_conn", hook_params=None)
 
-    @patch("airflow.providers.common.ai.hooks.base_ai.BaseHook.get_hook", autospec=True)
-    def test_raises_when_hook_is_not_base_ai_hook(self, mock_get_hook):
+    @patch("airflow.providers.common.ai.hooks.base.BaseHook.get_hook", autospec=True)
+    def test_raises_when_hook_is_not_base_hook(self, mock_get_hook):
         mock_get_hook.return_value = MagicMock(spec=BaseHook)
 
         with pytest.raises(TypeError, match="not a BaseAIHook"):
