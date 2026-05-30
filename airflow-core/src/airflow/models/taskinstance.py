@@ -1806,9 +1806,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.RUNNING:
-                # If the task instance is in the running state, it means it raised an exception and
-                # about to retry so we record the task instance history. For other states, the task
+            if ti.state != TaskInstanceState.RESTARTING:
+                # If the task instance is NOT in the restarting state, it means it raised an exception and
+                # about to retry so we record the task instance history. For the restarting state, the task
                 # instance was cleared and already recorded in the task instance history.
                 ti.prepare_db_for_next_try(session)
 

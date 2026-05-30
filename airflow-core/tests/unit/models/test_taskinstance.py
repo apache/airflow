@@ -2366,7 +2366,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task.task_id)
         ti.state = State.QUEUED
-        session.merge(ti)
+        ti = session.merge(ti)
         session.flush()
         assert ti.state == State.QUEUED
         ti.handle_failure("test queued ti", test_mode=True)
