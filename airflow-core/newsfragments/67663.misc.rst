@@ -1,0 +1,1 @@
+Restrict the reproducible-build ``dirty`` check in ``airflow-core/hatch_build.py`` to paths included in the docker build context (per ``.dockerignore``) so clean-tag builds produce ``git_version = .release:<SHA>`` instead of a misleading ``.dev0+<SHA>.dirty``.
