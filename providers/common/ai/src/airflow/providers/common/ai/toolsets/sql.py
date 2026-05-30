@@ -33,7 +33,7 @@ except ImportError as e:
 
 from pydantic_ai.exceptions import ModelRetry
 
-from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
+from airflow.providers.common.ai.hooks.base import BaseToolset, ToolSpec
 from airflow.providers.common.compat.sdk import BaseHook
 
 _LIST_TABLES_SCHEMA: dict[str, Any] = {

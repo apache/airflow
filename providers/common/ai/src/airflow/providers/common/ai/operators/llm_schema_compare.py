@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest
+from airflow.providers.common.ai.hooks.base import AgentRunRequest
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook

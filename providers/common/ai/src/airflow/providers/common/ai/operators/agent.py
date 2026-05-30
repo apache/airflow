@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook, DurableContext
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook, DurableContext
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import (
@@ -108,7 +108,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
-    :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
+    :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
         instances the agent can use.
     :param enable_tool_logging: When ``True`` (default), wraps Airflow-resolved tool callables
         with a logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
@@ -225,7 +225,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         return BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params=hook_params)
 
     def _build_request(self, *, prompt: str, message_history: Any = None) -> AgentRunRequest:
-        """Build an :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunRequest` from operator config."""
+        """Build an :class:`~airflow.providers.common.ai.hooks.base.AgentRunRequest` from operator config."""
         durable_context: DurableContext | None = None
         if self.durable and hasattr(self, "_durable_ti") and self._durable_ti is not None:
             ti = self._durable_ti

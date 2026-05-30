@@ -22,7 +22,7 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 
 
 def _make_run_result(output):

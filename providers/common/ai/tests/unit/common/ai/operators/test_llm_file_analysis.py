@@ -23,7 +23,7 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 

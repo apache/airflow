@@ -23,7 +23,7 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
 

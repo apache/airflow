@@ -20,7 +20,7 @@ import logging
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
     log_run_summary,

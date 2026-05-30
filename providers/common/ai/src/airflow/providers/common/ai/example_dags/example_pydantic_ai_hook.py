@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook
 from airflow.providers.common.compat.sdk import dag, task
 
 

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import (
@@ -49,7 +49,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     """
     Call an LLM with a prompt and return the output.
 
-    Uses a :class:`~airflow.providers.common.ai.hooks.base_ai.BaseAIHook`
+    Uses a :class:`~airflow.providers.common.ai.hooks.base.BaseAIHook`
     for LLM access. Supports plain string output (default) and structured output
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
     the model instance is returned to XCom unchanged so downstream tasks can

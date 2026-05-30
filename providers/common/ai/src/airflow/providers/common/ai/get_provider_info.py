@@ -67,10 +67,7 @@ def get_provider_info():
             },
         ],
         "hooks": [
-            {
-                "integration-name": "Common AI",
-                "python-modules": ["airflow.providers.common.ai.hooks.base_ai"],
-            },
+            {"integration-name": "Common AI", "python-modules": ["airflow.providers.common.ai.hooks.base"]},
             {
                 "integration-name": "Pydantic AI",
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],

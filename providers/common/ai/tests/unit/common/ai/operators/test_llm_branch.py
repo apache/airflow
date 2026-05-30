@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 

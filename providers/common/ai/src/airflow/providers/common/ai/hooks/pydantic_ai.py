@@ -27,7 +27,7 @@ from pydantic_ai.toolsets.abstract import AbstractToolset
 
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
-from airflow.providers.common.ai.hooks.base_ai import (
+from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
     AgentRunResult,
     AgentUsage,
@@ -190,7 +190,7 @@ class PydanticAIHook(BaseAIHook):
     # ------------------------------------------------------------------
 
     def _tool_spec_to_native(self, spec: ToolSpec) -> Any:
-        """Convert a :class:`~airflow.providers.common.ai.hooks.base_ai.ToolSpec` to a pydantic-ai ``Tool``."""
+        """Convert a :class:`~airflow.providers.common.ai.hooks.base.ToolSpec` to a pydantic-ai ``Tool``."""
         return Tool(
             spec.fn,
             name=spec.name,
@@ -288,7 +288,7 @@ class PydanticAIHook(BaseAIHook):
         return agent
 
     def run_agent(self, agent: Agent[None, Any], request: AgentRunRequest) -> AgentRunResult:
-        """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunResult`."""
+        """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base.AgentRunResult`."""
         run_kwargs: dict[str, Any] = {}
         if request.message_history is not None:
             run_kwargs["message_history"] = request.message_history

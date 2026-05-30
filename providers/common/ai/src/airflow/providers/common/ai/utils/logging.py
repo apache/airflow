@@ -22,7 +22,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from airflow.providers.common.ai.hooks.base_ai import AgentRunResult
+    from airflow.providers.common.ai.hooks.base import AgentRunResult
     from airflow.sdk.types import Logger
 
 _MAX_OUTPUT_LEN = 500
