@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, ClassVar
 
-from airflow.providers.amazon.aws.hooks.dms import DmsHook, DmsTaskState
+from airflow.providers.amazon.aws.hooks.dms import DMS_MODIFIABLE_STATES, DmsHook, DmsTaskState
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationCompleteTrigger,
@@ -158,7 +158,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    MODIFIABLE_STATES = frozenset({DmsTaskState.STOPPED, DmsTaskState.READY, DmsTaskState.FAILED})
+    MODIFIABLE_STATES = DMS_MODIFIABLE_STATES
 
     aws_hook_class = DmsHook
     template_fields: Sequence[str] = aws_template_fields(
@@ -220,11 +220,12 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
 
         if current_status == DmsTaskState.MODIFYING:
             # boto3 stopped/ready waiters treat 'modifying' as a terminal failure — use poll loop.
-            self._wait_until_not_modifying()
-        elif current_status not in self.MODIFIABLE_STATES:
+            current_status = self._wait_until_not_modifying()
+
+        if current_status not in self.MODIFIABLE_STATES:
             raise RuntimeError(
                 f"Replication task {self.replication_task_arn} is in state '{current_status}' "
-                f"and must be stopped before modification. "
+                f"and must be in a modifiable state (stopped, ready, or failed) before modification. "
                 f"Use DmsStopTaskOperator to stop it first."
             )
 
@@ -249,21 +250,31 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                         aws_conn_id=self.aws_conn_id,
                     ),
                     method_name="execute_complete",
+                    kwargs={"result": result},
                 )
-            # modify_replication_task is async — poll until the task exits 'modifying'.
-            self._wait_until_not_modifying()
+            else:
+                # modify_replication_task is async — poll until the task exits 'modifying'.
+                final_status = self._wait_until_not_modifying()
+                if final_status not in self.MODIFIABLE_STATES:
+                    raise RuntimeError(
+                        f"Replication task {self.replication_task_arn} ended in unexpected state "
+                        f"'{final_status}' after modification."
+                    )
 
         return result
 
-    def execute_complete(self, context: Context, event: dict | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict | None = None, result: dict | None = None
+    ) -> dict:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
             raise RuntimeError(f"Error waiting for DMS task modification to complete: {validated_event}")
         self.log.info("DMS replication task(%s) modification complete.", self.replication_task_arn)
+        return result or {}
 
-    def _wait_until_not_modifying(self) -> None:
+    def _wait_until_not_modifying(self) -> str:
         """
-        Poll until the task leaves the 'modifying' state.
+        Poll until the task leaves the 'modifying' state and return the final status.
 
         boto3 waiters for replication_task_stopped and replication_task_ready both
         treat 'modifying' as a terminal failure, so a polling loop is necessary.
@@ -279,7 +290,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                     self.replication_task_arn,
                     status,
                 )
-                return
+                return status
             self.log.info(
                 "Replication task(%s) still modifying, waiting %ds ...",
                 self.replication_task_arn,

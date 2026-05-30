@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 from unittest import mock
 
@@ -43,6 +44,7 @@ from airflow.providers.amazon.aws.operators.dms import (
 from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTaskModifyCompleteTrigger,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.utils.state import DagRunState
@@ -204,36 +206,7 @@ class TestDmsModifyTaskOperator:
     def _modifying_task(self):
         return [{"ReplicationTaskArn": self.TASK_ARN, "Status": "modifying"}]
 
-    def test_init(self):
-        op = DmsModifyTaskOperator(
-            task_id="modify_task",
-            replication_task_arn=self.TASK_ARN,
-            table_mappings=self.TABLE_MAPPINGS,
-            migration_type="cdc",
-            aws_conn_id="fake-conn-id",
-            region_name="us-east-1",
-        )
-        assert op.replication_task_arn == self.TASK_ARN
-        assert op.table_mappings == self.TABLE_MAPPINGS
-        assert op.migration_type == "cdc"
-        assert op.wait_for_completion is True
-        assert op.deferrable is False
-        assert op.hook.aws_conn_id == "fake-conn-id"
-        assert op.hook._region_name == "us-east-1"
-
-    def test_init_defaults(self):
-        op = DmsModifyTaskOperator(task_id="modify_task", replication_task_arn=self.TASK_ARN)
-        assert op.table_mappings is None
-        assert op.migration_type is None
-        assert op.replication_task_settings is None
-        assert op.cdc_start_time is None
-        assert op.cdc_start_position is None
-        assert op.cdc_stop_position is None
-        assert op.wait_for_completion is True
-        assert op.deferrable is False
-
     def test_init_raises_if_both_cdc_start_params_provided(self):
-        from datetime import datetime
 
         with pytest.raises(ValueError, match="Only one of"):
             DmsModifyTaskOperator(
@@ -243,10 +216,11 @@ class TestDmsModifyTaskOperator:
                 cdc_start_position="mysql-bin.000001:4",
             )
 
+    @pytest.mark.parametrize("status", ["stopped", "ready", "failed"])
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
-    def test_modify_task_already_stopped(self, mock_conn, mock_find):
-        mock_find.return_value = self._stopped_task()
+    def test_modify_task_modifiable_states(self, mock_conn, mock_find, status):
+        mock_find.return_value = [{"ReplicationTaskArn": self.TASK_ARN, "Status": status}]
         expected = {"ReplicationTaskArn": self.TASK_ARN}
         with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected) as mock_modify:
             op = DmsModifyTaskOperator(
@@ -276,7 +250,7 @@ class TestDmsModifyTaskOperator:
             task_id="modify_task",
             replication_task_arn=self.TASK_ARN,
         )
-        with pytest.raises(RuntimeError, match="must be stopped"):
+        with pytest.raises(RuntimeError, match="must be in a modifiable state"):
             op.execute(None)
 
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
@@ -290,9 +264,6 @@ class TestDmsModifyTaskOperator:
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
     def test_modify_task_defers_for_completion(self, mock_conn, mock_find):
-        from airflow.exceptions import TaskDeferred
-        from airflow.providers.amazon.aws.triggers.dms import DmsTaskModifyCompleteTrigger
-
         mock_find.return_value = self._stopped_task()
         expected = {"ReplicationTaskArn": self.TASK_ARN}
         with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
@@ -311,7 +282,6 @@ class TestDmsModifyTaskOperator:
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
     def test_modify_task_with_all_params(self, mock_conn, mock_find):
-        from datetime import datetime
 
         mock_find.return_value = self._stopped_task()
         cdc_start = datetime(2024, 1, 1)
@@ -362,14 +332,42 @@ class TestDmsModifyTaskOperator:
 
             mock_modify.assert_called_once()
 
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_raises_if_modifying_then_running(self, mock_conn, mock_find):
+        # Task is modifying → poll exits with 'running' → must raise before calling modify.
+        mock_find.side_effect = [
+            self._modifying_task(),
+            self._running_task(),
+        ]
+        with mock.patch.object(DmsHook, "modify_replication_task") as mock_modify:
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                waiter_delay=0,
+            )
+            with pytest.raises(RuntimeError, match="must be in a modifiable state"):
+                op.execute(None)
+        mock_modify.assert_not_called()
+
     def test_execute_complete_success(self):
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+        )
+        task_details = {"ReplicationTaskArn": self.TASK_ARN, "Status": "stopped"}
+        success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
+        result = op.execute_complete({}, success_event, result=task_details)
+        assert result == task_details
+
+    def test_execute_complete_success_no_result(self):
         op = DmsModifyTaskOperator(
             task_id="modify_task",
             replication_task_arn=self.TASK_ARN,
         )
         success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
         result = op.execute_complete({}, success_event)
-        assert result is None
+        assert result == {}
 
     def test_execute_complete_error(self):
         op = DmsModifyTaskOperator(

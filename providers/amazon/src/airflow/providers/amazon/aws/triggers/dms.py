@@ -21,7 +21,7 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.hooks.dms import DmsHook
+from airflow.providers.amazon.aws.hooks.dms import DMS_MODIFIABLE_STATES, DmsHook, DmsTaskState
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -274,10 +274,28 @@ class DmsTaskModifyCompleteTrigger(BaseTrigger):
         try:
             for _ in range(self.waiter_max_attempts):
                 status = await hook.get_task_status_async(self.replication_task_arn)
-                if status != "modifying":
+                if status is None:
                     yield TriggerEvent(
-                        {"status": "success", "replication_task_arn": self.replication_task_arn}
+                        {
+                            "status": "error",
+                            "message": f"Replication task {self.replication_task_arn} not found.",
+                            "replication_task_arn": self.replication_task_arn,
+                        }
                     )
+                    return
+                if status != DmsTaskState.MODIFYING:
+                    if status in DMS_MODIFIABLE_STATES:
+                        yield TriggerEvent(
+                            {"status": "success", "replication_task_arn": self.replication_task_arn}
+                        )
+                    else:
+                        yield TriggerEvent(
+                            {
+                                "status": "error",
+                                "message": f"Replication task {self.replication_task_arn} ended in unexpected state '{status}' after modification.",
+                                "replication_task_arn": self.replication_task_arn,
+                            }
+                        )
                     return
                 await asyncio.sleep(self.waiter_delay)
             yield TriggerEvent(

@@ -450,8 +450,8 @@ with DAG(
         describe_tasks,
         await_task_start,
         stop_task,
-        modify_task,
         await_task_stop,
+        modify_task,
         # TEST TEARDOWN
         delete_task,
         delete_assets,

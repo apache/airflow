@@ -58,6 +58,11 @@ class DmsTaskState(str, Enum):
     DELETING = "deleting"
 
 
+DMS_MODIFIABLE_STATES: frozenset[DmsTaskState] = frozenset(
+    {DmsTaskState.STOPPED, DmsTaskState.READY, DmsTaskState.FAILED}
+)
+
+
 class DmsHook(AwsBaseHook):
     """
     Interact with AWS Database Migration Service (DMS).

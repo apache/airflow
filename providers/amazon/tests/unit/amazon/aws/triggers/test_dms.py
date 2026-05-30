@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationStoppedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTaskModifyCompleteTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -186,3 +187,79 @@ class TestDmsReplicationDeprovisionedTrigger(TestBaseDmsTrigger):
         )
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()
+
+
+class TestDmsTaskModifyCompleteTrigger:
+    TASK_ARN = "arn:aws:dms:us-east-1:123456789012:task:EXAMPLE"
+
+    def test_serialization(self):
+        trigger = DmsTaskModifyCompleteTrigger(replication_task_arn=self.TASK_ARN)
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "DmsTaskModifyCompleteTrigger"
+        assert kwargs["replication_task_arn"] == self.TASK_ARN
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DmsHook, "get_task_status_async", new_callable=AsyncMock)
+    async def test_run_success(self, mock_status):
+        mock_status.return_value = "stopped"
+        trigger = DmsTaskModifyCompleteTrigger(replication_task_arn=self.TASK_ARN, waiter_delay=0)
+        response = await trigger.run().__anext__()
+        assert response == TriggerEvent({"status": "success", "replication_task_arn": self.TASK_ARN})
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DmsHook, "get_task_status_async", new_callable=AsyncMock)
+    async def test_run_task_not_found(self, mock_status):
+        mock_status.return_value = None
+        trigger = DmsTaskModifyCompleteTrigger(replication_task_arn=self.TASK_ARN, waiter_delay=0)
+        response = await trigger.run().__anext__()
+        assert response == TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Replication task {self.TASK_ARN} not found.",
+                "replication_task_arn": self.TASK_ARN,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DmsHook, "get_task_status_async", new_callable=AsyncMock)
+    async def test_run_unexpected_state(self, mock_status):
+        mock_status.return_value = "running"
+        trigger = DmsTaskModifyCompleteTrigger(replication_task_arn=self.TASK_ARN, waiter_delay=0)
+        response = await trigger.run().__anext__()
+        assert response == TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Replication task {self.TASK_ARN} ended in unexpected state 'running' after modification.",
+                "replication_task_arn": self.TASK_ARN,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DmsHook, "get_task_status_async", new_callable=AsyncMock)
+    async def test_run_timeout(self, mock_status):
+        mock_status.return_value = "modifying"
+        trigger = DmsTaskModifyCompleteTrigger(
+            replication_task_arn=self.TASK_ARN, waiter_delay=0, waiter_max_attempts=2
+        )
+        response = await trigger.run().__anext__()
+        assert response == TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Replication task {self.TASK_ARN} did not exit 'modifying' state after 2 attempts.",
+                "replication_task_arn": self.TASK_ARN,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DmsHook, "get_task_status_async", new_callable=AsyncMock)
+    async def test_run_exception(self, mock_status):
+        mock_status.side_effect = Exception("connection error")
+        trigger = DmsTaskModifyCompleteTrigger(replication_task_arn=self.TASK_ARN, waiter_delay=0)
+        response = await trigger.run().__anext__()
+        assert response == TriggerEvent(
+            {
+                "status": "error",
+                "message": "connection error",
+                "replication_task_arn": self.TASK_ARN,
+            }
+        )
