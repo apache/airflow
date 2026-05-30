@@ -835,7 +835,7 @@ class DagRun(Base, LoggingMixin):
         dag_id: str | None = None,
         run_id: str | None = None,
         task_ids: list[str] | None = None,
-        state: Iterable[TaskInstanceState | None] | None = None,
+        state: TaskInstanceState | Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """Return the task instances for this dag run."""
@@ -915,7 +915,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_task_instances(
         self,
-        state: Iterable[TaskInstanceState | None] | None = None,
+        state: TaskInstanceState | Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
