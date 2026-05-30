@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 import attrs
 import structlog
 from sqlalchemy import select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -65,6 +66,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
@@ -89,6 +91,9 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+
+log = structlog.get_logger(__name__)
 
 
 class DagParsingStat(NamedTuple):
@@ -1568,6 +1573,16 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     stats.gauge("dag_processing.total_parse_time", parse_time)
     stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
     stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
+    # Gated by config so large deployments can opt out of the extra DB round-trip.
+    # On failure an error counter is incremented so dashboards can alert on
+    # missing samples rather than silently showing a stale last value.
+    if conf.getboolean("scheduler", "emit_serialized_dag_count_metric", fallback=True):
+        try:
+            with create_session() as session:
+                stats.gauge("serialized_dag.count", SerializedDagModel.get_count(session=session))
+        except SQLAlchemyError:
+            log.exception("Failed to emit serialized_dag.count metric")
+            stats.incr("serialized_dag.count_error")
 
 
 def process_parse_results(

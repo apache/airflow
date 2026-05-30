@@ -145,6 +145,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "serialized_dag.count_error"
+    description: "Number of failures querying the serialized DAG count metric from the database"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.tasks.killed_externally"
     description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -315,6 +321,12 @@ metrics:
   # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "serialized_dag.count"
+    description: "Total number of serialized DAGs stored in the database"
     type: "gauge"
     legacy_name: "-"
     name_variables: []

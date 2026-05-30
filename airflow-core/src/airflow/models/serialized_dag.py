@@ -877,6 +877,21 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_count(cls, session: Session = NEW_SESSION) -> int:
+        """
+        Return the total number of serialized DAGs stored in the database.
+
+        Uses ``scalar_one()`` to enforce "exactly one row" semantics.
+        ``COUNT(*)`` always returns exactly one row, so ``scalar_one()`` makes
+        that contract explicit and will raise ``MultipleResultsFound`` if the
+        query shape ever changes unexpectedly.
+
+        :param session: ORM Session
+        """
+        return session.execute(select(func.count()).select_from(cls)).scalar_one()
+
+    @classmethod
+    @provide_session
     def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:

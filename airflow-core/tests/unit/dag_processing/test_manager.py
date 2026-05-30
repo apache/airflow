@@ -2790,3 +2790,60 @@ class TestDagFileProcessorManager:
 
         assert manager._bundle_versions["mock_bundle"] == "newhash"
         assert manager._bundle_version_data["mock_bundle"] == test_data
+
+
+class TestEmitMetrics:
+    """Tests for the emit_metrics module-level function."""
+
+    def test_emit_metrics_emits_serialized_dag_count(self):
+        """emit_metrics emits the serialized_dag.count gauge with the value from get_count."""
+        from airflow.dag_processing.manager import emit_metrics
+
+        with mock.patch("airflow.dag_processing.manager.conf") as mock_conf:
+            mock_conf.getboolean.return_value = True
+            with mock.patch("airflow.dag_processing.manager.create_session"):
+                with mock.patch(
+                    "airflow.dag_processing.manager.SerializedDagModel.get_count", return_value=3
+                ):
+                    with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+                        emit_metrics(parse_time=1.0, dag_file_stats=[])
+
+        mock_stats.gauge.assert_any_call("serialized_dag.count", 3)
+
+    def test_emit_metrics_logs_and_swallows_db_error(self):
+        """emit_metrics logs, increments error counter, and swallows SQLAlchemyError from get_count."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from airflow.dag_processing.manager import emit_metrics
+
+        with mock.patch("airflow.dag_processing.manager.conf") as mock_conf:
+            mock_conf.getboolean.return_value = True
+            with mock.patch("airflow.dag_processing.manager.create_session"):
+                with mock.patch(
+                    "airflow.dag_processing.manager.SerializedDagModel.get_count",
+                    side_effect=SQLAlchemyError("db failure"),
+                ):
+                    with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+                        with mock.patch("airflow.dag_processing.manager.log") as mock_log:
+                            emit_metrics(parse_time=1.0, dag_file_stats=[])
+
+        mock_log.exception.assert_called_once_with("Failed to emit serialized_dag.count metric")
+        mock_stats.incr.assert_called_once_with("serialized_dag.count_error")
+
+    def test_emit_metrics_skips_serialized_dag_count_when_disabled(self):
+        """emit_metrics does not query or emit serialized_dag.count when config is False."""
+        from airflow.dag_processing.manager import emit_metrics
+
+        with mock.patch("airflow.dag_processing.manager.conf") as mock_conf:
+            mock_conf.getboolean.return_value = False
+            with mock.patch(
+                "airflow.dag_processing.manager.SerializedDagModel.get_count"
+            ) as mock_get_count:
+                with mock.patch("airflow.dag_processing.manager.stats") as mock_stats:
+                    emit_metrics(parse_time=1.0, dag_file_stats=[])
+
+        mock_get_count.assert_not_called()
+        assert not any(
+            call == mock.call("serialized_dag.count", mock.ANY)
+            for call in mock_stats.gauge.call_args_list
+        )
