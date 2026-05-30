@@ -30,9 +30,13 @@ from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import text
 
-from airflow.migrations.utils import mysql_drop_foreignkey_if_exists
+from airflow.migrations.utils import (
+    disable_sqlite_fkeys,
+    get_dialect_name,
+    ignore_sqlite_value_error,
+    mysql_drop_foreignkey_if_exists,
+)
 
 # revision identifiers, used by Alembic.
 revision = "05234396c6fc"
@@ -100,22 +104,17 @@ def _rename_pk_constraint(
 
 
 def _drop_fkey_if_exists(table, constraint_name):
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
+    dialect_name = get_dialect_name(op)
 
-    if dialect_name == "sqlite":
-        # SQLite requires foreign key constraints to be disabled during batch operations
-        conn.execute(text("PRAGMA foreign_keys=OFF"))
-        try:
+    if dialect_name == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
+    elif dialect_name == "postgresql":
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+    else:
+        # SQLite requires foreign key constraints to be disabled during batch operations.
+        with disable_sqlite_fkeys(op), ignore_sqlite_value_error():
             with op.batch_alter_table(table, schema=None) as batch_op:
                 batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
-        except ValueError:
-            pass
-        conn.execute(text("PRAGMA foreign_keys=ON"))
-    elif dialect_name == "mysql":
-        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
-    else:
-        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
 
 
 # original table name to new table name

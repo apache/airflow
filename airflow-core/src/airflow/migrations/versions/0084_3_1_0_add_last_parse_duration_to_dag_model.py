@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import text
+
+from airflow.migrations.utils import disable_sqlite_fkeys
 
 # revision identifiers, used by Alembic.
 revision = "eaf332f43c7c"
@@ -47,15 +48,6 @@ def upgrade():
 
 def downgrade():
     """Unapply add last_parse_duration to dag model."""
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
-
-    if dialect_name == "sqlite":
-        # SQLite requires foreign key constraints to be disabled during batch operations
-        conn.execute(text("PRAGMA foreign_keys=OFF"))
-        with op.batch_alter_table("dag", schema=None) as batch_op:
-            batch_op.drop_column("last_parse_duration")
-        conn.execute(text("PRAGMA foreign_keys=ON"))
-    else:
+    with disable_sqlite_fkeys(op):
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.drop_column("last_parse_duration")
