@@ -1,0 +1,6 @@
+Fix scheduler ``executor`` label for executor aliases
+
+The scheduler ``executor`` label now replaces the colon used in executor aliases
+(``name:ExecutorClass``) in addition to the comma separator between multiple
+executors, so aliased and multi-executor configurations render a valid Kubernetes
+label instead of failing to deploy.
