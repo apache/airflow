@@ -3386,6 +3386,27 @@
       "title": "SetAssetStateByUri",
       "type": "object"
     },
+    "SetIntendedTerminalState": {
+      "description": "Pre-announce the intended terminal state so supervisor can recover it if the terminal-state message fails to deliver.",
+      "properties": {
+        "state": {
+          "const": "skipped",
+          "title": "State",
+          "type": "string"
+        },
+        "type": {
+          "const": "SetIntendedTerminalState",
+          "default": "SetIntendedTerminalState",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "SetIntendedTerminalState",
+      "type": "object"
+    },
     "SetRenderedFields": {
       "description": "Payload for setting RTIF for a task instance.",
       "properties": {
