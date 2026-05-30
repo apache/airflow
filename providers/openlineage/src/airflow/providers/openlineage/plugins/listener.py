@@ -33,6 +33,10 @@ from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf, hoo
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
+from airflow.providers.openlineage.utils.emission_policy import (
+    resolve_dag_emission_policy,
+    resolve_task_emission_policy,
+)
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
@@ -49,8 +53,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
-    is_operator_disabled,
-    is_selective_lineage_enabled,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -180,20 +182,16 @@ class OpenLineageListener:
     def _on_task_instance_running(
         self, task_instance: RuntimeTaskInstance | TaskInstance, dag, dagrun, task, start_date: datetime
     ):
-        if is_operator_disabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for operator `%s` "
-                "due to its presence in [openlineage] disabled_for_operators.",
-                task.task_type,
-            )
-            return
-
-        if not is_selective_lineage_enabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for task `%s` "
-                "due to lack of explicit lineage enablement for task or DAG while "
-                "[openlineage] selective_enable is on.",
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
                 task_instance.task_id,
+                task_instance.dag_id,
             )
             return
 
@@ -242,13 +240,23 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
-                task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun=dagrun,
-                    task=task,
-                    task_instance_state=TaskInstanceState.RUNNING,
-                    task_instance=task_instance,
+            if controls.extract_operator_metadata:
+                with Stats.timer(
+                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                ):
+                    task_metadata = self.extractor_manager.extract_metadata(
+                        dagrun=dagrun,
+                        task=task,
+                        task_instance_state=TaskInstanceState.RUNNING,
+                        task_instance=task_instance,
+                        controls=controls,
+                    )
+            else:
+                self.log.info(
+                    "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
+                    task_instance.task_id,
                 )
+                task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
@@ -270,7 +278,14 @@ class OpenLineageListener:
                         dr_conf=getattr(dagrun, "conf", {}),
                     ),
                     **get_airflow_mapped_task_facet(task_instance),
-                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_run_facet(
+                        dagrun,
+                        dag,
+                        task_instance,
+                        task,
+                        task_uuid,
+                        include_full_task_info=controls.include_full_task_info,
+                    ),
                     **debug_facet,
                 },
             )
@@ -324,20 +339,16 @@ class OpenLineageListener:
     def _on_task_instance_success(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
         end_date = timezone.utcnow()
 
-        if is_operator_disabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for operator `%s` "
-                "due to its presence in [openlineage] disabled_for_operators.",
-                task.task_type,
-            )
-            return
-
-        if not is_selective_lineage_enabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for task `%s` "
-                "due to lack of explicit lineage enablement for task or DAG while "
-                "[openlineage] selective_enable is on.",
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
                 task_instance.task_id,
+                task_instance.dag_id,
             )
             return
 
@@ -374,13 +385,23 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
-                task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun=dagrun,
-                    task=task,
-                    task_instance_state=TaskInstanceState.SUCCESS,
-                    task_instance=task_instance,
+            if controls.extract_operator_metadata:
+                with Stats.timer(
+                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                ):
+                    task_metadata = self.extractor_manager.extract_metadata(
+                        dagrun=dagrun,
+                        task=task,
+                        task_instance_state=TaskInstanceState.SUCCESS,
+                        task_instance=task_instance,
+                        controls=controls,
+                    )
+            else:
+                self.log.info(
+                    "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
+                    task_instance.task_id,
                 )
+                task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
@@ -401,7 +422,14 @@ class OpenLineageListener:
                         parent_job_name=dag.dag_id,
                         dr_conf=getattr(dagrun, "conf", {}),
                     ),
-                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_run_facet(
+                        dagrun,
+                        dag,
+                        task_instance,
+                        task,
+                        task_uuid,
+                        include_full_task_info=controls.include_full_task_info,
+                    ),
                     **get_airflow_debug_facet(),
                 },
             )
@@ -470,20 +498,16 @@ class OpenLineageListener:
     ) -> None:
         end_date = timezone.utcnow()
 
-        if is_operator_disabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for operator `%s` "
-                "due to its presence in [openlineage] disabled_for_operators.",
-                task.task_type,
-            )
-            return
-
-        if not is_selective_lineage_enabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for task `%s` "
-                "due to lack of explicit lineage enablement for task or DAG while "
-                "[openlineage] selective_enable is on.",
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
                 task_instance.task_id,
+                task_instance.dag_id,
             )
             return
 
@@ -520,13 +544,23 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
-                task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun=dagrun,
-                    task=task,
-                    task_instance_state=TaskInstanceState.FAILED,
-                    task_instance=task_instance,
+            if controls.extract_operator_metadata:
+                with Stats.timer(
+                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                ):
+                    task_metadata = self.extractor_manager.extract_metadata(
+                        dagrun=dagrun,
+                        task=task,
+                        task_instance_state=TaskInstanceState.FAILED,
+                        task_instance=task_instance,
+                        controls=controls,
+                    )
+            else:
+                self.log.info(
+                    "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
+                    task_instance.task_id,
                 )
+                task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
@@ -548,7 +582,14 @@ class OpenLineageListener:
                         parent_job_name=dag.dag_id,
                         dr_conf=getattr(dagrun, "conf", {}),
                     ),
-                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_run_facet(
+                        dagrun,
+                        dag,
+                        task_instance,
+                        task,
+                        task_uuid,
+                        include_full_task_info=controls.include_full_task_info,
+                    ),
                     **get_airflow_debug_facet(),
                 },
             )
@@ -593,20 +634,16 @@ class OpenLineageListener:
     ) -> None:
         end_date = timezone.utcnow()
 
-        if is_operator_disabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for operator `%s` "
-                "due to its presence in [openlineage] disabled_for_operators.",
-                task.task_type,
-            )
-            return
-
-        if not is_selective_lineage_enabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for task `%s` "
-                "due to lack of explicit lineage enablement for task or DAG while "
-                "[openlineage] selective_enable is on.",
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
                 task_instance.task_id,
+                task_instance.dag_id,
             )
             return
 
@@ -643,13 +680,23 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
-                task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun=dagrun,
-                    task=task,
-                    task_instance_state=TaskInstanceState.SKIPPED,
-                    task_instance=task_instance,
+            if controls.extract_operator_metadata:
+                with Stats.timer(
+                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                ):
+                    task_metadata = self.extractor_manager.extract_metadata(
+                        dagrun=dagrun,
+                        task=task,
+                        task_instance_state=TaskInstanceState.SKIPPED,
+                        task_instance=task_instance,
+                        controls=controls,
+                    )
+            else:
+                self.log.info(
+                    "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
+                    task_instance.task_id,
                 )
+                task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
@@ -670,7 +717,14 @@ class OpenLineageListener:
                         parent_job_name=dag.dag_id,
                         dr_conf=getattr(dagrun, "conf", {}),
                     ),
-                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_run_facet(
+                        dagrun,
+                        dag,
+                        task_instance,
+                        task,
+                        task_uuid,
+                        include_full_task_info=controls.include_full_task_info,
+                    ),
                     **get_airflow_debug_facet(),
                 },
             )
@@ -704,23 +758,22 @@ class OpenLineageListener:
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
 
+        include_full_task_info = False
         task = getattr(ti, "task")  # on scheduler, we should have access to task
-        if task and is_operator_disabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for operator `%s` "
-                "due to its presence in [openlineage] disabled_for_operators.",
-                task.task_type,
+        if task:
+            controls = resolve_task_emission_policy(
+                operator=task,
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
             )
-            return
-
-        if task and not is_selective_lineage_enabled(task):
-            self.log.debug(
-                "Skipping OpenLineage event emission for task `%s` "
-                "due to lack of explicit lineage enablement for task or DAG while "
-                "[openlineage] selective_enable is on.",
-                ti.task_id,
-            )
-            return
+            if not controls.emit:
+                self.log.info(
+                    "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
+                    ti.task_id,
+                    ti.dag_id,
+                )
+                return
+            include_full_task_info = controls.include_full_task_info
 
         try:
             if not self.executor:
@@ -777,7 +830,14 @@ class OpenLineageListener:
                         doc, doc_type = get_dag_documentation(dag)
                     dag_tags = dag.tags
                     owners = [x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")]
-                    airflow_run_facet = get_airflow_run_facet(dagrun, dag, ti, task, task_uuid)
+                    airflow_run_facet = get_airflow_run_facet(
+                        dagrun,
+                        dag,
+                        ti,
+                        task,
+                        task_uuid,
+                        include_full_task_info=include_full_task_info,
+                    )
 
             adapter_kwargs: dict = {
                 "run_id": task_uuid,
@@ -812,9 +872,10 @@ class OpenLineageListener:
             )
         except BaseException as e:
             self.log.warning(
-                "OpenLineage received exception in method `_on_task_instance_manual_state_change`",
-                exc_info=e,
+                "OpenLineage received exception in method `_on_task_instance_manual_state_change`: `%s`",
+                e,
             )
+            self.log.debug("OpenLineage exception details:", exc_info=True)
 
     def _execute(self, callable, callable_name: str, use_fork: bool = False):
         if use_fork:
@@ -862,8 +923,8 @@ class OpenLineageListener:
                 self.log.warning(
                     "OpenLineage %s process failed. This has no impact on actual task execution status.",
                     callable_name,
-                    exc_info=True,
                 )
+                self.log.debug("OpenLineage %s process failure details:", callable_name, exc_info=True)
             finally:
                 # os._exit(0) bypasses Python's atexit/stdio flush. Explicitly shut down
                 # logging so buffered records (including any warnings above) are flushed
@@ -894,11 +955,10 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
         try:
-            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-                self.log.debug(
-                    "Skipping OpenLineage event emission for DAG `%s` "
-                    "due to lack of explicit lineage enablement for DAG while "
-                    "[openlineage] selective_enable is on.",
+            dag_event_controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            if not dag_event_controls.emit:
+                self.log.info(
+                    "Skipping OpenLineage dag event emission for DAG `%s`.",
                     dag_run.dag_id,
                 )
                 return
@@ -941,16 +1001,16 @@ class OpenLineageListener:
                 is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_running", exc_info=e)
+            self.log.warning("OpenLineage received exception in method on_dag_run_running: `%s`", e)
+            self.log.debug("OpenLineage exception details:", exc_info=True)
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
         try:
-            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-                self.log.debug(
-                    "Skipping OpenLineage event emission for DAG `%s` "
-                    "due to lack of explicit lineage enablement for DAG while "
-                    "[openlineage] selective_enable is on.",
+            dag_event_controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            if not dag_event_controls.emit:
+                self.log.info(
+                    "Skipping OpenLineage dag event emission for DAG `%s`.",
                     dag_run.dag_id,
                 )
                 return
@@ -993,16 +1053,16 @@ class OpenLineageListener:
                 is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
+            self.log.warning("OpenLineage received exception in method on_dag_run_success: `%s`", e)
+            self.log.debug("OpenLineage exception details:", exc_info=True)
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
         try:
-            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-                self.log.debug(
-                    "Skipping OpenLineage event emission for DAG `%s` "
-                    "due to lack of explicit lineage enablement for DAG while "
-                    "[openlineage] selective_enable is on.",
+            dag_event_controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            if not dag_event_controls.emit:
+                self.log.info(
+                    "Skipping OpenLineage dag event emission for DAG `%s`.",
                     dag_run.dag_id,
                 )
                 return
@@ -1046,7 +1106,8 @@ class OpenLineageListener:
                 is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
+            self.log.warning("OpenLineage received exception in method on_dag_run_failed: `%s`", e)
+            self.log.debug("OpenLineage exception details:", exc_info=True)
 
     def submit_callable(self, callable, *args, **kwargs):
         fut = self.executor.submit(callable, *args, **kwargs)
@@ -1055,7 +1116,8 @@ class OpenLineageListener:
 
     def log_submit_error(self, fut):
         if fut.exception():
-            self.log.warning("Failed to submit method to executor", exc_info=fut.exception())
+            self.log.warning("Failed to submit OpenLineage method to executor: `%s`", fut.exception())
+            self.log.debug("OpenLineage submit failure details:", exc_info=fut.exception())
         else:
             self.log.debug("Successfully submitted method to executor")
 

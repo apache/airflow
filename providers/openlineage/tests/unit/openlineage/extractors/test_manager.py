@@ -316,6 +316,78 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     assert metadata.outputs == []
 
 
+@pytest.mark.parametrize("hook_lineage", [True, False])
+def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
+    hook_lineage, hook_lineage_collector
+):
+    """
+    Regression: when no extractor matches and no hook lineage is collected, the no-extractor
+    fallback must still emit the ``unknownSourceAttribute`` run facet AND extract manually
+    declared inlets/outlets — for both ``hook_lineage=True`` (default) and ``hook_lineage=False``.
+    """
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    class FakeUnsupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+    dagrun = MagicMock()
+    task = FakeUnsupportedOperator(task_id="unsupported_task", inlets=inlets, outlets=outlets)
+    ti = MagicMock()
+
+    controls = EmissionPolicy(
+        emit=True,
+        extract_operator_metadata=True,
+        include_source_code=True,
+        hook_lineage=hook_lineage,
+        include_full_task_info=False,
+    )
+
+    extractor_manager = ExtractorManager()
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti, controls=controls
+    )
+
+    assert "unknownSourceAttribute" in metadata.run_facets
+    assert metadata.inputs == inlets
+    assert metadata.outputs == outlets
+
+
+def test_get_extractor_supports_legacy_custom_extractor_signature():
+    """
+    Regression: custom extractors may use the historically-public ``__init__(self, operator)``
+    signature. ``_get_extractor`` must construct them without passing ``source_code_enabled`` as
+    a constructor kwarg (which would raise ``TypeError`` and drop the whole task event), and set
+    the flag afterward.
+    """
+    from airflow.providers.openlineage.extractors.base import BaseExtractor
+
+    class LegacyExtractor(BaseExtractor):
+        def __init__(self, operator):  # legacy signature - no source_code_enabled kwarg
+            self.operator = operator
+
+        @classmethod
+        def get_operator_classnames(cls):
+            return ["LegacyOperator"]
+
+        def _execute_extraction(self):
+            return OperatorLineage()
+
+    task = MagicMock()
+    task.task_type = "LegacyOperator"
+
+    extractor_manager = ExtractorManager()
+    extractor_manager.add_extractor("LegacyOperator", LegacyExtractor)
+
+    extractor = extractor_manager._get_extractor(task, source_code_enabled=False)
+    assert isinstance(extractor, LegacyExtractor)
+    assert extractor.operator is task
+    assert extractor.source_code_enabled is False
+
+
 @pytest.mark.skipif(
     AIRFLOW_V_3_0_PLUS,
     reason="Test for hook level lineage in Airflow < 3.0",
