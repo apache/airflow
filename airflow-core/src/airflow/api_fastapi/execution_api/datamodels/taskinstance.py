@@ -109,12 +109,6 @@ class TISuccessStatePayload(StrictBaseModel):
     rendered_map_index: str | None = None
 
 
-class TITargetStatePayload(StrictBaseModel):
-    """Schema for updating TaskInstance to a target state, excluding terminal and running states."""
-
-    state: IntermediateTIState
-
-
 class TIDeferredStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to a deferred state."""
 
@@ -218,15 +212,13 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
         return "up_for_reschedule"
     if state == TIState.UP_FOR_RETRY:
         return "up_for_retry"
-    return "_other_"
+    return "__unsupported__"
 
 
 # It is called "_terminal_" to avoid future conflicts if we added an actual state named "terminal"
-# and "_other_" is a catch-all for all other states that are not covered by the other schemas.
 TIStateUpdate = Annotated[
     Annotated[TITerminalStatePayload, Tag("_terminal_")]
     | Annotated[TISuccessStatePayload, Tag("success")]
-    | Annotated[TITargetStatePayload, Tag("_other_")]
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
