@@ -62,13 +62,33 @@ class BranchMixIn(SkipMixin):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:
-            if branch in dag.task_group_dict:
-                tg = dag.task_group_dict[branch]
+            resolved = self._resolve_branch_id(task, dag, branch)
+            if resolved in dag.task_group_dict:
+                tg = dag.task_group_dict[resolved]
                 root_ids = [root.task_id for root in tg.roots]
                 self.log.info("Expanding task group %s into %s", tg.group_id, root_ids)
                 yield from root_ids
             else:
-                yield branch
+                yield resolved
+
+    def _resolve_branch_id(self, task, dag, branch: str) -> str:
+        """
+        Resolve a branch id, allowing relative ids when called from inside a task group.
+
+        If ``branch`` matches a task or task group id as-is, return it unchanged.
+        Otherwise, if the caller is inside a prefixed task group, try resolving
+        ``branch`` as ``"{group_id}.{branch}"`` so a branch inside group ``g``
+        can return ``"path_a"`` instead of ``"g.path_a"``.
+        """
+        if branch in dag.task_group_dict or branch in dag.task_dict:
+            return branch
+        tg = getattr(task, "task_group", None)
+        if tg is not None and tg.group_id and tg.prefix_group_id:
+            candidate = f"{tg.group_id}.{branch}"
+            if candidate in dag.task_group_dict or candidate in dag.task_dict:
+                self.log.info("Resolving relative branch %r as %r", branch, candidate)
+                return candidate
+        return branch
 
 
 class BaseBranchOperator(BaseOperator, BranchMixIn):
