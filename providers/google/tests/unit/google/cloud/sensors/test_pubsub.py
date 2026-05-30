@@ -167,6 +167,25 @@ class TestPubSubPullSensor:
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
+        assert exc.value.trigger.return_immediately is False
+
+    def test_pubsub_pull_sensor_async_with_return_immediately_true(self):
+        """
+        Asserts that a task is deferred and a PubsubPullTrigger will be fired
+        with custom return_immediately value.
+        """
+        task = PubSubPullSensor(
+            task_id="test_task_id",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+            return_immediately=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={})
+        assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
+        assert exc.value.trigger.return_immediately is True
 
     def test_pubsub_pull_sensor_async_execute_should_throw_exception(self):
         """Tests that an AirflowException is raised in case of error event"""

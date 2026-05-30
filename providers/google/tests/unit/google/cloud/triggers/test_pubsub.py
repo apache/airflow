@@ -74,7 +74,33 @@ class TestPubsubPullTrigger:
             "poke_interval": TEST_POLL_INTERVAL,
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "impersonation_chain": None,
+            "return_immediately": False,
         }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
+    async def test_async_pubsub_pull_trigger_passes_return_immediately(self, mock_pull):
+        """Test that return_immediately is passed to the hook."""
+        mock_pull.return_value = await generate_messages(1)
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=False,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+            return_immediately=True,
+        )
+
+        await trigger.run().asend(None)
+
+        mock_pull.assert_called_once_with(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            return_immediately=True,
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
