@@ -26,6 +26,7 @@ class ClassBasedListener:
         self.started_component = None
         self.stopped_component = None
         self.state = []
+        self.last_error: BaseException | None = None
 
     @hookimpl
     def on_starting(self, component):
@@ -46,8 +47,9 @@ class ClassBasedListener:
         self.state.append(TaskInstanceState.SUCCESS)
 
     @hookimpl
-    def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
+    def on_task_instance_failed(self, previous_state, task_instance, error: BaseException | None):
         self.state.append(TaskInstanceState.FAILED)
+        self.last_error = error
 
     @hookimpl
     def on_task_instance_skipped(self, previous_state, task_instance):

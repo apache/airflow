@@ -99,7 +99,7 @@ def on_task_instance_success(
 def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
-    error: None | str | BaseException,
+    error: BaseException | None,
 ):
     """
     Called when task state changes to FAILED.
@@ -108,7 +108,8 @@ def on_task_instance_failed(
     task_instance that has failed, its dag_run, task and dag information.
 
     A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
-    through the API. In that case, the TaskInstance available on the API server will be provided instead.
+    through the API. In that case, the TaskInstance available on the API server will be provided instead,
+    and ``error`` is a ``RuntimeError`` carrying the human-readable reason.
     """
     print("Task instance in failure state")
 
