@@ -57,6 +57,15 @@ repos:
         entry: ../scripts/ci/prek/check_init_decorator_arguments.py
         pass_filenames: false
         files: ^src/airflow/sdk/definitions/dag\.py$|^src/airflow/sdk/definitions/decorators/task_group\.py$
+      - id: check-no-caplog-in-tests
+        language: pygrep
+        name: Tests do not use caplog fixture
+        description: >
+          Do not use caplog in tests — prefer checking logic and not log output.
+          See https://github.com/apache/airflow/blob/main/CLAUDE.md#testing-standards
+        entry: \bcaplog\b
+        pass_filenames: true
+        files: ^tests/.*\.py$
       - id: mypy-task-sdk
         name: Run mypy for task-sdk
         language: python
