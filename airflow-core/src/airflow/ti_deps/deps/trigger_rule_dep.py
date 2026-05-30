@@ -101,8 +101,9 @@ class TriggerRuleDep(BaseTIDep):
     def _get_dep_statuses(
         self,
         ti: TaskInstance,
-        session: Session,
         dep_context: DepContext,
+        *,
+        session: Session,
     ) -> Iterator[TIDepStatus]:
         if TYPE_CHECKING:
             assert ti.task
