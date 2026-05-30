@@ -1529,6 +1529,60 @@ class TestTIUpdateState:
             else:
                 assert t[0].queue is None
 
+    @pytest.mark.parametrize(
+        ("multi_team_enabled", "expect_team"),
+        [
+            pytest.param("False", False, id="multi-team-disabled"),
+            pytest.param("True", True, id="multi-team-enabled"),
+        ],
+    )
+    def test_ti_update_state_to_deferred_populates_trigger_team_name(
+        self, client, session, create_task_instance, time_machine, multi_team_enabled, expect_team
+    ):
+        """Trigger created on deferral gets team_name from the TI's bundle."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+        from airflow.models.trigger import Trigger
+
+        instant = timezone.datetime(2024, 11, 22)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_deferred_team",
+            state=State.RUNNING,
+            session=session,
+        )
+
+        bundle_name = "bundle_deferred_team_test"
+        team_name = "team_deferred_test"
+        bundle = session.get(DagBundleModel, bundle_name) or DagBundleModel(name=bundle_name)
+        team = session.get(Team, team_name) or Team(name=team_name)
+        if team not in bundle.teams:
+            bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+        }
+
+        with conf_vars({("core", "multi_team"): multi_team_enabled}):
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        trigger = session.scalars(select(Trigger)).one()
+        if expect_team:
+            assert trigger.team_name == team_name
+        else:
+            assert trigger.team_name is None
+
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
         """
         Test that tests if the transition to reschedule state is handled correctly.

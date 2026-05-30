@@ -240,7 +240,7 @@ class Deadline(Base):
                 "context": get_simple_context()
             }
 
-            self.callback.queue()
+            self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 

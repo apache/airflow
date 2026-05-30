@@ -68,7 +68,12 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    CurrentTIToken,
+    ExecutionAPIRoute,
+    get_team_name_for_ti,
+    require_auth,
+)
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
@@ -287,8 +292,6 @@ def ti_run(
             )
             or 0
         )
-
-        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
 
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
@@ -613,6 +616,7 @@ def _create_ti_state_update_query_and_update_state(
             classpath=ti_patch_payload.classpath,
             kwargs={},
             queue=ti_patch_payload.queue,
+            team_name=get_team_name_for_ti(task_instance_id, session),
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
