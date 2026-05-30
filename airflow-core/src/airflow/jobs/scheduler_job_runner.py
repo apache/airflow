@@ -2888,7 +2888,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     duration,
                     tags=prune_dict(
                         {
-                            "dag_id": dag_run.dag_id,
+                            **dag_run.stats_tags,
                             "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
                                 dag_run.dag_id
                             )
