@@ -268,3 +268,74 @@ class TestSentryHook:
         sentry_minimum.prepare_to_enrich_errors(executor_integration="")
         assert mock_sentry_sdk.integrations.logging.ignore_logger.mock_calls == [mock.call("airflow.task")]
         assert mock_sentry_sdk.init.mock_calls == [mock.call(integrations=[])]
+
+    @pytest.mark.parametrize(
+        ("failing_step", "expected_event"),
+        [
+            ("prepare_to_enrich_errors", "sentry_prepare_failed"),
+            ("add_tagging", "sentry_add_tagging_failed"),
+            ("add_breadcrumbs", "sentry_add_breadcrumbs_failed"),
+        ],
+    )
+    def test_enrich_errors_isolates_instrumentation_from_task_run(
+        self,
+        mock_sentry_sdk,
+        sentry,
+        dag_run,
+        task_instance,
+        failing_step,
+        expected_event,
+    ):
+        """An instrumentation failure must not prevent the wrapped task from running.
+
+        ``add_tagging`` / ``add_breadcrumbs`` / ``prepare_to_enrich_errors`` exceptions used to
+        propagate as task failures (the wrapped ``run()`` never executed). Each is now wrapped
+        in its own try/except so instrumentation is best-effort.
+        """
+        ran = {"value": False}
+
+        def fake_run(ti, context, log):
+            ran["value"] = True
+            return "result"
+
+        log = mock.MagicMock()
+        sentry_sdk_module = sys.modules["sentry_sdk"]
+        sentry_sdk_module.new_scope = mock.MagicMock()
+        sentry_sdk_module.new_scope.return_value.__enter__ = mock.MagicMock()
+        sentry_sdk_module.new_scope.return_value.__exit__ = mock.MagicMock(return_value=False)
+
+        with mock.patch.object(sentry, failing_step, side_effect=RuntimeError("instrumentation broken")):
+            wrapped = sentry.enrich_errors(fake_run)
+            result = wrapped(task_instance, {"dag_run": dag_run}, log)
+
+        assert ran["value"] is True, f"wrapped run() must execute even when {failing_step} raises"
+        assert result == "result"
+        # The instrumentation failure is surfaced via a structured warning on the task log.
+        warning_events = [c for c in log.warning.mock_calls if c.args and c.args[0] == expected_event]
+        assert len(warning_events) == 1
+
+    def test_enrich_errors_captures_and_reraises_task_failure(
+        self,
+        mock_sentry_sdk,
+        sentry,
+        dag_run,
+        task_instance,
+    ):
+        """The wrapped run() failing still goes through capture_exception + re-raise (unchanged)."""
+        sentry_sdk_module = sys.modules["sentry_sdk"]
+        sentry_sdk_module.capture_exception = mock.MagicMock()
+        sentry_sdk_module.new_scope = mock.MagicMock()
+        sentry_sdk_module.new_scope.return_value.__enter__ = mock.MagicMock()
+        sentry_sdk_module.new_scope.return_value.__exit__ = mock.MagicMock(return_value=False)
+
+        task_error = RuntimeError("task itself failed")
+
+        def fake_run(ti, context, log):
+            raise task_error
+
+        log = mock.MagicMock()
+        wrapped = sentry.enrich_errors(fake_run)
+        with pytest.raises(RuntimeError, match="task itself failed"):
+            wrapped(task_instance, {"dag_run": dag_run}, log)
+
+        sentry_sdk_module.capture_exception.assert_called_once_with(task_error)
