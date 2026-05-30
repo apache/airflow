@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -154,6 +155,9 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.queue,
+            TI.queued_dttm,
+            TI.end_date,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -233,6 +237,17 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # Emit task.queued_duration on the first QUEUED -> RUNNING transition. In Airflow 2 the
+        # worker emitted this from TaskInstance._check_and_change_state_before_execution; in
+        # Airflow 3 the worker reaches RUNNING through this endpoint, so emit here instead.
+        # Skip on retries (end_date already set from a previous attempt) to keep the legacy
+        # "only on first try" semantics from TaskInstance.emit_state_change_metric.
+        if ti.end_date is None and ti.queued_dttm is not None:
+            stats.timing(
+                "task.queued_duration",
+                timezone.utcnow() - ti.queued_dttm,
+                tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue},
+            )
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
