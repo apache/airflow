@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import functools
+import inspect
+from typing import get_type_hints
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -274,7 +277,7 @@ class TestBaseAIHookResolveTools:
         mock_log.info.assert_called()
 
     def test_resolve_tools_wraps_plain_callable(self):
-        """A bare Python function is auto-wrapped using __name__ and __doc__."""
+        """A plain function is auto-wrapped using __name__ and __doc__."""
 
         class ConcreteHook(BaseAIHook):
             conn_type = "test"
@@ -290,7 +293,7 @@ class TestBaseAIHookResolveTools:
                 return AgentRunResult(output="")
 
             def _tool_spec_to_native(self, spec):
-                return {"name": spec.name, "description": spec.description}
+                return {"name": spec.name, "description": spec.description, "fn": spec.fn}
 
         hook = ConcreteHook.__new__(ConcreteHook)
 
@@ -303,6 +306,107 @@ class TestBaseAIHookResolveTools:
         assert len(result) == 1
         assert result[0]["name"] == "roll_dice"
         assert result[0]["description"] == "Roll a six-sided die and return the result."
+        assert result[0]["fn"] is roll_dice
+
+    def test_resolve_tools_wraps_bound_method(self):
+        """A bound method is auto-wrapped using __name__ and __doc__."""
+
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return {"name": spec.name, "description": spec.description, "fn": spec.fn}
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+
+        class MyHelper:
+            def search(self, query: str) -> str:
+                """Search for data."""
+                return query
+
+        helper = MyHelper()
+        bound_method = helper.search
+        result = hook._resolve_tools([bound_method], enable_logging=False, storage=None, counter=None)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "search"
+        assert result[0]["description"] == "Search for data."
+        assert result[0]["fn"] is bound_method
+
+    def test_resolve_tools_wraps_partial(self):
+        """A functools.partial is auto-wrapped using the underlying function's name and doc."""
+
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return {"name": spec.name, "description": spec.description, "fn": spec.fn}
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+
+        def query_db(db: str, query: str) -> str:
+            """Query the database."""
+            return f"{db}: {query}"
+
+        partial_tool = functools.partial(query_db, db="prod")
+        result = hook._resolve_tools([partial_tool], enable_logging=False, storage=None, counter=None)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "query_db"
+        assert result[0]["description"] == "Query the database."
+        assert result[0]["fn"] is partial_tool
+
+    def test_resolve_tools_wraps_callable_object(self):
+        """A callable object is auto-wrapped using the class name."""
+
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return {"name": spec.name, "fn": spec.fn}
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+
+        class Searcher:
+            def __call__(self, query: str) -> str:
+                return query
+
+        searcher = Searcher()
+        result = hook._resolve_tools([searcher], enable_logging=False, storage=None, counter=None)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "Searcher"
+        assert result[0]["fn"] is searcher
 
     def test_resolve_tools_passes_non_function_non_toolset_through(self):
         """Items that are not BaseToolset and not plain functions are passed through unchanged."""
@@ -391,6 +495,36 @@ class TestBaseAIHookLoggedCallable:
             wrapped()
 
         logger.exception.assert_called_once()
+
+    def test_logged_callable_preserves_partial_introspection(self):
+        logger = MagicMock()
+
+        def fetch_metric(environment: str, metric_name: str) -> float:
+            return 1.0
+
+        wrapped = BaseAIHook._logged_callable(functools.partial(fetch_metric, "prod"), logger)
+
+        assert inspect.signature(wrapped) == inspect.signature(functools.partial(fetch_metric, "prod"))
+        assert get_type_hints(wrapped) == {
+            "metric_name": str,
+            "return": float,
+        }
+
+    def test_logged_callable_preserves_callable_object_introspection(self):
+        logger = MagicMock()
+
+        class CustomerLookup:
+            def __call__(self, customer_id: str) -> dict[str, str]:
+                return {"customer_id": customer_id}
+
+        wrapped = BaseAIHook._logged_callable(CustomerLookup(), logger)
+
+        signature = inspect.signature(wrapped)
+        assert tuple(signature.parameters) == ("customer_id",)
+        assert get_type_hints(wrapped) == {
+            "customer_id": str,
+            "return": dict[str, str],
+        }
 
 
 class TestBaseAIHookCachedCallable:

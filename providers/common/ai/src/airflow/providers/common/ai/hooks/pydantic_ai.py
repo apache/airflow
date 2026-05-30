@@ -207,6 +207,11 @@ class PydanticAIHook(BaseAIHook):
         :meth:`run_agent`.
 
         :param request: Agent configuration — output type, instructions, toolsets, extra params.
+
+        Native pydantic-ai ``Tool`` instances supplied in ``request.toolsets`` are passed through
+        unchanged. Airflow tool logging and durable tool-result caching are applied to
+        framework-neutral callables / ``BaseToolset`` specs and pydantic-ai ``AbstractToolset``
+        instances, but not to native ``Tool`` instances.
         """
         self.validate_run_request(request)
 
@@ -229,13 +234,28 @@ class PydanticAIHook(BaseAIHook):
             pipeline_items = [ts for ts in request.toolsets if not isinstance(ts, AbstractToolset)]
 
             if pipeline_items:
-                resolved = self._resolve_tools(
-                    pipeline_items,
-                    request.enable_tool_logging,
-                    storage,
-                    counter,
-                )
+                resolved: list[Any] = []
+                for item in pipeline_items:
+                    if isinstance(item, Tool):
+                        # Native pydantic-ai Tool objects are preserved as-is. They keep their
+                        # original schema/configuration, but do not receive Airflow's callable
+                        # logging or durable tool-result caching wrappers.
+                        resolved.append(item)
+                    else:
+                        resolved.extend(
+                            self._resolve_tools(
+                                [item],
+                                request.enable_tool_logging,
+                                storage,
+                                counter,
+                            )
+                        )
                 extra_kwargs["tools"] = resolved
+                self.log.info(
+                    "Agent tools configured: count=%d names=%s",
+                    len(resolved),
+                    [getattr(tool, "name", type(tool).__name__) for tool in resolved],
+                )
 
             if abstract_items:
                 processed: list[Any] = list(abstract_items)
@@ -251,6 +271,11 @@ class PydanticAIHook(BaseAIHook):
                 if request.enable_tool_logging:
                     processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
                 extra_kwargs["toolsets"] = processed
+                self.log.info(
+                    "Agent abstract toolsets configured: count=%d types=%s",
+                    len(processed),
+                    [type(toolset).__name__ for toolset in processed],
+                )
 
         agent = Agent(
             self.get_model(),
