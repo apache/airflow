@@ -232,3 +232,15 @@ async def test_subclass_filter_shared_stream_applies_per_instance_match():
 
     payloads = [event.payload async for event in us.filter_shared_stream(stream())]
     assert [p["region"] for p in payloads] == ["us", "us"]
+
+
+@pytest.mark.asyncio
+async def test_advance_shared_stream_raises_by_default():
+    """A subclass that does not override advance_shared_stream gets NotImplementedError.
+
+    The manager detects this via MRO inspection and takes the fast path (no ack
+    tokens issued). But calling the method directly must still raise, confirming it
+    is not accidentally a no-op on the base class.
+    """
+    with pytest.raises(NotImplementedError, match="advance_shared_stream"):
+        await _PlainEventTrigger.advance_shared_stream({}, broker_payload=None)

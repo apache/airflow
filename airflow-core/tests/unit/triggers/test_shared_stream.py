@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 import asyncio
+import time
+import weakref
 from contextlib import suppress
 
 import pytest
 
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 from airflow.triggers.shared_stream import (
+    AckTimeout,
+    AckToken,
     SharedStreamManager,
     _PollFailure,
     _SharedStreamGroup,
@@ -670,6 +674,7 @@ async def test_fail_overflowed_subscriber_drains_full_queue_before_putting_senti
         kwargs={},
         on_poll_terminate=lambda g: None,
         max_subscriber_queue=cap,
+        ack_timeout=300.0,
         log=structlog.get_logger("test"),
     )
     trigger_id = 42
@@ -683,3 +688,740 @@ async def test_fail_overflowed_subscriber_drains_full_queue_before_putting_senti
     assert isinstance(sentinel, _PollFailure), "sentinel must be a _PollFailure"
     assert isinstance(sentinel.exc, _SubscriberOverflow), "the wrapped exception must be _SubscriberOverflow"
     assert trigger_id in group._overflowed, "trigger_id must be recorded in _overflowed"
+
+
+# ---------------------------------------------------------------------------
+# Ack-mode fixtures and helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_ack_required_trigger_class(events_with_payloads: list[tuple]):
+    """
+    Return a fresh trigger class whose ``open_shared_stream`` yields
+    ``(event, broker_payload)`` tuples and whose ``advance_shared_stream``
+    records each advance call into a class-level list.
+    """
+
+    class _AckRequiredTrigger(_ProgrammableSharedStreamTrigger):
+        advanced: list[tuple] = []
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            for event, broker_payload in events_with_payloads:
+                yield event, broker_payload
+            await asyncio.Event().wait()
+
+        @classmethod
+        async def advance_shared_stream(cls, kwargs, broker_payload):
+            cls.advanced.append(broker_payload)
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    return _AckRequiredTrigger
+
+
+async def _collect_ack_stream(trigger, stream, *, n: int, timeout: float = 1.0) -> list:
+    """Collect ``n`` TriggerEvent items from an ack-aware filter_shared_stream."""
+    out = []
+    async for event in trigger.filter_shared_stream(stream):
+        out.append(event)
+        if len(out) >= n:
+            break
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Test 1
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ack_required_producer_advances_after_all_subscribers_ack():
+    """Producer's advance hook fires exactly once after both subscribers ack."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "hello"}, "receipt-1"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        tokens: list[AckToken] = []
+
+        async def collect_token(stream, trigger):
+            async for _raw, token in stream:
+                tokens.append(token)
+                break
+
+        # Collect the (event, token) tuples without acking yet.
+        await asyncio.gather(
+            asyncio.wait_for(collect_token(s1, t1), timeout=1.0),
+            asyncio.wait_for(collect_token(s2, t2), timeout=1.0),
+        )
+
+        assert len(cls.advanced) == 0, "advance must not fire before all acks"
+
+        await tokens[0].ack()
+        assert len(cls.advanced) == 0, "advance must not fire after only one ack"
+
+        await tokens[1].ack()
+        await asyncio.sleep(0)  # let the scheduled advance task run
+        assert cls.advanced == ["receipt-1"], "advance must fire exactly once after all acks"
+    finally:
+        await manager.unsubscribe(1, key)
+        await manager.unsubscribe(2, key)
+
+
+# ---------------------------------------------------------------------------
+# Test 2
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ack_required_producer_does_not_advance_on_partial_ack():
+    """Producer does not advance when only one of two subscribers has acknowledged."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "partial"}, "receipt-partial"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        token1 = None
+        got_s2 = asyncio.Event()
+
+        async def grab_token1(stream):
+            nonlocal token1
+            async for _raw, token in stream:
+                token1 = token
+                break
+
+        async def drain_s2(stream):
+            async for _ in stream:  # pragma: no branch
+                got_s2.set()
+                break
+
+        await asyncio.gather(
+            asyncio.wait_for(grab_token1(s1), timeout=1.0),
+            asyncio.wait_for(drain_s2(s2), timeout=1.0),
+        )
+
+        await token1.ack()
+        await asyncio.sleep(0)
+        assert cls.advanced == [], "producer must not advance with only one of two acks"
+    finally:
+        await manager.unsubscribe(1, key)
+        await manager.unsubscribe(2, key)
+
+
+# ---------------------------------------------------------------------------
+# Test 3
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ack_timeout_force_fails_slow_subscriber_only():
+    """A slow subscriber is force-failed after timeout; the fast subscriber and advance are unaffected."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "timeout-test"}, "receipt-timeout"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t_fast, t_slow = cls(), cls()
+    key = t_fast.shared_stream_key()
+
+    # Inject a fake clock so the test controls time without relying on wall-clock
+    # or time_machine (which does not affect time.monotonic).
+    fake_clock: list[float] = [0.0]
+
+    def now() -> float:
+        return fake_clock[0]
+
+    # Very short timeout; cadence = max(0.01, 0.1/10) = 0.01s.
+    manager = SharedStreamManager(ack_timeout=0.1, _now=now)
+    try:
+        s_fast = manager.subscribe(trigger_id=1, trigger=t_fast, key=key)
+        s_slow = manager.subscribe(trigger_id=2, trigger=t_slow, key=key)
+
+        token_fast = None
+
+        async def grab_fast(stream):
+            nonlocal token_fast
+            async for _raw, token in stream:
+                token_fast = token
+                break
+
+        async def drain_slow(stream):
+            # Collect from slow stream — we expect AckTimeout to appear.
+            async for _ in stream:
+                break
+
+        await asyncio.gather(
+            asyncio.wait_for(grab_fast(s_fast), timeout=1.0),
+            asyncio.wait_for(drain_slow(s_slow), timeout=1.0),
+        )
+
+        # fast acks; slow doesn't.
+        await token_fast.ack()
+
+        # Advance fake clock past ack_timeout; the timeout loop sees now() - created_at >= 0.1.
+        fake_clock[0] = 0.2
+        slow_queue = manager._groups[key]._subscribers.get(2)
+        # Let _run_ack_timeout_loop tick through a few cadence cycles (cadence=0.01s real).
+        await asyncio.sleep(0.05)
+
+        assert slow_queue is not None
+        sentinel = slow_queue.get_nowait()
+        assert isinstance(sentinel, _PollFailure)
+        assert isinstance(sentinel.exc, AckTimeout)
+
+        # After timeout the advance should have fired (pending emptied).
+        await asyncio.sleep(0)
+        assert cls.advanced == ["receipt-timeout"]
+    finally:
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_ack_timeout_at_cap_boundary_does_not_timeout():
+    """Subscriber acking inside the window (< ack_timeout) must NOT be force-failed."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "boundary-test"}, "receipt-boundary"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+
+    # Inject a fake clock: created_at will be recorded at fake_clock[0] = 0.0.
+    fake_clock: list[float] = [0.0]
+
+    def now() -> float:
+        return fake_clock[0]
+
+    manager = SharedStreamManager(ack_timeout=0.1, _now=now)
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        token_ref = None
+
+        async def grab_token(s):
+            nonlocal token_ref
+            async for _raw, token in s:
+                token_ref = token
+                break
+
+        await asyncio.wait_for(grab_token(stream), timeout=1.0)
+
+        # Advance fake clock to 99 ms — strictly inside the 100 ms ack_timeout window.
+        # now() - created_at = 0.099 < 0.1, so the timeout loop must NOT fire.
+        fake_clock[0] = 0.099
+        # Let the timeout loop tick a few cadence cycles (cadence = max(0.01, 0.1/10) = 0.01s real).
+        await asyncio.sleep(0.05)
+
+        subscriber_queue = manager._groups[key]._subscribers.get(1)
+        assert subscriber_queue is not None
+        assert subscriber_queue.empty(), "subscriber must not have been force-failed at t=99ms"
+
+        # Now ack — advance should fire.
+        await token_ref.ack()
+        await asyncio.sleep(0)
+        assert cls.advanced == ["receipt-boundary"]
+    finally:
+        await manager.stop_all()
+
+
+# ---------------------------------------------------------------------------
+# Test 4
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_late_subscriber_does_not_block_advance_of_earlier_event():
+    """A subscriber joining after event N is broadcast is not in event N's ack set."""
+    event_broadcast = asyncio.Event()
+    proceed = asyncio.Event()
+
+    class _LateTrigger(_ProgrammableSharedStreamTrigger):
+        advanced: list = []
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            event_broadcast.set()
+            await proceed.wait()
+            yield {"msg": "late-test"}, "receipt-late"
+            await asyncio.Event().wait()
+
+        @classmethod
+        async def advance_shared_stream(cls, kwargs, broker_payload):
+            cls.advanced.append(broker_payload)
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    _LateTrigger.advanced.clear()
+
+    t_early = _LateTrigger()
+    t_late = _LateTrigger()
+    key = t_early.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s_early = manager.subscribe(trigger_id=1, trigger=t_early, key=key)
+
+        # Wait for open_shared_stream to reach the proceed gate, then unblock.
+        await asyncio.wait_for(event_broadcast.wait(), timeout=1.0)
+        proceed.set()
+
+        # Give the poll task a few ticks to run past the yield and put the
+        # (event, token) tuple into the early subscriber's queue.
+        deadline = asyncio.get_event_loop().time() + 1.0
+        while asyncio.get_event_loop().time() < deadline:
+            if manager._groups[key]._outstanding:
+                break
+            await asyncio.sleep(0)
+
+        # The event is now outstanding with only the early subscriber in
+        # its pending set. Subscribe the late subscriber AFTER fan-out.
+        manager.subscribe(trigger_id=2, trigger=t_late, key=key)
+
+        # Confirm the late subscriber is NOT in the outstanding entry's pending set.
+        entry = next(iter(manager._groups[key]._outstanding.values()), None)
+        assert entry is not None
+        assert 2 not in entry.pending, "late subscriber must not be in the pending set of earlier event"
+
+        # Collect from early subscriber (filter acks immediately).
+        events = await asyncio.wait_for(_collect_ack_stream(t_early, s_early, n=1), timeout=1.0)
+        assert len(events) == 1
+
+        await asyncio.sleep(0)
+        # The late subscriber did not participate in ack set; advance must have fired.
+        assert _LateTrigger.advanced == ["receipt-late"]
+    finally:
+        await manager.unsubscribe(1, key)
+        await manager.unsubscribe(2, key)
+
+
+# ---------------------------------------------------------------------------
+# Test 5
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_nack_removes_subscriber_from_ack_set_without_redeliver():
+    """nack() removes the subscriber from the pending set; no redeliver happens."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "nack-test"}, "receipt-nack"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        tokens: list[AckToken] = []
+
+        async def grab_token(stream):
+            async for _raw, token in stream:
+                tokens.append(token)
+                break
+
+        await asyncio.gather(
+            asyncio.wait_for(grab_token(s1), timeout=1.0),
+            asyncio.wait_for(grab_token(s2), timeout=1.0),
+        )
+
+        # t1 acks, t2 nacks.
+        await tokens[0].ack()
+        await tokens[1].nack()
+        await asyncio.sleep(0)
+
+        assert cls.advanced == ["receipt-nack"], "advance must fire after ack + nack"
+
+        # No redelivery — the manager has no redeliver mechanism.
+        group = manager._groups.get(key)
+        if group:
+            assert len(group._outstanding) == 0
+    finally:
+        await manager.unsubscribe(1, key)
+        await manager.unsubscribe(2, key)
+
+
+# ---------------------------------------------------------------------------
+# Test 6
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_double_ack_is_noop():
+    """Calling ack() twice on the same token must not raise or advance twice."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "double-ack"}, "receipt-double"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        token = None
+
+        async def grab_token(stream):
+            nonlocal token
+            async for _raw, tk in stream:
+                token = tk
+                break
+
+        await asyncio.wait_for(grab_token(s1), timeout=1.0)
+        assert token is not None
+
+        await token.ack()
+        await asyncio.sleep(0)
+        assert cls.advanced == ["receipt-double"]
+
+        # Second ack — must be a no-op, not raise, not double-advance.
+        await token.ack()
+        await asyncio.sleep(0)
+        assert cls.advanced == ["receipt-double"], "second ack must not trigger a second advance"
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+# ---------------------------------------------------------------------------
+# Test 7
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_subscriber_unsubscribe_during_outstanding_ack():
+    """When a subscriber leaves while its ack is pending, the group advances without it."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "unsub-during-ack"}, "receipt-unsub"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        tokens: list[AckToken] = []
+
+        async def grab_token(stream):
+            async for _raw, token in stream:
+                tokens.append(token)
+                break
+
+        await asyncio.gather(
+            asyncio.wait_for(grab_token(s1), timeout=1.0),
+            asyncio.wait_for(grab_token(s2), timeout=1.0),
+        )
+
+        assert len(tokens) == 2
+        # t1 acks; t2 leaves without acking (implicit ack-out via unsubscribe).
+        await tokens[0].ack()
+        await manager.unsubscribe(2, key)
+        await asyncio.sleep(0)
+
+        assert cls.advanced == ["receipt-unsub"], (
+            "unsubscribe must trigger implicit ack-out so producer can advance"
+        )
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+# ---------------------------------------------------------------------------
+# Test — regression: QueueFull during fan-out must not break iteration of remaining subscribers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
+    """A full queue at fan-out time must not break the iteration of remaining subscribers."""
+    cls = _make_ack_required_trigger_class([({"msg": "burst"}, "receipt-burst")])
+    cls.advanced.clear()
+
+    t_full, t_ok = cls(), cls()
+    key = t_full.shared_stream_key()
+    # Queue of size 1 — pre-filling it will force QueueFull on fan-out for trigger 1.
+    manager = SharedStreamManager(max_subscriber_queue=1)
+    try:
+        s_full = manager.subscribe(trigger_id=1, trigger=t_full, key=key)
+        s_ok = manager.subscribe(trigger_id=2, trigger=t_ok, key=key)
+
+        # Pre-fill trigger 1's queue so put_nowait raises QueueFull at fan-out.
+        group = manager._groups[key]
+        group._subscribers[1].put_nowait(("filler", AckToken(-1, 1, weakref.ref(group))))
+
+        # t_ok: drive its ack stream and collect the real event.
+        ok_result: list = []
+
+        async def collect_ok():
+            events = await _collect_ack_stream(t_ok, s_ok, n=1)
+            ok_result.extend(events)
+
+        # t_full: its queue will be drained + replaced by _PollFailure(_SubscriberOverflow).
+        # _drain() raises the inner exception, so we expect _SubscriberOverflow here.
+        full_exc: list[BaseException] = []
+
+        async def collect_full():
+            try:
+                async for _ in s_full:
+                    pass
+            except Exception as exc:
+                full_exc.append(exc)
+
+        await asyncio.gather(
+            asyncio.wait_for(collect_full(), timeout=2.0),
+            asyncio.wait_for(collect_ok(), timeout=2.0),
+        )
+
+        # Give _schedule_advance a tick to run.
+        await asyncio.sleep(0)
+
+        # t_full got an overflow failure (not a RuntimeError from set mutation).
+        assert len(full_exc) == 1
+        assert isinstance(full_exc[0], _SubscriberOverflow)
+
+        # t_ok got the real event and acknowledged it → advance was triggered.
+        assert len(ok_result) == 1
+        assert ok_result[0].payload == {"msg": "burst"}
+        assert cls.advanced == ["receipt-burst"]
+    finally:
+        await manager.stop_all()
+
+
+# ---------------------------------------------------------------------------
+# Test — must-fix #1: no-subscriber snapshot uses _schedule_advance (fire-and-forget)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_no_subscriber_snapshot_advances_immediately():
+    """When no subscribers are online at broadcast time, advance hook is still called."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "no-sub"}, "receipt-no-sub"),
+        ]
+    )
+    cls.advanced.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    # Subscribe then immediately unsubscribe so the group exists but has zero subscribers
+    # when the event arrives.
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    manager._groups[key].unsubscribe(1)  # remove without stopping the poll task
+
+    # The poll task is still running; give it a few ticks to broadcast.
+    deadline = asyncio.get_event_loop().time() + 1.0
+    while asyncio.get_event_loop().time() < deadline:
+        if cls.advanced:
+            break
+        await asyncio.sleep(0.01)
+
+    assert cls.advanced == ["receipt-no-sub"], (
+        "advance hook must be called even when no subscribers are present at broadcast time"
+    )
+
+    del s1  # silence unused-variable warning
+    await manager.stop_all()
+
+
+# ---------------------------------------------------------------------------
+# Test — must-fix #3: advance_shared_stream exception is logged, poll survives
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_advance_shared_stream_exception_is_logged():
+    """When advance_shared_stream raises, the error is logged and the poll group stays alive."""
+    from unittest.mock import MagicMock
+
+    proceed_flag = asyncio.Event()
+
+    class _RaisingAdvanceTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            yield ({"msg": "event-1"}, "payload-1")
+            await proceed_flag.wait()
+            yield ({"msg": "event-2"}, "payload-2")
+            await asyncio.Event().wait()
+
+        @classmethod
+        async def advance_shared_stream(cls, kwargs, broker_payload):
+            raise RuntimeError("simulated broker failure")
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    t1 = _RaisingAdvanceTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        # Intercept log.error on the group so we can assert it was called.
+        group = manager._groups[key]
+        mock_log_error = MagicMock()
+        group.log = MagicMock()
+        group.log.error = mock_log_error
+
+        # Consume the first event — this triggers an ack and schedules advance.
+        events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
+        assert len(events1) == 1
+
+        # Give the advance task a tick to run and raise.
+        await asyncio.sleep(0.05)
+
+        # log.error must have been called with a message about advance_shared_stream.
+        assert mock_log_error.called, "log.error must be called when advance_shared_stream raises"
+        call_args = mock_log_error.call_args
+        assert "advance_shared_stream raised" in call_args[0][0], (
+            f"log.error message must mention 'advance_shared_stream raised', got: {call_args[0][0]}"
+        )
+
+        # The poll group is still alive — the exception must not have killed it.
+        assert key in manager._groups, "group must survive an advance_shared_stream exception"
+
+        # A second event can still be produced and consumed.
+        proceed_flag.set()
+        events2 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
+        assert len(events2) == 1
+    finally:
+        await manager.stop_all()
+
+
+# ---------------------------------------------------------------------------
+# Test — must-fix #3 regression: stop() must await in-flight advance tasks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stop_drains_in_flight_advance_tasks():
+    """stop() must await advance hooks already in flight so graceful shutdown does not drop them."""
+    advance_started = asyncio.Event()
+    advance_may_finish = asyncio.Event()
+    advance_done_at: list[float] = []
+
+    class _SlowAdvanceTrigger(_ProgrammableSharedStreamTrigger):
+        advanced: list = []
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            yield ({"msg": "slow"}, "receipt-slow")
+            await asyncio.Event().wait()
+
+        @classmethod
+        async def advance_shared_stream(cls, kwargs, broker_payload):
+            advance_started.set()
+            await advance_may_finish.wait()
+            await asyncio.sleep(0.05)  # ensure stop() must actually wait for us
+            cls.advanced.append(broker_payload)
+            advance_done_at.append(time.monotonic())
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    _SlowAdvanceTrigger.advanced.clear()
+
+    t1 = _SlowAdvanceTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+    # Drive the one event through so the advance task is scheduled.
+    events = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
+    assert len(events) == 1
+
+    # Wait for advance_shared_stream to actually start (confirms the task is in-flight).
+    await asyncio.wait_for(advance_started.wait(), timeout=1.0)
+
+    # Unblock the advance hook and stop; advance still has a 50 ms sleep so stop()
+    # must genuinely await the task rather than racing past it.
+    advance_may_finish.set()
+    await manager.stop_all()
+    stop_returned_at = time.monotonic()
+
+    # stop_all() must have waited for the advance task to complete.
+    assert _SlowAdvanceTrigger.advanced == ["receipt-slow"], (
+        "stop() must drain in-flight advance tasks before returning"
+    )
+    assert advance_done_at, "advance task must have completed"
+    assert advance_done_at[0] <= stop_returned_at, (
+        "stop() must wait for in-flight advance to finish before returning"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 8 — regression: fast path for triggers without advance_shared_stream
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_directory_file_delete_trigger_path_unchanged():
+    """Triggers that do NOT override advance_shared_stream use the fast path.
+
+    Subscribers receive raw events (not tuples) — identical to pre-ack-mode behavior.
+    """
+    cls = _make_trigger_class(_events_then_block([{"filename": "flag.txt"}]))
+    # Confirm advance_shared_stream is NOT overridden (fast path).
+    # We check that no class in the MRO before BaseEventTrigger defines it.
+    assert "advance_shared_stream" not in cls.__dict__, (
+        "advance_shared_stream must NOT be in the class's own __dict__ for fast-path detection"
+    )
+
+    trigger = cls()
+    manager = SharedStreamManager()
+    key = trigger.shared_stream_key()
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=trigger, key=key)
+        events = await _collect(trigger.filter_shared_stream(stream), n=1)
+        assert len(events) == 1
+        # The event is a raw dict, not a tuple.
+        assert isinstance(events[0].payload, dict)
+        assert events[0].payload == {"filename": "flag.txt"}
+    finally:
+        await manager.unsubscribe(1, key)

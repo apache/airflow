@@ -27,28 +27,46 @@ convert the broadcast into its own :class:`~airflow.triggers.base.TriggerEvent`
 instances. Triggers that opt out (the default) keep their independent
 ``run()``-based poll loops untouched.
 
-Scope and the missing ack channel
----------------------------------
+Producer-side ack channel
+-------------------------
 
-The shared-stream channel is **one-way**: events flow from
-``open_shared_stream`` out to each subscriber's ``filter_shared_stream``,
-with no path back. Subscribers cannot tell the producer "I accepted this
-event; please advance / commit / ack". The pattern is therefore only safe
-for upstreams whose consumption does not need a producer-side side effect
-tied to a subscriber's accept / reject decision:
+When a trigger overrides
+:meth:`~airflow.triggers.base.BaseEventTrigger.advance_shared_stream`,
+the manager switches to **ack mode** for that stream.
 
-* Idempotent / read-only reads (filesystem listings, polling REST APIs).
-* Auto-commit Kafka consumers (``enable.auto.commit=true``).
-* Subscriber-side-effect cleanup (``unlink``, local marking, …) where the
-  per-event action goes through APIs the subscriber owns independently.
+``open_shared_stream`` must then yield ``(raw_event, broker_payload)``
+tuples. The manager hands ``(raw_event, :class:`AckToken`)`` to each
+subscriber's queue instead of the raw event alone. A subscriber calls
+``await token.ack()`` once it has accepted the event, or
+``await token.nack()`` to opt out without triggering broker-side redeliver.
+When every subscriber that was online at broadcast time has called
+``ack()`` (or ``nack()``, or timed out), the manager calls
+``await cls.advance_shared_stream(kwargs, broker_payload)`` exactly once —
+this is where the producer trigger commits / deletes / acks on the broker.
 
-Kafka manual-commit consumers, SQS delete-on-process / visibility
-extension, and similar message-broker patterns where progress is per-message
-and tied to the subscriber's decision are **not** in scope here today. A
-producer-side ack channel to cover them is a follow-up that should be
-designed against a concrete Kafka or SQS consumer rather than against an
-abstract API. See :class:`~airflow.triggers.base.BaseEventTrigger` for the
-matching subclass-facing notes.
+**Snapshot-at-fan-out**: the set of subscribers that must ack an event is
+frozen at broadcast time. A subscriber that joins after the event was
+broadcast is not added to that event's pending set.
+
+**Per-event ack timeout**: a background task scans outstanding events.
+Any subscriber that has not acknowledged within ``ack_timeout`` seconds is
+force-failed via the existing :class:`_PollFailure` path (exception type
+:class:`AckTimeout`). Other subscribers are not affected; once the
+remaining acks arrive the producer advances normally.
+
+**Triggerer restart**: outstanding acks are in-memory only. After a
+triggerer restart, the broker will redeliver unacknowledged events.
+Subscribers must therefore be idempotent.
+
+**``shared_stream_subscriber_queue_size`` in ack mode**: the bound is
+still "unprocessed raw events per subscriber". In ack mode the producer
+waits for acks before yielding the next event, so the queue rarely
+approaches the bound; it mainly protects against burst delivery before a
+subscriber's filter has had a chance to run.
+
+Triggers that do **not** override ``advance_shared_stream`` run the
+**fast path**: no event IDs, no ack table, no AckToken — subscribers
+receive raw events as before (backward-compatible).
 
 Lifecycle invariants
 --------------------
@@ -80,18 +98,23 @@ maintained synchronously:
 from __future__ import annotations
 
 import asyncio
+import time
+import weakref
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable
 from contextlib import suppress
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from airflow.triggers.base import BaseEventTrigger
+
 if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
 
-    from airflow.triggers.base import BaseEventTrigger
-
 log = structlog.get_logger(__name__)
+
+__all__ = ["AckToken", "AckTimeout", "SharedStreamManager"]
 
 DEFAULT_SUBSCRIBER_QUEUE_MAX = 1024
 """Default per-subscriber queue size for shared streams.
@@ -104,6 +127,14 @@ which point the subscriber's trigger is failed with
 Used as the fallback when no value is passed to ``SharedStreamManager``;
 in the triggerer this is overridden from the
 ``[triggerer] shared_stream_subscriber_queue_size`` config option.
+"""
+
+DEFAULT_ACK_TIMEOUT = 300.0
+"""Default per-event ack timeout in seconds (5 minutes).
+
+When ack mode is active, a subscriber that has not called ``token.ack()`` or
+``token.nack()`` within this window is force-failed via :class:`AckTimeout`.
+Override per-manager with ``SharedStreamManager(ack_timeout=...)``.
 """
 
 
@@ -136,6 +167,78 @@ class _PollFailure:
         self.exc = exc
 
 
+class AckTimeout(Exception):
+    """
+    Raised in a subscriber whose ack did not arrive within the per-event timeout.
+
+    Treated the same as :class:`_SubscriberOverflow` — the subscriber's trigger
+    fails through the standard trigger-failure path. Other subscribers in the same
+    group are unaffected; their acks still advance the producer normally.
+    """
+
+
+@dataclass
+class _OutstandingEntry:
+    """State for one outstanding (broadcast-but-not-yet-advanced) event."""
+
+    pending: set[int]  # trigger_ids still awaiting ack
+    created_at: float  # time.monotonic() at broadcast
+    broker_payload: Any
+
+
+class AckToken:
+    """
+    Handed to subscribers alongside each shared-stream event in ack mode.
+
+    Call ``await token.ack()`` once the event has been accepted, or
+    ``await token.nack()`` to opt out without triggering broker-side redeliver.
+    Repeated calls are no-ops. After the group stops, calls silently do nothing.
+    """
+
+    __slots__ = ("_event_id", "_trigger_id", "_group_ref", "_resolved")
+
+    def __init__(
+        self,
+        event_id: int,
+        trigger_id: int,
+        group_ref: weakref.ref[_SharedStreamGroup],
+    ) -> None:
+        self._event_id = event_id
+        self._trigger_id = trigger_id
+        self._group_ref = group_ref
+        self._resolved = False
+
+    async def ack(self) -> None:
+        """
+        Notify the producer that this subscriber has accepted the event.
+
+        Declared ``async`` for forward-compatibility: a future broker-native
+        implementation may need to ``await`` an I/O call here. The current
+        in-process implementation is synchronous.
+        """
+        if self._resolved:
+            return
+        self._resolved = True
+        group = self._group_ref()
+        if group is not None:
+            group._on_ack(self._event_id, self._trigger_id, nack=False)
+
+    async def nack(self) -> None:
+        """
+        Opt out of this event without triggering broker-side redeliver.
+
+        Declared ``async`` for forward-compatibility: a future broker-native
+        implementation may need to ``await`` an I/O call here. The current
+        in-process implementation is synchronous.
+        """
+        if self._resolved:
+            return
+        self._resolved = True
+        group = self._group_ref()
+        if group is not None:
+            group._on_ack(self._event_id, self._trigger_id, nack=True)
+
+
 async def _drain(queue: asyncio.Queue) -> AsyncGenerator[Any, None]:
     """
     Yield items from ``queue`` until a poll termination sentinel arrives.
@@ -163,7 +266,9 @@ class _SharedStreamGroup:
         kwargs: dict[str, Any],
         on_poll_terminate: Callable[[_SharedStreamGroup], None],
         max_subscriber_queue: int,
+        ack_timeout: float,
         log: BoundLogger,
+        _now: Callable[[], float] = time.monotonic,
     ) -> None:
         self.key = key
         self.trigger_class = trigger_class
@@ -171,9 +276,18 @@ class _SharedStreamGroup:
         self.log = log
         self._on_poll_terminate = on_poll_terminate
         self._max_subscriber_queue = max_subscriber_queue
+        self._ack_timeout = ack_timeout
+        self._now = _now
         self._subscribers: dict[int, asyncio.Queue] = {}
         self._overflowed: set[int] = set()
         self._poll_task: asyncio.Task | None = None
+        # Ack mode state — populated only when advance_shared_stream is overridden.
+        self._outstanding: dict[int, _OutstandingEntry] = {}
+        self._next_event_id: int = 0
+        self._ack_timeout_task: asyncio.Task | None = None
+        # Fire-and-forget advance tasks; kept in a set so GC doesn't collect them
+        # before they finish (standard asyncio fire-and-forget pattern).
+        self._advance_tasks: set[asyncio.Task] = set()
 
     def start(self) -> None:
         """Start the underlying poll loop. Call exactly once per group."""
@@ -184,20 +298,91 @@ class _SharedStreamGroup:
             name=f"shared-stream-poll[{self.key!r}]",
         )
 
+    def _on_advance_done(self, task: asyncio.Task) -> None:
+        """Done callback for advance tasks: discard from set and log any exception."""
+        self._advance_tasks.discard(task)
+        if not task.cancelled() and (exc := task.exception()):
+            self.log.error(
+                "advance_shared_stream raised; broker advance failed",
+                key=self.key,
+                exc_info=exc,
+            )
+
+    def _schedule_advance(self, broker_payload: Any) -> None:
+        """
+        Fan out an advance call to the producer.
+
+        Fire-and-forget: the resulting task's failure is logged via
+        :meth:`_on_advance_done` and not re-raised. Subscribers must be
+        idempotent.
+        """
+        task = asyncio.create_task(self.trigger_class.advance_shared_stream(self.kwargs, broker_payload))
+        self._advance_tasks.add(task)
+        task.add_done_callback(self._on_advance_done)
+
+    def _is_ack_required(self) -> bool:
+        # Check whether any class in the MRO (before BaseEventTrigger) defines
+        # advance_shared_stream — i.e. the subclass has overridden it.
+        for klass in self.trigger_class.__mro__:
+            if klass is BaseEventTrigger:
+                # Reached the base without finding an override — fast path.
+                return False
+            if "advance_shared_stream" in klass.__dict__:
+                return True
+        return False
+
     async def _poll(self) -> None:
+        ack_required = self._is_ack_required()
+        if ack_required:
+            self._ack_timeout_task = asyncio.create_task(
+                self._run_ack_timeout_loop(),
+                name=f"shared-stream-ack-timeout[{self.key!r}]",
+            )
         terminal_exc: BaseException | None = None
         try:
-            async for raw_event in self.trigger_class.open_shared_stream(self.kwargs):
-                for trigger_id, queue in self._subscribers.items():
-                    if trigger_id in self._overflowed:
-                        # Subscriber has been force-failed on a previous
-                        # overflow; the failure sentinel is already in its
-                        # queue and unsubscribe will drop it on next pass.
+            async for item in self.trigger_class.open_shared_stream(self.kwargs):
+                if ack_required:
+                    raw_event, broker_payload = item
+                    # Snapshot the subscriber set at fan-out time.
+                    snapshot = set(self._subscribers.keys()) - self._overflowed
+                    if not snapshot:
+                        # No subscribers to ack — fire-and-forget, consistent with the
+                        # subscriber path (both use _schedule_advance).
+                        self._schedule_advance(broker_payload)
                         continue
-                    try:
-                        queue.put_nowait(raw_event)
-                    except asyncio.QueueFull:
-                        self._fail_overflowed_subscriber(trigger_id, queue)
+                    event_id = self._next_event_id
+                    self._next_event_id += 1
+                    self._outstanding[event_id] = _OutstandingEntry(
+                        pending=snapshot.copy(),
+                        created_at=self._now(),
+                        broker_payload=broker_payload,
+                    )
+                    group_ref: weakref.ref[_SharedStreamGroup] = weakref.ref(self)
+                    for trigger_id in snapshot:
+                        queue = self._subscribers[trigger_id]
+                        token = AckToken(event_id, trigger_id, group_ref)
+                        try:
+                            queue.put_nowait((raw_event, token))
+                        except asyncio.QueueFull:
+                            # Remove this subscriber from the outstanding entry
+                            # before force-failing it so the entry does not wait
+                            # for an ack that will never arrive.
+                            entry = self._outstanding.get(event_id)
+                            if entry is not None:
+                                entry.pending.discard(trigger_id)
+                            self._fail_overflowed_subscriber(trigger_id, queue)
+                            if entry is not None and not entry.pending:
+                                del self._outstanding[event_id]
+                                self._schedule_advance(entry.broker_payload)
+                else:
+                    raw_event = item
+                    for trigger_id, queue in self._subscribers.items():
+                        if trigger_id in self._overflowed:
+                            continue
+                        try:
+                            queue.put_nowait(raw_event)
+                        except asyncio.QueueFull:
+                            self._fail_overflowed_subscriber(trigger_id, queue)
             terminal_exc = _PollTerminated(
                 f"open_shared_stream for {self.key!r} returned without raising; "
                 "shared streams are expected to run for the lifetime of the group"
@@ -210,6 +395,10 @@ class _SharedStreamGroup:
             terminal_exc = exc
             self.log.exception("Shared stream poll failed; propagating to subscribers", key=self.key)
         finally:
+            if self._ack_timeout_task is not None and not self._ack_timeout_task.done():
+                self._ack_timeout_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._ack_timeout_task
             if terminal_exc is not None:
                 # Synchronous: evict from the manager and broadcast the
                 # sentinel before returning to the loop, so no coroutine can
@@ -220,6 +409,61 @@ class _SharedStreamGroup:
                     # Drain stale events then put the failure sentinel so every
                     # subscriber wakes up even if its queue was at capacity.
                     self._drain_and_offer_failure(queue, failure)
+
+    def _on_ack(self, event_id: int, trigger_id: int, *, nack: bool = False) -> None:
+        """
+        Record an ack (or nack) from a subscriber.
+
+        Removes ``trigger_id`` from the pending set of ``event_id``. If the
+        set empties, fires ``advance_shared_stream`` and clears the entry.
+        Duplicate calls for the same (event_id, trigger_id) are no-ops.
+        """
+        entry = self._outstanding.get(event_id)
+        if entry is None:
+            return  # already advanced or never existed
+        entry.pending.discard(trigger_id)
+        if not entry.pending:
+            del self._outstanding[event_id]
+            self._schedule_advance(entry.broker_payload)
+
+    async def _run_ack_timeout_loop(self) -> None:
+        """
+        Background task: force-fail subscribers whose ack is overdue.
+
+        Cadence is ``max(0.01, ack_timeout / 10)`` — runs ten times per timeout
+        window, floored at 10 ms to avoid burning CPU when ``ack_timeout`` is small.
+        """
+        cadence = max(0.01, self._ack_timeout / 10)
+        while True:
+            await asyncio.sleep(cadence)
+            now = self._now()
+            for event_id, entry in list(self._outstanding.items()):
+                if now - entry.created_at < self._ack_timeout:
+                    continue
+                timed_out = set(entry.pending)
+                for trigger_id in timed_out:
+                    queue = self._subscribers.get(trigger_id)
+                    if queue is not None:
+                        self.log.warning(
+                            "Ack timeout; force-failing subscriber",
+                            key=self.key,
+                            trigger_id=trigger_id,
+                            event_id=event_id,
+                        )
+                        self._drain_and_offer_failure(
+                            queue,
+                            _PollFailure(
+                                AckTimeout(
+                                    f"shared stream {self.key!r} trigger {trigger_id} "
+                                    f"did not ack event {event_id} within {self._ack_timeout}s"
+                                )
+                            ),
+                        )
+                        self._overflowed.add(trigger_id)
+                    entry.pending.discard(trigger_id)
+                if not entry.pending:
+                    del self._outstanding[event_id]
+                    self._schedule_advance(entry.broker_payload)
 
     def subscribe(self, trigger_id: int) -> AsyncIterator[Any]:
         """Register ``trigger_id`` as a subscriber and return its raw event stream."""
@@ -234,6 +478,13 @@ class _SharedStreamGroup:
         # (Airflow's standard idiom); dropping the queue is enough here.
         self._subscribers.pop(trigger_id, None)
         self._overflowed.discard(trigger_id)
+        # Remove from all outstanding entries — implicit ack-out to prevent
+        # the producer waiting forever for a subscriber that has left.
+        for event_id, entry in list(self._outstanding.items()):
+            entry.pending.discard(trigger_id)
+            if not entry.pending:
+                del self._outstanding[event_id]
+                self._schedule_advance(entry.broker_payload)
 
     def _fail_overflowed_subscriber(self, trigger_id: int, queue: asyncio.Queue) -> None:
         """
@@ -284,12 +535,17 @@ class _SharedStreamGroup:
         return not self._subscribers
 
     async def stop(self) -> None:
-        """Cancel the poll task if it is still running and wait for it to exit."""
-        if self._poll_task is None or self._poll_task.done():
-            return
-        self._poll_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self._poll_task
+        """Cancel poll and ack-timeout tasks if still running, then drain all in-flight advance tasks."""
+        if self._ack_timeout_task is not None and not self._ack_timeout_task.done():
+            self._ack_timeout_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._ack_timeout_task
+        if self._poll_task is not None and not self._poll_task.done():
+            self._poll_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._poll_task
+        if self._advance_tasks:
+            await asyncio.gather(*self._advance_tasks, return_exceptions=True)
 
 
 class SharedStreamManager:
@@ -311,9 +567,13 @@ class SharedStreamManager:
         *,
         log: BoundLogger | None = None,
         max_subscriber_queue: int = DEFAULT_SUBSCRIBER_QUEUE_MAX,
+        ack_timeout: float = DEFAULT_ACK_TIMEOUT,
+        _now: Callable[[], float] = time.monotonic,
     ) -> None:
         self.log = log or structlog.get_logger(__name__)
         self._max_subscriber_queue = max_subscriber_queue
+        self._ack_timeout = ack_timeout
+        self._now = _now
         self._groups: dict[Hashable, _SharedStreamGroup] = {}
 
     def subscribe(
@@ -340,7 +600,9 @@ class SharedStreamManager:
                 kwargs=kwargs,
                 on_poll_terminate=self._handle_poll_terminate,
                 max_subscriber_queue=self._max_subscriber_queue,
+                ack_timeout=self._ack_timeout,
                 log=self.log,
+                _now=self._now,
             )
             self._groups[key] = group
             group.start()
