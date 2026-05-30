@@ -18,6 +18,8 @@
  */
 import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import dayjs from "dayjs";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -32,6 +34,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
+import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -40,18 +43,26 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
+import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
 
 import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
+import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
 
+type RunStateCountsContext = {
+  readonly countsByDag: Record<string, Record<string, number> | undefined>;
+  readonly isLoading: boolean;
+};
+
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
+  runStateContext: RunStateCountsContext,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "is_paused",
@@ -122,6 +133,19 @@ const createColumns = (
     header: () => translate("dagDetails.latestRun"),
   },
   {
+    accessorKey: "run_state_counts",
+    cell: ({ row: { original } }) => (
+      <DagRunStateCounts
+        compact
+        counts={runStateContext.countsByDag[original.dag_id]}
+        dagId={original.dag_id}
+        isLoading={runStateContext.isLoading}
+      />
+    ),
+    enableSorting: false,
+    header: () => translate("dags:runStateCounts.label"),
+  },
+  {
     accessorKey: "tags",
     cell: ({
       row: {
@@ -181,18 +205,30 @@ const {
   PAUSED,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
-  card: ({ row }) => <DagCard dag={row} />,
+const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
+  card: ({ row }) => (
+    <DagCard
+      dag={row}
+      runStateCounts={runStateContext.countsByDag[row.dag_id]}
+      runStateCountsLoading={runStateContext.isLoading}
+    />
+  ),
   meta: {
-    customSkeleton: <Skeleton height="120px" width="100%" />,
+    customSkeleton: <Skeleton height="140px" width="100%" />,
   },
-};
+});
+
+const DEFAULT_HOURS = "24";
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
+
+  const now = dayjs();
+  const [startDate, setStartDate] = useState(now.subtract(Number(DEFAULT_HOURS), "hour").toISOString());
+  const [endDate, setEndDate] = useState(now.toISOString());
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
@@ -213,8 +249,6 @@ export const DagsList = () => {
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
-
-  const columns = createColumns(translate);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -270,6 +304,25 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
+  const visibleDagIds = useMemo(() => data?.dags.map((dag) => dag.dag_id) ?? [], [data?.dags]);
+  const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
+    dagIds: visibleDagIds,
+    dags: data?.dags,
+    startDate,
+  });
+  const runStateContext: RunStateCountsContext = useMemo(
+    () => ({
+      countsByDag: Object.fromEntries(
+        (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
+      ),
+      isLoading: runStateCountsLoading,
+    }),
+    [runStateCountsData, runStateCountsLoading],
+  );
+
+  const columns = useMemo(() => createColumns(translate, runStateContext), [translate, runStateContext]);
+  const cardDef = useMemo(() => createCardDef(runStateContext), [runStateContext]);
+
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     setTableURLState({
       pagination,
@@ -299,9 +352,19 @@ export const DagsList = () => {
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
-          {display === "card" ? (
-            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-          ) : undefined}
+          <HStack>
+            <TimeRangeSelector
+              defaultValue={DEFAULT_HOURS}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              setStartDate={setStartDate}
+              showDateRange={false}
+              startDate={startDate}
+            />
+            {display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined}
+          </HStack>
         </HStack>
       </VStack>
       <Box pb={8}>
