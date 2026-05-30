@@ -2671,7 +2671,7 @@ requires-dist = [
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49" },
     { name = "sqlalchemy-utils", marker = "extra == 'sqlalchemy'", specifier = ">=0.41.2" },
-    { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0" },
+    { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0,!=7.2.0" },
     { name = "time-machine", extras = ["dateutil"], specifier = ">=3.0.0" },
     { name = "towncrier", marker = "extra == 'devscripts'", specifier = ">=23.11.0" },
     { name = "twine", marker = "extra == 'devscripts'", specifier = ">=4.0.2" },
@@ -22223,21 +22223,20 @@ wheels = [
 
 [[package]]
 name = "swagger-plugin-for-sphinx"
-version = "7.2.0"
+version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "jinja2" },
-    { name = "pyyaml" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/58/535946469ebabad714c3e724273f6f8a7f39c273a8e8c9ccbc958d082ef3/swagger_plugin_for_sphinx-7.2.0.tar.gz", hash = "sha256:5dfe5b6639020da9ede92532458637db457f6e8babb476fa8386345da635de4b", size = 121566, upload-time = "2026-05-28T08:49:06.416Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/00/1b2ea76705a887b47d2ba1fa38bb01222431697e6fd020f25c95d6a44615/swagger_plugin_for_sphinx-7.1.0.tar.gz", hash = "sha256:8a054d69600767721f8920f90f87e9078e1736d8c89a6fe74d38ea930f95c9e2", size = 118298, upload-time = "2026-05-27T08:10:11.488Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/be/f559ad0703804e591c2b294bccba26734c0578ad477bc96db647270871e3/swagger_plugin_for_sphinx-7.2.0-py3-none-any.whl", hash = "sha256:4dd6741ddd68e28a6f35b6fbcdb9e0a7f601b45d709c0a8a270a18a88b833ca2", size = 13660, upload-time = "2026-05-28T08:49:05.199Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/14/43f25438e93fd40f172535b0fac0ab2a4827e13a74f62c35860ba04fc891/swagger_plugin_for_sphinx-7.1.0-py3-none-any.whl", hash = "sha256:1a6369c6e9ee5bca88c11a327e58c134a457401a6a7f8bb97e166d3a2568d4d7", size = 11644, upload-time = "2026-05-27T08:10:10.347Z" },
 ]
 
 [[package]]

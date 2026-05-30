@@ -100,7 +100,7 @@ dependencies = [
     "sphinxcontrib-qthelp>=1.0.3",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
-    "swagger-plugin-for-sphinx>=7.1.0",
+    "swagger-plugin-for-sphinx>=7.1.0,!=7.2.0",  # Exclude 7.2.0, see https://github.com/SAP/swagger-plugin-for-sphinx/issues/518
 ]
 "docs-gen" = [
     "diagrams>=0.24.4",
