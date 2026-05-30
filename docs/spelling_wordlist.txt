@@ -671,6 +671,7 @@ fsGroup
 fsspec
 fullname
 func
+functools
 ga
 Gantt
 gantt
