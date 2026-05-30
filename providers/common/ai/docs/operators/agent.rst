@@ -304,7 +304,7 @@ Parameters
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
-  etc.).
+  ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
 - ``enable_tool_logging``: Wrap each toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
