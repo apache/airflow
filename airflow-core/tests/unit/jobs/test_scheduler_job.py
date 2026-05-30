@@ -5317,6 +5317,155 @@ class TestSchedulerJob:
         assert created_run.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_use_job_schedule_false_still_creates_asset_runs(self, session, dag_maker):
+        """
+        ``[scheduler] use_job_schedule=False`` must disable only cron/time-based scheduling.
+
+        Asset-triggered Dag runs must still be created. Regression test for #62929, driven through
+        ``_do_scheduling`` so it exercises both the orchestrator call site and the time-based gate.
+        """
+        asset1 = Asset(uri="test://asset-62929", name="asset_62929", group="test_group")
+
+        # Producer: declares the asset as an outlet so the AssetModel is registered on serialization.
+        with dag_maker(dag_id="asset-producer-62929", schedule="@daily", session=session):
+            BashOperator(task_id="producer", bash_command="echo 1", outlets=[asset1])
+        producer_run = dag_maker.create_dagrun(
+            run_id="producer_run",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+        )
+
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+        session.add(
+            AssetEvent(
+                asset_id=asset1_id,
+                source_task_id="producer",
+                source_dag_id=producer_run.dag_id,
+                source_run_id=producer_run.run_id,
+                source_map_index=-1,
+            )
+        )
+
+        # Consumer: scheduled on the asset, with the asset already queued for it.
+        with dag_maker(dag_id="asset-consumer-62929", schedule=[asset1], session=session):
+            EmptyOperator(task_id="consume")
+        consumer_dag_id = dag_maker.dag.dag_id
+        session.add(AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag_id))
+
+        # Time-based Dag that is eligible for a scheduled run right now (catchup + past start_date).
+        with dag_maker(dag_id="time-based-62929", schedule="@daily", catchup=True, session=session):
+            EmptyOperator(task_id="noop")
+        time_based_dag_id = dag_maker.dag.dag_id
+        session.flush()
+
+        # Sanity: the time-based Dag really is eligible, so its absence below is due to the flag,
+        # not because it was never schedulable in the first place.
+        time_based_model = session.get(DagModel, time_based_dag_id)
+        assert time_based_model.next_dagrun_create_after is not None
+        assert time_based_model.next_dagrun_create_after <= timezone.utcnow()
+
+        scheduler_job = Job()
+        # Construct the runner *under* the conf override so it reads use_job_schedule=False.
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        assert self.job_runner._scheduler_use_job_schedule is False
+
+        self.job_runner._do_scheduling(session)
+
+        # The asset-triggered consumer run IS created despite use_job_schedule=False.
+        consumer_runs = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all()
+        assert len(consumer_runs) == 1
+        # The run was created; it may already have been moved to RUNNING by the
+        # _start_queued_dagruns step inside the same _do_scheduling call, so accept either
+        # non-terminal state. #62929 is about the run being created at all.
+        assert consumer_runs[0].state in (State.QUEUED, State.RUNNING)
+        assert consumer_runs[0].consumed_asset_events  # the AssetEvent was attached
+        # The asset queue row was consumed.
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).one_or_none()
+            is None
+        )
+
+        # The time-based run is suppressed by the flag.
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == time_based_dag_id)).one_or_none() is None
+
+    @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "use_job_schedule"): "True"})
+    def test_use_job_schedule_true_creates_time_based_runs(self, session, dag_maker):
+        """
+        Companion to ``test_use_job_schedule_false_still_creates_asset_runs``.
+
+        With the flag on, the eligible time-based Dag does get a scheduled run. This guards against
+        accidentally inverting the gate (which would make the negative assertion above pass for the
+        wrong reason).
+        """
+        with dag_maker(dag_id="time-based-62929-on", schedule="@daily", catchup=True, session=session):
+            EmptyOperator(task_id="noop")
+        time_based_dag_id = dag_maker.dag.dag_id
+        session.flush()
+
+        time_based_model = session.get(DagModel, time_based_dag_id)
+        assert time_based_model.next_dagrun_create_after is not None
+        assert time_based_model.next_dagrun_create_after <= timezone.utcnow()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        assert self.job_runner._scheduler_use_job_schedule is True
+
+        self.job_runner._do_scheduling(session)
+
+        time_based_runs = session.scalars(select(DagRun).where(DagRun.dag_id == time_based_dag_id)).all()
+        assert len(time_based_runs) >= 1
+        assert time_based_runs[0].run_type == DagRunType.SCHEDULED
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("clear_asset_partition_rows")
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_use_job_schedule_false_still_creates_partition_asset_runs(self, session, dag_maker):
+        """
+        Companion to ``test_use_job_schedule_false_still_creates_asset_runs`` for the
+        partitioned-asset path. ``_create_dagruns_for_partitioned_asset_dags`` runs at the very top
+        of ``_create_dagruns_for_dags``, which ``use_job_schedule=False`` used to skip entirely.
+        Driven through ``_do_scheduling`` so it backs the newsfragment's partitioned-asset claim. #62929.
+        """
+        asset_1 = Asset(name="asset-part-62929")
+
+        with dag_maker(
+            dag_id="asset-event-consumer-62929",
+            schedule=PartitionedAssetTimetable(assets=asset_1, default_partition_mapper=IdentityMapper()),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+        session.commit()
+
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer-62929",
+            asset=asset_1,
+            partition_key="key-1",
+            session=session,
+            dag_maker=dag_maker,
+        )
+        apdr_id = apdr.id
+        assert apdr.created_dag_run_id is None  # pre-condition: run not created yet
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        assert self.job_runner._scheduler_use_job_schedule is False
+
+        self.job_runner._do_scheduling(session)
+
+        # The partitioned-asset run IS created despite use_job_schedule=False (re-query: _do_scheduling
+        # calls expunge_all).
+        apdr = session.scalar(select(AssetPartitionDagRun).where(AssetPartitionDagRun.id == apdr_id))
+        assert apdr is not None
+        assert apdr.created_dag_run_id is not None
+        partition_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+        assert partition_run is not None
+        assert partition_run.dag_id == "asset-event-consumer-62929"
+
+    @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
         """
         Test Dag Run trigger on AssetAlias includes the corresponding AssetEvent in `consumed_asset_events`.
