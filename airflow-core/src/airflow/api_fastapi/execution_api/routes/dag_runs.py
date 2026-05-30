@@ -153,6 +153,14 @@ def trigger_dag_run(
                 "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
             },
         )
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "value_error",
+                "message": str(e),
+            },
+        ) from e
 
 
 @router.post(
