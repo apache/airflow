@@ -4483,6 +4483,39 @@
                             "x-docsSection": "Common"
                         }
                     }
+                },
+                "service": {
+                    "description": "Headless service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
+                        }
+                    }
                 }
             }
         },
@@ -5081,6 +5114,39 @@
                             }
                         ],
                         "additionalProperties": false
+                    }
+                },
+                "service": {
+                    "description": "Headless service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
+                        }
                     }
                 }
             }
@@ -5720,6 +5786,39 @@
                             "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": false
+                        }
+                    }
+                },
+                "service": {
+                    "description": "Headless service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 }
@@ -7554,6 +7653,32 @@
                             "examples": [
                                 "10.123.0.0/16"
                             ]
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },
@@ -8048,6 +8173,32 @@
                             "examples": [
                                 "10.123.0.0/16"
                             ]
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },
@@ -8399,6 +8550,32 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },
@@ -8768,6 +8945,32 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },
@@ -9193,6 +9396,32 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },
@@ -9608,6 +9837,32 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "ipFamilyPolicy": {
+                            "description": "Specify the ip family policy to configure dual-stack. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "SingleStack",
+                                "PreferDualStack",
+                                "RequireDualStack",
+                                null
+                            ],
+                            "default": null
+                        },
+                        "ipFamilies": {
+                            "description": "List of IP families for the Service (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "IPv4",
+                                    "IPv6"
+                                ]
+                            },
+                            "default": []
                         }
                     }
                 },

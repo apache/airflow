@@ -573,6 +573,32 @@ class TestFlowerService:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "service": {
+                        "ipFamilyPolicy": "PreferDualStack",
+                        "ipFamilies": ["IPv4", "IPv6"],
+                    },
+                },
+            },
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}},
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
 
 class TestFlowerNetworkPolicy:
     """Tests flower network policy."""

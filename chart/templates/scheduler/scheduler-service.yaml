@@ -45,4 +45,10 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.workerLogs }}
       targetPort: {{ .Values.ports.workerLogs }}
+  {{- if .Values.scheduler.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.scheduler.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.scheduler.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.scheduler.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}
