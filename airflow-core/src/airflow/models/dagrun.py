@@ -2008,6 +2008,8 @@ class DagRun(Base, LoggingMixin):
         reschedule_ti_ids: set[UUID] = set()
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
+        count = 0
+        had_retry_mutation = False
         for ti in schedulable_tis:
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
@@ -2017,19 +2019,32 @@ class DagRun(Base, LoggingMixin):
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.
             elif not ti.defer_task(session=session):
+                # Retries flow through the ORM so refresh_from_task can re-apply task
+                # defaults and run task_instance_mutation_hook against the about-to-run
+                # try_number. First attempts and reschedules stay on the bulk UPDATE path.
+                if ti.task is not None and ti.state == TaskInstanceState.UP_FOR_RETRY:
+                    ti.try_number += 1
+                    ti.state = TaskInstanceState.SCHEDULED
+                    ti.scheduled_dttm = timezone.utcnow()
+                    ti.refresh_from_task(ti.task)
+                    count += 1
+                    had_retry_mutation = True
+                    continue
+
                 schedulable_ti_ids.append(ti.id)
-                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+                is_reschedule = ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
+                if is_reschedule:
                     reschedule_ti_ids.add(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (
-                        ti.try_number
-                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
-                        else ti.try_number + 1,
+                        ti.try_number if is_reschedule else ti.try_number + 1,
                         ti.try_number,
                         ti.state,
                     )
-
-        count = 0
+        if had_retry_mutation:
+            # Airflow disables SQLA autoflush, so retry-branch mutations need an
+            # explicit flush to be visible to the bulk UPDATE/SELECTs that follow.
+            session.flush()
         # Don't only check if the TI.id is in id_chunk
         # but also check if the TI.state is in the schedulable states.
         # Plus, a scheduled empty operator should not be scheduled again.
