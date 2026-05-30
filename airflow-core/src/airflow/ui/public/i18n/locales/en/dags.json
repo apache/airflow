@@ -69,6 +69,7 @@
       "existingTasks": "Clear existing tasks",
       "future": "Future",
       "onlyFailed": "Clear only failed tasks",
+      "onlySkipped": "Clear only skipped tasks",
       "past": "Past",
       "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",

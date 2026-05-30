@@ -45,6 +45,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
+  const onlySkipped = selectedOptions.includes("onlySkipped");
   const onlyNew = selectedOptions.includes("newTasks");
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -69,6 +70,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     requestBody: {
       only_failed: onlyFailed,
       only_new: onlyNew,
+      only_skipped: onlySkipped,
       run_on_latest_version: runOnLatestVersion,
     },
   });
@@ -119,6 +121,10 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   value: "onlyFailed",
                 },
                 {
+                  label: translate("dags:runAndTaskActions.options.onlySkipped"),
+                  value: "onlySkipped",
+                },
+                {
                   label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "newTasks",
                 },
@@ -151,6 +157,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                     note: note === dagRun.note ? undefined : note,
                     only_failed: onlyFailed,
                     only_new: onlyNew,
+                    only_skipped: onlySkipped,
                     run_on_latest_version: runOnLatestVersion,
                   },
                 });

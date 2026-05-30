@@ -519,6 +519,7 @@ def task_clear(args) -> None:
             end_date=args.end_date,
             only_failed=args.only_failed,
             only_running=args.only_running,
+            only_skipped=args.only_skipped,
             dry_run=True,
         )
         if not tis:
@@ -533,4 +534,5 @@ def task_clear(args) -> None:
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
+        only_skipped=args.only_skipped,
     )

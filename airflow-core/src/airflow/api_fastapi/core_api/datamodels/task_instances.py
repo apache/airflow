@@ -205,6 +205,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
     end_date: AwareDatetime | None = None
     only_failed: bool = True
     only_running: bool = False
+    only_skipped: bool = False
     reset_dag_runs: bool = True
     task_ids: list[str | tuple[str, int]] | None = Field(
         default=None,

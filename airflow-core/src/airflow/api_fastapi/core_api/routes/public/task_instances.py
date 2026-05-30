@@ -924,6 +924,7 @@ def post_clear_task_instances(
             run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
+            only_skipped=body.only_skipped,
         )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
@@ -936,6 +937,7 @@ def post_clear_task_instances(
             run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
+            only_skipped=body.only_skipped,
         )
 
     if not dry_run:
