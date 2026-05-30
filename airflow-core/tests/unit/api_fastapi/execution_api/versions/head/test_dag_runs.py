@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 import time_machine
 from fastapi import Request
@@ -321,6 +323,27 @@ class TestDagRunClear:
         response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
 
         assert response.status_code == 404
+
+    def test_dag_run_clear_invokes_resolver(self, client, session, dag_maker):
+        """Clearing invokes resolve_run_on_latest_version with no explicit override."""
+        dag_id = "test_clear_invokes_resolver"
+        run_id = "test_run_id"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+        dag_maker.create_dagrun(run_id=run_id, state=DagRunState.SUCCESS)
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.dag_runs.resolve_run_on_latest_version",
+            return_value=False,
+        ) as mock_resolver:
+            response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
+
+        assert response.status_code == 204
+        mock_resolver.assert_called_once()
+        # First positional arg is the explicit override; operator does not pass one.
+        assert mock_resolver.call_args.args[0] is None
 
 
 class TestDagRunDetail:
