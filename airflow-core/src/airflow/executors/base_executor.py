@@ -673,6 +673,8 @@ class BaseExecutor(LoggingMixin):
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
+                dag_id=workload.callback.data.get("dag_id"),
+                run_id=workload.callback.data.get("run_id"),
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,

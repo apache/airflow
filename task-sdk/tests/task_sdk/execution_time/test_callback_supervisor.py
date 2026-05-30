@@ -28,16 +28,29 @@ from unittest.mock import patch
 import pytest
 import structlog
 
+from airflow.sdk._shared.timezones import timezone
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
     _RequestFrame,
+)
+
+# A minimal DagRun instance used in the GetDagRun test case.
+_MOCK_DAG_RUN = DagRun(
+    dag_id="test_dag",
+    run_id="test_run",
+    run_after=timezone.parse("2024-01-01T00:00:00+00:00"),
+    run_type=DagRunType.MANUAL,
+    state=DagRunState.RUNNING,
+    consumed_asset_events=[],
 )
 
 
@@ -174,6 +187,15 @@ class TestCallbackHandleRequest:
             mask_secret_args=("secret",),
         ),
         RequestCase(
+            message=GetDagRun(dag_id="test_dag", run_id="test_run"),
+            test_id="get_dag_run",
+            client_mock=ClientMock(
+                method_path="dag_runs.get_detail",
+                args=("test_dag", "test_run"),
+                response=_MOCK_DAG_RUN,
+            ),
+        ),
+        RequestCase(
             message=GetVariable(key="test_key"),
             test_id="get_variable",
             client_mock=ClientMock(
@@ -239,3 +261,67 @@ class TestCallbackHandleRequest:
 
         if client_mock:
             mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)
+
+
+class TestLoadMangledModule:
+    """Tests for _load_mangled_module."""
+
+    def test_loads_real_file_under_mangled_name(self, tmp_path):
+        import sys
+
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        stem = "my_dag"
+        mod_name = f"unusual_prefix_{'a' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("def my_callback(): return 42\n")
+
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
+
+        assert result is True
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].my_callback() == 42
+        sys.modules.pop(mod_name)
+
+    def test_returns_false_when_file_missing(self, tmp_path):
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        result = load_mangled_dag_module(
+            "unusual_prefix_" + "b" * 40 + "_absent",
+            str(tmp_path / "absent.py"),
+        )
+
+        assert result is False
+
+    def test_returns_false_on_syntax_error(self, tmp_path):
+        import sys
+
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        stem = "bad_dag"
+        mod_name = f"unusual_prefix_{'c' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("def broken(: pass\n")  # syntax error
+
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
+
+        assert result is False
+        assert mod_name not in sys.modules
+
+    def test_skips_registration_when_already_in_sys_modules(self, tmp_path, mocker):
+        import sys
+
+        from airflow.sdk.execution_time.callback_supervisor import _register_unusual_prefix_module
+
+        stem = "cached_dag"
+        mod_name = f"unusual_prefix_{'d' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("def fn(): return 'cached'\n")
+
+        log = mocker.Mock()
+        _register_unusual_prefix_module(f"{mod_name}.fn", tmp_path, log)
+        assert mod_name in sys.modules
+
+        # Second call should be a no-op; module should not be re-loaded
+        (tmp_path / f"{stem}.py").write_text("def fn(): return 'new'\n")
+        _register_unusual_prefix_module(f"{mod_name}.fn", tmp_path, log)
+
+        assert sys.modules[mod_name].fn() == "cached"
+        sys.modules.pop(mod_name)

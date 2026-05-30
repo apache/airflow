@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, Security, status
 from pydantic import JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
@@ -32,7 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -66,12 +66,12 @@ async def has_xcom_access(
 
 
 router = APIRouter(
+    route_class=ExecutionAPIRoute,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
         status.HTTP_404_NOT_FOUND: {"description": "XCom not found"},
     },
-    dependencies=[Depends(has_xcom_access)],
 )
 
 log = logging.getLogger(__name__)
@@ -97,6 +97,10 @@ async def xcom_query(
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     description="Get a single XCom value from a mapped task by sequence index",
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
 )
 def get_mapped_xcom_by_index(
     dag_id: str,
@@ -142,6 +146,10 @@ class GetXComSliceFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
 )
 def get_mapped_xcom_by_slice(
     dag_id: str,
@@ -223,6 +231,10 @@ def get_mapped_xcom_by_slice(
 
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
     responses={
         status.HTTP_200_OK: {
             "description": "Metadata about the number of matching XCom values",
@@ -266,6 +278,10 @@ class GetXcomFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     description="Get a single XCom Value",
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
 )
 def get_xcom(
     dag_id: str,
@@ -322,6 +338,10 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
 )
 def set_xcom(
     dag_id: str,
@@ -422,6 +442,10 @@ def set_xcom(
 
 @router.delete(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[
+        Security(require_auth, scopes=["token:execution", "token:workload"]),
+        Depends(has_xcom_access),
+    ],
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
     description="Delete a single XCom Value",
 )

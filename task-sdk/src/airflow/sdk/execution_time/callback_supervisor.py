@@ -31,8 +31,10 @@ from pydantic import Field, TypeAdapter
 from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunResult,
     ErrorResponse,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
@@ -72,9 +74,10 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor.
 # This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker.
+# and Variables, plus MaskSecret for the secrets masker, plus GetDagRun for
+# building context from DagRun identifiers.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetDagRun | GetVariable | GetVariableKeys | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -174,6 +177,8 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        dag_id: str | None = None,
+        run_id: str | None = None,
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
@@ -208,6 +213,12 @@ class CallbackSubprocess(WatchedSubprocess):
                         _log.debug(
                             "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
                         )
+                    # DAG processor loads bundle files with a mangled module name
+                    # (unusual_prefix_{hash}_{stem}) to avoid collisions. The callback path
+                    # was serialized using that mangled name. Register the module under that
+                    # name so import_string can find it in the subprocess.
+                    if callback_path and callback_path.startswith("unusual_prefix_"):
+                        _register_unusual_prefix_module(callback_path, bundle.path, _log)
                 except Exception:
                     _log.warning(
                         "Failed to initialize DAG bundle for callback",
@@ -215,7 +226,15 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
-            success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
+            # When DagRun identifiers are provided, fetch the DagRun via SUPERVISOR_COMMS
+            # and build a context dict to pass to the callback function.
+            effective_kwargs = dict(callback_kwargs)
+            if dag_id and run_id:
+                context = _fetch_and_build_context(task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log)
+                if context is not None:
+                    effective_kwargs["context"] = context
+
+            success, error_msg = execute_callback(callback_path, effective_kwargs, _log)
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
@@ -284,6 +303,9 @@ class CallbackSubprocess(WatchedSubprocess):
 
         if isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
@@ -305,6 +327,29 @@ class CallbackSubprocess(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
+def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> None:
+    """
+    Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
+
+    Resolves the stem from the mangled module name, constructs the file path from
+    bundle_path, then delegates to load_mangled_dag_module from airflow.sdk._shared.
+    """
+    from pathlib import Path
+
+    from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+    mod_name = callback_path.split(".")[0]
+    if mod_name in sys.modules:
+        return
+
+    # unusual_prefix_{hex40}_{stem}  →  {stem}.py
+    parts = mod_name.split("_", 3)  # ["unusual", "prefix", "{hash}", "{stem}"]
+    if len(parts) < 4:
+        return
+    stem = parts[3]
+    load_mangled_dag_module(mod_name, str(Path(bundle_path) / f"{stem}.py"))
+
+
 def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
     """Configure file-based logging for the callback subprocess."""
     from airflow.sdk.log import init_log_file, logging_processors
@@ -318,11 +363,48 @@ def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
     return logger, log_file_descriptor
 
 
+def _fetch_and_build_context(
+    comms,
+    dag_id: str,
+    run_id: str,
+    _log,
+) -> dict | None:
+    """
+    Fetch DagRun via SUPERVISOR_COMMS and build a standard context dict.
+
+    Called inside the forked subprocess when DagRun identifiers are available.
+    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
+    Task-specific fields are absent since callbacks are not tied to a task.
+    """
+    try:
+        from airflow.sdk.execution_time.context import build_context_from_dag_run
+
+        response = comms.send(GetDagRun(dag_id=dag_id, run_id=run_id))
+        if not isinstance(response, DagRunResult):
+            _log.warning(
+                "Unexpected response when fetching DagRun for callback context",
+                response_type=type(response).__name__,
+            )
+            return None
+
+        return build_context_from_dag_run(response)
+    except Exception:
+        _log.warning(
+            "Failed to fetch DagRun for callback context",
+            dag_id=dag_id,
+            run_id=run_id,
+            exc_info=True,
+        )
+        return None
+
+
 def supervise_callback(
     *,
     id: str,
     callback_path: str,
     callback_kwargs: dict,
+    dag_id: str | None = None,
+    run_id: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -335,6 +417,8 @@ def supervise_callback(
     :param id: Unique identifier for this callback execution.
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_id: DAG ID for fetching DagRun context (optional, for deadline callbacks).
+    :param run_id: Run ID for fetching DagRun context (optional, for deadline callbacks).
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -361,6 +445,8 @@ def supervise_callback(
                 id=id,
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
+                dag_id=dag_id,
+                run_id=run_id,
                 bundle_info=bundle_info,
                 client=client,
                 logger=logger,

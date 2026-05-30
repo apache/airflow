@@ -32,6 +32,46 @@ PAYLOAD_STATUS_KEY = "state"
 PAYLOAD_BODY_KEY = "body"
 
 
+def _ensure_bundle_module_registered(callback_path: str) -> None:
+    """
+    Register an unusual_prefix_{hash}_{stem} module so import_string can find it.
+
+    The triggerer event loop doesn't run the DAG processor, so DAG files with mangled
+    module names must be registered manually. Walks all configured bundles to find the
+    file, then delegates the actual loading to _load_mangled_module in callback_supervisor.
+    """
+    import sys
+    from pathlib import Path
+
+    mod_name = callback_path.split(".")[0]
+    if mod_name in sys.modules:
+        return
+
+    # unusual_prefix_{hex40}_{stem}  →  {stem}.py
+    parts = mod_name.split("_", 3)
+    if len(parts) < 4:
+        return
+    stem = parts[3]
+
+    try:
+        from airflow._shared.module_loading import load_mangled_dag_module
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+        for bundle in DagBundlesManager().get_all_dag_bundles():
+            try:
+                bundle.initialize()
+                file_path = Path(bundle.path) / f"{stem}.py"
+                if not file_path.exists():
+                    continue
+                if load_mangled_dag_module(mod_name, str(file_path)):
+                    return
+            except Exception:
+                log.debug("Bundle %s did not contain module stem %s", bundle.name, stem)
+                continue
+    except Exception:
+        log.warning("Failed to register unusual_prefix module %s", mod_name, exc_info=True)
+
+
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
 
@@ -41,6 +81,10 @@ class CallbackTrigger(BaseTrigger):
         super().__init__()
         self.callback_path = callback_path
         self.callback_kwargs = callback_kwargs or {}
+        #: Set externally by TriggerRunner from workload dag_run_data before run() is called,
+        #: the same pattern as task_instance is set for task-bound triggers. Not serialized;
+        #: always None on a freshly deserialized trigger.
+        self.context: dict | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -51,14 +95,19 @@ class CallbackTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
+            if self.callback_path.startswith("unusual_prefix_"):
+                _ensure_bundle_module_registered(self.callback_path)
             callback = import_string(self.callback_path)
-            # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
-            context = self.callback_kwargs.pop("context", None)
+
+            # self.context is set by TriggerRunner from workload.dag_run_data before run() is called.
+            context = self.context
+
+            kwargs = dict(self.callback_kwargs)
 
             if accepts_context(callback) and context is not None:
-                result = await callback(**self.callback_kwargs, context=context)
+                result = await callback(**kwargs, context=context)
             else:
-                result = await callback(**self.callback_kwargs)
+                result = await callback(**kwargs)
 
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
 

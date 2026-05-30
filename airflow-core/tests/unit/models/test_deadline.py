@@ -26,7 +26,6 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -230,13 +229,17 @@ class TestDeadline:
 
         assert deadline_orm.missed
 
-        callback_kwargs = deadline_orm.callback.data["kwargs"]
-        context = callback_kwargs.pop("context")
-        assert callback_kwargs == TEST_CALLBACK_KWARGS
+        # DagRun identifiers are stored at the top level of callback.data for routing
+        assert deadline_orm.callback.data["dag_id"] == dagrun.dag_id
+        assert deadline_orm.callback.data["run_id"] == dagrun.run_id
 
-        assert context["deadline"]["id"] == deadline_orm.id
-        assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
-        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+        # Deadline-specific info goes into kwargs so it's passed to the callback function
+        expected_kwargs = {
+            **TEST_CALLBACK_KWARGS,
+            "deadline_id": str(deadline_orm.id),
+            "deadline_time": deadline_orm.deadline_time.isoformat(),
+        }
+        assert deadline_orm.callback.data["kwargs"] == expected_kwargs
 
 
 @pytest.mark.db_test

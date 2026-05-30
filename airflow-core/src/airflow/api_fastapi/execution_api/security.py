@@ -227,7 +227,7 @@ class ExecutionAPIRoute(APIRoute):
 
 
 async def get_team_name_dep(token=CurrentTIToken) -> str | None:
-    """Return the team name associated to the task (if any)."""
+    """Return the team name associated to the task or callback (if any)."""
     from airflow.configuration import conf
 
     if not conf.getboolean("core", "multi_team"):
@@ -236,7 +236,12 @@ async def get_team_name_dep(token=CurrentTIToken) -> str | None:
     from airflow.utils.session import create_session_async
 
     async with create_session_async() as session:
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+        team_name = await session.scalar(_team_name_for_ti_stmt(token.id))
+        if team_name is not None:
+            return team_name
+        # Workload tokens use the callback UUID as sub; fall back to the
+        # Callback → dag_id → Team path for deadline callback subprocesses.
+        return await session.scalar(_team_name_for_callback_stmt(token.id))
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:
@@ -266,4 +271,22 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
+    )
+
+
+def _team_name_for_callback_stmt(callback_id):
+    """Build the select statement resolving ``Callback.id -> dag_id -> Team.name``."""
+    from airflow.models import DagModel
+    from airflow.models.callback import Callback
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    # Callbacks store dag_id as a JSON key in data; join via the dag_id value.
+    return (
+        select(Team.name)
+        .select_from(Callback)
+        .join(DagModel, DagModel.dag_id == Callback.data["dag_id"].as_string())
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(Callback.id == callback_id)
     )
