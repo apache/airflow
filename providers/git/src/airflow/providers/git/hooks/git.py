@@ -25,7 +25,6 @@ import shlex
 import stat
 import tempfile
 from typing import Any
-from urllib.parse import quote as urlquote
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -145,19 +144,47 @@ class GitHook(BaseHook):
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):
             return
-        if self.auth_token and self.repo_url.startswith("https://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-        elif self.auth_token and self.repo_url.startswith("http://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-        elif self.repo_url.startswith("http://"):
-            # if no auth token, use the repo url as is
-            pass
-        elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
+
+        if not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    @contextlib.contextmanager
+    def _token_askpass_env(self):
+        if not self.auth_token:
+            yield
+            return
+
+        raw_username = self.user_name or "git"
+        username = shlex.quote(raw_username)
+        password = shlex.quote(self.auth_token)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
+            script_content = f"""#!/bin/sh
+case "$1" in
+    *Username*) echo {username} ;;
+    *Password*) echo {password} ;;
+    *) exit 1 ;;
+esac
+"""
+            askpass_script.write(script_content)
+            askpass_script.flush()
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            old_git_askpass = self.env.get("GIT_ASKPASS")
+            old_git_terminal_prompt = self.env.get("GIT_TERMINAL_PROMPT")
+            try:
+                self.env["GIT_ASKPASS"] = askpass_script.name
+                self.env["GIT_TERMINAL_PROMPT"] = "0"
+                yield
+            finally:
+                for var, old_val in [
+                    ("GIT_ASKPASS", old_git_askpass),
+                    ("GIT_TERMINAL_PROMPT", old_git_terminal_prompt),
+                ]:
+                    if old_val is None:
+                        self.env.pop(var, None)
+                    else:
+                        self.env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
@@ -216,4 +243,5 @@ class GitHook(BaseHook):
             yield
         else:
             self.set_git_env(self.key_file)
-            yield
+            with self._token_askpass_env():
+                yield
