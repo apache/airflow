@@ -35,6 +35,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
 from ..otel_env_config import load_metrics_env_config
+from .histogram_buckets import build_views_for_patterns
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -439,6 +440,11 @@ def get_otel_logger(
     so that bucket boundaries adapt automatically to the observed data range.  This avoids
     the need to hand-tune explicit bucket boundaries for metrics that span very different
     scales (milliseconds to hours).
+
+    Pattern-keyed views from
+    :mod:`~airflow_shared.observability.metrics.histogram_buckets` are layered on top of
+    that baseline so non-timer histograms (``*_count``, ``*_duration``, ``*_delay``) get
+    bucket shapes appropriate to each family.
     """
     otel_env_config = load_metrics_env_config()
 
@@ -489,16 +495,22 @@ def get_otel_logger(
     except (ImportError, AttributeError):
         pass
 
+    # Per-instrument-type baseline: every histogram defaults to exponential
+    # buckets.  Pattern-keyed views from histogram_buckets layer on top to
+    # give specific metric-name families their own bucket shape.
+    histogram_views: list[View] = [
+        View(
+            instrument_type=metrics.Histogram,
+            aggregation=ExponentialBucketHistogramAggregation(),
+        ),
+        *build_views_for_patterns(),
+    ]
+
     metrics.set_meter_provider(
         MeterProvider(
             resource=resource,
             metric_readers=readers,
-            views=[
-                View(
-                    instrument_type=metrics.Histogram,
-                    aggregation=ExponentialBucketHistogramAggregation(),
-                )
-            ],
+            views=histogram_views,
             shutdown_on_exit=False,
         ),
     )
