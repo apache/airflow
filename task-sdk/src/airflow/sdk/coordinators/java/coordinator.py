@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators.socket.coordinator import SocketCoordinator
+from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
@@ -167,7 +167,7 @@ def _convert_jars_root(
 
 
 @attrs.define(kw_only=True)
-class JavaCoordinator(SocketCoordinator):
+class JavaCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a JVM subprocess for DAG parsing and task execution.
 

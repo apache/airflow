@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Common socket-based subprocess coordinator scaffolding.
+Common subprocess coordinator scaffolding.
 
 Coordinators that launch a subprocess and communicate with it over two TCP
 sockets (``--comm`` and ``--logs``) — Java, native executables, and any
 future runtime that follows the same wire convention — can subclass
-:class:`SocketCoordinator` and reuse the resource-tracking, accept, and
+:class:`SubprocessCoordinator` and reuse the resource-tracking, accept, and
 draining machinery in this module rather than re-implementing it.
 """
 
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
-log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.socket")
+log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
 
 
 def _start_server() -> socket.socket:
@@ -172,7 +172,7 @@ class _ResourceTracker:
 
 
 @attrs.define(kw_only=True)
-class _SocketActivitySubprocess(ActivitySubprocess):
+class _PopenActivitySubprocess(ActivitySubprocess):
     """
     Activity subprocess that talks to the parent over two TCP sockets.
 
@@ -264,7 +264,7 @@ class _SocketActivitySubprocess(ActivitySubprocess):
 
 
 @attrs.define(kw_only=True)
-class SocketCoordinator(BaseCoordinator):
+class SubprocessCoordinator(BaseCoordinator):
     """
     Abstract base for coordinators that launch a subprocess and IPC over TCP sockets.
 
@@ -287,7 +287,7 @@ class SocketCoordinator(BaseCoordinator):
 
         Returns a ``(command, subprocess_schema_version)`` pair. *command*
         MUST NOT include the ``--comm`` / ``--logs`` flags — those are
-        appended by :class:`_SocketActivitySubprocess` once the listening
+        appended by :class:`_PopenActivitySubprocess` once the listening
         sockets have been bound. A ``None`` schema version disables schema
         migration; messages are then exchanged at the runtime's native wire
         format.
@@ -307,7 +307,7 @@ class SocketCoordinator(BaseCoordinator):
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
         command, subprocess_schema_version = self._build_execute_task_command(what=what)
-        process = _SocketActivitySubprocess.start(
+        process = _PopenActivitySubprocess.start(
             what=what,
             dag_rel_path=dag_rel_path,
             bundle_info=bundle_info,
