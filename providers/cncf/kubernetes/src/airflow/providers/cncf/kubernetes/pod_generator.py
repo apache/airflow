@@ -62,11 +62,11 @@ log = logging.getLogger(__name__)
 MAX_LABEL_LEN = 63
 
 
-def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
+def workload_to_command_args(workload: workloads.ExecuteTask | workloads.ExecuteCallback) -> list[str]:
     """
     Convert a workload object to Task SDK command arguments.
 
-    :param workload: The ExecuteTask workload to convert
+    :param workload: The workload to convert (ExecuteTask or ExecuteCallback)
     :return: List of command arguments for the Task SDK
     """
     ser_input = workload.model_dump_json()
