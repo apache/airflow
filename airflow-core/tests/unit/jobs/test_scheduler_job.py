@@ -10724,6 +10724,27 @@ class TestReapStaleConnectionTests:
         assert "queued but never started" in ct.result_message
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_when_state_loaded_as_plain_str(self, scheduler_job_runner_for_connection_tests, session):
+        """Reaper handles a state loaded from the DB as a plain str (fresh-session path), not an enum."""
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(conn_type="test_type", connection_id="reload_conn")
+            ct.state = ConnectionTestState.RUNNING
+            session.add(ct)
+            session.commit()
+
+        # Expire so the reaper reloads ``state`` as a plain ``str`` (as a fresh scheduler process would).
+        session.expire_all()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
     def test_does_not_reap_fresh_tests(self, scheduler_job_runner_for_connection_tests, session):
         """Fresh QUEUED tests are not reaped."""
         ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")

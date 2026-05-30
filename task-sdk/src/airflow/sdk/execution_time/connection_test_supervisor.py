@@ -19,10 +19,13 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 
 import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionTestState
 from airflow.sdk.definitions.connection import Connection as SDKConnection
@@ -44,6 +47,10 @@ def supervise_connection_test(
 ) -> int:
     """Execute a connection test on the worker and report the result via the Execution API."""
     client = Client(base_url=server, token=token)
+
+    bind_contextvars(connection_test_id=str(connection_test_id), connection_id=connection_id)
+    log.info("Starting connection test", timeout=timeout)
+    start = time.monotonic()
 
     try:
         r = client.connection_tests.get_connection(connection_test_id)
@@ -67,9 +74,12 @@ def supervise_connection_test(
         # which has from_uri() method, instead of core Connection class
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         try:
-            with TimeoutPosix(
-                seconds=timeout,
-                error_message=f"Connection test timed out after {timeout}s",
+            with (
+                stats.timer("connection_test.hook_duration"),
+                TimeoutPosix(
+                    seconds=timeout,
+                    error_message=f"Connection test timed out after {timeout}s",
+                ),
             ):
                 success, message = conn.test_connection()
         finally:
@@ -85,23 +95,36 @@ def supervise_connection_test(
 
         state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
         client.connection_tests.update_state(connection_test_id, state, message)
+        stats.incr("connection_test.success" if success else "connection_test.failed")
+        log.info(
+            "Connection test finished",
+            state=state.value,
+            duration=round(time.monotonic() - start, 3),
+        )
     except AirflowTaskTimeout:
         log.error(
-            "Connection test timed out after %ds",
-            timeout,
-            connection_id=connection_id,
+            "Connection test timed out, marking failed",
+            timeout=timeout,
+            duration=round(time.monotonic() - start, 3),
         )
+        stats.incr("connection_test.failed")
         client.connection_tests.update_state(
             connection_test_id,
             ConnectionTestState.FAILED,
             f"Connection test timed out after {timeout}s",
         )
     except Exception as e:
-        log.exception("Connection test failed unexpectedly", connection_id=connection_id)
+        log.exception(
+            "Connection test failed unexpectedly",
+            duration=round(time.monotonic() - start, 3),
+        )
+        stats.incr("connection_test.failed")
         client.connection_tests.update_state(
             connection_test_id,
             ConnectionTestState.FAILED,
             f"Connection test failed unexpectedly: {type(e).__name__}",
         )
+    finally:
+        clear_contextvars()
 
     return 0

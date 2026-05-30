@@ -3287,12 +3287,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_concurrency = conf.getint("connection_test", "max_concurrency", fallback=4)
         timeout = conf.getint("connection_test", "timeout", fallback=60)
 
-        active_count = session.scalar(
-            select(func.count(ConnectionTestRequest.id)).where(
-                ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+        active_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+                )
             )
+            or 0
         )
-        budget = max_concurrency - (active_count or 0)
+        pending_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state == ConnectionTestState.PENDING
+                )
+            )
+            or 0
+        )
+        stats.gauge("connection_test.active", active_count)
+        stats.gauge("connection_test.pending", pending_count)
+
+        budget = max_concurrency - active_count
         if budget <= 0:
             return
 
@@ -3308,6 +3322,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not pending_tests:
             return
 
+        dispatch_timer = stats.timer("connection_test.dispatch_duration")
+        dispatch_timer.start()
         for ct in pending_tests:
             team_name = ct.team_name if self._multi_team else None
             executor = self._try_to_load_executor(ct, session, team_name=team_name)
@@ -3336,6 +3352,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor.queue_workload(workload, session=session)
             ct.state = ConnectionTestState.QUEUED
 
+        dispatch_timer.stop(send=True)
         session.flush()
 
     @provide_session
@@ -3367,7 +3384,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
-            self.log.warning("Reaped stale connection test %s", ct.id)
+            prior_state_value = ConnectionTestState(prior_state).value
+            self.log.warning(
+                "Reaped stale connection test %s (connection_id=%s, prior_state=%s, team=%s)",
+                ct.id,
+                ct.connection_id,
+                prior_state_value,
+                ct.team_name,
+            )
+            stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
             key = ConnectionTestKey(id=str(ct.id))
             for executor in self.executors:
                 if executor.supports_connection_test:
