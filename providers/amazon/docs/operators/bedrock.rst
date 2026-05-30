@@ -417,3 +417,32 @@ To update an Amazon Bedrock guardrail configuration, use
     :dedent: 4
     :start-after: [START howto_operator_bedrock_update_guardrail]
     :end-before: [END howto_operator_bedrock_update_guardrail]
+
+
+.. _howto/operator:BedrockRerankOperator:
+
+Rerank Documents
+----------------
+
+To rerank a list of documents based on their relevance to a query using Amazon Bedrock,
+you can use :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRerankOperator`.
+
+This operator uses the Bedrock Agent Runtime ``Rerank`` API to score and reorder documents,
+which is useful for improving RAG pipeline quality by filtering and prioritizing retrieved
+results before passing them to a generative model.
+
+.. code-block:: python
+
+    from airflow.providers.amazon.aws.operators.bedrock import BedrockRerankOperator
+
+    rerank = BedrockRerankOperator(
+        task_id="rerank_results",
+        query="What is serverless computing?",
+        documents=[
+            {"textDocument": {"text": "AWS Lambda is a serverless compute service."}},
+            {"textDocument": {"text": "Amazon EC2 provides virtual servers in the cloud."}},
+            {"textDocument": {"text": "Serverless eliminates infrastructure management."}},
+        ],
+        model_id="cohere.rerank-v3-5:0",
+        number_of_results=2,
+    )
