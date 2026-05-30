@@ -24,7 +24,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )

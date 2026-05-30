@@ -38,7 +38,7 @@ Three toolsets are included:
 :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface.
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` implements the
-framework-agnostic :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset` interface.
+framework-agnostic :class:`~airflow.providers.common.ai.hooks.base.BaseToolset` interface.
 All three can be passed to
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`, which routes each
 toolset to the correct agent parameter automatically.
@@ -53,7 +53,7 @@ toolset to the correct agent parameter automatically.
     - Any third-party ``AbstractToolset``, including PydanticAI's own MCP
       server classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``,
       ``MCPServerStdio``).
-    - :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
+    - :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
       subclasses (``SQLToolset``).
     - Plain Python callables (``def my_tool(...): ...``).
     - Native pydantic-ai ``Tool`` objects.
@@ -67,7 +67,7 @@ Using Toolsets Directly
 Toolsets can be used anywhere you can run Python within Airflow — ``@task``
 functions, ``PythonOperator`` callables, or any custom operator's
 ``execute()`` method — without needing ``AgentOperator`` or ``@task.agent``.
-Pass toolsets via :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunRequest`
+Pass toolsets via :class:`~airflow.providers.common.ai.hooks.base.AgentRunRequest`
 and call the hook yourself:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
@@ -85,9 +85,9 @@ several runs. The tradeoff is that you lose the durable execution
 (step-level caching with retry replay), HITL review integration, and
 automatic tool call logging that
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` provides
-via the agent hook (:class:`~airflow.providers.common.ai.hooks.base_ai.BaseAIHook`):
+via the agent hook (:class:`~airflow.providers.common.ai.hooks.base.BaseAIHook`):
 callable-level logging and caching for
-:class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset` tools and plain
+:class:`~airflow.providers.common.ai.hooks.base.BaseToolset` tools and plain
 callables, and :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` /
 :class:`~airflow.providers.common.ai.durable.caching_toolset.CachingToolset`
 wrapping for pydantic-ai ``AbstractToolset`` items.

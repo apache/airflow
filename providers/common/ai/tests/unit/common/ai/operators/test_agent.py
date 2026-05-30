@@ -23,7 +23,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS

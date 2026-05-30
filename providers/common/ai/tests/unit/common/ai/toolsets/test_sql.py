@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from pydantic_ai.exceptions import ModelRetry
 
-from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
+from airflow.providers.common.ai.hooks.base import BaseToolset, ToolSpec
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 

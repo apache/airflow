@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,

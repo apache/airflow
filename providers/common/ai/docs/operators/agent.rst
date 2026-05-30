@@ -307,7 +307,7 @@ Parameters
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
 - ``toolsets``: List of toolsets the agent can use. Accepts
-  :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset` subclasses
+  :class:`~airflow.providers.common.ai.hooks.base.BaseToolset` subclasses
   (``SQLToolset``), pydantic-ai ``AbstractToolset`` implementations
   (``HookToolset``, ``MCPToolset``, ``DataFusionToolset``, third-party toolsets),
   plain Python callables, or native pydantic-ai ``Tool`` objects. Mixed lists
@@ -315,7 +315,7 @@ Parameters
 - ``enable_tool_logging``: When ``True`` (default), wraps each tool call with
   real-time logging. For pydantic-ai ``AbstractToolset`` items this is done via
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset`; for
-  plain callables and :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
+  plain callables and :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
   items it is applied at the callable level.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).

@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 
 try:
     from airflow.sdk.serde import allow_class

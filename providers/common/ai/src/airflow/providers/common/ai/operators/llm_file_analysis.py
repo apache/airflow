@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest
+from airflow.providers.common.ai.hooks.base import AgentRunRequest
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary

@@ -30,7 +30,7 @@ from pydantic_ai.run import AgentRunResult as PydanticAgentRunResult
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from airflow.models.connection import Connection
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, BaseAIHook, ToolSpec
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, BaseAIHook, ToolSpec
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
@@ -88,7 +88,7 @@ class _PydanticAIHookWithTestModel(PydanticAIHook):
 
 
 class TestPydanticAIHookBaseContract:
-    def test_is_base_ai_hook(self):
+    def test_is_base_hook(self):
         assert issubclass(PydanticAIHook, BaseAIHook)
 
     def test_capability_flags(self):
@@ -414,7 +414,7 @@ class TestPydanticAIHookCreateAgent:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_create_agent_inits_durable_when_context_set(self, mock_infer_model):
-        from airflow.providers.common.ai.hooks.base_ai import DurableContext
+        from airflow.providers.common.ai.hooks.base import DurableContext
 
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -473,7 +473,7 @@ class TestPydanticAIHookCreateAgent:
         """BaseToolset items are expanded; native Tool objects are passed through unchanged."""
         from pydantic_ai.tools import Tool
 
-        from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
+        from airflow.providers.common.ai.hooks.base import BaseToolset, ToolSpec
 
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -561,7 +561,7 @@ class TestPydanticAIHookCreateAgent:
         from pydantic_ai.toolsets.abstract import AbstractToolset
 
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
-        from airflow.providers.common.ai.hooks.base_ai import DurableContext
+        from airflow.providers.common.ai.hooks.base import DurableContext
         from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
         mock_model = MagicMock(spec=Model)
@@ -594,7 +594,7 @@ class TestPydanticAIHookCreateAgent:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_create_agent_binds_durable_per_agent_not_on_hook(self, mock_infer_model):
         """Second create_agent must not overwrite durable state for the first agent."""
-        from airflow.providers.common.ai.hooks.base_ai import DurableContext
+        from airflow.providers.common.ai.hooks.base import DurableContext
 
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model

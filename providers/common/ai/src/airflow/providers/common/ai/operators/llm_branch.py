@@ -22,7 +22,7 @@ from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest
+from airflow.providers.common.ai.hooks.base import AgentRunRequest
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.standard.operators.branch import BranchMixIn

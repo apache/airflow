@@ -22,7 +22,7 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_schema_compare import _LLMSchemaCompareDecoratedOperator
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,

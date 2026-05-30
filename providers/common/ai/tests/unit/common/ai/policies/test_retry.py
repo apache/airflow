@@ -25,7 +25,7 @@ import pytest
 # Skip the entire test module on older Airflow versions tested in compat CI.
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
-from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
