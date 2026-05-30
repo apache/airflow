@@ -110,9 +110,8 @@ def example_pydantic_ai_spec_file():
     """Load agent settings from a YAML spec file instead of inline code.
 
     The spec file (``example_agent_spec.yaml``) declares model, instructions,
-    model_settings, retries, etc.  The hook's connection still supplies
-    credentials; the model in the file can be overridden by ``model_id`` on the
-    hook.
+    model_settings, retries, etc. If ``model_id`` or the connection's ``model``
+    extra is set, that hook model takes precedence over the file's model.
     """
 
     @task
@@ -125,8 +124,8 @@ def example_pydantic_ai_spec_file():
         return result.output
 
     @task
-    def summarize_with_instruction_override(text: str) -> str:
-        """Override instructions at call time; everything else stays from the file."""
+    def summarize_with_additional_instructions(text: str) -> str:
+        """Add call-time instructions alongside the spec file instructions."""
         spec_path = Path(__file__).parent / "example_agent_spec.yaml"
         hook = PydanticAIHook(llm_conn_id="pydanticai_default")
         agent = hook.create_agent(
@@ -138,7 +137,7 @@ def example_pydantic_ai_spec_file():
 
     body = "Apache Airflow is an open-source platform for authoring, scheduling..."
     summarize_from_spec(body)
-    summarize_with_instruction_override(body)
+    summarize_with_additional_instructions(body)
 
 
 # [END howto_hook_pydantic_ai_spec_file]

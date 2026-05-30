@@ -92,7 +92,7 @@ you version-control agent configs independently.
     :start-after: [START howto_hook_pydantic_ai_spec_file]
     :end-before: [END howto_hook_pydantic_ai_spec_file]
 
-The hook's Airflow connection still provides credentials. The model declared in
-the spec file is used unless you pass ``model_id`` to the hook constructor, which
-takes precedence.  Passing ``instructions`` to ``create_agent`` when a
-``spec_file`` is also given **overrides** the file value.
+The model declared in the spec file is used unless ``model_id`` or the
+connection's ``model`` extra is set, in which case the hook model takes
+precedence. Passing ``instructions`` to ``create_agent`` when a ``spec_file`` is
+also given appends additional instructions to the file value.

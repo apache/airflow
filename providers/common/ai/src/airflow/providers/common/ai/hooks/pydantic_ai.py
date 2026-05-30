@@ -173,6 +173,17 @@ class PydanticAIHook(BaseHook):
         self._model = infer_model(model_name)
         return self._model
 
+    def _get_conn_if_model_configured(self) -> Model | None:
+        """Return the hook model only when the hook or connection explicitly configures one."""
+        if self.model_id:
+            return self.get_conn()
+
+        conn = self.get_connection(self.llm_conn_id)
+        if conn.extra_dejson.get("model"):
+            return self.get_conn()
+
+        return None
+
     @overload
     def create_agent(
         self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
@@ -218,19 +229,27 @@ class PydanticAIHook(BaseHook):
 
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
-            Required when *spec_file* is not given.  When *spec_file* is given, this
-            value overrides the instructions in the file; omit to use the file value.
+            Required when *spec_file* is not given. When *spec_file* is given,
+            this value is merged with the instructions in the file; omit it to
+            use only the file value.
         :param spec_file: Path to a YAML or JSON ``AgentSpec`` file.  When supplied,
-            delegates to ``Agent.from_file(spec_file, model=..., ...)``.
+            delegates to ``Agent.from_file``. If ``model_id`` or the connection's
+            ``model`` extra is set, that model is passed to pydantic-ai; otherwise
+            the spec file's ``model`` is used.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
         if spec_file is not None:
+            from_file_kwargs = dict(agent_kwargs)
+            model = self._get_conn_if_model_configured()
+            if model is not None:
+                from_file_kwargs["model"] = model
+            if instructions is not None:
+                from_file_kwargs["instructions"] = instructions
+
             agent = Agent.from_file(
                 spec_file,
-                model=self.get_conn(),
                 output_type=output_type,
-                instructions=instructions,
-                **agent_kwargs,
+                **from_file_kwargs,
             )
         else:
             if instructions is None:
