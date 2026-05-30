@@ -100,7 +100,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, _locked_task_instance_ids
 from airflow.observability.metrics import stats_utils
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
@@ -142,6 +142,9 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+_TRIGGER_TIMEOUT_BATCH_SIZE = 1000
+"""Maximum number of task instances to lock per trigger-timeout batch."""
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -2915,25 +2918,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        for attempt in run_with_db_retries(max_retries, logger=self.log):
-            with attempt:
-                result = session.execute(
-                    update(TI)
-                    .where(
+        now = timezone.utcnow()
+        while True:
+            task_instance_ids = []
+            for attempt in run_with_db_retries(max_retries, logger=self.log):
+                with attempt:
+                    candidates = select(TI.id).where(
                         TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+                        TI.trigger_timeout < now,
                     )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
+                    task_instance_ids = _locked_task_instance_ids(
+                        candidates, _TRIGGER_TIMEOUT_BATCH_SIZE, session
                     )
-                )
-                num_timed_out_tasks = getattr(result, "rowcount", 0)
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                    if not task_instance_ids:
+                        break
+                    result = session.execute(
+                        update(TI)
+                        .where(TI.id.in_(task_instance_ids))
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            next_method=TRIGGER_FAIL_REPR,
+                            next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                            scheduled_dttm=now,
+                            trigger_id=None,
+                        )
+                        .execution_options(synchronize_session=False)
+                    )
+                    num_timed_out_tasks = getattr(result, "rowcount", 0)
+                    if num_timed_out_tasks:
+                        self.log.info(
+                            "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
+                        )
+            if not task_instance_ids:
+                break
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:
