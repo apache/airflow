@@ -431,6 +431,30 @@ metrics:
     legacy_name: "pool.starving_tasks.{pool_name}"
     name_variables: ["pool_name"]
 
+  - name: "pool.open_slots.distribution"
+    description: "Distribution of open slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.open_slots.distribution.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.queued_slots.distribution"
+    description: "Distribution of queued slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.queued_slots.distribution.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.running_slots.distribution"
+    description: "Distribution of running slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.running_slots.distribution.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.starving_tasks.distribution"
+    description: "Distribution of starving tasks in the pool, sampled at each executable-TI pass."
+    type: "timer"
+    legacy_name: "pool.starving_tasks.distribution.{pool_name}"
+    name_variables: ["pool_name"]
+
   - name: "triggers.running"
     description: "Number of triggers currently running for a triggerer (described by hostname)."
     type: "gauge"
