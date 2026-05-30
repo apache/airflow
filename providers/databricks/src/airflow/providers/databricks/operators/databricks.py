@@ -441,6 +441,88 @@ class DatabricksCreateJobsOperator(BaseOperator):
         return job_id
 
 
+class DatabricksDeleteJobsOperator(BaseOperator):
+    """
+    Deletes a Databricks job by ``job_id`` or ``job_name``.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksDeleteJobsOperator`
+
+        Databricks REST API: https://docs.databricks.com/api/workspace/jobs/delete
+
+    :param job_id: The ID of the Databricks job to delete. (templated)
+        Either ``job_id`` or ``job_name`` must be provided.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+    :param job_name: The name of the existing Databricks job to delete. (templated)
+        Exactly one job with the specified name must exist.
+        Either ``job_id`` or ``job_name`` must be provided.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+    :param databricks_conn_id: Reference to the
+        :ref:`Databricks connection <howto/connection:databricks>`.
+    :param databricks_retry_limit: Amount of times retry if the Databricks backend is
+        unreachable. Its value must be greater than or equal to 1.
+    :param databricks_retry_delay: Number of seconds to wait between retries
+        (it might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to
+        ``tenacity.Retrying`` class.
+    """
+
+    template_fields: Sequence[str] = ("job_id", "job_name")
+    ui_color = "#1CB1C2"
+    ui_fgcolor = "#fff"
+
+    def __init__(
+        self,
+        *,
+        job_id: int | str | None = None,
+        job_name: str | None = None,
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        if job_id is None and job_name is None:
+            raise AirflowException(
+                "Either 'job_id' or 'job_name' must be provided to DatabricksDeleteJobsOperator."
+            )
+        self.job_id = job_id
+        self.job_name = job_name
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+
+    @cached_property
+    def _hook(self):
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller="DatabricksDeleteJobsOperator",
+        )
+
+    def execute(self, context: Context) -> None:
+        # Resolve job_id from job_name when only job_name was supplied.
+        # Aligned with DatabricksCreateJobsOperator / DatabricksRunNowOperator
+        # which expect users to know the job's name rather than its numeric ID.
+        job_id = self.job_id
+        if job_id is None:
+            job_id = self._hook.find_job_id_by_name(self.job_name)
+            if job_id is None:
+                # Surface a clear error instead of silently doing nothing when
+                # the target job has already been removed or never existed.
+                raise AirflowException(
+                    f"Job not found: no Databricks job with name '{self.job_name}' exists."
+                )
+
+        self._hook.delete_job(job_id)
+        self.log.info("Successfully deleted Databricks job ID: %s", job_id)
+
+
 class DatabricksSubmitRunOperator(BaseOperator):
     """
     Submits a Spark job run to Databricks using the api/2.2/jobs/runs/submit API endpoint.

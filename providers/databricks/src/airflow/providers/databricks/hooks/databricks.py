@@ -54,6 +54,7 @@ DELETE_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/delete")
 REPAIR_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/repair")
 OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.2/jobs/runs/get-output")
 CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.2/jobs/runs/cancel-all")
+DELETE_ENDPOINT = ("POST", "2.2/jobs/delete")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
@@ -301,6 +302,14 @@ class DatabricksHook(BaseDatabricksHook):
         """
         response = self._do_api_call(CREATE_ENDPOINT, json)
         return response["job_id"]
+
+    def delete_job(self, job_id: str | int) -> None:
+        """
+        Call the ``api/2.2/jobs/delete`` endpoint.
+
+        :param job_id: The unique identifier of the job to be deleted, as a string or integer.
+        """
+        self._do_api_call(DELETE_ENDPOINT, {"job_id": int(job_id)})
 
     def reset_job(self, job_id: str, json: dict) -> None:
         """
