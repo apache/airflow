@@ -118,3 +118,59 @@ class TestUploadToRemote:
 
         assert captured == []
         handler.upload.assert_called_once_with(relative.as_posix(), ti)
+
+
+class TestMaskSecretSupervisorIPC:
+    """When ``mask_secret`` cannot register a secret with the supervisor it must surface a warning.
+
+    The local task drops its own ``mask_logs`` processor when forwarding logs to the supervisor
+    (see ``sending_to_supervisor=True`` branches in ``log.py``); a silent IPC failure would leave
+    the secret unmasked in supervisor-level logs.
+    """
+
+    def test_warns_when_supervisor_send_fails(self):
+        from airflow.sdk.execution_time import task_runner
+
+        comms = mock.MagicMock()
+        comms.send.side_effect = RuntimeError("supervisor IPC down")
+
+        with (
+            mock.patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log.mask_secret("hunter2", name="password")
+
+        events = [e for e in captured if e["event"] == "supervisor_mask_secret_failed"]
+        assert len(events) == 1
+        assert events[0]["log_level"] == "warning"
+        assert events[0]["secret_name"] == "password"
+        assert events[0]["exc_info"]  # structlog renders exc_info=True as True in capture_logs
+        comms.send.assert_called_once()
+
+    def test_silent_when_supervisor_send_succeeds(self):
+        from airflow.sdk.execution_time import task_runner
+
+        comms = mock.MagicMock()
+
+        with (
+            mock.patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log.mask_secret("hunter2", name="password")
+
+        events = [e for e in captured if e["event"] == "supervisor_mask_secret_failed"]
+        assert events == []
+        comms.send.assert_called_once()
+
+    def test_silent_when_no_supervisor_context(self):
+        """Outside a task-execution context (no SUPERVISOR_COMMS) the function is a no-op."""
+        from airflow.sdk.execution_time import task_runner
+
+        with (
+            mock.patch.object(task_runner, "SUPERVISOR_COMMS", None, create=True),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log.mask_secret("hunter2", name="password")
+
+        events = [e for e in captured if e["event"] == "supervisor_mask_secret_failed"]
+        assert events == []
