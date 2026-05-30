@@ -267,6 +267,9 @@
   },
   "task_one": "任務",
   "task_other": "任務",
+  "taskGroup": {
+    "documentation": "任務群組文件"
+  },
   "taskGroup_one": "任務群組",
   "taskGroup_other": "任務群組",
   "taskId": "任務 ID",

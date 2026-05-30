@@ -261,6 +261,9 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": {
+    "documentation": "Taak Groep documentatie"
+  },
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag versie",

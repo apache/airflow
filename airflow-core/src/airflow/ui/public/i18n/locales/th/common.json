@@ -230,6 +230,9 @@
   },
   "task_one": "งาน",
   "task_other": "งาน",
+  "taskGroup": {
+    "documentation": "เอกสารประกอบกลุ่มงาน"
+  },
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "เวอร์ชัน Dag",

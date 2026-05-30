@@ -278,6 +278,9 @@
   "task_many": "Tâches",
   "task_one": "Tâche",
   "task_other": "Tâches",
+  "taskGroup": {
+    "documentation": "Documentation du groupe de tâches"
+  },
   "taskGroup_many": "Groupes de tâches",
   "taskGroup_one": "Groupe de tâches",
   "taskGroup_other": "Groupes de tâches",
