@@ -18,15 +18,19 @@ from __future__ import annotations
 
 import os
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import hvac
 from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
-from requests import Response, Session
+from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from requests import Response
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2

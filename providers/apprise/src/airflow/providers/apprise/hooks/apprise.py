@@ -22,13 +22,13 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import NotifyFormat, NotifyType
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from apprise import AppriseAttachment
+    from apprise import AppriseAttachment, AppriseConfig
 
     from airflow.providers.common.compat.sdk import Connection
 

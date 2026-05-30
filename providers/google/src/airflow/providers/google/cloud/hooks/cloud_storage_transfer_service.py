@@ -40,11 +40,10 @@ from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
     RunTransferJobRequest,
     StorageTransferServiceAsyncClient,
-    TransferJob,
     TransferOperation,
 )
 from google.protobuf.json_format import MessageToDict
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -58,10 +57,12 @@ from airflow.providers.google.common.hooks.base_google import (
 
 if TYPE_CHECKING:
     from google.api_core import operation_async
+    from google.cloud.storage_transfer_v1 import TransferJob
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
         ListTransferJobsAsyncPager,
     )
     from google.longrunning import operations_pb2
+    from googleapiclient.discovery import Resource
     from proto import Message
 
 log = logging.getLogger(__name__)

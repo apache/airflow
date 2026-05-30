@@ -23,13 +23,11 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform import (
     CustomContainerTrainingJob,
     CustomPythonPackageTrainingJob,
     CustomTrainingJob,
-    datasets,
-    models,
 )
 from google.cloud.aiplatform_v1 import (
     JobServiceAsyncClient,
@@ -38,7 +36,6 @@ from google.cloud.aiplatform_v1 import (
     PipelineServiceAsyncClient,
     PipelineServiceClient,
     PipelineState,
-    types,
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -47,9 +44,12 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
     from google.auth.credentials import Credentials
+    from google.cloud.aiplatform import datasets, models
+    from google.cloud.aiplatform_v1 import types
     from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
         ListTrainingPipelinesPager,

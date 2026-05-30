@@ -20,12 +20,10 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
 import yandex.cloud.lockbox.v1.payload_service_pb2 as payload_service_pb
 import yandex.cloud.lockbox.v1.payload_service_pb2_grpc as payload_service_pb_grpc
-import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2_grpc as secret_service_pb_grpc
 import yandexcloud
@@ -37,6 +35,10 @@ from airflow.providers.yandex.utils.fields import get_field_from_extras
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
+    import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 
 TEAM_SEP_MULTIPLIER = 2
 

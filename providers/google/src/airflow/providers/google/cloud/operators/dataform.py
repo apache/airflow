@@ -26,11 +26,12 @@ from airflow.providers.google.cloud.links.dataform import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
 
     from airflow.providers.common.compat.sdk import Context
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
     InstallNpmPackagesResponse,

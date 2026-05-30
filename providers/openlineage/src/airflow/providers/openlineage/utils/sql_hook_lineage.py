@@ -23,7 +23,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
+from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import external_query_run, job_type_job, sql_job
 from openlineage.client.uuid import generate_new_uuid
 
@@ -50,6 +50,8 @@ from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from openlineage.client.event_v2 import Dataset
 
 log = logging.getLogger(__name__)
 

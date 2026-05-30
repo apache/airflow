@@ -37,7 +37,7 @@ from urllib.parse import urlsplit
 import aiohttp
 import requests
 from aiohttp.client_exceptions import ClientConnectorError
-from requests import PreparedRequest, exceptions as requests_exceptions
+from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
 from tenacity import (
@@ -59,6 +59,8 @@ except ImportError:
     from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
+    from requests import PreparedRequest
+
     from airflow.models import Connection
 
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token

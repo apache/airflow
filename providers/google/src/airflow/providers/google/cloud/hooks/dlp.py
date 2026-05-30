@@ -31,28 +31,9 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dlp import DlpServiceClient
-from google.cloud.dlp_v2.types import (
-    ByteContentItem,
-    ContentItem,
-    DeidentifyConfig,
-    DeidentifyContentResponse,
-    DeidentifyTemplate,
-    DlpJob,
-    InspectConfig,
-    InspectContentResponse,
-    InspectJobConfig,
-    InspectTemplate,
-    JobTrigger,
-    ListInfoTypesResponse,
-    RedactImageRequest,
-    RedactImageResponse,
-    ReidentifyContentResponse,
-    RiskAnalysisJobConfig,
-    StoredInfoType,
-    StoredInfoTypeConfig,
-)
+from google.cloud.dlp_v2.types import DlpJob, JobTrigger
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -60,7 +41,26 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.dlp_v2.types import (
+        ByteContentItem,
+        ContentItem,
+        DeidentifyConfig,
+        DeidentifyContentResponse,
+        DeidentifyTemplate,
+        InspectConfig,
+        InspectContentResponse,
+        InspectJobConfig,
+        InspectTemplate,
+        ListInfoTypesResponse,
+        RedactImageRequest,
+        RedactImageResponse,
+        ReidentifyContentResponse,
+        RiskAnalysisJobConfig,
+        StoredInfoType,
+        StoredInfoTypeConfig,
+    )
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 

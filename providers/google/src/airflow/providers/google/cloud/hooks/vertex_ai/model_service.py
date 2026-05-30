@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform_v1 import ModelServiceClient
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -31,6 +31,7 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.cloud.aiplatform_v1.services.model_service.pagers import (

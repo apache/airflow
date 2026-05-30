@@ -23,26 +23,14 @@ from collections.abc import MutableSequence, Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataplex_v1 import (
     DataplexServiceClient,
     DataScanServiceAsyncClient,
     DataScanServiceClient,
 )
 from google.cloud.dataplex_v1.services.catalog_service import CatalogServiceClient
-from google.cloud.dataplex_v1.types import (
-    AspectType,
-    Asset,
-    DataScan,
-    DataScanJob,
-    Entry,
-    EntryGroup,
-    EntryType,
-    EntryView,
-    Lake,
-    Task,
-    Zone,
-)
+from google.cloud.dataplex_v1.types import AspectType, DataScan, DataScanJob, Entry, EntryGroup, EntryType
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -55,6 +43,7 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
@@ -65,6 +54,7 @@ if TYPE_CHECKING:
         ListEntryTypesPager,
         SearchEntriesPager,
     )
+    from google.cloud.dataplex_v1.types import Asset, EntryView, Lake, Task, Zone
     from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"

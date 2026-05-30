@@ -27,7 +27,6 @@ import requests
 import weaviate
 import weaviate.exceptions
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
-from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import pandas as pd
+    from weaviate import WeaviateClient
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
     from weaviate.collections.classes.batch import ErrorReference

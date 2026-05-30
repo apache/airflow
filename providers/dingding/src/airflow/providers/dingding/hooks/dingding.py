@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
-from requests import Session
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
+
+if TYPE_CHECKING:
+    from requests import Session
 
 
 class DingdingHook(HttpHook):

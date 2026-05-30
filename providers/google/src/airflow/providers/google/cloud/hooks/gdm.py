@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from googleapiclient.discovery import Resource
 
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):

@@ -23,13 +23,9 @@ from collections.abc import Sequence
 from copy import copy
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceAsyncClient, DataTransferServiceClient
-from google.cloud.bigquery_datatransfer_v1.types import (
-    StartManualTransferRunsResponse,
-    TransferConfig,
-    TransferRun,
-)
+from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -39,8 +35,10 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
+    from google.cloud.bigquery_datatransfer_v1.types import StartManualTransferRunsResponse, TransferRun
     from googleapiclient.discovery import Resource
 
 

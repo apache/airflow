@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Literal
 
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
-from docker.types import LogConfig, Mount, Ulimit
+from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
 from airflow.providers.docker.exceptions import (
@@ -43,7 +43,7 @@ from airflow.providers.docker.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from docker import APIClient
-    from docker.types import DeviceRequest
+    from docker.types import DeviceRequest, Ulimit
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.types import Logger

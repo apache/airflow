@@ -23,9 +23,9 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform import BatchPredictionJob, Model, explain
-from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.aiplatform import BatchPredictionJob
+from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -33,8 +33,11 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
+    from google.cloud.aiplatform import Model, explain
+    from google.cloud.aiplatform_v1 import types
     from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
 

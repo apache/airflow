@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import redshift_connector
 import tenacity
-from redshift_connector import Connection as RedshiftConnection, InterfaceError, OperationalError
+from redshift_connector import InterfaceError, OperationalError
 
 try:
     from sqlalchemy import create_engine
@@ -34,6 +34,8 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowOptiona
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from redshift_connector import Connection as RedshiftConnection
+
     from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 

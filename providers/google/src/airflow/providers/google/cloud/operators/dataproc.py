@@ -31,8 +31,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry, exponential_sleep_generator
+from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.retry import exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -67,6 +67,8 @@ from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
     from google.api_core import operation
+    from google.api_core.gapic_v1.method import _MethodDefault
+    from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask

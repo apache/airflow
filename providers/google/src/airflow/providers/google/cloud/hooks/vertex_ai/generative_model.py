@@ -19,16 +19,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
-from vertexai.preview.evaluation import EvalResult, EvalTask
+from vertexai.preview.evaluation import EvalTask
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from vertexai.preview.evaluation import EvalResult
 
 
 class GenerativeModelHook(GoogleBaseHook):
