@@ -36,6 +36,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _accept_connections,
     _calculate_classpath,
+    _is_connection_from_process,
     _JarInfo,
     _JavaActivitySubprocess,
     _ResourceTracker,
@@ -216,6 +217,14 @@ class TestMainJar:
 
 
 class TestAcceptConnections:
+    @pytest.fixture(autouse=True)
+    def mock_child_connection_check(self):
+        with patch(
+            "airflow.sdk.coordinators.java.coordinator._is_connection_from_process",
+            return_value=True,
+        ) as mock_check:
+            yield mock_check
+
     def _connect_after_delay(self, addr: tuple[str, int], delay: float = 0.0) -> None:
         def _connect():
             time.sleep(delay)
@@ -367,6 +376,61 @@ class TestAcceptConnections:
             assert "comm" not in accepted
             accepted[server].close()
         finally:
+            server.close()
+
+    def test_rejects_connections_not_owned_by_child_process(self, mock_child_connection_check):
+        server = _start_server()
+        _, port = server.getsockname()
+        mock_child_connection_check.side_effect = [False, True]
+        self._connect_after_delay(("127.0.0.1", port))
+        self._connect_after_delay(("127.0.0.1", port), delay=0.05)
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        mock_proc.poll.return_value = None
+
+        try:
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            assert mock_child_connection_check.call_count == 2
+            assert server in accepted
+            accepted[server].close()
+        finally:
+            server.close()
+
+
+class TestConnectionFromProcess:
+    def test_matches_child_process_tcp_connection(self):
+        server = _start_server()
+        _, port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", port))
+        conn, _ = server.accept()
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
+    def test_rejects_tcp_connection_not_owned_by_child_process(self):
+        server = _start_server()
+        _, port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", port))
+        conn, _ = server.accept()
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            with patch("airflow.sdk.coordinators.java.coordinator.psutil.Process") as mock_process:
+                mock_process.return_value.net_connections.return_value = []
+                assert _is_connection_from_process(conn, mock_proc) is False
+        finally:
+            conn.close()
+            client.close()
             server.close()
 
 

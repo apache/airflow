@@ -32,6 +32,7 @@ import zipfile
 from typing import TYPE_CHECKING, TypeVar, cast
 
 import attrs
+import psutil
 import structlog
 
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -143,6 +144,31 @@ class _JarInfo:
         raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
 
 
+def _socket_address(value: tuple | str) -> tuple[str, int] | None:
+    if not isinstance(value, tuple) or len(value) < 2:
+        return None
+    host, port = value[:2]
+    return str(host), int(port)
+
+
+def _is_connection_from_process(conn: socket.socket, proc: subprocess.Popen) -> bool:
+    """Return whether the accepted TCP connection belongs to the child process."""
+    peer = _socket_address(conn.getpeername())
+    local = _socket_address(conn.getsockname())
+    if peer is None or local is None:
+        return False
+    try:
+        process = psutil.Process(proc.pid)
+        connections = process.net_connections(kind="tcp")
+    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess, OSError):
+        log.warning("Unable to verify child process connection", pid=proc.pid, exc_info=True)
+        return False
+    for connection in connections:
+        if _socket_address(connection.laddr) == peer and _socket_address(connection.raddr) == local:
+            return True
+    return False
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
@@ -180,6 +206,15 @@ def _accept_connections(
                 else:
                     log.debug("Accepting child process connection", key=event.data)
                     conn, _ = soc.accept()
+                    if not _is_connection_from_process(conn, proc):
+                        log.warning(
+                            "Rejected connection not owned by child process",
+                            key=event.data,
+                            pid=proc.pid,
+                            peer=conn.getpeername(),
+                        )
+                        conn.close()
+                        continue
                     sel.unregister(soc)
                     accepted[soc] = conn
     return accepted, drained
