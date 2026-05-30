@@ -275,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -1151,6 +1152,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb

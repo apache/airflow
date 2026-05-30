@@ -63,7 +63,7 @@ TEST_CONN_TYPE_3 = "test_type_3"
 
 
 @provide_session
-def _create_connection(team_name: str | None = None, session: Session = NEW_SESSION) -> None:
+def _create_connection(team_name: str | None = None, *, session: Session = NEW_SESSION) -> None:
     connection_model = Connection(
         conn_id=TEST_CONN_ID,
         conn_type=TEST_CONN_TYPE,
@@ -77,7 +77,7 @@ def _create_connection(team_name: str | None = None, session: Session = NEW_SESS
 
 
 @provide_session
-def _create_connections(session: Session = NEW_SESSION) -> None:
+def _create_connections(*, session: Session = NEW_SESSION) -> None:
     _create_connection(session=session)
     connection_model_2 = Connection(
         conn_id=TEST_CONN_ID_2,

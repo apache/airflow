@@ -131,7 +131,7 @@ DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(request, dag_maker, session=None):
+def setup(request, dag_maker, *, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
@@ -1692,6 +1692,40 @@ class TestClearDagRun:
             json={"dry_run": False},
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("body", "expected_note"),
+        [
+            ({"dry_run": False, "note": "cleared by test"}, "cleared by test"),
+            ({"dry_run": False, "note": ""}, ""),
+            ({"dry_run": False, "note": None}, "test_note"),
+            ({"dry_run": False}, "test_note"),
+        ],
+        ids=["set-new-note", "set-empty-note", "explicit-null-leaves-existing", "omit-leaves-existing"],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):
+        """``note`` in the clear body writes to the Dag Run; ``None`` / unset leaves it alone."""
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
+        assert response.status_code == 200
+        assert response.json()["note"] == expected_note
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == expected_note
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_does_not_apply_note(self, test_client, session):
+        """``note`` is ignored on dry-run (no side effects)."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": True, "note": "ignored"},
+        )
+        assert response.status_code == 200
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == "test_note"
 
     @pytest.mark.parametrize(
         ("body", "dag_run_id", "expected_state"),

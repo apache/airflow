@@ -23,10 +23,11 @@ from unittest.mock import ANY
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow.models.team import Team
 from airflow.models.variable import Variable
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -73,7 +74,7 @@ def create_file_upload(content: dict) -> BytesIO:
 
 
 @provide_session
-def _create_variables(session) -> None:
+def _create_variables(*, session: Session = NEW_SESSION) -> None:
     team = session.scalars(select(Team).where(Team.name == "test")).one()
 
     Variable.set(
@@ -128,7 +129,7 @@ def _create_variables(session) -> None:
 
 
 @provide_session
-def _create_team(session) -> None:
+def _create_team(*, session: Session = NEW_SESSION) -> None:
     session.add(Team(name="test"))
     session.commit()
 

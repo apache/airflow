@@ -171,14 +171,16 @@ func decodeStartupDetails(m map[string]any) (*StartupDetails, error) {
 
 // Response types (for runtime-initiated requests).
 
-// ConnectionResult is the response to GetConnection.
+// ConnectionResult is the response to GetConnection. Login and Password are
+// nullable in the supervisor schema (None vs "" are distinct), so they are
+// decoded as *string to preserve that distinction.
 type ConnectionResult struct {
 	ConnID   string
 	ConnType string
 	Host     string
 	Schema   string
-	Login    string
-	Password string
+	Login    *string
+	Password *string
 	Port     int
 	Extra    string
 }
@@ -189,8 +191,8 @@ func decodeConnectionResult(m map[string]any) (*ConnectionResult, error) {
 		ConnType: mapStringOr(m, "conn_type", ""),
 		Host:     mapStringOr(m, "host", ""),
 		Schema:   mapStringOr(m, "schema", ""),
-		Login:    mapStringOr(m, "login", ""),
-		Password: mapStringOr(m, "password", ""),
+		Login:    mapStringPtr(m, "login"),
+		Password: mapStringPtr(m, "password"),
 		Port:     mapIntOr(m, "port", 0),
 		Extra:    mapStringOr(m, "extra", ""),
 	}, nil
