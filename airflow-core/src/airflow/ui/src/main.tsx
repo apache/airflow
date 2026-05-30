@@ -31,6 +31,7 @@ import * as ReactJSXRuntime from "react/jsx-runtime";
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
 import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
+import { MermaidProvider } from "src/context/mermaid";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 import { getNextHref, getRedirectPath } from "src/utils/links.ts";
@@ -100,9 +101,11 @@ createRoot(document.querySelector("#root") as HTMLDivElement).render(
       <QueryClientProvider client={client}>
         <ChakraCustomProvider>
           <ColorModeProvider>
-            <TimezoneProvider>
-              <RouterProvider router={router} />
-            </TimezoneProvider>
+            <MermaidProvider>
+              <TimezoneProvider>
+                <RouterProvider router={router} />
+              </TimezoneProvider>
+            </MermaidProvider>
           </ColorModeProvider>
         </ChakraCustomProvider>
       </QueryClientProvider>
