@@ -24,7 +24,7 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
@@ -108,6 +108,38 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
+class DataErrorHandler(BaseErrorHandler[DataError]):
+    """
+    Translate ``sqlalchemy.exc.DataError`` into a 422 response.
+
+    ``DataError`` wraps the database rejecting an INSERT/UPDATE because a value
+    exceeds the column's declared type (MySQL ``1406 Data too long``, Postgres
+    ``value too long for type``) or is out of range (MySQL ``1264 Out of range
+    value``, Postgres ``numeric field overflow``). The wrapped value came from
+    request input that passed Pydantic validation, so the failure is always a
+    client problem — translate to a 422 with the underlying database error
+    surfaced via ``orig_error`` rather than a generic 500.
+    """
+
+    def __init__(self):
+        super().__init__(DataError)
+
+    def exception_handler(self, request: Request, exc: DataError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "reason": "Value rejected by database",
+                "statement": str(exc.statement),
+                "orig_error": str(exc.orig),
+                "message": (
+                    "Database rejected the payload. Reduce the field size, or "
+                    "ask an operator to widen the column type on MySQL "
+                    "(e.g. MEDIUMTEXT / LONGTEXT)."
+                ),
+            },
+        )
+
+
 class DagErrorHandler(BaseErrorHandler[DeserializationError]):
     """Handler for Dag related errors."""
 
@@ -122,4 +154,8 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
-ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
+ERROR_HANDLERS: list[BaseErrorHandler] = [
+    _UniqueConstraintErrorHandler(),
+    DataErrorHandler(),
+    DagErrorHandler(),
+]
