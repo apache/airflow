@@ -20,10 +20,6 @@ airflow-core/src/airflow/models/trigger.py::7
 airflow-core/src/airflow/models/variable.py::2
 airflow-core/src/airflow/secrets/metastore.py::2
 airflow-core/src/airflow/serialization/definitions/dag.py::2
-airflow-core/src/airflow/utils/cli_action_loggers.py::1
-airflow-core/src/airflow/utils/db.py::7
-airflow-core/src/airflow/utils/db_cleanup.py::2
-airflow-core/src/airflow/utils/log/file_task_handler.py::1
 airflow-core/tests/unit/jobs/test_scheduler_job.py::1
 airflow-core/tests/unit/listeners/test_listeners.py::7
 airflow-core/tests/unit/models/test_taskinstance.py::4
