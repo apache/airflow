@@ -2658,6 +2658,19 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
+    max_new_dagruns_per_loop_to_schedule:
+      description: |
+        When set > 0, the scheduler runs a second query per loop that fetches up to this
+        many dagruns that have never been examined (``last_scheduling_decision IS NULL``),
+        in addition to the ``max_dagruns_per_loop_to_schedule`` already-examined ones.
+
+        This prevents starvation of older dagruns when large batches of new dagruns are
+        created at once (for example, via ``TriggerDagRunOperator``). Note that the total
+        number of dagruns locked and scheduled per loop becomes the sum of both limits.
+      example: ~
+      version_added: 3.3.0
+      type: integer
+      default: "0"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.

@@ -40,6 +40,7 @@ from sqlalchemy import (
     Index,
     Integer,
     PrimaryKeyConstraint,
+    SQLColumnExpression,
     String,
     Text,
     UniqueConstraint,
@@ -57,7 +58,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
+from sqlalchemy.orm import (
+    Mapped,
+    declared_attr,
+    joinedload,
+    mapped_column,
+    relationship,
+    synonym,
+    validates,
+)
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
@@ -317,6 +326,11 @@ class DagRun(Base, LoggingMixin):
         "scheduler",
         "max_dagruns_per_loop_to_schedule",
         fallback=20,
+    )
+    DEFAULT_NEW_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
+        "scheduler",
+        "max_new_dagruns_per_loop_to_schedule",
+        fallback=0,
     )
     _ti_dag_versions = association_proxy("task_instances", "dag_version")
     _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
@@ -622,11 +636,11 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
+    def get_running_dag_runs_to_examine(cls, session: Session) -> Sequence[DagRun]:
         """
-        Return the next DagRuns that the scheduler should attempt to schedule.
+        Return the next DagRuns (as a list) that the scheduler should attempt to schedule.
 
-        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
+        This will return zero or more DagRuns that are row-level-locked with a "SELECT ... FOR UPDATE"
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
@@ -635,27 +649,61 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
-        query = (
-            select(cls)
-            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(cls.state == DagRunState.RUNNING)
-            .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
-            .where(
-                DagModel.is_paused == false(),
-                DagModel.is_stale == false(),
+        def _get_dagrun_query(
+            filters: list[ColumnElement[bool]], order_by: list[SQLColumnExpression[Any]], limit: int
+        ):
+            return (
+                select(DagRun)
+                .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
+                .where(DagRun.state == DagRunState.RUNNING)
+                .join(DagModel, DagModel.dag_id == cls.dag_id)
+                .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+                .where(*filters)
+                .order_by(*order_by)
+                .limit(limit)
             )
-            .order_by(
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
-                nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
-                cls.run_after,
-            )
-            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
+
+        filters = [
+            DagRun.run_after <= func.now(),
+            DagModel.is_paused == false(),
+            DagModel.is_stale == false(),
+        ]
+
+        order = [
+            nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
+            nulls_first(cast("ColumnElement[Any]", DagRun.last_scheduling_decision), session=session),
+            DagRun.run_after,
+        ]
+
+        new_dagruns_to_examine = max(cls.DEFAULT_NEW_DAGRUNS_TO_EXAMINE, 0)
+        dagruns_to_examine = cls.DEFAULT_DAGRUNS_TO_EXAMINE
+
+        old_filters = (
+            [*filters, DagRun.last_scheduling_decision.is_not(None)]
+            if new_dagruns_to_examine > 0
+            else filters
+        )
+        query = _get_dagrun_query(filters=old_filters, order_by=order, limit=dagruns_to_examine)
+
+        result: list[DagRun] = cast(
+            "list[DagRun]",
+            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique().all(),
         )
 
-        query = query.where(DagRun.run_after <= func.now())
+        if new_dagruns_to_examine > 0:
+            new_dagruns_query = _get_dagrun_query(
+                filters=[*filters, DagRun.last_scheduling_decision.is_(None)],
+                order_by=order,
+                limit=new_dagruns_to_examine,
+            )
+            new_dagruns: Sequence[DagRun] = (
+                session.scalars(with_row_locks(new_dagruns_query, of=cls, session=session, skip_locked=True))
+                .unique()
+                .all()
+            )
 
-        result = session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
+            result.extend(new_dagruns)
+
         return result
 
     @classmethod
