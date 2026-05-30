@@ -2316,7 +2316,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
-                "databricks dbt.cloud ftp google jdbc microsoft.mssql mysql "
+                "databricks dbt.cloud ftp google jdbc microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres sftp snowflake standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2335,7 +2335,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "databricks,dbt.cloud,ftp,jdbc,microsoft.mssql,mysql,openlineage,oracle,"
+                            "databricks,dbt.cloud,ftp,jdbc,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,"
                             "postgres,sftp,snowflake,trino] Providers[google] Providers[standard]",
                         }
                     ]
