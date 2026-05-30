@@ -33,12 +33,6 @@ class VariableResponse(BaseModel):
     """Variable serializer for responses."""
 
     key: str
-    # ``val`` is intentionally Optional. ``Variable.get_val`` returns ``None`` when
-    # the stored value cannot be decrypted (e.g. after a Fernet key rotation or
-    # misconfiguration). Declaring the field as nullable surfaces that state as
-    # ``"value": null`` in the response instead of raising HTTP 500 due to
-    # response-schema validation. This also matches the behavior of the list
-    # endpoint which has always returned ``null`` in the same scenario.
     val: str | None = Field(alias="value", default=None)
     description: str | None
     is_encrypted: bool
@@ -46,8 +40,6 @@ class VariableResponse(BaseModel):
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
-        # Skip redaction when decryption failed upstream; there is nothing to mask
-        # and ``None`` must be preserved so clients can detect the failure.
         if self.val is None:
             return self
         try:

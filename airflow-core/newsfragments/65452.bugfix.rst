@@ -1,1 +1,0 @@
-Return ``"value": null`` (HTTP 200) from ``GET /variables/{key}`` when the stored value cannot be decrypted, matching ``GET /variables`` instead of failing with HTTP 500.
