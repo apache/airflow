@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.definitions.context import Context
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
@@ -303,7 +302,6 @@ class BaseEventTrigger(BaseTrigger):
         super().__init__(**kwargs)
 
         # Injected by the triggerer before run() is called; mirrors how trigger_id is set
-        self.watched_assets: list[AssetUniqueKey] | None = None
         self.asset_state: AssetStateAccessors | None = None
 
     @staticmethod

@@ -737,11 +737,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname: Callable[..., str],
         session: Session,
     ) -> workloads.RunTrigger | None:
-        # aip-93
+        # Pass the "watched" Assets through for downstream use in BaseEventTrigger
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
-            # aip-93
             if trigger.asset_watchers:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
 
@@ -1270,16 +1269,8 @@ class TriggerRunner:
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
 
-            # aip-93: Pass through all watched assets from workload
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
-                from airflow.sdk.definitions.asset import AssetUniqueKey
-
-                # If we only want asset_state, we can just remove this line!
-                trigger_instance.watched_assets = [
-                    AssetUniqueKey(name=name, uri=uri) for name, uri in workload.watched_assets.items()
-                ]
-
-                # aip-103: Reconstruct AssetStateAccessors from watched_assets
+                # Reconstruct AssetStateAccessors from watched_assets
                 from airflow.sdk.definitions.asset import Asset
                 from airflow.sdk.execution_time.context import AssetStateAccessors
 
