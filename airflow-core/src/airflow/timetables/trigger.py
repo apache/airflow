@@ -464,8 +464,86 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
+    def run_after_window_for_partition_window(
+        self,
+        *,
+        from_date: DateTime,
+        to_date: DateTime,
+    ) -> tuple[DateTime, DateTime]:
+        """
+        Compute the run_after scan window that covers a given partition_date window.
+
+        Given a partition_date window ``[from_date, to_date]``, return the
+        ``(earliest, latest)`` run_after bounds to pass to
+        ``iter_dagrun_infos_between`` so that every Dag run whose
+        ``partition_date`` falls inside the window is included in the iteration.
+
+        When ``run_offset == 0`` the two axes coincide; the method degenerates to
+        ``(from_date - 1 day, to_date + 1 day)``, identical to the previous
+        hard-coded behaviour in ``_get_info_list``.
+
+        For non-zero integer ``run_offset`` the method inverts the forward
+        partition-date mapping (``_get_partition_date``) to derive which
+        run_after values could produce partition_dates inside the requested
+        window.  The inversion is deliberately over-generous: both endpoints are
+        expanded by one additional cron interval (to handle endpoints that do not
+        fall on a cron tick, and because ``_get_prev``/``_get_next`` are strict),
+        then padded by ±1 day to absorb timezone UTC-offset effects (e.g. an
+        Asia/Taipei midnight partition stored as the prior UTC day).  Any runs
+        captured by the wider window but outside the requested partition_date
+        range are trimmed by the caller's ``partition_date`` filter — over-
+        generating here is always safe, under-generating is not.
+
+        Only integer ``run_offset`` values are supported; timedelta/relativedelta
+        offsets remain a ``ValueError`` at construction time (AIP-76).
+        """
+        from_date = coerce_datetime(from_date)
+        to_date = coerce_datetime(to_date)
+
+        if self._run_offset == 0:
+            return from_date - datetime.timedelta(days=1), to_date + datetime.timedelta(days=1)
+
+        # Invert the forward mapping.
+        # forward (offset > 0): partition = _get_next^offset(run_after)
+        #   → invert: run_after ≈ _get_prev^offset(partition)
+        # forward (offset < 0): partition = _get_prev^|offset|(run_after)
+        #   → invert: run_after ≈ _get_next^|offset|(partition)
+        #
+        # Q1 — endpoints may not be on cron ticks, and _get_prev/_get_next are
+        # strict (never return current).  Expand the search space by one extra
+        # cron step before inverting so that tick-aligned endpoints are not
+        # silently dropped.
+        if self._run_offset > 0:
+            # Expand down/up, then walk backwards abs(offset) steps.
+            lower_start = self._get_prev(from_date)  # one tick before from_date
+            upper_start = self._get_next(to_date)  # one tick after to_date
+            invert_func = self._get_prev
+        else:
+            # offset < 0: expand, then walk forwards abs(offset) steps.
+            lower_start = self._get_prev(from_date)
+            upper_start = self._get_next(to_date)
+            invert_func = self._get_next
+
+        earliest = lower_start
+        latest = upper_start
+        for _ in range(abs(self._run_offset)):
+            earliest = invert_func(earliest)
+            latest = invert_func(latest)
+
+        # Q2 — add ±1 day tz buffer on the run_after axis.
+        earliest = earliest - datetime.timedelta(days=1)
+        latest = latest + datetime.timedelta(days=1)
+
+        if earliest > latest:
+            earliest, latest = latest, earliest
+
+        return earliest, latest
+
     def _format_key(self, partition_date: DateTime) -> str:
-        return partition_date.strftime(self._key_format)
+        # partition_date is a UTC instant; format the key in the timetable timezone so the
+        # key reflects the local partition date the user reasons about (e.g. an Asia/Taipei
+        # midnight partition keys as "...T00:00:00", not the prior UTC day's "...T16:00:00").
+        return partition_date.in_timezone(self._timezone).strftime(self._key_format)
 
     def next_dagrun_info_v2(
         self,
@@ -474,8 +552,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         # todo: AIP-76 add test for this logic
-        # todo: AIP-76 we will have to ensure that the start / end times apply to the partition date ideally,
-        #  rather than just the run after
+        # todo: AIP-76 backfill window selection for integer run_offset is handled by
+        #  run_after_window_for_partition_window; the broader v2 refactor to apply start/end
+        #  restrictions to partition_date (rather than run_after) is deferred to AIP-76.
 
         if restriction.catchup:
             if last_dagrun_info is not None:

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -33,10 +33,14 @@ from airflow.models.backfill import (
     BackfillDagRun,
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
+    DateFlagsOnPartitionedDag,
     InvalidBackfillConf,
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
+    InvalidPartitionWindow,
     InvalidReprocessBehavior,
+    NoBackfillSelector,
+    PartitionFlagsOnNonPartitionedDag,
     ReprocessBehavior,
     _create_backfill,
     _do_dry_run,
@@ -233,7 +237,7 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
 @pytest.mark.parametrize(
     "existing",
     [
-        ["2026-02-22T16:00:00", "2026-02-23T16:00:00"],
+        ["2026-02-23T00:00:00", "2026-02-24T00:00:00"],
         [],
     ],
 )
@@ -264,8 +268,10 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     expected_run_conf = {"param1": "valABC"}
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-15"),
-        to_date=pendulum.parse("2026-02-24"),
+        from_date=None,
+        to_date=None,
+        partition_date_start=pendulum.parse("2026-02-15"),
+        partition_date_end=pendulum.parse("2026-02-24"),
         max_active_runs=2,
         reverse=reverse,
         triggering_user_name="pytest",
@@ -278,21 +284,31 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
         .order_by(BackfillDagRun.sort_ordinal)
     )
     dag_runs = session.scalars(query).all()
-    partition_keys = [str(datetime.fromisoformat(x.partition_key).date()) for x in dag_runs]
-    expected_dates = [f"2026-02-{d}" for d in range(15, 22 if existing else 24)]
+    partition_date_labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
+    ]
+    # partition_date_end is inclusive; existing runs (reprocess_behavior=None) are skipped.
+    all_dates = [f"2026-02-{d}" for d in range(15, 25)]
+    # Seeded partition keys are now timetable-local labels (matching _format_key), so the
+    # local calendar date is the key's own date — no timezone conversion needed.
+    existing_date_labels = {str(datetime.fromisoformat(e).date()) for e in existing}
+    expected_dates = [d for d in all_dates if d not in existing_date_labels]
     if reverse:
         expected_dates = list(reversed(expected_dates))
 
-    assert partition_keys == expected_dates
+    assert partition_date_labels == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
     # Calendar view filters partitioned Dags by partition_date, so the backfill
     # path must populate it alongside partition_key. Verify that backfill copies
     # info.partition_date faithfully — i.e. the stored value matches what the
     # timetable computed for each partition_key.
+    # Window start is 2026-02-14 (not 02-15) because Asia/Taipei partitions have
+    # partition_date (UTC instant) one day earlier than the calendar label:
+    # label "2026-02-15" → partition_date 2026-02-14T16:00:00Z.
     expected_partition_date_by_key = {
         info.partition_key: info.partition_date
-        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-15"), pendulum.parse("2026-02-24"))
+        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-14"), pendulum.parse("2026-02-25"))
     }
     assert [x.partition_date for x in dag_runs] == [
         expected_partition_date_by_key[x.partition_key] for x in dag_runs
@@ -856,3 +872,429 @@ def test_create_backfill_from_date_after_to_date_raises(dag_maker, session):
             triggering_user_name="pytest",
             dag_run_conf={},
         )
+
+
+# ---------------------------------------------------------------------------
+# Partition-date range tests (option b: mutex selectors by Dag type)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_backfill_partitioned_with_partition_window(reverse, dag_maker, session):
+    """Partitioned Dag: partition window of 3 days produces 3 runs."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=2,
+        reverse=reverse,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pendulum.parse("2026-02-18"),
+        partition_date_end=pendulum.parse("2026-02-20"),
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_date_labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
+    ]
+    expected = ["2026-02-18", "2026-02-19", "2026-02-20"]
+    if reverse:
+        expected = list(reversed(expected))
+    assert partition_date_labels == expected
+
+
+def test_backfill_partitioned_at_cap_single_day(dag_maker, session):
+    """Partitioned Dag: partition_date_start == partition_date_end produces exactly one run (at-cap boundary)."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pendulum.parse("2026-02-18"),
+        partition_date_end=pendulum.parse("2026-02-18"),
+    )
+    query = select(DagRun).join(BackfillDagRun.dag_run).where(BackfillDagRun.backfill_id == b.id)
+    dag_runs = session.scalars(query).all()
+    assert len(dag_runs) == 1
+    assert (
+        str(pendulum.instance(dag_runs[0].partition_date).in_timezone("Asia/Taipei").date()) == "2026-02-18"
+    )
+
+
+def test_backfill_partition_window_start_after_end_raises(dag_maker, session):
+    """start > end must raise InvalidPartitionWindow before any run is created."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(InvalidPartitionWindow, match="must not be after"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=None,
+            to_date=None,
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+            partition_date_start=pendulum.parse("2026-02-20"),
+            partition_date_end=pendulum.parse("2026-02-18"),
+        )
+
+    assert session.scalar(select(func.count()).where(BackfillDagRun.backfill_id.isnot(None))) == 0
+
+
+@pytest.mark.parametrize(
+    ("dag_schedule", "kwargs", "expected_exc", "match"),
+    [
+        # mutex case 1: partitioned Dag + --from-date / --to-date
+        (
+            "CronPartitionTimetable",
+            {
+                "from_date": pendulum.parse("2026-02-15"),
+                "to_date": pendulum.parse("2026-02-20"),
+                "partition_date_start": None,
+                "partition_date_end": None,
+            },
+            DateFlagsOnPartitionedDag,
+            "not valid for partitioned Dags",
+        ),
+        # mutex case 2: non-partitioned Dag + --partition-date-start
+        (
+            "@daily",
+            {
+                "from_date": pendulum.parse("2026-02-15"),
+                "to_date": pendulum.parse("2026-02-20"),
+                "partition_date_start": pendulum.parse("2026-02-16"),
+                "partition_date_end": None,
+            },
+            PartitionFlagsOnNonPartitionedDag,
+            "only valid for partitioned Dags",
+        ),
+        # mutex case 3: partitioned Dag + no partition flags
+        (
+            "CronPartitionTimetable",
+            {
+                "from_date": None,
+                "to_date": None,
+                "partition_date_start": None,
+                "partition_date_end": None,
+            },
+            NoBackfillSelector,
+            "Partitioned Dag requires",
+        ),
+        # mutex case 4: non-partitioned Dag + no from/to flags
+        (
+            "@daily",
+            {
+                "from_date": None,
+                "to_date": None,
+                "partition_date_start": None,
+                "partition_date_end": None,
+            },
+            NoBackfillSelector,
+            "Non-partitioned Dag requires",
+        ),
+    ],
+)
+def test_backfill_mutex_selector_raises(dag_schedule, kwargs, expected_exc, match, dag_maker, session):
+    """Wrong or missing selector combination raises the appropriate exception."""
+    from airflow.sdk import CronPartitionTimetable
+
+    schedule = (
+        CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")
+        if dag_schedule == "CronPartitionTimetable"
+        else dag_schedule
+    )
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(expected_exc, match=match):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+            **kwargs,
+        )
+
+    assert session.scalar(select(func.count()).where(BackfillDagRun.backfill_id.isnot(None))) == 0
+
+
+def test_backfill_orm_from_to_synthesised(dag_maker, session):
+    """Partitioned Dag: Backfill.from_date / to_date equal partition_date_start / end after creation."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    pds = pendulum.parse("2026-02-18")
+    pde = pendulum.parse("2026-02-20")
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pds,
+        partition_date_end=pde,
+    )
+
+    br = session.get(Backfill, b.id)
+    assert br is not None
+    assert br.from_date.date() == pds.date()
+    assert br.to_date.date() == pde.date()
+
+
+def test_do_dry_run_with_partition_window(dag_maker, session):
+    """_do_dry_run returns only infos within the partition window."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    infos = list(
+        _do_dry_run(
+            dag_id=dag.dag_id,
+            from_date=None,
+            to_date=None,
+            reverse=False,
+            reprocess_behavior=ReprocessBehavior.NONE,
+            session=session,
+            partition_date_start=pendulum.parse("2026-02-18"),
+            partition_date_end=pendulum.parse("2026-02-20"),
+        )
+    )
+    dates = [str(pendulum.instance(i.partition_date).in_timezone("Asia/Taipei").date()) for i in infos]
+    assert dates == ["2026-02-18", "2026-02-19", "2026-02-20"]
+
+
+@pytest.mark.db_test
+def test_create_backfill_partitioned_non_utc_boundary(dag_maker, session):
+    """
+    Regression: partition_date selection axis must use calendar-date comparison in the
+    timetable timezone, not a UTC-instant comparison.
+
+    Asia/Taipei is UTC+8.  A partition labelled "2026-02-15" has
+    partition_date = 2026-02-14T16:00:00Z (the UTC instant of Taipei midnight).
+    Passing that UTC instant through an instant comparison against the user's
+    --partition-date-start 2026-02-15 (parsed as 2026-02-15T00:00:00Z) would
+    yield 2026-02-14T16:00Z < 2026-02-15T00:00Z, dropping the boundary day.
+    The date-label comparison avoids this by converting to timetable timezone
+    before calling .date().
+    """
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        partition_date_start=pendulum.parse("2026-02-15"),
+        partition_date_end=pendulum.parse("2026-02-24"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_date_labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
+    ]
+
+    # Independent oracle: all 10 calendar days from 2026-02-15 to 2026-02-24 inclusive.
+    # Built without calling iter_dagrun_infos_between so the oracle cannot drift with
+    # padding changes.
+    expected = [f"2026-02-{d:02d}" for d in range(15, 25)]
+    assert partition_date_labels == expected
+
+    # Cap-boundary pair: padding days must be trimmed by the date-label filter.
+    # at-cap: 2026-02-24 (end boundary) is included — already covered by full-sequence assert above.
+    # over-cap: 2026-02-25 (one past end) and 2026-02-14 (one before start) must not appear.
+    assert "2026-02-25" not in partition_date_labels
+    assert "2026-02-14" not in partition_date_labels
+
+
+# ---------------------------------------------------------------------------
+# Non-zero run_offset backfill e2e tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("run_offset", [1, 2, -1, -2])
+def test_backfill_partitioned_nonzero_offset_full_window(run_offset, dag_maker, session):
+    """Non-zero run_offset: partition_date filter returns exactly the requested window (no leaks, no gaps).
+
+    Proves that the widened iter window from run_after_window_for_partition_window feeds
+    enough candidates, and that the existing partition_date filter then trims them back
+    precisely to the requested range.
+    """
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=run_offset)
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pendulum.parse("2026-02-18"),
+        partition_date_end=pendulum.parse("2026-02-20"),
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_date_labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
+    ]
+    # Full-sequence equality: all three days, nothing more, nothing less.
+    assert partition_date_labels == ["2026-02-18", "2026-02-19", "2026-02-20"]
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("run_offset", "partition_date_start", "partition_date_end", "expected_labels"),
+    [
+        # at-cap: single-day window [2026-02-18, 2026-02-18] must produce exactly 1 run and
+        # must NOT include the adjacent day (2026-02-17 or 2026-02-19), proving that the
+        # widened iter window's extra candidates are trimmed by the partition_date filter.
+        pytest.param(1, "2026-02-18", "2026-02-18", ["2026-02-18"], id="offset_1_at_cap"),
+        pytest.param(-1, "2026-02-18", "2026-02-18", ["2026-02-18"], id="offset_minus1_at_cap"),
+        # neighbor-pair: window [2026-02-18, 2026-02-19] — full-sequence equality proves
+        # the filter accepts both days (not just one) and stops exactly at the boundary.
+        pytest.param(1, "2026-02-18", "2026-02-19", ["2026-02-18", "2026-02-19"], id="offset_1_two_day_pair"),
+        pytest.param(
+            -1, "2026-02-18", "2026-02-19", ["2026-02-18", "2026-02-19"], id="offset_minus1_two_day_pair"
+        ),
+    ],
+)
+def test_backfill_partitioned_nonzero_offset_at_cap_single_day(
+    run_offset, partition_date_start, partition_date_end, expected_labels, dag_maker, session
+):
+    """Non-zero run_offset: partition filter trims the widened iter window precisely.
+
+    at-cap cases ([2026-02-18, 2026-02-18]) prove exactly one run is produced and
+    adjacent days are excluded.  neighbor-pair cases ([2026-02-18, 2026-02-19]) prove
+    the filter lets both days through and stops exactly at the upper boundary.
+    Together they pin the ``>`` vs ``>=`` boundary: at-cap is allowed, one step over
+    adds the next day without dropping the cap.
+
+    Each parametrize case is an independent test run (separate DB state via autouse fixture),
+    so there is no AlreadyRunningBackfill conflict between cases.
+    """
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=run_offset)
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pendulum.parse(partition_date_start),
+        partition_date_end=pendulum.parse(partition_date_end),
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date())
+        for x in session.scalars(query).all()
+    ]
+    assert labels == expected_labels
+
+
+@pytest.mark.db_test
+def test_backfill_partitioned_offset_zero_behavior_unchanged(dag_maker, session):
+    """offset==0 after refactor: behaviour is byte-for-byte identical to the previous ±1-day padding.
+
+    This is a regression guard that ensures the new run_after_window_for_partition_window
+    code path does not alter offset==0 results.
+    """
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=5,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_date_start=pendulum.parse("2026-02-18"),
+        partition_date_end=pendulum.parse("2026-02-20"),
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_date_labels = [
+        str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
+    ]
+    assert partition_date_labels == ["2026-02-18", "2026-02-19", "2026-02-20"]

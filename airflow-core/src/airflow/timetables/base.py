@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow._shared.module_loading import qualname
@@ -390,3 +391,27 @@ class Timetable(Protocol):
             partition_date=timezone.coerce_datetime(dag_run.partition_date),
             partition_key=dag_run.partition_key,
         )
+
+    def run_after_window_for_partition_window(
+        self,
+        *,
+        from_date: DateTime,
+        to_date: DateTime,
+    ) -> tuple[DateTime, DateTime]:
+        """
+        Return the run_after scan window that covers a given partition_date window.
+
+        The default implementation adds a ±1-day buffer around the requested
+        ``[from_date, to_date]`` range.  This is correct for timetables whose
+        ``run_offset`` is zero (i.e. partition_date coincides with run_after),
+        including :class:`~airflow.timetables.simple.PartitionedAssetTimetable`.
+
+        Timetables with a non-zero ``run_offset`` (e.g.
+        :class:`~airflow.timetables.trigger.CronPartitionTimetable`) override
+        this method to invert the offset mapping and compute a tighter window.
+
+        :param from_date: Start of the requested partition_date window (inclusive).
+        :param to_date: End of the requested partition_date window (inclusive).
+        :return: ``(earliest, latest)`` run_after bounds for iteration.
+        """
+        return from_date - datetime.timedelta(days=1), to_date + datetime.timedelta(days=1)

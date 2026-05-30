@@ -70,6 +70,8 @@ def create_backfill(args) -> None:
             dag_run_conf=args.dag_run_conf,
             reprocess_behavior=reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            partition_date_start=args.partition_date_start,
+            partition_date_end=args.partition_date_end,
         )
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
@@ -80,6 +82,8 @@ def create_backfill(args) -> None:
                 to_date=args.to_date,
                 reverse=args.run_backwards,
                 reprocess_behavior=args.reprocess_behavior,
+                partition_date_start=args.partition_date_start,
+                partition_date_end=args.partition_date_end,
                 session=session,
             )
         console.print("Runs to be attempted:")
@@ -115,4 +119,6 @@ def create_backfill(args) -> None:
         triggering_user_name=user,
         reprocess_behavior=reprocess_behavior,
         run_on_latest_version=resolved_run_on_latest,
+        partition_date_start=args.partition_date_start,
+        partition_date_end=args.partition_date_end,
     )

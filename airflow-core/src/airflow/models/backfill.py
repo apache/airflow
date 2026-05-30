@@ -26,7 +26,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import sqlalchemy as sa
 import structlog
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
+    from airflow.timetables.trigger import CronPartitionTimetable
 
 log = structlog.get_logger(__name__)
 
@@ -132,6 +133,38 @@ class UnknownActiveBackfills(AirflowException):
 
     def __init__(self, dag_id: str):
         super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
+class InvalidPartitionWindow(ValueError):
+    """
+    Raised when the partition-date window is invalid (e.g. start is after end).
+
+    :meta private:
+    """
+
+
+class PartitionFlagsOnNonPartitionedDag(ValueError):
+    """
+    Raised when --partition-date-start / --partition-date-end are used on a non-partitioned Dag.
+
+    :meta private:
+    """
+
+
+class DateFlagsOnPartitionedDag(ValueError):
+    """
+    Raised when --from-date / --to-date are used on a partitioned Dag.
+
+    :meta private:
+    """
+
+
+class NoBackfillSelector(ValueError):
+    """
+    Raised when neither date-range flags nor partition-range flags are provided for the Dag type.
+
+    :meta private:
+    """
 
 
 class ReprocessBehavior(str, Enum):
@@ -266,6 +299,52 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
     return non_create_reason
 
 
+def _validate_partition_window(
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+) -> None:
+    """Raise ``InvalidPartitionWindow`` when start is strictly after end."""
+    if (
+        partition_date_start is not None
+        and partition_date_end is not None
+        and partition_date_start.date() > partition_date_end.date()
+    ):
+        raise InvalidPartitionWindow(
+            f"partition_date_start ({partition_date_start.date()}) must not be after "
+            f"partition_date_end ({partition_date_end.date()})."
+        )
+
+
+def _check_backfill_selector(
+    *,
+    is_partitioned: bool,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+) -> None:
+    """Raise the appropriate exception when the wrong selector combination is given."""
+    has_date = from_date is not None and to_date is not None
+    has_partition = partition_date_start is not None and partition_date_end is not None
+    has_any_date = from_date is not None or to_date is not None
+    has_any_partition = partition_date_start is not None or partition_date_end is not None
+    if is_partitioned and has_any_date:
+        raise DateFlagsOnPartitionedDag(
+            "--from-date / --to-date are not valid for partitioned Dags; "
+            "use --partition-date-start / --partition-date-end instead."
+        )
+    if not is_partitioned and has_any_partition:
+        raise PartitionFlagsOnNonPartitionedDag(
+            "--partition-date-start / --partition-date-end are only valid for partitioned Dags."
+        )
+    if is_partitioned and not has_partition:
+        raise NoBackfillSelector(
+            "Partitioned Dag requires both --partition-date-start and --partition-date-end."
+        )
+    if not is_partitioned and not has_date:
+        raise NoBackfillSelector("Non-partitioned Dag requires both --from-date and --to-date.")
+
+
 def _validate_backfill_params(
     dag: SerializedDAG,
     reverse: bool,
@@ -305,12 +384,14 @@ def _validate_backfill_params(
 def _do_dry_run(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
     dag_run_conf: dict | None = None,
+    partition_date_start: datetime | None = None,
+    partition_date_end: datetime | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -326,14 +407,50 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
-
-    dagrun_info_list = _get_info_list(
-        dag=dag,
+    is_partitioned = dag.timetable.partitioned
+    _check_backfill_selector(
+        is_partitioned=is_partitioned,
         from_date=from_date,
         to_date=to_date,
-        reverse=reverse,
+        partition_date_start=partition_date_start,
+        partition_date_end=partition_date_end,
     )
+
+    _validate_partition_window(partition_date_start, partition_date_end)
+
+    if is_partitioned:
+        # partition_date_start and partition_date_end are both non-None here (NoBackfillSelector raised otherwise)
+        _validate_backfill_params(
+            dag,
+            reverse,
+            cast("datetime", partition_date_start),
+            cast("datetime", partition_date_end),
+            reprocess_behavior,
+            dag_run_conf,
+        )
+        dagrun_info_list = _get_info_list(
+            dag=dag,
+            from_date=partition_date_start,
+            to_date=partition_date_end,
+            reverse=reverse,
+        )
+    else:
+        # from_date and to_date are both non-None here (NoBackfillSelector raised otherwise)
+        _validate_backfill_params(
+            dag,
+            reverse,
+            cast("datetime", from_date),
+            cast("datetime", to_date),
+            reprocess_behavior,
+            dag_run_conf,
+        )
+        dagrun_info_list = _get_info_list(
+            dag=dag,
+            from_date=from_date,
+            to_date=to_date,
+            reverse=reverse,
+        )
+
     for info in dagrun_info_list:
         if TYPE_CHECKING:
             assert info.logical_date
@@ -528,16 +645,43 @@ def _create_backfill_dag_run_partitioned(
 
 def _get_info_list(
     *,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     reverse: bool,
     dag: SerializedDAG,
 ) -> list[DagRunInfo]:
-    infos = dag.iter_dagrun_infos_between(from_date, to_date)
-    now = timezone.utcnow()
-    dagrun_info_list = [
-        x for x in infos if x.partition_key or (x.data_interval and x.data_interval.end < now)
-    ]
+    if from_date is None or to_date is None:
+        raise NoBackfillSelector("Both from_date and to_date must be provided.")
+    if dag.timetable.partitioned:
+        # Selection axis is partition_date, not run_after. For a partitioned timetable the two
+        # coincide only when run_offset == 0; the user's --partition-date-start/end window
+        # (matched against DagRun.partition_date, per the CLI contract) must be applied to each
+        # run's partition_date, not its run_after. iter_dagrun_infos_between still walks the
+        # timetable by run_after, so the iteration window is deliberately widened to catch all
+        # run_after values that could map to a partition_date inside the requested window.
+        # Integer run_offset is handled by timetable.run_after_window_for_partition_window,
+        # which inverts the partition-date mapping and adds ±1 day timezone buffer; the window
+        # is over-generated on purpose (wider is always safe). The partition_date filter below
+        # trims the result back to the exact requested calendar-date window.
+        # timedelta/relativedelta run_offset is not yet supported (AIP-76).
+        start_label = from_date.date()
+        end_label = to_date.date()
+        earliest, latest = dag.timetable.run_after_window_for_partition_window(
+            from_date=timezone.coerce_datetime(from_date),
+            to_date=timezone.coerce_datetime(to_date),
+        )
+        infos = dag.iter_dagrun_infos_between(earliest, latest)
+        cron_timetable = cast("CronPartitionTimetable", dag.timetable)
+        dagrun_info_list = [
+            info
+            for info in infos
+            if info.partition_date is not None
+            and start_label <= info.partition_date.in_timezone(cron_timetable._timezone).date() <= end_label
+        ]
+    else:
+        now = timezone.utcnow()
+        infos = dag.iter_dagrun_infos_between(from_date, to_date)
+        dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
@@ -595,14 +739,16 @@ def _handle_clear_run(
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    partition_date_start: datetime | None = None,
+    partition_date_end: datetime | None = None,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -640,12 +786,46 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
-        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
+        is_partitioned = dag.timetable.partitioned
+        _check_backfill_selector(
+            is_partitioned=is_partitioned,
+            from_date=from_date,
+            to_date=to_date,
+            partition_date_start=partition_date_start,
+            partition_date_end=partition_date_end,
+        )
+
+        _validate_partition_window(partition_date_start, partition_date_end)
+
+        # Fix D: synthesise ORM from_date / to_date from whichever selector was provided.
+        # Backfill.from_date / to_date are nullable=False; the partition window covers the same semantic range.
+        if is_partitioned:
+            orm_from_date = partition_date_start
+            orm_to_date = partition_date_end
+            _validate_backfill_params(
+                dag,
+                reverse,
+                cast("datetime", partition_date_start),
+                cast("datetime", partition_date_end),
+                reprocess_behavior,
+                dag_run_conf,
+            )
+        else:
+            orm_from_date = from_date
+            orm_to_date = to_date
+            _validate_backfill_params(
+                dag,
+                reverse,
+                cast("datetime", from_date),
+                cast("datetime", to_date),
+                reprocess_behavior,
+                dag_run_conf,
+            )
 
         br = Backfill(
             dag_id=dag_id,
-            from_date=from_date,
-            to_date=to_date,
+            from_date=orm_from_date,
+            to_date=orm_to_date,
             max_active_runs=max_active_runs,
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
@@ -658,8 +838,8 @@ def _create_backfill(
         session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
         dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
+            from_date=orm_from_date,
+            to_date=orm_to_date,
             reverse=reverse,
             dag=dag,
         )
