@@ -277,6 +277,7 @@ class TestCloudBatchJobFinishedTrigger:
                 {
                     "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
+                    "execution_name": None,
                 }
             )
             == actual
