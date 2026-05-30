@@ -1,0 +1,1 @@
+``Window`` subclasses accept a ``direction`` keyword — pass ``direction=WindowDirection.FORWARD`` (e.g. ``WeekWindow(direction=WindowDirection.FORWARD)``) to fan out the trailing period ending at the upstream key, instead of the period it represents.

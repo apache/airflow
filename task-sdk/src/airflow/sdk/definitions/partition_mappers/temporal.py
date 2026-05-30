@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, ClassVar
 
 from airflow.sdk._shared.timezones.timezone import parse_timezone
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
@@ -24,11 +25,14 @@ from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 if TYPE_CHECKING:
     from pendulum import FixedTimezone, Timezone
 
+    from airflow.sdk.definitions.partition_mappers.window import Window
+
 
 class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
 
     default_output_format: str
+    expected_decoded_type: ClassVar[type] = datetime
 
     def __init__(
         self,
@@ -45,36 +49,143 @@ class _BaseTemporalMapper(PartitionMapper):
 
 
 class StartOfHourMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to hour."""
+    """
+    Map a partition key to the start of the hour that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-13T10``.
+    """
 
     default_output_format = "%Y-%m-%dT%H"
 
 
 class StartOfDayMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to day."""
+    """
+    Map a partition key to the start of the day that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-13``.
+    """
 
     default_output_format = "%Y-%m-%d"
 
 
 class StartOfWeekMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to week."""
+    """
+    Map a partition key to the Monday of the ISO week that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-11 (W11)``.
+    """
 
     default_output_format = "%Y-%m-%d (W%V)"
 
 
 class StartOfMonthMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to month."""
+    """
+    Map a partition key to day 1 of the month that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03``.
+    """
 
     default_output_format = "%Y-%m"
 
 
 class StartOfQuarterMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to quarter."""
+    """
+    Map a partition key to the first day of the calendar quarter that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-Q1``.
+    """
 
     default_output_format = "%Y-Q{quarter}"
 
 
 class StartOfYearMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to year."""
+    """
+    Map a partition key to January 1 of the year that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024``.
+    """
 
     default_output_format = "%Y"
+
+
+# Keep the following in sync with the core copy in
+# ``airflow-core/src/airflow/partition_mappers/temporal.py`` —
+# the SDK and core class hierarchies are independent (the SDK cannot import
+# core), so both sides carry the same definitions and the lookup is by class
+# name. When adding a new ``Window`` subclass, extend the table on both
+# sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
+# (see ``FanOutMapper._resolve_default_downstream_mapper``).
+# Synced items:
+# - ``FanOutMapper.default_downstream_mapper_by_window_name``
+class FanOutMapper(PartitionMapper):
+    """
+    Partition mapper that fans one upstream key out into multiple downstream keys.
+
+    Compose an ``upstream_mapper`` (which parses the coarse upstream key and
+    normalizes it to a period start) with a ``window`` that enumerates the
+    members of that period. ``downstream_mapper`` formats each member into a
+    downstream key string; if omitted, a default is chosen from the window
+    class (e.g. ``WeekWindow`` → ``StartOfDayMapper``).
+
+    ``downstream_mapper`` must be passed explicitly for any window without an
+    entry in the default table — currently ``HourWindow`` and any custom
+    ``Window`` subclass. Constructing a ``FanOutMapper`` for those windows
+    without a ``downstream_mapper`` raises ``ValueError`` at Dag-parse time.
+
+    Symmetric to :class:`~airflow.sdk.RollupMapper`: rollup is N→1 (downstream
+    waits for all members), fan-out is 1→N (one upstream event creates many
+    downstream Dag runs).
+
+    For forward fan-out (emit the *next* period's members instead of the current
+    one), pass ``direction=WindowDirection.FORWARD`` to the window:
+
+    .. code-block:: python
+
+        from airflow.sdk import WindowDirection
+
+        # Weekly upstream → 7 daily downstream Dag runs (current week)
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+
+        # Weekly upstream → 7 daily keys for the *following* week
+        FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(), window=WeekWindow(direction=WindowDirection.FORWARD)
+        )
+    """
+
+    default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
+        "DayWindow": StartOfHourMapper,
+        "WeekWindow": StartOfDayMapper,
+        "MonthWindow": StartOfDayMapper,
+        "QuarterWindow": StartOfMonthMapper,
+        "YearWindow": StartOfMonthMapper,
+    }
+
+    @classmethod
+    def _resolve_default_downstream_mapper(cls, window: Window) -> PartitionMapper:
+        """
+        Return the conventional downstream mapper for *window*.
+
+        Looked up by the window's class **name** rather than identity so that
+        the SDK ``Window`` classes (used in Dag-author code) and the core
+        ``Window`` classes (used after deserialization) both resolve to the
+        same default. Subclasses can extend or override the defaults by
+        setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
+        """
+        mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
+        if mapper_cls is None:
+            raise ValueError(
+                f"{cls.__name__} has no default downstream_mapper for window type "
+                f"{type(window).__name__}; pass downstream_mapper explicitly."
+            )
+        return mapper_cls()
+
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        downstream_mapper: PartitionMapper | None = None,
+    ) -> None:
+        self.upstream_mapper = upstream_mapper
+        self.window = window
+        self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)
