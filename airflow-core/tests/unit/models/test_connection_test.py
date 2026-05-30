@@ -28,8 +28,9 @@ from airflow.models.connection_test import (
     ConnectionTestRequest,
     ConnectionTestState,
 )
+from airflow.models.team import Team
 
-from tests_common.test_utils.db import clear_db_connection_tests, clear_db_connections
+from tests_common.test_utils.db import clear_db_connection_tests, clear_db_connections, clear_db_teams
 
 pytestmark = pytest.mark.db_test
 
@@ -201,9 +202,11 @@ class TestCommitToConnectionTable:
     def setup_teardown(self):
         clear_db_connections(add_default_connections_back=False)
         clear_db_connection_tests()
+        clear_db_teams()
         yield
         clear_db_connections(add_default_connections_back=False)
         clear_db_connection_tests()
+        clear_db_teams()
 
     def test_creates_new_connection(self, session):
         ct = ConnectionTestRequest(
@@ -226,6 +229,27 @@ class TestCommitToConnectionTable:
         assert conn.conn_type == "postgres"
         assert conn.host == "db.example.com"
         assert conn.password == "secret"
+
+    def test_creates_new_connection_preserves_team(self, session):
+        """A commit_on_success test for a new connection persists it under the request's team."""
+        session.add(Team(name="team_a"))
+        session.flush()
+
+        ct = ConnectionTestRequest(
+            connection_id="team_conn",
+            conn_type="postgres",
+            host="db.example.com",
+            team_name="team_a",
+        )
+        session.add(ct)
+        session.flush()
+
+        ct.commit_to_connection_table(session=session)
+        session.flush()
+
+        conn = session.scalar(select(Connection).filter_by(conn_id="team_conn"))
+        assert conn is not None
+        assert conn.team_name == "team_a"
 
     def test_updates_existing_connection(self, session):
         conn = Connection(conn_id="existing_conn", conn_type="http", host="old-host.example.com")

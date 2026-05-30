@@ -215,6 +215,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
                 schema=self.schema,
                 port=self.port,
                 extra=self.extra,
+                team_name=self.team_name,
             )
             session.add(conn)
             log.info("Created new connection from successful test", connection_id=self.connection_id)
