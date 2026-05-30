@@ -24,6 +24,7 @@ import pathlib
 import re
 import socket
 import subprocess
+import sys
 import threading
 import time
 import zipfile
@@ -396,6 +397,41 @@ class TestAcceptConnections:
             accepted[server].close()
         finally:
             server.close()
+
+
+class TestAcceptConnectionsProcessValidation:
+    def _start_connector_process(self, addr: tuple[str, int], *, delay: float = 0.0) -> subprocess.Popen:
+        script = """
+import socket
+import sys
+import time
+
+time.sleep(float(sys.argv[3]))
+sock = socket.socket()
+sock.connect((sys.argv[1], int(sys.argv[2])))
+sock.recv(1)
+"""
+        return subprocess.Popen([sys.executable, "-c", script, addr[0], str(addr[1]), str(delay)])
+
+    def test_rejects_racing_connection_from_other_process(self):
+        server = _start_server()
+        addr = server.getsockname()
+        attacker = socket.socket()
+        attacker.connect(addr)
+        child_proc = self._start_connector_process(addr, delay=0.05)
+
+        try:
+            accepted, _ = _accept_connections({"comm": server}, {}, child_proc)
+            accepted[server].sendall(b"x")
+            accepted[server].close()
+            assert child_proc.wait(timeout=5) == 0
+            assert attacker.recv(1) == b""
+        finally:
+            attacker.close()
+            server.close()
+            if child_proc.poll() is None:
+                child_proc.terminate()
+                child_proc.wait(timeout=5)
 
 
 class TestConnectionFromProcess:
