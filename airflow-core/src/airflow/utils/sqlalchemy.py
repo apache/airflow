@@ -382,6 +382,9 @@ def with_row_locks(
     if not dialect_name:
         return query
 
+    if dialect_name == "sqlite":
+        return query
+
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
