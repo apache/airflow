@@ -1,5 +1,3 @@
-airflow-core/src/airflow/api/common/delete_dag.py::1
-airflow-core/src/airflow/api/common/mark_tasks.py::1
 airflow-core/src/airflow/callbacks/database_callback_sink.py::1
 airflow-core/src/airflow/cli/commands/dag_command.py::8
 airflow-core/src/airflow/cli/commands/jobs_command.py::1
