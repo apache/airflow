@@ -131,7 +131,6 @@ dev = [
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
     "pydantic-ai-skills>=0.11.0",
-    "apache-airflow-providers-git",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.13.0",
