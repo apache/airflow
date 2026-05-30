@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import Literal
 
-from pydantic import JsonValue, field_validator
+from pydantic import AwareDatetime, JsonValue, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -43,7 +44,35 @@ class TaskStateCollectionResponse(BaseModel):
 
 
 class TaskStateBody(StrictBaseModel):
-    """Request body for setting a task state value."""
+    """
+    Request body for setting a task state value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
+    """
+
+    value: JsonValue
+    expires_at: AwareDatetime | None | Literal["default"] = "default"
+
+    @field_validator("value")
+    @classmethod
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        try:
+            serialized = json.dumps(v, allow_nan=False)
+        except ValueError:
+            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
+        if len(serialized) > _MAX_SERIALIZED_BYTES:
+            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        return v
+
+
+class TaskStatePatchBody(StrictBaseModel):
+    """Request body for patching only the value of an existing task state key."""
 
     value: JsonValue
 
