@@ -1718,6 +1718,56 @@ class TestDag:
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("mark_success_pattern", "expected_mapped_tasks_num"),
+        [
+            ("make_items|process_item", 1),
+            ("process_item", 3),
+        ],
+    )
+    def test_dag_test_mark_success_pattern_allows_mapped_task(
+        self,
+        mark_success_pattern,
+        expected_mapped_tasks_num,
+        testing_dag_bundle,
+    ):
+        upstream_callable = mock.MagicMock()
+        mapped_callable = mock.MagicMock()
+
+        @task_decorator
+        def make_items():
+            upstream_callable()
+            return [1, 2, 3]
+
+        with DAG(
+            dag_id="test_dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+        ) as dag:
+            PythonOperator.partial(
+                task_id="process_item",
+                python_callable=mapped_callable,
+            ).expand(op_args=make_items())
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern=mark_success_pattern)
+
+        assert dr.state == DagRunState.SUCCESS
+
+        upstream_ti = dr.get_task_instance("make_items")
+        assert upstream_ti is not None
+        assert upstream_ti.state == TaskInstanceState.SUCCESS
+        if "make_items" in mark_success_pattern:
+            upstream_callable.assert_not_called()
+        else:
+            upstream_callable.assert_called()
+
+        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
+        assert len(mapped_tis) == expected_mapped_tasks_num
+        assert all(ti.state == TaskInstanceState.SUCCESS for ti in mapped_tis)
+        mapped_callable.assert_not_called()
+
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
 ---
