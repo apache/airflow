@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from importlib import import_module
 from typing import Any
 
-try:
-    from airflow.sdk.serde import serialize as serde_serialize
-except ImportError:
-    from airflow.serialization.serde import serialize as serde_serialize
+
+def get_serde_serialize() -> Callable[[Any], Any]:
+    try:
+        return import_module("airflow.sdk.serde").serialize
+    except ImportError:
+        return import_module("airflow.serialization.serde").serialize
 
 
 def validate_deferrable_databricks_retry_args(retry_args: Mapping[str, Any] | None, *, owner: str) -> None:
@@ -31,7 +34,7 @@ def validate_deferrable_databricks_retry_args(retry_args: Mapping[str, Any] | No
         return
 
     try:
-        serde_serialize(retry_args)
+        get_serde_serialize()(retry_args)
     except (AttributeError, RecursionError, TypeError, ValueError) as err:
         raise ValueError(
             f"{owner} does not support non-serializable retry_args/databricks_retry_args "
