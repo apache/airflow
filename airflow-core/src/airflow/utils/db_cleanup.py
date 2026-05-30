@@ -654,6 +654,7 @@ def export_archived_records(
     table_names: list[str] | None = None,
     drop_archives: bool = False,
     needs_confirm: bool = True,
+    *,
     session: Session = NEW_SESSION,
 ) -> None:
     """Export archived data to the given output path in the given format."""
@@ -682,7 +683,7 @@ def export_archived_records(
 
 @provide_session
 def drop_archived_tables(
-    table_names: list[str] | None, needs_confirm: bool, session: Session = NEW_SESSION
+    table_names: list[str] | None, needs_confirm: bool, *, session: Session = NEW_SESSION
 ) -> None:
     """Drop archived tables."""
     archived_table_names = _get_archived_table_names(table_names, session)
