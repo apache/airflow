@@ -21,6 +21,7 @@ import platform
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -752,6 +753,20 @@ def start_airflow(
     sys.exit(result.returncode)
 
 
+def _ensure_theme_assets() -> None:
+    gen_dir = AIRFLOW_ROOT_PATH / "docs-theme" / "sphinx_airflow_theme" / "static" / "_gen"
+    if gen_dir.is_dir():
+        return
+    console_print("[info]Theme static assets missing — fetching from published wheel...")
+    fetch_script = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "fetch_theme_assets.py"
+    result = subprocess.run([sys.executable, str(fetch_script)], check=False)
+    if result.returncode != 0:
+        console_print(
+            "[error]Failed to fetch theme assets. Run manually: python scripts/ci/fetch_theme_assets.py"
+        )
+        sys.exit(1)
+
+
 @main.command(name="build-docs")
 @option_builder
 @click.option(
@@ -831,6 +846,7 @@ def build_docs(
     Build documents.
     """
     perform_environment_checks()
+    _ensure_theme_assets()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     build_params = BuildCiParams(

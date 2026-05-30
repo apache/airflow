@@ -1911,6 +1911,8 @@ RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.c
     bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
+RUN python "${AIRFLOW_SOURCES}/scripts/ci/fetch_theme_assets.py"
+
 COPY --from=scripts entrypoint_ci.sh /entrypoint
 COPY --from=scripts entrypoint_exec.sh /entrypoint-exec
 RUN chmod a+x /entrypoint /entrypoint-exec
