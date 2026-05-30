@@ -3561,7 +3561,7 @@ def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker,
 def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):
     """Multiple distinct runtime keys produce one AssetEvent each; DagRun.partition_key stays None."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_fanout", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_fan_out", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None
