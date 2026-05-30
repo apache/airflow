@@ -143,6 +143,12 @@ class TestPartitionedOperator:
             assert isinstance(iterable_op, MappedIterableOperator)
             assert iterable_op.retries == 0
 
+            with pytest.raises(
+                ValueError,
+                match="MappedIterableOperator always has retries=0; retries are handled by indexed tasks.",
+            ):
+                iterable_op.retries = 3
+
             mapped_op = iterable_op.delegate
             assert mapped_op.retries == 3
 

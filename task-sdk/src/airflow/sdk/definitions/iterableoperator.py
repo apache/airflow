@@ -513,6 +513,13 @@ class MappedIterableOperator(MappedOperator):
     def retries(self) -> int:
         return 0  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
 
+    @retries.setter
+    def retries(self, value: int) -> None:
+        if value != 0:
+            raise ValueError(
+                "MappedIterableOperator always has retries=0; retries are handled by indexed tasks."
+            )
+
     def __repr__(self):
         return f"<MappedIterable({self.task_type}): {self.task_id}>"
 
