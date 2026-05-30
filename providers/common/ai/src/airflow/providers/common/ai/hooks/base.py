@@ -379,7 +379,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 if storage is not None and counter is not None:
                     fn = self._cached_callable(fn, storage, counter)
                 if enable_logging:
-                    fn = self._logged_callable(fn, self.log)
+                    fn = self._logged_callable(fn, self.log, name=spec.name)
                 adapted = ToolSpec(
                     name=spec.name,
                     description=spec.description,
@@ -391,25 +391,30 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         return native
 
     @staticmethod
-    def _logged_callable(fn: Callable[..., Any], logger: Any) -> Callable[..., Any]:
+    def _logged_callable(
+        fn: Callable[..., Any],
+        logger: Any,
+        *,
+        name: str | None = None,
+    ) -> Callable[..., Any]:
         """Wrap *fn* to log tool name, args, timing, and exceptions."""
+        _tool_name = name or getattr(fn, "__name__", type(fn).__name__)
 
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            name = getattr(fn, "__name__", type(fn).__name__)
-            logger.info("::group::Tool call: %s", name)
+            logger.info("::group::Tool call: %s", _tool_name)
             if kwargs:
                 logger.debug("Tool args: %s", json.dumps(kwargs, default=str))
             start = time.monotonic()
             try:
                 result = fn(*args, **kwargs)
                 elapsed = time.monotonic() - start
-                logger.info("Tool %s returned in %.2fs", name, elapsed)
+                logger.info("Tool %s returned in %.2fs", _tool_name, elapsed)
                 logger.info("::endgroup::")
                 return result
             except Exception:
                 elapsed = time.monotonic() - start
-                logger.exception("Tool %s failed after %.2fs", name, elapsed)
+                logger.exception("Tool %s failed after %.2fs", _tool_name, elapsed)
                 logger.info("::endgroup::")
                 raise
 
