@@ -33,6 +33,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from airflow.providers.common.ai.hooks.base import AgentRunRequest
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseHook
@@ -152,10 +153,15 @@ class LLMSQLQueryOperator(LLMOperator):
 
         full_system_prompt = self._build_system_prompt(schema_info)
 
-        agent = self.llm_hook.create_agent(
-            output_type=str, instructions=full_system_prompt, **self.agent_params
+        request = AgentRunRequest(
+            prompt=self.prompt,
+            output_type=str,
+            instructions=full_system_prompt,
+            usage_limits=self.usage_limits,
+            agent_params=dict(self.agent_params),
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        agent = self.llm_hook.create_agent(request)
+        result = self.llm_hook.run_agent(agent, request)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output)
 

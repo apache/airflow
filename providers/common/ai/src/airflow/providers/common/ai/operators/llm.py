@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import (
@@ -40,7 +40,6 @@ except ImportError:  # pragma: no cover - Airflow versions before allow_class sh
     allow_class = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -50,7 +49,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     """
     Call an LLM with a prompt and return the output.
 
-    Uses a :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+    Uses a :class:`~airflow.providers.common.ai.hooks.base.BaseAIHook`
     for LLM access. Supports plain string output (default) and structured output
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
     the model instance is returned to XCom unchanged so downstream tasks can
@@ -139,19 +138,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.allow_modifications = allow_modifications
 
     @cached_property
-    def llm_hook(self) -> PydanticAIHook:
-        """
-        Return the correct PydanticAIHook subclass for the configured connection.
-
-        Delegates to :meth:`~PydanticAIHook.get_hook` which looks up
-        the connection's ``conn_type`` and instantiates the matching subclass
-        (e.g. :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook`
-        for ``pydanticai-azure`` connections).
-        """
-        hook_params = {
-            "model_id": self.model_id,
-        }
-        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
+    def llm_hook(self) -> BaseAIHook:
+        """Return the agent hook for the configured connection."""
+        return BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
     def execute(self, context: Context) -> Any:
         if self.require_approval and not isinstance(self.prompt, str):
@@ -162,10 +151,15 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
                 f"str prompt, or disable require_approval."
             )
 
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
-            output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
+        request = AgentRunRequest(
+            prompt=self.prompt,
+            output_type=self.output_type,
+            instructions=self.system_prompt,
+            usage_limits=self.usage_limits,
+            agent_params=dict(self.agent_params),
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        agent = self.llm_hook.create_agent(request)
+        result = self.llm_hook.run_agent(agent, request)
         log_run_summary(self.log, result)
         output = result.output
 

@@ -34,29 +34,41 @@ Three toolsets are included:
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
 
-All three implement pydantic-ai's
-`AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
-passed to any pydantic-ai ``Agent``, including via
-:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+:class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` and
+:class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` implement pydantic-ai's
+`AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface.
+:class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` implements the
+framework-agnostic :class:`~airflow.providers.common.ai.hooks.base.BaseToolset` interface.
+All three can be passed to
+:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`, which routes each
+toolset to the correct agent parameter automatically.
 
 .. note::
 
-    ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
-    just the Airflow-native toolsets above. PydanticAI's own MCP server
-    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
-    and third-party toolsets work too. The Airflow-native toolsets add
-    connection management, secret backend integration, and the connection UI,
-    but you are not locked in.
+    ``AgentOperator`` accepts a mixed ``toolsets`` list containing any
+    combination of:
+
+    - pydantic-ai ``AbstractToolset`` implementations (``HookToolset``,
+      ``MCPToolset``, ``DataFusionToolset``).
+    - Any third-party ``AbstractToolset``, including PydanticAI's own MCP
+      server classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``,
+      ``MCPServerStdio``).
+    - :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
+      subclasses (``SQLToolset``).
+    - Plain Python callables (``def my_tool(...): ...``).
+    - Native pydantic-ai ``Tool`` objects.
+
+    The hook routes each item to the correct agent parameter automatically.
 
 
-Using Toolsets Directly with PydanticAI
----------------------------------------
+Using Toolsets Directly
+-----------------------
 
-Toolsets are standard pydantic-ai ``AbstractToolset`` implementations with no
-dependency on ``AgentOperator`` or ``@task.agent``. You can use them anywhere
-you can run Python within Airflow -- ``@task`` functions, ``PythonOperator``
-callables, or any custom operator's ``execute()`` method -- by creating a
-``pydantic_ai.Agent`` yourself:
+Toolsets can be used anywhere you can run Python within Airflow — ``@task``
+functions, ``PythonOperator`` callables, or any custom operator's
+``execute()`` method — without needing ``AgentOperator`` or ``@task.agent``.
+Pass toolsets via :class:`~airflow.providers.common.ai.hooks.base.AgentRunRequest`
+and call the hook yourself:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
     :language: python
@@ -67,11 +79,18 @@ This works because toolsets resolve Airflow connections lazily via
 ``BaseHook.get_connection()``, which is available in any task execution
 context.
 
-This approach gives you full control over the agent lifecycle -- you can call
-``agent.run_sync()`` multiple times, swap models at runtime, or combine
-results from several agents in a single task. The tradeoff is that you lose
-the durable execution (step-level caching with retry replay), HITL review
-integration, and automatic tool call logging that ``AgentOperator`` provides.
+This approach gives you direct control over the agent lifecycle — you can
+build and run multiple agents in a single task, or combine results from
+several runs. The tradeoff is that you lose the durable execution
+(step-level caching with retry replay), HITL review integration, and
+automatic tool call logging that
+:class:`~airflow.providers.common.ai.operators.agent.AgentOperator` provides
+via the agent hook (:class:`~airflow.providers.common.ai.hooks.base.BaseAIHook`):
+callable-level logging and caching for
+:class:`~airflow.providers.common.ai.hooks.base.BaseToolset` tools and plain
+callables, and :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` /
+:class:`~airflow.providers.common.ai.durable.caching_toolset.CachingToolset`
+wrapping for pydantic-ai ``AbstractToolset`` items.
 
 
 ``HookToolset``
