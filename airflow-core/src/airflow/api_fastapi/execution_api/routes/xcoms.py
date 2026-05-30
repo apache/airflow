@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, Security, status
 from pydantic import JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
@@ -32,7 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, require_auth
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -266,6 +266,7 @@ class GetXcomFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     description="Get a single XCom Value",
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
 )
 def get_xcom(
     dag_id: str,
