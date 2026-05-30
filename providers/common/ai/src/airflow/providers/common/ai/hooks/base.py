@@ -25,7 +25,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from typing_extensions import get_type_hints
 
@@ -454,19 +454,26 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         code sees the same callable shape as the original tool.
         """
         signature_source, annotation_source = BaseAIHook._get_wrapper_metadata_sources(fn)
-        wrapper.__signature__ = inspect.signature(signature_source)
-        wrapper.__module__ = getattr(annotation_source, "__module__", __name__)
-        wrapper.__annotations__ = getattr(annotation_source, "__annotations__", {}).copy()
+        try:
+            signature = inspect.signature(signature_source)
+        except (ValueError, TypeError):
+            return
+        setattr(wrapper, "__signature__", signature)
+        wrapper.__module__ = cast(
+            "str",
+            getattr(annotation_source, "__module__", None) or getattr(fn, "__module__", __name__),
+        )
 
         try:
             hints = get_type_hints(annotation_source, include_extras=True)
         except (NameError, TypeError):
+            wrapper.__annotations__ = getattr(annotation_source, "__annotations__", {}).copy()
             return
 
-        annotations = {name: hints[name] for name in wrapper.__signature__.parameters if name in hints}
+        resolved = {name: hints[name] for name in signature.parameters if name in hints}
         if "return" in hints:
-            annotations["return"] = hints["return"]
-        wrapper.__annotations__ = annotations
+            resolved["return"] = hints["return"]
+        wrapper.__annotations__ = resolved
 
     @staticmethod
     def _get_wrapper_metadata_sources(
@@ -477,12 +484,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
 
         Most callables can use the same object for both. Partials need the bound
         signature from the partial itself but annotations from the underlying
-        function, and callable objects expose their useful metadata on
-        ``obj.__call__``.
+        function (unwrapped through any nesting), and callable objects expose
+        their useful metadata on ``obj.__call__``.
         """
         if isinstance(fn, functools.partial):
-            return fn, fn.func
+            inner: Callable[..., Any] = fn.func
+            while isinstance(inner, functools.partial):
+                inner = inner.func
+            return fn, inner
         if inspect.ismethod(fn) or inspect.isfunction(fn):
             return fn, fn
 
-        return fn.__call__, fn.__call__
+        call = cast("Callable[..., Any]", object.__getattribute__(fn, "__call__"))
+        return call, call
