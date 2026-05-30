@@ -134,7 +134,11 @@ class TestPartitionedOperator:
 
         with DAG(dag_id="test_mapped_iterable_retries") as dag:
             expand_input = DictOfListsExpandInput({"retry_delay": [1.0, 2.0]})
-            iterable_op = EmptyOperator.partial(task_id="test_task", dag=dag, retries=3).partition(size=2)._iterate(expand_input, strict=False)
+            iterable_op = (
+                EmptyOperator.partial(task_id="test_task", dag=dag, retries=3)
+                .partition(size=2)
+                ._iterate(expand_input, strict=False)
+            )
 
             assert isinstance(iterable_op, MappedIterableOperator)
             assert iterable_op.retries == 0
