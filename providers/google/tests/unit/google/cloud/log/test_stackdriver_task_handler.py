@@ -751,8 +751,10 @@ class TestStackdriverTaskHandlerExceptionHandling:
         handler = StackdriverTaskHandler()
         broken_transport = mock.MagicMock()
         broken_transport.flush.side_effect = RuntimeError("flush failed during shutdown")
-        # ``transport`` is a cached_property on ``StackdriverRemoteLogIO``; bypass it.
-        handler.io.__dict__["transport"] = broken_transport
+        # ``transport`` is a cached_property on the slotted attrs class
+        # ``StackdriverRemoteLogIO``; its value lives in a slot, not ``__dict__``, so
+        # assign the attribute directly to pre-seed it without building a real transport.
+        handler.io.transport = broken_transport
 
         # Must not raise.
         handler.close()
