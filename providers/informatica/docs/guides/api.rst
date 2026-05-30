@@ -65,6 +65,73 @@ The ``InformaticaEDCHook`` provides low-level access to the Informatica Enterpri
 
      result = hook.create_lineage_link("source_id", "target_id")
 
+**InformaticaIDMCHook**
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``InformaticaIDMCHook`` provides low-level access to IDMC REST APIs. It handles v2 and v3 authentication, session headers for platform and taskflow endpoints, run status normalization, and cancellation requests.
+
+**Initialization Example:**
+
+.. code-block:: python
+
+   from airflow.providers.informatica.hooks.idmc import InformaticaIDMCHook
+
+   hook = InformaticaIDMCHook(informatica_idmc_conn_id="my_idmc_conn", auth_version="v3")
+
+**Key Methods:**
+
+- ``start_task(task_id: str | None = None, task_federated_id: str | None = None, task_type: str = "MTT", callback_url: str | None = None) -> dict``
+
+  Starts a CDI task and returns a dictionary containing the normalized ``run_id``, task metadata, and raw IDMC response.
+
+- ``start_taskflow(taskflow_api_name: str, input_parameters: Mapping[str, Any] | None = None, callback_url: str | None = None) -> dict``
+
+  Starts a published taskflow by API name and returns the taskflow ``run_id``.
+
+- ``get_task_run_status(run_id: str | int, *, task_id: str) -> dict``
+
+  Reads the v2 activity log for a CDI task run and returns a normalized status.
+
+- ``get_taskflow_run_status(run_id: str | int) -> dict``
+
+  Reads taskflow status and returns a normalized status.
+
+- ``cancel_task(...) -> dict`` and ``cancel_taskflow(run_id: str | int) -> dict``
+
+  Send best-effort cancellation requests. ``cancel_task`` sends a task-scoped
+  stop request by task identity. ``cancel_taskflow`` terminates a taskflow run
+  by run ID.
+
+
+Operators
+---------
+
+**InformaticaIDMCRunTaskOperator**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Starts an IDMC CDI task, optionally waits for it to complete, and returns the IDMC run ID. Supports deferrable execution through ``InformaticaIDMCTaskRunTrigger``.
+
+``cancel_on_kill`` defaults to ``False`` for CDI task runs. Set it to ``True`` only when you want Airflow task termination to send a best-effort IDMC stop request. IDMC stops CDI tasks by task identity rather than by run ID, so this can stop another active run of the same IDMC task if multiple runs overlap.
+
+**InformaticaIDMCRunTaskflowOperator**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Starts an IDMC taskflow by API name, optionally waits for it to complete, and returns the IDMC run ID. Supports deferrable execution through ``InformaticaIDMCTaskflowRunTrigger``.
+
+
+Sensors
+-------
+
+**InformaticaIDMCTaskRunSensor**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Waits for an existing CDI task run to complete. Requires both ``run_id`` and the IDMC ``idmc_task_id`` because the activity log endpoint is filtered by task ID and run ID.
+
+**InformaticaIDMCTaskflowRunSensor**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Waits for an existing IDMC taskflow run to complete.
+
 
 Extractors
 ----------
@@ -123,13 +190,32 @@ Error Handling
 
 Custom exception raised when the Informatica EDC API returns an error or a request fails.
 
+**InformaticaIDMCError**
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-EDC API Endpoints Used
-----------------------
+Custom exception raised when IDMC authentication, task submission, polling, or cancellation fails.
+
+**IDMCTimeoutException**
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Custom exception raised when an IDMC run does not finish before the configured timeout.
+
+
+API Endpoints Used
+------------------
 
 The Informatica provider uses the following EDC REST API endpoints:
 
-- ``GET /access/2/catalog/data/objects/{object_id}?includeRefObjects={true|false}`` — Retrieve catalog object details
-- ``PATCH /access/1/catalog/data/objects`` — Create or update lineage relationships
+- ``GET /access/2/catalog/data/objects/{object_id}?includeRefObjects={true|false}`` - Retrieve catalog object details
+- ``PATCH /access/1/catalog/data/objects`` - Create or update lineage relationships
+
+The IDMC implementation uses platform v2 and taskflow service endpoints including:
+
+- ``POST /api/v2/job`` - Start a CDI task
+- ``POST /api/v2/job/stop`` - Stop a CDI task by task identity
+- ``GET /api/v2/activity/activityLog`` - Read completed task run status
+- ``POST /active-bpel/rt/{taskflow_api_name}`` - Start a taskflow
+- ``GET /active-bpel/services/tf/status/{run_id}`` - Read taskflow run status
+- ``PUT /active-bpel/services/tf/terminate`` - Terminate a taskflow run
 
 See the configuration and usage guides for more details and complete examples.

@@ -35,14 +35,43 @@ def get_provider_info():
             }
         ],
         "hooks": [
-            {"integration-name": "Informatica", "python-modules": ["airflow.providers.informatica.hooks.edc"]}
+            {
+                "integration-name": "Informatica",
+                "python-modules": [
+                    "airflow.providers.informatica.hooks.edc",
+                    "airflow.providers.informatica.hooks.idmc",
+                ],
+            }
+        ],
+        "operators": [
+            {
+                "integration-name": "Informatica",
+                "python-modules": ["airflow.providers.informatica.operators.idmc"],
+            }
+        ],
+        "sensors": [
+            {
+                "integration-name": "Informatica",
+                "python-modules": ["airflow.providers.informatica.sensors.idmc"],
+            }
+        ],
+        "triggers": [
+            {
+                "integration-name": "Informatica",
+                "python-modules": ["airflow.providers.informatica.triggers.idmc"],
+            }
         ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.informatica.hooks.edc.InformaticaEDCHook",
                 "hook-name": "Informatica EDC",
                 "connection-type": "informatica_edc",
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.informatica.hooks.idmc.InformaticaIDMCHook",
+                "hook-name": "Informatica IDMC",
+                "connection-type": "informatica_idmc",
+            },
         ],
         "plugins": [
             {
@@ -62,10 +91,17 @@ def get_provider_info():
                         "version_added": None,
                     },
                     "default_conn_id": {
-                        "description": "The default connection ID to use for Informatica operations.\n",
+                        "description": "The default connection ID to use for Informatica EDC operations.\n",
                         "type": "string",
                         "example": "informatica_edc_default",
                         "default": "informatica_edc_default",
+                        "version_added": None,
+                    },
+                    "default_idmc_conn_id": {
+                        "description": "The default connection ID to use for Informatica IDMC operations.\n",
+                        "type": "string",
+                        "example": "informatica_idmc_default",
+                        "default": "informatica_idmc_default",
                         "version_added": None,
                     },
                 },

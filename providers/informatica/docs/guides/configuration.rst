@@ -38,6 +38,27 @@ Create an HTTP connection in Airflow for Informatica EDC:
 
        {"security_domain": "your_security_domain"}
 
+Create an IDMC connection in Airflow for Cloud Data Integration tasks and taskflows:
+
+1. **Connection Type**: ``informatica_idmc``
+2. **Host**: Your IDMC login host, for example ``dm-us.informaticacloud.com``
+3. **Login**: IDMC username
+4. **Password**: IDMC password
+5. **Extras**: Add the following JSON:
+
+   .. code-block:: json
+
+       {
+           "auth_version": "v3",
+           "security_domain": "Native",
+           "product": "Integration Cloud",
+           "verify_ssl": true,
+           "request_timeout": 60
+       }
+
+Use ``auth_version`` set to ``"v2"`` when your organization still uses the v2 login flow.
+For v3 authentication, ``product`` selects the product entry whose ``baseApiUrl`` is used for API calls.
+
 Configuration Options
 ---------------------
 
@@ -50,6 +71,8 @@ Add to your ``airflow.cfg``:
     listener_disabled = False
     # The connection ID to use when no connection ID is provided
     default_conn_id = informatica_edc_default
+    # The connection ID to use when no IDMC connection ID is provided
+    default_idmc_conn_id = informatica_idmc_default
 
 Provider Configuration
 ----------------------
@@ -58,6 +81,7 @@ The provider configuration is defined in ``get_provider_info.py`` and includes:
 
 - ``listener_disabled``: Boolean flag to disable sending events without uninstalling the provider
 - ``default_conn_id``: Default connection ID for Informatica EDC
+- ``default_idmc_conn_id``: Default connection ID for Informatica IDMC
 
 SSL and Security
 ----------------
