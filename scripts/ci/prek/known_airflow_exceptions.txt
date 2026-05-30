@@ -305,7 +305,7 @@ providers/google/src/airflow/providers/google/cloud/transfers/facebook_ads_to_gc
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py::7
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py::6
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_local.py::1
-providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_sftp.py::1
+providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_sftp.py::2
 providers/google/src/airflow/providers/google/cloud/transfers/s3_to_gcs.py::2
 providers/google/src/airflow/providers/google/cloud/transfers/sftp_to_gcs.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/bigquery.py::2

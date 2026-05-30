@@ -176,7 +176,33 @@ class GCSToSFTPOperator(BaseOperator):
                 source_object = os.path.relpath(source_object, start=prefix)
             else:
                 source_object = os.path.basename(source_object)
-        return os.path.join(self.destination_path, source_object)
+        destination = os.path.join(self.destination_path, source_object)
+        # GCS object names are arbitrary UTF-8 strings and originate from
+        # whoever can write to the source bucket (frequently a lower-trust
+        # external producer). A name containing ``..`` segments or an
+        # absolute-path prefix would otherwise canonicalise outside the
+        # configured ``destination_path`` on the SFTP server: ``os.path.join``
+        # preserves ``..`` and an absolute ``source_object`` silently absorbs
+        # the destination prefix. Three escape patterns to refuse, while
+        # still allowing relative roots like ``"."`` or ``""`` (SFTP user's
+        # current/login directory) that depend on the configured base
+        # remaining the prefix of the resolved path.
+        resolved = os.path.normpath(destination)
+        escapes = resolved == ".." or resolved.startswith(".." + os.sep)
+        if not escapes and os.path.isabs(resolved) and not os.path.isabs(self.destination_path):
+            # ``source_object`` was itself absolute and absorbed the relative base.
+            escapes = True
+        if not escapes and os.path.isabs(self.destination_path):
+            base = os.path.normpath(self.destination_path)
+            if resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep):
+                escapes = True
+        if escapes:
+            raise AirflowException(
+                f"Refusing to copy GCS object {source_object!r}: resolved destination "
+                f"{resolved!r} escapes configured destination_path "
+                f"{self.destination_path!r}."
+            )
+        return resolved
 
     def _copy_single_object(
         self,
