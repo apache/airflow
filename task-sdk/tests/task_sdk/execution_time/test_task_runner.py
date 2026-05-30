@@ -4625,6 +4625,40 @@ class TestTaskRunnerCallsCallbacks:
         )
         assert callback_data["duration"] >= 0, f"duration should be >= 0, got {callback_data['duration']}"
 
+    @pytest.mark.parametrize(
+        ("callback_kind", "expected_state"),
+        [
+            pytest.param("on_success_callback", TaskInstanceState.SUCCESS, id="success"),
+            pytest.param("on_failure_callback", TaskInstanceState.FAILED, id="failure"),
+        ],
+    )
+    def test_task_callback_context_has_callback_meta(self, create_runtime_ti, callback_kind, expected_state):
+        """Task-level callbacks should receive callback.source=TASK in the context."""
+        from airflow.sdk.definitions.context import CallbackSource
+
+        captured = {}
+
+        def capture_callback(context):
+            captured["callback"] = context.get("callback")
+
+        succeeds = callback_kind == "on_success_callback"
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                if succeeds:
+                    return "ok"
+                raise AirflowException("boom")
+
+        task = CustomOperator(task_id="cb_task", **{callback_kind: capture_callback})
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == expected_state
+        assert captured["callback"].source is CallbackSource.TASK
+
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
