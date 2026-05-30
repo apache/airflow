@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from argparse import ArgumentParser
+from typing import TYPE_CHECKING
+
 import pytest
 from cryptography.fernet import Fernet
 from sqlalchemy import select
@@ -30,10 +33,15 @@ from airflow.utils.session import provide_session
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 pytestmark = pytest.mark.db_test
 
 
 class TestRotateFernetKeyCommand:
+    parser: ArgumentParser
+
     @classmethod
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
@@ -47,7 +55,7 @@ class TestRotateFernetKeyCommand:
         clear_db_variables()
 
     @provide_session
-    def test_should_rotate_variable(self, session):
+    def test_should_rotate_variable(self, *, session: Session):
         fernet_key1 = Fernet.generate_key()
         fernet_key2 = Fernet.generate_key()
         var1_key = f"{__file__}_var1"
@@ -73,13 +81,14 @@ class TestRotateFernetKeyCommand:
         with conf_vars({("core", "fernet_key"): fernet_key2.decode()}):
             get_fernet.cache_clear()  # Clear cached fernet
             var1 = session.scalar(select(Variable).where(Variable.key == var1_key))
+            assert var1
             # Unencrypted variable should be unchanged
             assert Variable.get(key=var1_key) == "value"
             assert var1._val == "value"
             assert Variable.get(key=var2_key) == "value"
 
     @provide_session
-    def test_should_rotate_connection(self, session, mock_supervisor_comms):
+    def test_should_rotate_connection(self, mock_supervisor_comms, *, session: Session):
         fernet_key1 = Fernet.generate_key()
         fernet_key2 = Fernet.generate_key()
         var1_key = f"{__file__}_var1"
@@ -128,7 +137,7 @@ class TestRotateFernetKeyCommand:
             get_fernet.cache_clear()  # Clear cached fernet
 
             # Unencrypted variable should be unchanged
-            conn1: Connection = BaseHook.get_connection(var1_key)
+            conn1 = BaseHook.get_connection(var1_key)
             assert conn1.password == "pass"
 
             # Mock for the second connection
