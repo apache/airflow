@@ -63,6 +63,8 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
     setPage(1);
   }, [searchQuery, importErrors]);
 
+  const visibleKeys = visibleItems.map((err) => err.source);
+
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
       <Dialog.Content backdrop p={4}>
@@ -81,9 +83,16 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
+          <Accordion.Root
+            collapsible
+            defaultValue={visibleKeys}
+            key={visibleKeys.join(",")}
+            multiple
+            size="md"
+            variant="enclosed"
+          >
             {visibleItems.map((importError) => (
-              <Accordion.Item key={importError.error} value={importError.source}>
+              <Accordion.Item key={importError.source} value={importError.source}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <PiFilePy />
                   {importError.source}

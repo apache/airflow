@@ -70,10 +70,10 @@ const TriggerDAGForm = ({
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
+  const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-  const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -130,12 +130,12 @@ const TriggerDAGForm = ({
     isPartitioned,
   ]);
 
-  // Automatically reset form when conf is fetched (only if no prefillConfig)
+  // Automatically reset form when conf is fetched
   useEffect(() => {
     if (conf && open && (!prefillConfig || hasAppliedPrefill)) {
       reset((prevValues) => ({ ...prevValues, conf }));
     }
-  }, [conf, hasAppliedPrefill, prefillConfig, open, reset]);
+  }, [conf, hasAppliedPrefill, open, prefillConfig, reset]);
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 

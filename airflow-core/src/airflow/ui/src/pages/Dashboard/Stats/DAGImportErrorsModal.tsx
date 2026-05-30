@@ -62,6 +62,8 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
     setPage(1);
   };
 
+  const importErrorIds = data?.import_errors.map((importError) => String(importError.import_error_id)) ?? [];
+
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
       <Dialog.Content backdrop p={4}>
@@ -80,9 +82,16 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
+          <Accordion.Root
+            collapsible
+            defaultValue={importErrorIds}
+            key={importErrorIds.join(",")}
+            multiple
+            size="md"
+            variant="enclosed"
+          >
             {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
+              <Accordion.Item key={importError.import_error_id} value={String(importError.import_error_id)}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
                     {translate("components:versionDetails.bundleName")}
