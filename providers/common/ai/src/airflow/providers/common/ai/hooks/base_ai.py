@@ -27,6 +27,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from typing_extensions import get_type_hints
+
 from airflow.providers.common.compat.sdk import BaseHook
 
 _EMPTY_OBJECT_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
@@ -127,7 +129,9 @@ class AgentRunRequest:
     :param toolsets: List of :class:`BaseToolset` instances the agent may call.
     :param usage_limits: Backend-specific usage limits; ignored if the hook does not support them.
     :param message_history: Prior conversation state from a previous :class:`AgentRunResult`.
-    :param enable_tool_logging: When ``True`` (default), wraps each tool callable with a logging shim.
+    :param enable_tool_logging: When ``True`` (default), wraps Airflow-resolved tool callables with
+        a logging shim. Backend-native tool objects may be passed through unchanged by the concrete
+        hook and might not receive this wrapper.
     :param durable_context: When set, enables step-level durable caching for the run.
     :param agent_params: Extra keyword arguments forwarded to the underlying agent constructor.
         Use this escape hatch for framework-specific options.
@@ -332,15 +336,18 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         Three cases per item:
 
         * :class:`BaseToolset` — calls ``as_tools()`` and processes each :class:`ToolSpec`.
-        * Plain Python function (``def`` / ``lambda``) — auto-wraps into a :class:`ToolSpec`
-          using ``__name__`` and ``__doc__``, then processes it the same way.
+        * Any callable (plain function, bound method, :func:`functools.partial`, or callable
+          object) — auto-wraps into a :class:`ToolSpec` using ``__name__`` and ``__doc__``
+          (with sensible fallbacks for partials and callable objects), then processes it the
+          same way.
         * Anything else — passed through unchanged (assumed to be a native tool object already
           constructed for the target framework).
 
         The processing pipeline for ``BaseToolset`` and callable items:
         *fn* → optional cache wrap → optional log wrap → :meth:`_tool_spec_to_native`.
 
-        :param toolsets: Mix of :class:`BaseToolset` instances, plain callables, and native tool objects.
+        :param toolsets: Mix of :class:`BaseToolset` instances, callables (functions, bound
+            methods, :func:`functools.partial`, or callable objects), and native tool objects.
         :param enable_logging: When ``True``, wrap each callable with :meth:`_logged_callable`.
         :param storage: ``DurableStorage`` instance, or ``None`` to skip caching.
         :param counter: ``DurableStepCounter`` instance, or ``None`` to skip caching.
@@ -349,11 +356,17 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         for ts in toolsets:
             if isinstance(ts, BaseToolset):
                 specs = ts.as_tools()
-            elif inspect.isfunction(ts):
+            elif callable(ts):
+                if isinstance(ts, functools.partial):
+                    name = getattr(ts.func, "__name__", type(ts.func).__name__)
+                    doc = ts.func.__doc__ or ""
+                else:
+                    name = getattr(ts, "__name__", type(ts).__name__)
+                    doc = ts.__doc__ or ""
                 specs = [
                     ToolSpec(
-                        name=ts.__name__,
-                        description=ts.__doc__ or "",
+                        name=name,
+                        description=doc,
                         parameters=_EMPTY_OBJECT_SCHEMA,
                         fn=ts,
                     )
@@ -382,8 +395,8 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """Wrap *fn* to log tool name, args, timing, and exceptions."""
 
         @functools.wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            name = fn.__name__
+        def wrapper(*args, **kwargs):
+            name = getattr(fn, "__name__", type(fn).__name__)
             logger.info("::group::Tool call: %s", name)
             if kwargs:
                 logger.debug("Tool args: %s", json.dumps(kwargs, default=str))
@@ -400,6 +413,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 logger.info("::endgroup::")
                 raise
 
+        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
         return wrapper
 
     @staticmethod
@@ -411,7 +425,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """Wrap *fn* to cache its result in *storage* using a monotonic step counter."""
 
         @functools.wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args, **kwargs):
             step = counter.next_step()
             key = f"tool_step_{step}"
             found, cached = storage.load_tool_result(key)
@@ -423,4 +437,52 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
             counter.cached_tool += 1
             return result
 
+        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
         return wrapper
+
+    @staticmethod
+    def _copy_wrapper_introspection_metadata(
+        fn: Callable[..., Any],
+        wrapper: Callable[..., Any],
+    ) -> None:
+        """
+        Keep *wrapper* introspection aligned with *fn*.
+
+        Generic logging/caching wrappers use ``*args`` and ``**kwargs``, which can
+        lose or mismatch the original callable's signature and annotations.  This
+        helper copies consistent metadata onto the wrapper so schema/introspection
+        code sees the same callable shape as the original tool.
+        """
+        signature_source, annotation_source = BaseAIHook._get_wrapper_metadata_sources(fn)
+        wrapper.__signature__ = inspect.signature(signature_source)
+        wrapper.__module__ = getattr(annotation_source, "__module__", __name__)
+        wrapper.__annotations__ = getattr(annotation_source, "__annotations__", {}).copy()
+
+        try:
+            hints = get_type_hints(annotation_source, include_extras=True)
+        except (NameError, TypeError):
+            return
+
+        annotations = {name: hints[name] for name in wrapper.__signature__.parameters if name in hints}
+        if "return" in hints:
+            annotations["return"] = hints["return"]
+        wrapper.__annotations__ = annotations
+
+    @staticmethod
+    def _get_wrapper_metadata_sources(
+        fn: Callable[..., Any],
+    ) -> tuple[Callable[..., Any], Callable[..., Any]]:
+        """
+        Return the best signature and annotation sources for *fn*.
+
+        Most callables can use the same object for both. Partials need the bound
+        signature from the partial itself but annotations from the underlying
+        function, and callable objects expose their useful metadata on
+        ``obj.__call__``.
+        """
+        if isinstance(fn, functools.partial):
+            return fn, fn.func
+        if inspect.ismethod(fn) or inspect.isfunction(fn):
+            return fn, fn
+
+        return fn.__call__, fn.__call__
