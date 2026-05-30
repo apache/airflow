@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -100,6 +100,15 @@ class Trigger(Base):
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
+    # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
+    # especially since it's eventually consistent and trigger rows are ephemeral.
+    # Without this, filtering by team requires 2-3 joins depending on trigger type.
+    # Performance testing confirmed the denormalized column avoids measurable overhead in the
+    # triggerer loop under load.
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     triggerer_job = relationship(
         "Job",
         primaryjoin="Job.id == Trigger.triggerer_id",
@@ -122,12 +131,14 @@ class Trigger(Base):
         kwargs: dict[str, Any],
         created_date: datetime.datetime | None = None,
         queue: str | None = None,
+        team_name: str | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
         self.queue = queue
+        self.team_name = team_name
 
     @property
     def kwargs(self) -> dict[str, Any]:
@@ -326,7 +337,11 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def ids_for_triggerer(
-        cls, triggerer_id, queues: set[str] | None = None, session: Session = NEW_SESSION
+        cls,
+        triggerer_id,
+        queues: set[str] | None = None,
+        team_name: str | None = None,
+        session: Session = NEW_SESSION,
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
         query = select(cls.id).where(cls.triggerer_id == triggerer_id)
@@ -338,6 +353,14 @@ class Trigger(Base):
         else:
             query = query.filter(cls.queue.is_(None))
 
+        # Check config instead of team_name: if multi-team is disabled after triggers were
+        # created with a team, those triggers must still be picked up instead of being orphaned.
+        if conf.getboolean("core", "multi_team"):
+            if team_name:
+                query = query.filter(cls.team_name == team_name)
+            else:
+                query = query.filter(cls.team_name.is_(None))
+
         return list(session.scalars(query).all())
 
     @classmethod
@@ -348,6 +371,7 @@ class Trigger(Base):
         capacity,
         health_check_threshold,
         queues: set[str] | None = None,
+        team_name: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -382,6 +406,7 @@ class Trigger(Base):
             capacity=capacity,
             alive_triggerer_ids=alive_triggerer_ids,
             queues=queues,
+            team_name=team_name,
             session=session,
         )
         if trigger_ids_query:
@@ -401,6 +426,7 @@ class Trigger(Base):
         alive_triggerer_ids: list[int] | Select,
         queues: set[str] | None,
         session: Session,
+        team_name: str | None = None,
     ):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
@@ -409,6 +435,7 @@ class Trigger(Base):
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
+        :param team_name: The team to filter triggers for (None = global triggerer).
         """
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
@@ -453,6 +480,14 @@ class Trigger(Base):
                 filtered_query = query.filter(cls.queue.in_(queues))
             else:
                 filtered_query = query.filter(cls.queue.is_(None))
+
+            # Check config instead of team_name: if multi-team is disabled after triggers were
+            # created with a team, those triggers must still be picked up instead of being orphaned.
+            if conf.getboolean("core", "multi_team"):
+                if team_name:
+                    filtered_query = filtered_query.filter(cls.team_name == team_name)
+                else:
+                    filtered_query = filtered_query.filter(cls.team_name.is_(None))
 
             locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())

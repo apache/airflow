@@ -69,7 +69,9 @@ dependencies = [
     'mysql-connector-python>=9.1.0; python_version < "3.12"',
     'mysql-connector-python>=9.1.0, !=9.7.0; python_version >= "3.12"',
     # pymysql 1.2.0 changed ping() to require reconnect as a positional arg;
-    # aiomysql is not yet compatible — cap until aiomysql releases a fix
+    # SQLAlchemy's AsyncAdapt_aiomysql_connection.ping has no default for it — cap
+    # until the SQLAlchemy fix is released. Tracked upstream at
+    # https://github.com/sqlalchemy/sqlalchemy/issues/13306
     "aiomysql>=0.2.0",
     "pymysql>=1.0.3,<1.2",
 ]

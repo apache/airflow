@@ -68,6 +68,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
+- [Community standards](#community-standards)
 - [Agent-assisted contribution (apache-steward)](#agent-assisted-contribution-apache-steward)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
@@ -431,6 +432,22 @@ If you can't wait to contribute, and want to get started asap, check out the [co
 Official Docker (container) images for Apache Airflow are described in [images](https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md).
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Community standards
+
+Everyone interacting with the Apache Airflow project — on GitHub, the
+mailing lists, Slack, the CWiki, or anywhere else — is expected to
+follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+When repeated Code of Conduct breaches, spamming, abuse of project
+resources, or other sustained disruptive behaviour cannot be resolved
+through normal review and mentoring, the project applies the
+[Community escalation process](COMMUNITY_ESCALATION.md). It describes
+the steps maintainers and the PMC may take — from direct feedback,
+through closing PRs, up to PMC-level or ASF-Infrastructure-level
+blocks and reporting accounts to GitHub — and how affected
+contributors can appeal a decision by emailing the PMC at
+`private@airflow.apache.org`.
 
 ## Agent-assisted contribution (apache-steward)
 

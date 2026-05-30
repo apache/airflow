@@ -88,6 +88,40 @@ def test_parse_log_line():
     assert line == log_message
 
 
+@pytest.mark.parametrize(
+    ("raw_line", "expected_ts"),
+    [
+        pytest.param(
+            "2026-05-28T13:07:57.030578889Z \n",
+            "2026-05-28T13:07:57.030578889Z",
+            id="trailing-space-and-newline",
+        ),
+        pytest.param(
+            "2026-05-28T13:07:57.030581518Z\n",
+            "2026-05-28T13:07:57.030581518Z",
+            id="newline-only",
+        ),
+        pytest.param(
+            "2026-05-28T13:07:57.030642740Z ",
+            "2026-05-28T13:07:57.030642740Z",
+            id="trailing-space-no-newline",
+        ),
+    ],
+)
+def test_parse_log_line_handles_empty_container_writes(raw_line, expected_ts):
+    """
+    Regression for #36571: an empty container write (just ``\\n``) is streamed
+    back by kubelet as ``"<rfc3339-ts> \\n"`` when ``timestamps=True``. The
+    parser must recognise it as a real (empty) log line rather than as a
+    continuation of the previous one, otherwise the bare timestamp is appended
+    onto the previous buffered message and emitted unformatted into task logs.
+    """
+    timestamp, message = parse_log_line(raw_line)
+
+    assert timestamp == pendulum.parse(expected_ts)
+    assert message == ""
+
+
 def test_log_pod_event():
     """Test logging a pod event."""
     mock_pod_manager = mock.Mock()
@@ -781,6 +815,41 @@ class TestPodManager:
         assert "message2 line2" in caplog.text
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_empty_container_lines_do_not_pollute_previous_message(
+        self, mock_read_pod_logs, mock_container_is_running, caplog
+    ):
+        """
+        Regression for #36571: when a container writes empty lines, kubelet
+        returns them as ``"<ts> \\n"`` rows. Previously these slipped through
+        ``parse_log_line`` as "no timestamp" and were appended as continuations
+        onto the previous buffered message, which then emitted multi-line
+        records where only the first line carried the Airflow log prefix --
+        leaving bare ``<ts>`` rows in task logs that downstream pendulum-based
+        parsers ``(file_task_handler._parse_timestamp)`` then choked on.
+        """
+        log = (
+            "2026-05-28T13:07:50.160Z first test line\n"
+            "2026-05-28T13:07:57.030578889Z \n"
+            "2026-05-28T13:07:57.030581518Z\n"
+            "2026-05-28T13:07:57.030642740Z \n"
+            "2026-05-28T13:07:57.034Z last test line\n"
+        )
+        mock_read_pod_logs.return_value = [bytes(line, "utf-8") for line in log.split("\n")]
+        mock_container_is_running.return_value = False
+
+        with caplog.at_level(logging.INFO):
+            self.pod_manager.fetch_container_logs(mock.MagicMock(), "base", follow=True)
+
+        assert "first test line" in caplog.text
+        assert "last test line" in caplog.text
+        # The empty-line timestamps must not leak into the previous message and
+        # must not be emitted as orphan rows.
+        assert "2026-05-28T13:07:57.030578889Z" not in caplog.text
+        assert "2026-05-28T13:07:57.030581518Z" not in caplog.text
+        assert "2026-05-28T13:07:57.030642740Z" not in caplog.text
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")

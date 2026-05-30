@@ -441,12 +441,13 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of pool names provided as part of the request
+        # Build the list of pool names provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_pool_names = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each pool, find its associated team (if it exists)
         pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
@@ -542,14 +543,15 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of ``conn_id`` provided as part of the request
+        # Build the list of ``conn_id`` provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_connection_ids = [
             cast("str", entity)
             if action.action == BulkAction.DELETE
             else cast("ConnectionBody", entity).connection_id
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each connection, find its associated team (if it exists)
         conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
@@ -684,12 +686,13 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of variable keys provided as part of the request
+        # Build the list of variable keys provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_variable_keys = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each variable, find its associated team (if it exists)
         var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
@@ -936,3 +939,15 @@ def _get_resource_methods_from_bulk_request(
     if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
         resource_methods.append("PUT")
     return resource_methods
+
+
+def _bulk_action_needs_existing_team_lookup(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> bool:
+    # UPDATE / DELETE always operate on existing resources, so we need the existing team for authz.
+    # CREATE with action_on_existence=OVERWRITE may turn into a PUT against an existing resource that
+    # belongs to a team; if we omit it from the lookup, the PUT authz check runs with team_name=None
+    # and bypasses the per-team membership check that the single-item PUT endpoint enforces.
+    if action.action != BulkAction.CREATE:
+        return True
+    return action.action_on_existence == BulkActionOnExistence.OVERWRITE

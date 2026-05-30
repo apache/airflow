@@ -73,6 +73,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import ParamValidationError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -463,23 +464,26 @@ def materialize_asset(
             )
         dag = resolved_dag_version.serialized_dag.dag
 
-    params = resolved_body.validate_context(dag)
-    return dag.create_dagrun(
-        run_id=params["run_id"],
-        logical_date=params["logical_date"],
-        data_interval=params["data_interval"],
-        run_after=params["run_after"],
-        conf=params["conf"],
-        run_type=DagRunType.ASSET_MATERIALIZATION,
-        triggered_by=DagRunTriggeredByType.REST_API,
-        triggering_user_name=user.get_name(),
-        state=DagRunState.QUEUED,
-        partition_key=params["partition_key"],
-        bundle_version=resolved_body.bundle_version,
-        dag_version=resolved_dag_version,
-        note=params["note"],
-        session=session,
-    )
+    try:
+        params = (resolved_body or MaterializeAssetBody()).validate_context(dag)
+        return dag.create_dagrun(
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
+            run_type=DagRunType.ASSET_MATERIALIZATION,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            triggering_user_name=user.get_name(),
+            state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
+            note=params["note"],
+            session=session,
+            bundle_version=resolved_body.bundle_version,
+            dag_version=resolved_dag_version,
+        )
+    except (ParamValidationError, ValueError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @assets_router.get(

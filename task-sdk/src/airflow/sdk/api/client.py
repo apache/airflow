@@ -1089,9 +1089,11 @@ API_RETRIES = conf.getint("workers", "execution_api_retries")
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
+API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
+API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
@@ -1105,9 +1107,19 @@ def _should_retry_api_request(exception: BaseException) -> bool:
 class Client(httpx.Client):
     @lru_cache()
     @staticmethod
-    def _get_ssl_context_cached(ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
-        """Cache SSL context to prevent memory growth from repeated context creation."""
+    def _get_ssl_context_cached(ca_file: str | None = None, ca_path: str | None = None) -> ssl.SSLContext:
+        """
+        Cache SSL context to prevent memory growth from repeated context creation.
+
+        If `client_use_public_certs` is enabled certifi.where() will be loaded into the context.
+
+        :param ca_file: Certificate Authority, optional.
+        :param ca_path: Certificate File, optional.
+        """
         ctx = ssl.create_default_context(cafile=ca_file)
+        if API_CLIENT_USE_PUBLIC_CERTS:
+            log.info("Using Public CAs from certifi")
+            ctx.load_verify_locations(certifi.where())
         if ca_path:
             ctx.load_verify_locations(ca_path)
         return ctx
@@ -1125,7 +1137,7 @@ class Client(httpx.Client):
         else:
             kwargs["base_url"] = base_url
             # Call via the class to avoid binding lru_cache wires to this instance.
-            kwargs["verify"] = type(self)._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
+            kwargs["verify"] = type(self)._get_ssl_context_cached(API_SSL_CA_FILE_PATH, API_SSL_CERT_PATH)
 
             if API_CLIENT_SSL_CERT or API_CLIENT_SSL_KEY:
                 if not (API_CLIENT_SSL_CERT and API_CLIENT_SSL_KEY):

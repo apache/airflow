@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -67,6 +68,60 @@ class TestAirbyteTriggerSyncOp:
         )
         mock_wait_for_job.assert_called_once_with(
             job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
+        )
+
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteTriggerSyncOperator.defer")
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteSyncTrigger")
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_execute_deferrable_does_not_pass_execution_timeout_to_defer(
+        self,
+        mock_create_job,
+        mock_airbyte_trigger,
+        mock_defer,
+        create_connection_without_db,
+    ):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        mock_response = mock.Mock()
+        mock_response.job_response = JobResponse(
+            connection_id="connection-mock",
+            job_id=1,
+            start_time="today",
+            job_type=JobTypeEnum.SYNC,
+            status=JobStatusEnum.RUNNING,
+        )
+        mock_create_job.return_value = mock_response
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+            deferrable=True,
+            execution_timeout=timedelta(seconds=30),
+        )
+
+        op.execute({})
+
+        # Explicitly pass timeout=None so Airflow's framework-level deferred
+        # timeout handling does not bypass execute_complete(), which is
+        # responsible for Airbyte job cancellation in deferrable mode.
+        mock_defer.assert_called_once_with(
+            method_name="execute_complete",
+            trigger=mock_airbyte_trigger.return_value,
+            timeout=None,
+        )
+
+        # Ensure the trigger still receives execution_deadline handling for
+        # Airbyte job timeout cancellation processing.
+        mock_airbyte_trigger.assert_called_once_with(
+            conn_id=self.airbyte_conn_id,
+            job_id=self.job_id,
+            end_time=mock.ANY,
+            execution_deadline=mock.ANY,
+            poll_interval=60,
         )
 
     @pytest.mark.parametrize(
