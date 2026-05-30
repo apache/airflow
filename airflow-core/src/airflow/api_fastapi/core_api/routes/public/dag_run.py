@@ -103,7 +103,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import ParamValidationError
+from airflow.exceptions import AirflowBadRequest, DagVersionNotFound, ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -626,10 +626,10 @@ def trigger_dag_run(
     else:
         triggered_by = DagRunTriggeredByType.REST_API
 
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    params = body.validate_context(dag)
-
     try:
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+        params = body.validate_context(dag)
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -641,16 +641,22 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            bundle_version=body.bundle_version,
             session=session,
         )
+
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = user.get_id()
+            dag_run.note = (dag_run_note, current_user_id)
+        return dag_run
+
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
-
-    dag_run_note = body.note
-    if dag_run_note:
-        current_user_id = user.get_id()
-        dag_run.note = (dag_run_note, current_user_id)
-    return dag_run
+    except DagVersionNotFound as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+    except AirflowBadRequest as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @dag_run_router.get(

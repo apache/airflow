@@ -237,6 +237,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
                 "partition_key": None,
                 "note": None,
+                "bundle_version": None,
                 "team_name": None,
             },
             "task_reschedule_count": 0,
