@@ -888,7 +888,7 @@ Disable the scheduler
 
 You might consider disabling the Airflow cluster while you perform such maintenance.
 
-One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running Dags to complete; after this no new Dag runs will be created unless externally triggered.
+One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running Dags to complete; after this no new *time-based* (cron) Dag runs will be created. Note that this flag only disables cron/timetable scheduling — manually triggered runs and asset- (and partitioned-asset-) triggered runs are still created. To fully stop all new Dag runs for maintenance, use the ``dags pause`` approach below instead.
 
 A *better* way (though it's a bit more manual) is to use the ``dags pause`` command.  You'll need to keep track of the Dags that are paused before you begin this operation so that you know which ones to unpause after maintenance is complete.  First run ``airflow dags list`` and store the list of unpaused Dags.  Then use this same list to run both ``dags pause`` for each Dag prior to maintenance, and ``dags unpause`` after.  A benefit of this is you can try un-pausing just one or two Dags (perhaps dedicated :ref:`test Dags <integration-test-dags>`) after the upgrade to make sure things are working before turning everything back on.
 
