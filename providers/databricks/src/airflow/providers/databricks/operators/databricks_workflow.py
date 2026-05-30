@@ -409,5 +409,6 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
             for root_task in roots:
                 root_task.set_upstream(create_databricks_workflow_task)
+                
         finally:
             super().__exit__(_type, _value, _tb)
