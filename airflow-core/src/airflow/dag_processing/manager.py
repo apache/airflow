@@ -236,10 +236,6 @@ class DagFileProcessorManager(LoggingMixin):
     heartbeat: Callable[[], None] = attrs.field(default=lambda: None)
     """An overridable heartbeat called once every time around the loop"""
 
-    # An insertion-ordered mapping used as an ordered set: keys are the queued files (values
-    # are unused). OrderedDict gives O(1) membership, push-front (``move_to_end(last=False)``),
-    # pop-front (``popitem(last=False)``) and de-dup, keeping queue maintenance linear in the
-    # number of files instead of quadratic (a ``deque`` makes ``x in q`` and ``q.remove(x)`` O(N)).
     _file_queue: OrderedDict[DagFileInfo, None] = attrs.field(factory=OrderedDict, init=False)
     _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
@@ -1512,20 +1508,16 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """Add stuff to the back or front of the file queue, unless it's already present."""
         if mode == "frontprio":
-            # Move (or insert) each file to the front, even if already queued. Iterating in
-            # order and pushing each to the front reproduces the old remove()+appendleft() order.
             for file in files:
+                self._file_queue.pop(file, None)
                 self._file_queue[file] = None
                 self._file_queue.move_to_end(file, last=False)
         elif mode == "front":
-            # Insert only files not already queued, at the front. Pushing each new file to the
-            # front in order reproduces the reversed ordering of the old deque.extendleft().
             for file in files:
                 if file not in self._file_queue:
                     self._file_queue[file] = None
                     self._file_queue.move_to_end(file, last=False)
         elif mode == "back":
-            # Insert only files not already queued, at the back (default OrderedDict insert order).
             for file in files:
                 if file not in self._file_queue:
                     self._file_queue[file] = None
