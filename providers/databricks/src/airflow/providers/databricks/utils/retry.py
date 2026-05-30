@@ -19,7 +19,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from airflow.sdk.serde import serialize as serde_serialize
+try:
+    from airflow.sdk.serde import serialize as serde_serialize
+except ImportError:
+    from airflow.serialization.serde import serialize as serde_serialize
 
 
 def validate_deferrable_databricks_retry_args(retry_args: Mapping[str, Any] | None, *, owner: str) -> None:
