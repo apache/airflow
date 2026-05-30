@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-30T15:49:45.775658
+# This constraints file was automatically generated on 2026-05-30T22:46:47.488272
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -195,7 +195,7 @@ docstring_parser==0.18.0
 docutils==0.21.2
 duckdb==1.5.3
 durationpy==0.10
-elastic-transport==9.4.0
+elastic-transport==9.4.1
 elasticsearch==9.4.0
 email-validator==2.3.0
 entrypoints==0.4
@@ -227,7 +227,7 @@ gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.4.0
-genai-prices==0.0.61
+genai-prices==0.0.62
 geomet==1.1.0
 gevent==26.5.0
 gitdb==4.0.12
@@ -312,11 +312,13 @@ hdfs==2.7.3
 hf-xet==1.5.0
 hmsclient==0.1.1
 hpack==4.1.0
+httpcore2==2.2.0
 httpcore==1.0.9
 httplib2==0.31.2
 httpr==0.4.8
-httptools==0.7.1
+httptools==0.8.0
 httpx-sse==0.4.3
+httpx2==2.2.0
 httpx==0.28.1
 huggingface_hub==1.16.1
 humanize==4.15.0
@@ -498,7 +500,7 @@ pexpect==4.9.0
 pgvector==0.4.2
 pillow==12.2.0
 pinecone==9.0.1
-pinotdb==5.7.0
+pinotdb==9.1.2
 pipdeptree==2.35.3
 platformdirs==4.9.6
 pluggy==1.6.0
@@ -508,7 +510,7 @@ polars==1.40.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.6.0
-prek==0.4.1
+prek==0.4.2
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.25.0
@@ -558,7 +560,7 @@ pyroaring==1.1.0
 pyspark-client==4.1.2
 pyspark==4.1.2
 pyspnego==0.12.1
-pytest-asyncio==1.3.0
+pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
@@ -757,7 +759,7 @@ xmltodict==1.0.4
 xxhash==3.7.0
 yamllint==1.38.0
 yandex-query-client==0.1.4
-yandexcloud==0.391.0
+yandexcloud==0.392.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
 ydb==3.29.0
@@ -765,5 +767,5 @@ zeep==4.3.2
 zenpy==2.0.57
 zipp==4.1.0
 zope.event==6.2
-zope.interface==8.4
+zope.interface==8.5
 zstandard==0.25.0
