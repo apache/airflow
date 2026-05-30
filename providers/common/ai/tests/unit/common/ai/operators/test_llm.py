@@ -176,12 +176,13 @@ class TestLLMOperator:
         LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Entities)
         assert qualname(Entities) in _extra_allowed
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     def test_execute_serialize_output_returns_dict(self, mock_hook_cls):
         """serialize_output=True dumps the BaseModel to a dict on the wire."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["A", "B"]))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = _make_mock_run_result(Entities(names=["A", "B"]))
 
         op = LLMOperator(
             task_id="t",
