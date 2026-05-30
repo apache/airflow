@@ -28,6 +28,7 @@ from airflow.api_fastapi.auth.managers.simple.utils import parse_login_body
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import is_safe_url
 from airflow.configuration import conf
 
 login_router = AirflowRouter(tags=["SimpleAuthManagerLogin"])
@@ -85,7 +86,10 @@ def create_token_all_admins() -> LoginResponse:
 )
 def login_all_admins(request: Request) -> RedirectResponse:
     """Login the user with no credentials."""
-    response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"))
+    fallback_url = conf.get("api", "base_url", fallback="/")
+    next_url = request.query_params.get("next")
+    redirect_url = next_url if next_url and is_safe_url(next_url, request=request) else fallback_url
+    response = RedirectResponse(url=redirect_url)
 
     # The default config has this as an empty string, so we can't use `has_option`.
     # And look at the request info (needs `--proxy-headers` flag to api-server)
