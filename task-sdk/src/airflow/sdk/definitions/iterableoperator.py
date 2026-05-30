@@ -40,13 +40,13 @@ except NameError:
     from exceptiongroup import BaseExceptionGroup
 
 try:
-    from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+    from airflow.providers.standard.triggers.temporal import DateTimeTrigger as ExternalDateTimeTrigger
 except ModuleNotFoundError:
     # If the providers package with DateTimeTrigger is not available (e.g. in
     # minimal installs or tests), set the symbol to None so callers can
     # explicitly check for availability. Using hasattr(self, DateTimeTrigger)
     # is incorrect because hasattr expects a string attribute name.
-    DateTimeTrigger = None
+    ExternalDateTimeTrigger: type[DateTimeTrigger] | None = None
 
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
@@ -66,6 +66,7 @@ from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.providers.standard.triggers.temporal import DateTimeTrigger
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.lazy_sequence import XComIterable
@@ -367,9 +368,9 @@ class IterableOperator(BaseOperator):
             # slot is released. If the retry time has already passed we immediately re-run
             # the failed tasks without deferring.
             if reschedule_date > timezone.utcnow():
-                if DateTimeTrigger is not None:
+                if ExternalDateTimeTrigger is not None:
                     self.defer(
-                        trigger=DateTimeTrigger(reschedule_date),
+                        trigger=ExternalDateTimeTrigger(reschedule_date),
                         method_name=self.execute_failed_tasks.__name__,
                         kwargs={
                             "failed_tasks": {failed_task.index for failed_task in failed_tasks},
@@ -382,7 +383,6 @@ class IterableOperator(BaseOperator):
                         reschedule_date,
                     )
 
-            # Loop back to retry failed tasks without recursion
             tasks = list(failed_tasks)
             failed_tasks.clear()
             exceptions.clear()
