@@ -17,24 +17,27 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from pydantic import Field
+
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.common import AssetExpression
-from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
-from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
-from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 
 
-class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
+class NextRunAssetEventResponse(BaseModel):
+    """An asset, and the time of its latest event, that a DAG's next run is waiting on."""
 
-    asset_expression: AssetExpression | None
-    latest_dag_runs: list[DAGRunLightResponse]
-    pending_actions: list[HITLDetail]
-    is_favorite: bool
+    id: int
+    uri: str
+    name: str
+    # Serialized as ``lastUpdate`` for the UI; ``None`` until the asset has a qualifying event.
+    last_update: datetime | None = Field(default=None, alias="lastUpdate")
 
 
-class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
+class NextRunAssetsResponse(BaseModel):
+    """Assets feeding a DAG's next run, with the scheduling expression that combines them."""
 
-    total_entries: int
-    dags: list[DAGWithLatestDagRunsResponse]
+    asset_expression: AssetExpression | None = None
+    events: list[NextRunAssetEventResponse]
+    pending_partition_count: int | None = None

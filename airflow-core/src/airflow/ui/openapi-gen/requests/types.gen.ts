@@ -76,6 +76,66 @@ export type AssetEventResponse = {
 };
 
 /**
+ * An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAlias = {
+    alias: AssetExpressionAliasInfo;
+};
+
+/**
+ * Body of an ``alias`` leaf node.
+ */
+export type AssetExpressionAliasInfo = {
+    name: string;
+    group: string;
+};
+
+/**
+ * An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.
+ */
+export type AssetExpressionAll = {
+    all: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.
+ */
+export type AssetExpressionAny = {
+    any: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAsset = {
+    asset: AssetExpressionAssetInfo;
+};
+
+/**
+ * Body of an ``asset`` leaf node.
+ *
+ * ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+ * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+ * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+ * degrades gracefully instead of failing response validation.
+ */
+export type AssetExpressionAssetInfo = {
+    uri: string;
+    name: string;
+    group: string;
+    id?: number | null;
+};
+
+/**
+ * An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.
+ */
+export type AssetExpressionRef = {
+    asset_ref: {
+        [key: string]: (string);
+    };
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -644,9 +704,7 @@ export type DAGDetailsResponse = {
     owners: Array<(string)>;
     catchup: boolean;
     dag_run_timeout: string | null;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     doc_md: string | null;
     start_date: string | null;
     end_date: string | null;
@@ -2089,9 +2147,7 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
@@ -2314,6 +2370,25 @@ export type MenuItemCollectionResponse = {
 };
 
 /**
+ * An asset, and the time of its latest event, that a DAG's next run is waiting on.
+ */
+export type NextRunAssetEventResponse = {
+    id: number;
+    uri: string;
+    name: string;
+    lastUpdate?: string | null;
+};
+
+/**
+ * Assets feeding a DAG's next run, with the scheduling expression that combines them.
+ */
+export type NextRunAssetsResponse = {
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
+    events: Array<NextRunAssetEventResponse>;
+    pending_partition_count?: number | null;
+};
+
+/**
  * Node serializer for responses.
  */
 export type NodeResponse = {
@@ -2347,9 +2422,7 @@ export type PartitionedDagRunCollectionResponse = {
     partitioned_dag_runs: Array<PartitionedDagRunResponse>;
     total: number;
     asset_expressions?: {
-    [key: string]: ({
-    [key: string]: unknown;
-} | null);
+    [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
 } | null;
 };
 
@@ -2366,9 +2439,7 @@ export type PartitionedDagRunDetailResponse = {
     assets: Array<PartitionedDagRunAssetResponse>;
     total_required: number;
     total_received: number;
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
 };
 
 /**
@@ -2649,9 +2720,7 @@ export type NextRunAssetsData = {
     dagId: string;
 };
 
-export type NextRunAssetsResponse = {
-    [key: string]: unknown;
-};
+export type NextRunAssetsResponse2 = NextRunAssetsResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -4736,9 +4805,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: {
-                    [key: string]: unknown;
-                };
+                200: NextRunAssetsResponse;
                 /**
                  * Validation Error
                  */

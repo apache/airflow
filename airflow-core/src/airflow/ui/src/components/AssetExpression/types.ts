@@ -16,31 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type {
+  AssetExpressionAlias,
+  AssetExpressionAll,
+  AssetExpressionAny,
+  AssetExpressionAsset,
+  AssetExpressionRef,
+} from "openapi/requests/types.gen";
 
-type Asset = {
-  asset: {
-    group: string;
-    id: number;
-    name: string;
-    uri: string;
-  };
-};
+// `asset_expression` is now typed on the API side (see the AssetExpression* models in the Python
+// `datamodels/common.py`), so these aliases are derived from the generated client instead of being
+// hand-maintained here. The previous local union could drift from the server shape with no runtime check.
 
-type Alias = {
-  alias: {
-    group: string;
-    name: string;
-  };
-};
+export type NextRunEvent = { id: number; lastUpdate?: string | null; name: string | null; uri: string };
 
-export type NextRunEvent = { id: number; lastUpdate: string | null; name: string | null; uri: string };
-
-export type AssetSummary = Alias | Asset;
+export type AssetSummary = AssetExpressionAlias | AssetExpressionAsset;
 
 export type ExpressionType =
-  | Alias
-  | Asset
-  | {
-      all?: Array<AssetSummary | ExpressionType>;
-      any?: Array<AssetSummary | ExpressionType>;
-    };
+  | AssetExpressionAlias
+  | AssetExpressionAll
+  | AssetExpressionAny
+  | AssetExpressionAsset
+  | AssetExpressionRef;

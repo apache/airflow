@@ -1,0 +1,1 @@
+Type the ``asset_expression`` field in DAG REST API responses with a structured scheduling-expression model instead of an untyped object, so generated API clients describe its real shape rather than treating it as an opaque dictionary.
