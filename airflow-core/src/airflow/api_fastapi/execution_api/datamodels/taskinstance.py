@@ -399,6 +399,9 @@ class TIRunContext(BaseModel):
     always reflects when the task *first* started, not when it was rescheduled/resumed.
     """
 
+    queued_dttm: UtcDateTime | None = None
+    """When the task was queued. Used by listeners to measure queue wait time."""
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""

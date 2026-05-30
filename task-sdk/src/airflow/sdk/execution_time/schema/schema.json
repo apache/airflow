@@ -4846,6 +4846,19 @@
           ],
           "default": null,
           "title": "Start Date"
+        },
+        "queued_dttm": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queued Dttm"
         }
       },
       "required": [
