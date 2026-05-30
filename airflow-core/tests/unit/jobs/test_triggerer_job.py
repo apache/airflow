@@ -1149,13 +1149,19 @@ def test_trigger_runner_exception_stops_triggerer():
     import signal
 
     job_runner = TriggererJobRunner(Job())
-    time.sleep(0.1)
 
     # Wait 4 seconds for the triggerer to stop
     try:
 
         def on_timeout(signum, frame):
-            os.kill(job_runner.trigger_runner.pid, signal.SIGKILL)
+            # _execute() sets up trigger_runner asynchronously; on a slow runner the
+            # timer can fire before the subprocess exists. Re-arm and try again rather
+            # than dereferencing a not-yet-started runner.
+            runner = job_runner.trigger_runner
+            if runner is None:
+                signal.setitimer(signal.ITIMER_REAL, 0.1)
+                return
+            os.kill(runner.pid, signal.SIGKILL)
 
         signal.signal(signal.SIGALRM, on_timeout)
         signal.setitimer(signal.ITIMER_REAL, 0.1)
