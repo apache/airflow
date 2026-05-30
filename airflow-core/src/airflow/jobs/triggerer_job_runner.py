@@ -509,7 +509,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-
         resp: BaseModel | None = None
         dump_opts: dict[str, bool] = {}
         self._last_runner_comms = time.monotonic()
@@ -936,8 +935,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
                 event["error_detail"] = exc
-            if lvl_name := NAME_TO_LEVEL.get(event.pop("level")):
-                log.log(lvl_name, event.pop("event", None), **event)
+            lvl_name = NAME_TO_LEVEL.get(event.pop("level", "warning"), logging.WARNING)
+            log.log(lvl_name, event.pop("event", None), **event)
 
     @classmethod
     def run_in_process(cls):
