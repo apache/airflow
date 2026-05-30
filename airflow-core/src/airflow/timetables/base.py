@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
+
+from typing_extensions import NotRequired
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -37,6 +40,21 @@ if TYPE_CHECKING:
         SerializedAssetUniqueKey,
     )
     from airflow.utils.types import DagRunType
+
+
+class PartitionMapperInfo(TypedDict):
+    """
+    JSON-serializable snapshot of one asset's partition mapper attributes.
+
+    Stored as ``DagModel.partition_mapper_info`` (a list of these) so the UI can
+    resolve mapper attributes without deserializing the timetable on each request.
+    Either ``name``, ``uri``, or both identify the asset; ``Asset.ref(name=...)``
+    omits ``uri`` and ``Asset.ref(uri=...)`` omits ``name``.
+    """
+
+    is_rollup: bool
+    name: NotRequired[str]
+    uri: NotRequired[str]
 
 
 class DataInterval(NamedTuple):
@@ -224,6 +242,32 @@ class Timetable(Protocol):
     *True* for :class:`~airflow.timetables.simple.PartitionAtRuntime`;
     downstream code can branch on this flag instead of using ``isinstance``.
     """
+
+    def get_partition_mapper(self, *, name: str = "", uri: str = "") -> PartitionMapper:
+        """
+        Return the partition mapper for the asset identified by *name* or *uri*.
+
+        Only called by the scheduler when ``partitioned`` is *True*. The default
+        implementation raises :exc:`NotImplementedError`; timetables that set
+        ``partitioned = True`` must override this.
+        """
+        msg = (
+            f"{type(self).__name__} is not partitioned and does not define a "
+            f"partition mapper (asset name={name!r}, uri={uri!r})."
+        )
+        raise NotImplementedError(msg)
+
+    @property
+    def partition_mapper_info(self) -> list[PartitionMapperInfo]:
+        """
+        JSON-serializable per-asset partition mapper attributes.
+
+        Empty list for timetables without asset-level partition mappers (the
+        default, including non-partitioned timetables and cron-driven partitioned
+        timetables). Asset-driven partitioned timetables override this with one
+        entry per asset (or asset ref) — see :class:`PartitionMapperInfo`.
+        """
+        return []
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
