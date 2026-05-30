@@ -1066,6 +1066,7 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
@@ -1439,6 +1440,7 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;

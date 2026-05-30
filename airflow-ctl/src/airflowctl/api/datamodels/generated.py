@@ -574,6 +574,7 @@ class ExternalViewResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
@@ -809,6 +810,7 @@ class ReactAppResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
