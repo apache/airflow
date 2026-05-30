@@ -162,7 +162,7 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * Next Run Assets
 * @param data The data for the request.
 * @param data.dagId
-* @returns unknown Successful Response
+* @returns NextRunAssetsResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseAssetServiceNextRunAssetsData = (queryClient: QueryClient, { dagId }: {
