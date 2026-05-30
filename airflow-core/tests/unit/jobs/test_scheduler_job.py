@@ -3835,6 +3835,45 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_dagrun_timeout_duration_metric_has_run_type(self, mock_get_backend, dag_maker):
+        """
+        The ``dagrun.duration.failed`` metric emitted when a Dag run times out must carry the
+        ``run_type`` tag, matching the metric emitted on normal Dag run completion via
+        ``DagRun._emit_duration_stats_for_finished_state``. Regression test for #64765.
+        """
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_dagrun_timeout_duration_metric",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+
+        # The timing call must include both dag_id and run_type (dag_run.stats_tags), not just dag_id.
+        mock_stats.timing.assert_any_call(
+            "dagrun.duration.failed",
+            mock.ANY,
+            tags={"dag_id": dr.dag_id, "run_type": dr.run_type},
+        )
+
+        session.rollback()
+        session.close()
+
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """
         Test that dagrun timeout fails run and update the next dagrun

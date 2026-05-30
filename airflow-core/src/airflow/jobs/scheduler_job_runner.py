@@ -2457,7 +2457,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={"dag_id": dag_run.dag_id},
+                    # Include ``run_type`` (via stats_tags) so the timeout path matches
+                    # DagRun._emit_duration_stats_for_finished_state; see #64765.
+                    tags=dag_run.stats_tags,
                 )
             return callback_to_execute
 
