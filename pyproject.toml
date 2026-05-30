@@ -1410,6 +1410,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1534,7 +1535,6 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
 # Manual overrides (kept outside the auto-generated block above so the
@@ -1557,6 +1557,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1681,7 +1682,6 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
 
 # Manual overrides — see the matching block under
@@ -1710,7 +1710,7 @@ apache-airflow-task-sdk-integration-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
-apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-listeners = { workspace = true }
