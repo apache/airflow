@@ -20,10 +20,11 @@ from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models.log import Log
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
@@ -62,7 +63,7 @@ class TestEventLogsEndpoint:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, create_task_instance, session=None) -> dict[str, Log]:
+    def setup(self, create_task_instance, *, session: Session = NEW_SESSION) -> dict[str, Log]:
         """
         Setup event logs for testing.
         :return: Dictionary with event log keys and their corresponding IDs.
