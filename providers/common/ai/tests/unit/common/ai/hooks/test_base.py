@@ -643,6 +643,45 @@ class TestBaseAIHookLoggedCallable:
 
         logger.exception.assert_called_once()
 
+    def test_logged_callable_uses_explicit_name_over_introspection(self):
+        logger = MagicMock()
+
+        def fn():
+            return "ok"
+
+        wrapped = BaseAIHook._logged_callable(fn, logger, name="my_tool")
+        wrapped()
+
+        logger.info.assert_any_call("::group::Tool call: %s", "my_tool")
+        logger.info.assert_any_call("Tool %s returned in %.2fs", "my_tool", pytest.approx(0.0, abs=1.0))
+
+    def test_logged_callable_partial_logs_correct_name_without_explicit_name(self):
+        """Without an explicit name, a partial falls back to type(fn).__name__ = 'partial'."""
+        logger = MagicMock()
+
+        def fetch_metric(environment: str, metric_name: str) -> float:
+            return 1.0
+
+        partial_fn = functools.partial(fetch_metric, "prod")
+        wrapped = BaseAIHook._logged_callable(partial_fn, logger)
+        wrapped(metric_name="cpu")
+
+        # Without name= the fallback is type(partial).__name__ = "partial", not "fetch_metric".
+        logger.info.assert_any_call("::group::Tool call: %s", "partial")
+
+    def test_logged_callable_partial_logs_correct_name_with_explicit_name(self):
+        """Passing name= fixes the 'partial' log name for functools.partial tools."""
+        logger = MagicMock()
+
+        def fetch_metric(environment: str, metric_name: str) -> float:
+            return 1.0
+
+        partial_fn = functools.partial(fetch_metric, "prod")
+        wrapped = BaseAIHook._logged_callable(partial_fn, logger, name="fetch_metric")
+        wrapped(metric_name="cpu")
+
+        logger.info.assert_any_call("::group::Tool call: %s", "fetch_metric")
+
     def test_logged_callable_preserves_partial_introspection(self):
         logger = MagicMock()
 
