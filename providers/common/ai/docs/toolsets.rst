@@ -24,17 +24,23 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Three toolsets are included:
+Five toolsets are included:
 
+- :class:`~airflow.providers.common.ai.toolsets.datafusion.DataFusionToolset`
+  — curated SQL toolset for querying file and object-store data via Apache
+  DataFusion.
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
+- :class:`~airflow.providers.common.ai.toolsets.multimodal.MultimodalToolset`
+  — curated read-only file and object-store inspection toolset for text,
+  image, and PDF inputs.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
   4-tool database toolset.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
 
-All three implement pydantic-ai's
+All five implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -222,6 +228,58 @@ Parameters
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
+``MultimodalToolset``
+---------------------
+
+Curated toolset for read-only inspection of local files or object-store paths.
+It reuses the same normalization and safety limits as
+:class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`.
+
+Two tools are exposed:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_files``
+     - Lists files and metadata under the configured ``file_path`` or an overridden tool argument
+   * - ``load_files``
+     - Returns normalized text context for text-like files and text plus binary attachments for PDFs/images
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.multimodal import MultimodalToolset
+
+    toolset = MultimodalToolset(
+        file_path="s3://analytics/incidents/2024-01-15/",
+        file_conn_id="aws_default",
+        max_files=5,
+    )
+
+Parameters
+^^^^^^^^^^
+
+- ``file_path``: File, directory, or object-store prefix to expose.
+- ``file_conn_id``: Airflow connection ID for the storage backend.
+- ``max_files``: Maximum number of files resolved from a directory or prefix.
+  Default ``20``.
+- ``max_file_size_bytes``: Maximum size of any single input file. Default
+  ``5 MiB``.
+- ``max_total_size_bytes``: Maximum cumulative size across all resolved files.
+  Default ``20 MiB``.
+- ``max_text_chars``: Maximum normalized text returned from ``load_files``.
+  Default ``100000``.
+- ``sample_rows``: Maximum sampled rows or records for CSV, Parquet, and Avro
+  previews. Default ``10``.
+
+.. note::
+
+    When ``load_files`` returns binary attachments for images or PDFs, those
+    tool results are not JSON-serializable and therefore are not cached by
+    ``AgentOperator(durable=True)``. Retries will re-run those tool calls.
+
 ``LoggingToolset``
 ------------------
 
@@ -351,6 +409,11 @@ No single layer is sufficient — they work together.
        ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT
        INTO, and other non-SELECT statements.
      - Does not prevent the agent from reading any registered data source.
+   * - **MultimodalToolset: file-analysis limits**
+     - Enforces the same file-count, byte, and text-budget limits as
+       ``LLMFileAnalysisOperator`` before content is returned.
+     - Does not prevent the agent from reading sensitive files reachable via
+       the configured path or any tool-provided override path.
    * - **SQLToolset: allowed_tables**
      - Restricts which tables appear in ``list_tables`` and ``get_schema``
        responses, limiting the agent's knowledge of the schema.
