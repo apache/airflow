@@ -299,6 +299,48 @@ class TestCloudRunExecuteJobOperator:
         assert result["name"] == JOB_NAME
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_cancelled(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 3,
+            "succeeded_count": 1,
+            "failed_count": 0,
+        }
+
+        with pytest.raises(RuntimeError) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Not all tasks finished execution" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_failed_tasks(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 3,
+            "succeeded_count": 1,
+            "failed_count": 2,
+        }
+
+        with pytest.raises(RuntimeError) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Some tasks failed execution" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides(self, hook_mock):
         hook_mock.return_value.get_job.return_value = JOB
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)

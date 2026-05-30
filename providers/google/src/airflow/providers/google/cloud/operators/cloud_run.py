@@ -407,6 +407,17 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
 
+        if "task_count" in event:
+            task_count = event["task_count"]
+            succeeded_count = event["succeeded_count"]
+            failed_count = event["failed_count"]
+
+            if succeeded_count + failed_count != task_count:
+                raise RuntimeError("Not all tasks finished execution")
+
+            if failed_count > 0:
+                raise RuntimeError("Some tasks failed execution")
+
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
