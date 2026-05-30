@@ -5489,7 +5489,7 @@ requires-dist = [
     { name = "gcsfs", specifier = ">=2023.10.0" },
     { name = "google-ads", specifier = ">=26.0.0,!=28.0.0.post2" },
     { name = "google-analytics-admin", specifier = ">=0.9.0" },
-    { name = "google-api-core", specifier = ">=2.11.0,!=2.16.0,!=2.18.0" },
+    { name = "google-api-core", specifier = ">=2.30.3" },
     { name = "google-api-python-client", specifier = ">=2.0.2" },
     { name = "google-auth", specifier = ">=2.29.0" },
     { name = "google-auth-httplib2", specifier = ">=0.0.1" },
