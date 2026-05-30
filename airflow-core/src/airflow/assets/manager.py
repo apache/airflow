@@ -251,6 +251,10 @@ class AssetManager(LoggingMixin):
         asset: SerializedAsset | AssetModel | SerializedAssetUniqueKey,
         extra=None,
         source_alias_names: Collection[str] = (),
+        source_dag_id: str | None = None,
+        source_task_id: str | None = None,
+        source_run_id: str | None = None,
+        source_map_index: int | None = None,
         session: Session,
         partition_key: str | None = None,
         source_is_api: bool = False,
@@ -308,6 +312,13 @@ class AssetManager(LoggingMixin):
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
+            )
+        elif source_dag_id is not None or source_run_id is not None or source_task_id is not None:
+            event_kwargs.update(
+                source_task_id=source_task_id,
+                source_dag_id=source_dag_id,
+                source_run_id=source_run_id,
+                source_map_index=source_map_index,
             )
 
         asset_event = AssetEvent(**event_kwargs)
