@@ -529,3 +529,58 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             self.log.info("Cancelling the query ids %s", self.query_ids)
             self._hook.cancel_queries(self.query_ids)
             self.log.info("Query ids %s cancelled successfully", self.query_ids)
+
+
+class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
+    """
+    Execute a Snowflake Notebook via the Snowflake SQL API.
+
+    Builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+    :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`,
+    which handles query submission, polling, deferral, and cancellation.
+
+    .. seealso::
+        `Snowflake EXECUTE NOTEBOOK
+        <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`_
+
+    :param notebook: Fully-qualified notebook name
+        (e.g. ``MY_DB.MY_SCHEMA.MY_NOTEBOOK``).
+    :param parameters: Optional list of string parameters to pass to the
+        notebook.  Values must be strings (the type hint declares
+        ``list[str]``).  Parameters are accessible in the notebook via
+        ``sys.argv``.
+    """
+
+    template_fields: Sequence[str] = tuple(
+        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "parameters"}
+    )
+
+    def __init__(
+        self,
+        *,
+        notebook: str,
+        parameters: list[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.notebook = notebook
+        self.parameters = parameters
+        sql = self._build_execute_notebook_query()
+        super().__init__(sql=sql, statement_count=1, **kwargs)
+        # SQLExecuteQueryOperator.__init__ owns a `parameters` attribute (for SQL bind
+        # parameters) and resets it to None. Restore our notebook parameters.
+        self.parameters = parameters
+
+    def execute(self, context: Context) -> None:
+        """Rebuild SQL from rendered template fields, then execute."""
+        self.sql = self._build_execute_notebook_query()
+        return super().execute(context)
+
+    def _build_execute_notebook_query(self) -> str:
+        """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
+        params_clause = ""
+        if self.parameters:
+            # Escape backslashes first (Snowflake interprets `\` in string literals),
+            # then single quotes.
+            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.parameters]
+            params_clause = ", ".join(f"'{p}'" for p in sanitized)
+        return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"
