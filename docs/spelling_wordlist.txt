@@ -217,6 +217,7 @@ cas
 Cassandra
 cassandra
 casted
+catalogue
 Catchup
 catchup
 ccache
@@ -286,6 +287,7 @@ conda
 conf
 Config
 config
+ConfigDict
 configfile
 configMap
 configmap
@@ -1107,6 +1109,7 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalises
 normalizer
 NotFound
 notificationChannels
@@ -1151,6 +1154,7 @@ Opsgenie
 opsgenie
 Optimise
 optimise
+optimised
 optimizationObjective
 OptIn
 optionality
@@ -1322,6 +1326,7 @@ Quantiles
 quantiles
 Qubole
 qubole
+queryable
 querybook
 Querybooks
 querybooks
@@ -1460,6 +1465,8 @@ sentimentMax
 ser
 serde
 serialise
+Serialised
+serialised
 serializable
 SerializedDAG
 serializer

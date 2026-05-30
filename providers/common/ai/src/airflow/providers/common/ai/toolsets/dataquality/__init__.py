@@ -14,20 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Toolsets for exposing Airflow hooks as pydantic-ai agent tools."""
+"""Data-quality toolsets for LLMDataQualityOperator."""
 
 from __future__ import annotations
 
-from airflow.providers.common.ai.toolsets.hook import HookToolset
+from airflow.providers.common.ai.toolsets.dataquality.base import BaseDQToolset
 
-__all__ = ["BaseDQToolset", "HookToolset", "MCPToolset", "SQLDQToolset", "SQLToolset"]
+__all__ = ["BaseDQToolset", "SQLDQToolset"]
 
 
 def __getattr__(name: str):
-    if name == "BaseDQToolset":
-        from airflow.providers.common.ai.toolsets.dataquality.base import BaseDQToolset
-
-        return BaseDQToolset
     if name == "SQLDQToolset":
         try:
             from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
@@ -36,20 +32,4 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException(e)
         return SQLDQToolset
-    if name == "SQLToolset":
-        try:
-            from airflow.providers.common.ai.toolsets.sql import SQLToolset
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-        return SQLToolset
-    if name == "MCPToolset":
-        try:
-            from airflow.providers.common.ai.toolsets.mcp import MCPToolset
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-        return MCPToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
