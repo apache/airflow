@@ -180,10 +180,23 @@ def _load_logging_config() -> None:
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
 
-    # Load remote logging configuration using shared discovery logic
-    remote_task_log, default_remote_conn_id = discover_remote_log_handler(
-        logging_class_path, fallback, import_string
-    )
+    # Wrap discovery: a raise here propagates through ``load_remote_log_handler()`` into the
+    # task lifecycle handler and crashes the task with a non-obvious error. Operators relying
+    # on remote-log uploads still need to see this — surface a warning and cache "no remote
+    # handler" so the rest of the logging system initialises and the task can run with local
+    # logs only.
+    try:
+        remote_task_log, default_remote_conn_id = discover_remote_log_handler(
+            logging_class_path, fallback, import_string
+        )
+    except Exception:
+        structlog.get_logger("airflow.logging.remote").warning(
+            "remote_log_handler_discovery_failed",
+            logging_class_path=logging_class_path,
+            note="Remote log handler could not be loaded; logs will be available locally only.",
+            exc_info=True,
+        )
+        remote_task_log, default_remote_conn_id = None, None
     _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 
 

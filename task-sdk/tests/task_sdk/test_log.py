@@ -118,3 +118,50 @@ class TestUploadToRemote:
 
         assert captured == []
         handler.upload.assert_called_once_with(relative.as_posix(), ti)
+
+
+class TestLoadLoggingConfig:
+    """Discovery failures must not propagate into the task lifecycle.
+
+    ``_load_logging_config`` is called transitively from any logger acquisition path; a raise
+    here crashes the task with a non-obvious error. Operators relying on remote-log uploads
+    still need to see the failure, so the function should warn and fall back to "no remote
+    handler".
+    """
+
+    def test_discovery_failure_warns_and_falls_back(self):
+        boom = ImportError("module 'airflow_remote_logging' not found")
+        with (
+            mock.patch(
+                "airflow.sdk._shared.logging.remote.discover_remote_log_handler",
+                side_effect=boom,
+            ),
+            mock.patch.object(sdk_log._ActiveLoggingConfig, "logging_config_loaded", False),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log._load_logging_config()
+
+        events = [e for e in captured if e["event"] == "remote_log_handler_discovery_failed"]
+        assert len(events) == 1
+        assert events[0]["log_level"] == "warning"
+        assert events[0]["exc_info"]
+        assert sdk_log._ActiveLoggingConfig.remote_task_log is None
+        assert sdk_log._ActiveLoggingConfig.default_remote_conn_id is None
+        assert sdk_log._ActiveLoggingConfig.logging_config_loaded is True
+
+    def test_discovery_success_no_warning(self):
+        remote = mock.MagicMock()
+        with (
+            mock.patch(
+                "airflow.sdk._shared.logging.remote.discover_remote_log_handler",
+                return_value=(remote, "remote_conn"),
+            ),
+            mock.patch.object(sdk_log._ActiveLoggingConfig, "logging_config_loaded", False),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log._load_logging_config()
+
+        events = [e for e in captured if e["event"] == "remote_log_handler_discovery_failed"]
+        assert events == []
+        assert sdk_log._ActiveLoggingConfig.remote_task_log is remote
+        assert sdk_log._ActiveLoggingConfig.default_remote_conn_id == "remote_conn"
