@@ -126,7 +126,7 @@ class PrevDagrunDep(BaseTIDep):
         )
 
     @provide_session
-    def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
+    def _get_dep_statuses(self, ti: TI, dep_context, *, session: Session):
         if TYPE_CHECKING:
             assert ti.task
         if dep_context.ignore_depends_on_past:
