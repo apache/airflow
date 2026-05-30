@@ -10129,9 +10129,8 @@ def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
     """
     A misconfigured rollup mapper that raises during status evaluation must not crash
     the scheduler tick — the asset is treated as not-yet-satisfied, the APDR remains
-    pending, and an audit log entry surfaces the reason to the operator.
+    pending, and the exception is logged in the scheduler log.
     """
-    session.execute(delete(Log))
     asset_1 = Asset(name="asset-1")
     with dag_maker(
         dag_id="rollup-consumer",
@@ -10170,213 +10169,6 @@ def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
     session.refresh(apdr)
     assert apdr.created_dag_run_id is None
     assert partition_dags == set()
-
-    # Audit log is added via session.add inside the scheduler tick and only
-    # visible to a subsequent read after a flush.
-    session.flush()
-    audit_log = session.scalar(select(Log).where(Log.event == "failed to evaluate rollup status"))
-    assert audit_log is not None
-    assert audit_log.dag_id == "rollup-consumer"
-    assert audit_log.extra is not None
-    assert "misconfigured rollup mapper" in audit_log.extra
-    assert "asset-1" in audit_log.extra
-    assert "2024-01-01T00" in audit_log.extra
-
-
-@pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_dag_run_rollup_audit_log_dedup_across_ticks(
-    dag_maker: DagMaker,
-    session: Session,
-):
-    """
-    A misconfigured rollup mapper must write at most one audit Log entry per
-    scheduler process lifetime, not one per scheduler tick.
-
-    The same SchedulerJobRunner instance is used for two consecutive calls to
-    _create_dagruns_for_partitioned_asset_dags (simulating two scheduler ticks).
-    Only the first tick should produce a Log row; the second tick should be
-    suppressed by the process-level _partition_audit_seen deduplication set.
-    """
-    session.execute(delete(Log))
-    asset_1 = Asset(name="asset-1")
-    with dag_maker(
-        dag_id="rollup-consumer",
-        schedule=PartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=RollupMapper(
-                upstream_mapper=StartOfHourMapper(),
-                window=HourWindow(),
-            ),
-        ),
-        session=session,
-    ):
-        EmptyOperator(task_id="hi")
-    session.commit()
-
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
-
-    _produce_and_register_asset_event(
-        dag_id="rollup-producer-0",
-        asset=asset_1,
-        partition_key="2024-01-01T00:00:00",
-        session=session,
-        dag_maker=dag_maker,
-        expected_partition_key="2024-01-01T00",
-    )
-
-    with mock.patch.object(
-        SchedulerJobRunner,
-        "_check_rollup_asset_status",
-        side_effect=RuntimeError("misconfigured rollup mapper"),
-    ):
-        # First tick — audit log should be written once.
-        runner._create_dagruns_for_partitioned_asset_dags(session=session)
-        session.flush()
-        # Second tick — same runner instance, same (dag_id, name, uri) key.
-        runner._create_dagruns_for_partitioned_asset_dags(session=session)
-        session.flush()
-
-    log_count = session.scalar(select(func.count()).where(Log.event == "failed to evaluate rollup status"))
-    assert log_count == 1, (
-        f"Expected exactly 1 audit log entry across two ticks, but got {log_count}. "
-        "Check that _partition_audit_seen deduplication is working."
-    )
-
-
-@pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partition_audit_log_persists_independent_of_outer_transaction(
-    dag_maker: DagMaker,
-    session: Session,
-):
-    """
-    The audit Log row is committed on an independent session so it survives
-    even when the outer ``@retry_db_transaction`` transaction rolls back.
-
-    The outer scheduler tick is wrapped in retry/rollback; relying on the
-    same session would mean an in-memory dedup set says "already logged"
-    while no row ever made it to the DB.
-    """
-    session.execute(delete(Log))
-    asset_1 = Asset(name="asset-1")
-    with dag_maker(
-        dag_id="rollup-consumer",
-        schedule=PartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=RollupMapper(
-                upstream_mapper=StartOfHourMapper(),
-                window=HourWindow(),
-            ),
-        ),
-        session=session,
-    ):
-        EmptyOperator(task_id="hi")
-    session.commit()
-
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
-
-    _produce_and_register_asset_event(
-        dag_id="rollup-producer-0",
-        asset=asset_1,
-        partition_key="2024-01-01T00:00:00",
-        session=session,
-        dag_maker=dag_maker,
-        expected_partition_key="2024-01-01T00",
-    )
-
-    with mock.patch.object(
-        SchedulerJobRunner,
-        "_check_rollup_asset_status",
-        side_effect=RuntimeError("misconfigured rollup mapper"),
-    ):
-        runner._create_dagruns_for_partitioned_asset_dags(session=session)
-        # Roll back the outer session so anything that *was* added to it is
-        # discarded — only rows that hit the DB via the independent audit
-        # session should remain.
-        session.rollback()
-
-    log_count = session.scalar(select(func.count()).where(Log.event == "failed to evaluate rollup status"))
-    assert log_count == 1, (
-        "Audit Log row must survive outer-transaction rollback (committed on "
-        f"its own session); got {log_count} rows."
-    )
-
-
-@pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partition_audit_log_inner_failure_does_not_mark_key_seen(
-    dag_maker: DagMaker,
-    session: Session,
-):
-    """
-    When the independent audit session raises (e.g. transient DB failure),
-    ``_record_partition_audit_log`` must return ``False`` and the caller must
-    NOT add the key to ``_partition_audit_seen``.  The next scheduler tick will
-    then retry writing the audit row.
-    """
-    session.execute(delete(Log))
-    asset_1 = Asset(name="asset-1")
-    with dag_maker(
-        dag_id="rollup-consumer",
-        schedule=PartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=RollupMapper(
-                upstream_mapper=StartOfHourMapper(),
-                window=HourWindow(),
-            ),
-        ),
-        session=session,
-    ):
-        EmptyOperator(task_id="hi")
-    session.commit()
-
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
-    runner._log = MagicMock()
-
-    _produce_and_register_asset_event(
-        dag_id="rollup-producer-0",
-        asset=asset_1,
-        partition_key="2024-01-01T00:00:00",
-        session=session,
-        dag_maker=dag_maker,
-        expected_partition_key="2024-01-01T00",
-    )
-
-    real_create_session = create_session
-
-    def _failing_inner_create_session(*args, **kwargs):
-        if kwargs.get("scoped") is False:
-            raise OSError("simulated audit DB failure")
-        return real_create_session(*args, **kwargs)
-
-    with (
-        mock.patch.object(
-            SchedulerJobRunner,
-            "_check_rollup_asset_status",
-            side_effect=RuntimeError("misconfigured rollup mapper"),
-        ),
-        mock.patch(
-            "airflow.jobs.scheduler_job_runner.create_session",
-            side_effect=_failing_inner_create_session,
-        ),
-    ):
-        runner._create_dagruns_for_partitioned_asset_dags(session=session)
-
-    # Key must NOT have been added — transient failure should allow a retry.
-    assert len(runner._partition_audit_seen) == 0
-
-    # The warning for the failed audit write must have fired.
-    assert any(
-        call.args[0] == "Failed to write audit Log row for misconfigured rollup mapper"
-        for call in runner._log.warning.mock_calls
-    )
 
 
 @pytest.mark.need_serialized_dag
@@ -10524,12 +10316,11 @@ def test_partitioned_dag_run_clears_stale_dag_version_apdr(
     An APDR whose stamped ``dag_version_id`` no longer matches the Dag's
     latest serialized version was queued under a mapper / window that may
     not apply any more. The scheduler tick must drop the APDR plus its
-    PartitionedAssetKeyLog rows and write an audit Log entry; APDR rows
+    PartitionedAssetKeyLog rows and emit a structured log message; APDR rows
     whose stamp matches the latest version are left untouched.
     """
     from uuid6 import uuid7
 
-    session.execute(delete(Log))
     asset_1 = Asset(name="asset-1")
     with dag_maker(
         dag_id="rollup-consumer-stale",
@@ -10606,16 +10397,6 @@ def test_partitioned_dag_run_clears_stale_dag_version_apdr(
         )
         == fresh_pakl_count_before
     ), "PAKL rows for fresh APDR must survive"
-
-    audit = session.scalar(
-        select(Log).where(
-            Log.event == "stale partition apdr cleanup",
-            Log.dag_id == "rollup-consumer-stale",
-        )
-    )
-    assert audit is not None
-    assert audit.extra is not None
-    assert "Cleared 1" in audit.extra
 
 
 @pytest.mark.need_serialized_dag

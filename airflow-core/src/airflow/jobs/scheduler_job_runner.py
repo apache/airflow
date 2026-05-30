@@ -337,17 +337,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
-        # Set of (dag_id, asset_name, asset_uri) tuples for which an audit log
-        # entry has already been written this scheduler process lifetime.
-        # Deduplicated here (not at the DB level) so a misconfigured mapper does
-        # not write a new Log row on every scheduler tick. The set is
-        # intentionally reset on scheduler restart so at least one entry is
-        # written per process lifetime, giving operators a fresh signal after
-        # a config fix and re-deploy. No size cap or TTL is applied: the set is
-        # bounded in practice by the number of distinct misconfigured partition
-        # assets, and scheduler restart is the reset mechanism.
-        self._partition_audit_seen: set[tuple[str, str, str]] = set()
-
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
@@ -1914,8 +1903,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :meth:`_check_rollup_asset_status` for the upstream-window check.
 
         A misconfigured mapper that raises returns ``False`` (treated as
-        not-yet-satisfied) and an audit log entry is written so the operator
-        can see why the Dag run is being held in the UI.
+        not-yet-satisfied); the exception is logged at ``ERROR`` level in the
+        scheduler log so operators can diagnose the misconfiguration.
         """
         try:
             mapper = timetable.get_partition_mapper(name=name, uri=uri)
@@ -1927,7 +1916,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 mapper=cast("RollupMapper", mapper),
                 actual_by_asset=actual_by_asset,
             )
-        except Exception as err:
+        except Exception:
             self.log.exception(
                 "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "
                 "This likely indicates a misconfigured partition mapper.",
@@ -1936,118 +1925,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 asset_name=name,
                 asset_uri=uri,
             )
-            audit_key = (apdr.target_dag_id, name, uri)
-            if audit_key not in self._partition_audit_seen:
-                # The audit Log row is committed on its own session so it
-                # survives even when the outer ``_create_dagruns_for_dags``
-                # transaction is rolled back (the caller is wrapped in
-                # ``@retry_db_transaction``, and a downstream ``OperationalError``
-                # or scheduler crash mid-tick would otherwise drop the row while
-                # the in-memory set still suppressed the next attempt).
-                # The dedup-set update is gated on the independent commit
-                # succeeding; a transient DB failure on the audit session leaves
-                # the key unmarked so the next tick retries.
-                if self._record_partition_audit_log(apdr=apdr, name=name, uri=uri, err=err):
-                    self._partition_audit_seen.add(audit_key)
             return False
-
-    def _record_partition_audit_log(
-        self,
-        *,
-        apdr: AssetPartitionDagRun,
-        name: str,
-        uri: str,
-        err: BaseException,
-    ) -> bool:
-        """
-        Persist a misconfigured-rollup audit Log row on an independent session.
-
-        Returns ``True`` on commit success, ``False`` when the write fails.
-        Failures are logged and swallowed: the audit row is advisory (the
-        warning above already captures the same information for operators
-        reading scheduler logs), and propagating a Log-table failure would
-        taint the scheduler tick.
-
-        APDR attributes are captured into locals before opening the audit
-        session so the new session never has to lazy-load through an instance
-        attached to the outer session.
-        """
-        target_dag_id = apdr.target_dag_id
-        extra = (
-            "Could not evaluate rollup status for partition_key "
-            f"'{apdr.partition_key}' on asset (name='{name}', uri='{uri}') "
-            f"in target Dag '{target_dag_id}'. This likely indicates "
-            "that the rollup mapper is misconfigured or does not support "
-            f"this partition key.\n{type(err).__name__}: {err}"
-        )
-        try:
-            # ``scoped=False`` so this really is a separate connection / session
-            # rather than the thread-scoped one shared with the outer
-            # transaction — otherwise an inner commit would close the outer
-            # session's state too.
-            with create_session(scoped=False) as audit_session:
-                audit_session.add(
-                    Log(
-                        event="failed to evaluate rollup status",
-                        dag_id=target_dag_id,
-                        extra=extra,
-                    )
-                )
-        except Exception:
-            self.log.warning(
-                "Failed to write audit Log row for misconfigured rollup mapper",
-                dag_id=target_dag_id,
-                asset_name=name,
-                asset_uri=uri,
-                exc_info=True,
-            )
-            return False
-        return True
-
-    def _record_stale_apdr_audit_log(
-        self,
-        *,
-        target_dag_id: str,
-        cleared_count: int,
-        new_dag_version_id: UUID | None,
-    ) -> bool:
-        """
-        Persist a stale-APDR cleanup audit Log row on an independent session.
-
-        Returns ``True`` on commit success, ``False`` when the write fails.
-        Same independent-session pattern as :meth:`_record_partition_audit_log`
-        so the audit row survives an outer-transaction rollback.
-
-        Unlike :meth:`_record_partition_audit_log`, no per-process dedup set is
-        maintained — stale cleanup is transient (a Dag oscillating between two
-        versions will write one Log row per tick it appears in the LIMIT window),
-        and the volume is bounded by the per-loop cap.
-        """
-        extra = (
-            f"Cleared {cleared_count} provisional partition Dag run(s) for "
-            f"Dag '{target_dag_id}' because their stamped Dag version no "
-            f"longer matches the current version "
-            f"({new_dag_version_id}). The mapper or window backing the run "
-            "may have changed; the next scheduler tick will rebuild "
-            "evaluation from fresh asset events."
-        )
-        try:
-            with create_session(scoped=False) as audit_session:
-                audit_session.add(
-                    Log(
-                        event="stale partition apdr cleanup",
-                        dag_id=target_dag_id,
-                        extra=extra,
-                    )
-                )
-        except Exception:
-            self.log.warning(
-                "Failed to write audit Log row for stale partition APDR cleanup",
-                dag_id=target_dag_id,
-                exc_info=True,
-            )
-            return False
-        return True
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
@@ -2124,17 +2002,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ]
         if stale_apdrs:
             stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
-            # Write the audit Log row before the outer DELETEs so the
-            # independent ``scoped=False`` session does not have to fight the
-            # outer write transaction for SQLite's single writer lock. The Log
-            # is the only artefact a Postgres / MySQL operator would see if the
-            # outer transaction later rolls back, which is the same trade-off
-            # ``_record_partition_audit_log`` makes for the rollup-error path.
             cleared_by_dag: dict[str, int] = defaultdict(int)
             for apdr in stale_apdrs:
                 cleared_by_dag[apdr.target_dag_id] += 1
             for target_dag_id, cleared_count in cleared_by_dag.items():
-                self._record_stale_apdr_audit_log(
+                self.log.info(
+                    "Cleared provisional partition Dag run(s) for Dag because their stamped Dag version "
+                    "no longer matches the current version. The mapper or window backing the run may have "
+                    "changed; the next scheduler tick will rebuild evaluation from fresh asset events.",
                     target_dag_id=target_dag_id,
                     cleared_count=cleared_count,
                     new_dag_version_id=serdags_by_dag_id[target_dag_id].dag_version_id,
