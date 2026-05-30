@@ -57,7 +57,10 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import (
+    TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+    SchedulerJobRunner,
+)
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -3427,6 +3430,127 @@ class TestSchedulerJob:
     @staticmethod
     def mock_failure_callback(context):
         pass
+
+    @staticmethod
+    def _mark_ti_deferred(session, ti: TaskInstance) -> Trigger:
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+        ti.state = State.DEFERRED
+        ti.trigger_id = trigger.id
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.flush()
+        return trigger
+
+    def test_handle_stuck_queued_tasks_skips_ti_that_already_deferred(
+        self, dag_maker, session, mock_executors
+    ):
+        with dag_maker("test_skip_stale_stuck_queued_requeue"):
+            EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op1", session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.flush()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        stale_ti = next(iter(scheduler._get_tis_stuck_in_queued(session)))
+        session.expunge(stale_ti)
+
+        trigger = self._mark_ti_deferred(session, dr.get_task_instance(task_id="op1", session=session))
+        session.commit()
+
+        scheduler._maybe_requeue_stuck_ti(ti=stale_ti, session=session, executor=mock_executors[0])
+
+        refreshed_ti = dr.get_task_instance(task_id="op1", session=session)
+        assert refreshed_ti.state == State.DEFERRED
+        assert refreshed_ti.trigger_id == trigger.id
+        assert refreshed_ti.next_method == "execute_complete"
+        assert refreshed_ti.next_kwargs == {}
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Log)
+                .where(Log.run_id == dr.run_id, Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT)
+            )
+            == 0
+        )
+        mock_executors[0].revoke_task.assert_not_called()
+        mock_executors[0].fail.assert_not_called()
+
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
+    def test_handle_stuck_queued_tasks_skips_failing_ti_that_already_deferred(
+        self, dag_maker, session, mock_executors
+    ):
+        with dag_maker("test_skip_stale_stuck_queued_fail"):
+            EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op1", session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.flush()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        stale_ti = next(iter(scheduler._get_tis_stuck_in_queued(session)))
+        session.expunge(stale_ti)
+
+        current_ti = dr.get_task_instance(task_id="op1", session=session)
+        self._mark_ti_deferred(session, current_ti)
+        session.add_all(
+            [
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=current_ti.key),
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=current_ti.key),
+            ]
+        )
+        session.commit()
+
+        scheduler._maybe_requeue_stuck_ti(ti=stale_ti, session=session, executor=mock_executors[0])
+
+        refreshed_ti = dr.get_task_instance(task_id="op1", session=session)
+        assert refreshed_ti.state == State.DEFERRED
+        assert refreshed_ti.next_method == "execute_complete"
+        assert refreshed_ti.next_kwargs == {}
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Log)
+                .where(
+                    Log.run_id == dr.run_id,
+                    Log.event == "stuck in queued tries exceeded",
+                )
+            )
+            == 0
+        )
+        mock_executors[0].revoke_task.assert_not_called()
+        mock_executors[0].fail.assert_not_called()
+
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
+    def test_handle_stuck_queued_tasks_revokes_before_failing(self, dag_maker, session, mock_executors):
+        with dag_maker("test_revoke_stuck_queued_task_before_fail"):
+            EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op1", session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.add_all(
+            [
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=ti.key),
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=ti.key),
+            ]
+        )
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._maybe_requeue_stuck_ti(ti=ti, session=session, executor=mock_executors[0])
+
+        refreshed_ti = dr.get_task_instance(task_id="op1", session=session)
+        assert refreshed_ti.state == State.FAILED
+        mock_executors[0].revoke_task.assert_called_once()
+        mock_executors[0].fail.assert_called_once_with(ti.key)
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):

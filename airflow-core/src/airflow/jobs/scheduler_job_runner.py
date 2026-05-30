@@ -2566,7 +2566,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
-                    executor.revoke_task(ti=ti)
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
                         session=session,
@@ -2592,37 +2591,47 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        current_ti = self._get_ti_still_stuck_in_queued(ti=ti, session=session)
+        if current_ti is None:
+            self.log.debug(
+                "Task changed state before queued-timeout recovery; skipping. task_instance=%s",
+                ti,
+            )
+            return
+
+        num_times_stuck = self._get_num_times_stuck_in_queued(current_ti, session)
         if num_times_stuck < self._num_stuck_queued_retries:
-            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
+            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", current_ti)
+            executor.revoke_task(ti=current_ti)
             session.add(
                 Log(
                     event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
-                    task_instance=ti.key,
+                    task_instance=current_ti.key,
                     extra=(
                         f"Task was in queued state for longer than {self._task_queued_timeout} "
                         "seconds; task state will be set back to scheduled."
                     ),
                 )
             )
-            self._reschedule_stuck_task(ti, session=session)
+            self._reschedule_stuck_task(current_ti, session=session)
         else:
             self.log.info(
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
-                ti,
+                current_ti,
             )
+            executor.revoke_task(ti=current_ti)
             msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
-                    task_instance=ti.key,
+                    task_instance=current_ti.key,
                     extra=msg,
                 )
             )
 
             try:
-                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                task = dag.get_task(ti.task_id)
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=current_ti.dag_run, session=session)
+                task = dag.get_task(current_ti.task_id)
             except Exception:
                 self.log.warning(
                     "The DAG or task could not be found. If a failure callback exists, it will not be run.",
@@ -2630,16 +2639,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 if task.has_on_failure_callback:
-                    if inspect(ti).detached:
-                        ti = session.merge(ti)
+                    if inspect(current_ti).detached:
+                        current_ti = session.merge(current_ti)
                     # Safely extract bundle info with fallback for legacy tasks
                     # (dag_version may be None after Airflow 2 → 3 migration).
                     _stuck_bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                        current_ti.dag_version.bundle_name
+                        if current_ti.dag_version
+                        else current_ti.dag_model.bundle_name
                     )
                     # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
                     # leave the callback unpinned so it runs against the same code as the task.
                     _stuck_bundle_version = (
+                        current_ti.dag_version.bundle_version
+                        if current_ti.dag_version
+                        else current_ti.dag_run.bundle_version
                         ti.dag_version.bundle_version
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
@@ -2647,16 +2661,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
-                    if _ensure_ti_has_dag_version_id(ti, session, self.log):
+                    if _ensure_ti_has_dag_version_id(current_ti, session, self.log):
                         request = TaskCallbackRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
+                            filepath=current_ti.dag_model.relative_fileloc or "",
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
-                            ti=ti,
+                            ti=current_ti,
                             msg=msg,
                             context_from_server=TIRunContext(
-                                dag_run=ti.dag_run,
-                                max_tries=ti.max_tries,
+                                dag_run=current_ti.dag_run,
+                                max_tries=current_ti.max_tries,
                                 variables=[],
                                 connections=[],
                                 xcom_keys_to_clear=[],
@@ -2664,24 +2678,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         executor.send_callback(request)
             finally:
-                ti.set_state(TaskInstanceState.FAILED, session=session)
-                executor.fail(ti.key)
+                current_ti.set_state(TaskInstanceState.FAILED, session=session)
+                executor.fail(current_ti.key)
 
-    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
+    def _get_ti_still_stuck_in_queued(self, *, ti: TaskInstance, session: Session) -> TaskInstance | None:
         filter_for_tis = TI.filter_for_tis([ti])
         if filter_for_tis is None:
-            return
-        session.execute(
-            update(TI)
-            .where(filter_for_tis)
-            .values(
-                state=TaskInstanceState.SCHEDULED,
-                queued_dttm=None,
-                queued_by_job_id=None,
-                scheduled_dttm=timezone.utcnow(),
-            )
-            .execution_options(synchronize_session=False)
+            return None
+
+        queued_dttm_clause = (
+            TI.queued_dttm.is_(None) if ti.queued_dttm is None else TI.queued_dttm == ti.queued_dttm
         )
+        query = with_row_locks(
+            select(TI).where(
+                filter_for_tis,
+                TI.state == TaskInstanceState.QUEUED,
+                TI.queued_by_job_id == ti.queued_by_job_id,
+                queued_dttm_clause,
+            ),
+            of=TI,
+            session=session,
+            skip_locked=True,
+        )
+        return session.scalar(query.limit(1))
+
+    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.queued_dttm = None
+        ti.queued_by_job_id = None
+        ti.scheduled_dttm = timezone.utcnow()
+        session.flush()
 
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
