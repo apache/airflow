@@ -54,7 +54,7 @@ def load_examples():
 
 @pytest.fixture(scope="session")
 def dagbag():
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture(scope="session")

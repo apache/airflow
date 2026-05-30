@@ -47,7 +47,7 @@ TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
 
 @pytest.fixture
 def real_dag_bag():
-    return parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
+    return parse_and_sync_to_db(EXAMPLE_DAG_FILE)
 
 
 @pytest.fixture
