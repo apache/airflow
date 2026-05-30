@@ -110,9 +110,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         cannot be deserialized from XCom.
     :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
         instances the agent can use.
-    :param enable_tool_logging: When ``True`` (default), wraps each tool callable with a
-        logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
-        Set to ``False`` to disable.
+    :param enable_tool_logging: When ``True`` (default), wraps Airflow-resolved tool callables
+        with a logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
+        Backend-native tool objects may be passed through unchanged by the selected hook and might
+        not receive this wrapper. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the underlying agent
         constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional
@@ -122,8 +123,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         to fail the task when the agent exceeds the configured token, request,
         or tool budget. ``None`` (default) means no enforcement.
     :param durable: When ``True``, enables step-level caching of model
-        responses and tool results for durable execution.  On retry, cached
-        steps are replayed instead of re-executing.  Default ``False``.
+        responses and Airflow-resolved tool results for durable execution.  On retry, cached
+        steps are replayed instead of re-executing. Backend-native tool objects may be passed
+        through unchanged by the selected hook and might not receive tool-result caching.
+        Default ``False``.
         Requires ``[common.ai] durable_cache_path`` to be set.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):

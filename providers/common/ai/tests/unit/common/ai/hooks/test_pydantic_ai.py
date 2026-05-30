@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import json
 import sys
 from unittest.mock import MagicMock, patch
@@ -73,6 +74,17 @@ def _noop_override_context() -> MagicMock:
     ctx.__enter__ = MagicMock(return_value=None)
     ctx.__exit__ = MagicMock(return_value=False)
     return ctx
+
+
+class _PydanticAIHookWithTestModel(PydanticAIHook):
+    """Concrete hook that uses a real TestModel without patching Agent construction."""
+
+    def __init__(self, model: TestModel):
+        super().__init__(llm_conn_id="test_conn", model_id="test-model")
+        self._test_model = model
+
+    def get_model(self) -> TestModel:
+        return self._test_model
 
 
 class TestPydanticAIHookBaseContract:
@@ -258,6 +270,66 @@ class TestPydanticAIHookGetModel:
 
 
 class TestPydanticAIHookCreateAgent:
+    def test_create_agent_runs_callable_object_tool_with_real_schema(self):
+        """Callable objects should produce a real pydantic-ai function tool and execute successfully."""
+        model = TestModel(call_tools="all")
+        hook = _PydanticAIHookWithTestModel(model)
+        calls: list[str] = []
+
+        class CustomerLookup:
+            def __call__(self, customer_id: str) -> dict[str, str]:
+                calls.append(customer_id)
+                return {"customer_id": customer_id}
+
+        request = AgentRunRequest(
+            prompt="Look up a customer",
+            toolsets=[CustomerLookup()],
+            enable_tool_logging=True,
+        )
+
+        agent = hook.create_agent(request)
+        run_result = hook.run_agent(agent, request)
+
+        assert run_result.usage is not None
+        assert run_result.usage.tool_calls == 1
+        assert len(calls) == 1
+        assert isinstance(calls[0], str)
+
+        [tool_def] = model.last_model_request_parameters.function_tools
+        assert tool_def.name == "CustomerLookup"
+        assert set(tool_def.parameters_json_schema["properties"]) == {"customer_id"}
+        assert "environment" not in tool_def.parameters_json_schema["properties"]
+
+    def test_create_agent_runs_partial_tool_with_bound_argument_removed_from_schema(self):
+        """functools.partial should expose only remaining parameters and preserve bound args at runtime."""
+        model = TestModel(call_tools="all")
+        hook = _PydanticAIHookWithTestModel(model)
+        calls: list[tuple[str, str]] = []
+
+        def fetch_metric(environment: str, metric_name: str) -> float:
+            calls.append((environment, metric_name))
+            return 1.0
+
+        request = AgentRunRequest(
+            prompt="Fetch a metric",
+            toolsets=[functools.partial(fetch_metric, "prod")],
+            enable_tool_logging=True,
+        )
+
+        agent = hook.create_agent(request)
+        run_result = hook.run_agent(agent, request)
+
+        assert run_result.usage is not None
+        assert run_result.usage.tool_calls == 1
+        assert len(calls) == 1
+        assert calls[0][0] == "prod"
+        assert isinstance(calls[0][1], str)
+
+        [tool_def] = model.last_model_request_parameters.function_tools
+        assert tool_def.name == "fetch_metric"
+        assert set(tool_def.parameters_json_schema["properties"]) == {"metric_name"}
+        assert "environment" not in tool_def.parameters_json_schema["properties"]
+
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     def test_create_agent_defaults(self, mock_agent_cls, mock_infer_model):
@@ -379,7 +451,7 @@ class TestPydanticAIHookCreateAgent:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     def test_create_agent_passes_native_tools_through_directly(self, mock_agent_cls, mock_infer_model):
-        """Native pydantic-ai Tool objects bypass the BaseToolset pipeline."""
+        """Native pydantic-ai Tool objects bypass Airflow callable wrappers."""
         from pydantic_ai.tools import Tool
 
         mock_model = MagicMock(spec=Model)
@@ -398,7 +470,7 @@ class TestPydanticAIHookCreateAgent:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     def test_create_agent_mixes_base_toolset_and_native_tool(self, mock_agent_cls, mock_infer_model):
-        """BaseToolset items are resolved; native Tool objects are passed through unchanged."""
+        """BaseToolset items are expanded; native Tool objects are passed through unchanged."""
         from pydantic_ai.tools import Tool
 
         from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
@@ -406,12 +478,18 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        def my_fn() -> str:
-            return "result"
+        def first_fn() -> str:
+            return "first"
+
+        def second_fn() -> str:
+            return "second"
 
         class MyToolset(BaseToolset):
             def as_tools(self):
-                return [ToolSpec(name="my_fn", description="desc", parameters={}, fn=my_fn)]
+                return [
+                    ToolSpec(name="first_fn", description="desc", parameters={}, fn=first_fn),
+                    ToolSpec(name="second_fn", description="desc", parameters={}, fn=second_fn),
+                ]
 
         native_tool = MagicMock(spec=Tool)
 
@@ -423,8 +501,9 @@ class TestPydanticAIHookCreateAgent:
 
         call_kwargs = mock_agent_cls.call_args[1]
         tools = call_kwargs["tools"]
-        assert len(tools) == 2
-        assert any(t is native_tool for t in tools)
+        assert len(tools) == 3
+        assert tools[2] is native_tool
+        assert [tool.name for tool in tools[:2]] == ["first_fn", "second_fn"]
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
