@@ -217,6 +217,7 @@ class TestBeamRunPythonPipelineOperator:
         start_python_dataflow.
         """
         gcs_provide_file = gcs_hook.return_value.provide_file
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.return_value = None
         op = BeamRunPythonPipelineOperator(
             dataflow_config={"impersonation_chain": TEST_IMPERSONATION_ACCOUNT},
             runner="DataflowRunner",
@@ -261,8 +262,6 @@ class TestBeamRunPythonPipelineOperator:
             py_interpreter=PY_INTERPRETER,
             py_requirements=None,
             py_system_site_packages=False,
-            process_line_callback=mock.ANY,
-            is_dataflow_job_id_exist_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -280,6 +279,31 @@ class TestBeamRunPythonPipelineOperator:
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         op.execute({})
         assert op.dataflow_config.job_name == op.task_id
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner__resolves_job_id_by_name(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """After the Beam launcher returns, the job id is resolved via DataflowHook.fetch_job_id_by_name."""
+        resolved_id = "2026-05-28_07_15_42-1234567890"
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.return_value = resolved_id
+        op = BeamRunPythonPipelineOperator(
+            dataflow_config={"impersonation_chain": TEST_IMPERSONATION_ACCOUNT},
+            runner="DataflowRunner",
+            **self.default_op_kwargs,
+        )
+
+        op.execute({})
+
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.assert_called_once_with(
+            name=op.dataflow_job_name,
+            project_id=op.dataflow_config.project_id,
+            location=op.dataflow_config.location,
+        )
+        assert op.dataflow_job_id == resolved_id
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -451,6 +475,7 @@ class TestBeamRunJavaPipelineOperator:
         )
         gcs_provide_file = gcs_hook.return_value.provide_file
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.return_value = None
 
         op.execute({})
 
@@ -484,8 +509,6 @@ class TestBeamRunJavaPipelineOperator:
             variables=expected_options,
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            process_line_callback=mock.ANY,
-            is_dataflow_job_id_exist_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -662,7 +685,6 @@ class TestBeamRunGoPipelineOperator:
         start_go_pipeline_method.assert_called_once_with(
             variables=expected_options,
             go_file=expected_go_file,
-            process_line_callback=None,
             should_init_module=True,
         )
 
@@ -713,7 +735,6 @@ class TestBeamRunGoPipelineOperator:
             variables=expected_options,
             launcher_binary=expected_binary,
             worker_binary=expected_binary,
-            process_line_callback=None,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -734,7 +755,6 @@ class TestBeamRunGoPipelineOperator:
         start_go_pipeline_method.assert_called_once_with(
             variables={"labels": {"airflow-version": TEST_VERSION}},
             go_file=local_go_file_path,
-            process_line_callback=None,
             should_init_module=False,
         )
 
@@ -758,7 +778,6 @@ class TestBeamRunGoPipelineOperator:
             variables={"labels": {"airflow-version": TEST_VERSION}},
             launcher_binary=expected_binary,
             worker_binary=expected_binary,
-            process_line_callback=None,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -811,7 +830,6 @@ class TestBeamRunGoPipelineOperator:
         beam_hook_mock.return_value.start_go_pipeline.assert_called_once_with(
             variables=expected_options,
             go_file=expected_go_file,
-            process_line_callback=mock.ANY,
             should_init_module=True,
         )
         dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
@@ -897,7 +915,6 @@ class TestBeamRunGoPipelineOperator:
             variables=expected_options,
             launcher_binary=expected_launcher_binary,
             worker_binary=expected_worker_binary,
-            process_line_callback=mock.ANY,
         )
         mock_persist_link.assert_called_once_with(context={})
         wait_for_done_method.assert_called_once_with(
@@ -1049,6 +1066,7 @@ class TestBeamRunPythonPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
+        dataflow_mock.return_value.fetch_job_id_by_name.return_value = None
         op = BeamRunPythonPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
         if AIRFLOW_V_3_0_PLUS:
             with pytest.raises(TaskDeferred):

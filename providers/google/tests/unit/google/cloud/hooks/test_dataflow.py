@@ -342,6 +342,54 @@ class TestDataflowHook:
         )
         method_wait_for_done.assert_called_once_with()
 
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    def test_fetch_job_id_by_name_returns_unique_match(self, controller_cls, mock_conn):
+        controller_cls.return_value._get_current_jobs.return_value = [{"id": TEST_JOB_ID}]
+
+        result = self.dataflow_hook.fetch_job_id_by_name(
+            name=JOB_NAME,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+
+        controller_cls.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            name=JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=self.dataflow_hook.poll_sleep,
+            drain_pipeline=self.dataflow_hook.drain_pipeline,
+            num_retries=self.dataflow_hook.num_retries,
+            cancel_timeout=self.dataflow_hook.cancel_timeout,
+        )
+        assert result == TEST_JOB_ID
+
+    @pytest.mark.parametrize("jobs", [[], [{"id": "a"}, {"id": "b"}]])
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    def test_fetch_job_id_by_name_returns_none_when_match_count_not_one(
+        self, controller_cls, mock_conn, jobs
+    ):
+        controller_cls.return_value._get_current_jobs.return_value = jobs
+        assert (
+            self.dataflow_hook.fetch_job_id_by_name(
+                name=JOB_NAME, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+            )
+            is None
+        )
+
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    def test_fetch_job_id_by_name_swallows_lookup_errors(self, controller_cls, mock_conn):
+        controller_cls.return_value._get_current_jobs.side_effect = RuntimeError("boom")
+        assert (
+            self.dataflow_hook.fetch_job_id_by_name(
+                name=JOB_NAME, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+            )
+            is None
+        )
+
 
 @pytest.mark.db_test
 class TestDataflowTemplateHook:

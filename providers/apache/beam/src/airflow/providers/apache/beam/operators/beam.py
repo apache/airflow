@@ -24,7 +24,7 @@ import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
@@ -51,7 +51,6 @@ if GOOGLE_PROVIDER:
     from airflow.providers.google.cloud.hooks.dataflow import (
         DEFAULT_DATAFLOW_LOCATION,
         DataflowHook,
-        process_line_and_extract_dataflow_job_id_callback,
     )
     from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
     from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
@@ -80,6 +79,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
     dataflow_hook: DataflowHook | None
     dataflow_config: DataflowConfiguration
+    dataflow_job_id: str | None
     gcp_conn_id: str
     dataflow_support_impersonation: bool = True
 
@@ -94,16 +94,24 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         self,
         pipeline_options: dict,
         job_name_variable_key: str | None = None,
-    ) -> tuple[str, dict, Callable[[str], None], Callable[[], bool]]:
+    ) -> tuple[str, dict]:
         self.dataflow_hook = self.__set_dataflow_hook()
         self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
         dataflow_job_name = self.__get_dataflow_job_name()
         pipeline_options = self.__get_dataflow_pipeline_options(
             pipeline_options, dataflow_job_name, job_name_variable_key
         )
-        process_line_callback = self.__get_dataflow_process_callback()
-        is_dataflow_job_id_exist_callback = self.__is_dataflow_job_id_exist_callback()
-        return dataflow_job_name, pipeline_options, process_line_callback, is_dataflow_job_id_exist_callback
+        return dataflow_job_name, pipeline_options
+
+    def _resolve_dataflow_job_id(self, job_name: str | None) -> None:
+        """Resolve `dataflow_job_id` by looking up an active job whose name matches `job_name`."""
+        if self.dataflow_job_id or not self.dataflow_hook or not job_name:
+            return
+        self.dataflow_job_id = self.dataflow_hook.fetch_job_id_by_name(
+            name=job_name,
+            project_id=self.dataflow_config.project_id,
+            location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
+        )
 
     def __set_dataflow_hook(self) -> DataflowHook:
         self.dataflow_hook = DataflowHook(
@@ -143,20 +151,6 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
         return pipeline_options
-
-    def __get_dataflow_process_callback(self) -> Callable[[str], None]:
-        def set_current_dataflow_job_id(job_id):
-            self.dataflow_job_id = job_id
-
-        return process_line_and_extract_dataflow_job_id_callback(
-            on_new_job_id_callback=set_current_dataflow_job_id
-        )
-
-    def __is_dataflow_job_id_exist_callback(self) -> Callable[[], bool]:
-        def is_dataflow_job_id_exist() -> bool:
-            return True if self.dataflow_job_id else False
-
-        return is_dataflow_job_id_exist
 
 
 class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
@@ -240,20 +234,13 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self,
         format_pipeline_options: bool = False,
         job_name_variable_key: str | None = None,
-    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None, Callable[[], bool] | None]:
+    ) -> tuple[bool, str | None, dict]:
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
-        process_line_callback: Callable[[str], None] | None = None
-        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: str | None = None
         if is_dataflow:
-            (
-                dataflow_job_name,
-                pipeline_options,
-                process_line_callback,
-                is_dataflow_job_id_exist_callback,
-            ) = self._set_dataflow(
+            dataflow_job_name, pipeline_options = self._set_dataflow(
                 pipeline_options=pipeline_options,
                 job_name_variable_key=job_name_variable_key,
             )
@@ -262,24 +249,11 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         pipeline_options.update(self.pipeline_options)
 
         if format_pipeline_options:
-            snake_case_pipeline_options = {
+            pipeline_options = {
                 convert_camel_to_snake(key): pipeline_options[key] for key in pipeline_options
             }
-            return (
-                is_dataflow,
-                dataflow_job_name,
-                snake_case_pipeline_options,
-                process_line_callback,
-                is_dataflow_job_id_exist_callback,
-            )
 
-        return (
-            is_dataflow,
-            dataflow_job_name,
-            pipeline_options,
-            process_line_callback,
-            is_dataflow_job_id_exist_callback,
-        )
+        return is_dataflow, dataflow_job_name, pipeline_options
 
     @property
     def extra_links_params(self) -> dict[str, Any]:
@@ -395,8 +369,6 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             self.is_dataflow,
             self.dataflow_job_name,
             self.snake_case_pipeline_options,
-            self.process_line_callback,
-            self.is_dataflow_job_id_exist_callback,
         ) = self._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
@@ -455,9 +427,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             py_interpreter=self.py_interpreter,
             py_requirements=self.py_requirements,
             py_system_site_packages=self.py_system_site_packages,
-            process_line_callback=self.process_line_callback,
-            is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
         )
+        self._resolve_dataflow_job_id(self.dataflow_job_name)
 
         location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
         DataflowJobLink.persist(
@@ -583,8 +554,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
             self.is_dataflow,
             self.dataflow_job_name,
             self.pipeline_options,
-            self.process_line_callback,
-            self.is_dataflow_job_id_exist_callback,
         ) = self._init_pipeline_options()
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
@@ -651,9 +620,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 variables=self.pipeline_options,
                 jar=self.jar,
                 job_class=self.job_class,
-                process_line_callback=self.process_line_callback,
-                is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
             )
+            self._resolve_dataflow_job_id(self.dataflow_job_name)
             if self.dataflow_job_name and self.dataflow_config.location:
                 DataflowJobLink.persist(
                     context=context,
@@ -798,8 +766,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             is_dataflow,
             dataflow_job_name,
             snake_case_pipeline_options,
-            process_line_callback,
-            _,
         ) = self._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
 
         if not self.beam_hook:
@@ -821,8 +787,8 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                 go_artifact.start_pipeline(
                     beam_hook=self.beam_hook,
                     variables=snake_case_pipeline_options,
-                    process_line_callback=process_line_callback,
                 )
+                self._resolve_dataflow_job_id(dataflow_job_name)
                 DataflowJobLink.persist(context=context)
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
@@ -836,7 +802,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             go_artifact.start_pipeline(
                 beam_hook=self.beam_hook,
                 variables=snake_case_pipeline_options,
-                process_line_callback=process_line_callback,
             )
 
     def on_kill(self) -> None:
@@ -861,7 +826,6 @@ class _GoArtifact(ABC):
         self,
         beam_hook: BeamHook,
         variables: dict,
-        process_line_callback: Callable[[str], None] | None = None,
     ) -> None: ...
 
 
@@ -881,12 +845,10 @@ class _GoFile(_GoArtifact):
         self,
         beam_hook: BeamHook,
         variables: dict,
-        process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         beam_hook.start_go_pipeline(
             variables=variables,
             go_file=self.file,
-            process_line_callback=process_line_callback,
             should_init_module=self.should_init_go_module,
         )
 
@@ -931,13 +893,11 @@ class _GoBinary(_GoArtifact):
         self,
         beam_hook: BeamHook,
         variables: dict,
-        process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         beam_hook.start_go_pipeline_with_binary(
             variables=variables,
             launcher_binary=self.launcher,
             worker_binary=self.worker,
-            process_line_callback=process_line_callback,
         )
 
 
