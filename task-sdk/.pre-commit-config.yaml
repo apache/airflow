@@ -39,7 +39,9 @@ repos:
           ^src/airflow/sdk/definitions/asset/__init__\.py$|
           ^src/airflow/sdk/definitions/asset/decorators\.py$|
           ^src/airflow/sdk/definitions/taskgroup\.py$|
+          ^src/airflow/sdk/definitions/iterableoperator\.py$|
           ^src/airflow/sdk/definitions/mappedoperator\.py$|
+          ^src/airflow/sdk/definitions/partitionedoperator\.py$|
           ^src/airflow/sdk/definitions/deadline\.py$|
           ^src/airflow/sdk/definitions/dag\.py$|
           ^src/airflow/sdk/definitions/_internal/types\.py$|

@@ -196,7 +196,7 @@ concurrently using ``asyncio.gather`` while limiting concurrency with a semaphor
 
 .. note::
 
-   The upcoming *Dynamic Task Iteration* feature will simplify patterns like this.
+   The new :ref:`Dynamic Task Iteration <sdk-dynamic-task-mapping-vs-iteration>`. feature will simplify patterns like this.
    Instead of manually managing concurrency with constructs such as
    ``asyncio.gather`` and ``asyncio.Semaphore``, authors will be able to iterate
    over asynchronous results directly in downstream tasks while still benefiting
