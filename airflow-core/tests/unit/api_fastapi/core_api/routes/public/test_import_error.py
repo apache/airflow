@@ -532,6 +532,7 @@ class TestGetImportErrors:
     def import_error_with_multiple_dags(
         self,
         testing_dag_bundle,
+        *,
         session: Session = NEW_SESSION,
     ) -> tuple[ParseImportError, set[str]]:
         """One ParseImportError file mapping to three DagModel rows.
@@ -572,8 +573,6 @@ class TestGetImportErrors:
     ):
         """total_entries and pagination must count ParseImportError objects, not
         joined rows.
-
-        Regression test for https://github.com/apache/airflow/issues/67525.
 
         When one file contains three Dags, the join from ParseImportError to
         DagModel produces three rows for a single import-error record.  Before
