@@ -20,6 +20,7 @@ from __future__ import annotations
 import gc
 import multiprocessing
 import os
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -445,7 +446,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
@@ -457,6 +458,7 @@ class TestLocalExecutorCallbackSupport:
             id=self.CALLBACK_UUID,
             callback_path="test.module.my_callback",
             callback_kwargs={"arg1": "val1"},
+            dag_rel_path=Path("test.py"),
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
@@ -475,7 +477,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
