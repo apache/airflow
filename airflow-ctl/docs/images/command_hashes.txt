@@ -12,4 +12,5 @@ providers:34502fe09dc0b8b0a13e7e46efdffda6
 variables:f8fc76d3d398b2780f4e97f7cd816646
 version:31f4efdf8de0dbaaa4fac71ff7efecc3
 plugins:4864fd8f356704bd2b3cd1aec3567e35
+tasks:8ca7306be97d1c8788dbfbe4b0f8bf61
 auth login:9fe2bb1dd5c602beea2eefb33a2b20a8
