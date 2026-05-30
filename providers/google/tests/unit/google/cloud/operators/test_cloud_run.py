@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunCreateServiceOperator,
@@ -163,7 +163,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Some tasks failed execution" in str(exception.value)
@@ -176,7 +176,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Some tasks failed execution" in str(exception.value)
@@ -189,7 +189,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Not all tasks finished execution" in str(exception.value)
@@ -202,7 +202,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Not all tasks finished execution" in str(exception.value)
@@ -224,7 +224,7 @@ class TestCloudRunExecuteJobOperator:
 
         event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(TimeoutError) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
         assert "Operation timed out" in str(e.value)
@@ -245,7 +245,7 @@ class TestCloudRunExecuteJobOperator:
             "job_name": JOB_NAME,
         }
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(RuntimeError) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
         assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
@@ -256,8 +256,8 @@ class TestCloudRunExecuteJobOperator:
     def test_execute_deferrable_execute_complete_method_fail_on_cancellation(self, hook_mock):
         """
         Pin the contract that a FAIL event emitted by the trigger when a Cloud Run Job is
-        cancelled (no ``operation.error`` but ``cancelled_count > 0``) propagates as an
-        AirflowException — see #57791.
+        cancelled (no ``operation.error`` but ``cancelled_count > 0``) propagates as a
+        RuntimeError — see #57791.
         """
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
@@ -273,7 +273,7 @@ class TestCloudRunExecuteJobOperator:
             "job_name": JOB_NAME,
         }
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(RuntimeError) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
         assert "cancelled_count=2" in str(e.value)
@@ -342,7 +342,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -357,7 +357,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -372,7 +372,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
@@ -476,7 +476,7 @@ class TestCloudRunListJobsOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
         limit = -1
-        with pytest.raises(expected_exception=AirflowException):
+        with pytest.raises(expected_exception=RuntimeError):
             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
 
 

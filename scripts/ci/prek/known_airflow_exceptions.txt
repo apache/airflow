@@ -252,7 +252,6 @@ providers/google/src/airflow/providers/google/cloud/operators/cloud_batch.py::4
 providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::4
 providers/google/src/airflow/providers/google/cloud/operators/cloud_composer.py::6
 providers/google/src/airflow/providers/google/cloud/operators/cloud_logging_sink.py::2
-providers/google/src/airflow/providers/google/cloud/operators/cloud_run.py::9
 providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py::15
 providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::16
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::19
