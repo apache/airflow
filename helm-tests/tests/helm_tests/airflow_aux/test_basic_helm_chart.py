@@ -366,6 +366,7 @@ class TestBaseChartTest:
             ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
             ["3.0.0", "CeleryExecutor"],
             ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor,harvest_exec:KubernetesExecutor"],
             ["default", "CeleryExecutor"],
             ["default", "CeleryExecutor,KubernetesExecutor"],
         ],
@@ -507,6 +508,8 @@ class TestBaseChartTest:
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
+                elif executor == "CeleryExecutor,harvest_exec:KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-harvest_exec-KubernetesExecutor"
 
             if (
                 executor == "CeleryExecutor"
