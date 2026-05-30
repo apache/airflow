@@ -226,6 +226,16 @@ connection-types:
             - string
             - 'null'
           default: '6066'
+      yarn_resourcemanager_webapp_address:
+        label: YARN ResourceManager webapp address
+        description: >
+          YARN ResourceManager webapp URL (e.g. `http://rm.example.com:8088`),
+          required when `yarn_track_via_rm_api=True` on `SparkSubmitOperator` /
+          `SparkSubmitHook`. Mirrors Hadoop's `yarn.resourcemanager.webapp.address`.
+        schema:
+          type:
+            - string
+            - 'null'
 
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
