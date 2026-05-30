@@ -28,11 +28,12 @@ import attrs
 import pytest
 from uuid6 import uuid7
 
-from airflow.sdk.coordinators.socket.coordinator import (
-    SocketCoordinator,
+from airflow.sdk.api.client import Client, TaskInstanceOperations
+from airflow.sdk.coordinators._subprocess import (
+    SubprocessCoordinator,
     _accept_connections,
+    _PopenActivitySubprocess,
     _ResourceTracker,
-    _SocketActivitySubprocess,
     _start_server,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -322,8 +323,8 @@ class TestResourceTracker:
 
 
 @attrs.define(kw_only=True)
-class _StubSocketCoordinator(SocketCoordinator):
-    """Minimal SocketCoordinator subclass used to exercise the base machinery."""
+class _StubSubprocessCoordinator(SubprocessCoordinator):
+    """Minimal SubprocessCoordinator subclass used to exercise the base machinery."""
 
     command: list[str]
     schema_version: str | None = None
@@ -334,29 +335,30 @@ class _StubSocketCoordinator(SocketCoordinator):
 
 @pytest.fixture
 def mock_client(make_ti_context):
-    client = MagicMock()
+    client = MagicMock(spec=Client)
+    client.task_instances = MagicMock(spec=TaskInstanceOperations)
     client.task_instances.start.return_value = make_ti_context()
     return client
 
 
-class TestSocketCoordinatorAttributes:
+class TestSubprocessCoordinatorAttributes:
     def test_default_startup_timeout(self):
-        coordinator = _StubSocketCoordinator(command=["/bin/true"])
+        coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
         assert coordinator.task_startup_timeout == 10.0
 
     def test_custom_startup_timeout(self):
-        coordinator = _StubSocketCoordinator(command=["/bin/true"], task_startup_timeout=2.5)
+        coordinator = _StubSubprocessCoordinator(command=["/bin/true"], task_startup_timeout=2.5)
         assert coordinator.task_startup_timeout == 2.5
 
     def test_build_execute_task_command_default_raises(self):
-        class _Plain(SocketCoordinator):
+        class _Plain(SubprocessCoordinator):
             pass
 
         with pytest.raises(NotImplementedError):
             _Plain()._build_execute_task_command(what=_make_ti())
 
 
-class TestSocketCoordinatorExecuteTask:
+class TestSubprocessCoordinatorExecuteTask:
     def _captured_popen_cmd(
         self,
         mock_client,
@@ -365,7 +367,7 @@ class TestSocketCoordinatorExecuteTask:
         schema_version: str | None = None,
     ) -> tuple[list[str], str | None]:
         ti = _make_ti()
-        coordinator = _StubSocketCoordinator(command=command, schema_version=schema_version)
+        coordinator = _StubSubprocessCoordinator(command=command, schema_version=schema_version)
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 12345
@@ -378,7 +380,7 @@ class TestSocketCoordinatorExecuteTask:
             popen_calls.append(cmd)
             return mock_proc
 
-        original_start = _SocketActivitySubprocess.__dict__["start"].__func__
+        original_start = _PopenActivitySubprocess.__dict__["start"].__func__
 
         def spy_start(cls, **kwargs):
             cls_kwargs.update(kwargs)
@@ -386,11 +388,11 @@ class TestSocketCoordinatorExecuteTask:
 
         with (
             patch(
-                "airflow.sdk.coordinators.socket.coordinator.subprocess.Popen",
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen",
                 side_effect=capture_popen,
             ),
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -400,7 +402,7 @@ class TestSocketCoordinatorExecuteTask:
             patch.object(ActivitySubprocess, "_on_child_started"),
             patch.object(ActivitySubprocess, "wait", return_value=0),
             patch.object(
-                _SocketActivitySubprocess,
+                _PopenActivitySubprocess,
                 "start",
                 classmethod(spy_start),
             ),
@@ -451,7 +453,7 @@ class TestSocketCoordinatorExecuteTask:
 
     def test_returns_execution_result(self, mock_client):
         ti = _make_ti()
-        coordinator = _StubSocketCoordinator(command=["/bin/true"])
+        coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 99999
@@ -461,7 +463,7 @@ class TestSocketCoordinatorExecuteTask:
         with (
             patch("subprocess.Popen", return_value=mock_proc),
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -483,7 +485,7 @@ class TestSocketCoordinatorExecuteTask:
         assert result.exit_code == 0
 
 
-class TestSocketActivitySubprocessStart:
+class TestPopenActivitySubprocessStart:
     def _start_with_mocks(self, mock_client, *, command: list[str], schema_version=None):
         ti = _make_ti()
         mock_proc = MagicMock(spec=subprocess.Popen)
@@ -493,11 +495,11 @@ class TestSocketActivitySubprocessStart:
 
         with (
             patch(
-                "airflow.sdk.coordinators.socket.coordinator.subprocess.Popen",
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen",
                 return_value=mock_proc,
             ) as popen_mock,
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -506,7 +508,7 @@ class TestSocketActivitySubprocessStart:
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
         ):
-            proc = _SocketActivitySubprocess.start(
+            proc = _PopenActivitySubprocess.start(
                 what=ti,
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),
@@ -528,9 +530,9 @@ class TestSocketActivitySubprocessStart:
     def test_on_child_started_called(self, mock_client):
         ti = _make_ti()
         with (
-            patch("airflow.sdk.coordinators.socket.coordinator.subprocess.Popen") as popen_mock,
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
                     {soc: b"" for soc in drains.values()},
@@ -540,7 +542,7 @@ class TestSocketActivitySubprocessStart:
             patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
         ):
             popen_mock.return_value.pid = 12345
-            _SocketActivitySubprocess.start(
+            _PopenActivitySubprocess.start(
                 what=ti,
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),
@@ -557,9 +559,9 @@ class TestSocketActivitySubprocessStart:
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (
-            patch("airflow.sdk.coordinators.socket.coordinator.subprocess.Popen") as popen_mock,
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
                     {soc: b"" for soc in drains.values()},
@@ -569,7 +571,7 @@ class TestSocketActivitySubprocessStart:
             patch.object(ActivitySubprocess, "_on_child_started"),
         ):
             popen_mock.return_value.pid = 12345
-            _SocketActivitySubprocess.start(
+            _PopenActivitySubprocess.start(
                 what=_make_ti(),
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),

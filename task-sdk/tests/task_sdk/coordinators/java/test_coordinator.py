@@ -225,11 +225,11 @@ class TestJavaCoordinatorExecuteTask:
 
         with (
             patch(
-                "airflow.sdk.coordinators.socket.coordinator.subprocess.Popen",
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen",
                 side_effect=capture_popen,
             ),
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
@@ -310,7 +310,7 @@ class TestJavaCoordinatorExecuteTask:
         with (
             patch("subprocess.Popen", return_value=mock_proc),
             patch(
-                "airflow.sdk.coordinators.socket.coordinator._accept_connections",
+                "airflow.sdk.coordinators._subprocess._accept_connections",
                 side_effect=lambda servers, drains, proc, **kw: (
                     {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
                     {soc: b"" for soc in drains.values()},
