@@ -75,3 +75,32 @@ config:
         example: "informatica_edc_default"
         default: "informatica_edc_default"
         version_added: ~
+      auto_lineage_enabled:
+        description: |
+          Enable automatic SQL lineage detection for operators with a ``sql`` attribute.
+          When set to ``true``, the provider parses each task's SQL at pre-execution time,
+          resolves the referenced tables against the Informatica catalog, and creates lineage
+          links on task success.  Set to ``false`` to rely solely on manually declared inlets
+          and outlets.
+        type: boolean
+        example: ~
+        default: "True"
+        version_added: ~
+      disabled_for_operators:
+        description: |
+          Exclude specific operator classes from Informatica lineage tracking by providing
+          a semicolon-separated list of fully-qualified class names.  Operators listed here
+          will have neither manual nor automatic lineage processed.
+        type: string
+        example: >-
+          airflow.providers.standard.operators.bash.BashOperator;
+          airflow.providers.standard.operators.python.PythonOperator
+        default: ""
+        version_added: ~
+      request_timeout:
+        description: |
+          Timeout in seconds for HTTP requests made to the Informatica EDC REST API.
+        type: integer
+        example: "30"
+        default: "30"
+        version_added: ~
