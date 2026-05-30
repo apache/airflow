@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -100,3 +102,45 @@ def example_task_with_toolsets():
 # [END howto_task_with_toolsets]
 
 example_task_with_toolsets()
+
+
+# [START howto_hook_pydantic_ai_spec_file]
+@dag(schedule=None, tags=["example"])
+def example_pydantic_ai_spec_file():
+    """Load agent settings from a YAML spec file instead of inline code.
+
+    The spec file (``example_agent_spec.yaml``) declares model, instructions,
+    model_settings, retries, etc.  The hook's connection still supplies
+    credentials; the model in the file can be overridden by ``model_id`` on the
+    hook.
+    """
+
+    @task
+    def summarize_from_spec(text: str) -> str:
+        spec_path = Path(__file__).parent / "example_agent_spec.yaml"
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
+        # Model, instructions, temperature, and retries all come from the YAML file.
+        agent = hook.create_agent(spec_file=spec_path)
+        result = agent.run_sync(text)
+        return result.output
+
+    @task
+    def summarize_with_instruction_override(text: str) -> str:
+        """Override instructions at call time; everything else stays from the file."""
+        spec_path = Path(__file__).parent / "example_agent_spec.yaml"
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
+        agent = hook.create_agent(
+            spec_file=spec_path,
+            instructions="Summarize in exactly one sentence.",
+        )
+        result = agent.run_sync(text)
+        return result.output
+
+    body = "Apache Airflow is an open-source platform for authoring, scheduling..."
+    summarize_from_spec(body)
+    summarize_with_instruction_override(body)
+
+
+# [END howto_hook_pydantic_ai_spec_file]
+
+example_pydantic_ai_spec_file()

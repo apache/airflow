@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
@@ -180,8 +181,32 @@ class PydanticAIHook(BaseHook):
     @overload
     def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
 
+    @overload
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[None, OutputT]: ...
+
+    @overload
+    def create_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[None, str]: ...
+
+    def create_agent(
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
     ) -> Agent[None, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
@@ -193,9 +218,24 @@ class PydanticAIHook(BaseHook):
 
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
+            Required when *spec_file* is not given.  When *spec_file* is given, this
+            value overrides the instructions in the file; omit to use the file value.
+        :param spec_file: Path to a YAML or JSON ``AgentSpec`` file.  When supplied,
+            delegates to ``Agent.from_file(spec_file, model=..., ...)``.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
-        agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        if spec_file is not None:
+            agent = Agent.from_file(
+                spec_file,
+                model=self.get_conn(),
+                output_type=output_type,
+                instructions=instructions,
+                **agent_kwargs,
+            )
+        else:
+            if instructions is None:
+                raise ValueError("instructions is required when spec_file is not provided.")
+            agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
         if "instrument" not in agent_kwargs:
             # Set the public ``agent.instrument`` surface rather than the
             # ``Agent(instrument=...)`` constructor kwarg, which is deprecated in

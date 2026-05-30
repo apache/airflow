@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -241,6 +242,117 @@ class TestPydanticAIHookCreateAgent:
             output_type=dict,
             instructions="Be helpful.",
             retries=3,
+        )
+
+    def test_create_agent_without_instructions_or_spec_file_raises(self):
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        with pytest.raises(ValueError, match="instructions is required"):
+            hook.create_agent()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_calls_from_file(self, mock_agent_cls, mock_infer_model):
+        """spec_file routes to Agent.from_file with the resolved model."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(spec_file="/path/to/agent.yaml")
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+            instructions=None,
+        )
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_path_object(self, mock_agent_cls, mock_infer_model):
+        """spec_file accepts a pathlib.Path object."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        spec_path = Path("/path/to/agent.yaml")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(spec_file=spec_path)
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            spec_path,
+            model=mock_model,
+            output_type=str,
+            instructions=None,
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_instructions_overrides_file(self, mock_agent_cls, mock_infer_model):
+        """Explicit instructions override what is in the spec file."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                spec_file="/path/to/agent.yaml",
+                instructions="Override instructions.",
+            )
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+            instructions="Override instructions.",
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_custom_output_type(self, mock_agent_cls, mock_infer_model):
+        """output_type is forwarded to Agent.from_file."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(output_type=dict, spec_file="/path/to/agent.yaml")
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=dict,
+            instructions=None,
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_forwards_agent_kwargs(self, mock_agent_cls, mock_infer_model):
+        """Extra agent_kwargs are forwarded to Agent.from_file."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                spec_file="/path/to/agent.yaml",
+                retries=5,
+                end_strategy="early",
+            )
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+            instructions=None,
+            retries=5,
+            end_strategy="early",
         )
 
 
