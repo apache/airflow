@@ -35,6 +35,13 @@ import { getDuration, renderDuration } from "src/utils";
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
 
+  const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+  const taskId = taskInstance.task_id;
+  const mapIndex = taskInstance.map_index;
+
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
     ...(taskInstance.map_index > -1
@@ -60,13 +67,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       value: <DagVersion version={taskInstance.dag_version} />,
     },
   ];
-
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
 
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,

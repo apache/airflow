@@ -16,14 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { queryOptions } from "@tanstack/react-query";
-import { createBrowserRouter } from "react-router-dom";
 
-import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
+/* eslint-disable react-refresh/only-export-components */
+import { queryOptions } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
+import { createBrowserRouter, Outlet, useParams } from "react-router-dom";
+
+import {
+  UseConfigServiceGetConfigsKeyFn,
+  useTaskInstanceServiceGetMappedTaskInstance,
+} from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { NavTabs } from "src/layouts/Details/NavTabs";
 import { Asset } from "src/pages/Asset";
+import { AssetEvents } from "src/pages/Asset/AssetEvents";
+import { AssetState } from "src/pages/Asset/AssetState";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
@@ -51,6 +61,7 @@ import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
+import { TaskStateTab } from "src/pages/Storage";
 import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
@@ -61,8 +72,49 @@ import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { client } from "./queryClient";
+
+/** Sub-nav tabs shared by the task-state and xcom routes. */
+const StorageLayout = () => {
+  const { t: translate } = useTranslation("dag");
+
+  return (
+    <>
+      <NavTabs
+        tabs={[
+          { icon: <MdOutlineStorage />, label: translate("tabs.taskState"), value: "task-state" },
+          { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+        ]}
+      />
+      <Outlet />
+    </>
+  );
+};
+
+/** Thin route wrapper: reads URL params, resolves refetchInterval, renders TaskStateTab. */
+const TaskState = () => {
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const parsedMapIndex = parseInt(mapIndex, 10);
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    { dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
+    undefined,
+    { enabled: !isNaN(parsedMapIndex) },
+  );
+
+  return (
+    <TaskStateTab
+      dagId={dagId}
+      mapIndex={isNaN(parsedMapIndex) ? -1 : parsedMapIndex}
+      refetchInterval={isStatePending(taskInstance?.state) ? refetchInterval : false}
+      runId={runId}
+      taskId={taskId}
+    />
+  );
+};
 
 const pluginRoute = {
   element: <ExternalView />,
@@ -72,7 +124,13 @@ const pluginRoute = {
 export const taskInstanceRoutes = [
   { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
-  { element: <XCom />, path: "xcom" },
+  {
+    children: [
+      { element: <TaskState />, path: "task-state" },
+      { element: <XCom />, path: "xcom" },
+    ],
+    element: <StorageLayout />,
+  },
   { element: <Code />, path: "code" },
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
@@ -122,6 +180,10 @@ export const routerConfig = [
         path: "configs",
       },
       {
+        children: [
+          { element: <AssetEvents />, index: true },
+          { element: <AssetState />, path: "asset-state" },
+        ],
         element: <Asset />,
         path: "assets/:assetId",
       },
