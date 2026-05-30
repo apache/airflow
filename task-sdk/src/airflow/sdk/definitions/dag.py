@@ -115,9 +115,7 @@ _DAG_HASH_ATTRS = frozenset(
         "fileloc",
         "template_searchpath",
         "last_loaded",
-        "schedule",
-        # TODO: Task-SDK: we should be hashing on timetable now, not schedule!
-        # "timetable",
+        "timetable",
     }
 )
 
