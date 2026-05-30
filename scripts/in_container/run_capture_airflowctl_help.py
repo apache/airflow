@@ -45,6 +45,7 @@ COMMANDS = [
     "jobs",
     "pools",
     "providers",
+    "tasks",
     "variables",
     "version",
     "plugins",

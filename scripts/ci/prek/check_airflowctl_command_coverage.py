@@ -39,7 +39,13 @@ CTL_TESTS_FILE = (
 )
 
 # Operations excluded from CLI (see cli_config.py)
-EXCLUDED_OPERATION_CLASSES = {"BaseOperations", "LoginOperations", "VersionOperations"}
+EXCLUDED_OPERATION_CLASSES = {
+    "BaseOperations",
+    "LoginOperations",
+    "TaskInstancesOperations",
+    "TasksOperations",
+    "VersionOperations",
+}
 EXCLUDED_METHODS = {
     "__init__",
     "__init_subclass__",
