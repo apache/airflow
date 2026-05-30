@@ -45,6 +45,15 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
+# Maps a Docker build platform string (as declared in ``provider.yaml`` under
+# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
+# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
+# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
+# its native dependency cannot be built.
+EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
+    "linux/arm64": ["aarch64", "arm64"],
+}
+
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:

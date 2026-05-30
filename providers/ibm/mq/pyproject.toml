@@ -70,7 +70,9 @@ dependencies = [
 [project.optional-dependencies]
 "ibmmq" = [
     # Required at Runtime
-    "ibmmq>=2.0.6",
+    # IBM MQ ships its native C client only for Linux x86_64 / Windows x64, so the `ibmmq`
+    # bindings cannot be built on ARM. Skip it there (mirrors provider.yaml excluded-platforms).
+    "ibmmq>=2.0.6; platform_machine != \"aarch64\" and platform_machine != \"arm64\"",
 ]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
