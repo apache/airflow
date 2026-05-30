@@ -104,6 +104,48 @@ the response body.
     :start-after: [START howto_operator_http_task_get_op_response_filter]
     :end-before: [END howto_operator_http_task_get_op_response_filter]
 
+You can combine ``response_filter`` with a branch task to route downstream work based on the API response.
+For example, a health-check endpoint can determine whether to proceed with processing or send a notification:
+
+.. code-block:: python
+
+    import datetime
+    from airflow.providers.http.operators.http import HttpOperator
+    from airflow.sdk import DAG, task
+
+    with DAG(
+        dag_id="example_http_branch",
+        schedule=None,
+        start_date=datetime.datetime(2024, 1, 1),
+        catchup=False,
+    ):
+        check_health = HttpOperator(
+            task_id="check_health",
+            http_conn_id="http_default",
+            endpoint="get",
+            method="GET",
+            response_filter=lambda response: response.json(),
+        )
+
+        @task.branch
+        def decide_next(payload: dict | None) -> str:
+            if payload is None:
+                return "notify_failure"
+            status = payload.get("args", {}).get("status")
+            if status == "ready":
+                return "process_data"
+            return "notify_failure"
+
+        @task
+        def process_data():
+            print("Processing...")
+
+        @task
+        def notify_failure():
+            print("Service not ready, skipping processing.")
+
+        decide_next(check_health.output) >> [process_data(), notify_failure()]
+
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 
