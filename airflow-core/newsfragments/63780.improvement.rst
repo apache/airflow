@@ -1,0 +1,1 @@
+Enforce keyword-only session parameter in ``default_action_log`` and fix legacy logical date usage in tests.

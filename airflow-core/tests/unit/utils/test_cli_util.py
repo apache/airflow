@@ -223,7 +223,7 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", logical_date=exec_date)
         with (
             mock.patch.object(sys, "argv", args),
             mock.patch("airflow.utils.session.create_session") as mock_create_session,
@@ -243,6 +243,13 @@ class TestCliUtil:
         # Replace single quotes to double quotes to avoid json decode error
         command = ast.literal_eval(command)
         assert command == expected_command
+
+    def test_default_action_log_positional_session_fails(self):
+        with pytest.raises(TypeError) as exc:
+            cli_action_loggers.default_action_log(
+                "sub", "user", "task", "dag", timezone.utcnow(), "host", "cmd", None
+            )
+        assert "takes 7 positional arguments but 8 were given" in str(exc.value)
 
 
 @contextmanager
