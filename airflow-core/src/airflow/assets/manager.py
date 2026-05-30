@@ -47,10 +47,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
-    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -509,6 +510,7 @@ class AssetManager(LoggingMixin):
             )
             return
 
+        global_cap = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
         for target_dag in partition_dags:
             if TYPE_CHECKING:
                 assert partition_key is not None
@@ -526,9 +528,8 @@ class AssetManager(LoggingMixin):
 
             try:
                 # We'll need to catch every possible exception happen when mapping partition_key.
-                target_key = timetable.get_partition_mapper(
-                    name=asset_model.name, uri=asset_model.uri
-                ).to_downstream(partition_key)
+                mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
+                target_key = mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
                     "Could not map partition key for asset in target Dag. "
@@ -555,19 +556,49 @@ class AssetManager(LoggingMixin):
                 continue
 
             if is_container(target_key):
-                # TODO (AIP-76): This never happens now. When we implement
-                # one-to-many partition key mapping, this should also add a
-                # config to cap the iterable size so the scheduler does not
-                # blow up with an incorrectly implemented PartitionMapper.
-                target_keys: Iterable[str] = target_key
+                target_keys: list[str] = list(target_key)
             else:
                 target_keys = [target_key]
             del target_key
+
+            mapper_cap = getattr(mapper, "max_downstream_keys", None)
+            if mapper_cap is not None:
+                max_downstream_keys = mapper_cap
+                cap_source = f"max_downstream_keys={mapper_cap}"
+            else:
+                max_downstream_keys = global_cap
+                cap_source = f"[scheduler] partition_mapper_max_downstream_keys={global_cap}"
+
+            if len(target_keys) > max_downstream_keys:
+                log.error(
+                    "Partition mapper produced more downstream keys than allowed; skipping queue.",
+                    asset_id=asset_id,
+                    source_partition_key=partition_key,
+                    target_dag=target_dag.dag_id,
+                    produced_keys=len(target_keys),
+                    max_downstream_keys=max_downstream_keys,
+                )
+                session.add(
+                    Log(
+                        event="partition fan-out exceeded",
+                        extra=(
+                            f"Partition mapper for asset (name='{asset_model.name}', "
+                            f"uri='{asset_model.uri}') in target Dag '{target_dag.dag_id}' "
+                            f"produced {len(target_keys)} downstream keys from "
+                            f"partition_key='{partition_key}', exceeding "
+                            f"{cap_source}. "
+                            f"No Dag runs were queued for this event."
+                        ),
+                        task_instance=task_instance,
+                    )
+                )
+                continue
 
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
                     target_dag=target_dag,
+                    dag_version_id=serdag.dag_version_id,
                     asset_id=asset_id,
                     session=session,
                 )
@@ -586,7 +617,8 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         target_key: str,
-        target_dag: SerializedDagModel,
+        target_dag: DagModel,
+        dag_version_id: UUID,
         asset_id: int,
         session: Session,
     ) -> AssetPartitionDagRun:
@@ -598,6 +630,10 @@ class AssetManager(LoggingMixin):
         This leads to the unintended outcome of having two APDRs created instead of one.
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
+
+        ``dag_version_id`` is the caller's latest serialized Dag version; the
+        scheduler discards APDRs whose stamp no longer matches the current
+        version (mapper / window may have changed).
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -622,6 +658,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
+                dag_version_id=dag_version_id,
             )
             session.add(apdr)
             session.flush()

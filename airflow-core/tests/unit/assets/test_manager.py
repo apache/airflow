@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import itertools
 import logging
 from collections import Counter
 from typing import TYPE_CHECKING
@@ -26,6 +27,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
+from uuid6 import uuid7
 
 from airflow import settings
 from airflow.assets.manager import AssetManager
@@ -38,10 +40,16 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
+from airflow.models.log import Log
+from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+from airflow.partition_mappers.window import WeekWindow
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
 from unit.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -63,6 +71,19 @@ def clear_assets():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
+
+
+def create_mock_dag():
+    for dag_id in itertools.count(1):
+        mock_dag = mock.Mock(spec=DAG)
+        mock_dag.dag_id = dag_id
+        yield mock_dag
+
+
+def _clear_partition_db() -> None:
+    clear_db_apdr()
+    clear_db_pakl()
+    clear_db_logs()
 
 
 class TestAssetManager:
@@ -221,6 +242,8 @@ class TestAssetManager:
         session.flush()
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
 
+        dag_version_id = uuid7()
+
         def _get_or_create_apdr():
             if TYPE_CHECKING:
                 assert settings.Session
@@ -232,6 +255,7 @@ class TestAssetManager:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
                     target_dag=testing_dag,
+                    dag_version_id=dag_version_id,
                     asset_id=asm.id,
                     session=_session,
                 ).id
@@ -310,6 +334,386 @@ class TestAssetManager:
         session.flush()
 
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "2"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fan_out_exceeded_skips_queue_and_logs(self, session, dag_maker, mock_task_instance):
+        """When the mapper produces more downstream keys than the cap, no APDR is queued, the scheduler logger fires, and a Log row is written."""
+        _clear_partition_db()
+
+        asset_def = Asset(uri="s3://bucket/weekly", name="weekly")
+        # WeekWindow fans a weekly upstream out into 7 daily downstream keys —
+        # well above the cap of 2 set via @conf_vars, so the guard must trip.
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        with dag_maker(
+            dag_id="fan_out_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        with mock.patch("airflow.assets.manager.log") as mock_log:
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2024-06-03T00:00:00",
+            )
+            session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+        log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
+        assert len(log_extras) == 1
+        assert "fan_out_dag" in log_extras[0]
+        assert "partition_mapper_max_downstream_keys=2" in log_extras[0]
+        # The scheduler-log `log.error` line is a separate observable from the
+        # DB Log row; pin its keyword fields so a rename / level flip is caught.
+        mock_log.error.assert_called_once()
+        error_call = mock_log.error.call_args
+        assert error_call.kwargs["target_dag"] == "fan_out_dag"
+        assert error_call.kwargs["source_partition_key"] == "2024-06-03T00:00:00"
+        assert error_call.kwargs["produced_keys"] == 7
+        assert error_call.kwargs["max_downstream_keys"] == 2
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "7"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fan_out_at_cap_is_allowed(self, session, dag_maker, mock_task_instance):
+        """``len == cap`` is allowed: a WeekWindow fan-out of exactly 7 with cap=7 queues all 7 rows.
+
+        Pairs with ``test_partition_fan_out_one_over_cap_trips`` to pin the
+        boundary at ``>`` (not ``>=``) — without this pair, a regression that
+        flipped the comparison would still satisfy the existing
+        ``cap=2``/``fan_out=7`` test.
+        """
+        _clear_partition_db()
+
+        asset_def = Asset(uri="s3://bucket/weekly_at_cap", name="weekly_at_cap")
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        with dag_maker(
+            dag_id="fan_out_at_cap_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        with mock.patch("airflow.assets.manager.log") as mock_log:
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2024-06-03T00:00:00",
+            )
+            session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 7
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Log).where(Log.event == "partition fan-out exceeded")
+            )
+            == 0
+        )
+        mock_log.error.assert_not_called()
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "6"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fan_out_one_over_cap_trips(self, session, dag_maker, mock_task_instance):
+        """``len == cap + 1`` trips: a WeekWindow fan-out of 7 with cap=6 queues nothing and logs."""
+        _clear_partition_db()
+
+        asset_def = Asset(uri="s3://bucket/weekly_over_cap", name="weekly_over_cap")
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        with dag_maker(
+            dag_id="fan_out_over_cap_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        with mock.patch("airflow.assets.manager.log") as mock_log:
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2024-06-03T00:00:00",
+            )
+            session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+        log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
+        assert len(log_extras) == 1
+        assert "fan_out_over_cap_dag" in log_extras[0]
+        assert "partition_mapper_max_downstream_keys=6" in log_extras[0]
+        mock_log.error.assert_called_once()
+        error_call = mock_log.error.call_args
+        assert error_call.kwargs["target_dag"] == "fan_out_over_cap_dag"
+        assert error_call.kwargs["source_partition_key"] == "2024-06-03T00:00:00"
+        assert error_call.kwargs["produced_keys"] == 7
+        assert error_call.kwargs["max_downstream_keys"] == 6
+
+    # --- per-mapper max_downstream_keys override tests ---
+    # "override unset → falls back to global" is already covered by the three
+    # tests above (test_partition_fanout_exceeded_skips_queue_and_logs,
+    # test_partition_fanout_at_cap_is_allowed, test_partition_fanout_one_over_cap_trips).
+    # No fifth test is needed for that case.
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "100"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fanout_per_mapper_override_stricter_than_global_trips(
+        self, session, dag_maker, mock_task_instance
+    ):
+        """Per-mapper max_downstream_keys=3 trips even when the global cap is 100.
+
+        Proves the per-mapper override takes precedence over a more permissive global.
+        The Log.extra must mention 'max_downstream_keys=3' and must NOT mention
+        'partition_mapper_max_downstream_keys' (i.e. the global cap name is absent from the message).
+        """
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+        from airflow.partition_mappers.window import WeekWindow
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+
+        from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_logs()
+
+        asset_def = Asset(uri="s3://bucket/per_mapper_strict", name="per_mapper_strict")
+        # WeekWindow produces 7 daily keys; per-mapper cap of 3 must trip first.
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=3)
+        with dag_maker(
+            dag_id="per_mapper_strict_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_def,
+            session=session,
+            partition_key="2024-06-03T00:00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+        log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
+        assert len(log_extras) == 1
+        assert "max_downstream_keys=3" in log_extras[0]
+        assert "partition_mapper_max_downstream_keys" not in log_extras[0]
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "3"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fanout_per_mapper_override_looser_than_global_permits(
+        self, session, dag_maker, mock_task_instance
+    ):
+        """Per-mapper max_downstream_keys=10 permits 7 keys even when the global cap is 3.
+
+        Proves the per-mapper override can relax, not just tighten, the cap.
+        """
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+        from airflow.partition_mappers.window import WeekWindow
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+
+        from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_logs()
+
+        asset_def = Asset(uri="s3://bucket/per_mapper_loose", name="per_mapper_loose")
+        # Global cap of 3 would block the 7-key WeekWindow fanout, but per-mapper
+        # max_downstream_keys=10 overrides it and all 7 rows must be queued.
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=10
+        )
+        with dag_maker(
+            dag_id="per_mapper_loose_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_def,
+            session=session,
+            partition_key="2024-06-03T00:00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 7
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Log).where(Log.event == "partition fan-out exceeded")
+            )
+            == 0
+        )
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fanout_per_mapper_at_cap_is_allowed(self, session, dag_maker, mock_task_instance):
+        """Per-mapper max_downstream_keys=7 with a 7-key fanout: exactly at cap is allowed.
+
+        Pairs with test_partition_fanout_per_mapper_one_over_cap_trips to pin the
+        boundary at '>' (not '>=') on the per-mapper branch.
+        """
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+        from airflow.partition_mappers.window import WeekWindow
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+
+        from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_logs()
+
+        asset_def = Asset(uri="s3://bucket/per_mapper_at_cap", name="per_mapper_at_cap")
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=7)
+        with dag_maker(
+            dag_id="per_mapper_at_cap_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_def,
+            session=session,
+            partition_key="2024-06-03T00:00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 7
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Log).where(Log.event == "partition fan-out exceeded")
+            )
+            == 0
+        )
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fanout_per_mapper_one_over_cap_trips(self, session, dag_maker, mock_task_instance):
+        """Per-mapper max_downstream_keys=6 with a 7-key fanout: one over cap trips the guard.
+
+        Pairs with test_partition_fanout_per_mapper_at_cap_is_allowed to lock the
+        boundary: 7 keys at cap=7 is allowed, but 7 keys at cap=6 is not.
+        """
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+        from airflow.partition_mappers.window import WeekWindow
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+
+        from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_logs()
+
+        asset_def = Asset(uri="s3://bucket/per_mapper_over_cap", name="per_mapper_over_cap")
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=6)
+        with dag_maker(
+            dag_id="per_mapper_over_cap_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_def,
+            session=session,
+            partition_key="2024-06-03T00:00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+        log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
+        assert len(log_extras) == 1
+        assert "max_downstream_keys=6" in log_extras[0]
+
+    @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "7"})
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fanout_third_party_mapper_without_max_downstream_keys_attr_falls_back_to_global(
+        self, session, dag_maker, mock_task_instance, monkeypatch
+    ):
+        """A third-party mapper missing ``max_downstream_keys`` falls back to the global cap.
+
+        ``getattr(mapper, "max_downstream_keys", None)`` in ``manager.py`` must return ``None``
+        (not raise ``AttributeError``) for mappers that predate this commit or otherwise
+        do not expose the attribute. Models the attribute as absent by stripping it from
+        the deserialized instance right at the boundary.
+        """
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+        from airflow.partition_mappers.window import WeekWindow
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+        from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
+
+        from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_logs()
+
+        asset_def = Asset(uri="s3://bucket/legacy_mapper", name="legacy_mapper")
+        # max_downstream_keys=3 would trip on a 7-key WeekWindow fanout *if* the attribute
+        # were visible; after stripping it the global cap (7) must apply instead.
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=3)
+        with dag_maker(
+            dag_id="legacy_mapper_dag",
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        # Wrap get_partition_mapper to delete max_downstream_keys from the returned instance,
+        # simulating a custom mapper whose class did not go through the new base init.
+        original_get = CorePartitionedAssetTimetable.get_partition_mapper
+
+        def stripped(self, *args, **kwargs):
+            resolved = original_get(self, *args, **kwargs)
+            if hasattr(resolved, "max_downstream_keys"):
+                del resolved.max_downstream_keys
+            return resolved
+
+        monkeypatch.setattr(CorePartitionedAssetTimetable, "get_partition_mapper", stripped)
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_def,
+            session=session,
+            partition_key="2024-06-03T00:00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 7
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Log).where(Log.event == "partition fan-out exceeded")
+            )
+            == 0
+        )
 
 
 def _make_dag(dag_id: str) -> DagModel:
