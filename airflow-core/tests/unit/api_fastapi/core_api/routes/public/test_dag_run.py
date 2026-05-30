@@ -27,10 +27,14 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
@@ -39,6 +43,7 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
+from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -56,6 +61,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
@@ -83,9 +89,6 @@ class CustomTimetable(CronDataIntervalTimetable):
 @pytest.fixture
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
-    from airflow import plugins_manager
-    from airflow._shared.module_loading import qualname
-
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
 
@@ -1513,8 +1516,6 @@ class TestPatchDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
-        from unit.listeners.class_listener import ClassBasedListener
-
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
@@ -2247,8 +2248,6 @@ class TestTriggerDagRun:
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_param_validation_error_returns_400(self, mock_create_dagrun, test_client):
-        from airflow.exceptions import ParamValidationError
-
         now = timezone.utcnow().isoformat()
         error_message = "Invalid input for param x"
         mock_create_dagrun.side_effect = ParamValidationError(error_message)
@@ -2590,8 +2589,6 @@ class TestWaitDagRun:
     # test at least makes the tests run correctly.
     @pytest.fixture(autouse=True)
     def reconfigure_async_db_engine(self):
-        from airflow.settings import _configure_async_session
-
         _configure_async_session()
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2635,8 +2632,6 @@ class TestWaitDagRun:
         assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
-        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
             autospec=True,
