@@ -350,6 +350,40 @@ class TestDmsModifyTaskOperator:
                 op.execute(None)
         mock_modify.assert_not_called()
 
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_raises_if_waiter_exceeded(self, mock_conn, mock_find):
+        stopped_task = self._stopped_task()
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        # execute() sees 'stopped' → modify is called → wait polls twice → timeout.
+        mock_find.side_effect = [stopped_task, self._modifying_task(), self._modifying_task()]
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                wait_for_completion=True,
+                waiter_delay=0,
+                waiter_max_attempts=2,
+            )
+            with pytest.raises(RuntimeError, match="did not finish modifying"):
+                op.execute(None)
+
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_raises_if_task_disappears_during_wait(self, mock_conn, mock_find):
+        expected = {"ReplicationTaskArn": self.TASK_ARN}
+        # execute() sees 'stopped' → modify is called → poll finds no task.
+        mock_find.side_effect = [self._stopped_task(), []]
+        with mock.patch.object(DmsHook, "modify_replication_task", return_value=expected):
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                wait_for_completion=True,
+                waiter_delay=0,
+            )
+            with pytest.raises(ValueError, match="not found"):
+                op.execute(None)
+
     def test_execute_complete_success(self):
         op = DmsModifyTaskOperator(
             task_id="modify_task",

@@ -189,9 +189,10 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         if cdc_start_time and cdc_start_position:
             raise ValueError("Only one of cdc_start_time or cdc_start_position can be provided.")
         self.replication_task_arn = replication_task_arn
@@ -283,7 +284,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             tasks = self.hook.find_replication_tasks_by_arn(
                 replication_task_arn=self.replication_task_arn, without_settings=True
             )
-            status = tasks[0].get("Status", "").lower() if tasks else ""
+            if not tasks:
+                raise ValueError(f"Replication task {self.replication_task_arn} not found.")
+            status = tasks[0].get("Status", "").lower()
             if status != DmsTaskState.MODIFYING:
                 self.log.info(
                     "Replication task(%s) finished modifying, current status: '%s'.",
