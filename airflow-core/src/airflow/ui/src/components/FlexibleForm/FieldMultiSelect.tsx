@@ -64,7 +64,7 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
     if (paramsDict[name]) {
       paramsDict[name].value = newValueArray;
     }
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(String(newValueArray));
   };
 

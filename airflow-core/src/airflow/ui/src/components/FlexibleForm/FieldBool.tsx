@@ -29,7 +29,7 @@ export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementPr
       paramsDict[name].value = value;
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
   };
 
   return (

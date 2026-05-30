@@ -1,0 +1,1 @@
+Fix connection edit form silently overwriting raw Extras JSON with widget defaults.
