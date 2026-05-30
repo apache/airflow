@@ -22,7 +22,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from airflow.executors.workloads.base import BaseWorkload, BundleInfo
+from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkload, BundleInfo, WorkloadType
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -50,4 +50,6 @@ __all__ = [
     "ExecutorWorkload",
     "TaskInstance",
     "TaskInstanceDTO",
+    "WORKLOAD_TYPE_PRIORITY",
+    "WorkloadType",
 ]

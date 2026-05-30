@@ -36,7 +36,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -126,13 +126,14 @@ class TestAwsLambdaExecutor:
             airflow_key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch(
         "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor.change_state"
     )
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
         from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
 
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
@@ -141,17 +142,19 @@ class TestAwsLambdaExecutor:
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = airflow_key
+        workload.type = WorkloadType.EXECUTE_TASK
+        workload.key = airflow_key
         workload.ti.executor_config = executor_config
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
         mock_executor.queue_workload(workload, mock.Mock())
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert mock_executor.executor_queues[WorkloadType.EXECUTE_TASK][workload.ti.key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1
@@ -180,11 +183,13 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
         from airflow.models.callback import CallbackKey
 
         callback_id = CallbackKey("callback_123")
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.type = WorkloadType.EXECUTE_CALLBACK
         workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
@@ -231,10 +236,13 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test callback workload execution with queue override."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
 
         callback_id = mock_airflow_key()
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.type = WorkloadType.EXECUTE_CALLBACK
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {"queue": "fast-queue"}

@@ -42,12 +42,15 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
@@ -71,14 +74,8 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-
     if AIRFLOW_V_3_3_PLUS:
-        supports_callbacks: bool = True
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor.
-        queued_tasks: dict[WorkloadKey, workloads.All]  # type: ignore[assignment]
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -226,18 +223,6 @@ class AwsLambdaExecutor(BaseExecutor):
         except Exception:
             self.log.exception("An error occurred while syncing workloads.")
 
-    # TODO: Remove this once the minimum supported version is 3.2+, and defer to BaseExecutor.queue_workload.
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if isinstance(workload, workloads.ExecuteTask):
-            self.queued_tasks[workload.ti.key] = workload
-            return
-        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.key] = workload
-            return
-        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
@@ -251,7 +236,10 @@ class AwsLambdaExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                del self.queued_tasks[key]
+                if AIRFLOW_V_3_3_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                else:
+                    del self.queued_tasks[key]
 
                 self.execute_async(
                     key=key,
@@ -271,7 +259,7 @@ class AwsLambdaExecutor(BaseExecutor):
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
 
-                del self.queued_callbacks[key]
+                del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
 
                 self.execute_async(
                     key=key,

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import timedelta
 from unittest import mock
 from uuid import UUID
@@ -31,9 +32,11 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.models.callback import CallbackFetchMethod, CallbackKey
@@ -167,9 +170,9 @@ def test_fail_and_success():
 
 
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
-@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_workloads")
 @mock.patch("airflow.executors.base_executor.stats.gauge")
-def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_workloads, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
@@ -197,13 +200,13 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
     [(LocalExecutor, "LocalExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
-@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_workloads")
 @mock.patch("airflow.executors.base_executor.stats.gauge")
 @mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
 def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
     mock_stats_gauge,
-    mock_trigger_tasks,
+    mock_trigger_workloads,
     mock_local_sync,
     executor_class,
     executor_name,
@@ -285,7 +288,7 @@ def test_try_adopt_task_instances(dag_maker):
     assert BaseExecutor().try_adopt_task_instances(tis) == tis
 
 
-def setup_trigger_tasks(dag_maker, parallelism=None):
+def setup_trigger_workloads(dag_maker, parallelism=None):
     dagrun = setup_dagrun(dag_maker)
     if parallelism:
         executor = BaseExecutor(parallelism=parallelism)
@@ -296,21 +299,21 @@ def setup_trigger_tasks(dag_maker, parallelism=None):
 
     for task_instance in dagrun.task_instances:
         workload = workloads.ExecuteTask.make(task_instance)
-        executor.queued_tasks[task_instance.key] = workload
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][task_instance.key] = workload
 
     return executor, dagrun
 
 
 @pytest.mark.db_test
 def test_trigger_queued_tasks(dag_maker):
-    """Test that trigger_tasks() calls _process_workloads() when there are queued workloads."""
-    executor, dagrun = setup_trigger_tasks(dag_maker)
+    """Test that trigger_workloads() calls _process_workloads() when there are queued workloads."""
+    executor, dagrun = setup_trigger_workloads(dag_maker)
 
     # Verify tasks are queued
-    assert len(executor.queued_tasks) == 3
+    assert len(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 3
 
-    # Call trigger_tasks with enough slots
-    executor.trigger_tasks(open_slots=10)
+    # Call trigger_workloads with enough slots
+    executor.trigger_workloads(open_slots=10)
 
     executor._process_workloads.assert_called_once()
 
@@ -321,10 +324,10 @@ def test_trigger_queued_tasks(dag_maker):
 
 @pytest.mark.db_test
 def test_trigger_running_tasks(dag_maker):
-    """Test that trigger_tasks() works when tasks are re-queued."""
-    executor, dagrun = setup_trigger_tasks(dag_maker)
+    """Test that trigger_workloads() works when tasks are re-queued."""
+    executor, dagrun = setup_trigger_workloads(dag_maker)
 
-    executor.trigger_tasks(open_slots=10)
+    executor.trigger_workloads(open_slots=10)
     executor._process_workloads.assert_called_once()
 
     # Reset mock for second call
@@ -334,9 +337,9 @@ def test_trigger_running_tasks(dag_maker):
     ti = dagrun.task_instances[0]
 
     workload = workloads.ExecuteTask.make(ti)
-    executor.queued_tasks[ti.key] = workload
+    executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.key] = workload
 
-    executor.trigger_tasks(open_slots=10)
+    executor.trigger_workloads(open_slots=10)
 
     # Verify _process_workloads was called again
     executor._process_workloads.assert_called_once()
@@ -346,7 +349,25 @@ def test_debug_dump(caplog):
     executor = BaseExecutor()
     with caplog.at_level(logging.INFO):
         executor.debug_dump()
-    assert "executor.queued" in caplog.text
+    assert "executor.running" in caplog.text
+    assert "executor.event_buffer" in caplog.text
+
+
+@pytest.mark.db_test
+def test_debug_dump_with_populated_queues(caplog, dag_maker):
+    """Test debug_dump outputs queued workloads when queues are populated."""
+    executor = BaseExecutor()
+    dagrun = setup_dagrun(dag_maker)
+
+    for ti in dagrun.task_instances:
+        workload = workloads.ExecuteTask.make(ti)
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.key] = workload
+
+    with caplog.at_level(logging.INFO):
+        executor.debug_dump()
+
+    queued_msgs = [m for m in caplog.messages if "executor.queued" in m]
+    assert queued_msgs, "Expected at least one 'executor.queued' log message"
     assert "executor.running" in caplog.text
     assert "executor.event_buffer" in caplog.text
 
@@ -355,6 +376,64 @@ def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
     with pytest.raises(ValueError, match="Callback sink is not ready"):
         executor.send_callback(mock.Mock(spec=CallbackRequest))
+
+
+def test_queued_tasks_setter_emits_warning_and_writes_through():
+    executor = BaseExecutor()
+    new_queue = {"k": "v"}
+    with pytest.warns(RemovedInAirflow4Warning, match="queued_tasks is deprecated"):
+        executor.queued_tasks = new_queue  # type: ignore[misc]
+    assert executor.executor_queues[WorkloadType.EXECUTE_TASK] is new_queue
+
+
+def test_queued_callbacks_setter_emits_warning_and_writes_through():
+    executor = BaseExecutor()
+    new_queue = {"k": "v"}
+    with pytest.warns(RemovedInAirflow4Warning, match="queued_callbacks is deprecated"):
+        executor.queued_callbacks = new_queue  # type: ignore[misc]
+    assert executor.executor_queues[WorkloadType.EXECUTE_CALLBACK] is new_queue
+
+
+def test_trigger_tasks_shim_emits_warning_and_forwards():
+    executor = BaseExecutor()
+    with mock.patch.object(executor, "trigger_workloads") as mocked:
+        with pytest.warns(RemovedInAirflow4Warning, match="trigger_tasks is deprecated"):
+            executor.trigger_tasks(7)
+    mocked.assert_called_once_with(7)
+
+
+def test_order_queued_tasks_by_priority_shim_emits_warning_and_forwards():
+    executor = BaseExecutor()
+    with mock.patch.object(executor, "_get_workloads_to_schedule", return_value=[]) as mocked:
+        with pytest.warns(RemovedInAirflow4Warning, match="order_queued_tasks_by_priority is deprecated"):
+            executor.order_queued_tasks_by_priority()
+    mocked.assert_called_once()
+
+
+def test_has_task_does_not_vivify_executor_queue():
+    executor = BaseExecutor()
+    ti = mock.Mock(spec=TaskInstance)
+    ti.id = "id-1"
+    ti.key = TaskInstanceKey("d", "t", "r", 1, -1)
+    assert executor.has_task(ti) is False
+    assert WorkloadType.EXECUTE_TASK not in executor.executor_queues
+
+
+def test_unknown_workload_type_sorts_last_without_crashing():
+    executor = BaseExecutor()
+    known_key = TaskInstanceKey("d", "t", "r", 1, -1)
+    known_workload = mock.Mock()
+    known_workload.type = WorkloadType.EXECUTE_TASK
+    known_workload.sort_key = 0
+    unknown_workload = mock.Mock()
+    unknown_workload.type = "SomeFutureType"
+    unknown_workload.sort_key = 0
+    executor.executor_queues[WorkloadType.EXECUTE_TASK][known_key] = known_workload
+    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload  # type: ignore[index]
+
+    scheduled = executor._get_workloads_to_schedule(open_slots=10)
+
+    assert [w for _, w in scheduled] == [known_workload, unknown_workload]
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -598,16 +677,16 @@ class TestExecutorConf:
 class TestCallbackSupport:
     def test_supports_callbacks_flag_default_false(self):
         executor = BaseExecutor()
-        assert executor.supports_callbacks is False
+        assert WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types
 
     def test_local_executor_supports_callbacks_true(self):
         """Test that LocalExecutor sets supports_callbacks to True."""
         executor = LocalExecutor()
-        assert executor.supports_callbacks is True
+        assert WorkloadType.EXECUTE_CALLBACK in executor.supported_workload_types
 
     @pytest.mark.db_test
     def test_queue_callback_without_support_raises_error(self, dag_maker, session):
-        executor = BaseExecutor()  # supports_callbacks = False by default
+        executor = BaseExecutor()  # EXECUTE_CALLBACK not in supported_workload_types by default
         callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
@@ -621,13 +700,15 @@ class TestCallbackSupport:
             log_path="test.log",
         )
 
-        with pytest.raises(NotImplementedError, match="does not support ExecuteCallback"):
+        with pytest.raises(NotImplementedError, match="does not support.*ExecuteCallback"):
             executor.queue_workload(callback_workload, session)
 
     @pytest.mark.db_test
     def test_queue_workload_with_execute_callback(self, dag_maker, session):
         executor = BaseExecutor()
-        executor.supports_callbacks = True  # Enable for this test
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
         callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
@@ -643,13 +724,15 @@ class TestCallbackSupport:
 
         executor.queue_workload(callback_workload, session)
 
-        assert len(executor.queued_callbacks) == 1
-        assert callback_workload.key in executor.queued_callbacks
+        assert len(executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]) == 1
+        assert callback_workload.key in executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
 
     @pytest.mark.db_test
     def test_get_workloads_prioritizes_callbacks(self, dag_maker, session):
         executor = BaseExecutor()
-        executor.supports_callbacks = True  # Enable for this test
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
         dagrun = setup_dagrun(dag_maker)
         callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
@@ -674,6 +757,124 @@ class TestCallbackSupport:
         assert len(workloads_to_schedule) == 4  # 1 callback + 3 tasks
         _, first_workload = workloads_to_schedule[0]
         assert isinstance(first_workload, workloads.ExecuteCallback)  # Assert callback comes first
+
+
+class TestBackwardCompatProperties:
+    """Tests for the backward-compat properties (queued_tasks, queued_callbacks, supports_callbacks)."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_legacy_warned(self):
+        BaseExecutor._legacy_warned = set()
+        yield
+        BaseExecutor._legacy_warned = set()
+
+    def test_queued_tasks_delegates_to_executor_queues(self):
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["key1"] = "workload1"
+
+        with pytest.warns(DeprecationWarning, match="queued_tasks is deprecated"):
+            result = executor.queued_tasks
+
+        assert result is executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert "key1" in result
+
+    def test_queued_callbacks_delegates_to_executor_queues(self):
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]["cb1"] = "callback1"
+
+        with pytest.warns(DeprecationWarning, match="queued_callbacks is deprecated"):
+            result = executor.queued_callbacks
+
+        assert result is executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
+        assert "cb1" in result
+
+    def test_supports_callbacks_delegates_to_supported_workload_types(self):
+        executor = BaseExecutor()
+
+        with pytest.warns(DeprecationWarning, match="supports_callbacks is deprecated"):
+            assert executor.supports_callbacks is False
+
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RemovedInAirflow4Warning)
+            assert executor.supports_callbacks is True
+
+    def test_warning_emitted_once_per_class(self, recwarn):
+        executor = BaseExecutor()
+        for _ in range(5):
+            _ = executor.queued_tasks
+        legacy = [w for w in recwarn.list if "queued_tasks is deprecated" in str(w.message)]
+        assert len(legacy) == 1
+
+    def test_warning_independent_per_subclass(self, recwarn):
+        class ExecutorA(BaseExecutor):
+            pass
+
+        class ExecutorB(BaseExecutor):
+            pass
+
+        _ = ExecutorA().queued_tasks
+        _ = ExecutorA().queued_tasks
+        _ = ExecutorB().queued_tasks
+        legacy = [w for w in recwarn.list if "queued_tasks is deprecated" in str(w.message)]
+        assert len(legacy) == 2
+
+    def test_queued_tasks_dict_operations(self):
+        """Verify dict operations through the backward-compat property work correctly."""
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["k1"] = "w1"
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["k2"] = "w2"
+
+        with pytest.warns(DeprecationWarning, match="queued_tasks is deprecated"):
+            qt = executor.queued_tasks
+
+        # All standard dict operations should work on the returned reference
+        assert len(qt) == 2
+        assert "k1" in qt
+        qt.pop("k1")
+        assert len(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+
+
+class TestLegacySupportsCallbacksShim:
+    """Subclasses declaring legacy ``supports_callbacks = True`` must still receive callbacks."""
+
+    def test_legacy_flag_synthesises_supported_workload_types(self):
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks = True"):
+
+            class LegacyExecutor(BaseExecutor):
+                supports_callbacks = True
+
+        assert LegacyExecutor.supported_workload_types == frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
+
+    def test_explicit_supported_workload_types_wins(self):
+        explicit = frozenset({WorkloadType.EXECUTE_TASK})
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks = True"):
+
+            class MixedExecutor(BaseExecutor):
+                supports_callbacks = True
+                supported_workload_types = explicit
+
+        assert MixedExecutor.supported_workload_types is explicit
+
+    def test_modern_subclass_emits_no_warning(self, recwarn):
+        class ModernExecutor(BaseExecutor):
+            supported_workload_types = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+        legacy_warnings = [w for w in recwarn.list if "supports_callbacks = True" in str(w.message)]
+        assert legacy_warnings == []
+        assert WorkloadType.EXECUTE_CALLBACK in ModernExecutor.supported_workload_types
+
+    def test_legacy_false_does_not_synthesise(self, recwarn):
+        class OptedOutExecutor(BaseExecutor):
+            supports_callbacks = False
+
+        legacy_warnings = [w for w in recwarn.list if "supports_callbacks = True" in str(w.message)]
+        assert legacy_warnings == []
+        assert WorkloadType.EXECUTE_CALLBACK not in OptedOutExecutor.supported_workload_types
 
 
 class TestExecuteCallbackWorkload:
