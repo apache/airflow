@@ -200,6 +200,10 @@
                     "type": "array",
                     "items": { "$ref": "#/definitions/dict" }
                 },
+                {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
                 { "type": "null" }
             ]
         },

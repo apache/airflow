@@ -806,6 +806,32 @@ class TestSerializedDagModel:
                     "SerializedDagModel should not be updated when write fails"
                 )
 
+    def test_serialized_dag_with_deadline_passes_schema_validation(self, testing_dag_bundle, session):
+        """Stored serialized data with deadlines (list[str] of UUIDs) must satisfy the JSON schema."""
+        dag = DAG(
+            dag_id="test_deadline_schema_validation",
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag.dag_id))
+
+        # write_dag rewrites deadline dicts to a list of UUIDv7 strings
+        # (_generate_deadline_uuids) before persistence; document that shape here.
+        deadline = serdag.data["dag"]["deadline"]
+        assert deadline
+        assert all(isinstance(uid, str) for uid in deadline)
+
+        # Without list[str] in schema.json::dag.deadline.anyOf this raises
+        # jsonschema.ValidationError — the same path test_write_dag exercises.
+        DagSerialization.validate_schema(serdag.data)
+
     def test_deadline_interval_change_triggers_new_serdag(self, testing_dag_bundle, session):
         dag_id = "test_interval_change"
 
