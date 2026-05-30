@@ -41,6 +41,7 @@ import time_machine
 from sqlalchemy import func, select
 from uuid6 import uuid7
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -2003,6 +2004,31 @@ class TestDagFileProcessorManager:
         assert dag_model.task_outlet_asset_references == [
             TaskOutletAssetReference(asset_id=mock.ANY, dag_id="dag_with_skip_task", task_id="skip_task")
         ]
+
+    def test_loading_bundle_config_from_file(self, tmp_path):
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+            {
+                "name": "bundletwo",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
+            },
+        ]
+        config_file = tmp_path / "bundle_config.json"
+
+        with open(config_file, "w") as f:
+            json.dump(config, f)
+
+        with conf_vars({("dag_processor", "dag_bundle_config_file"): str(config_file)}):
+            bm = DagBundlesManager()
+            for bundle in config:
+                assert bundle["name"] in bm._bundle_config
+                assert import_string(bundle["classpath"]) == bm._bundle_config[bundle["name"]].bundle_class
+                assert bundle["kwargs"] == bm._bundle_config[bundle["name"]].kwargs
 
     def test_bundles_are_refreshed(self):
         """

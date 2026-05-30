@@ -2917,6 +2917,15 @@ dag_processor:
       example: "/tmp/some-place"
       default: ~
 
+    dag_bundle_config_file:
+      description: |
+        String path to json file with Dag bundle configuration.
+        For more details see ``[dag_processor] dag_bundle_config_list``.
+      version_added: ~
+      type: string
+      example: "/opt/airflow/config/dag_bundles.json"
+      default: ~
+
     dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
