@@ -24,7 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, cast
 
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
+    from airflow.timetables.trigger import CronPartitionTimetable
 
 log = structlog.get_logger(__name__)
 
@@ -656,21 +657,26 @@ def _get_info_list(
         # coincide only when run_offset == 0; the user's --partition-date-start/end window
         # (matched against DagRun.partition_date, per the CLI contract) must be applied to each
         # run's partition_date, not its run_after. iter_dagrun_infos_between still walks the
-        # timetable by run_after, so pad the iteration window by a day on each side to catch
-        # partitions whose UTC partition_date instant lands in the window while run_after does
-        # not (the offset comes from the timetable timezone: a Taipei midnight partition is
-        # stored as the prior UTC day). The partition_date filter below then trims the padding
-        # back to the requested calendar-date window.
-        # Non-zero run_offset (partition_date and run_after differ by |run_offset| cron
-        # intervals) is not handled here yet — see the AIP-76 todo in
-        # CronPartitionTimetable.next_dagrun_info_v2.
+        # timetable by run_after, so the iteration window is deliberately widened to catch all
+        # run_after values that could map to a partition_date inside the requested window.
+        # Integer run_offset is handled by timetable.run_after_window_for_partition_window,
+        # which inverts the partition-date mapping and adds ±1 day timezone buffer; the window
+        # is over-generated on purpose (wider is always safe). The partition_date filter below
+        # trims the result back to the exact requested calendar-date window.
+        # timedelta/relativedelta run_offset is not yet supported (AIP-76).
         start_label = from_date.date()
         end_label = to_date.date()
-        infos = dag.iter_dagrun_infos_between(from_date - timedelta(days=1), to_date + timedelta(days=1))
+        earliest, latest = dag.timetable.run_after_window_for_partition_window(
+            from_date=timezone.coerce_datetime(from_date),
+            to_date=timezone.coerce_datetime(to_date),
+        )
+        infos = dag.iter_dagrun_infos_between(earliest, latest)
+        cron_timetable = cast("CronPartitionTimetable", dag.timetable)
         dagrun_info_list = [
             info
             for info in infos
-            if start_label <= info.partition_date.in_timezone(dag.timetable._timezone).date() <= end_label
+            if info.partition_date is not None
+            and start_label <= info.partition_date.in_timezone(cron_timetable._timezone).date() <= end_label
         ]
     else:
         now = timezone.utcnow()

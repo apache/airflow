@@ -858,3 +858,148 @@ def test_generate_run_id_without_partition_key() -> None:
         data_interval=None,
     )
     assert run_id.startswith("manual__2025-06-07T08:09:00+00:00__")
+
+
+# ---------------------------------------------------------------------------
+# run_after_window_for_partition_window unit tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("run_offset", "from_date", "to_date", "expected_earliest_date", "expected_latest_date"),
+    [
+        pytest.param(
+            0,
+            pendulum.datetime(2026, 2, 18, tz="UTC"),
+            pendulum.datetime(2026, 2, 20, tz="UTC"),
+            pendulum.datetime(2026, 2, 17, tz="UTC"),
+            pendulum.datetime(2026, 2, 21, tz="UTC"),
+            id="offset_0_degenerates_to_plus_minus_1_day",
+        ),
+        pytest.param(
+            1,
+            pendulum.datetime(2026, 2, 18, tz="UTC"),
+            pendulum.datetime(2026, 2, 20, tz="UTC"),
+            # forward: partition = _get_next(run_after)
+            # invert:  run_after ≈ _get_prev(partition)
+            # lower: _get_prev(_get_prev(from)) - 1 day
+            # with daily "0 0 * * *" Asia/Taipei (UTC+8): Taipei midnight of 2026-02-18
+            # is 2026-02-17T16:00Z.  _get_prev(2026-02-18T00:00Z) → 2026-02-17T16:00Z (prev tick)
+            # then _get_prev(2026-02-17T16:00Z) → 2026-02-16T16:00Z, minus 1d → 2026-02-15T16:00Z
+            pendulum.datetime(2026, 2, 15, 16, 0, 0, tz="UTC"),
+            # upper: _get_next(_get_prev(to+1tick)) + 1d
+            # _get_next(2026-02-20T00:00Z) → 2026-02-20T16:00Z, _get_prev → 2026-02-19T16:00Z, +1d
+            # wait — re-derive: upper_start = _get_next(to_date) = _get_next(2026-02-20T00Z)
+            # = 2026-02-20T16Z; then invert_func(_get_prev) once: 2026-02-19T16Z; +1d = 2026-02-20T16Z
+            pendulum.datetime(2026, 2, 20, 16, 0, 0, tz="UTC"),
+            id="offset_1_earliest_shifted_earlier",
+        ),
+        pytest.param(
+            2,
+            pendulum.datetime(2026, 2, 18, tz="UTC"),
+            pendulum.datetime(2026, 2, 20, tz="UTC"),
+            # Two _get_prev steps from _get_prev(from_date), then -1 day.
+            pendulum.datetime(2026, 2, 14, 16, 0, 0, tz="UTC"),
+            pendulum.datetime(2026, 2, 19, 16, 0, 0, tz="UTC"),
+            id="offset_2_earliest_shifted_2_intervals_earlier",
+        ),
+        pytest.param(
+            -1,
+            pendulum.datetime(2026, 2, 18, tz="UTC"),
+            pendulum.datetime(2026, 2, 20, tz="UTC"),
+            # forward (offset<0): partition = _get_prev(run_after)
+            # invert: run_after ≈ _get_next(partition)
+            # lower_start = _get_prev(from_date) → 2026-02-17T16Z
+            # _get_next(2026-02-17T16Z) → 2026-02-18T16Z, -1d → 2026-02-17T16Z
+            pendulum.datetime(2026, 2, 17, 16, 0, 0, tz="UTC"),
+            # upper_start = _get_next(to_date) = _get_next(2026-02-20T00Z) → 2026-02-20T16Z
+            # _get_next(2026-02-20T16Z) → 2026-02-21T16Z, +1d → 2026-02-22T16Z
+            pendulum.datetime(2026, 2, 22, 16, 0, 0, tz="UTC"),
+            id="offset_minus1_latest_shifted_later",
+        ),
+        pytest.param(
+            -2,
+            pendulum.datetime(2026, 2, 18, tz="UTC"),
+            pendulum.datetime(2026, 2, 20, tz="UTC"),
+            # lower_start = _get_prev(2026-02-18T00Z) = 2026-02-17T16Z
+            # upper_start = _get_next(2026-02-20T00Z) = 2026-02-20T16Z
+            # iter1: earliest=_get_next(2026-02-17T16Z)=2026-02-18T16Z, latest=_get_next(2026-02-20T16Z)=2026-02-21T16Z
+            # iter2: earliest=_get_next(2026-02-18T16Z)=2026-02-19T16Z, latest=_get_next(2026-02-21T16Z)=2026-02-22T16Z
+            # -1d/+1d: earliest=2026-02-18T16Z, latest=2026-02-23T16Z
+            pendulum.datetime(2026, 2, 18, 16, 0, 0, tz="UTC"),
+            pendulum.datetime(2026, 2, 23, 16, 0, 0, tz="UTC"),
+            id="offset_minus2_latest_shifted_2_intervals_later",
+        ),
+    ],
+)
+def test_run_after_window_for_partition_window(
+    run_offset, from_date, to_date, expected_earliest_date, expected_latest_date
+) -> None:
+    """run_after_window_for_partition_window returns correct (earliest, latest) bounds."""
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=run_offset)
+    earliest, latest = timetable.run_after_window_for_partition_window(
+        from_date=from_date,
+        to_date=to_date,
+    )
+    assert earliest == expected_earliest_date
+    assert latest == expected_latest_date
+
+
+def test_run_after_window_for_partition_window_timezone_day_boundary() -> None:
+    """Timezone offset: Asia/Taipei midnight partitions are UTC-prior-day; ±1-day buffer must absorb this."""
+    # A Taipei "2026-02-18" partition fires at 2026-02-17T16:00Z.
+    # from_date / to_date expressed in UTC as the local Taipei midnight.
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
+    from_date = pendulum.datetime(2026, 2, 17, 16, 0, 0, tz="UTC")  # Taipei 2026-02-18 midnight in UTC
+    to_date = pendulum.datetime(2026, 2, 19, 16, 0, 0, tz="UTC")  # Taipei 2026-02-20 midnight in UTC
+    earliest, latest = timetable.run_after_window_for_partition_window(
+        from_date=from_date,
+        to_date=to_date,
+    )
+    # earliest must be ≤ 2026-02-17T16:00Z so iter can reach it.
+    assert earliest <= from_date
+    # latest must be ≥ 2026-02-19T16:00Z so iter can reach it.
+    assert latest >= to_date
+
+
+def test_run_after_window_offset_at_tick_endpoint_not_dropped() -> None:
+    """When from_date is exactly on a cron tick, offset>0 must still cover that tick (Q1)."""
+    # from_date = 2026-02-17T16:00Z, which IS a cron tick for "0 0 * * *" Asia/Taipei
+    # (= Taipei 2026-02-18 midnight).
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=1)
+    from_date = pendulum.datetime(2026, 2, 17, 16, 0, 0, tz="UTC")  # exactly one tick
+    to_date = pendulum.datetime(2026, 2, 17, 16, 0, 0, tz="UTC")
+    earliest, latest = timetable.run_after_window_for_partition_window(
+        from_date=from_date,
+        to_date=to_date,
+    )
+    # The run that produces partition 2026-02-17T16Z (i.e. the prior tick) must be reachable.
+    expected_run_after = pendulum.datetime(2026, 2, 16, 16, 0, 0, tz="UTC")
+    assert earliest <= expected_run_after <= latest
+
+
+def test_run_after_window_dst_boundary_america_new_york() -> None:
+    """DST probe: America/New_York spring-forward (2026-03-08).
+
+    On spring-forward night the 02:00 clock-hour is skipped. The over-generate
+    strategy (extra cron tick + ±1 day buffer) must ensure no partition is
+    silently dropped for a DST-affected timezone.
+    """
+    # "0 0 * * *" in America/New_York: midnight ET.
+    # Spring-forward 2026: clocks go forward at 2026-03-08T02:00 ET
+    # (EST=UTC-5 → EDT=UTC-4).  2026-03-07 midnight ET = 2026-03-07T05:00Z,
+    # 2026-03-08 midnight ET = 2026-03-08T05:00Z (no skip at midnight).
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="America/New_York", run_offset=1)
+    # Partition window spanning the DST transition: 2026-03-07 and 2026-03-08.
+    from_date = pendulum.datetime(2026, 3, 7, 5, 0, 0, tz="UTC")  # NY midnight 2026-03-07
+    to_date = pendulum.datetime(2026, 3, 8, 5, 0, 0, tz="UTC")  # NY midnight 2026-03-08
+    earliest, latest = timetable.run_after_window_for_partition_window(
+        from_date=from_date,
+        to_date=to_date,
+    )
+    # With offset=1 the run_after that produces 2026-03-07 partition is the
+    # prior tick (2026-03-06T05:00Z).  earliest must be ≤ that.
+    expected_run = pendulum.datetime(2026, 3, 6, 5, 0, 0, tz="UTC")
+    assert earliest <= expected_run
+    # The run_after that produces 2026-03-08 partition is 2026-03-07T05:00Z.
+    assert earliest <= pendulum.datetime(2026, 3, 7, 5, 0, 0, tz="UTC") <= latest
