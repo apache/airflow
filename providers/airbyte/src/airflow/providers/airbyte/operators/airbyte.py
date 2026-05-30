@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from airbyte_api.models import JobStatusEnum
 
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+from airflow.providers.airbyte.links.airbyte_connection import AirbyteConnectionLink
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
@@ -49,6 +50,8 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
         Defaults to 3 seconds.
+    :param workspace_id: Optional. Airbyte workspace associated with the Airbyte connection. Only used in
+        AirbyteConnectionLink.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
         Only used when ``asynchronous`` is False.  This limits how long the operator waits for the
         job to complete and does not imply job cancellation. Task-level timeouts should be
@@ -59,6 +62,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("connection_id",)
+    operator_extra_links = (AirbyteConnectionLink(),)
     ui_color = "#6C51FD"
 
     def __init__(
@@ -69,6 +73,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         api_version: str = "v1",
         wait_seconds: float = 3,
+        workspace_id: str | None = None,
         timeout: float = 3600,
         **kwargs,
     ) -> None:
@@ -78,12 +83,34 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.timeout = timeout
         self.api_version = api_version
         self.wait_seconds = wait_seconds
+        self.workspace_id = workspace_id
         self.asynchronous = asynchronous
         self.deferrable = deferrable
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        conn_params = hook.get_conn_params(self.airbyte_conn_id)
+
+        return {
+            "connection_id": self.connection_id,
+            "workspace_id": self.workspace_id,
+            "server_url": conn_params["host"],
+        }
 
     def execute(self, context: Context) -> None:
         """Create Airbyte Job and wait to finish."""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+
+        conn_params = hook.get_conn_params(self.airbyte_conn_id)
+
+        AirbyteConnectionLink.persist(
+            context=context,
+            connection_id=self.connection_id,
+            server_url=conn_params["host"],
+            workspace_id=self.workspace_id,
+        )
+
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         self.job_id = job_object.job_id
         state = job_object.status
