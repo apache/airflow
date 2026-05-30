@@ -1880,6 +1880,35 @@ class TestTriggererJobRunner:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
+    @patch("airflow.jobs.triggerer_job_runner.Stats.initialize")
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_execute_marks_process_context_as_server(
+        self, mock_supervisor_start, _stats_init_mock, monkeypatch, session
+    ):
+        """
+        _execute() must set _AIRFLOW_PROCESS_CONTEXT=server so that connection
+        lookups in the supervisor process (e.g. remote log shipping for
+        trigger logs) use the metastore-backed secrets chain instead of the
+        env-vars-only fallback chain.
+        """
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        assert "_AIRFLOW_PROCESS_CONTEXT" not in os.environ
+
+        mock_supervisor = MagicMock()
+        mock_supervisor._exit_code = 0  # let _execute return without re-raising
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        job_runner = TriggererJobRunner(job)
+
+        with patch.object(job_runner, "register_signals"):
+            job_runner._execute()
+
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server"
+
 
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):

@@ -1,0 +1,1 @@
+Triggerer supervisor now marks itself as a server context so remote-log handlers (e.g. WasbTaskHandler) can read connections from the metastore when shipping per-trigger logs to remote storage.
