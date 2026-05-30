@@ -1556,6 +1556,7 @@ class DagRun(Base, LoggingMixin):
             ignore_in_retry_period=True,
             ignore_in_reschedule_period=True,
             finished_tis=finished_tis,
+            ensure_fresh_tis_before_state_change=True,
         )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
         # not ready yet, so we set the flags to count them in
