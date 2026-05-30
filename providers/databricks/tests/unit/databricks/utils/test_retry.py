@@ -49,7 +49,7 @@ def test_validate_deferrable_databricks_retry_args_accepts_serde_serializable_va
 
 
 def test_validate_deferrable_databricks_retry_args_accepts_airflow_serde_serializable_values():
-    retry_args = {"deadline": datetime.datetime(2026, 5, 29, 12, 30, tzinfo=datetime.UTC)}
+    retry_args = {"deadline": datetime.datetime(2026, 5, 29, 12, 30, tzinfo=datetime.timezone.utc)}
 
     assert validate_deferrable_databricks_retry_args(retry_args, owner="test-owner") is None
 
