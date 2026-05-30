@@ -40,6 +40,18 @@ func correlationIdInjector(_ *resty.Client, req *resty.Request) error {
 	return nil
 }
 
+// applyRefreshedAPITokenBearer updates the client's default Bearer token when the Execution API
+// returns Refreshed-API-Token (workload→execution swap on PATCH /run, or JWTReissueMiddleware refresh).
+func applyRefreshedAPITokenBearer(c *resty.Client, res *resty.Response) error {
+	if res == nil {
+		return nil
+	}
+	if newToken := res.Header().Get("Refreshed-API-Token"); newToken != "" {
+		c.SetHeader("Authorization", fmt.Sprintf("Bearer %s", newToken))
+	}
+	return nil
+}
+
 func NewDefaultClient(server string, opts ...ClientOption) (ClientInterface, error) {
 	rc := resty.New()
 	rc.SetBaseURL(server)
@@ -63,6 +75,7 @@ func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
 	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
 	// can reasonably ignore that here and setting the header directly bypasses that
 	rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
+	rc.AddResponseMiddleware(applyRefreshedAPITokenBearer)
 
 	opts := []ClientOption{
 		WithClient(rc),
