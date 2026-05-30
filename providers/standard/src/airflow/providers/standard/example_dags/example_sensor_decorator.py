@@ -37,6 +37,19 @@ from airflow.sdk import PokeReturnValue, dag, task
     tags=["example"],
 )
 def example_sensor_decorator():
+    """
+    ### Sensor TaskFlow Decorator Example
+
+    This DAG demonstrates the `@task.sensor` decorator for building sensors as
+    TaskFlow tasks. A sensor task waits for an external condition before allowing
+    downstream tasks to run.
+
+    **What this DAG shows:**
+
+    - Defining a sensor task with `@task.sensor` (poke interval, timeout, mode)
+    - Returning a `PokeReturnValue` to signal completion and pass an XCom value
+    - Wiring the sensor to a downstream task with `>>`
+    """
     # [END instantiate_dag]
 
     # [START wait_function]
