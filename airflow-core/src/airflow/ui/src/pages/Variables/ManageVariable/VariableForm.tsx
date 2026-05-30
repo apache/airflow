@@ -16,30 +16,101 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
-import { Controller, useForm } from "react-hook-form";
+import { Box, Button, Field, HStack, IconButton, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type ControllerFieldState, type ControllerRenderProps, Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { FiSave } from "react-icons/fi";
+import { FiCode, FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { useConfig } from "src/queries/useConfig.tsx";
+import { isJsonString, minifyJson, prettifyJson } from "src/utils";
+
+type ValueFieldProps = {
+  readonly field: ControllerRenderProps<VariableBody, "value">;
+  readonly fieldState: ControllerFieldState;
+};
+
+const ValueField = ({ field, fieldState }: ValueFieldProps) => {
+  const { t: translate } = useTranslation(["admin"]);
+  const [displayValue, setDisplayValue] = useState(field.value);
+  const fieldValueRef = useRef(field.value);
+
+  useEffect(() => {
+    if (fieldValueRef.current !== field.value) {
+      fieldValueRef.current = field.value;
+      setDisplayValue(field.value);
+    }
+  }, [field.value]);
+
+  const isValidJson = useMemo(() => isJsonString(displayValue), [displayValue]);
+  const showJsonWarning = displayValue.startsWith("{") || displayValue.startsWith("[") ? !isValidJson : false;
+
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = event.target.value;
+
+    setDisplayValue(newValue);
+    field.onChange(newValue);
+  };
+
+  const handleBlur = () => {
+    field.onBlur();
+    setDisplayValue(prettifyJson(displayValue));
+  };
+
+  const handleFormat = () => {
+    const formatted = prettifyJson(displayValue);
+
+    setDisplayValue(formatted);
+    field.onChange(formatted);
+  };
+
+  return (
+    <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+      <Field.Label fontSize="md">
+        {translate("columns.value")} <Field.RequiredIndicator />
+      </Field.Label>
+      <Box position="relative" w="full">
+        <Textarea
+          autoresize
+          name={field.name}
+          onBlur={handleBlur}
+          onChange={handleChange}
+          ref={field.ref}
+          size="sm"
+          value={displayValue}
+        />
+        {isValidJson ? (
+          <IconButton
+            aria-label="Format JSON"
+            onClick={handleFormat}
+            position="absolute"
+            right={2}
+            size="2xs"
+            title="Format JSON"
+            top={2}
+            variant="ghost"
+          >
+            <FiCode />
+          </IconButton>
+        ) : undefined}
+      </Box>
+      {showJsonWarning ? (
+        <Text color="fg.warning" fontSize="xs">
+          {translate("variables.form.invalidJson")}
+        </Text>
+      ) : undefined}
+      {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
+    </Field.Root>
+  );
+};
 
 export type VariableBody = {
   description: string | undefined;
   key: string;
   team_name: string;
   value: string;
-};
-
-const isJsonString = (string: string) => {
-  try {
-    JSON.parse(string);
-  } catch {
-    return false;
-  }
-
-  return true;
 };
 
 type VariableFormProps = {
@@ -64,7 +135,10 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: VariableBody) => {
-    manageMutate(data);
+    // Minify JSON before submitting if it's valid JSON
+    const value = data.value ? minifyJson(data.value) : data.value;
+
+    manageMutate({ ...data, value });
   };
 
   const handleReset = () => {
@@ -95,25 +169,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
       <Controller
         control={control}
         name="value"
-        render={({ field, fieldState }) => {
-          const showJsonWarning =
-            field.value.startsWith("{") || field.value.startsWith("[") ? !isJsonString(field.value) : false;
-
-          return (
-            <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
-              <Field.Label fontSize="md">
-                {translate("columns.value")} <Field.RequiredIndicator />
-              </Field.Label>
-              <Textarea {...field} size="sm" />
-              {showJsonWarning ? (
-                <Text color="fg.warning" fontSize="xs">
-                  {translate("variables.form.invalidJson")}
-                </Text>
-              ) : undefined}
-              {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
-            </Field.Root>
-          );
-        }}
+        render={({ field, fieldState }) => <ValueField field={field} fieldState={fieldState} />}
         rules={{
           required: translate("variables.form.valueRequired"),
         }}
