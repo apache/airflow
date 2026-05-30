@@ -940,50 +940,6 @@
       "additionalProperties": false,
       "description": "DagRun serializer for asset responses.",
       "properties": {
-        "bundle_version": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Bundle Version"
-        },
-        "clear_number": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0,
-          "title": "Clear Number"
-        },
-        "conf": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Conf"
-        },
-        "consumed_asset_events": {
-          "items": {
-            "$ref": "#/$defs/AssetEventDagRunReference"
-          },
-          "title": "Consumed Asset Events",
-          "type": "array"
-        },
         "run_id": {
           "title": "Run Id",
           "type": "string"
@@ -1258,6 +1214,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
         },
         "team_name": {
           "anyOf": [
@@ -3034,352 +3002,6 @@
       "type": "object"
     },
     "PreviousDagRunResult": {
-      "$defs": {
-        "AssetAliasReferenceAssetEventDagRun": {
-          "additionalProperties": false,
-          "description": "Schema for AssetAliasModel used in AssetEventDagRunReference.",
-          "properties": {
-            "name": {
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          "required": [
-            "name"
-          ],
-          "title": "AssetAliasReferenceAssetEventDagRun",
-          "type": "object"
-        },
-        "AssetEventDagRunReference": {
-          "additionalProperties": false,
-          "description": "Schema for AssetEvent model used in DagRun.",
-          "properties": {
-            "asset": {
-              "$ref": "#/$defs/AssetReferenceAssetEventDagRun"
-            },
-            "extra": {
-              "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
-              },
-              "title": "Extra",
-              "type": "object"
-            },
-            "source_aliases": {
-              "items": {
-                "$ref": "#/$defs/AssetAliasReferenceAssetEventDagRun"
-              },
-              "title": "Source Aliases",
-              "type": "array"
-            },
-            "source_dag_id": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Source Dag Id"
-            },
-            "source_map_index": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Source Map Index"
-            },
-            "source_run_id": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Source Run Id"
-            },
-            "source_task_id": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Source Task Id"
-            },
-            "timestamp": {
-              "format": "date-time",
-              "title": "Timestamp",
-              "type": "string"
-            }
-          },
-          "required": [
-            "asset",
-            "extra",
-            "source_aliases",
-            "timestamp"
-          ],
-          "title": "AssetEventDagRunReference",
-          "type": "object"
-        },
-        "AssetReferenceAssetEventDagRun": {
-          "additionalProperties": false,
-          "description": "Schema for AssetModel used in AssetEventDagRunReference.",
-          "properties": {
-            "extra": {
-              "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
-              },
-              "title": "Extra",
-              "type": "object"
-            },
-            "name": {
-              "title": "Name",
-              "type": "string"
-            },
-            "uri": {
-              "title": "Uri",
-              "type": "string"
-            }
-          },
-          "required": [
-            "name",
-            "uri",
-            "extra"
-          ],
-          "title": "AssetReferenceAssetEventDagRun",
-          "type": "object"
-        },
-        "DagRun": {
-          "additionalProperties": false,
-          "description": "Schema for DagRun model with minimal required fields needed for Runtime.",
-          "properties": {
-            "bundle_version": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Bundle Version"
-            },
-            "clear_number": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": 0,
-              "title": "Clear Number"
-            },
-            "conf": {
-              "anyOf": [
-                {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Conf"
-            },
-            "consumed_asset_events": {
-              "items": {
-                "$ref": "#/$defs/AssetEventDagRunReference"
-              },
-              "title": "Consumed Asset Events",
-              "type": "array"
-            },
-            "dag_id": {
-              "title": "Dag Id",
-              "type": "string"
-            },
-            "data_interval_end": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Data Interval End"
-            },
-            "data_interval_start": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Data Interval Start"
-            },
-            "end_date": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "End Date"
-            },
-            "logical_date": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Logical Date"
-            },
-            "note": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Note"
-            },
-            "partition_key": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Partition Key"
-            },
-            "run_after": {
-              "format": "date-time",
-              "title": "Run After",
-              "type": "string"
-            },
-            "run_id": {
-              "title": "Run Id",
-              "type": "string"
-            },
-            "run_type": {
-              "$ref": "#/$defs/DagRunType"
-            },
-            "start_date": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Start Date"
-            },
-            "state": {
-              "$ref": "#/$defs/DagRunState"
-            },
-            "team_name": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Team Name"
-            },
-            "triggering_user_name": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Triggering User Name"
-            }
-          },
-          "required": [
-            "dag_id",
-            "run_id",
-            "run_after",
-            "run_type",
-            "state",
-            "consumed_asset_events"
-          ],
-          "title": "DagRun",
-          "type": "object"
-        },
-        "DagRunState": {
-          "description": "All possible states that a DagRun can be in.\n\nThese are \"shared\" with TaskInstanceState in some parts of the code,\nso please ensure that their values always match the ones with the\nsame name in TaskInstanceState.",
-          "enum": [
-            "queued",
-            "running",
-            "success",
-            "failed"
-          ],
-          "title": "DagRunState",
-          "type": "string"
-        },
-        "DagRunType": {
-          "description": "Class with DagRun types.",
-          "enum": [
-            "backfill",
-            "scheduled",
-            "manual",
-            "operator_triggered",
-            "asset_triggered",
-            "asset_materialization"
-          ],
-          "title": "DagRunType",
-          "type": "string"
-        },
-        "JsonValue": {}
-      },
       "description": "Response containing previous Dag run information.",
       "properties": {
         "dag_run": {
@@ -5124,6 +4746,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
         },
         "team_name": {
           "anyOf": [
