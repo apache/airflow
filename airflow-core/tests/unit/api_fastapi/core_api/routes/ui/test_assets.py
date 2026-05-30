@@ -146,6 +146,43 @@ class TestNextRunAssets:
             ],
         }
 
+    def test_first_ever_run_reports_queued_assets(self, test_client, dag_maker, session):
+        with dag_maker(
+            dag_id="first_ever_consumer",
+            schedule=[
+                Asset(name="first_run_asset_1"),
+                Asset(name="first_run_asset_2"),
+                Asset(name="first_run_asset_3"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_maker.sync_dagbag_to_db()
+
+        assets = {
+            asset.name: asset
+            for asset in session.scalars(
+                select(AssetModel).where(
+                    AssetModel.name.in_(["first_run_asset_1", "first_run_asset_2", "first_run_asset_3"])
+                )
+            )
+        }
+        timestamp = pendulum.datetime(2024, 1, 1, tz="UTC")
+        for asset_name in ("first_run_asset_1", "first_run_asset_2"):
+            asset_id = assets[asset_name].id
+            session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id="first_ever_consumer"))
+            session.add(AssetEvent(asset_id=asset_id, timestamp=timestamp))
+        session.commit()
+
+        response = test_client.get("/next_run_assets/first_ever_consumer")
+        assert response.status_code == 200
+
+        events_by_name = {event["name"]: event for event in response.json()["events"]}
+        assert events_by_name["first_run_asset_1"]["lastUpdate"] is not None
+        assert events_by_name["first_run_asset_2"]["lastUpdate"] is not None
+        assert events_by_name["first_run_asset_3"]["lastUpdate"] is None
+
     def test_last_update_respects_latest_run_filter(self, test_client, dag_maker, session):
         with dag_maker(
             dag_id="filter_run",
