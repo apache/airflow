@@ -819,17 +819,19 @@ class TestSchedulerJob:
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
-    def test_process_executor_events_stale_success_when_scheduled_after_defer(
-        self, mock_get_backend, mock_task_callback, dag_maker
+    @pytest.mark.parametrize("rescheduled_state", [State.SCHEDULED, State.QUEUED])
+    def test_process_executor_events_stale_success_when_rescheduled_after_defer(
+        self, mock_get_backend, mock_task_callback, dag_maker, rescheduled_state
     ):
         """
-        Trigger moved TI to scheduled (resume after defer) before executor success from defer exit arrived.
+        Trigger moved TI to scheduled/queued (resume after defer) before executor success from defer exit arrived.
 
-        Regression for https://github.com/apache/airflow/issues/66374 — must not treat as state mismatch.
+        Regression for https://github.com/apache/airflow/issues/66374 and
+        https://github.com/apache/airflow/issues/67287 — must not treat as state mismatch.
         """
         mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
-        dag_id = "test_process_executor_events_stale_success_scheduled_after_defer"
+        dag_id = "test_process_executor_events_stale_success_rescheduled_after_defer"
         task_id_1 = "dummy_task"
 
         session = settings.Session()
@@ -845,7 +847,7 @@ class TestSchedulerJob:
         session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
-        ti1.state = State.SCHEDULED
+        ti1.state = rescheduled_state
         ti1.next_method = "execute_callback"
         ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 1
@@ -858,11 +860,11 @@ class TestSchedulerJob:
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
-        assert ti1.state == State.SCHEDULED
+        assert ti1.state == rescheduled_state
         self.job_runner.executor.callback_sink.send.assert_not_called()
         mock_stats.incr.assert_not_called()
 
-        # Without next_method, scheduled + stale success is still a mismatch (e.g. external kill).
+        # Without next_method, scheduled/queued + stale success is still a mismatch (e.g. external kill).
         ti1.next_method = None
         session.merge(ti1)
         session.commit()
