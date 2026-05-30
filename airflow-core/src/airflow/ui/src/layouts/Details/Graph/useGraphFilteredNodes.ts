@@ -83,10 +83,34 @@ const isNodeFiltered = (node: ReactFlowNode<CustomNodeProps>, filters: GraphFilt
   }
 
   if (filters.selectedStates.length > 0) {
-    const state = taskInstance?.state ?? "none";
+    // For aggregates (groups / mapped tasks), keep the node if *any* contained
+    // child state is selected — operators using the state filter are usually
+    // asking "find work in this state", not "find aggregates whose dominant
+    // rendering is this state", so collapsed groups must not hide matching
+    // children. Normalize the serialized Python-None key (`"None"`) to the
+    // same `"none"` pill value the rest of the UI uses.
+    const childStates = taskInstance?.child_states;
+    const hasChildStates =
+      childStates !== null &&
+      childStates !== undefined &&
+      Object.values(childStates).some((count) => count > 0);
 
-    if (!filters.selectedStates.includes(state)) {
-      return true;
+    if (hasChildStates) {
+      const containedStates = Object.entries(childStates)
+        .filter(([, count]) => count > 0)
+        .map(([state]) => (state === "None" ? "none" : state));
+      const anyMatch = containedStates.some((state) => filters.selectedStates.includes(state));
+
+      if (!anyMatch) {
+        return true;
+      }
+    } else {
+      // Leaf task (or no instance yet) — fall back to the single state.
+      const state = taskInstance?.state ?? "none";
+
+      if (!filters.selectedStates.includes(state)) {
+        return true;
+      }
     }
   }
 

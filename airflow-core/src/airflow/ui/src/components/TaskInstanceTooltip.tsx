@@ -135,6 +135,9 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               ) : undefined}
               {childEntries.length > 0 ? (
                 <VStack align="start" gap={1} ps={2}>
+                  {/* Serialized no-status key "None" yields a tokenless swatch
+                      and an untranslated `common:states.None` label here;
+                      tracked at https://github.com/apache/airflow/issues/67541 */}
                   {childEntries.map(([state, count]) => (
                     <HStack gap={2} key={state}>
                       <Box

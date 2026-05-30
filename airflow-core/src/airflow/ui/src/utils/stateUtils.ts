@@ -18,12 +18,16 @@
  */
 
 /**
- * Priority ordering of task instance states for visual display (segmented state
- * bar, tooltip breakdown). Failure/error states first, then active states
- * (running, deferred), then pending states (queued, scheduled), then terminal
- * states (success, skipped, removed).
+ * Priority ordering of task instance states for visual display in the
+ * segmented state bar and the tooltip per-state breakdown.  Failure/error
+ * states first, then active states (running, deferred), then pending states
+ * (queued, scheduled), then terminal states (success, skipped, removed).
+ * Unknown keys — including the serialized no-status key `"None"` — sort to
+ * the end so the existing tokenless / untranslated rendering for that key
+ * (tracked at https://github.com/apache/airflow/issues/67541) appears in the
+ * least prominent position until the render sites are normalized.
  *
- * Keep in sync with state_priority in api_fastapi/common/parameters.py.
+ * Keep in sync with `state_priority` in `api_fastapi/common/parameters.py`.
  */
 export const STATE_PRIORITY: Array<string> = [
   "failed",
