@@ -36,6 +36,7 @@ dayjs.extend(isSameOrBefore);
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
+const RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
 const TOTAL_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
@@ -243,13 +244,29 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount = getActualRunCount(counts, viewMode);
+        const failedCount = counts.failed;
+        const runningCount = viewMode === "total" ? counts.running : 0;
+        const successCount = viewMode === "total" ? counts.success : 0;
+
         const hasPending = getPendingRunCount(counts) > 0;
-        const hasActual = actualCount > 0;
+        const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
+
+        const failedColor = FAILURE_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
+        const successColor = TOTAL_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
 
         if (hasPending && hasActual) {
+          let actualColor = EMPTY_COLOR;
+
+          if (failedCount > 0) {
+            actualColor = failedColor;
+          } else if (runningCount > 0) {
+            actualColor = RUNNING_COLOR;
+          } else if (successCount > 0) {
+            actualColor = successColor;
+          }
+
           return {
-            actual: singleColor,
+            actual: actualColor,
             planned: PLANNED_COLOR,
           };
         }
@@ -258,7 +275,29 @@ export const createCalendarScale = (
           return PLANNED_COLOR;
         }
 
-        return actualCount === 0 ? EMPTY_COLOR : singleColor;
+        if (hasActual) {
+          if (failedCount > 0 && runningCount > 0) {
+            return { actual: RUNNING_COLOR, planned: failedColor };
+          }
+          if (failedCount > 0 && successCount > 0) {
+            return { actual: successColor, planned: failedColor };
+          }
+          if (runningCount > 0 && successCount > 0) {
+            return { actual: successColor, planned: RUNNING_COLOR };
+          }
+
+          if (failedCount > 0) {
+            return failedColor;
+          }
+          if (runningCount > 0) {
+            return RUNNING_COLOR;
+          }
+          if (successCount > 0) {
+            return successColor;
+          }
+        }
+
+        return EMPTY_COLOR;
       },
       legendItems: [
         { color: EMPTY_COLOR, label: "0" },
@@ -291,24 +330,39 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount = getActualRunCount(counts, viewMode);
+    const failedCount = counts.failed;
+    const runningCount = viewMode === "total" ? counts.running : 0;
+    const successCount = viewMode === "total" ? counts.success : 0;
+
     const hasPending = getPendingRunCount(counts) > 0;
-    const hasActual = actualCount > 0;
+    const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
 
-    if (hasPending && hasActual) {
-      let actualColor = colorScheme[0] ?? EMPTY_COLOR;
+    type ColorValue = string | { _dark: string; _light: string };
 
+    const getIntensityColor = (count: number, scheme: Array<ColorValue>) => {
+      if (count === 0) {
+        return scheme[0] ?? EMPTY_COLOR;
+      }
       for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
         const threshold = uniqueThresholds[index];
 
-        if (threshold !== undefined && actualCount >= threshold) {
-          actualColor = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
-          break;
+        if (threshold !== undefined && count >= threshold) {
+          return scheme[Math.min(index, scheme.length - 1)] ?? EMPTY_COLOR;
         }
       }
 
-      if (actualCount > 0 && actualColor === colorScheme[0]) {
-        actualColor = colorScheme[1] ?? EMPTY_COLOR;
+      return scheme[1] ?? EMPTY_COLOR;
+    };
+
+    if (hasPending && hasActual) {
+      let actualColor: ColorValue = EMPTY_COLOR;
+
+      if (failedCount > 0) {
+        actualColor = getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES);
+      } else if (runningCount > 0) {
+        actualColor = RUNNING_COLOR;
+      } else if (successCount > 0) {
+        actualColor = getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES);
       }
 
       return {
@@ -321,21 +375,40 @@ export const createCalendarScale = (
       return PLANNED_COLOR;
     }
 
-    const targetCount = actualCount;
+    if (hasActual) {
+      if (failedCount > 0 && runningCount > 0) {
+        return {
+          actual: RUNNING_COLOR,
+          planned: getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES),
+        };
+      }
 
-    if (targetCount === 0) {
-      return colorScheme[0] ?? EMPTY_COLOR;
-    }
+      if (failedCount > 0 && successCount > 0) {
+        return {
+          actual: getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES),
+          planned: getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES),
+        };
+      }
 
-    for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
-      const threshold = uniqueThresholds[index];
+      if (runningCount > 0 && successCount > 0) {
+        return {
+          actual: getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES),
+          planned: RUNNING_COLOR,
+        };
+      }
 
-      if (threshold !== undefined && targetCount >= threshold) {
-        return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
+      if (failedCount > 0) {
+        return getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES);
+      }
+      if (runningCount > 0) {
+        return RUNNING_COLOR;
+      }
+      if (successCount > 0) {
+        return getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES);
       }
     }
 
-    return colorScheme[1] ?? EMPTY_COLOR;
+    return EMPTY_COLOR;
   };
 
   const legendItems: Array<LegendItem> = [];

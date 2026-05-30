@@ -27,6 +27,7 @@ const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
 const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
 const DEFAULT_TOTAL_COLOR = { _dark: "green.700", _light: "green.400" };
 const DEFAULT_FAILED_COLOR = { _dark: "red.700", _light: "red.400" };
+const DEFAULT_RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
 const EMPTY_COUNTS: RunCounts = {
   failed: 0,
@@ -150,6 +151,39 @@ describe("createCalendarScale", () => {
     expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, success: 1, total: 2 })).toEqual({
       actual: DEFAULT_TOTAL_COLOR,
       planned: PLANNED_COLOR,
+    });
+  });
+
+  it("returns the failed color for a failed-only cell in total mode", () => {
+    const scale = createCalendarScale([run("failed", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(DEFAULT_FAILED_COLOR);
+  });
+
+  it("returns a mixed red and green color for failed and success runs in total mode", () => {
+    const scale = createCalendarScale([run("failed", 1), run("success", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, success: 1, total: 2 })).toEqual({
+      actual: DEFAULT_TOTAL_COLOR,
+      planned: DEFAULT_FAILED_COLOR,
+    });
+  });
+
+  it("returns a mixed cyan and green color for running and success runs in total mode", () => {
+    const scale = createCalendarScale([run("running", 1), run("success", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, running: 1, success: 1, total: 2 })).toEqual({
+      actual: DEFAULT_TOTAL_COLOR,
+      planned: DEFAULT_RUNNING_COLOR,
+    });
+  });
+
+  it("returns a mixed cyan and red color for running and failed runs in total mode", () => {
+    const scale = createCalendarScale([run("running", 1), run("failed", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, running: 1, total: 2 })).toEqual({
+      actual: DEFAULT_RUNNING_COLOR,
+      planned: DEFAULT_FAILED_COLOR,
     });
   });
 
