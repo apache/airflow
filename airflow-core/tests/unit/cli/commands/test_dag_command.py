@@ -44,7 +44,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, BaseOperator, CronPartitionTimetable, task
+from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -1820,6 +1820,157 @@ class TestCliDagsClear:
         assert states["no_tz_2026_03_08"] == DagRunState.QUEUED
         # 2026-03-09T00Z is NOT < 2026-03-09T00Z → excluded.
         assert states["no_tz_2026_03_09"] == DagRunState.SUCCESS
+
+    # ------------------------------------------------------------------
+    # PartitionedAssetTimetable: partitioned=True, not CronMixin → no-tz path
+    # ------------------------------------------------------------------
+
+    @pytest.fixture
+    def seeded_asset_partitioned_runs(self, dag_maker):
+        """Seed DagRuns for a PartitionedAssetTimetable Dag.
+
+        PartitionedAssetTimetable has partitioned=True but is NOT a CronMixin
+        subclass, so isinstance(dag.timetable, CronMixin) is False and
+        tt_tz=None.  partition_date values are plain UTC midnights (just like
+        the no-tz fallback path).
+
+        Runs:
+          asset_2026_04_10 → partition_date = 2026-04-10T00:00:00Z  (at lower boundary)
+          asset_2026_04_12 → partition_date = 2026-04-12T00:00:00Z  (within window)
+          asset_2026_04_14 → partition_date = 2026-04-14T00:00:00Z  (at upper boundary)
+          asset_2026_04_15 → partition_date = 2026-04-15T00:00:00Z  (just outside upper boundary)
+          asset_non_part   → partition_date = None                   (never cleared)
+        """
+        with dag_maker(
+            self.DAG_ID,
+            schedule=PartitionedAssetTimetable(assets=Asset("test_asset_for_clear")),
+            start_date=datetime(2026, 4, 1, tzinfo=pendulum.UTC),
+            catchup=False,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="asset_2026_04_10",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 4, 10, tzinfo=pendulum.UTC),
+            partition_key="2026-04-10T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="asset_2026_04_12",
+            state=DagRunState.FAILED,
+            logical_date=None,
+            partition_date=datetime(2026, 4, 12, tzinfo=pendulum.UTC),
+            partition_key="2026-04-12T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="asset_2026_04_14",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 4, 14, tzinfo=pendulum.UTC),
+            partition_key="2026-04-14T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="asset_2026_04_15",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 4, 15, tzinfo=pendulum.UTC),
+            partition_key="2026-04-15T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="asset_non_part",
+            state=DagRunState.SUCCESS,
+            logical_date=datetime(2026, 4, 11, tzinfo=pendulum.UTC),
+            partition_date=None,
+        )
+        dag_maker.sync_dagbag_to_db()
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_clears_window_inclusive(self, parser):
+        """PartitionedAssetTimetable uses the no-tz path; day-granular UTC bounds are correct.
+
+        isinstance(dag.timetable, CronMixin) is False, so tt_tz=None and
+        _compute_day_bound returns midnight UTC for each calendar day.  The
+        full window 2026-04-10 to 2026-04-14 (inclusive) should clear the
+        at-boundary and within-window runs; 2026-04-15 and partition_date=None
+        must not be touched.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-04-10",
+                "--partition-date-end",
+                "2026-04-14",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states == {
+            "asset_2026_04_10": DagRunState.QUEUED,
+            "asset_2026_04_12": DagRunState.QUEUED,
+            "asset_2026_04_14": DagRunState.QUEUED,
+            # Outside the half-open upper bound — must NOT be cleared.
+            "asset_2026_04_15": DagRunState.SUCCESS,
+            # NULL partition_date is never matched by the date-range filter.
+            "asset_non_part": DagRunState.SUCCESS,
+        }
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_upper_bound_at_cap(self, parser):
+        """--partition-date-end 2026-04-14 must include the run at exactly that UTC midnight (at-cap)."""
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-04-14",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # All runs on or before 2026-04-14 UTC midnight must be cleared.
+        assert states["asset_2026_04_10"] == DagRunState.QUEUED
+        assert states["asset_2026_04_12"] == DagRunState.QUEUED
+        assert states["asset_2026_04_14"] == DagRunState.QUEUED
+        # 2026-04-15 is outside the half-open upper bound.
+        assert states["asset_2026_04_15"] == DagRunState.SUCCESS
+        assert states["asset_non_part"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_upper_bound_over_cap(self, parser):
+        """--partition-date-end 2026-04-13 must NOT include the 2026-04-14 run (over-cap).
+
+        Half-open upper bound: end=2026-04-13 → upper = 2026-04-14T00:00Z.
+        The run stored at 2026-04-14T00:00Z satisfies partition_date < 2026-04-14T00:00Z
+        as False, so it is excluded.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-04-13",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states["asset_2026_04_10"] == DagRunState.QUEUED
+        assert states["asset_2026_04_12"] == DagRunState.QUEUED
+        # 2026-04-14 is exactly at the half-open boundary — must NOT be cleared.
+        assert states["asset_2026_04_14"] == DagRunState.SUCCESS
+        assert states["asset_2026_04_15"] == DagRunState.SUCCESS
+        assert states["asset_non_part"] == DagRunState.SUCCESS
 
 
 class TestDagDetailsIsBackfillable:
