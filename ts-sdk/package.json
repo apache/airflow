@@ -1,0 +1,62 @@
+{
+  "name": "@apache-airflow/ts-sdk",
+  "version": "0.1.0-alpha.0",
+  "packageManager": "pnpm@10.28.1",
+  "description": "TypeScript Task SDK for Apache Airflow — run Airflow tasks in Node via the Edge Executor (AIP-72 / AIP-69)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "homepage": "https://airflow.apache.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apache/airflow.git",
+    "directory": "ts-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/apache/airflow/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc -p tsconfig.build.json",
+    "generate:edge": "openapi-typescript ../airflow-core/docs/_api/edge-api.yaml -o src/generated/edge.ts",
+    "generate:execution": "openapi-typescript ../airflow-core/docs/_api/execution-api.json -o src/generated/execution.ts",
+    "generate:types": "npm run generate:edge && npm run generate:execution"
+  },
+  "keywords": [
+    "airflow",
+    "apache-airflow",
+    "task-sdk",
+    "edge-executor",
+    "aip-72",
+    "aip-69"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "openapi-typescript": "^7.9.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

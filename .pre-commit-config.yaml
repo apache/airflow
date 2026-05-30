@@ -87,9 +87,9 @@ repos:
           newsfragments/.*\.rst$|
           ^scripts/ci/license-templates/
       - id: insert-license
-        name: Add license for CSS/JS/JSX/PUML/TS/TSX
-        files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|ui/openapi-gen/|www/openapi-gen/|.*/dist/.*
+        name: Add license for CSS/JS/JSX/MJS/PUML/TS/TSX
+        files: \.(css|jsx?|mjs|puml|tsx?)$
+        exclude: ^\.github/.*$|ui/openapi-gen/|www/openapi-gen/|.*/dist/.*|^ts-sdk/src/generated/
         args:
           - --comment-style
           - "/*!| *| */"
