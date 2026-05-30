@@ -174,8 +174,10 @@ def ti_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
                 "reason": "not_found",
-                "message": "Task Instance not found",
             },
         )
 
@@ -205,16 +207,13 @@ def ti_run(
             previous_state=previous_state,
         )
 
-        # TODO: Pass a RFC 9457 compliant error message in "detail" field
-        # https://datatracker.ietf.org/doc/html/rfc9457
-        # to provide more information about the error
-        # FastAPI will automatically convert this to a JSON response
-        # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "about:blank",
+                "title": "Invalid State",
+                "detail": "TI was not in a state where it could be marked as running",
                 "reason": "invalid_state",
-                "message": "TI was not in a state where it could be marked as running",
                 "previous_state": previous_state,
             },
         )
@@ -311,7 +310,12 @@ def ti_run(
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "detail": "Database error occurred",
+            },
         )
 
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
@@ -395,8 +399,10 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
                 "reason": "not_found",
-                "message": "Task Instance not found",
             },
         )
 
@@ -408,8 +414,10 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "about:blank",
+                "title": "Invalid State",
+                "detail": "TI was not in the running state so it cannot be updated",
                 "reason": "invalid_state",
-                "message": "TI was not in the running state so it cannot be updated",
                 "previous_state": previous_state,
             },
         )
@@ -470,7 +478,12 @@ def ti_update_state(
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "detail": "Database error occurred",
+            },
         )
 
     if updated_state == TaskInstanceState.SUCCESS:
@@ -706,7 +719,12 @@ def ti_skip_downstream(
     if row_result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": "Task Instance not found"},
+            detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
+                "reason": "not_found",
+            },
         )
     dag_id, run_id = row_result
     log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
@@ -814,16 +832,20 @@ def ti_heartbeat(
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
                 detail={
+                    "type": "about:blank",
+                    "title": "Task Instance Not Found",
+                    "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
                     "reason": "not_found",
-                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
                 },
             )
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
                 "reason": "not_found",
-                "message": "Task Instance not found",
             },
         )
 
@@ -838,8 +860,10 @@ def ti_heartbeat(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "about:blank",
+                "title": "Conflict",
+                "detail": "TI is already running elsewhere",
                 "reason": "running_elsewhere",
-                "message": "TI is already running elsewhere",
                 "current_hostname": hostname,
                 "current_pid": pid,
             },
@@ -850,8 +874,10 @@ def ti_heartbeat(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "about:blank",
+                "title": "Conflict",
+                "detail": "TI is no longer in the running state and task should terminate",
                 "reason": "not_running",
-                "message": "TI is no longer in the running state and task should terminate",
                 "current_state": previous_state,
             },
         )
@@ -893,6 +919,11 @@ def ti_put_rtif(
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
+            },
         )
     task_instance.update_rtif(put_rtif_payload, session)
     log.debug("RenderedTaskInstanceFields updated successfully")
@@ -925,7 +956,11 @@ def ti_patch_rendered_map_index(
         log.error("rendered_map_index cannot be empty")
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="rendered_map_index cannot be empty",
+            detail={
+                "type": "about:blank",
+                "title": "Unprocessable Content",
+                "detail": "rendered_map_index cannot be empty",
+            },
         )
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
@@ -938,7 +973,11 @@ def ti_patch_rendered_map_index(
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task Instance not found",
+            detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
+            },
         )
 
 
@@ -1191,8 +1230,10 @@ def _get_group_tasks(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
+                "type": "about:blank",
+                "title": "Not Found",
+                "detail": f"Task group {task_group_id} not found in DAG {dag_id}",
                 "reason": "not_found",
-                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
             },
         )
 
@@ -1233,8 +1274,10 @@ def validate_inlets_and_outlets(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
+                "type": "about:blank",
+                "title": "Task Instance Not Found",
+                "detail": "Task Instance not found",
                 "reason": "not_found",
-                "message": "Task Instance not found",
             },
         )
 
