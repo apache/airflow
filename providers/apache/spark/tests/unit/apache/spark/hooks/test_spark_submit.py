@@ -28,6 +28,7 @@ from kubernetes.client import V1Pod, V1PodStatus
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.cncf.kubernetes import kube_client
 from airflow.providers.common.compat.sdk import AirflowException
 
 
@@ -98,6 +99,14 @@ class TestSparkSubmitHook:
                 conn_type="spark",
                 host="k8s://https://k8s-master",
                 extra='{"deploy-mode": "client", "namespace": "mynamespace"}',
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_k8s_cluster_no_namespace",
+                conn_type="spark",
+                host="k8s://https://k8s-master",
+                extra='{"deploy-mode": "cluster"}',
             )
         )
         create_connection_without_db(
@@ -1395,6 +1404,7 @@ class TestSparkSubmitHook:
         [
             ("spark_yarn_cluster", "requires Spark master to be Kubernetes"),
             ("spark_k8s_client", "requires `deploy_mode='cluster'`"),
+            ("spark_k8s_cluster_no_namespace", "requires a namespace"),
         ],
     )
     def test_validate_track_driver_via_k8s_api_raises(self, conn_id, match):
@@ -1459,4 +1469,37 @@ class TestSparkSubmitHook:
             hook._poll_k8s_driver_via_api()
 
         # assert that it was polled minimum 3 times to confirm the Unknown status before raising
+        assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("time.sleep")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_tolerates_transient_api_errors(self, mock_get_client, _):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        api_error = kube_client.ApiException(status=500, reason="Internal Server Error")
+        succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        mock_client.read_namespaced_pod.side_effect = [api_error, api_error, succeeded_pod]
+
+        with patch.object(hook, "_run_post_submit_commands"):
+            hook._poll_k8s_driver_via_api()
+
+        assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("time.sleep")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_raises_after_consecutive_api_errors(self, mock_get_client, _):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        api_error = kube_client.ApiException(status=500, reason="Internal Server Error")
+        mock_client.read_namespaced_pod.side_effect = api_error
+
+        with pytest.raises(RuntimeError, match="K8s API unreachable"):
+            hook._poll_k8s_driver_via_api()
+
         assert mock_client.read_namespaced_pod.call_count == 3

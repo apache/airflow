@@ -235,6 +235,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         hook = self._hook
+        if self._track_driver_via_k8s_api:
+            hook._validate_track_driver_via_k8s_api_config()
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
@@ -243,7 +245,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
         if hook._should_track_driver_via_k8s_api():
-            hook._validate_track_driver_via_k8s_api_config()
             # TODO: Wire into execute_resumable() via ResumableJobMixin
             # (fill submit_job / poll_until_complete K8s stubs) to enable crash recovery.
             hook.submit(self.application)

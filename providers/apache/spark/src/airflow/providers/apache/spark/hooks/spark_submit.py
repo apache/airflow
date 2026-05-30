@@ -42,7 +42,6 @@ DEFAULT_SPARK_BINARY = "spark-submit"
 ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
-_K8S_DELETE_ON_TERMINATION_CONF = "spark.kubernetes.driver.deleteOnTermination"
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -299,6 +298,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             raise ValueError(
                 "`track_driver_via_k8s_api=True` requires `deploy_mode='cluster'`; "
                 f"got deploy_mode={self._connection['deploy_mode']!r}."
+            )
+        if not self._connection.get("namespace"):
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires a namespace; "
+                "set it in the connection extra as `namespace` or via `spark.kubernetes.namespace` in conf."
             )
         if self._conf.get(_K8S_WAIT_APP_COMPLETION_CONF, "").lower() == "true":
             raise ValueError(
@@ -737,7 +741,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
                 if not self._kubernetes_driver_pod:
-                    match_submission_id = re.search(r"submission ID spark:(.+-driver)", line)
+                    match_submission_id = re.search(r"submission ID spark:(.+?-driver)", line)
                     if match_submission_id:
                         self._kubernetes_driver_pod = match_submission_id.group(1)
                         self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
@@ -866,44 +870,85 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if not pod_name:
             raise ValueError("K8s driver pod name not set; cannot poll status.")
 
-        client = kube_client.get_kube_client(in_cluster=False)
+        client = kube_client.get_kube_client()
         poll_interval = max(self._status_poll_interval, 20)
-        # similar to `missed_job_status_reports` tolerance in `_start_driver_status_tracking`:
-        # tolerate transient `Unknown` phases (node temporarily unreachable) before giving up.
+        if poll_interval != self._status_poll_interval:
+            self.log.info(
+                "status_poll_interval=%ds is below the 20s minimum for K8s API polling; using 20s.",
+                self._status_poll_interval,
+            )
+        # Mirror `missed_job_status_reports` / `max_missed_job_status_reports` from
+        # `_start_driver_status_tracking`: tolerate transient failures before giving up.
         consecutive_unknown = 0
         max_consecutive_unknown = 3
+        consecutive_api_errors = 0
+        max_consecutive_api_errors = 3
+        consecutive_pending = 0
+        pending_warn_threshold = 10
 
-        while True:
-            pod = client.read_namespaced_pod(pod_name, namespace)
-            phase = pod.status.phase or "Initializing"
-            self.log.info("Application status for %s (phase: %s)", app_id, phase)
-            if phase == "Succeeded":
-                break
-            if phase == "Failed":
-                container_state = ""
-                if pod.status.container_statuses:
-                    cs = pod.status.container_statuses[0]
-                    if cs.state and cs.state.terminated:
-                        container_state = (
-                            f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
-                        )
-                raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
-            if phase == "Unknown":
-                consecutive_unknown += 1
-                if consecutive_unknown >= max_consecutive_unknown:
-                    raise RuntimeError(
-                        f"Spark application {app_id} reported Unknown phase "
-                        f"{consecutive_unknown} times consecutively; giving up."
-                    )
-            else:
-                consecutive_unknown = 0
-            time.sleep(poll_interval)
-        self._run_post_submit_commands()
         try:
-            client.delete_namespaced_pod(pod_name, namespace)
-            self.log.info("Deleted driver pod %s", pod_name)
-        except kube_client.ApiException:
-            self.log.warning("Could not delete driver pod %s after completion", pod_name)
+            while True:
+                try:
+                    pod = client.read_namespaced_pod(pod_name, namespace)
+                    consecutive_api_errors = 0
+                except kube_client.ApiException as e:
+                    consecutive_api_errors += 1
+                    self.log.warning(
+                        "ApiException polling pod %s (%d/%d): %s",
+                        pod_name,
+                        consecutive_api_errors,
+                        max_consecutive_api_errors,
+                        e,
+                    )
+                    if consecutive_api_errors >= max_consecutive_api_errors:
+                        raise RuntimeError(
+                            f"K8s API unreachable after {consecutive_api_errors} consecutive errors "
+                            f"while polling {app_id}; giving up."
+                        ) from e
+                    time.sleep(poll_interval)
+                    continue
+
+                phase = pod.status.phase or "Initializing"
+                self.log.info("Application status for %s (phase: %s)", app_id, phase)
+                if phase == "Succeeded":
+                    break
+                if phase == "Failed":
+                    container_state = ""
+                    if pod.status.container_statuses:
+                        cs = pod.status.container_statuses[0]
+                        if cs.state and cs.state.terminated:
+                            container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
+                    raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
+                if phase == "Pending":
+                    consecutive_pending += 1
+                    if consecutive_pending == pending_warn_threshold:
+                        self.log.warning(
+                            "Driver pod %s has been Pending for %d polls (~%ds); "
+                            "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
+                            pod_name,
+                            consecutive_pending,
+                            consecutive_pending * poll_interval,
+                        )
+                else:
+                    consecutive_pending = 0
+
+                if phase == "Unknown":
+                    consecutive_unknown += 1
+                    if consecutive_unknown >= max_consecutive_unknown:
+                        raise RuntimeError(
+                            f"Spark application {app_id} reported Unknown phase "
+                            f"{consecutive_unknown} times consecutively; giving up."
+                        )
+                else:
+                    consecutive_unknown = 0
+                time.sleep(poll_interval)
+            try:
+                client.delete_namespaced_pod(pod_name, namespace)
+                self.log.info("Deleted driver pod %s", pod_name)
+            except kube_client.ApiException:
+                self.log.warning("Could not delete driver pod %s after completion", pod_name)
+        finally:
+            self._run_post_submit_commands()
 
     def _build_spark_driver_kill_command(self) -> list[str]:
         """
@@ -968,7 +1013,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 try:
                     import kubernetes
 
-                    client = kube_client.get_kube_client(in_cluster=False)
+                    client = kube_client.get_kube_client()
                     api_response = client.delete_namespaced_pod(
                         self._kubernetes_driver_pod,
                         self._connection["namespace"],
