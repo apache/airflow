@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicy
 from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
 
@@ -115,3 +116,24 @@ def task_instance_mutation_hook(task_instance: TaskInstance):
 
 
 # [END example_task_mutation_hook]
+
+
+# [START example_dag_bundle_policy]
+# Names of subdirectories inside the bundle root to add to sys.path.
+# Any of these that exist will be importable by DAG files in the bundle.
+_BUNDLE_SYS_PATH_SUBDIRS = ["shared", "libs", "plugins"]
+
+
+def dag_bundle_policy(bundle: BaseDagBundle):
+    """Add well-known subdirectories inside the bundle root to ``sys.path``."""
+    import sys
+
+    for subdir in _BUNDLE_SYS_PATH_SUBDIRS:
+        candidate = bundle.path / subdir
+        if candidate.is_dir():
+            candidate_str = str(candidate)
+            if candidate_str not in sys.path:
+                sys.path.insert(0, candidate_str)
+
+
+# [END example_dag_bundle_policy]
