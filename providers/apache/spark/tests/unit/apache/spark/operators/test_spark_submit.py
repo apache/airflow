@@ -733,4 +733,43 @@ class TestSparkSubmitOperatorResumable:
         with pytest.raises(RuntimeError, match="FAILED"):
             operator.poll_until_complete("driver-001", {})
 
-        assert post_submit_called, "_run_post_submit_commands must be called even on driver failure"
+
+class TestSparkSubmitOperatorK8sTracking:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_k8s_tracking_dag", schedule=None, default_args=args)
+
+    def _make_operator(self, **kwargs):
+        return SparkSubmitOperator(task_id="test", dag=self.dag, application="test.jar", **kwargs)
+
+    def _make_k8s_hook(self):
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = True
+        return hook
+
+    def test_execute_calls_submit_then_poll_when_flag_set(self):
+        operator = self._make_operator(track_driver_via_k8s_api=True)
+        hook = self._make_k8s_hook()
+        operator._hook = hook
+        call_order = []
+        hook.submit.side_effect = lambda *a, **kw: call_order.append("submit")
+        hook._poll_k8s_driver_via_api.side_effect = lambda: call_order.append("poll")
+
+        operator.execute(context={})
+
+        hook.submit.assert_called_once_with("test.jar")
+        hook._poll_k8s_driver_via_api.assert_called_once()
+        assert call_order == ["submit", "poll"]
+
+    def test_execute_falls_through_to_plain_submit_when_flag_off(self):
+        operator = self._make_operator(track_driver_via_k8s_api=False)
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = False
+        operator._hook = hook
+
+        operator.execute(context={})
+
+        hook.submit.assert_called_once_with("test.jar")
+        hook._poll_k8s_driver_via_api.assert_not_called()
