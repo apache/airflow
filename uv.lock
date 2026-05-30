@@ -5394,6 +5394,9 @@ microsoft-azure = [
 microsoft-mssql = [
     { name = "apache-airflow-providers-microsoft-mssql" },
 ]
+mongo = [
+    { name = "apache-airflow-providers-mongo" },
+]
 mysql = [
     { name = "apache-airflow-providers-mysql" },
 ]
@@ -5440,6 +5443,7 @@ dev = [
     { name = "apache-airflow-providers-http" },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-microsoft-mssql" },
+    { name = "apache-airflow-providers-mongo" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-oracle" },
@@ -5470,6 +5474,7 @@ requires-dist = [
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-microsoft-mssql", marker = "extra == 'microsoft-mssql'", editable = "providers/microsoft/mssql" },
+    { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", marker = "extra == 'mysql'", editable = "providers/mysql" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
@@ -5554,7 +5559,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.3.0" },
     { name = "types-protobuf", specifier = ">=5.27.0,!=5.29.1.20250402" },
 ]
-provides-extras = ["cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
+provides-extras = ["cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5572,6 +5577,7 @@ dev = [
     { name = "apache-airflow-providers-http", editable = "providers/http" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-microsoft-mssql", editable = "providers/microsoft/mssql" },
+    { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", editable = "providers/oracle" },
