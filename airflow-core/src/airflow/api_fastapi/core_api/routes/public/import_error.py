@@ -182,12 +182,23 @@ def get_import_errors(
         .cte()
     )
 
-    # Prepare the import errors query by joining with the CTE above.
-    # Each returned row will be a tuple: (ParseImportError, dag_id).
-    # ``dag_id`` is NULL for import errors whose file has no Dags at all
-    # in ``DagModel`` (parse failed before any Dag was defined).
-    import_errors_stmt = (
-        select(ParseImportError, file_dags_cte.c.dag_id)
+    # Visibility filter: include import errors for files that either have no
+    # Dags at all (parse failed before any Dag was defined) or have at least
+    # one Dag that the requesting user is authorised to read.
+    visibility_condition = or_(
+        files_with_any_dags.c.relative_fileloc.is_(None),
+        file_dags_cte.c.dag_id.isnot(None),
+    )
+
+    # Deduplicated base statement: one row per distinct ParseImportError.
+    #
+    # When a single file contains multiple Dags the join with file_dags_cte
+    # produces N rows for that import error (one per Dag).  Selecting only
+    # ParseImportError with DISTINCT collapses those N rows back to one so
+    # that total_entries reflects the number of *import-error objects* and
+    # limit/offset paginate over import-error objects rather than joined rows.
+    dedup_stmt = (
+        select(ParseImportError)
         .outerjoin(
             files_with_any_dags,
             ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
@@ -199,26 +210,44 @@ def get_import_errors(
                 ParseImportError.bundle_name == file_dags_cte.c.bundle_name,
             ),
         )
-        .where(
-            or_(
-                files_with_any_dags.c.relative_fileloc.is_(None),
-                file_dags_cte.c.dag_id.isnot(None),
-            )
-        )
-        .order_by(ParseImportError.id)
+        .where(visibility_condition)
+        .distinct()
     )
 
-    # Paginate the import errors query
-    import_errors_select, total_entries = paginated_select(
-        statement=import_errors_stmt,
+    # Paginate distinct import errors.  total_entries now counts import-error
+    # objects, and limit/offset operate on those objects rather than joined rows.
+    paginated_stmt, total_entries = paginated_select(
+        statement=dedup_stmt,
         filters=[filename_pattern, filename_prefix_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
+    paginated_errors = list(session.scalars(paginated_stmt))
+    paginated_ids = [err.id for err in paginated_errors]
+
+    if not paginated_ids:
+        return ImportErrorCollectionResponse(import_errors=[], total_entries=total_entries)
+
+    # Fetch all Dag associations for the paginated import errors.  The full
+    # outer-join with file_dags_cte is still needed so per-file authorisation
+    # (detecting co-located Dags the caller cannot read) and stacktrace
+    # redaction work correctly for each import-error object on this page.
+    import_errors_stmt = (
+        select(ParseImportError, file_dags_cte.c.dag_id)
+        .outerjoin(
+            file_dags_cte,
+            and_(
+                ParseImportError.filename == file_dags_cte.c.relative_fileloc,
+                ParseImportError.bundle_name == file_dags_cte.c.bundle_name,
+            ),
+        )
+        .where(ParseImportError.id.in_(paginated_ids))
+        .order_by(ParseImportError.id)
+    )
     import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
-        session.execute(import_errors_select), itemgetter(0)
+        session.execute(import_errors_stmt), itemgetter(0)
     )
 
     import_errors = []
@@ -248,6 +277,12 @@ def get_import_errors(
             session.expunge(import_error)
             import_error.stacktrace = REDACTED_STACKTRACE
         import_errors.append(import_error)
+
+    # Restore the pagination order from the dedup query.  The full-join above
+    # orders by id for an efficient groupby; re-sort here to match the
+    # caller-requested ordering that was applied to the dedup query.
+    id_order = {err_id: idx for idx, err_id in enumerate(paginated_ids)}
+    import_errors.sort(key=lambda err: id_order[err.id])
 
     return ImportErrorCollectionResponse(
         import_errors=import_errors,
