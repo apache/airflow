@@ -902,7 +902,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-excluded-provider-markers
-        name: Check excluded-provider python_version markers in pyproject.toml
+        name: Check excluded-provider python_version and platform markers in pyproject.toml
         language: python
         entry: ./scripts/ci/prek/check_excluded_provider_markers.py
         files: >
