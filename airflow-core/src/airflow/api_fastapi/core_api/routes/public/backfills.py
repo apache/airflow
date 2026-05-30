@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
+    BackfillDagRunCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
     DryRunBackfillCollectionResponse,
@@ -110,6 +111,43 @@ def get_backfill(
     if backfill:
         return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
+
+
+@backfills_router.get(
+    path="/{backfill_id}/dag_runs",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_backfill(method="GET")),
+    ],
+)
+def list_backfill_dag_runs(
+    backfill_id: NonNegativeInt,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(SortParam(["id", "sort_ordinal"], BackfillDagRun).dynamic_depends(default="sort_ordinal")),
+    ],
+    session: SessionDep,
+) -> BackfillDagRunCollectionResponse:
+    """List Dag runs associated with a backfill, including skipped slots."""
+    backfill = session.get(Backfill, backfill_id)
+    if not backfill:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Backfill with id {backfill_id} not found")
+
+    select_stmt, total_entries = paginated_select(
+        statement=select(BackfillDagRun)
+        .where(BackfillDagRun.backfill_id == backfill_id)
+        .options(joinedload(BackfillDagRun.dag_run)),
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    return BackfillDagRunCollectionResponse(
+        backfill_dag_runs=session.scalars(select_stmt).unique(),
+        total_entries=total_entries,
+    )
 
 
 @backfills_router.put(

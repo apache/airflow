@@ -204,6 +204,169 @@ class TestGetBackfill(TestBackfillEndpoint):
         )
 
 
+class TestListBackfillDagRuns(TestBackfillEndpoint):
+    def test_list_backfill_dag_runs(self, test_client, session):
+        """Happy path: backfill with mixed dag run states."""
+        (dag,) = self._create_dag_models()
+        from_date = pendulum.parse("2024-01-01")
+        to_date = pendulum.parse("2024-01-03")
+        b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(b)
+        session.flush()
+
+        dr1 = DagRun(
+            dag_id=dag.dag_id,
+            run_id="backfill__2024-01-01",
+            logical_date=pendulum.parse("2024-01-01"),
+            state=DagRunState.SUCCESS,
+            run_type="scheduled",
+        )
+        dr2 = DagRun(
+            dag_id=dag.dag_id,
+            run_id="backfill__2024-01-02",
+            logical_date=pendulum.parse("2024-01-02"),
+            state=DagRunState.FAILED,
+            run_type="scheduled",
+        )
+        session.add_all([dr1, dr2])
+        session.flush()
+
+        bdr1 = BackfillDagRun(
+            backfill_id=b.id, dag_run_id=dr1.id, logical_date=pendulum.parse("2024-01-01"), sort_ordinal=1
+        )
+        bdr2 = BackfillDagRun(
+            backfill_id=b.id, dag_run_id=dr2.id, logical_date=pendulum.parse("2024-01-02"), sort_ordinal=2
+        )
+        session.add_all([bdr1, bdr2])
+        session.commit()
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 2
+        runs = data["backfill_dag_runs"]
+        assert len(runs) == 2
+        assert runs[0]["sort_ordinal"] == 1
+        assert runs[0]["dag_run_state"] == "success"
+        assert runs[0]["dag_run_run_id"] == "backfill__2024-01-01"
+        assert runs[1]["sort_ordinal"] == 2
+        assert runs[1]["dag_run_state"] == "failed"
+
+    def test_list_backfill_dag_runs_with_skipped_slots(self, test_client, session):
+        """Slots skipped due to existing runs have null dag_run_id and exception_reason set."""
+        (dag,) = self._create_dag_models()
+        b = Backfill(
+            dag_id=dag.dag_id, from_date=pendulum.parse("2024-01-01"), to_date=pendulum.parse("2024-01-02")
+        )
+        session.add(b)
+        session.flush()
+
+        bdr = BackfillDagRun(
+            backfill_id=b.id,
+            dag_run_id=None,
+            logical_date=pendulum.parse("2024-01-01"),
+            sort_ordinal=1,
+            exception_reason="already exists",
+        )
+        session.add(bdr)
+        session.commit()
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 1
+        run = data["backfill_dag_runs"][0]
+        assert run["dag_run_id"] is None
+        assert run["dag_run_state"] is None
+        assert run["exception_reason"] == "already exists"
+
+    def test_list_backfill_dag_runs_not_found(self, test_client):
+        """Non-existent backfill returns 404."""
+        response = test_client.get("/backfills/999999/dag_runs")
+        assert response.status_code == 404
+
+    def test_list_backfill_dag_runs_pagination(self, test_client, session):
+        """Limit and offset work correctly."""
+        (dag,) = self._create_dag_models()
+        b = Backfill(
+            dag_id=dag.dag_id, from_date=pendulum.parse("2024-01-01"), to_date=pendulum.parse("2024-01-05")
+        )
+        session.add(b)
+        session.flush()
+
+        for i in range(1, 4):
+            session.add(
+                BackfillDagRun(
+                    backfill_id=b.id,
+                    dag_run_id=None,
+                    logical_date=pendulum.parse(f"2024-01-0{i}"),
+                    sort_ordinal=i,
+                    exception_reason="already exists",
+                )
+            )
+        session.commit()
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 3
+        assert len(data["backfill_dag_runs"]) == 2
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=2")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["backfill_dag_runs"]) == 1
+
+    def test_list_backfill_dag_runs_empty(self, test_client, session):
+        """Backfill with no dag runs returns empty list."""
+        (dag,) = self._create_dag_models()
+        b = Backfill(
+            dag_id=dag.dag_id, from_date=pendulum.parse("2024-01-01"), to_date=pendulum.parse("2024-01-02")
+        )
+        session.add(b)
+        session.commit()
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 0
+        assert data["backfill_dag_runs"] == []
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_first_ordinal"),
+        [
+            ("sort_ordinal", 1),
+            ("-sort_ordinal", 3),
+            ("id", 1),
+        ],
+    )
+    def test_list_backfill_dag_runs_ordering(self, order_by, expected_first_ordinal, test_client, session):
+        """Verify sort contract for allowed order_by values."""
+        (dag,) = self._create_dag_models()
+        b = Backfill(
+            dag_id=dag.dag_id, from_date=pendulum.parse("2024-01-01"), to_date=pendulum.parse("2024-01-03")
+        )
+        session.add(b)
+        session.flush()
+
+        for i in range(1, 4):
+            session.add(
+                BackfillDagRun(
+                    backfill_id=b.id,
+                    dag_run_id=None,
+                    logical_date=pendulum.parse(f"2024-01-0{i}"),
+                    sort_ordinal=i,
+                    exception_reason="already exists",
+                )
+            )
+        session.commit()
+
+        response = test_client.get(f"/backfills/{b.id}/dag_runs?order_by={order_by}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["backfill_dag_runs"][0]["sort_ordinal"] == expected_first_ordinal
+
+
 class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         ("repro_act", "repro_exp"),
