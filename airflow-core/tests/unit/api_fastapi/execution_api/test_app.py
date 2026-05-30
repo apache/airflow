@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.versions import bundle
@@ -111,3 +114,30 @@ class TestCorrelationIdMiddleware:
 
         # Verify they didn't interfere with each other
         assert correlation_id_1 != correlation_id_2
+
+
+class TestDatabaseErrorHandler:
+    def test_sqlalchemy_error_returns_500(self, client):
+        """SQLAlchemyError on a real route is caught by the handler and returns 500."""
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.health.health",
+            side_effect=SQLAlchemyError("db failure"),
+        ):
+            response = client.get("/execution/health")
+
+        assert response.status_code == 500
+        assert response.json() == {"detail": "Database error occurred"}
+
+    def test_sqlalchemy_error_includes_correlation_id(self, client):
+        """correlation-id header is echoed in the error response body on SQLAlchemyError."""
+        correlation_id = "db-error-correlation-id"
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.health.health",
+            side_effect=SQLAlchemyError("db failure"),
+        ):
+            response = client.get("/execution/health", headers={"correlation-id": correlation_id})
+
+        assert response.status_code == 500
+        body = response.json()
+        assert body["detail"] == "Database error occurred"
+        assert body["correlation-id"] == correlation_id
