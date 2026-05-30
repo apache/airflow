@@ -4745,6 +4745,74 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_verify_integrity_processes_more_than_one_batch(self, dag_maker, monkeypatch):
+        """Bulk dag_version_id refresh processes all TIs across multiple batches."""
+        dag_id = "test_verify_integrity_processes_more_than_one_batch"
+        with create_session() as session:
+            session.execute(
+                delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id),
+                execution_options={"synchronize_session": False},
+            )
+
+        initial_task_ids = {f"dummy_{i}" for i in range(3)}
+        with dag_maker(dag_id=dag_id, serialized=False) as dag:
+            for task_id in sorted(initial_task_ids):
+                BashOperator(task_id=task_id, bash_command="echo hi")
+
+        session = settings.Session()
+        orm_dag = dag_maker.dag_model
+        assert orm_dag is not None
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._create_dag_runs([orm_dag], session)
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+        assert dr.bundle_version is None
+
+        # Set explicit state because _create_dag_runs leaves TI.state NULL, and
+        # SQL three-valued logic excludes NULL from `state IN (State.unfinished)`,
+        # which would silently skip the batch UPDATE under test.
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.dag_id == dr.dag_id, TaskInstance.run_id == dr.run_id)
+            .values(state=State.SCHEDULED),
+            execution_options={"synchronize_session": False},
+        )
+
+        BashOperator(task_id="dummy_3", dag=dag, bash_command="echo hi")
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
+        )
+        session.commit()
+        dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
+
+        # Force the multi-batch path: 3 initial TIs with batch_size=2 -> 2 + 1.
+        # Mock out the trailing verify_integrity call so this test focuses on the batch loop only;
+        # the missing-task creation path is already covered by test_verify_integrity_if_dag_changed.
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner._DAG_VERSION_REFRESH_BATCH_SIZE", 2)
+        with mock.patch("airflow.jobs.scheduler_job_runner.DagRun.verify_integrity"):
+            self.job_runner._verify_integrity_if_dag_changed(dag_run=dr, session=session)
+        session.commit()
+
+        session.expire_all()
+        initial_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id.in_(initial_task_ids),
+            )
+        ).all()
+        assert len(initial_tis) == 3
+        for ti in initial_tis:
+            assert ti.dag_version_id == dag_version_2.id
+
+        session.rollback()
+        session.close()
+
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
