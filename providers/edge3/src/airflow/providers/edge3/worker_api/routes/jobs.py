@@ -28,7 +28,10 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
+from airflow.providers.edge3.worker_api.auth import (
+    assert_jwt_team_matches_body,
+    jwt_token_authorization_rest,
+)
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerApiDocs,
@@ -45,7 +48,6 @@ def parse_command(command: str) -> ExecuteTask:
 
 @jobs_router.post(
     "/fetch/{worker_name}",
-    dependencies=[Depends(jwt_token_authorization_rest)],
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -63,8 +65,13 @@ def fetch(
         ),
     ],
     session: SessionDep,
+    jwt_payload: Annotated[dict, Depends(jwt_token_authorization_rest)],
 ) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
+    # Trust the JWT-bound team_name over any value in the body. Reject if the
+    # body's team_name disagrees with the JWT — that would be a cross-team
+    # request from a worker authenticated only for a different team.
+    team_name = assert_jwt_team_matches_body(jwt_payload, body.team_name)
     query = (
         select(EdgeJobModel)
         .where(
@@ -75,7 +82,7 @@ def fetch(
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
-    query = query.where(EdgeJobModel.team_name == body.team_name)
+    query = query.where(EdgeJobModel.team_name == team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
     job: EdgeJobModel | None = session.scalar(query)

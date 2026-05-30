@@ -94,8 +94,17 @@ def jwt_generator() -> JWTGenerator:
     network_errors=ClientConnectionError,
     timeouts=ServerTimeoutError,
 )
-async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
-    authorization = jwt_generator().generate({"method": rest_path})
+async def _make_generic_request(
+    method: str, rest_path: str, data: str | None = None, team_name: str | None = None
+) -> Any:
+    # The JWT carries both the request method (binding the token to a specific
+    # endpoint) and the worker's team_name (so the server can enforce team
+    # isolation without trusting a body field). Pre-team-claim workers omit
+    # team_name; the server falls back to the body for backwards compatibility.
+    claims: dict = {"method": rest_path}
+    if team_name is not None:
+        claims["team_name"] = team_name
+    authorization = jwt_generator().generate(claims)
     api_url = conf.get("edge", "api_url")
     content_type = {"Content-Type": "application/json"} if data else {}
     headers = {
@@ -126,6 +135,7 @@ async def worker_register(
             WorkerStateBody(
                 state=state, jobs_active=0, queues=queues, sysinfo=sysinfo, team_name=team_name
             ).model_dump_json(exclude_unset=True),
+            team_name=team_name,
         )
     except ClientResponseError as e:
         if e.status == HTTPStatus.BAD_REQUEST:
@@ -161,6 +171,7 @@ async def worker_set_state(
                 maintenance_comments=maintenance_comments,
                 team_name=team_name,
             ).model_dump_json(exclude_unset=True),
+            team_name=team_name,
         )
     except ClientResponseError as e:
         if e.status == HTTPStatus.BAD_REQUEST:
@@ -182,6 +193,7 @@ async def jobs_fetch(
         WorkerQueuesBody(
             queues=queues, free_concurrency=free_concurrency, team_name=team_name
         ).model_dump_json(exclude_unset=True),
+        team_name=team_name,
     )
     if result:
         return EdgeJobFetched(**result)

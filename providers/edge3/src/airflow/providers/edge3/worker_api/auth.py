@@ -59,8 +59,8 @@ def _forbidden_response(message: str):
     )
 
 
-def jwt_token_authorization(method: str, authorization: str):
-    """Check if the JWT token is correct."""
+def jwt_token_authorization(method: str, authorization: str) -> dict:
+    """Check if the JWT token is correct and return the validated payload."""
     try:
         payload = jwt_validate(authorization)
         signed_method = payload.get("method")
@@ -70,6 +70,7 @@ def jwt_token_authorization(method: str, authorization: str):
                 f"signed method='{signed_method}' "
                 f"called method='{method}'",
             )
+        return payload
     except BadSignature:
         _forbidden_response("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
@@ -90,13 +91,48 @@ def jwt_token_authorization(method: str, authorization: str):
         )
     except Exception:
         _forbidden_response("Unable to authenticate API via token.")
+    # _forbidden_response always raises; this is unreachable but keeps type checkers happy.
+    return {}
 
 
 def jwt_token_authorization_rest(
     request: Request, authorization: str = Header(description="JWT Authorization Token")
-):
-    """Check if the JWT token is correct for REST API requests."""
+) -> dict:
+    """
+    Check the JWT for a REST request; return the validated payload.
+
+    Routes can capture the return value via ``Depends(jwt_token_authorization_rest)``
+    to read claims (e.g. ``team_name``) that the server must trust over any
+    matching field in the request body. The payload is returned as a plain dict.
+    """
     PREFIX = "/edge_worker/v1/"
     path = request.url.path
     method_path = path[path.find(PREFIX) + len(PREFIX) :] if PREFIX in path else path
-    jwt_token_authorization(method_path, authorization)
+    return jwt_token_authorization(method_path, authorization)
+
+
+def assert_jwt_team_matches_body(jwt_payload: dict, body_team_name: str | None) -> str | None:
+    """
+    Return the JWT-bound team_name; reject if the body claims a different team.
+
+    The JWT is the source of truth for team membership: it was issued by the
+    central site to a specific worker for a specific team. Any team_name in the
+    request body is at most an echo of the local config; if it disagrees with
+    the JWT we treat it as an attempt to cross team boundaries and reject the
+    request with HTTP 403.
+
+    Returns the JWT-bound team_name (which may be ``None`` for backwards-compat
+    workers whose JWTs predate the team_name claim — in that case the body's
+    team_name is used so older workers keep working).
+    """
+    jwt_team = jwt_payload.get("team_name")
+    if jwt_team is None:
+        # Backwards-compat: pre-team-claim JWTs. Fall back to body's value so an
+        # in-flight upgrade does not lock workers out.
+        return body_team_name
+    if body_team_name is not None and body_team_name != jwt_team:
+        _forbidden_response(
+            "team_name in request body does not match JWT claim. "
+            f"jwt_team='{jwt_team}' body_team='{body_team_name}'",
+        )
+    return jwt_team
