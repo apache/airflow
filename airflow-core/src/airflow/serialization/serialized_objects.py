@@ -1583,7 +1583,13 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             return set(value) if value is not None else set()
         elif field_name in _HAS_CALLBACK_FIELDS:
             return bool(value)
-        elif field_name in {"retry_delay", "execution_timeout", "max_retry_delay"}:
+        elif field_name in {
+            "retry_delay",
+            "execution_timeout",
+            "max_retry_delay",
+            "circuit_breaker_window",
+            "circuit_breaker_reset_delay",
+        }:
             # Reuse existing timedelta deserialization logic
             if value is not None:
                 return cls._deserialize_timedelta(value)

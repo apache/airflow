@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, CircuitBreakerService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -111,6 +111,19 @@ export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, dagId, limit, o
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
+export type CircuitBreakerServiceGetCircuitBreakerDefaultResponse = Awaited<ReturnType<typeof CircuitBreakerService.getCircuitBreaker>>;
+export type CircuitBreakerServiceGetCircuitBreakerQueryResult<TData = CircuitBreakerServiceGetCircuitBreakerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useCircuitBreakerServiceGetCircuitBreakerKey = "CircuitBreakerServiceGetCircuitBreaker";
+export const UseCircuitBreakerServiceGetCircuitBreakerKeyFn = ({ dagId, taskId }: {
+  dagId: string;
+  taskId: string;
+}, queryKey?: Array<unknown>) => [useCircuitBreakerServiceGetCircuitBreakerKey, ...(queryKey ?? [{ dagId, taskId }])];
+export type CircuitBreakerServiceListCircuitBreakersDefaultResponse = Awaited<ReturnType<typeof CircuitBreakerService.listCircuitBreakers>>;
+export type CircuitBreakerServiceListCircuitBreakersQueryResult<TData = CircuitBreakerServiceListCircuitBreakersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useCircuitBreakerServiceListCircuitBreakersKey = "CircuitBreakerServiceListCircuitBreakers";
+export const UseCircuitBreakerServiceListCircuitBreakersKeyFn = ({ dagId }: {
+  dagId: string;
+}, queryKey?: Array<unknown>) => [useCircuitBreakerServiceListCircuitBreakersKey, ...(queryKey ?? [{ dagId }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnection>>;
 export type ConnectionServiceGetConnectionQueryResult<TData = ConnectionServiceGetConnectionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnection";
@@ -1031,6 +1044,7 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<type
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;
 export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfillDryRun>>;
+export type CircuitBreakerServiceResetCircuitBreakerMutationResult = Awaited<ReturnType<typeof CircuitBreakerService.resetCircuitBreaker>>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.postConnection>>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.testConnection>>;
 export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.createDefaultConnections>>;

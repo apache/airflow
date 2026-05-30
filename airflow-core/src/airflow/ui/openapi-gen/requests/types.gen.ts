@@ -1471,6 +1471,30 @@ export type StructuredLogMessage = {
 };
 
 /**
+ * Collection of TaskCircuitBreaker responses.
+ */
+export type TaskCircuitBreakerCollectionResponse = {
+    circuit_breakers: Array<TaskCircuitBreakerResponse>;
+    total_entries: number;
+};
+
+/**
+ * Serializer for TaskCircuitBreaker responses.
+ */
+export type TaskCircuitBreakerResponse = {
+    dag_id: string;
+    task_id: string;
+    is_open: boolean;
+    opened_at: string | null;
+    opened_reason: string | null;
+    failure_count: number;
+    window_start: string | null;
+    reset_after: string | null;
+    max_failures: number;
+    window_seconds: number;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -2713,6 +2737,26 @@ export type ListBackfillsUiData = {
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
+
+export type GetCircuitBreakerData = {
+    dagId: string;
+    taskId: string;
+};
+
+export type GetCircuitBreakerResponse = TaskCircuitBreakerResponse;
+
+export type ResetCircuitBreakerData = {
+    dagId: string;
+    taskId: string;
+};
+
+export type ResetCircuitBreakerResponse = TaskCircuitBreakerResponse;
+
+export type ListCircuitBreakersData = {
+    dagId: string;
+};
+
+export type ListCircuitBreakersResponse = TaskCircuitBreakerCollectionResponse;
 
 export type DeleteConnectionData = {
     connectionId: string;
@@ -4965,6 +5009,83 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/tasks/{task_id}/circuitBreaker': {
+        get: {
+            req: GetCircuitBreakerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskCircuitBreakerResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/tasks/{task_id}/circuitBreaker/reset': {
+        post: {
+            req: ResetCircuitBreakerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskCircuitBreakerResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/circuitBreakers': {
+        get: {
+            req: ListCircuitBreakersData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskCircuitBreakerCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

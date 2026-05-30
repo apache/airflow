@@ -25,6 +25,7 @@ from airflow.api_fastapi.core_api.routes.public.asset_state import asset_state_r
 from airflow.api_fastapi.core_api.routes.public.assets import assets_router
 from airflow.api_fastapi.core_api.routes.public.auth import auth_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
+from airflow.api_fastapi.core_api.routes.public.circuit_breakers import circuit_breakers_router
 from airflow.api_fastapi.core_api.routes.public.config import config_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_parsing import dag_parsing_router
@@ -67,6 +68,7 @@ authenticated_router = AirflowRouter(
 
 authenticated_router.include_router(assets_router)
 authenticated_router.include_router(backfills_router)
+authenticated_router.include_router(circuit_breakers_router)
 authenticated_router.include_router(connections_router)
 authenticated_router.include_router(dag_run_router)
 authenticated_router.include_router(dag_sources_router)
