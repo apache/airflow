@@ -737,11 +737,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname: Callable[..., str],
         session: Session,
     ) -> workloads.RunTrigger | None:
+        # Pass the "watched" Assets through for downstream use in BaseEventTrigger
         if trigger.task_instance is None:
+            watched_assets: dict[str, str] | None = None
+
+            if trigger.asset_watchers:
+                watched_assets = {a.name: a.uri for a in trigger.assets}
+
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
+                watched_assets=watched_assets,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -1261,6 +1268,16 @@ class TriggerRunner:
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
+
+            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
+                # Reconstruct AssetStateAccessors from watched_assets
+                from airflow.sdk.definitions.asset import Asset
+                from airflow.sdk.execution_time.context import AssetStateAccessors
+
+                # Potentially address Asset vs. AssetRef, AssetUriRef, etc.
+                trigger_instance.asset_state = AssetStateAccessors(
+                    inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
