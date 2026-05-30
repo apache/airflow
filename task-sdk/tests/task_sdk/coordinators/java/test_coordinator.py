@@ -269,7 +269,7 @@ class TestWalkJars:
         seen_dirs: set[tuple[int, int]] = {(sub.stat().st_dev, sub.stat().st_ino)}
         with patch("airflow.sdk.coordinators.java.coordinator.log") as mock_log:
             list(_walk_jars([sub], seen_dirs))
-        mock_log.debug.assert_any_call("Skipping already-visited directory", path=str(sub))
+        mock_log.debug.assert_any_call("Skipping already-visited directory", path=sub)
 
 
 class TestAcceptConnections:

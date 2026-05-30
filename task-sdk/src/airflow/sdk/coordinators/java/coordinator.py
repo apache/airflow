@@ -84,16 +84,21 @@ def _walk_jars(items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]) -
         if stat.S_ISDIR(st.st_mode):
             key = (st.st_dev, st.st_ino)
             if key in seen_dirs:
-                log.debug("Skipping already-visited directory", path=str(item))
+                log.debug("Skipping already-visited directory", path=item)
                 continue
             seen_dirs.add(key)
-            try:
-                children = list(item.iterdir())
-            except OSError:
-                continue
-            yield from _walk_jars(children, seen_dirs)
+            yield from _walk_jars(_iter_dir(item), seen_dirs)
         elif stat.S_ISREG(st.st_mode) and item.suffix == ".jar":
             yield item
+
+
+def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
+    # iterdir() is lazy, so an unreadable directory raises only once iteration
+    # starts; swallow it here so a single bad directory does not abort the scan.
+    try:
+        yield from directory.iterdir()
+    except OSError:
+        return
 
 
 def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
