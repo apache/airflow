@@ -420,6 +420,7 @@ class TestCloudRunExecuteJobOperator:
         operator._cached_logger = operator._log = mock.MagicMock()
         operator.execute(context=mock.MagicMock())
 
+        hook_mock.assert_called_once()
         gcp_logging_mock.Client.assert_called_once_with(
             project=PROJECT_ID,
             credentials=hook_mock.return_value.get_credentials.return_value,
@@ -436,6 +437,44 @@ class TestCloudRunExecuteJobOperator:
                 mock.call("Starting Task #0, Attempt #0 ..."),
                 mock.call("Completed Task #0, Attempt #0"),
                 mock.call("Container called exit(0)."),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_forwards_structured_log_payload(self, hook_mock, gcp_logging_mock):
+        """Cloud Logging entries can carry a non-string (JSON / proto) payload. Those must be
+        forwarded via ``log.info("%s", payload)`` so the structured value still reaches the
+        Airflow task log instead of being passed as a non-string ``msg`` to the stdlib logger.
+        """
+        execution = self._mock_execution(3, 3, 0)
+        execution.name = EXECUTION_FULL_NAME
+        execution.job = JOB_NAME
+        operation = mock.MagicMock()
+        operation.result.return_value = execution
+        hook_mock.return_value.execute_job.return_value = operation
+        hook_mock.return_value.get_job.return_value = JOB
+
+        structured_payload = {"severity": "ERROR", "message": "boom", "code": 42}
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload=structured_payload),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+        operator.execute(context=mock.MagicMock())
+
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting Task #0, Attempt #0 ..."),
+                mock.call("%s", structured_payload),
             ]
         )
 
@@ -466,6 +505,7 @@ class TestCloudRunExecuteJobOperator:
         result = operator.execute(context=mock.MagicMock())
 
         assert result["name"] == JOB.name
+        hook_mock.assert_called_once()
         operator._cached_logger.warning.assert_called_once()
 
     @mock.patch(GCP_LOGGING_PATH)
@@ -495,6 +535,7 @@ class TestCloudRunExecuteJobOperator:
         }
         operator.execute_complete(mock.MagicMock(), event)
 
+        hook_mock.assert_called_once()
         log_filter = gcp_logging_mock.Client.return_value.list_entries.call_args.kwargs["filter_"]
         assert f'"run.googleapis.com/execution_name"="{EXECUTION_NAME}"' in log_filter
         assert 'NOT logName:"cloudaudit.googleapis.com"' in log_filter
@@ -543,6 +584,7 @@ class TestCloudRunExecuteJobOperator:
         ):
             operator.execute(context=mock.MagicMock())
 
+        hook_mock.assert_called_once()
         operator._cached_logger.info.assert_has_calls(
             [
                 mock.call("2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),
@@ -588,6 +630,7 @@ class TestCloudRunExecuteJobOperator:
         ):
             operator.execute(context=mock.MagicMock())
 
+        hook_mock.assert_called_once()
         log_filter = gcp_logging_mock.Client.return_value.list_entries.call_args.kwargs["filter_"]
         assert f'"run.googleapis.com/execution_name"="{EXECUTION_NAME}"' in log_filter
         operator._cached_logger.info.assert_has_calls(
@@ -637,6 +680,7 @@ class TestCloudRunExecuteJobOperator:
             operator.execute(context=mock.MagicMock())
 
         sleep_mock.assert_called_once_with(1)
+        hook_mock.assert_called_once()
         gcp_logging_mock.Client.return_value.list_entries.assert_called_once()
         operator._cached_logger.info.assert_has_calls(
             [
@@ -684,6 +728,7 @@ class TestCloudRunExecuteJobOperator:
         ):
             operator.execute_complete(mock.MagicMock(), event)
 
+        hook_mock.assert_called_once()
         operator._cached_logger.info.assert_has_calls(
             [
                 mock.call("2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),

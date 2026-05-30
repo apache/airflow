@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 import google.cloud.exceptions
@@ -363,12 +364,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
-        hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            transport=self.transport,
-        )
-        self.operation = hook.execute_job(
+        self.operation = self.hook.execute_job(
             region=self.region,
             project_id=self.project_id,
             job_name=self.job_name,
@@ -392,7 +388,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                     time.sleep(FAILED_EXECUTION_LOG_FETCH_DELAY_SECONDS)
                 self._log_container_output(result.name.rsplit("/", 1)[-1])
             self._fail_if_execution_failed(result)
-            job = hook.get_job(
+            job = self.hook.get_job(
                 job_name=result.job,
                 region=self.region,
                 project_id=self.project_id,
@@ -433,19 +429,21 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if self.verbose and event.get("execution_name"):
             self._log_container_output(event["execution_name"])
 
-        hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            transport=self.transport,
-        )
-
-        job = hook.get_job(
+        job = self.hook.get_job(
             job_name=event["job_name"],
             region=self.region,
             project_id=self.project_id,
             use_regional_endpoint=self.use_regional_endpoint,
         )
         return Job.to_dict(job)
+
+    @cached_property
+    def hook(self) -> CloudRunHook:
+        return CloudRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
+        )
 
     def _log_container_output(self, execution_name: str) -> None:
         """Forward Cloud Run container logs for ``execution_name`` into the Airflow task log."""
@@ -456,14 +454,10 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             f'labels."run.googleapis.com/execution_name"="{execution_name}" '
             'NOT logName:"cloudaudit.googleapis.com"'
         )
-        hook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
         try:
             client = gcp_logging.Client(
                 project=self.project_id,
-                credentials=hook.get_credentials(),
+                credentials=self.hook.get_credentials(),
             )
             for entry in client.list_entries(filter_=log_filter, order_by=gcp_logging.ASCENDING):
                 payload = entry.payload
