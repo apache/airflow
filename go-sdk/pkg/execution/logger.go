@@ -119,15 +119,18 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// Apply pre-configured attrs. Keys are already qualified with the groups
 	// active at the WithAttrs call site, so the current h.groups is NOT
-	// applied here — only to record-level attrs below.
+	// applied here — only to record-level attrs below. The stored key already
+	// carries its prefix, so append with an empty prefix; any group value is
+	// still expanded under that key.
 	for _, a := range h.attrs {
-		entry[a.key] = resolveAttrValue(a.value)
+		appendAttr(entry, "", slog.Attr{Key: a.key, Value: a.value})
 	}
 
 	// Apply record attrs. These were added at Handle time, so they pick up
 	// the currently-active group prefix.
+	prefix := h.groupPrefix()
 	r.Attrs(func(a slog.Attr) bool {
-		entry[h.prefixedKey(a.Key)] = resolveAttrValue(a.Value)
+		appendAttr(entry, prefix, a)
 		return true
 	})
 
@@ -195,11 +198,32 @@ func (h *SocketLogHandler) groupPrefix() string {
 	return strings.Join(h.groups, ".") + "."
 }
 
-// prefixedKey prepends any active group names to the attribute key. Only
-// used for record-level attrs, since attrs added via WithAttrs are stored
-// with their key already qualified.
-func (h *SocketLogHandler) prefixedKey(key string) string {
-	return h.groupPrefix() + key
+// appendAttr writes a single attribute into entry under prefix+key. A group
+// value is expanded recursively into dotted keys (matching WithGroup), so an
+// inline slog.Group("req", slog.String("method", "GET")) becomes
+// {"req.method": "GET"} rather than being dropped as "{}". Following the
+// slog.Handler contract, an empty attr is skipped, a group with no attrs is
+// ignored, and a group with an empty key is inlined at the current prefix.
+func appendAttr(entry map[string]any, prefix string, a slog.Attr) {
+	a.Value = a.Value.Resolve()
+	if a.Equal(slog.Attr{}) {
+		return
+	}
+	if a.Value.Kind() == slog.KindGroup {
+		groupAttrs := a.Value.Group()
+		if len(groupAttrs) == 0 {
+			return
+		}
+		groupPrefix := prefix
+		if a.Key != "" {
+			groupPrefix = prefix + a.Key + "."
+		}
+		for _, ga := range groupAttrs {
+			appendAttr(entry, groupPrefix, ga)
+		}
+		return
+	}
+	entry[prefix+a.Key] = resolveAttrValue(a.Value)
 }
 
 // resolveAttrValue returns the JSON-friendly representation of a slog.Value.

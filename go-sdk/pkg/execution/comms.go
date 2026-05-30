@@ -252,7 +252,10 @@ func (c *CoordinatorComm) readLoop() {
 		}
 		c.mu.Unlock()
 		if !ok {
-			c.logger.Warn("Discarding frame with no matching waiter", "id", frame.ID)
+			// A waiter whose caller cancelled or timed out is deliberately
+			// removed by Communicate, leaving its late reply to land here. That
+			// is the expected deadline path, not a protocol bug, so log at Debug.
+			c.logger.Debug("Discarding frame with no matching waiter", "id", frame.ID)
 			continue
 		}
 		ch <- frameResult{frame: frame}

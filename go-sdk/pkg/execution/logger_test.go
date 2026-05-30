@@ -113,6 +113,73 @@ func TestSocketLogHandlerWithGroup(t *testing.T) {
 	assert.Equal(t, "val", entry["grp.key"])
 }
 
+// TestSocketLogHandlerInlineGroup verifies that an inline slog.Group passed as
+// a record-level attr is expanded into dotted keys (req.method) rather than
+// being marshaled as "{}". A KindGroup value resolves to []slog.Attr whose
+// unexported slog.Value would otherwise drop every field, so task code logging
+// with slog.Group would silently lose data.
+func TestSocketLogHandlerInlineGroup(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler)
+
+	logger.Info(
+		"inline group",
+		slog.Group("req", slog.String("method", "GET"), slog.Int("code", 200)),
+	)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "GET", entry["req.method"])
+	assert.EqualValues(t, 200, entry["req.code"])
+	assert.NotContains(t, entry, "req")
+}
+
+// TestSocketLogHandlerInlineGroupUnderActiveGroup verifies that an inline group
+// is further qualified by any group active at Handle time, so the dotted prefix
+// stacks (outer.req.method).
+func TestSocketLogHandlerInlineGroupUnderActiveGroup(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler).WithGroup("outer")
+
+	logger.Info("nested inline group", slog.Group("req", slog.String("method", "GET")))
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "GET", entry["outer.req.method"])
+}
+
+// TestSocketLogHandlerGroupViaWithAttrs verifies that a group added through
+// With() (a pre-configured attr) is expanded the same way as an inline group.
+func TestSocketLogHandlerGroupViaWithAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler).With(slog.Group("req", slog.String("method", "GET")))
+
+	logger.Info("group via with")
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "GET", entry["req.method"])
+	assert.NotContains(t, entry, "req")
+}
+
+// TestSocketLogHandlerEmptyGroupOmitted verifies that a group with no attrs is
+// dropped entirely, matching the slog.Handler contract.
+func TestSocketLogHandlerEmptyGroupOmitted(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler)
+
+	logger.Info("empty group", slog.Group("empty"), "kept", "yes")
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.NotContains(t, entry, "empty")
+	assert.Equal(t, "yes", entry["kept"])
+}
+
 func TestSocketLogHandlerKeyMapping(t *testing.T) {
 	var buf bytes.Buffer
 	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
