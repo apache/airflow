@@ -97,6 +97,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
     :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
     :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
+    :param cache_approle_token: If True, cache the approle authentication token and reuse it until
+        it expires. This reduces the number of authentication requests to Vault. Only applies when
+        ``auth_type`` is ``approle``. Default is False.
     """
 
     def __init__(
@@ -133,6 +136,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         jwt_role: str | None = None,
         jwt_token: str | None = None,
         jwt_token_path: str | None = None,
+        cache_approle_token: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -173,6 +177,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             jwt_role=jwt_role,
             jwt_token=jwt_token,
             jwt_token_path=jwt_token_path,
+            cache_approle_token=cache_approle_token,
             **kwargs,
         )
 
