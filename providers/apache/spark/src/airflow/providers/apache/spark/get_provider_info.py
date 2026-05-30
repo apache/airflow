@@ -136,6 +136,11 @@ def get_provider_info():
                         "description": "Port for the Spark standalone REST API (spark.master.rest.port). Default is 6066.",
                         "schema": {"type": ["string", "null"], "default": "6066"},
                     },
+                    "yarn_resourcemanager_webapp_address": {
+                        "label": "YARN ResourceManager webapp address",
+                        "description": "Base URL of the YARN ResourceManager REST API (e.g. http://rm.example.com:8088). Required when using ResumableJobMixin in YARN cluster mode.",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
         ],

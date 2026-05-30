@@ -21,7 +21,8 @@ import base64
 import os
 from io import StringIO
 from pathlib import Path
-from unittest.mock import call, mock_open, patch
+from unittest import mock
+from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
 
@@ -1366,3 +1367,31 @@ class TestSparkSubmitHook:
         """Test that None post_submit_commands results in an empty list."""
         hook = SparkSubmitHook(conn_id="")
         assert hook._post_submit_commands == []
+
+    @pytest.mark.parametrize(
+        ("state", "final_status", "expected"),
+        [
+            ("NEW", "UNDEFINED", "NEW"),
+            ("NEW_SAVING", "UNDEFINED", "NEW_SAVING"),
+            ("SUBMITTED", "UNDEFINED", "SUBMITTED"),
+            ("ACCEPTED", "UNDEFINED", "ACCEPTED"),
+            ("RUNNING", "UNDEFINED", "RUNNING"),
+            ("FINISHED", "SUCCEEDED", "SUCCEEDED"),
+            ("FINISHED", "FAILED", "FAILED"),
+            ("FINISHED", "KILLED", "FAILED"),
+            ("FINISHED", "UNDEFINED", "FAILED"),
+            ("FAILED", "FAILED", "FAILED"),
+            ("FAILED", "KILLED", "FAILED"),
+            ("KILLED", "KILLED", "FAILED"),
+        ],
+    )
+    def test_query_yarn_application_status_state_mapping(self, state, final_status, expected):
+        hook = SparkSubmitHook(conn_id="")
+        hook._get_yarn_rm_base_url = lambda: "http://rm.example.com:8088"
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"app": {"state": state, "finalStatus": final_status}}
+
+        with mock.patch("requests.get", return_value=mock_response):
+            assert hook.query_yarn_application_status("application_1234_0001") == expected
