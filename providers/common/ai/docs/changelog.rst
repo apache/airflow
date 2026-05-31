@@ -48,6 +48,12 @@ rather than a pretty form, but no allow-list edit is required). Cross-DAG
 parses its own DAG file. On older Airflow releases that lack ``allow_class``
 the operators continue to dump to ``dict``.
 
+Direct callers of :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.create_agent`
+and :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.run_agent` must use
+:class:`~airflow.providers.common.ai.hooks.base.AgentRunRequest` instead of keyword arguments.
+DAG authors using :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
+``@task.agent``, and the other LLM operators are unaffected.
+
 0.3.0
 .....
 

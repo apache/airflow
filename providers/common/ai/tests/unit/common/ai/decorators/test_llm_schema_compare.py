@@ -22,22 +22,26 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_schema_compare import _LLMSchemaCompareDecoratedOperator
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
 )
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+def _make_run_result(output):
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1),
     )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
+
+
+def _make_mock_hook(run_result):
+    mock_hook = MagicMock()
+    mock_hook.create_agent.return_value = MagicMock()
+    mock_hook.run_agent.return_value = run_result
+    return mock_hook
 
 
 def _make_compare_result():
@@ -48,23 +52,14 @@ def _make_compare_result():
     )
 
 
-def _make_mock_agent(output: SchemaCompareResult):
-    mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = _make_mock_run_result(output)
-    return mock_agent
-
-
 class TestLLMSchemaCompareDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMSchemaCompareDecoratedOperator.custom_operator_name == "@task.llm_schema_compare"
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_build_ctx, mock_hook_cls):
+    def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_build_ctx):
         """The user's callable return value becomes the LLM prompt."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            _make_compare_result()
-        )
+        mock_hook = _make_mock_hook(_make_run_result(_make_compare_result()))
 
         def my_prompt_fn():
             return "Compare schemas and flag breaking changes"
@@ -76,7 +71,8 @@ class TestLLMSchemaCompareDecoratedOperator:
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["test_table"],
         )
-        result = op.execute(context={})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            result = op.execute(context={})
 
         assert result["compatible"] is True
         assert op.prompt == "Compare schemas and flag breaking changes"
@@ -98,15 +94,12 @@ class TestLLMSchemaCompareDecoratedOperator:
         with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_accepts_sequence_prompt(self, mock_build_ctx, mock_hook_cls):
-        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
-        mock_agent = _make_mock_agent(_make_compare_result())
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
+    def test_execute_accepts_sequence_prompt(self, mock_build_ctx):
+        """A non-empty Sequence[UserContent] return value is forwarded as-is."""
         image = ImageUrl(url="https://example.com/x.png")
         prompt = ["Compare these schemas:", image]
+        mock_hook = _make_mock_hook(_make_run_result(_make_compare_result()))
 
         def my_prompt_fn():
             return prompt
@@ -118,19 +111,17 @@ class TestLLMSchemaCompareDecoratedOperator:
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["test_table"],
         )
-        op.execute(context={})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={})
 
         assert op.prompt == prompt
-        forwarded_prompt = mock_agent.run_sync.call_args[0][0]
-        assert forwarded_prompt == prompt
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.prompt == prompt
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx, mock_hook_cls):
+    def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            _make_compare_result()
-        )
+        mock_hook = _make_mock_hook(_make_run_result(_make_compare_result()))
 
         def my_prompt_fn(target_env):
             return f"Compare schemas for {target_env} environment"
@@ -143,6 +134,7 @@ class TestLLMSchemaCompareDecoratedOperator:
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["test_table"],
         )
-        op.execute(context={"task_instance": MagicMock()})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Compare schemas for production environment"

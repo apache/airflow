@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAGs demonstrating PydanticAIHook and direct pydantic-ai Agent usage."""
+"""Example DAGs demonstrating BaseAIHook and AgentRunRequest usage."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook
 from airflow.providers.common.compat.sdk import dag, task
 
 
@@ -29,9 +29,10 @@ from airflow.providers.common.compat.sdk import dag, task
 def example_pydantic_ai_hook():
     @task
     def generate_summary(text: str) -> str:
-        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
-        agent = hook.create_agent(output_type=str, instructions="Summarize concisely.")
-        result = agent.run_sync(text)
+        hook = BaseAIHook.get_agent_hook("pydanticai_default")
+        request = AgentRunRequest(prompt=text, output_type=str, instructions="Summarize concisely.")
+        agent = hook.create_agent(request)
+        result = hook.run_agent(agent, request)
         return result.output
 
     generate_summary("Apache Airflow is a platform for programmatically authoring...")
@@ -51,12 +52,14 @@ def example_pydantic_ai_structured_output():
             query: str
             explanation: str
 
-        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
-        agent = hook.create_agent(
+        hook = BaseAIHook.get_agent_hook("pydanticai_default")
+        request = AgentRunRequest(
+            prompt=prompt,
             output_type=SQLResult,
             instructions="Generate a SQL query and explain it.",
         )
-        result = agent.run_sync(prompt)
+        agent = hook.create_agent(request)
+        result = hook.run_agent(agent, request)
         return result.output.model_dump()
 
     generate_sql("Find the top 10 customers by revenue")
@@ -76,8 +79,9 @@ def example_task_with_toolsets():
     def analyze_revenue() -> str:
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
-        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
-        agent = hook.create_agent(
+        hook = BaseAIHook.get_agent_hook("pydanticai_default")
+        request = AgentRunRequest(
+            prompt="Which customers have spent the most? Show the top 5.",
             output_type=str,
             instructions=(
                 "You are a sales analytics assistant. "
@@ -91,7 +95,8 @@ def example_task_with_toolsets():
                 ),
             ],
         )
-        result = agent.run_sync("Which customers have spent the most? Show the top 5.")
+        agent = hook.create_agent(request)
+        result = hook.run_agent(agent, request)
         return result.output
 
     analyze_revenue()

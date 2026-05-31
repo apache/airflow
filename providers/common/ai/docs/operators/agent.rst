@@ -31,7 +31,12 @@ a single prompt and returns the output. ``AgentOperator`` manages a stateful
 tool-call loop where the LLM decides which tools to call and when to stop.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydanticai>`
+    :ref:`Pydantic AI connection <howto/connection:pydanticai>`
+    :ref:`Strands Agents connection <howto/connection:strands-gemini>`
+
+The agent backend is selected by the Airflow connection ``conn_type`` (for example
+``pydanticai``, ``pydanticai-bedrock``, ``pydanticai-azure``, or ``strands-gemini``).
+You do not choose a different operator class.
 
 
 SQL Agent
@@ -73,6 +78,32 @@ methods you explicitly list are exposed — there is no auto-discovery.
     :language: python
     :start-after: [START howto_operator_agent_hook]
     :end-before: [END howto_operator_agent_hook]
+
+
+Strands Skills
+--------------
+
+When using a Strands connection (for example ``strands-gemini``), pass skill directories
+(with ``SKILL.md`` per the `Agent Skills spec <https://agentskills.io/>`__) via the
+``strands_skill_path`` Airflow Variable, or use inline
+:class:`~airflow.providers.common.ai.hooks.base.SkillSpec` objects so the agent loads
+specialized instructions on demand via the Strands ``AgentSkills`` plugin:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
+    :language: python
+    :start-after: [START howto_operator_strands_skills_path]
+    :end-before: [END howto_operator_strands_skills_path]
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
+    :language: python
+    :start-after: [START howto_operator_strands_skills]
+    :end-before: [END howto_operator_strands_skills]
+
+Configure the ``AgentSkills`` plugin via operator ``skills_params``. When a skill includes
+resource files, provide tools (for example ``file_read`` / ``shell`` from ``strands-agents-tools``)
+so the agent can read scripts and references.
+
+Example DAGs: ``example_strands.py`` in the provider's ``example_dags`` package.
 
 
 TaskFlow Decorator
@@ -303,11 +334,18 @@ Parameters
   templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
-- ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
-  ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
-- ``enable_tool_logging``: Wrap each toolset in
-  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  every tool call is logged in real time. Default ``True``.
+- ``toolsets``: List of toolsets the agent can use. Accepts
+  :class:`~airflow.providers.common.ai.hooks.base.BaseToolset` subclasses
+  (``SQLToolset``), pydantic-ai ``AbstractToolset`` implementations
+  (``HookToolset``, ``MCPToolset``, ``DataFusionToolset``,
+  ``AgentSkillsToolset`` for :ref:`agent-skills`, third-party toolsets),
+  plain Python callables, or native pydantic-ai ``Tool`` objects. Mixed lists
+  are supported.
+- ``enable_tool_logging``: When ``True`` (default), wraps each tool call with
+  real-time logging. For pydantic-ai ``AbstractToolset`` items this is done via
+  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset`; for
+  plain callables and :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
+  items it is applied at the callable level.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
@@ -326,9 +364,9 @@ Parameters
 Logging
 -------
 
-All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+All AI operators automatically log a post-run summary after the agent run
+completes. ``AgentOperator`` additionally provides real-time per-tool-call
+logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only) — each tool call is
 logged as it happens:

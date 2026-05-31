@@ -22,40 +22,43 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+def _make_run_result(output):
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1),
     )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
+
+
+def _make_mock_hook(run_result):
+    mock_hook = MagicMock()
+    mock_hook.create_agent.return_value = MagicMock()
+    mock_hook.run_agent.return_value = run_result
+    return mock_hook
 
 
 class TestLLMSQLDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMSQLDecoratedOperator.custom_operator_name == "@task.llm_sql"
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_hook_cls):
+    def test_execute_calls_callable_and_uses_result_as_prompt(self):
         """The user's callable return value becomes the LLM prompt."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = _make_mock_hook(_make_run_result("SELECT 1"))
 
         def my_prompt_fn():
             return "Get all users"
 
         op = _LLMSQLDecoratedOperator(task_id="test", python_callable=my_prompt_fn, llm_conn_id="my_llm")
-        result = op.execute(context={})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            result = op.execute(context={})
 
         assert result == "SELECT 1"
         assert op.prompt == "Get all users"
-        mock_agent.run_sync.assert_called_once_with("Get all users", usage_limits=None)
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.prompt == "Get all users"
 
     @pytest.mark.parametrize(
         "return_value",
@@ -72,31 +75,25 @@ class TestLLMSQLDecoratedOperator:
         with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_accepts_sequence_prompt(self, mock_hook_cls):
-        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
+    def test_execute_accepts_sequence_prompt(self):
+        """A non-empty Sequence[UserContent] return value is forwarded as-is."""
         image = ImageUrl(url="https://example.com/x.png")
         prompt = ["Write SQL for this diagram:", image]
+        mock_hook = _make_mock_hook(_make_run_result("SELECT 1"))
 
         def my_prompt_fn():
             return prompt
 
         op = _LLMSQLDecoratedOperator(task_id="test", python_callable=my_prompt_fn, llm_conn_id="my_llm")
-        op.execute(context={})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.prompt == prompt
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
+    def test_sequence_prompt_with_require_approval_raises(self):
         """Sequence prompt + require_approval=True fails before the agent runs."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
         op = _LLMSQLDecoratedOperator(
             task_id="test",
             python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
@@ -106,14 +103,9 @@ class TestLLMSQLDecoratedOperator:
         with pytest.raises(TypeError, match="require_approval=True"):
             op.execute(context={})
 
-        mock_agent.run_sync.assert_not_called()
-
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
+    def test_execute_merges_op_kwargs_into_callable(self):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = _make_mock_hook(_make_run_result("SELECT 1"))
 
         def my_prompt_fn(table_name):
             return f"Get all rows from {table_name}"
@@ -124,6 +116,7 @@ class TestLLMSQLDecoratedOperator:
             llm_conn_id="my_llm",
             op_kwargs={"table_name": "users"},
         )
-        op.execute(context={"task_instance": MagicMock()})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Get all rows from users"
