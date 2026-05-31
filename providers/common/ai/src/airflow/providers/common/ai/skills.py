@@ -126,6 +126,16 @@ def _clone_git(source: GitSkills) -> tuple[str, str]:
             f"http://; use an https:// URL (token) or an ssh URL with a key on the connection."
         )
 
+    # ``path`` is joined onto the clone dir; an absolute or upward-traversing
+    # value would point outside the checkout. Require a relative sub-path so a
+    # misconfigured value fails fast instead of silently reading elsewhere.
+    if source.path:
+        normalized = os.path.normpath(source.path)
+        if os.path.isabs(source.path) or normalized == ".." or normalized.startswith(".." + os.sep):
+            raise ValueError(
+                f"GitSkills path must be a relative sub-path inside the repository; got {source.path!r}."
+            )
+
     clone_kwargs: dict[str, Any] = {"depth": 1}
     if source.branch:
         clone_kwargs["branch"] = source.branch

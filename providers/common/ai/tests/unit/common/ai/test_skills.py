@@ -96,6 +96,17 @@ class TestResolveGitWithHook:
         mock_githook.assert_not_called()
         mock_repo.clone_from.assert_not_called()
 
+    @pytest.mark.parametrize("bad_path", ["/etc", "../outside", "a/../../b"])
+    @patch("airflow.providers.git.hooks.git.GitHook")
+    @patch("git.Repo")
+    def test_absolute_or_traversing_path_rejected(self, mock_repo, mock_githook, bad_path):
+        with pytest.raises(ValueError, match="relative sub-path"):
+            with resolve_skills(
+                [GitSkills(repo_url="https://github.com/org/repo", conn_id="git_default", path=bad_path)]
+            ):
+                pass
+        mock_repo.clone_from.assert_not_called()
+
     @patch("airflow.providers.git.hooks.git.GitHook")
     @patch("git.Repo")
     def test_http_with_conn_id_is_rejected(self, mock_repo, mock_githook):
