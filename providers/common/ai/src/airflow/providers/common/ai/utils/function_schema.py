@@ -53,26 +53,34 @@ _DOCSTRING_SECTION_PREFIXES = (
 )
 
 
+def _first_docstring_paragraph(obj: Any) -> str:
+    doc = inspect.getdoc(obj)
+    if not doc:
+        return ""
+    result: list[str] = []
+    for line in doc.split("\n"):
+        if line.strip().lower().startswith(_DOCSTRING_SECTION_PREFIXES):
+            break
+        result.append(line)
+    return "\n".join(result).strip()
+
+
 def extract_function_description(fn: Callable[..., Any]) -> str:
     """Return the first paragraph of *fn*'s docstring, stopping before Args/Returns sections."""
     # Unwrap partials to get the underlying function's docstring.
     if isinstance(fn, functools.partial):
         return extract_function_description(fn.func)
 
-    # Callable objects (class instances) have no __name__; use the class name.
+    # Callable objects (class instances) have no __name__.
+    # Prefer __call__ docstring (what calling does), then class docstring, then class name.
     if not hasattr(fn, "__name__"):
-        return type(fn).__name__
+        return (
+            _first_docstring_paragraph(type(fn).__call__)
+            or _first_docstring_paragraph(fn)
+            or type(fn).__name__
+        )
 
-    doc = inspect.getdoc(fn)
-    name: str = fn.__name__  # type: ignore[assignment]
-    if not doc:
-        return name
-    result: list[str] = []
-    for line in doc.split("\n"):
-        if line.strip().lower().startswith(_DOCSTRING_SECTION_PREFIXES):
-            break
-        result.append(line)
-    return "\n".join(result).strip() or name
+    return _first_docstring_paragraph(fn) or fn.__name__  # type: ignore[return-value]
 
 
 def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
