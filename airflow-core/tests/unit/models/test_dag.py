@@ -2999,7 +2999,7 @@ class TestQueries:
     ["test-run-id"],
 )
 def test_set_task_instance_state(run_id, session, dag_maker):
-    """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
+    """Test that set_task_instance_state updates the TaskInstance state"""
     start_date = datetime_tz(2020, 1, 1)
     with dag_maker(
         "test_set_task_instance_state",
@@ -3037,6 +3037,8 @@ def test_set_task_instance_state(run_id, session, dag_maker):
 
     session.flush()
 
+    # When downstream=False (default), only the selected TI state is changed -
+    # downstream failed/upstream_failed tasks are NOT cleared (Airflow 2 semantics).
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
         run_id=run_id,
@@ -3050,6 +3052,68 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     assert isinstance(inspect(ti1).attrs.dag_run.loaded_value, DagRun)
     # task_2 remains as SUCCESS
     assert get_ti_from_db(task_2).state == State.SUCCESS
+    # task_3 and task_4 remain in their FAILED/UPSTREAM_FAILED state because downstream=False
+    assert get_ti_from_db(task_3).state == State.UPSTREAM_FAILED
+    assert get_ti_from_db(task_4).state == State.FAILED
+    # task_5 remains as SKIPPED
+    assert get_ti_from_db(task_5).state == State.SKIPPED
+
+    assert {tuple(t.key) for t in altered} == {
+        ("test_set_task_instance_state", "task_1", dagrun.run_id, 0, -1)
+    }
+
+
+def test_set_task_instance_state_downstream_clears_failed(run_id, session, dag_maker):
+    """Test that set_task_instance_state with downstream=True clears downstream failed/upstream_failed"""
+    start_date = datetime_tz(2020, 1, 1)
+    with dag_maker(
+        "test_set_task_instance_state_downstream",
+        start_date=start_date,
+        session=session,
+        serialized=True,
+    ) as dag:
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
+        task_1 >> [task_2, task_3, task_4, task_5]
+
+    dagrun = dag_maker.create_dagrun(
+        run_id=run_id,
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_ti_from_db(task):
+        return session.scalar(
+            select(TI).where(
+                TI.dag_id == dag.dag_id,
+                TI.task_id == task.task_id,
+                TI.run_id == dagrun.run_id,
+            )
+        )
+
+    get_ti_from_db(task_1).state = State.FAILED
+    get_ti_from_db(task_2).state = State.SUCCESS
+    get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
+    get_ti_from_db(task_4).state = State.FAILED
+    get_ti_from_db(task_5).state = State.SKIPPED
+
+    session.flush()
+
+    # When downstream=True, downstream failed/upstream_failed tasks ARE cleared.
+    altered = dag.set_task_instance_state(
+        task_id=task_1.task_id,
+        downstream=True,
+        run_id=run_id,
+        state=State.SUCCESS,
+        session=session,
+    )
+    ti1 = get_ti_from_db(task_1)
+    assert ti1.state == State.SUCCESS
+    # task_2 remains as SUCCESS
+    assert get_ti_from_db(task_2).state == State.SUCCESS
     # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
     assert get_ti_from_db(task_3).state == State.NONE
     assert get_ti_from_db(task_4).state == State.NONE
@@ -3060,7 +3124,7 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     assert dagrun.get_state() == State.QUEUED
 
     assert {tuple(t.key) for t in altered} == {
-        ("test_set_task_instance_state", "task_1", dagrun.run_id, 0, -1)
+        ("test_set_task_instance_state_downstream", "task_1", dagrun.run_id, 0, -1)
     }
 
 
@@ -3122,6 +3186,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     dag.set_task_instance_state(
         task_id=task_id,
         map_indexes=[1],
+        downstream=True,
         future=True,
         run_id=dr1.run_id,
         state=TaskInstanceState.SUCCESS,
