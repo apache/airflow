@@ -1,0 +1,1 @@
+Dag authors can now find guidance on when to use ``ResumableJobMixin`` versus deferrable and async operators.
