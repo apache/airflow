@@ -294,10 +294,7 @@ class AzureBatchOperator(BaseOperator):
             raise AirflowException(f"Job fail. The failed task are: {fail_tasks}")
 
     def on_kill(self) -> None:
-        self.hook.connection.begin_terminate_job(
-            self.batch_job_id,
-            batch_models.BatchJobTerminateOptions(termination_reason="Job killed by user"),
-        )
+        self.hook.connection.begin_terminate_job(self.batch_job_id)
         self.log.info("Azure Batch job (%s) terminated", self.batch_job_id)
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:

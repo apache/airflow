@@ -6038,7 +6038,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
-    { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
+    { name = "azure-batch", specifier = ">=15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.6.0" },
     { name = "azure-datalake-store", specifier = ">=0.0.45" },
     { name = "azure-identity", specifier = ">=1.3.1" },
@@ -9160,15 +9160,16 @@ wheels = [
 
 [[package]]
 name = "azure-batch"
-version = "14.2.0"
+version = "15.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "azure-common" },
-    { name = "msrestazure" },
+    { name = "azure-core", specifier = ">=1.37.0" },
+    { name = "isodate", specifier = ">=0.6.1" },
+    { name = "typing-extensions", specifier = ">=4.6.0" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/3e/4611960f8ceb281285d764f32a0e88515fab4e1e32ff5d02bc77e55bbcb6/azure-batch-14.2.0.tar.gz", hash = "sha256:c79267d6c3d3fe14a16a422ab5bbfabcbd68ed0b58b6bbcdfa0c8345c4c78532", size = 243784, upload-time = "2024-03-27T20:05:11.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/ec/9c38379dea2a4817a5c5b44282eff56476326cefa09da9e804809b397656/azure_batch-15.1.0.tar.gz", hash = "sha256:2f684d176b457b7213535e145180a914ed6844b2d1066fcc22ac88c3ac9e3fa5", size = 298104, upload-time = "2026-05-01T23:30:12Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/15/42aa83f62dc47e00bed0e590d19252c24b94b8c3b740d9bce33ec867e785/azure_batch-14.2.0-py3-none-any.whl", hash = "sha256:115ccff0007852784ccf8fc12f5f3d415ed80513be306da7a8938ca82d948ee7", size = 243322, upload-time = "2024-03-27T20:05:13.803Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/35/358a421ebbb0d6fa929333dd71b94922d34445aa02d9d2fa7c0a277dcf53/azure_batch-15.1.0-py3-none-any.whl", hash = "sha256:6001232ba67a4051f4f1b35d434232757b78baa14e4964ec3bfb91afa1d10ed4", size = 260933, upload-time = "2026-05-01T23:30:14Z" },
 ]
 
 [[package]]
