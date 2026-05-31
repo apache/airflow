@@ -1,0 +1,1 @@
+Fix dashboard pool summary deferred slot usage for pools that do not include deferred tasks.
