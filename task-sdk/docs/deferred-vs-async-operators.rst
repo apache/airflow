@@ -17,13 +17,18 @@
 
 .. _sdk-deferred-vs-async-operators:
 
-Deferred vs Async Operators
-===========================
+Deferred, Async, and Resumable Operators
+=========================================
 
 .. versionadded:: 3.2.0
 
 Airflow 3.2 introduces Python-native async support for tasks, allowing concurrent I/O within a single worker slot.
-This page explains how async operators differ from deferred operators and when to use each.
+This page explains how async operators, deferred operators, and resumable operators differ and when to use each.
+
+.. versionchanged:: 3.3.0
+
+   :class:`~airflow.sdk.ResumableJobMixin` was added as a third pattern for
+   crash-safe synchronous operators. See the `Resumable Operators`_ section below.
 
 Deferred Operators
 ------------------
@@ -234,6 +239,109 @@ This allows multiple paginated requests to be performed efficiently within a sin
 
    async_msgraph_dag()
 
+Resumable Operators
+-------------------
+
+A *resumable operator* uses :class:`~airflow.sdk.ResumableJobMixin` to make a
+synchronous polling loop crash-safe. When an operator submits a long-running job
+to an external system (for example a Spark driver on YARN), it persists the external
+job identifier to ``task_state`` before polling begins. On retry, the mixin reads that
+identifier back and reconnects to the already-running job instead of submitting a
+duplicate.
+
+Key characteristics:
+
+- **Worker slot is held** throughout execution — it is not freed while polling.
+- **No Triggerer process is required.**
+- The mixin **automatically prevents duplicate job submission** on retry.
+- Available from Airflow 3.3.
+
+When to Use Resumable Operators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Prefer a resumable operator when:
+
+- You are maintaining an existing synchronous operator and cannot migrate to deferrable mode.
+- The external system supports reconnecting to a running job via a stable identifier
+  (for example a YARN application ID or Kubernetes job name).
+- A Triggerer component is not available in your deployment.
+- Duplicate job submission on retry is unacceptable (for example, billing or data integrity).
+
+Avoid resumable operators when:
+
+- A Triggerer is available and you are writing a new operator — prefer deferrable mode
+  to keep worker slots free during long waits.
+- The external system does not expose a stable reconnectable job identifier.
+
+Real-world example: :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+uses ``ResumableJobMixin``:
+
+.. code-block:: python
+
+   from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+   from airflow.sdk import BaseOperator, Context
+   from pydantic import JsonValue
+
+
+   class MyJobOperator(ResumableJobMixin, BaseOperator):
+       external_id_key = "my_job_id"
+
+       def execute(self, context: Context):
+           return self.execute_resumable(context)
+
+       def submit_job(self, context: Context) -> JsonValue:
+           return self.hook.submit(...)
+
+       def get_job_status(self, external_id: JsonValue) -> str:
+           return self.hook.get_status(external_id)
+
+       def is_job_active(self, status: str) -> bool:
+           return status in ("RUNNING", "PENDING")
+
+       def is_job_succeeded(self, status: str) -> bool:
+           return status == "SUCCEEDED"
+
+       def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+           self.hook.poll(external_id)
+
+       def get_job_result(self, external_id: JsonValue, context: Context):
+           return None
+
+Three-way Comparison
+~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+
+   * - Aspect
+     - Deferrable operator
+     - Async ``@task``
+     - Resumable operator
+   * - Worker slot during wait
+     - **Freed** (task moves to Triggerer)
+     - Held (shared event loop)
+     - **Held** (synchronous poll)
+   * - Requires Triggerer
+     - Yes
+     - No
+     - No
+   * - State passed on retry
+     - Operator must pass serialisable values via ``method_name``/``kwargs``
+     - Not persisted automatically
+     - External job ID persisted to ``task_state``; mixin reconnects automatically
+   * - Duplicate job prevention on retry
+     - Operator must implement manually
+     - Operator must implement manually
+     - **Handled automatically** by the mixin
+   * - Ideal workload
+     - Single external event; long idle wait
+     - Many concurrent I/O operations in one task
+     - Long-running remote job; existing synchronous operators
+   * - Available from
+     - Airflow 2.2
+     - Airflow 3.2
+     - Airflow 3.3
+
 When **not** to use Deferred vs Async Operators
 -----------------------------------------------
 
@@ -255,6 +363,10 @@ it is equally important to understand scenarios where one may **not** be appropr
   should be driven by the use case, not just what Airflow provides.
   If your workflow is better suited for deferring but no operator exists yet,
   consider implementing a custom deferred operator rather than defaulting to async.
+
+- **Avoid resumable operators when a Triggerer is available and you are writing a new operator**
+  ``ResumableJobMixin`` holds the worker slot throughout execution. For new operators,
+  prefer deferrable mode to free worker slots during long waits.
 
 Comparison with Dynamic Task Mapping
 ------------------------------------
