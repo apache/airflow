@@ -80,6 +80,15 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+# Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset
+# (pulls in pydantic-ai-slim>=1.74 transitively; the provider base floor stays
+# 1.71); the git provider supplies GitHook + GitPython for cloning GitSkills with
+# credentials from a `git` connection. Native progressive disclosure is tracked
+# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+"skills" = [
+    "apache-airflow-providers-git>=0.4.0",
+    "pydantic-ai-skills>=0.11.0",
+]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',
@@ -105,6 +114,9 @@ dependencies = [
 ]
 "pdf" = ["pypdf>=4.0.0"]
 "docx" = ["python-docx>=1.0.0"]
+"git" = [
+    "apache-airflow-providers-git"
+]
 
 [dependency-groups]
 dev = [
@@ -113,10 +125,12 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-git",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
+    "pydantic-ai-skills>=0.11.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.13.0",
