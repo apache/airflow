@@ -80,7 +80,7 @@ def extract_function_description(fn: Callable[..., Any]) -> str:
             or type(fn).__name__
         )
 
-    return _first_docstring_paragraph(fn) or fn.__name__  # type: ignore[return-value]
+    return _first_docstring_paragraph(fn) or fn.__name__
 
 
 def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
