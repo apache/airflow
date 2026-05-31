@@ -133,12 +133,16 @@ Use instead:
    # Airflow 3.x
    from airflow.sdk import DAG, task
 
-Choosing Between Deferred and Async Tasks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Choosing Between Deferred, Async, and Resumable Operators
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow 3.2 introduces Python-native async tasks alongside deferrable operators.
-Both approaches support non-blocking I/O, but they serve different purposes.
-For guidance on when to use each approach, see :doc:`deferred-vs-async-operators`.
+Airflow provides three patterns for handling long-running or blocking work in tasks:
+*deferrable operators* (free the worker slot via the Triggerer while waiting),
+*async Python tasks* (run concurrent I/O operations within a shared event loop on one
+slot), and *resumable operators* (:class:`~airflow.sdk.ResumableJobMixin` — persist
+the external job identifier to ``task_state`` and reconnect automatically on retry
+without freeing the worker slot). For a complete comparison, see
+:doc:`deferred-vs-async-operators`.
 
 4. Example Dag References
 -------------------------
