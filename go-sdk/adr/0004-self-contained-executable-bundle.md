@@ -33,11 +33,12 @@ the packer writes is changed.
 ## Context
 
 ADR 0001 / ADR 0002 picked a ZIP archive as the bundle container,
-following the executable provider's existing
-[`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst).
-A conforming bundle today is `bundle.zip` with three required entries:
-`airflow-metadata.yaml`, the primary DAG source file, and the compiled
-executable.
+following the executable provider's
+[`task-sdk/docs/executable-bundle-spec.rst`](../../task-sdk/docs/executable-bundle-spec.rst).
+A conforming bundle in that earlier design was `bundle.zip` with three
+required entries: `airflow-metadata.yaml`, the primary DAG source file,
+and the compiled executable. (This ADR is what changed the container to
+the footer format the spec now documents.)
 
 That layout has three properties we want to preserve:
 
@@ -45,13 +46,13 @@ That layout has three properties we want to preserve:
    `dag_id` / `task_id` and the SDK language/version from a bundle on
    disk without running the binary. ADR 0002 already enforces this —
    `airflow-go-pack` runs the binary once at build time, captures its
-   `--dump-bundle-spec` output into the manifest, and the scanner reads
+   `--bundle-metadata` output into the manifest, and the scanner reads
    the manifest at deploy time.
 2. **Source available for the UI.** The Airflow UI's source-view
    panel needs to render the DAG file. The current spec ships it as a
    verbatim ZIP entry referenced by the manifest's `source` field.
-3. **Single deployment unit.** Drop one file in
-   `[executable] bundles_folder` and the scanner picks it up.
+3. **Single deployment unit.** Drop one file in the coordinator's
+   `executables_root` and the scanner picks it up.
 
 What the ZIP container costs us:
 
@@ -161,7 +162,7 @@ Reader algorithm:
    replaced, mtime bumped) triggers re-verification.
 
 Ordering note: source comes *before* metadata so a future
-`format_version` can introduce extra trailing blobs (e.g. signed
+`footer_ver` can introduce extra trailing blobs (e.g. signed
 checksums, compressed deps) by extending the trailer rather than
 inserting between existing blobs.
 
@@ -178,8 +179,9 @@ changes that follow from the footer container:
   filename in the source-view panel and pick a syntax-highlighting
   mode from the extension.
 
-Everything else (`format_version`, `sdk.language`, `sdk.version`,
-`dags`, the open-additivity rule for unknown keys) is unchanged.
+Everything else (`airflow_bundle_metadata_version`, `sdk.language`,
+`sdk.version`, `sdk.supervisor_schema_version`, `dags`, the
+open-additivity rule for unknown keys) is unchanged.
 
 ### Build pipeline
 
@@ -189,7 +191,7 @@ step:
 1. Resolve target package, locate the file with `func main()`. (No
    change.)
 2. Run `go build [forwarded flags] -o <out> <pkg>`. (No change.)
-3. Exec the freshly built binary with `--dump-bundle-spec` to obtain
+3. Exec the freshly built binary with `--bundle-metadata` to obtain
    the manifest. (No change.)
 4. **New:** read the source file's bytes; serialise the manifest to
    YAML; compute `binary_sha256 = SHA-256(<out>)` over the entire
@@ -208,7 +210,7 @@ Ordering against post-build steps:
   truncates it; do not rely on either.
 - **Code-sign (optional):** the bundle format does not require OS
   code-signing. The embedded `binary_sha256` provides integrity, and
-  Airflow's threat model treats `bundles_folder` as
+  Airflow's threat model treats `executables_root` as
   Deployment-Manager-controlled — authenticity is a deployment-time
   concern, not a bundle-format one. Deployment Managers who want
   OS-enforced load gating (macOS `codesign` / `rcodesign`, Linux
@@ -246,7 +248,7 @@ scope for the executable provider and therefore for this ADR.
 
 ### Consumer-side changes
 
-The scanner currently iterates `*.zip` in `bundles_folder` and opens
+The scanner currently iterates `*.zip` in `executables_root` and opens
 each as an archive. It now iterates *all* regular files, reads the
 last 64 bytes of each, and treats files whose magic matches as
 bundles. Files without the magic are silently ignored (so a stray
@@ -298,7 +300,7 @@ path does not re-hash.
   for bundle binaries. Acceptable; production deployments do not
   typically compress executables this way.
 - **Magic-collision handling.** A non-bundle file in
-  `bundles_folder` whose last 8 bytes happen to be `AFBNDL01` would
+  `executables_root` whose last 8 bytes happen to be `AFBNDL01` would
   briefly look like a bundle. Probability is negligible for a fixed
   8-byte ASCII string, and the subsequent `footer_ver` /
   bounds-check / SHA-256 verification rejects the collision
@@ -308,7 +310,7 @@ path does not re-hash.
   same path. In between, a write to the file would not be caught
   until the cache key (`inode`, `mtime`, `size`) changes and the
   scanner re-verifies. Acceptable for v1 because the threat model
-  treats `bundles_folder` as Deployment-Manager-controlled;
+  treats `executables_root` as Deployment-Manager-controlled;
   Deployment Managers who need stronger guarantees apply
   OS-enforced load gating (fs-verity, IMA, codesign) on top.
 - **Footer format is now a wire format the SDK has to keep stable.**

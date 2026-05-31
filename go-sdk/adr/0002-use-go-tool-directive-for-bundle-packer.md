@@ -40,7 +40,7 @@ treat ADR 0004 as authoritative wherever the two disagree.
 
 [ADR 0001](0001-bundle-packing-options.md) enumerated nine candidate
 mechanisms for producing a conforming bundle ZIP
-([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
+([`task-sdk/docs/executable-bundle-spec.rst`](../../task-sdk/docs/executable-bundle-spec.rst))
 from a Go SDK build. Two reasons drive the choice:
 
 1. **The repository already requires Go 1.24.** `go-sdk/go.mod` declares
@@ -72,11 +72,11 @@ options from ADR 0001, with a UX twist:
   separator, so the SDK's flag surface stays small and stable as
   `go build` evolves.
 - **Option D (standardised introspection contract):** every bundle
-  binary supports a `--dump-bundle-spec` flag that prints JSON
-  containing `sdk.language`, `sdk.version`, and the full `dags` mapping.
-  The packer execs the freshly built binary with this flag to populate
-  the manifest, which keeps `RegisterDags` as the single authoritative
-  source of dag/task identity.
+  binary supports a `--bundle-metadata` flag that prints JSON
+  containing `sdk.language`, `sdk.version`, `sdk.supervisor_schema_version`,
+  and the full `dags` mapping. The packer execs the freshly built binary
+  with this flag to populate the manifest, which keeps `RegisterDags` as
+  the single authoritative source of dag/task identity.
 
 Options C, E, F, G, and I from ADR 0001 are rejected for the reasons
 recorded there. Option B (a full `airflow-go build` wrapping `go
@@ -112,8 +112,8 @@ convention so authors can forward arbitrary flags to the underlying
    2. Runs `go build [forwarded flags] -o <tmpdir>/<binname> <pkg>`
       to produce the *target artifact*.
    3. Executes a *host-runnable introspection binary* with
-      `--dump-bundle-spec` to obtain `sdk.{language,version}` and the
-      `dags` mapping. The packer first tries to exec the target
+      `--bundle-metadata` to obtain `sdk.{language,version,supervisor_schema_version}`
+      and the `dags` mapping. The packer first tries to exec the target
       artifact directly; if that fails with "exec format error" (the
       target is built for a different OS/arch than the host), the
       packer builds a host-arch sidecar from the same package
@@ -124,8 +124,8 @@ convention so authors can forward arbitrary flags to the underlying
       identity regardless of which one is execed.
    4. Writes a deterministic ZIP next to the working directory at
       `<bundleName>.zip`, where `<bundleName>` comes from the
-      binary's `BundleInfo.Name` (already exposed via
-      `--bundle-metadata`).
+      binary's `BundleInfo.Name` (part of the same `--bundle-metadata`
+      introspection output).
 
    Optional overrides, for advanced or pre-built workflows:
 
@@ -136,7 +136,7 @@ convention so authors can forward arbitrary flags to the underlying
      the user cross-built a `linux/amd64` binary from a `darwin/arm64`
      host), the packer still needs to introspect it: it builds a
      host-arch sidecar from the positional package and execs that for
-     `--dump-bundle-spec`, then appends the resulting footer to the
+     `--bundle-metadata`, then appends the resulting footer to the
      user-supplied binary. If no positional package was passed and
      the supplied binary is not host-runnable, the packer errors with
      a message asking for the source package so the sidecar can be
@@ -156,13 +156,19 @@ convention so authors can forward arbitrary flags to the underlying
    go tool airflow-go-pack --executable ./build/example --source main.go
    ```
 
-2. **Extend `bundlev1server.Serve` with `--dump-bundle-spec`.** The
-   flag prints a JSON document of the form:
+2. **Extend the existing `--bundle-metadata` flag in
+   `bundlev1server.Serve` to print the full spec.** Rather than adding a
+   second introspection flag, `--bundle-metadata` is the single flag the
+   packer relies on; it prints a JSON document of the form:
 
    ```json
    {
-     "format_version": "1.0",
-     "sdk": {"language": "go", "version": "<sdk version>"},
+     "airflow_bundle_metadata_version": "1.0",
+     "sdk": {
+       "language": "go",
+       "version": "<sdk version>",
+       "supervisor_schema_version": "<YYYY-MM-DD>"
+     },
      "dags": {
        "<dag_id>": {"tasks": ["<task_id>", "..."]}
      }
@@ -170,12 +176,16 @@ convention so authors can forward arbitrary flags to the underlying
    ```
 
    `sdk.version` is read from `runtime/debug.ReadBuildInfo()` by
-   walking deps for `github.com/apache/airflow/go-sdk`. The `dags`
-   mapping is populated by calling the bundle's `RegisterDags` against
-   an in-memory recording registry, then enumerating the recorded
-   dags and their tasks. The existing `--bundle-metadata` flag is
-   retained for backward compatibility and continues to print
-   `BundleInfo`.
+   walking deps for `github.com/apache/airflow/go-sdk`;
+   `sdk.supervisor_schema_version` is the dated AIP-72 wire-schema
+   version the bundle was compiled against. The `dags` mapping is
+   populated by calling the bundle's `RegisterDags` against an in-memory
+   recording registry, then enumerating the recorded dags and their
+   tasks. `--bundle-metadata` today prints only `BundleInfo`
+   (`server.go`); it is extended to emit this full document, so the
+   shipped `decideMode` switch needs only one metadata mode. The bundle's
+   `BundleInfo.Name` (used by the packer for the default output
+   filename) is carried in the same output.
 
 3. **Bundle authors register the packer in their own `go.mod`:**
 
@@ -202,10 +212,10 @@ convention so authors can forward arbitrary flags to the underlying
   (`go tool airflow-go-pack`), with a `--` passthrough escape hatch
   for arbitrary `go build` flags and `--executable` for pre-built
   workflows. CI and other build systems can use whichever shape fits.
-- The `--dump-bundle-spec` JSON becomes a stable wire format that the
+- The `--bundle-metadata` JSON becomes a stable wire format that the
   SDK has to keep backward-compatible. It is versioned implicitly
-  through the bundle spec's `format_version` field, so additive
-  changes are safe.
+  through the bundle spec's `airflow_bundle_metadata_version` field, so
+  additive changes are safe.
 - Third-party tooling (IDE plugins, alternative packers, CI plugins)
   can rely on the same introspection contract without taking a Go
   dependency on the SDK.
@@ -227,7 +237,7 @@ convention so authors can forward arbitrary flags to the underlying
 - The packer should validate that the manifest's `dags` is non-empty
   and warn (not fail) on empty `tasks` lists, matching the bundle
   spec's "permitted but discouraged" wording.
-- `--dump-bundle-spec` runs `RegisterDags` but must not start the
+- `--bundle-metadata` runs `RegisterDags` but must not start the
   gRPC server or contact any external services; the in-memory
   registry recorder is the only side effect.
 - Source-file detection uses `go/packages` (or `go list -json`) to
@@ -242,7 +252,7 @@ convention so authors can forward arbitrary flags to the underlying
   convention so the packer's own flag set stays small and stable.
 - Host-runnable detection is by attempted exec, not by parsing the
   binary's exec format. The packer runs the candidate introspection
-  binary with `--dump-bundle-spec` and treats the OS's "exec format
+  binary with `--bundle-metadata` and treats the OS's "exec format
   error" (and the Windows equivalent surfaced by `os/exec`) as the
   signal to fall back to building a host-arch sidecar. Other exec
   failures (non-zero exit, malformed JSON, missing flag) are real

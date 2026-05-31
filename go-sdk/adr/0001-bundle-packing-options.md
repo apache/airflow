@@ -27,7 +27,13 @@ Accepted as the option register. The packer-mechanism decision is
 recorded in [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md):
 Option H (Go 1.24 `tool` directive) for delivery, paired with Option A
 (standalone `airflow-go-pack` binary) and Option D (standardised
-`--dump-bundle-spec` introspection contract).
+`--bundle-metadata` introspection contract — the single metadata flag
+that prints the bundle's `airflow-metadata.yaml` spec as JSON, which
+`airflow-go-pack` reads to populate the manifest). The shipped runtime
+([`bundlev1server.Serve`](../bundle/bundlev1/bundlev1server/server.go))
+routes through a `decideMode` switch with three modes —
+`--bundle-metadata`, `--comm`/`--logs` (coordinator mode), and the
+default go-plugin path.
 
 The container-format assumption running through this ADR — that the
 output is a ZIP archive — is superseded by
@@ -40,13 +46,20 @@ executable.
 ## Context
 
 The executable provider's bundle spec
-([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
-defines a deployment artifact as a ZIP archive containing:
+([`task-sdk/docs/executable-bundle-spec.rst`](../../task-sdk/docs/executable-bundle-spec.rst))
+defined the deployment artifact, *at the time this ADR was written*, as a
+ZIP archive containing:
 
-1. `airflow-metadata.yaml` declaring `format_version`, `sdk` (language/version),
-   `source` (archive-relative path to the DAG source file), `executable`
+1. `airflow-metadata.yaml` declaring `airflow_bundle_metadata_version`, `sdk`
+   (`language`, `version`, `supervisor_schema_version`), `source`
+   (archive-relative path to the DAG source file), `executable`
    (archive-relative path to the compiled binary), and `dags` (a mapping of
-   `dag_id` to `{tasks: [task_id, ...]}`).
+   `dag_id` to `{tasks: [task_id, ...]}`). The shipped spec replaced the ZIP
+   with a footer-augmented executable (see
+   [ADR 0004](0004-self-contained-executable-bundle.md)): it dropped the
+   `executable` field (the binary *is* the file) and redefined `source` as a
+   display filename rather than an archive-relative path. The manifest keys
+   above are otherwise unchanged.
 2. The primary DAG source file, included verbatim.
 3. The compiled native executable, which speaks the coordinator protocol
    (`--comm=<addr>` / `--logs=<addr>`).
@@ -98,8 +111,8 @@ airflow-go-pack \
 ```
 
 Manifest population: the packer execs the supplied executable with
-`--bundle-metadata` and reads the JSON from stdout to fill `sdk.version`,
-and a new `--dump-dags` (or extended `--bundle-metadata`) flag to enumerate
+`--bundle-metadata` and reads the JSON from stdout to fill `sdk`
+(`language`, `version`, `supervisor_schema_version`) and to enumerate
 `dags`. Source language is hard-coded to `go`; SDK version is read from the
 build info embedded in the binary or from a build-time `-ldflags` value.
 
@@ -153,16 +166,18 @@ the archive, it exits.
 ### Option D: Two-phase external introspection (introspection binary + packer)
 
 Same shape as Option A or B, but standardise the introspection contract:
-the SDK guarantees that every bundle binary supports
-`--dump-bundle-spec` (or a richer `--bundle-metadata`) which prints a
-JSON blob containing `sdk.language`, `sdk.version`, and the full `dags`
-mapping. The packer's only job is to combine that JSON, the source
-file path the user passes in, and the binary itself into a ZIP.
+the SDK guarantees that every bundle binary supports a single
+`--bundle-metadata` flag which prints a JSON blob containing
+`sdk.language`, `sdk.version`, `sdk.supervisor_schema_version`, and the
+full `dags` mapping. The packer's only job is to combine that JSON, the
+source file path the user passes in, and the binary itself into a bundle.
 
 This is really a refinement of A/B that fixes the introspection contract
 in the SDK protocol, rather than an independent option, but is worth
 calling out because the shape of the introspection flag is itself a
 decision (single flag vs. several; JSON vs. YAML; pretty vs. compact).
+The SDK settles that sub-decision in favour of a *single*
+`--bundle-metadata` flag.
 
 - **Pros:** decouples "how do we enumerate dags" from "how do we ZIP";
   any future packer (third-party CI plugin, IDE, etc.) can rely on the
@@ -172,7 +187,7 @@ decision (single flag vs. several; JSON vs. YAML; pretty vs. compact).
   requires a host-runnable binary, so cross-compile targets (and
   `--executable` paths that hand the packer a pre-built cross-target
   binary) force the packer to produce a host-arch sidecar purely to
-  run `--dump-bundle-spec`. See [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md)
+  run `--bundle-metadata`. See [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md)
   for the pipeline.
 
 ### Option E: Static AST scan, no introspection
@@ -286,8 +301,8 @@ These apply to whichever top-level option is chosen:
 Recorded in [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md).
 Summary: deliver the packer via the Go 1.24 `tool` directive (Option H);
 implement it as a standalone binary at `cmd/airflow-go-pack` (Option A);
-populate the manifest by execing the bundle binary with a standardised
-`--dump-bundle-spec` introspection flag (Option D).
+populate the manifest by execing the bundle binary with the standardised
+`--bundle-metadata` introspection flag (Option D).
 
 ## Consequences
 

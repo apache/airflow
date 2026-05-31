@@ -81,8 +81,8 @@ The Python-side launcher is
 which already builds command lines of the form
 `<binary> --comm=<addr> --logs=<addr>` for both `dag_parsing_runtime_cmd`
 and `task_execution_runtime_cmd`. The bundle-spec contract
-([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
-ratifies that any compiled SDK shipping a ZIP bundle "MUST honour the
+([`task-sdk/docs/executable-bundle-spec.rst`](../../task-sdk/docs/executable-bundle-spec.rst))
+ratifies that any compiled SDK shipping a bundle "MUST honour the
 SDK coordinator protocol (`--comm=<addr>` / `--logs=<addr>`
 socket-based IPC)". The Java SDK satisfies this contract; the Go SDK
 currently does not.
@@ -125,18 +125,16 @@ User code does not change.
 
 ### Invocation matrix
 
-`Serve` evaluates the rows below as an ordered match: the first row
-whose trigger holds wins. Each row requires a specific positive
-trigger; there is no implicit default. If none of rows 1-4 match,
-row 5 fires.
+`Serve` evaluates the triggers below in order via a `decideMode`
+switch (`server.go`); the first match wins, and go-plugin is the
+default when no flag selects another mode.
 
 | #  | Trigger                                                | Mode            | Behaviour |
 |----|--------------------------------------------------------|-----------------|-----------|
-| 1  | `--bundle-metadata`                                    | metadata-dump   | Existing flag (ADR 0001 / `server.go:37`). Prints `BundleInfo` JSON and exits. |
-| 2  | `--dump-bundle-spec`                                   | spec-dump       | Existing flag added by [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md). Prints the full bundle spec JSON (`sdk`, `dags`) used by `airflow-go-pack`. |
-| 3  | `--comm=<host:port> --logs=<host:port>`                | **coordinator** | New. Speaks the msgpack-over-IPC coordinator protocol. Both flags are required; partial use is a hard error. |
-| 4  | `AIRFLOW_BUNDLE_MAGIC_COOKIE` env var present          | go-plugin       | Existing behaviour. Hands off to `plugin.Serve` which performs the handshake and serves `DagBundle` gRPC to the Edge Worker. |
-| 5  | none of the above                                      | error           | Print usage to stderr and exit non-zero. Today this case implicitly errors via go-plugin's failed handshake; we make the diagnostic explicit so authors running the binary directly get a clear message. |
+| 1  | `--bundle-metadata`                                    | metadata-dump   | The single introspection flag (ADR 0001 / ADR 0002, `server.go`). Prints the bundle's `airflow-metadata.yaml` spec as JSON and exits; this is the flag `airflow-go-pack` execs to populate the manifest. |
+| 2  | `--comm=<host:port> --logs=<host:port>`                | **coordinator** | New. Speaks the msgpack-over-IPC coordinator protocol. Both flags are required. |
+| 3  | exactly one of `--comm` / `--logs`                     | error           | Partial coordinator selection is a hard error (`ErrCoordinatorFlagsIncomplete`), returned to `main` so the caller exits non-zero with usage rather than silently falling back to go-plugin. |
+| 4  | none of the above (default)                            | go-plugin       | Existing behaviour. Falls through to `plugin.Serve`, which performs the `AIRFLOW_BUNDLE_MAGIC_COOKIE` handshake and serves `DagBundle` gRPC to the Edge Worker. Running the binary by hand outside an Edge Worker fails the handshake with a diagnostic. |
 
 The two server modes share the same `bundlev1.BundleProvider`
 implementation and the same lazy `RegisterDags` recorder cache that
@@ -277,8 +275,8 @@ fixtures keep the encoders honest.
 
 ### go-plugin mode: unchanged
 
-When neither dump flag nor `--comm`/`--logs` is set, `Serve` falls
-through to the existing call site:
+When neither `--bundle-metadata` nor `--comm`/`--logs` is set, `Serve`
+falls through to the existing call site:
 
 ```go
 plugin.Serve(&plugin.ServeConfig{
@@ -291,10 +289,11 @@ plugin.Serve(&plugin.ServeConfig{
 The handshake env var (`AIRFLOW_BUNDLE_MAGIC_COOKIE`) gates the path
 the same way it does today, so an Edge Worker that execs the binary
 gets exactly the same protocol it gets today. The `DagBundle` gRPC
-service, the registry cache, the `--bundle-metadata` flag, and the
-worker injection in
+service, the registry cache, and the worker injection in
 [`impl/plugin.go:178`](../bundle/bundlev1/bundlev1server/impl/plugin.go)
-are untouched.
+are untouched. (`--bundle-metadata` itself is extended to emit the full
+bundle spec per ADR 0002, but the go-plugin path does not depend on its
+output.)
 
 ### Code organisation
 
@@ -316,16 +315,17 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
     config.SetupViper("")
     flag.Parse()
 
-    switch mode := decideMode(); mode {
+    switch decideMode() {
     case modeMetadataDump:
-        return dumpBundleMetadata(bundle)        // existing
-    case modeSpecDump:
-        return dumpBundleSpec(bundle)            // ADR 0002
+        return dumpBundleMetadata(bundle)        // --bundle-metadata: full spec JSON (ADR 0002)
     case modeCoordinator:
         return coord.Serve(bundle, *commAddr, *logsAddr)   // NEW
     case modePlugin:
-        return servePlugin(bundle)               // existing
+        return servePlugin(bundle)               // existing go-plugin default
+    case modeCoordinatorUsageError:
+        return ErrCoordinatorFlagsIncomplete     // partial --comm/--logs
     }
+    return nil
 }
 ```
 
@@ -347,7 +347,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
 - The bundle artefact produced by `airflow-go-pack` (ADR 0002, as
   revised by [ADR 0004](0004-self-contained-executable-bundle.md))
   becomes spec-conformant
-  ([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
+  ([`task-sdk/docs/executable-bundle-spec.rst`](../../task-sdk/docs/executable-bundle-spec.rst))
   without further changes, because the binary now honours
   `--comm=<addr>`/`--logs=<addr>` as the spec demands.
 - Mixed-language pipelines (Python `@task.stub` DAGs delegating to a Go
@@ -361,11 +361,12 @@ func main() { bundlev1server.Serve(&myBundle{}) }
   reconfigured. The protocol selector keys off CLI flags and the
   go-plugin magic-cookie env var, both of which the Edge Worker
   already sets.
-- `--bundle-metadata` still emits the same JSON. `--dump-bundle-spec`
-  (ADR 0002) is unaffected. Adding a binary with this ADR's changes
-  into an older Edge Worker deployment is safe; adding an older binary
-  into an `ExecutableCoordinator` deployment fails fast with a
-  clear "unknown flag: --comm" stderr message rather than hanging.
+- `--bundle-metadata` remains the only introspection flag; extending it
+  to emit the full bundle spec (ADR 0002) is additive and does not affect
+  the go-plugin path. Adding a binary with this ADR's changes into an
+  older Edge Worker deployment is safe; adding an older binary into an
+  `ExecutableCoordinator` deployment fails fast with a clear "unknown
+  flag: --comm" stderr message rather than hanging.
 
 ### New ongoing costs
 
