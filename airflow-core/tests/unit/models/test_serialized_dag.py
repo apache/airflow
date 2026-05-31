@@ -1027,12 +1027,10 @@ class TestSerializedDagModel:
     def test_get_count_returns_correct_value(self, dag_maker, session):
         """get_count() returns the exact number of serialized DAGs in the table."""
         baseline = SDM.get_count(session=session)
-        with dag_maker("dag_count_1"):
+        with dag_maker("dag_count_1", session=session):
             pass
-        with dag_maker("dag_count_2"):
+        with dag_maker("dag_count_2", session=session):
             pass
-        # dag_maker writes SerializedDagModel rows on context exit; flush to make
-        # them visible within the same session before asserting.
         session.flush()
         assert SDM.get_count(session=session) == baseline + 2
 
