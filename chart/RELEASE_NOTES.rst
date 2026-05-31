@@ -63,7 +63,7 @@ Bug Fixes
 - Fix Kubernetes worker service account values (#66598)
 - Add binding for ``workers.kubernetes`` and condition workers ServiceAccount (#66730)
 - Fix launcher RBAC for executor class paths (#66208)
-- Fix Airflow 3 task log access with NetworkPolicies (#65754)
+- Fix task log access with NetworkPolicies for Airflow 2 and 3 (#65754)
 - Add missing ``tpl`` rendering for ServiceAccount annotations (#66095)
 - Fix go-template ``if`` statements for log groomer retention values (#66012)
 - Fix database cleanup lifecycle hooks (#65881)
