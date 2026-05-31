@@ -18,13 +18,17 @@
 
 from __future__ import annotations
 
+import copy
 import functools
 from abc import abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from strands import Agent, AgentSkills, Skill, tool as strands_tool
 
 from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
     AgentRunResult,
+    AgentUsage,
     BaseAIHook,
     SkillSpec,
     ToolSpec,
@@ -32,11 +36,8 @@ from airflow.providers.common.ai.hooks.base import (
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-try:
-    from strands import Agent, AgentSkills, Skill, tool as strands_tool
-    from strands.models.gemini import GeminiModel
-except ImportError:  # pragma: no cover - exercised indirectly via feature checks
-    Agent = AgentSkills = Skill = GeminiModel = strands_tool = None  # type: ignore[assignment]
+if TYPE_CHECKING:
+    from strands.agent import AgentResult
 
 
 class StrandsHook(BaseAIHook):
@@ -121,6 +122,27 @@ class StrandsHook(BaseAIHook):
         skills_arg: Any = sources[0] if len(sources) == 1 else sources
         return AgentSkills(skills=skills_arg, **dict(request.skills_params or {}))
 
+    @staticmethod
+    def _extract_usage(result: AgentResult) -> AgentUsage | None:
+        """Extract usage metrics from a Strands ``AgentResult``."""
+        summary = result.metrics.get_summary()
+        accumulated_usage = summary.get("accumulated_usage") or {}
+
+        tool_usage = summary.get("tool_usage") or {}
+        tool_calls = 0
+
+        for tool_data in tool_usage.values():
+            execution_stats = tool_data.get("execution_stats") or {}
+            tool_calls += int(execution_stats.get("call_count", 0) or 0)
+
+        return AgentUsage(
+            requests=summary.get("total_cycles", 0),
+            tool_calls=tool_calls,
+            input_tokens=accumulated_usage.get("inputTokens", 0),
+            output_tokens=accumulated_usage.get("outputTokens", 0),
+            total_tokens=accumulated_usage.get("totalTokens", 0),
+        )
+
     def create_agent(self, request: AgentRunRequest) -> Any:
         """Build a Strands ``Agent`` from *request*."""
         if Agent is None:
@@ -150,14 +172,22 @@ class StrandsHook(BaseAIHook):
         if plugins:
             agent_kwargs["plugins"] = plugins
 
-        return Agent(model=self.get_model(), tools=native_tools or [], **agent_kwargs)
+        return Agent(
+            model=self.get_model(),
+            tools=native_tools or [],
+            structured_output_model=request.output_type,
+            **agent_kwargs,
+        )
 
-    def run_agent(self, agent: Any, request: AgentRunRequest) -> AgentRunResult:
+    def run_agent(self, agent: Agent, request: AgentRunRequest) -> AgentRunResult:
         """Run the Strands *agent* for *request* and return a normalized :class:`AgentRunResult`."""
-        response = agent(request.prompt)
+        response: AgentResult = agent(request.prompt)
         return AgentRunResult(
-            output=str(response),
+            output=str(response) if response.structured_output is None else response.structured_output,
+            message_history=copy.deepcopy(getattr(agent, "messages", None)),
             model_name=self._resolved_model_id or self.model_id,
+            tool_names=agent.tool_names,
+            usage=self._extract_usage(response),
         )
 
     def test_connection(self) -> tuple[bool, str]:
@@ -219,6 +249,8 @@ class StrandsGeminiHook(StrandsHook):
         2. **Default resolution** — delegates to the Google GenAI client, which reads
            ``GOOGLE_API_KEY`` from the environment when no key is provided.
         """
+        from strands.models.gemini import GeminiModel
+
         if GeminiModel is None:
             raise AirflowOptionalProviderFeatureException(
                 "The 'strands-agents[gemini]' extra is required for StrandsGeminiHook. "

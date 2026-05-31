@@ -25,13 +25,16 @@ import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.utils.function_schema import callable_to_tool_spec
 from airflow.providers.common.compat.sdk import BaseHook
 
 # Attribute name for durable storage/counter bound to a framework agent instance.
 _AIRFLOW_DURABLE_ATTR = "_airflow_durable_state"
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 def tool_identifier(name: str) -> str:
@@ -193,7 +196,7 @@ class AgentRunRequest:
     """
 
     prompt: str | Sequence[Any]
-    output_type: type[Any] = str
+    output_type: str | BaseModel | None = str
     instructions: str = ""
     toolsets: list[Any] | None = None
     skills: list[str | SkillSpec] | None = None

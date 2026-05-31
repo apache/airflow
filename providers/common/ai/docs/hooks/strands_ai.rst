@@ -97,4 +97,5 @@ Limitations
 -----------
 
 - Durable execution (``durable=True``) is not supported for Strands hooks.
-- Usage limits are not supported for Strands hooks.
+- Usage limits are not yet supported for Strands hooks. Support is expected in
+  an upcoming Strands release.

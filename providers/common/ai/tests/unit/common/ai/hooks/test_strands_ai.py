@@ -20,13 +20,17 @@ import json
 from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
+from pydantic import BaseModel
 from strands import Agent as StrandsAgent
+from strands.agent import AgentResult
 from strands.models.gemini import GeminiModel
+from strands.telemetry.metrics import EventLoopMetrics, ToolMetrics
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
     AgentRunResult,
+    AgentUsage,
     BaseAIHook,
     BaseToolset,
     SkillSpec,
@@ -35,6 +39,53 @@ from airflow.providers.common.ai.hooks.base import (
 from airflow.providers.common.ai.hooks.strands_ai import StrandsGeminiHook, StrandsHook
 
 STRANDS_AI = "airflow.providers.common.ai.hooks.strands_ai"
+STRANDS_GEMINI_MODEL = "strands.models.gemini.GeminiModel"
+
+
+def _build_real_strands_metrics() -> EventLoopMetrics:
+    metrics = EventLoopMetrics()
+    metrics.reset_usage_metrics()
+
+    cycle_usages = [
+        {"inputTokens": 102, "outputTokens": 290, "totalTokens": 392},
+        {"inputTokens": 412, "outputTokens": 121, "totalTokens": 533},
+        {"inputTokens": 554, "outputTokens": 216, "totalTokens": 770},
+    ]
+    for index, usage in enumerate(cycle_usages, start=1):
+        cycle_start_time, cycle_trace = metrics.start_cycle({"event_loop_cycle_id": f"cycle-{index}"})
+        metrics.update_usage(usage)
+        metrics.end_cycle(cycle_start_time, cycle_trace)
+
+    metrics.tool_metrics = {
+        "roll_dice": ToolMetrics(
+            tool={"toolUseId": "tooluse-roll-dice", "name": "roll_dice", "input": {}},
+            call_count=1,
+            success_count=1,
+            error_count=0,
+            total_time=0.001,
+        ),
+        "guess_number": ToolMetrics(
+            tool={"toolUseId": "tooluse-guess-number", "name": "guess_number", "input": {"number": 6}},
+            call_count=1,
+            success_count=1,
+            error_count=0,
+            total_time=0.001,
+        ),
+    }
+    return metrics
+
+
+def _mock_agent_result(
+    *,
+    metrics: EventLoopMetrics,
+    output: str = "the answer",
+    structured_output: BaseModel | None = None,
+) -> MagicMock:
+    response = MagicMock(spec=AgentResult)
+    response.metrics = metrics
+    response.structured_output = structured_output
+    response.configure_mock(**{"__str__.return_value": output})
+    return response
 
 
 @pytest.fixture
@@ -95,7 +146,7 @@ class TestStrandsGeminiHookInit:
 
 
 class TestStrandsGeminiHookGetModel:
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_get_model_with_api_key(self, mock_gemini_model_cls):
         conn = Connection(
             conn_id="test",
@@ -117,7 +168,7 @@ class TestStrandsGeminiHookGetModel:
             client_args={"api_key": "google-api-key"},
         )
 
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_get_model_with_env_auth(self, mock_gemini_model_cls):
         """No explicit API key — delegates to GOOGLE_API_KEY env var via Gemini client."""
         conn = Connection(
@@ -135,7 +186,7 @@ class TestStrandsGeminiHookGetModel:
         assert call_kwargs == {"model_id": "gemini-2.5-flash", "params": {"temperature": 0.5}}
         assert "client_args" not in call_kwargs
 
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_get_model_with_api_key_and_params(self, mock_gemini_model_cls):
         conn = Connection(
             conn_id="test",
@@ -157,7 +208,7 @@ class TestStrandsGeminiHookGetModel:
             params={"temperature": 0.7, "max_output_tokens": 2048},
         )
 
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_get_model_with_model_from_extra(self, mock_gemini_model_cls):
         conn = Connection(
             conn_id="test",
@@ -174,7 +225,7 @@ class TestStrandsGeminiHookGetModel:
         assert result is mock_gemini_model
         mock_gemini_model_cls.assert_called_once_with(model_id="gemini-2.5-flash")
 
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_model_id_param_overrides_extra(self, mock_gemini_model_cls):
         conn = Connection(
             conn_id="test",
@@ -205,7 +256,7 @@ class TestStrandsGeminiHookGetModel:
 
 
 class TestStrandsGeminiHookTestConnection:
-    @patch(f"{STRANDS_AI}.GeminiModel", autospec=True)
+    @patch(STRANDS_GEMINI_MODEL, autospec=True)
     def test_successful_connection(self, mock_gemini_model_cls):
         conn = Connection(
             conn_id="test",
@@ -284,6 +335,17 @@ class TestStrandsHookToolSpecToNative:
 
 
 class TestStrandsHookCreateAndRunAgent:
+    def test_extract_usage_uses_real_strands_metrics_summary(self):
+        usage = StrandsHook._extract_usage(_mock_agent_result(metrics=_build_real_strands_metrics()))
+
+        assert usage == AgentUsage(
+            requests=3,
+            tool_calls=2,
+            input_tokens=1068,
+            output_tokens=627,
+            total_tokens=1695,
+        )
+
     @patch(f"{STRANDS_AI}.Agent", autospec=True)
     def test_create_agent_builds_strands_agent(self, mock_agent_cls, gemini_hook, gemini_model):
         with patch.object(gemini_hook, "get_model", return_value=gemini_model):
@@ -354,9 +416,13 @@ class TestStrandsHookCreateAndRunAgent:
             gemini_hook.create_agent(AgentRunRequest(prompt="hi", durable_context=MagicMock()))
 
     def test_run_agent_returns_agent_run_result(self, gemini_hook, strands_agent):
-        mock_response = MagicMock()
-        mock_response.configure_mock(**{"__str__.return_value": "the answer"})
+        mock_response = _mock_agent_result(metrics=_build_real_strands_metrics())
         strands_agent.return_value = mock_response
+        strands_agent.tool_names = ["roll_dice", "guess_number"]
+        strands_agent.messages = [
+            {"role": "user", "content": [{"text": "hello"}]},
+            {"role": "assistant", "content": [{"text": "the answer"}]},
+        ]
 
         gemini_hook._resolved_model_id = "gemini-2.5-flash"
 
@@ -366,19 +432,47 @@ class TestStrandsHookCreateAndRunAgent:
         assert isinstance(result, AgentRunResult)
         assert result.output == "the answer"
         assert result.model_name == "gemini-2.5-flash"
-        assert result.usage is None
-        assert result.tool_names is None
-        assert result.message_history is None
+        assert result.usage == AgentUsage(
+            requests=3,
+            tool_calls=2,
+            input_tokens=1068,
+            output_tokens=627,
+            total_tokens=1695,
+        )
+        assert result.tool_names == ["roll_dice", "guess_number"]
+        assert result.message_history == strands_agent.messages
+        assert result.message_history is not strands_agent.messages
         strands_agent.assert_called_once_with("hello")
 
     def test_run_agent_falls_back_to_hook_model_id(self, gemini_hook, strands_agent):
-        strands_agent.return_value = MagicMock(__str__=lambda self: "ok")
+        strands_agent.return_value = _mock_agent_result(
+            metrics=_build_real_strands_metrics(),
+            output="ok",
+        )
+        strands_agent.tool_names = None
+        strands_agent.messages = []
 
         request = AgentRunRequest(prompt="hello")
         result = gemini_hook.run_agent(strands_agent, request)
 
         assert result.model_name == "gemini-2.5-flash"
         strands_agent.assert_called_once_with("hello")
+
+    def test_run_agent_returns_structured_output_when_present(self, gemini_hook, strands_agent):
+        class Summary(BaseModel):
+            text: str
+
+        structured_output = Summary(text="done")
+        strands_agent.return_value = _mock_agent_result(
+            metrics=_build_real_strands_metrics(),
+            structured_output=structured_output,
+        )
+        strands_agent.tool_names = None
+        strands_agent.messages = []
+
+        result = gemini_hook.run_agent(strands_agent, AgentRunRequest(prompt="hello"))
+
+        assert result.output is structured_output
 
 
 class TestStrandsHookSkills:
