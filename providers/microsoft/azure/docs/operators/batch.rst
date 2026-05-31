@@ -32,8 +32,8 @@ Below is an example of using this operator to trigger a task on Azure Batch
     :start-after: [START howto_azure_batch_operator]
     :end-before: [END howto_azure_batch_operator]
 
-Below is an example of using this operator to trigger a task  on Azure Batch with a deferrable flag
-so that polling for the status of the pipeline run occurs on the Airflow Triggerer.
+Below is an example of using this operator to trigger a task on Azure Batch with the deferrable flag,
+so that polling for job/task completion occurs on the Airflow Triggerer.
 
   .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_batch_operator.py
       :language: python

@@ -30,11 +30,11 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class AzureBatchTrigger(BaseTrigger):
     """
-     Trigger when Azure Batch job tasks reach a terminal state.
+    Trigger when Azure Batch job tasks reach a terminal state.
 
     :param job_id: Azure Batch job identifier.
     :param azure_batch_conn_id: Azure Batch connection id.
-    :param end_time: Epoch timestamp when the trigger should timeout.
+    :param end_time: Absolute timeout deadline as determined using ``time.time()``.
     :param poll_interval: Poll interval in seconds.
     """
 

@@ -309,14 +309,14 @@ class AzureBatchOperator(BaseOperator):
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
 
         if self.deferrable:
-            # Verify pool and nodes are in terminal state before deferral
+            # Pre-deferral check (node readiness is already enforced by wait_for_all_node_state above)
             pool = self.hook.connection.pool.get(self.batch_pool_id)
             if pool.resize_errors:
                 raise RuntimeError(f"Pool resize errors: {pool.resize_errors}")
 
             nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
             self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
-            end_time = time.time() + self.timeout
+            end_time = time.time() + (self.timeout * 60)
 
             self.defer(
                 timeout=self.execution_timeout,
