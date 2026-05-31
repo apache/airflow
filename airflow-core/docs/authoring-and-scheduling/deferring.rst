@@ -32,8 +32,8 @@ This is where *Deferrable Operators* can be used. When it has nothing to do but 
    async tasks keep the task process running and use a shared event loop
    to multiplex operations.
 
-   For guidance on when to use deferred operators versus async tasks,
-   see `Deferred vs Async Operators <https://airflow.apache.org/docs/task-sdk/stable/deferred-vs-async-operators.html>`__.
+   For guidance on when to use deferred, async, or resumable operators,
+   see `Deferred, Async, and Resumable Operators <https://airflow.apache.org/docs/task-sdk/stable/deferred-vs-async-operators.html>`__.
 
 An overview of how this process works:
 
@@ -571,3 +571,24 @@ In Airflow, sensors wait for specific conditions to be met before proceeding wit
 | Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
 |                                                        |  external changes                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
+
+.. _deferring/resumable:
+
+Resumable Operators (ResumableJobMixin)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A third pattern is available when an operator submits a long-running job to an
+external system and needs to survive worker crashes.
+:class:`~airflow.sdk.ResumableJobMixin` persists the external job identifier to
+``task_state`` before polling. On retry, the mixin reconnects to the already-running
+job instead of submitting a duplicate.
+
+Unlike deferrable operators, a resumable operator **holds the worker slot** throughout
+execution. Use it when:
+
+- A Triggerer is not available, or the operator is already synchronous.
+- The external system supports reconnecting to a running job via a stable identifier.
+- Duplicate job submission on retry is unacceptable (billing or data-integrity reasons).
+
+For a complete three-way comparison and implementation guidance, see
+:doc:`task-sdk:deferred-vs-async-operators`.
