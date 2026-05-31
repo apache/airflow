@@ -19,6 +19,7 @@ package execution
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -30,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // --- Test task functions ---
@@ -247,4 +249,109 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Serve did not return after task completion")
 	}
+}
+
+// TestServeClientRoundTripEndToEnd drives a task that calls back into the
+// supervisor mid-execution, so the comm dispatcher's request/response
+// multiplexing is exercised against the real Serve rather than only the
+// no-op task path. The registered task pulls a variable (GetVariable) and
+// returns a value (which triggers a return-value SetXCom push); the fake
+// supervisor must answer both runtime-initiated requests before the terminal
+// SucceedTask frame is sent.
+func TestServeClientRoundTripEndToEnd(t *testing.T) {
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	// Unique key so the GetVariable env-var fast path
+	// (AIRFLOW_VAR_<KEY>) cannot short-circuit the socket round trip.
+	const varKey = "go_sdk_round_trip_only_key"
+
+	var gotVar string
+	provider := &fakeProvider{
+		register: func(r bundlev1.Registry) error {
+			r.AddDag("dag1").AddTaskWithName("getvar",
+				func(ctx context.Context, c sdk.Client) (string, error) {
+					v, err := c.GetVariable(ctx, varKey)
+					if err != nil {
+						return "", err
+					}
+					gotVar = v
+					return "xval", nil
+				})
+			return nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	defer commConn.Close()
+	logsConn := <-logsCh
+	defer logsConn.Close()
+
+	// Bound every read/write so a regression (e.g. the env-var fast path
+	// swallowing the request, or a dispatcher deadlock) fails fast instead of
+	// hanging until the Go test timeout.
+	require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+	// 1. Kick off task execution.
+	startup, err := encodeRequest(0, map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":         "550e8400-e29b-41d4-a716-446655440000",
+			"dag_id":     "dag1",
+			"task_id":    "getvar",
+			"run_id":     "run1",
+			"try_number": 1,
+		},
+		"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, startup))
+
+	// 2. The task's GetVariable call blocks until the supervisor answers.
+	varReq, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.Nil(t, varReq.Err)
+	assert.Equal(t, "GetVariable", varReq.Body["type"])
+	assert.Equal(t, varKey, varReq.Body["key"])
+
+	varReply, err := encodeRequest(varReq.ID, map[string]any{
+		"type":  "VariableResult",
+		"key":   varKey,
+		"value": "hello",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, varReply))
+
+	// 3. Returning a value triggers a return-value XCom push; answer it with
+	//    an empty (non-error) response so PushXCom unblocks.
+	xcomReq, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.Nil(t, xcomReq.Err)
+	assert.Equal(t, "SetXCom", xcomReq.Body["type"])
+	assert.Equal(t, "return_value", xcomReq.Body["key"])
+	assert.Equal(t, "xval", xcomReq.Body["value"])
+	assert.NotEqual(t, varReq.ID, xcomReq.ID, "second runtime request must use a fresh frame id")
+
+	xcomReply, err := encodeRequest(xcomReq.ID, map[string]any{})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, xcomReply))
+
+	// 4. With both calls answered, the task finishes and Serve ships the
+	//    terminal SucceedTask frame on the StartupDetails frame id.
+	term, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.Nil(t, term.Err)
+	assert.Equal(t, "SucceedTask", term.Body["type"])
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after task completion")
+	}
+
+	assert.Equal(t, "hello", gotVar)
 }
