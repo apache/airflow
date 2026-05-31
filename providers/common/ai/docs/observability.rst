@@ -44,8 +44,10 @@ How it works
 * **Correlation is automatic.** The worker opens a task span before the operator
   runs, so the agent's spans nest under it and inherit the task's ``trace_id``
   and ``airflow.*`` attributes (dag id, run id, task id, try number, map index).
-  A retry runs in a new process with a new task span, so each attempt is a
-  distinct trace.
+  An automatic retry reuses the task instance's persisted trace context, so all
+  attempts share one trace and appear as repeated task-run spans on it,
+  distinguished by ``try number``. Only a manual clear or rerun regenerates the
+  context and starts a new trace.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
