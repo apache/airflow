@@ -169,7 +169,7 @@ class Job(Base, LoggingMixin):
         )
 
     @provide_session
-    def kill(self, session: Session = NEW_SESSION) -> NoReturn:
+    def kill(self, *, session: Session = NEW_SESSION) -> NoReturn:
         """Handle on_kill callback and updates state in database."""
         try:
             self.on_kill()
@@ -187,9 +187,7 @@ class Job(Base, LoggingMixin):
         """Will be called when an external kill command is received."""
 
     @provide_session
-    def heartbeat(
-        self, heartbeat_callback: Callable[[Session], None], session: Session = NEW_SESSION
-    ) -> None:
+    def heartbeat(self, heartbeat_callback: Callable[..., None], *, session: Session = NEW_SESSION) -> None:
         """
         Update the job's entry in the database with the latest_heartbeat timestamp.
 
@@ -241,7 +239,7 @@ class Job(Base, LoggingMixin):
                     self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
                 # At this point, the DB has updated.
                 previous_heartbeat = self.latest_heartbeat
-                heartbeat_callback(session)
+                heartbeat_callback(session=session)
             self.log.debug("[heartbeat]")
             self.heartbeat_failed = False
         except OperationalError:
@@ -266,7 +264,7 @@ class Job(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     @provide_session
-    def prepare_for_execution(self, session: Session = NEW_SESSION):
+    def prepare_for_execution(self, *, session: Session = NEW_SESSION):
         """Prepare the job for execution."""
         stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         self.state = JobState.RUNNING
@@ -276,7 +274,7 @@ class Job(Base, LoggingMixin):
         make_transient(self)
 
     @provide_session
-    def complete_execution(self, session: Session = NEW_SESSION):
+    def complete_execution(self, *, session: Session = NEW_SESSION):
         try:
             get_listener_manager().hook.before_stopping(component=self)
         except Exception:
@@ -287,7 +285,7 @@ class Job(Base, LoggingMixin):
         stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
 
     @provide_session
-    def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
+    def most_recent_job(self, *, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
         return most_recent_job(str(self.job_type), session=session)
 
@@ -316,7 +314,7 @@ class Job(Base, LoggingMixin):
 
 
 @provide_session
-def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None:
+def most_recent_job(job_type: str, *, session: Session = NEW_SESSION) -> Job | None:
     """
     Return the most recent job of this type, if any, based on last heartbeat received.
 
@@ -340,7 +338,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
 
 @provide_session
 def run_job(
-    job: Job, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
+    job: Job, execute_callable: Callable[[], int | None], *, session: Session = NEW_SESSION
 ) -> int | None:
     """
     Run the job.
@@ -393,9 +391,7 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
-def perform_heartbeat(
-    job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
-) -> None:
+def perform_heartbeat(job: Job, heartbeat_callback: Callable[..., None], only_if_necessary: bool) -> None:
     """
     Perform heartbeat for the Job passed to it,optionally checking if it is necessary.
 

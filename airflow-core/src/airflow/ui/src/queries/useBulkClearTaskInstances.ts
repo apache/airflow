@@ -20,10 +20,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useDagRunServiceGetDagRunsKey, useTaskInstanceServiceGetTaskInstancesKey } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRunsKey,
+  useTaskInstanceServiceGetMappedTaskInstanceKey,
+  useTaskInstanceServiceGetTaskInstancesKey,
+} from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -46,10 +52,15 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
   const [isPending, setIsPending] = useState(false);
   const { t: translate } = useTranslation(["common", "dags"]);
 
-  const invalidateQueries = async () => {
+  const invalidateQueries = async (dagIds: ReadonlySet<string>) => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
+      queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetMappedTaskInstanceKey] }),
+      ...tiPerAttemptQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...[...dagIds].flatMap((dagId) =>
+        gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ),
     ]);
   };
 
@@ -92,7 +103,7 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
         ),
       );
 
-      await invalidateQueries();
+      await invalidateQueries(new Set([...byDagRun.values()].map(({ dagId }) => dagId)));
 
       toaster.create({
         description: translate("toaster.bulkClear.success.description", {

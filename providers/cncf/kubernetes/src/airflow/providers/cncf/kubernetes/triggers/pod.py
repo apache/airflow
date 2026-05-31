@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime
+import time
 import traceback
 from collections.abc import AsyncIterator
 from enum import Enum
@@ -184,8 +185,27 @@ class KubernetesPodTrigger(BaseTrigger):
             self.pod_namespace,
             self.poll_interval,
         )
+        # Fast-path the timeout when ``_execution_deadline`` (set by the
+        # operator from ``execution_timeout``) has already elapsed before the
+        # trigger starts polling.
+        execution_deadline = self.trigger_kwargs.get("_execution_deadline")
+        if execution_deadline is not None and time.time() >= execution_deadline:
+            self._fired_event = True
+            yield TriggerEvent(
+                {
+                    "status": "timeout",
+                    "namespace": self.pod_namespace,
+                    "name": self.pod_name,
+                    "message": (
+                        f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
+                        "execution_timeout deadline before the trigger could begin polling."
+                    ),
+                    **self.trigger_kwargs,
+                }
+            )
+            return
         try:
-            state = await self._wait_for_pod_start()
+            state = await self._wait_for_pod_start_within_deadline()
             if state == ContainerState.TERMINATED:
                 event = TriggerEvent(
                     {
@@ -272,6 +292,36 @@ class KubernetesPodTrigger(BaseTrigger):
         description += f"\ntrigger traceback:\n{curr_traceback}"
         return description
 
+    async def _wait_for_pod_start_within_deadline(self) -> ContainerState:
+        """
+        Run ``_wait_for_pod_start`` bounded by ``_execution_deadline``.
+
+        Wraps the underlying call in :func:`asyncio.wait_for` when an
+        ``_execution_deadline`` is set so the startup phase honours
+        ``execution_timeout`` too — otherwise a Pending pod would not time
+        out until ``startup_timeout`` (default 120s) regardless of how
+        short the user's ``execution_timeout`` was. On timeout we raise
+        :class:`PodLaunchTimeoutException` so the existing handler in
+        :meth:`run` emits the operator's expected ``status="timeout"``
+        event.
+        """
+        execution_deadline = self.trigger_kwargs.get("_execution_deadline")
+        if execution_deadline is None:
+            return await self._wait_for_pod_start()
+        remaining = execution_deadline - time.time()
+        if remaining <= 0:
+            raise PodLaunchTimeoutException(
+                f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
+                "execution_timeout deadline before the pod left the Pending phase."
+            )
+        try:
+            return await asyncio.wait_for(self._wait_for_pod_start(), timeout=remaining)
+        except asyncio.TimeoutError as exc:
+            raise PodLaunchTimeoutException(
+                f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
+                "execution_timeout deadline while waiting for the pod to start."
+            ) from exc
+
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
         pod = await self._get_pod()
@@ -305,7 +355,29 @@ class KubernetesPodTrigger(BaseTrigger):
         time_get_more_logs = None
         if self.logging_interval is not None:
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
+        # ``_execution_deadline`` is the operator's translation of the
+        # task-level ``execution_timeout`` into an absolute UTC timestamp
+        execution_deadline = self.trigger_kwargs.get("_execution_deadline")
         while True:
+            if execution_deadline is not None and time.time() >= execution_deadline:
+                self.log.info(
+                    "Execution deadline reached for pod %s/%s — emitting timeout event.",
+                    self.pod_namespace,
+                    self.pod_name,
+                )
+                return TriggerEvent(
+                    {
+                        "status": "timeout",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": (
+                            f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
+                            "execution_timeout deadline."
+                        ),
+                        "last_log_time": self.last_log_time,
+                        **self.trigger_kwargs,
+                    }
+                )
             pod = await self._get_pod()
             pod_container_state = self.define_pod_container_state(pod)
             if pod_container_state == ContainerState.TERMINATED:
@@ -366,7 +438,7 @@ class KubernetesPodTrigger(BaseTrigger):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
             """Get the task instance for this trigger from the database (Airflow 2.x only)."""
             task_instance = session.scalar(
                 select(TaskInstance).where(
@@ -397,8 +469,16 @@ class KubernetesPodTrigger(BaseTrigger):
                 run_ids=[self.task_instance.run_id],
                 map_index=self.task_instance.map_index,
             )
+            # The /states endpoint suffixes the response key with ``_{map_index}`` for mapped TIs
+            # (see ``get_task_instance_states`` in airflow-core's execution_api routes); non-mapped
+            # TIs keep the plain ``task_id``.
+            ti_key = (
+                f"{self.task_instance.task_id}_{self.task_instance.map_index}"
+                if self.task_instance.map_index >= 0
+                else self.task_instance.task_id
+            )
             try:
-                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+                return task_states_response[self.task_instance.run_id][ti_key]
             except KeyError:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",

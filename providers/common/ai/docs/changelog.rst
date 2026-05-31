@@ -25,6 +25,46 @@
 Changelog
 ---------
 
+Breaking change: operators with ``output_type=<BaseModel subclass>``
+(``LLMOperator``, ``LLMAgentOperator``, ``LLMFileAnalysisOperator``, and
+their ``@task.llm`` / ``@task.agent`` / ``@task.llm_file_analysis`` decorators)
+now return the Pydantic model instance through XCom instead of dumping it to
+a ``dict`` when the running Airflow version provides
+``airflow.sdk.serde.allow_class``. Downstream tasks should type-hint the model
+class (``def downstream(result: MyModel)``) and use attribute access
+(``result.field``) instead of subscript access. The output class must be
+defined at **module scope** and bound to an attribute matching its
+``__name__``; operators raise ``ValueError`` at construction time when
+``output_type`` (or any ``BaseModel`` reachable from a ``Union``/``Optional``/
+``list`` of types) is nested, dynamically built, or non-importable by ``qualname``.
+
+Same-DAG downstream tasks deserialize the model without any configuration
+change because each worker re-runs the operator constructor when it parses the
+DAG. The UI XCom viewer renders the value via the ``stringify`` path and works
+without configuration (it shows ``module.MyModel@version=1(field=value,...)``
+rather than a pretty form, but no allow-list edit is required). Cross-DAG
+``xcom_pull`` consumers still need the class qualified name added to
+``[core] allowed_deserialization_classes`` -- the consumer DAG's worker only
+parses its own DAG file. On older Airflow releases that lack ``allow_class``
+the operators continue to dump to ``dict``.
+
+0.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'LLMRetryPolicy' to common-ai provider (#65451)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update dependencies to fix dependabot alarms in providers.common.ai (#66628)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
 0.2.0
 .....
 

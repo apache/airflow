@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -143,6 +143,20 @@ def init_config(app: FastAPI) -> None:
     allow_origins = conf.getlist("api", "access_control_allow_origins")
     allow_methods = conf.getlist("api", "access_control_allow_methods")
     allow_headers = conf.getlist("api", "access_control_allow_headers")
+
+    if "*" in allow_origins:
+        # The CORS spec forbids combining `Access-Control-Allow-Origin: *` with
+        # `Access-Control-Allow-Credentials: true`, and browsers reject any response that does so
+        # (see https://fetch.spec.whatwg.org/#cors-protocol-and-credentials). Airflow's API needs
+        # credentialed requests for cookie / Authorization-header auth, so a wildcard origin is
+        # never a valid configuration. Fail loudly at startup instead of silently shipping a
+        # response shape that no browser will accept.
+        raise AirflowConfigException(
+            "`[api] access_control_allow_origins` must not contain `*`: the wildcard origin is "
+            "incompatible with the credentialed CORS Airflow's API requires, and browsers will "
+            "reject every cross-origin response. List the exact origins that need access "
+            "(e.g. `https://airflow.mycompany.com`) instead."
+        )
 
     if allow_origins or allow_methods or allow_headers:
         app.add_middleware(

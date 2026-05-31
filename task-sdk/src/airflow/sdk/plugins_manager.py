@@ -23,7 +23,7 @@ import logging
 from functools import cache
 from typing import TYPE_CHECKING
 
-from airflow import settings
+from airflow import settings  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.plugins_manager import (

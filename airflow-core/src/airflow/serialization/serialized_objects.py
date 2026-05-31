@@ -964,6 +964,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     _const_fields: ClassVar[set[str] | None] = None
 
+    # Parameters of BaseOperator.__init__ that must not appear in template_fields.
+    # Computed once at class-load time: the signature never changes during a process.
+    _FORBIDDEN_TEMPLATE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        signature(BaseOperator.__init__).parameters
+    ) - {"email"}
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -1044,9 +1050,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
-        forbidden_fields = set(signature(BaseOperator.__init__).parameters.keys())
-        # Though allow some of the BaseOperator fields to be templated anyway
-        forbidden_fields.difference_update({"email"})
+        forbidden_fields = cls._FORBIDDEN_TEMPLATE_FIELDS
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
@@ -2108,6 +2112,8 @@ class TaskGroupSerialization(BaseSerialization):
             "upstream_task_ids": cls.serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
+        if task_group.doc_md is not None:
+            encoded["doc_md"] = task_group.doc_md
 
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
@@ -2129,6 +2135,7 @@ class TaskGroupSerialization(BaseSerialization):
             key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
@@ -2230,6 +2237,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "jinja_environment_kwargs",
         "relative_fileloc",
         "disable_bundle_versioning",
+        "rerun_with_latest_version",
         "fail_fast",
         "last_loaded",
     }

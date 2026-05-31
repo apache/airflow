@@ -30,6 +30,7 @@ __all__ = ["TaskInstance", "TaskInstanceKey"]
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    import jinja2
     from pydantic import AwareDatetime, JsonValue
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
@@ -42,7 +43,13 @@ if TYPE_CHECKING:
         TaskInstanceState,
     )
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAliasEvent,
+        AssetRef,
+        BaseAssetUniqueKey,
+    )
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.comms import DagResult
@@ -135,10 +142,18 @@ class RuntimeTaskInstanceProtocol(Protocol):
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
     state: TaskInstanceState | None = None
+    is_mapped: bool | None = None
+    rendered_map_index: str | None = None
+
+    @property
+    def log_url(self) -> str: ...
+
+    @property
+    def mark_success_url(self) -> str: ...
 
     def xcom_pull(
         self,
-        task_ids: str | list[str] | None = None,
+        task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
@@ -152,7 +167,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_template_context(self) -> Context: ...
 
-    def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+    def render_templates(
+        self,
+        context: Context | None = None,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> BaseOperator: ...
+
+    def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None: ...
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
@@ -215,6 +236,7 @@ class OutletEventAccessorProtocol(Protocol):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
+    partition_keys: set[str]
 
     def __init__(
         self,
@@ -222,8 +244,10 @@ class OutletEventAccessorProtocol(Protocol):
         key: BaseAssetUniqueKey,
         extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
+        partition_keys: set[str] = ...,
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
+    def add_partitions(self, keys: str | list[str]) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

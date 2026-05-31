@@ -267,7 +267,9 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Group",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskGroup_one": "Task Group",
   "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
@@ -283,6 +285,7 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
+    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
     "triggerer": {
       "assigned": "Assigned triggerer",

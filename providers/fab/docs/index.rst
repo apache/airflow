@@ -84,7 +84,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 3.6.3
+Release: 3.6.4
 
 Provider package
 ----------------
@@ -111,7 +111,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2``
 ``flask``                                   ``>=2.2.1``
-``flask-appbuilder``                        ``==5.2.0``
+``flask-appbuilder``                        ``==5.2.1``
 ``pyjwt``                                   ``>=2.11.0``
 ``flask-login``                             ``>=0.6.2; python_version < "3.14"``
 ``flask-login``                             ``>=0.6.3; python_version >= "3.14"``
@@ -126,7 +126,7 @@ PIP package                                 Version required
 ``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
 ``marshmallow``                             ``>=3``
-``flask_limiter``                           ``>3,!=3.13``
+``flask_limiter``                           ``>3``
 ==========================================  =====================================
 
 Cross provider package dependencies
@@ -154,5 +154,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-fab 3.6.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-fab 3.6.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-fab 3.6.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-fab 3.6.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.6.4-py3-none-any.whl.sha512>`__)

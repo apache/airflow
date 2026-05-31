@@ -99,6 +99,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.SkipMixin
 
+.. autoclass:: airflow.sdk.ResumableJobMixin
+
 .. autoapiclass:: airflow.sdk.BaseHook
 
 Callbacks
@@ -181,6 +183,8 @@ Assets
 ------
 .. autoapiclass:: airflow.sdk.Asset
 
+.. autoapiclass:: airflow.sdk.AssetAccessControl
+
 .. autoapiclass:: airflow.sdk.AssetAlias
 
 .. autoapiclass:: airflow.sdk.AssetAll
@@ -208,6 +212,8 @@ Timetables
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
@@ -261,6 +267,10 @@ For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
 
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
+
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
@@ -275,7 +285,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:

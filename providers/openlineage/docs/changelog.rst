@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+2.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add standardized SQL check representation for listeners (#66849)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache connections in OpenLineage SQL hook lineage (#64843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Isolate openlineage extractor test from hook lineage collector pollution (#67057)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+
 2.16.0
 ......
 

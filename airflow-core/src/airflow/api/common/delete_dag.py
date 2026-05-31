@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 
 @provide_session
-def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session = NEW_SESSION) -> int:
+def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Session = NEW_SESSION) -> int:
     """
     Delete a Dag by a dag_id.
 

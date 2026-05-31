@@ -50,7 +50,12 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``asynchronous`` is False. Defaults to 3600 seconds (or 1 hour).
+        Only used when ``asynchronous`` is False.  This limits how long the operator waits for the
+        job to complete and does not imply job cancellation. Task-level timeouts should be
+        enforced via ``execution_timeout``. Defaults to 3600 seconds (or 1 hour).
+    :param execution_timeout: Maximum time allowed for the task to run. If exceeded, the Airbyte
+        Job will be cancelled and the task will fail. When both ``execution_timeout`` and
+        ``timeout`` are set, the earlier deadline takes precedence.
     """
 
     template_fields: Sequence[str] = ("connection_id",)
@@ -82,7 +87,16 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         self.job_id = job_object.job_id
         state = job_object.status
-        end_time = time.time() + self.timeout
+
+        # Derive absolute deadlines for deferrable execution.
+        # execution_timeout is a hard task-level limit (cancels the job),
+        # while timeout only limits how long we wait for the job to finish.
+        # If both are set, the earliest deadline wins.
+        end_time = time.monotonic() + self.timeout
+        execution_deadline = None
+
+        if self.execution_timeout is not None:
+            execution_deadline = time.monotonic() + self.execution_timeout.total_seconds()
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
 
@@ -97,11 +111,12 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
-                    timeout=self.execution_timeout,
+                    timeout=None,
                     trigger=AirbyteSyncTrigger(
                         conn_id=self.airbyte_conn_id,
                         job_id=self.job_id,
                         end_time=end_time,
+                        execution_deadline=execution_deadline,
                         poll_interval=60,
                     ),
                     method_name="execute_complete",
@@ -129,6 +144,29 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Error occurred with context: %s", context)
             raise RuntimeError(event["message"])
 
+        if event["status"] == "cancelled":
+            self.log.debug("Job cancelled with context: %s", context)
+            raise RuntimeError(event["message"])
+
+        job_id = event.get("job_id")
+        if event["status"] == "timeout":
+            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+
+            if job_id:
+                self.log.info("Cancelling Airbyte job %s due to execution timeout", job_id)
+                try:
+                    hook.cancel_job(job_id=job_id)
+                except AirflowException:
+                    self.log.warning(
+                        "Failed to cancel Airbyte job %s after timeout",
+                        job_id,
+                        exc_info=True,
+                    )
+            else:
+                self.log.warning("No job_id found; skipping cancellation")
+
+            raise RuntimeError(event["message"])
+
         self.log.info("%s completed successfully.", self.task_id)
         return None
 
@@ -142,4 +180,11 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         )
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
-            hook.cancel_job(self.job_id)
+            try:
+                hook.cancel_job(self.job_id)
+            except Exception:
+                self.log.warning(
+                    "Failed to cancel Airbyte job %s during on_kill",
+                    self.job_id,
+                    exc_info=True,
+                )

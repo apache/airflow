@@ -39,7 +39,7 @@ class TaskNotRunningDep(BaseTIDep):
         return hash(type(self))
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context=None):
+    def _get_dep_statuses(self, ti, dep_context=None, *, session):
         if ti.state != TaskInstanceState.RUNNING:
             yield self._passing_status(reason="Task is not in running state.")
             return

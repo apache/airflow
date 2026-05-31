@@ -758,20 +758,6 @@ class TestGetMappedTaskInstances:
         )
 
     @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
     def one_task_with_many_mapped_tis(self, dag_maker, session):
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
@@ -856,6 +842,11 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
             ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
+            ({"order_by": "rendered_map_index", "limit": 100}, sorted(range(110), key=str)[:100]),
+            (
+                {"order_by": "-rendered_map_index", "limit": 100},
+                sorted(range(110), key=str, reverse=True)[:100],
+            ),
         ],
     )
     def test_mapped_instances_order(
@@ -875,37 +866,55 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == min(params["limit"], conf.getint("api", "maximum_page_limit"))
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
-    # Ordering of nulls values is DB specific.
-    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
-        ("params", "expected_map_indexes"),
+        ("filter_param", "value", "expected_map_indexes"),
         [
-            ({"order_by": "rendered_map_index", "limit": 108}, list(range(1, 109))),  # Asc
-            ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
+            # Prefix match (index-friendly).
+            ("rendered_map_index_prefix_pattern", "table_", [0, 1]),
+            ("rendered_map_index_prefix_pattern", "metrics", [2, 3]),
+            ("rendered_map_index_prefix_pattern", "nope", []),
+            # Fallback to str(map_index) when _rendered_map_index is NULL.
+            # Prefix "10" matches "10" and "100".."109".
+            ("rendered_map_index_prefix_pattern", "10", [10, *range(100, 110)]),
+            # Substring match (advanced).
+            ("rendered_map_index_pattern", "table_orders", [0]),
+            ("rendered_map_index_pattern", "table_orders|metrics_daily", [0, 2]),
+            ("rendered_map_index_pattern", "_users", [1]),
+            ("rendered_map_index_pattern", "nope", []),
         ],
     )
-    @conf_vars({("api", "maximum_page_limit"): "110"})
-    def test_rendered_map_index_order(
-        self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
+    def test_rendered_map_index_filter(
+        self,
+        test_client,
+        session,
+        one_task_with_many_mapped_tis,
+        filter_param,
+        value,
+        expected_map_indexes,
     ):
-        ti = session.scalars(
-            select(TaskInstance).where(TaskInstance.task_id == "task_2", TaskInstance.map_index == 0)
-        ).first()
-
-        ti._rendered_map_index = "a"
-
+        rendered_by_map_index = {
+            0: "table_orders",
+            1: "table_users",
+            2: "metrics_daily",
+            3: "metrics_hourly",
+        }
+        for map_index, rendered in rendered_by_map_index.items():
+            ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2", TaskInstance.map_index == map_index
+                )
+            ).first()
+            ti._rendered_map_index = rendered
         session.commit()
 
-        with assert_queries_count(4):
-            response = test_client.get(
-                "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-                params=params,
-            )
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={filter_param: value, "order_by": "map_index"},
+        )
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == params["limit"]
-        assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
+        assert body["total_entries"] == len(expected_map_indexes)
+        assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
@@ -1490,6 +1499,34 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"map_index": 0, "_rendered_map_index": "table_orders"},
+                    {"map_index": 1, "_rendered_map_index": "table_users"},
+                    {"map_index": 2, "_rendered_map_index": None},
+                    {"map_index": 3, "_rendered_map_index": None},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"rendered_map_index_prefix_pattern": "table_"},
+                2,
+                3,
+                id="test rendered_map_index_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"map_index": 0, "_rendered_map_index": "table_orders"},
+                    {"map_index": 1, "_rendered_map_index": "table_users"},
+                    {"map_index": 2, "_rendered_map_index": None},
+                    {"map_index": 3, "_rendered_map_index": None},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"rendered_map_index_pattern": "_users|table_orders"},
+                2,
+                3,
+                id="test rendered_map_index_pattern filter",
+            ),
+            pytest.param(
+                [
                     {},
                 ],
                 True,
@@ -1788,6 +1825,30 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
         assert len(field_desc) == ti_count
         assert field_asc == list(reversed(field_desc))
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_map_indexes"),
+        [
+            ("rendered_map_index", [2, 3, 0, 1]),
+            ("-rendered_map_index", [1, 0, 3, 2]),
+        ],
+    )
+    def test_should_respond_200_for_rendered_map_index_order(
+        self, test_client, session, order_by, expected_map_indexes
+    ):
+        self.create_task_instances(
+            session,
+            update_extras=True,
+            task_instances=[
+                {"map_index": 0, "_rendered_map_index": "table_orders"},
+                {"map_index": 1, "_rendered_map_index": "table_users"},
+                {"map_index": 2, "_rendered_map_index": None},
+                {"map_index": 3, "_rendered_map_index": None},
+            ],
+        )
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by})
+        assert response.status_code == 200
+        assert [ti["map_index"] for ti in response.json()["task_instances"]] == expected_map_indexes
 
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
@@ -6643,6 +6704,46 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 "status_code": 403,
             }
         ]
+
+    @pytest.mark.parametrize("task_count", [5, 10, 20])
+    def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
+        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
+        # each extra task instance must add exactly QUERIES_PER_TASK_INSTANCE query (its DELETE),
+        # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
+        # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
+        QUERIES_PER_TASK_INSTANCE = 1
+        BASE_QUERY_COUNT = 5
+
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": tuple(range(task_count))}],
+        )
+        request_body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"task_id": self.TASK_ID, "map_index": map_index} for map_index in range(task_count)
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch(self.ENDPOINT_URL, json=request_body)
+
+        assert response.status_code == 200
+        assert len(response.json()["delete"]["success"]) == task_count
+
+        query_count = sum(result.values())
+        expected_query_count = BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE
+        assert query_count == expected_query_count, (
+            f"Bulk-delete query count {query_count} does not match expected {expected_query_count} "
+            f"for {task_count} task instances. "
+            f"A regression that re-queries each task instance would give "
+            f"~{BASE_QUERY_COUNT + task_count * 2} queries instead."
+        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})

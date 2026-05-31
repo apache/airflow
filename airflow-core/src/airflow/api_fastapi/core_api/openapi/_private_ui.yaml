@@ -1974,6 +1974,11 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        rerun_with_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rerun With Latest Version
       type: object
       required:
       - fallback_page_limit
@@ -2784,6 +2789,11 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
+        doc_md:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Doc Md
       type: object
       required:
       - id

@@ -31,7 +31,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -54,7 +54,7 @@ pytestmark = pytest.mark.db_test
 class TestGetDagRuns(TestPublicDagEndpoint):
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup_dag_runs(self, session=None) -> None:
+    def setup_dag_runs(self, *, session: Session = NEW_SESSION) -> None:
         # Create DAG Runs
         for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID, DAG4_ID, DAG5_ID]:
             dag_runs_count = 5 if dag_id in [DAG1_ID, DAG2_ID] else 2
@@ -351,6 +351,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     def test_latest_run_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
+
+    def test_latest_run_should_response_400_when_dag_id_is_tilde(self, test_client):
+        response = test_client.get("/dags/~/latest_run")
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "`~` was supplied as dag_id, but querying multiple dags is not supported."
+        }
 
     @pytest.mark.parametrize(
         ("query_params", "expected_dag_count"),
