@@ -36,14 +36,16 @@ auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
 @auth_router.get(
     "/login",
-    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_307_TEMPORARY_REDIRECT, status.HTTP_400_BAD_REQUEST]
+    ),
 )
 def login(request: Request, auth_manager: AuthManagerDep, next: None | str = None) -> RedirectResponse:
     """Redirect to the login URL depending on the AuthManager configured."""
     login_url = auth_manager.get_url_login()
 
     if next and not is_safe_url(next, request=request):
-        raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid or unsafe next URL")
 
     if next:
         login_url += f"?{urlencode({'next': next})}"
@@ -57,13 +59,14 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
 )
 def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     """Logout the user."""
+    # Revoke the current token before any redirect or cookie deletion so the JWT
+    # is invalidated even when the auth manager redirects to an external logout URL.
+    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+        auth_manager.revoke_token(token_str)
+
     logout_url = auth_manager.get_url_logout()
     if logout_url:
         return RedirectResponse(logout_url)
-
-    # Revoke the current token before deleting the cookie
-    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
-        auth_manager.revoke_token(token_str)
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()

@@ -121,7 +121,7 @@ jobs:
         uses: ./.github/actions/breeze
         if: github.event_name == 'workflow_dispatch'
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@739bfe42ca9233c5e6aca07c1a25a9d34aca49b0  # v6.0.7
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
         with:
           version: 9
           run_install: false

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from pydantic import JsonValue
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
@@ -96,9 +98,10 @@ class BaseStateBackend(ABC):
     @abstractmethod
     def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
         """
-        Return the stored value, or None if the key does not exist.
+        Return the stored JSON encoded value string, or None if the key does not exist.
 
-        Must handle both ``TaskScope`` and ``AssetScope``.
+        Must handle both ``TaskScope`` and ``AssetScope``. The execution API calls
+        ``json.loads`` on the returned string from here, so it must be a valid JSON document.
         """
 
     @abstractmethod
@@ -112,9 +115,11 @@ class BaseStateBackend(ABC):
         session: Session | None = None,
     ) -> None:
         """
-        Write or overwrite the value for the given key.
+        Write or overwrite ``value`` for the given key.
 
-        Must handle both ``TaskScope`` and ``AssetScope``.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``value`` is always a
+        JSON encoded string (the execution API calls ``json.dumps`` before passing it
+        here); store it verbatim so ``get`` can return it unchanged.
 
         ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
         Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
@@ -147,10 +152,10 @@ class BaseStateBackend(ABC):
     @abstractmethod
     async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         """
-        Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
+        Async variant of ``get`` which returns a JSON encoded value string or None.
 
-        ``session`` is optional. If provided, implementations should use it directly.
-        If ``None``, implementations manage their own async session internally.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``session`` is used directly
+        when provided; otherwise implementations manage their own session internally.
         """
 
     @abstractmethod
@@ -164,10 +169,10 @@ class BaseStateBackend(ABC):
         session: AsyncSession | None = None,
     ) -> None:
         """
-        Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.
+        Async variant of ``set``. ``value`` is always a JSON encoded string.
 
-        ``session`` is optional. If provided, implementations should use it directly.
-        If ``None``, implementations manage their own async session internally.
+        Must handle both ``TaskScope`` and ``AssetScope``. ``session`` is used directly
+        when provided; otherwise implementations manage their own session internally.
         """
 
     @abstractmethod
@@ -203,7 +208,7 @@ class BaseStateBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
+    def serialize_task_state_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
         """
         Serialize a task state value before it is sent to the execution API for db persistence.
 
@@ -211,23 +216,29 @@ class BaseStateBackend(ABC):
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
 
+        **Important:** return only the raw reference string. The worker framework automatically
+        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
+        that wrapper before passing ``stored`` to ``deserialize_task_state_from_ref()``. Do not
+        wrap the reference yourself.
+
         The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned.
+        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
-        return value
+        return json.dumps(value)
 
-    def deserialize_task_state_from_ref(self, stored: str) -> str:
+    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored task state string back to the actual value.
+        Resolve a stored task state reference back to the actual value.
 
         Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
-        the execution API. Default: return ``stored`` unchanged.
+        the execution API. By default, it JSON decodes ``stored`` to reverse the default
+        ``serialize_task_state_to_ref`` encoding.
         """
-        return stored
+        return json.loads(stored)
 
-    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
         """
         Serialize an asset state value before it is sent to the Execution API for db persistence.
 
@@ -235,21 +246,27 @@ class BaseStateBackend(ABC):
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
 
+        **Important:** return only the raw reference string. The worker framework automatically
+        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
+        that wrapper before passing ``stored`` to ``deserialize_asset_state_from_ref()``. Do not
+        wrap the reference yourself.
+
         ``asset_ref`` is either the asset name or URI, depending on how the accessor was
         constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
 
         The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned.
+        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
-        return value
+        return json.dumps(value)
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> str:
+    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored asset state string back to the actual value.
+        Resolve a stored asset state reference back to the actual value.
 
         Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
-        the Execution API. Default: return ``stored`` unchanged.
+        the Execution API. By default, it JSON decodes ``stored`` to reverse the default
+        ``serialize_asset_state_to_ref`` encoding.
         """
-        return stored
+        return json.loads(stored)

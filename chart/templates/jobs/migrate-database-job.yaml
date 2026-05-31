@@ -86,6 +86,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "migrateDatabaseJob.serviceAccountName" . }}
+      {{- include "serviceLinks" . | nindent 6 }}
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.migrateDatabaseJob.extraInitContainers }}
       initContainers:

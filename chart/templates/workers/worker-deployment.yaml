@@ -157,6 +157,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
+      {{- include "serviceLinks" . | nindent 6 }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
@@ -283,7 +284,7 @@ spec:
                 {{- else }}
                 - sh
                 - -c
-                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(hostname)
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(python -c 'import socket; print(socket.gethostname())')
                 {{- end }}
           {{- end }}
           ports:

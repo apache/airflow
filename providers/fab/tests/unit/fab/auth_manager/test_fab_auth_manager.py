@@ -1035,7 +1035,7 @@ def test_resetdb(
     mock_connect = mock_engine.connect.return_value
 
     session_mock = MagicMock()
-    resetdb(session_mock, skip_init=skip_init)
+    resetdb(session=session_mock, skip_init=skip_init)
 
     # In the non-MySQL path, drop functions are called with the raw connection
     mock_drop_airflow.assert_called_once_with(mock_connect)

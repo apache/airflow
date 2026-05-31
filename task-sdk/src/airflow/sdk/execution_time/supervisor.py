@@ -37,7 +37,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -130,6 +130,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -151,6 +152,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_put_variable,
     handle_set_xcom,
 )
+from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
 
 try:
     from socket import send_fds
@@ -169,6 +171,7 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
+    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
@@ -532,6 +535,72 @@ def _child_exec_main():
     _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
 
 
+class NeverRaised(Exception):
+    """
+    An exception type that's never raised.
+
+    This is used in :class:`_ProcessTracker` as a stand-in when an exception is
+    not supposed to be raised by an implementation.
+
+    :meta private:
+    """
+
+
+class ProcessTracker:
+    """
+    Common interface to track a process.
+
+    This protocol works for both :class:`psutil.Process` (used by the forking
+    model) and :class:`subprocess.Popen` (used by the subprocess model). A
+    custom class may also be implemented if needed in the future.
+
+    :meta private:
+    """
+
+    ProcessNotFound: type[Exception]
+    TimeoutExpired: type[Exception]
+
+    @property
+    def pid(self) -> int:
+        raise NotImplementedError
+
+    def send_signal(self, s: signal.Signals) -> None:
+        raise NotImplementedError
+
+    def wait(self, timeout: float | None) -> int:
+        raise NotImplementedError
+
+
+class PsutilTracker(ProcessTracker):
+    """
+    Process tracker backed by :class:`psutil.Process`.
+
+    :meta private:
+    """
+
+    ProcessNotFound = psutil.NoSuchProcess
+    TimeoutExpired = psutil.TimeoutExpired
+
+    def __init__(self, impl: psutil.Process) -> None:
+        self._impl = impl
+
+    @property
+    def pid(self) -> int:
+        return self._impl.pid
+
+    def send_signal(self, s: signal.Signals) -> None:
+        self._impl.send_signal(s)
+
+    def wait(self, timeout: float | None) -> int:
+        return self._impl.wait(timeout)
+
+
+def _validate_schema_version(instance, _, value) -> str | None:
+    if value is None:
+        return None
+    return get_schema_version_migrator().resolve_version(str(value))
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -552,8 +621,19 @@ class WatchedSubprocess:
     decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
-    _process: psutil.Process = attrs.field(repr=False)
-    """File descriptor for request handling."""
+    _process: ProcessTracker = attrs.field(repr=False)
+    """Handler to track the process."""
+
+    _subprocess_schema_version: str | None = attrs.field(default=None, validator=_validate_schema_version)
+    """
+    Schema version for the subprocess to specify the schema version it uses.
+
+    This is used for the supervisor (server) to upgrade messages from the client
+    to match the server schema, and downgrade server messages before they are
+    sent so the client can understand them.
+
+    No migration is attempted if this is set to *None* (default).
+    """
 
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
@@ -660,22 +740,31 @@ class WatchedSubprocess:
         proc = cls(
             pid=pid,
             stdin=read_requests,
-            process=psutil.Process(pid),
+            process=PsutilTracker(psutil.Process(pid)),
             process_log=logger,
             start_time=time.monotonic(),
             **constructor_kwargs,
         )
 
         proc._register_pipe_readers(
-            stdout=read_stdout,
-            stderr=read_stderr,
-            requests=read_requests,
-            logs=read_logs,
+            read_stdout,
+            read_stderr,
+            read_requests,
+            read_logs,
+            data={},
         )
 
         return proc
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+    def _register_pipe_readers(
+        self,
+        stdout: socket,
+        stderr: socket,
+        requests: socket,
+        logs: socket,
+        *,
+        data: dict[socket, bytes],
+    ):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
@@ -695,12 +784,19 @@ class WatchedSubprocess:
         target_loggers = self._get_target_loggers()
 
         self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
+            stdout,
+            selectors.EVENT_READ,
+            self._create_log_forwarder(target_loggers, "task.stdout", data=data.get(stdout, b"")),
         )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_log_forwarder(target_loggers, "task.stderr", log_level=logging.ERROR),
+            self._create_log_forwarder(
+                target_loggers,
+                "task.stderr",
+                data=data.get(stderr, b""),
+                log_level=logging.ERROR,
+            ),
         )
         self.selector.register(
             logs,
@@ -722,7 +818,14 @@ class WatchedSubprocess:
             target_loggers += (log,)
         return target_loggers
 
-    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         loggers = tuple(
             reconfigure_logger(
@@ -732,32 +835,50 @@ class WatchedSubprocess:
             for log in loggers
         )
         return make_buffered_socket_reader(
-            forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
+            forward_to_log(loggers, logger=name, level=log_level),
+            data=data,
+            on_close=self._on_socket_closed,
         )
 
     def _on_socket_closed(self, sock: socket):
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
-
         with suppress(KeyError):
             self.selector.unregister(sock)
             del self._open_sockets[sock]
 
+    def _serialize_response(self, msg: BaseModel | ErrorResponse, **dump_opts) -> dict[str, Any]:
+        if self._subprocess_schema_version is not None:
+            migrator = get_schema_version_migrator()
+            msg = migrator.downgrade(msg, self._subprocess_schema_version, **dump_opts)
+        return msg.model_dump(**dump_opts)
+
     def send_msg(
-        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
+        self,
+        msg: BaseModel | None,
+        request_id: int,
+        error: ErrorResponse | None = None,
+        **dump_opts,
     ):
         """
         Send the msg as a length-prefixed response frame.
 
-        ``request_id`` is the ID that the client sent in it's request, and has no meaning to the server
-
+        :param request_id: The ID sent in the request by the client. This has no
+            meaning to the server, and is only included in the response frame
+            for the client to identify what the response is for.
         """
         if msg:
-            frame = _ResponseFrame(id=request_id, body=msg.model_dump(**dump_opts))
+            frame = _ResponseFrame(id=request_id, body=self._serialize_response(msg, **dump_opts))
         else:
-            err_resp = error.model_dump() if error else None
+            err_resp = self._serialize_response(error) if error else None
             frame = _ResponseFrame(id=request_id, error=err_resp)
-
         self.stdin.sendall(frame.as_bytes())
+
+    def _deserialize_request(self, body: dict[str, Any] | None) -> dict[str, Any] | None:
+        if self._subprocess_schema_version is None or body is None:
+            return body
+        if (model := resolve_body_class(body)) is None:
+            raise ValueError(f"Cannot resolve model without a valid 'type' discriminator: {body!r}")
+        return get_schema_version_migrator().upgrade(body, model, self._subprocess_schema_version)
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, _RequestFrame, None]:
         """Handle incoming requests from the task process, respond with the appropriate data."""
@@ -765,7 +886,7 @@ class WatchedSubprocess:
             request = yield
 
             try:
-                msg = self.decoder.validate_python(request.body)
+                msg = self.decoder.validate_python(self._deserialize_request(request.body))
             except Exception:
                 log.exception("Unable to decode message", body=request.body)
                 continue
@@ -908,7 +1029,7 @@ class WatchedSubprocess:
                 if sig != escalation_path[-1]:
                     msg += "; escalating"
                 log.warning(msg, pid=self.pid, signal=sig.name)
-            except psutil.NoSuchProcess:
+            except self._process.ProcessNotFound:
                 log.debug("Process already terminated", pid=self.pid)
                 self._exit_code = -1
                 return
@@ -986,7 +1107,7 @@ class WatchedSubprocess:
 
         try:
             self._exit_code = self._process.wait(timeout=0)
-        except psutil.TimeoutExpired:
+        except self._process.TimeoutExpired:
             if raise_on_timeout:
                 raise
         else:
@@ -1194,7 +1315,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1223,7 +1344,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstance,
+        ti: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -1270,10 +1391,31 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code is not None:
             return self._exit_code
 
+        # Forward termination signals to the task subprocess so the operator's
+        # on_kill() hook runs on graceful shutdown (e.g. K8s pod SIGTERM).
+        # Without this the supervisor exits on SIGTERM without notifying the
+        # child, leaving spawned resources (pods, subprocesses, etc.) running.
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+        prev_sigint = signal.getsignal(signal.SIGINT)
+
+        def _forward_signal(signum, frame):
+            log.info(
+                "Received signal, forwarding to task subprocess",
+                signal=signal.Signals(signum).name,
+                pid=self.pid,
+            )
+            with suppress(ProcessLookupError):
+                os.kill(self.pid, signum)
+
+        signal.signal(signal.SIGTERM, _forward_signal)
+        signal.signal(signal.SIGINT, _forward_signal)
+
         try:
             self._monitor_subprocess()
         finally:
             self.selector.close()
+            signal.signal(signal.SIGTERM, prev_sigterm)
+            signal.signal(signal.SIGINT, prev_sigint)
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
@@ -1918,6 +2060,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 log = structlog.get_logger(logger_name="task")
 
                 state, msg, error = run(ti, context, log)
+                context["exception"] = error
                 finalize(ti, state, context, log, error)
 
                 # In the normal subprocess model, the task runner calls this before exiting.
@@ -2039,14 +2182,28 @@ def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
 # to a (sync) generator
 def make_buffered_socket_reader(
     gen: Generator[None, bytes | bytearray, None],
+    *,
+    data: bytes = b"",
     on_close: Callable[[socket], None],
     buffer_size: int = 4096,
 ):
-    buffer = bytearray()  # This will hold our accumulated binary data
+    buffer = bytearray(data)  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
 
     # We need to start up the generator to get it to the point it's at waiting on the yield
     next(gen)
+
+    def process(buffer: bytearray) -> bytearray:
+        # We could have read multiple lines in one go, yield them all
+        while (newline_pos := buffer.find(b"\n")) != -1:
+            line = buffer[: newline_pos + 1]
+            gen.send(line)
+            buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
+        return buffer
+
+    # Flush any complete lines that arrived before the selector was running.
+    with contextlib.suppress(StopIteration):
+        buffer = process(buffer)
 
     def cb(sock: socket):
         nonlocal buffer, read_buffer
@@ -2061,15 +2218,10 @@ def make_buffered_socket_reader(
             return False
 
         buffer.extend(read_buffer[:n_received])
-
-        # We could have read multiple lines in one go, yield them all
-        while (newline_pos := buffer.find(b"\n")) != -1:
-            line = buffer[: newline_pos + 1]
-            try:
-                gen.send(line)
-            except StopIteration:
-                return False
-            buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
+        try:
+            buffer = process(buffer)
+        except StopIteration:
+            return False
 
         return True
 
@@ -2250,7 +2402,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstance,
+    ti: TaskInstanceDTO,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,
@@ -2277,6 +2429,8 @@ def supervise_task(
         path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
+    :raises InvalidCoordinatorError: If the coordinator for the task is not
+        configured correctly.
     """
     _make_process_nondumpable()
 
@@ -2317,6 +2471,17 @@ def supervise_task(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
+    try:
+        coordinator = get_coordinator_manager().for_queue(ti.queue)
+    except:
+        log.exception(
+            "Failed to initialize coordinator for task",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            queue=ti.queue,
+        )
+        raise
+
     with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
         start = time.monotonic()
 
@@ -2336,27 +2501,25 @@ def supervise_task(
         reset_secrets_masker()
 
         try:
-            process = ActivitySubprocess.start(
-                dag_rel_path=dag_rel_path,
+            result = coordinator.execute_task(
                 what=ti,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
                 client=client,
                 logger=logger,
-                bundle_info=bundle_info,
-                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                 sentry_integration=sentry_integration,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             )
-
-            exit_code = process.wait()
             end = time.monotonic()
             log.info(
                 "Workload finished",
                 workload_type="ExecuteTask",
                 workload_id=str(ti.id),
-                exit_code=exit_code,
+                exit_code=result.exit_code,
                 duration=end - start,
-                final_state=process.final_state,
+                final_state=result.final_state,
             )
-            return exit_code
+            return result.exit_code
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

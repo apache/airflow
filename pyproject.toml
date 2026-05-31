@@ -22,7 +22,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.7.17",
+    "trove-classifiers==2026.5.22.10",
 ]
 build-backend = "hatchling.build"
 
@@ -248,6 +248,9 @@ apache-airflow = "airflow.__main__:main"
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
 ]
+"ibm.mq" = [
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
+]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
 ]
@@ -451,6 +454,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -551,7 +555,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.14",
+    "uv>=0.11.16",
 ]
 
 [project.urls]
@@ -1174,6 +1178,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/src",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/src",
@@ -1404,6 +1410,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1460,6 +1467,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
@@ -1527,20 +1535,14 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
-# (https://github.com/astral-sh/uv/issues/18708, fixed in
-# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
-# global 4-day cooldown above would otherwise block a freshly-published uv
-# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
-# pinned `required-version` floor isn't gated by the project-wide window.
-# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
+
+# REMOVE BY 2026-05-31 — once 7.1.0 is older than the global 4-day cooldown
 # this override is redundant and should be deleted along with the line below.
-uv = "12 hours"
+swagger-plugin-for-sphinx = "8 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1555,6 +1557,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1611,6 +1614,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
@@ -1678,13 +1682,13 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# REMOVE BY 2026-05-01 along with the matching entry above.
-uv = "12 hours"
+
+# REMOVE BY 2026-05-31 along with the matching entry above.
+swagger-plugin-for-sphinx = "8 hours"
 
 
 [tool.uv.sources]
@@ -1706,7 +1710,7 @@ apache-airflow-task-sdk-integration-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
-apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-listeners = { workspace = true }
@@ -1772,6 +1776,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-informatica = { workspace = true }
@@ -1909,6 +1914,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/ibm/mq",
     "providers/imap",
     "providers/influxdb",
     "providers/informatica",

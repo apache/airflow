@@ -32,11 +32,14 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from sqlalchemy import (
     CTE,
+    Text,
     and_,
     case,
+    cast as sql_cast,
     delete,
     exists,
     func,
@@ -327,7 +330,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
@@ -953,9 +956,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
@@ -1268,7 +1271,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, str(callback_id))
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1564,7 +1567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(
@@ -1952,7 +1955,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # END: create dagruns
 
     @provide_session
-    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
@@ -2388,7 +2391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
             return callback
@@ -2495,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in schedulable_tis
                 ],
             )
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 
@@ -2511,7 +2514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert latest_dag_version
 
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
@@ -2548,7 +2551,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
         """
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
@@ -2589,7 +2592,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
@@ -2681,7 +2684,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
         """
         Check the Log table to see how many times a task instance has been stuck in queued.
 
@@ -2723,7 +2726,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
         metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
         stmt = (
             select(
@@ -2768,13 +2771,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
         stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
@@ -2807,7 +2810,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
         """
         Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
@@ -2909,7 +2912,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(
-        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
@@ -3089,7 +3092,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 
