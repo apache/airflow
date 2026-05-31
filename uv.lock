@@ -1036,7 +1036,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1273,7 +1273,7 @@ http = [
     { name = "apache-airflow-providers-http" },
 ]
 ibm-mq = [
-    { name = "apache-airflow-providers-ibm-mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1649,8 +1649,8 @@ requires-dist = [
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'hashicorp'", editable = "providers/hashicorp" },
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'all'", editable = "providers/ibm/mq" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'all'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -5774,7 +5774,7 @@ common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
 ibmmq = [
-    { name = "ibmmq" },
+    { name = "ibmmq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
 ]
 
 [package.dev-dependencies]
@@ -5796,7 +5796,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
-    { name = "ibmmq", marker = "extra == 'ibmmq'", specifier = ">=2.0.6" },
+    { name = "ibmmq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibmmq'", specifier = ">=2.0.6" },
 ]
 provides-extras = ["ibmmq", "common-messaging"]
 
