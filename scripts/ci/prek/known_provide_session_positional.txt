@@ -1,7 +1,3 @@
-airflow-core/src/airflow/jobs/base_job_runner.py::2
-airflow-core/src/airflow/jobs/job.py::7
-airflow-core/src/airflow/jobs/scheduler_job_runner.py::11
-airflow-core/src/airflow/jobs/triggerer_job_runner.py::1
 airflow-core/src/airflow/models/connection.py::2
 airflow-core/src/airflow/models/dag.py::7
 airflow-core/src/airflow/models/dagcode.py::6
@@ -20,7 +16,6 @@ airflow-core/src/airflow/models/trigger.py::7
 airflow-core/src/airflow/models/variable.py::2
 airflow-core/src/airflow/secrets/metastore.py::2
 airflow-core/src/airflow/serialization/definitions/dag.py::2
-airflow-core/tests/unit/jobs/test_scheduler_job.py::1
 airflow-core/tests/unit/listeners/test_listeners.py::7
 airflow-core/tests/unit/models/test_taskinstance.py::4
 airflow-core/tests/unit/models/test_timestamp.py::2
