@@ -31,6 +31,8 @@ OutputT = TypeVar("OutputT")
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
+    from airflow.providers.common.compat.sdk import Connection
+
 
 class PydanticAIHook(BaseHook):
     """
@@ -72,7 +74,7 @@ class PydanticAIHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
-        self._conn = None
+        self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] | None = None
 
     @staticmethod
