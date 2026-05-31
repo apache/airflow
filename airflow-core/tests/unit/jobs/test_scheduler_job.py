@@ -4882,6 +4882,8 @@ class TestSchedulerJob:
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
+        ti.hostname = "random-hostname"
+        ti.start_date = DEFAULT_DATE
         old_ti_id = ti.id
         old_try_number = ti.try_number
         session.merge(ti)
@@ -4893,19 +4895,19 @@ class TestSchedulerJob:
 
         ti.refresh_from_db(session=session)
         assert ti.id != old_ti_id
-        assert (
-            session.scalar(
-                select(TaskInstanceHistory).where(
-                    TaskInstanceHistory.dag_id == ti.dag_id,
-                    TaskInstanceHistory.task_id == ti.task_id,
-                    TaskInstanceHistory.run_id == ti.run_id,
-                    TaskInstanceHistory.map_index == ti.map_index,
-                    TaskInstanceHistory.try_number == old_try_number,
-                    TaskInstanceHistory.task_instance_id == old_ti_id,
-                )
+        ti_history = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == old_try_number,
+                TaskInstanceHistory.task_instance_id == old_ti_id,
             )
-            is not None
         )
+        assert ti_history is not None
+        assert ti_history.hostname == "random-hostname"
+        assert ti_history.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -7247,6 +7249,45 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_timeout_triggers_processes_more_than_one_batch(self, dag_maker, monkeypatch):
+        """Timed-out deferred task instances are all updated when they span multiple batches."""
+        import airflow.jobs.scheduler_job_runner as scheduler_job_runner_module
+
+        monkeypatch.setattr(scheduler_job_runner_module, "_TRIGGER_TIMEOUT_BATCH_SIZE", 2)
+
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_processes_more_than_one_batch",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=5,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        past = timezone.utcnow() - datetime.timedelta(seconds=60)
+        task_instances = []
+        for index in range(5):
+            dag_run = dag_maker.create_dagrun(
+                run_id=f"test_batch_{index}",
+                logical_date=DEFAULT_DATE + datetime.timedelta(seconds=index),
+            )
+            task_instance = dag_run.get_task_instance("dummy1", session)
+            task_instance.state = State.DEFERRED
+            task_instance.trigger_timeout = past
+            task_instances.append(task_instance)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        for task_instance in task_instances:
+            session.refresh(task_instance)
+            assert task_instance.state == State.SCHEDULED
+            assert task_instance.next_method == "__fail__"
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
@@ -9355,7 +9396,7 @@ class TestSchedulerJobQueriesCount:
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
+            ([218, 87, 69, 69], 10, 10, "1d", "@once", "no_structure"),
             ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
             ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
             ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
