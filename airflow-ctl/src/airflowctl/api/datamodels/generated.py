@@ -846,6 +846,23 @@ class StructuredLogMessage(BaseModel):
     event: Annotated[str, Field(title="Event")]
 
 
+class TaskCircuitBreakerResponse(BaseModel):
+    """
+    Serializer for TaskCircuitBreaker responses.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    is_open: Annotated[bool, Field(title="Is Open")]
+    opened_at: Annotated[datetime | None, Field(title="Opened At")] = None
+    opened_reason: Annotated[str | None, Field(title="Opened Reason")] = None
+    failure_count: Annotated[int, Field(title="Failure Count")]
+    window_start: Annotated[datetime | None, Field(title="Window Start")] = None
+    reset_after: Annotated[datetime | None, Field(title="Reset After")] = None
+    max_failures: Annotated[int, Field(title="Max Failures")]
+    window_seconds: Annotated[int, Field(title="Window Seconds")]
+
+
 class TaskDependencyResponse(BaseModel):
     """
     Task Dependency serializer for responses.
@@ -1843,6 +1860,15 @@ class QueuedEventCollectionResponse(BaseModel):
     """
 
     queued_events: Annotated[list[QueuedEventResponse], Field(title="Queued Events")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class TaskCircuitBreakerCollectionResponse(BaseModel):
+    """
+    Collection of TaskCircuitBreaker responses.
+    """
+
+    circuit_breakers: Annotated[list[TaskCircuitBreakerResponse], Field(title="Circuit Breakers")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

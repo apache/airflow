@@ -447,6 +447,14 @@ def clear_db_task_reschedule():
 
 
 @_retry_db
+def clear_db_task_circuit_breakers():
+    from airflow.models.task_circuit_breaker import TaskCircuitBreaker
+
+    with create_session() as session:
+        session.execute(delete(TaskCircuitBreaker))
+
+
+@_retry_db
 def clear_db_dag_parsing_requests():
     with create_session() as session:
         from airflow.models.dagbag import DagPriorityParsingRequest

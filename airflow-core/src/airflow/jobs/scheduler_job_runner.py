@@ -97,6 +97,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_circuit_breaker import TaskCircuitBreaker
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
@@ -612,6 +613,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 query = query.where(
                     tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
                 )
+
+            # Exclude tasks whose circuit breaker is open — evaluated inline so the
+            # check happens before the task transitions to QUEUED, not after.
+            open_cb_sq = TaskCircuitBreaker.open_circuits_subquery()
+            query = query.where(
+                tuple_(TI.dag_id, TI.task_id).not_in(select(open_cb_sq.c.dag_id, open_cb_sq.c.task_id))
+            )
 
             # Create a subquery with row numbers partitioned by dag_id and run_id.
             # Different dags can have the same run_id but
@@ -1567,6 +1575,51 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
+    def _reset_expired_circuit_breakers(self, *, session: Session = NEW_SESSION) -> None:
+        """Close circuits whose auto-reset time has elapsed."""
+        try:
+            closed = TaskCircuitBreaker.reset_expired(session=session)
+            if closed:
+                self.log.info("Auto-reset %d expired circuit breaker(s).", closed)
+        except Exception as e:
+            self.log.exception("Failed to reset expired circuit breakers due to %s", e)
+
+    _CB_SKIP_BATCH_SIZE = 100
+
+    @provide_session
+    def _skip_circuit_breaker_blocked_tis(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark SCHEDULED task instances as SKIPPED when their circuit is open."""
+        total_skipped = 0
+        try:
+            while True:
+                open_sq = TaskCircuitBreaker.open_circuits_subquery()
+                blocked = session.scalars(
+                    select(TaskInstance)
+                    .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
+                    .where(
+                        tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(
+                            select(open_sq.c.dag_id, open_sq.c.task_id)
+                        )
+                    )
+                    .limit(self._CB_SKIP_BATCH_SIZE)
+                ).all()
+                if not blocked:
+                    break
+                for ti in blocked:
+                    cb = session.get(TaskCircuitBreaker, (ti.dag_id, ti.task_id))
+                    reason = cb.opened_reason if cb else "Circuit open"
+                    ti.state = TaskInstanceState.SKIPPED
+                    ti.note = f"Circuit open: {reason}"
+                session.flush()
+                total_skipped += len(blocked)
+                if len(blocked) < self._CB_SKIP_BATCH_SIZE:
+                    break
+            if total_skipped:
+                self.log.info("Skipped %d task instance(s) blocked by open circuit breakers.", total_skipped)
+        except Exception as e:
+            self.log.exception("Failed to skip circuit-breaker-blocked task instances due to %s", e)
+
+    @provide_session
     def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
@@ -1652,6 +1705,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        timers.call_regular_interval(60.0, self._reset_expired_circuit_breakers)
+        timers.call_regular_interval(10.0, self._skip_circuit_breaker_blocked_tis)
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),

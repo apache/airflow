@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, CircuitBreakerService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -212,6 +212,30 @@ export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClie
   offset?: number;
   orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) });
+/**
+* Get Circuit Breaker
+* Get circuit breaker state for a task.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.taskId
+* @returns TaskCircuitBreakerResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseCircuitBreakerServiceGetCircuitBreaker = (queryClient: QueryClient, { dagId, taskId }: {
+  dagId: string;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseCircuitBreakerServiceGetCircuitBreakerKeyFn({ dagId, taskId }), queryFn: () => CircuitBreakerService.getCircuitBreaker({ dagId, taskId }) });
+/**
+* List Circuit Breakers
+* List all circuit breaker records for a Dag.
+* @param data The data for the request.
+* @param data.dagId
+* @returns TaskCircuitBreakerCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseCircuitBreakerServiceListCircuitBreakers = (queryClient: QueryClient, { dagId }: {
+  dagId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseCircuitBreakerServiceListCircuitBreakersKeyFn({ dagId }), queryFn: () => CircuitBreakerService.listCircuitBreakers({ dagId }) });
 /**
 * Get Connection
 * Get a connection entry.

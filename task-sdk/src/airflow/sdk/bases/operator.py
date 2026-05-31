@@ -873,6 +873,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
     retry_policy: RetryPolicy | None = None
+    circuit_breaker_max_failures: int | None = None
+    circuit_breaker_window: timedelta | None = None
+    circuit_breaker_reset_delay: timedelta | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     depends_on_past: bool = False
@@ -1032,6 +1035,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
         retry_policy: RetryPolicy | None = None,
+        circuit_breaker_max_failures: int | None = None,
+        circuit_breaker_window: timedelta | None = None,
+        circuit_breaker_reset_delay: timedelta | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         depends_on_past: bool = False,
@@ -1181,6 +1187,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
         self.retry_policy = retry_policy
+
+        if circuit_breaker_max_failures is not None and circuit_breaker_max_failures < 1:
+            raise ValueError(
+                f"circuit_breaker_max_failures for {self.task_id} must be >= 1, "
+                f"got {circuit_breaker_max_failures}"
+            )
+        self.circuit_breaker_max_failures = circuit_breaker_max_failures
+        self.circuit_breaker_window = circuit_breaker_window
+        self.circuit_breaker_reset_delay = circuit_breaker_reset_delay
 
         self.resources = resources
 
