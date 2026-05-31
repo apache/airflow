@@ -36,6 +36,11 @@ Default Airflow image is updated to ``3.2.2`` (#67681)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 The default Airflow image that is used with the Chart is now ``3.2.2``, previously it was ``3.2.1``.
 
+Added support for configuring ``enableServiceLinks`` (#67447)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+The default will become ``false`` in Chart 2.0. If you rely on these environment variables,
+explicitly set ``enableServiceLinks: true``, or migrate your code to use DNS-based service lookups.
+
 New Features
 ^^^^^^^^^^^^
 
