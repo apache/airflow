@@ -791,9 +791,14 @@ class TestTriggererServiceAccount:
 class TestTriggererNetworkPolicy:
     """Tests triggerer network policy."""
 
-    def test_should_allow_api_server_to_read_triggerer_logs(self):
+    @pytest.mark.parametrize(
+        ("airflow_version", "expected_component"),
+        [("3.0.0", "api-server"), ("2.11.0", "webserver")],
+    )
+    def test_should_allow_log_server_to_read_triggerer_logs(self, airflow_version, expected_component):
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "networkPolicies": {"enabled": True},
             },
             show_only=["templates/triggerer/triggerer-networkpolicy.yaml"],
@@ -801,7 +806,7 @@ class TestTriggererNetworkPolicy:
 
         assert (
             jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
-            == "api-server"
+            == expected_component
         )
 
 

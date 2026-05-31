@@ -2803,9 +2803,14 @@ class TestWorkerNetworkPolicy:
         assert "key" not in labels
 
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
-    def test_should_allow_api_server_to_read_worker_logs(self, executor):
+    @pytest.mark.parametrize(
+        ("airflow_version", "expected_component"),
+        [("3.0.0", "api-server"), ("2.11.0", "webserver")],
+    )
+    def test_should_allow_log_server_to_read_worker_logs(self, executor, airflow_version, expected_component):
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "networkPolicies": {"enabled": True},
                 "executor": executor,
             },
@@ -2814,7 +2819,7 @@ class TestWorkerNetworkPolicy:
 
         assert (
             jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
-            == "api-server"
+            == expected_component
         )
 
 
