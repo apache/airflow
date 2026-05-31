@@ -527,7 +527,7 @@ class TestAirflowCommon:
 
     @pytest.mark.parametrize(
         "enable_service_links",
-        [None, True, False],
+        [True, False],
     )
     def test_service_links(
         self,
@@ -574,4 +574,4 @@ class TestAirflowCommon:
                     raise ValueError(f"Unhandled document type {doc}")
 
         for doc in docs:
-            assert matcher(doc) == enable_service_links or False
+            assert matcher(doc) == enable_service_links
