@@ -981,6 +981,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if (eq .Values.enableServiceLinks nil) }}
+
+  DEPRECATION WARNING:
+    The default for `enableServiceLinks` will become False in Chart 2.0.
+    If you relied on these environment variables, explicitly set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.
+
+{{- end }}
+
 {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
