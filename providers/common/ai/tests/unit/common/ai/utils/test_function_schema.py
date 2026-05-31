@@ -34,7 +34,7 @@ from airflow.providers.common.ai.utils.function_schema import (
 # ---------------------------------------------------------------------------
 
 
-def _plain(x: int, y: str = "hi") -> str:
+def _plain(x: int, y: str = "hi") -> str:  # type: ignore[empty-body]
     """Do something useful.
 
     Args:
@@ -46,7 +46,7 @@ def _plain(x: int, y: str = "hi") -> str:
     """
 
 
-def _no_doc(x: int) -> str:
+def _no_doc(x: int) -> str:  # type: ignore[empty-body]
     pass
 
 
@@ -54,14 +54,14 @@ def _no_params() -> None:
     """No parameters at all."""
 
 
-def _annotated(q: Annotated[str, "The search query"], limit: Annotated[int, "Max results"] = 10) -> list:
+def _annotated(q: Annotated[str, "The search query"], limit: Annotated[int, "Max results"] = 10) -> list:  # type: ignore[empty-body]
     """Search."""
 
 
 class _CallableObj:
     """Callable object used to test non-function callables."""
 
-    def __call__(self, value: str) -> str:
+    def __call__(self, value: str) -> str:  # type: ignore[empty-body]
         """Process value."""
 
 
@@ -96,13 +96,13 @@ class TestExtractFunctionDescription:
         class _NoCallDoc:
             """Describes the class."""
 
-            def __call__(self, x: int) -> int: ...
+            def __call__(self, x: int) -> int: ...  # type: ignore[empty-body]
 
         assert extract_function_description(_NoCallDoc()) == "Describes the class."
 
     def test_callable_object_falls_back_to_class_name(self):
         class _NoDocs:
-            def __call__(self, x: int) -> int: ...
+            def __call__(self, x: int) -> int: ...  # type: ignore[empty-body]
 
         assert extract_function_description(_NoDocs()) == "_NoDocs"
 
@@ -270,7 +270,7 @@ class TestBuildFunctionJsonSchema:
         assert "additionalProperties" not in schema
 
     def test_partial_positional_bind_removes_param(self):
-        def add(a: int, b: int) -> int: ...
+        def add(a: int, b: int) -> int: ...  # type: ignore[empty-body]
 
         p = functools.partial(add, 1)
         schema = build_function_json_schema(p)
@@ -278,7 +278,7 @@ class TestBuildFunctionJsonSchema:
         assert "b" in schema["properties"]
 
     def test_partial_keyword_bind_keeps_param_as_optional(self):
-        def add(a: int, b: int) -> int: ...
+        def add(a: int, b: int) -> int: ...  # type: ignore[empty-body]
 
         p = functools.partial(add, a=1)
         schema = build_function_json_schema(p)
@@ -287,7 +287,7 @@ class TestBuildFunctionJsonSchema:
         assert "b" in schema["required"]
 
     def test_nested_partial_unwraps_hint_source(self):
-        def fn(x: int, y: str) -> str: ...
+        def fn(x: int, y: str) -> str: ...  # type: ignore[empty-body]
 
         p = functools.partial(functools.partial(fn, 1), "hello")
         schema = build_function_json_schema(p)
