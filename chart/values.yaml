@@ -74,6 +74,9 @@ defaultAirflowDigest: ~
 # Version 3.1.0 and above is supported.
 airflowVersion: "3.2.2"
 
+# Run the Core API Server and Execution API Server in separate Deployments.
+splitApiServersIntoCoreAndExecution: false
+
 images:
   airflow:
     repository: ~

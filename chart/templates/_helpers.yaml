@@ -58,6 +58,14 @@ If release name contains chart name it will be used as a full name.
   {{- toYaml $rendered -}}
 {{- end }}
 
+{{- define "api_server_args" -}}
+  {{- if and .Values.splitApiServersIntoCoreAndExecution (deepEqual .Values.apiServer.args (list "bash" "-c" "exec airflow api-server")) -}}
+    {{- toYaml (list "bash" "-c" "exec airflow api-server --apps core") -}}
+  {{- else -}}
+    {{- tpl (toYaml .Values.apiServer.args) . -}}
+  {{- end -}}
+{{- end }}
+
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs

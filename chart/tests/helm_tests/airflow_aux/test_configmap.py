@@ -173,31 +173,49 @@ metadata:
         assert expected_folder_config in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        ("base_url", "execution_api_server_url", "expected_execution_url"),
+        ("split_api_servers", "base_url", "execution_api_server_url", "expected_execution_url"),
         [
             (
+                False,
                 None,
                 None,
                 "http://release-name-api-server:8080/execution/",
             ),
             (
+                False,
                 "http://example.com",
                 None,
                 "http://release-name-api-server:8080/execution/",
             ),
             (
+                False,
                 "http://example.com/airflow",
                 None,
                 "http://release-name-api-server:8080/airflow/execution/",
             ),
             (
+                False,
                 "http://example.com/airflow",
                 "http://service:9090/execution/",
                 "http://service:9090/execution/",
             ),
+            (
+                True,
+                None,
+                None,
+                "http://release-name-execution-api-server:8080/execution/",
+            ),
+            (
+                True,
+                "http://example.com/airflow",
+                None,
+                "http://release-name-execution-api-server:8080/airflow/execution/",
+            ),
         ],
     )
-    def test_execution_api_server_url(self, base_url, execution_api_server_url, expected_execution_url):
+    def test_execution_api_server_url(
+        self, split_api_servers, base_url, execution_api_server_url, expected_execution_url
+    ):
         config_overrides = {}
         if base_url:
             config_overrides["api"] = {"base_url": base_url}
@@ -206,7 +224,10 @@ metadata:
             config_overrides["core"] = {"execution_api_server_url": execution_api_server_url}
 
         configmap = render_chart(
-            values={"config": config_overrides},
+            values={
+                "config": config_overrides,
+                "splitApiServersIntoCoreAndExecution": split_api_servers,
+            },
             show_only=["templates/configmaps/configmap.yaml"],
         )
 

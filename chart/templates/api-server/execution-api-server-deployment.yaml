@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
-## Airflow API Server Deployment
-#################################
-{{- if .Values.apiServer.enabled }}
+##########################################
+## Airflow Execution API Server Deployment
+##########################################
+{{- if and .Values.apiServer.enabled .Values.splitApiServersIntoCoreAndExecution }}
 {{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
@@ -33,10 +33,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "airflow.fullname" . }}-api-server
+  name: {{ include "airflow.fullname" . }}-execution-api-server
   labels:
     tier: airflow
-    component: api-server
+    component: execution-api-server
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
@@ -57,13 +57,6 @@ spec:
     {{- if .Values.apiServer.strategy }}
       {{- toYaml .Values.apiServer.strategy | nindent 4 }}
     {{- else }}
-    # Here we define the rolling update strategy
-    # - maxSurge define how many pod we can add at a time
-    # - maxUnavailable define how many pod can be unavailable
-    #   during the rolling update
-    # Setting maxUnavailable to 0 would make sure we have the appropriate
-    # capacity during the rolling update.
-    # You can also use percentage based value instead of integer.
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
@@ -72,13 +65,13 @@ spec:
   selector:
     matchLabels:
       tier: airflow
-      component: api-server
+      component: execution-api-server
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
         tier: airflow
-        component: api-server
+        component: execution-api-server
         release: {{ .Release.Name }}
         {{- if or .Values.labels .Values.apiServer.labels }}
           {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 8 }}
@@ -87,9 +80,6 @@ spec:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
-        {{- if and .Values.apiServer.apiServerConfig (not .Values.apiServer.apiServerConfigConfigMapName) }}
-        checksum/api-server-config: {{ include (print $.Template.BasePath "/configmaps/api-server-configmap.yaml") . | sha256sum }}
-        {{- end }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if not .Values.jwtSecretName }}
@@ -123,7 +113,7 @@ spec:
           - podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  component: api-server
+                  component: execution-api-server
               topologyKey: kubernetes.io/hostname
             weight: 100
         {{- end }}
@@ -160,7 +150,7 @@ spec:
           {{- tpl (toYaml .Values.apiServer.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
-        - name: api-server
+        - name: execution-api-server
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
@@ -170,15 +160,13 @@ spec:
           {{- if .Values.apiServer.command }}
           command: {{ tpl (toYaml .Values.apiServer.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.apiServer.args }}
-          args: {{- include "api_server_args" . | nindent 12 }}
-          {{- end }}
+          args:
+            - bash
+            - -c
+            - exec airflow api-server --apps execution
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-              {{- include "airflow_api_server_config_mount" . | nindent 12 }}
-            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -197,7 +185,7 @@ spec:
               containerPort: {{ .Values.ports.apiServer }}
           livenessProbe:
             httpGet:
-              path: /api/v2/monitor/health
+              path: /execution/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.livenessProbe.initialDelaySeconds }}
@@ -206,7 +194,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /api/v2/monitor/health
+              path: /execution/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.readinessProbe.initialDelaySeconds }}
@@ -215,7 +203,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: /api/v2/monitor/health
+              path: /execution/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.startupProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.startupProbe.initialDelaySeconds }}
@@ -234,11 +222,6 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-        - name: api-server-config
-          configMap:
-            name: {{ template "airflow_api_server_config_configmap_name" . }}
-        {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

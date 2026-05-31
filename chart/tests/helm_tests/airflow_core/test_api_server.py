@@ -93,6 +93,86 @@ class TestAPIServerDeployment:
                 == "/api/v2/monitor/health"
             )
 
+    def test_should_run_core_app_when_api_servers_are_split(self):
+        docs = render_chart(
+            values={"splitApiServersIntoCoreAndExecution": True},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            "exec airflow api-server --apps core",
+        ]
+
+    def test_should_render_execution_api_server_when_api_servers_are_split(self):
+        docs = render_chart(
+            values={"splitApiServersIntoCoreAndExecution": True},
+            show_only=[
+                "templates/api-server/execution-api-server-deployment.yaml",
+                "templates/api-server/execution-api-server-service.yaml",
+            ],
+        )
+
+        deployment = next(doc for doc in docs if doc["kind"] == "Deployment")
+        service = next(doc for doc in docs if doc["kind"] == "Service")
+        assert jmespath.search("metadata.name", deployment) == "release-name-execution-api-server"
+        assert jmespath.search("spec.template.spec.containers[0].args", deployment) == [
+            "bash",
+            "-c",
+            "exec airflow api-server --apps execution",
+        ]
+        assert jmespath.search("spec.template.spec.containers[0].ports[0].name", deployment) == "api-server"
+        assert jmespath.search("spec.selector.component", service) == "execution-api-server"
+
+        for probe in ("livenessProbe", "readinessProbe", "startupProbe"):
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.path", deployment)
+                == "/execution/health"
+            )
+
+    @pytest.mark.parametrize(
+        ("values", "show_only"),
+        [
+            ({}, "templates/api-server/execution-api-server-deployment.yaml"),
+            (
+                {"apiServer": {"enabled": False}, "splitApiServersIntoCoreAndExecution": True},
+                "templates/api-server/execution-api-server-deployment.yaml",
+            ),
+            ({}, "templates/api-server/execution-api-server-service.yaml"),
+            (
+                {"apiServer": {"enabled": False}, "splitApiServersIntoCoreAndExecution": True},
+                "templates/api-server/execution-api-server-service.yaml",
+            ),
+        ],
+    )
+    def test_should_not_render_execution_api_server_when_disabled(self, values, show_only):
+        docs = render_chart(values=values, show_only=[show_only])
+
+        assert docs == []
+
+    def test_execution_api_server_hpa_targets_execution_api_server(self):
+        docs = render_chart(
+            values={
+                "apiServer": {"hpa": {"enabled": True}},
+                "splitApiServersIntoCoreAndExecution": True,
+            },
+            show_only=["templates/api-server/execution-api-server-hpa.yaml"],
+        )
+
+        assert jmespath.search("spec.scaleTargetRef.name", docs[0]) == "release-name-execution-api-server"
+
+    def test_execution_api_server_pdb_targets_execution_api_server(self):
+        docs = render_chart(
+            values={
+                "apiServer": {"podDisruptionBudget": {"enabled": True}},
+                "splitApiServersIntoCoreAndExecution": True,
+            },
+            show_only=["templates/api-server/execution-api-server-poddisruptionbudget.yaml"],
+        )
+
+        assert jmespath.search("spec.selector.matchLabels.component", docs[0]) == "execution-api-server"
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -830,6 +910,17 @@ class TestAPIServerNetworkPolicy:
         )
 
         assert len(docs) == 0
+
+    def test_execution_api_server_networkpolicy_targets_execution_api_server(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "splitApiServersIntoCoreAndExecution": True,
+            },
+            show_only=["templates/api-server/execution-api-server-networkpolicy.yaml"],
+        )
+
+        assert jmespath.search("spec.podSelector.matchLabels.component", docs[0]) == "execution-api-server"
 
 
 class TestAPIServerServiceAccount:
