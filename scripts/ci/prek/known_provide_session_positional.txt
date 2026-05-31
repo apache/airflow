@@ -1,8 +1,4 @@
 airflow-core/src/airflow/models/connection.py::2
-airflow-core/src/airflow/models/dag.py::7
-airflow-core/src/airflow/models/dagcode.py::6
-airflow-core/src/airflow/models/dagrun.py::15
-airflow-core/src/airflow/models/dagwarning.py::1
 airflow-core/src/airflow/models/deadline.py::1
 airflow-core/src/airflow/models/deadline_alert.py::1
 airflow-core/src/airflow/models/pool.py::11
