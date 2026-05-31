@@ -78,7 +78,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
-	result := RunTask(bundle, details, comm, logger)
+	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "SucceedTask", result["type"])
 }
 
@@ -101,7 +101,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
-	result := RunTask(bundle, details, comm, logger)
+	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "TaskState", result["type"])
 	assert.Equal(t, "failed", result["state"])
 }
@@ -124,7 +124,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
-	result := RunTask(bundle, details, comm, logger)
+	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "TaskState", result["type"])
 	assert.Equal(t, "removed", result["state"])
 }
@@ -148,7 +148,37 @@ func TestTaskRunnerPanic(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
-	result := RunTask(bundle, details, comm, logger)
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assert.Equal(t, "TaskState", result["type"])
+	assert.Equal(t, "failed", result["state"])
+}
+
+func TestRunTaskHonorsContextCancellation(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
+			func(ctx context.Context) error { return ctx.Err() })
+	})
+
+	details := &StartupDetails{
+		TI: TaskInstanceInfo{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "ctxcheck",
+			RunID:    "run1",
+			MapIndex: -1,
+		},
+		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+	}
+
+	// A cancelled root context must reach the user task through RunTask's
+	// threading; the task surfaces ctx.Err(), which RunTask maps to failed.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(ctx, bundle, details, comm, logger)
 	assert.Equal(t, "TaskState", result["type"])
 	assert.Equal(t, "failed", result["state"])
 }

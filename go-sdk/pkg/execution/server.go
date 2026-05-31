@@ -27,10 +27,13 @@
 package execution
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
@@ -42,6 +45,13 @@ import (
 // timeout exists so an unreachable address fails fast instead of hanging the
 // runtime indefinitely.
 const dialTimeout = 30 * time.Second
+
+// terminalSendTimeout bounds the write of the final TaskState/SucceedTask
+// frame. The supervisor normally drains the comm socket promptly, but a
+// half-open connection (the supervisor gone without a clean close) could
+// otherwise wedge the runtime on a blocked write; the deadline turns that
+// into a fast failure -- and thus a non-zero exit -- instead of a hang.
+const terminalSendTimeout = 30 * time.Second
 
 // Serve runs the bundle binary in coordinator mode. It dials the supervisor's
 // comm and logs sockets, installs an slog handler that writes JSON-line
@@ -69,6 +79,14 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	if logsAddr == "" {
 		return fmt.Errorf("missing --logs=host:port argument")
 	}
+
+	// A supervisor shutdown arrives as SIGTERM (escalated to SIGKILL after a
+	// grace period). Trap SIGINT/SIGTERM into a context so a cooperative,
+	// ctx-aware task can observe the shutdown and return promptly. A task that
+	// ignores ctx is still stopped by the supervisor's follow-up SIGKILL, so
+	// trapping the signal here does not strand a non-cooperative task.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	// Buffer log records until the logs socket is connected. Anything the
 	// runtime emits between Connect-time and the first frame still gets
@@ -156,7 +174,9 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 			"dag_id", msg.TI.DagID,
 			"task_id", msg.TI.TaskID,
 		)
-		result := RunTask(bundle, msg, comm, logger)
+		result := RunTask(ctx, bundle, msg, comm, logger)
+		// Bound the terminal write so a wedged socket cannot hang shutdown.
+		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
 		if err := comm.SendRequest(frame.ID, result); err != nil {
 			return fmt.Errorf("sending task result: %w", err)
 		}

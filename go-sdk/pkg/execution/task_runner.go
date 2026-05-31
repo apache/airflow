@@ -40,7 +40,11 @@ import (
 // The supervisor owns the Execution-API state transitions in coordinator
 // mode, so we deliberately bypass worker.ExecuteTaskWorkload (which drives
 // Run / UpdateState itself) and only invoke the user's task function.
+//
+// ctx is the task's root context; Serve derives it from SIGINT/SIGTERM, so a
+// cooperative task that honors ctx returns promptly on a supervisor shutdown.
 func RunTask(
+	ctx context.Context,
 	bundle bundlev1.Bundle,
 	details *StartupDetails,
 	comm *CoordinatorComm,
@@ -85,7 +89,6 @@ func RunTask(
 		},
 	}
 
-	ctx := context.Background()
 	ctx = context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload)
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 
