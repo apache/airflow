@@ -5261,6 +5261,11 @@ dependencies = [
     { name = "gitpython" },
 ]
 
+[package.optional-dependencies]
+github = [
+    { name = "pygithub" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
@@ -5277,7 +5282,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "gitpython", specifier = ">=3.1.44" },
+    { name = "pygithub", marker = "extra == 'github'", specifier = ">=2.1.1" },
 ]
+provides-extras = ["github"]
 
 [package.metadata.requires-dev]
 dev = [
