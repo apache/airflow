@@ -20,7 +20,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Index, Integer, String, or_, update
+from sqlalchemy import Boolean, Index, Integer, String, or_, select, tuple_, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
@@ -89,7 +90,9 @@ class TaskCircuitBreaker(Base):
         else:
             window_seconds = 3600
 
-        cb = session.get(cls, (dag_id, task_id))
+        cb = session.scalar(
+            select(cls).where(cls.dag_id == dag_id, cls.task_id == task_id).with_for_update()
+        )
         if cb is None:
             cb = cls(
                 dag_id=dag_id,
@@ -100,6 +103,15 @@ class TaskCircuitBreaker(Base):
                 window_seconds=window_seconds,
             )
             session.add(cb)
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                cb = session.scalar(
+                    select(cls)
+                    .where(cls.dag_id == dag_id, cls.task_id == task_id)
+                    .with_for_update()
+                )
 
         cb.max_failures = max_failures
         cb.window_seconds = window_seconds
@@ -131,32 +143,45 @@ class TaskCircuitBreaker(Base):
         self.window_start = None
         self.reset_after = None
 
+    _RESET_BATCH_SIZE = 100
+
     @classmethod
     @provide_session
-    def reset_expired(cls, session: Session = NEW_SESSION) -> int:
+    def reset_expired(cls, *, session: Session = NEW_SESSION) -> int:
         """Close all circuits whose reset_after has elapsed. Returns count closed."""
         now = timezone.utcnow()
-        result: CursorResult = session.execute(  # type: ignore[assignment]
-            update(cls)
-            .where(cls.is_open == True)  # noqa: E712
-            .where(cls.reset_after != None)  # noqa: E711
-            .where(cls.reset_after <= now)
-            .values(
-                is_open=False,
-                opened_at=None,
-                opened_reason=None,
-                failure_count=0,
-                window_start=None,
-                reset_after=None,
+        total = 0
+        while True:
+            batch = session.execute(
+                select(cls.dag_id, cls.task_id)
+                .where(cls.is_open == True)  # noqa: E712
+                .where(cls.reset_after != None)  # noqa: E711
+                .where(cls.reset_after <= now)
+                .limit(cls._RESET_BATCH_SIZE)
+            ).all()
+            if not batch:
+                break
+            result: CursorResult = session.execute(  # type: ignore[assignment]
+                update(cls)
+                .where(tuple_(cls.dag_id, cls.task_id).in_([(r[0], r[1]) for r in batch]))
+                .values(
+                    is_open=False,
+                    opened_at=None,
+                    opened_reason=None,
+                    failure_count=0,
+                    window_start=None,
+                    reset_after=None,
+                )
             )
-        )
-        return result.rowcount
+            total += result.rowcount
+            session.flush()
+            if len(batch) < cls._RESET_BATCH_SIZE:
+                break
+        return total
 
     @classmethod
     def open_circuits_subquery(cls):
         """Return a subquery of (dag_id, task_id) pairs with open circuits."""
-        from sqlalchemy import select
-
         now = timezone.utcnow()
         return (
             select(cls.dag_id, cls.task_id)

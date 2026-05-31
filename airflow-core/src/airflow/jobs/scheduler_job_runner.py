@@ -1575,7 +1575,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _reset_expired_circuit_breakers(self, session: Session = NEW_SESSION) -> None:
+    def _reset_expired_circuit_breakers(self, *, session: Session = NEW_SESSION) -> None:
         """Close circuits whose auto-reset time has elapsed."""
         try:
             closed = TaskCircuitBreaker.reset_expired(session=session)
@@ -1584,35 +1584,43 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         except Exception as e:
             self.log.exception("Failed to reset expired circuit breakers due to %s", e)
 
-    @provide_session
-    def _skip_circuit_breaker_blocked_tis(self, session: Session = NEW_SESSION) -> None:
-        """Mark SCHEDULED task instances as SKIPPED when their circuit is open."""
-        from sqlalchemy import tuple_
+    _CB_SKIP_BATCH_SIZE = 100
 
+    @provide_session
+    def _skip_circuit_breaker_blocked_tis(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark SCHEDULED task instances as SKIPPED when their circuit is open."""
+        total_skipped = 0
         try:
-            open_sq = TaskCircuitBreaker.open_circuits_subquery()
-            blocked = session.scalars(
-                select(TaskInstance)
-                .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
-                .where(
-                    tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(
-                        select(open_sq.c.dag_id, open_sq.c.task_id)
+            while True:
+                open_sq = TaskCircuitBreaker.open_circuits_subquery()
+                blocked = session.scalars(
+                    select(TaskInstance)
+                    .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
+                    .where(
+                        tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(
+                            select(open_sq.c.dag_id, open_sq.c.task_id)
+                        )
                     )
-                )
-            ).all()
-            if not blocked:
-                return
-            for ti in blocked:
-                cb = session.get(TaskCircuitBreaker, (ti.dag_id, ti.task_id))
-                reason = cb.opened_reason if cb else "Circuit open"
-                ti.state = TaskInstanceState.SKIPPED
-                ti.note = f"Circuit open: {reason}"
-            self.log.info("Skipped %d task instance(s) blocked by open circuit breakers.", len(blocked))
+                    .limit(self._CB_SKIP_BATCH_SIZE)
+                ).all()
+                if not blocked:
+                    break
+                for ti in blocked:
+                    cb = session.get(TaskCircuitBreaker, (ti.dag_id, ti.task_id))
+                    reason = cb.opened_reason if cb else "Circuit open"
+                    ti.state = TaskInstanceState.SKIPPED
+                    ti.note = f"Circuit open: {reason}"
+                session.flush()
+                total_skipped += len(blocked)
+                if len(blocked) < self._CB_SKIP_BATCH_SIZE:
+                    break
+            if total_skipped:
+                self.log.info("Skipped %d task instance(s) blocked by open circuit breakers.", total_skipped)
         except Exception as e:
             self.log.exception("Failed to skip circuit-breaker-blocked task instances due to %s", e)
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(

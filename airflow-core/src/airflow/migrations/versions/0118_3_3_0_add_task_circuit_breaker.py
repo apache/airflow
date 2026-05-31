@@ -23,7 +23,7 @@ Tracks per-task circuit breaker state: failure counts within a rolling window
 and whether the circuit is currently open (blocking scheduling).
 
 Revision ID: a10edcba2695
-Revises: acc215baed80
+Revises: 8812eb67b63c
 Create Date: 2026-05-27 12:00:00.000000
 
 """
@@ -34,7 +34,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "a10edcba2695"
-down_revision = "acc215baed80"
+down_revision = "8812eb67b63c"
 branch_labels = None
 depends_on = None
 airflow_version = "3.3.0"
