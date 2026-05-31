@@ -136,7 +136,7 @@ annotations:
       links:
       - name: '#66208'
         url: https://github.com/apache/airflow/pull/66208
-    - description: Fix Airflow 3 task log access with NetworkPolicies
+    - description: Fix task log access with NetworkPolicies for Airflow 2 and 3
       kind: fixed
       links:
       - name: '#65754'
