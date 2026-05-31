@@ -4882,6 +4882,8 @@ class TestSchedulerJob:
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
+        ti.hostname = "random-hostname"
+        ti.start_date = DEFAULT_DATE
         old_ti_id = ti.id
         old_try_number = ti.try_number
         session.merge(ti)
@@ -4893,19 +4895,18 @@ class TestSchedulerJob:
 
         ti.refresh_from_db(session=session)
         assert ti.id != old_ti_id
-        assert (
-            session.scalar(
-                select(TaskInstanceHistory).where(
-                    TaskInstanceHistory.dag_id == ti.dag_id,
-                    TaskInstanceHistory.task_id == ti.task_id,
-                    TaskInstanceHistory.run_id == ti.run_id,
-                    TaskInstanceHistory.map_index == ti.map_index,
-                    TaskInstanceHistory.try_number == old_try_number,
-                    TaskInstanceHistory.task_instance_id == old_ti_id,
-                )
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == old_try_number,
+                TaskInstanceHistory.task_instance_id == old_ti_id,
             )
-            is not None
         )
+        assert tih is not None
+        assert tih.hostname == "random-hostname"
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
