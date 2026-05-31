@@ -33,7 +33,7 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue
-from sqlalchemy import and_, func, or_, tuple_, update
+from sqlalchemy import and_, exists, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
@@ -45,7 +45,7 @@ from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -856,11 +856,9 @@ def ti_skip_downstream(
     log.info("Downstream tasks skipped", tasks_skipped=getattr(result, "rowcount", 0))
 
 
-def _raise_ti_not_in_live_table(task_instance_id: UUID, session: SessionDep) -> NoReturn:
+def _raise_ti_not_in_live_table(task_instance_id: UUID, *, archived_in_history: bool) -> NoReturn:
     """Raise 410 Gone if the missing TI id was archived to history, else 404 Not Found."""
-    if session.scalar(
-        select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
-    ):
+    if archived_in_history:
         log.error("TaskInstance not in live table but archived in history", ti_id=str(task_instance_id))
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
@@ -897,10 +895,10 @@ def _raise_ti_not_in_live_table(task_instance_id: UUID, session: SessionDep) -> 
         ]
     ),
 )
-def ti_heartbeat(
+async def ti_heartbeat(
     task_instance_id: UUID,
     ti_payload: TIHeartbeatInfo,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ):
     """Update the heartbeat of a TaskInstance to mark it as alive & still running."""
     bind_contextvars(ti_id=str(task_instance_id))
@@ -910,7 +908,7 @@ def ti_heartbeat(
     # so we can update last_heartbeat_at directly without first taking a row lock.
     fast_path_result = cast(
         "CursorResult[Any]",
-        session.execute(
+        await session.execute(
             update(TI)
             .where(
                 TI.id == task_instance_id,
@@ -931,7 +929,7 @@ def ti_heartbeat(
     old = select(TI.state, TI.hostname, TI.pid).where(TI.id == task_instance_id).with_for_update()
 
     try:
-        (previous_state, hostname, pid) = session.execute(old).one()
+        (previous_state, hostname, pid) = (await session.execute(old)).one()
         log.debug(
             "Retrieved current task state", state=previous_state, current_hostname=hostname, current_pid=pid
         )
@@ -939,7 +937,10 @@ def ti_heartbeat(
         # Check if the TI exists in the Task Instance History table.
         # If it does, it was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
-        _raise_ti_not_in_live_table(task_instance_id, session)
+        archived_in_history = bool(
+            await session.scalar(select(exists().where(TIH.task_instance_id == task_instance_id)))
+        )
+        _raise_ti_not_in_live_table(task_instance_id, archived_in_history=archived_in_history)
 
     if hostname != ti_payload.hostname or pid != ti_payload.pid:
         log.warning(
@@ -971,7 +972,9 @@ def ti_heartbeat(
         )
 
     # Update the last heartbeat time!
-    session.execute(update(TI).where(TI.id == task_instance_id).values(last_heartbeat_at=timezone.utcnow()))
+    await session.execute(
+        update(TI).where(TI.id == task_instance_id).values(last_heartbeat_at=timezone.utcnow())
+    )
     log.debug("Heartbeat updated", state=previous_state)
 
 
@@ -1009,7 +1012,10 @@ def ti_put_rtif(
     task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance:
         # On retry/clear, the server regenerates the TI id. Return 410 for the stale id.
-        _raise_ti_not_in_live_table(task_instance_id, session)
+        archived_in_history = bool(
+            session.scalar(select(exists().where(TIH.task_instance_id == task_instance_id)))
+        )
+        _raise_ti_not_in_live_table(task_instance_id, archived_in_history=archived_in_history)
     task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
