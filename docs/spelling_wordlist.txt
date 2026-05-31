@@ -689,6 +689,7 @@ gdbm
 gdrive
 gelf
 gemini
+GenAI
 generateUploadUrl
 geq
 getattr
@@ -865,6 +866,7 @@ iteratively
 iTerm
 iterm
 itertools
+Jaeger
 Jarek
 JavaCoordinator
 javascript
@@ -954,6 +956,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+Langfuse
 LanguageServiceClient
 lastname
 latencies
@@ -1145,6 +1148,7 @@ openjdk
 openlineage
 OpenSearch
 opensearch
+OpenTelemetry
 oper
 OperatorLineage
 Opsgenie
@@ -1164,6 +1168,7 @@ oss
 ot
 OTel
 otel
+OTLP
 PaaS
 Pagerduty
 pagerduty
