@@ -50,7 +50,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    executor: {{ .Values.executor | replace "," "-" | trunc 63 | trimSuffix "-" | trimSuffix ":" | trimSuffix "_" | trimSuffix "." | quote }}
+    executor: {{ .Values.executor | replace "," "-" | replace ":" "-" | trunc 63 | trimSuffix "-" | trimSuffix ":" | trimSuffix "_" | trimSuffix "." | quote }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -246,11 +246,7 @@ spec:
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-            {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) .Values.scheduler.serviceAccount.serviceAccountTokenVolume.enabled }}
-            - name: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.volumeName }}
-              mountPath: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.mountPath }}
-              readOnly: true
-            {{- end }}
+            {{- include "serviceAccountTokenVolumeMount" (list . .Values.scheduler.serviceAccount)  | nindent 12 }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
@@ -334,29 +330,7 @@ spec:
         {{- if .Values.scheduler.extraVolumes }}
           {{- tpl (toYaml .Values.scheduler.extraVolumes) . | nindent 8 }}
         {{- end }}
-        {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) .Values.scheduler.serviceAccount.serviceAccountTokenVolume.enabled }}
-        - name: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.volumeName }}
-          projected:
-            defaultMode: 420
-            sources:
-            - serviceAccountToken:
-                {{- if .Values.scheduler.serviceAccount.serviceAccountTokenVolume.audience }}
-                audience: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.audience }}
-                {{- end }}
-                expirationSeconds: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.expirationSeconds }}
-                path: token
-            - configMap:
-                items:
-                - key: ca.crt
-                  path: ca.crt
-                name: kube-root-ca.crt
-            - downwardAPI:
-                items:
-                - fieldRef:
-                    apiVersion: v1
-                    fieldPath: metadata.namespace
-                  path: namespace
-        {{- end }}
+        {{- include "serviceAccountTokenVolume" (list . .Values.scheduler.serviceAccount) | nindent 8 }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

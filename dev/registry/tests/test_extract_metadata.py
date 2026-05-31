@@ -32,11 +32,13 @@ from extract_metadata import (
     fetch_pypi_data_parallel,
     fetch_pypi_dates,
     fetch_pypi_downloads,
+    fetch_pypi_downloads_clickhouse,
     find_latest_released_version,
     find_related_providers,
     load_release_tags,
     module_path_to_file_path,
     parse_pyproject_toml,
+    preserve_nonzero_downloads,
     read_connection_urls,
     read_inventory,
     resolve_connection_docs_url,
@@ -262,18 +264,58 @@ class TestFetchPypiDates:
 
 
 # ---------------------------------------------------------------------------
+# fetch_pypi_downloads_clickhouse (mocked network)
+# ---------------------------------------------------------------------------
+class TestFetchPypiDownloadsClickhouse:
+    @patch("extract_metadata.urllib.request.urlopen")
+    def test_parses_tsv(self, mock_urlopen):
+        body = (
+            b"apache-airflow-providers-amazon\t766462\t8218125\n"
+            b"apache-airflow-providers-common-ai\t30881\t171721\n"
+        )
+        mock_response = MagicMock(spec=http.client.HTTPResponse)
+        mock_response.read.return_value = body
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_pypi_downloads_clickhouse(
+            ["apache-airflow-providers-amazon", "apache-airflow-providers-common-ai"]
+        )
+        assert result["apache-airflow-providers-amazon"] == {"weekly": 766462, "monthly": 8218125, "total": 0}
+        assert result["apache-airflow-providers-common-ai"] == {
+            "weekly": 30881,
+            "monthly": 171721,
+            "total": 0,
+        }
+
+    def test_empty_input_skips_query(self):
+        with patch("extract_metadata.urllib.request.urlopen") as mock_urlopen:
+            assert fetch_pypi_downloads_clickhouse([]) == {}
+            mock_urlopen.assert_not_called()
+
+    @patch("extract_metadata.urllib.request.urlopen", side_effect=OSError("clickhouse down"))
+    def test_failure_returns_empty(self, _mock):
+        # On any failure, return {} so callers fall back to pypistats.
+        assert fetch_pypi_downloads_clickhouse(["apache-airflow-providers-amazon"]) == {}
+
+
+# ---------------------------------------------------------------------------
 # fetch_pypi_data_parallel
 # ---------------------------------------------------------------------------
 class TestFetchPypiDataParallel:
-    def test_returns_one_entry_per_package(self):
-        pkgs = ["pkg-a", "pkg-b", "pkg-c"]
+    def test_uses_clickhouse_without_pypistats(self):
+        # When ClickHouse returns real numbers, pypistats is never called (no burst).
+        pkgs = ["pkg-a", "pkg-b"]
+        clickhouse = {p: {"weekly": 1, "monthly": 10, "total": 0} for p in pkgs}
         with (
+            patch("extract_metadata.fetch_pypi_downloads_clickhouse", return_value=clickhouse),
             patch("extract_metadata.fetch_pypi_downloads") as dl,
-            patch("extract_metadata.fetch_pypi_dates") as dt,
+            patch(
+                "extract_metadata.fetch_pypi_dates",
+                return_value={"first_released": "2024-01-01", "last_updated": "2024-06-01"},
+            ),
         ):
-            dl.side_effect = lambda p: {"weekly": 1, "monthly": 10, "total": 0}
-            dt.side_effect = lambda p: {"first_released": "2024-01-01", "last_updated": "2024-06-01"}
-
             result = fetch_pypi_data_parallel(pkgs, max_workers=4)
 
         assert set(result) == set(pkgs)
@@ -281,27 +323,21 @@ class TestFetchPypiDataParallel:
             downloads, dates = result[pkg]
             assert downloads == {"weekly": 1, "monthly": 10, "total": 0}
             assert dates == {"first_released": "2024-01-01", "last_updated": "2024-06-01"}
-        assert dl.call_count == 3
-        assert dt.call_count == 3
+        dl.assert_not_called()
 
-    def test_empty_input(self):
-        assert fetch_pypi_data_parallel([]) == {}
-
-    def test_per_package_failure_does_not_abort_others(self):
-        # Simulate `fetch_pypi_downloads` raising for one package; the worker
-        # already returns zero-value defaults on error, but verify the orchestrator
-        # propagates per-package isolation by accepting the worker's existing
-        # error handling -- a single bad package must not poison the dict.
-        pkgs = ["good", "bad"]
-
-        def downloads_side_effect(pkg):
-            if pkg == "bad":
-                # mimic the existing fetch_pypi_downloads error path
-                return {"weekly": 0, "monthly": 0, "total": 0}
-            return {"weekly": 5, "monthly": 50, "total": 0}
-
+    def test_falls_back_to_pypistats_when_clickhouse_missing_or_zero(self):
+        # ClickHouse is missing 'b' and returns zero for 'c' -- both fall back to pypistats.
+        pkgs = ["a", "b", "c"]
+        clickhouse = {
+            "a": {"weekly": 1, "monthly": 10, "total": 0},
+            "c": {"weekly": 0, "monthly": 0, "total": 0},
+        }
         with (
-            patch("extract_metadata.fetch_pypi_downloads", side_effect=downloads_side_effect),
+            patch("extract_metadata.fetch_pypi_downloads_clickhouse", return_value=clickhouse),
+            patch(
+                "extract_metadata.fetch_pypi_downloads",
+                return_value={"weekly": 9, "monthly": 99, "total": 0},
+            ) as dl,
             patch(
                 "extract_metadata.fetch_pypi_dates",
                 return_value={"first_released": "", "last_updated": ""},
@@ -309,8 +345,35 @@ class TestFetchPypiDataParallel:
         ):
             result = fetch_pypi_data_parallel(pkgs)
 
-        assert result["good"][0] == {"weekly": 5, "monthly": 50, "total": 0}
-        assert result["bad"][0] == {"weekly": 0, "monthly": 0, "total": 0}
+        assert result["a"][0] == {"weekly": 1, "monthly": 10, "total": 0}  # from ClickHouse
+        assert result["b"][0] == {"weekly": 9, "monthly": 99, "total": 0}  # fallback (missing)
+        assert result["c"][0] == {"weekly": 9, "monthly": 99, "total": 0}  # fallback (zero)
+        assert {call.args[0] for call in dl.call_args_list} == {"b", "c"}
+
+    def test_empty_input(self):
+        assert fetch_pypi_data_parallel([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# preserve_nonzero_downloads
+# ---------------------------------------------------------------------------
+class TestPreserveNonzeroDownloads:
+    def test_preserves_when_new_is_zero_and_previous_nonzero(self):
+        new = [{"id": "amazon", "pypi_downloads": {"weekly": 0, "monthly": 0, "total": 0}}]
+        existing = [{"id": "amazon", "pypi_downloads": {"weekly": 766462, "monthly": 8218125, "total": 0}}]
+        assert preserve_nonzero_downloads(new, existing) == 1
+        assert new[0]["pypi_downloads"]["monthly"] == 8218125
+
+    def test_keeps_new_when_it_has_a_number(self):
+        new = [{"id": "amazon", "pypi_downloads": {"weekly": 5, "monthly": 50, "total": 0}}]
+        existing = [{"id": "amazon", "pypi_downloads": {"weekly": 9, "monthly": 99, "total": 0}}]
+        assert preserve_nonzero_downloads(new, existing) == 0
+        assert new[0]["pypi_downloads"]["monthly"] == 50
+
+    def test_no_previous_entry_leaves_zero(self):
+        new = [{"id": "brand-new", "pypi_downloads": {"weekly": 0, "monthly": 0, "total": 0}}]
+        assert preserve_nonzero_downloads(new, []) == 0
+        assert new[0]["pypi_downloads"]["monthly"] == 0
 
 
 # ---------------------------------------------------------------------------

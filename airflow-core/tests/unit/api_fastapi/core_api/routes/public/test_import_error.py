@@ -54,22 +54,7 @@ BUNDLE_NAME = "testing"
 
 @pytest.fixture
 @provide_session
-def permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(
-        fileloc=FILENAME1,
-        relative_fileloc=FILENAME1,
-        dag_id="dag_id1",
-        is_paused=False,
-        bundle_name=BUNDLE_NAME,
-    )
-    session.add(dag_model)
-    session.commit()
-    return dag_model
-
-
-@pytest.fixture
-@provide_session
-def permitted_dag_model_all(testing_dag_bundle, session: Session = NEW_SESSION) -> set[str]:
+def permitted_dag_model_all(testing_dag_bundle, *, session: Session = NEW_SESSION) -> set[str]:
     dag_model1 = DagModel(
         fileloc=FILENAME1,
         relative_fileloc=FILENAME1,
@@ -100,7 +85,7 @@ def permitted_dag_model_all(testing_dag_bundle, session: Session = NEW_SESSION) 
 
 @pytest.fixture
 @provide_session
-def not_permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+def not_permitted_dag_model(testing_dag_bundle, *, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         bundle_name=BUNDLE_NAME,
@@ -128,7 +113,7 @@ def clear_db():
 
 @pytest.fixture(autouse=True)
 @provide_session
-def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
+def import_errors(*, session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
             bundle_name=bundle,
@@ -561,6 +546,7 @@ class TestImportErrorFileAuthorization:
     def absolute_vs_relative_fileloc_dag(
         self,
         testing_dag_bundle,
+        *,
         session: Session = NEW_SESSION,
     ) -> DagModel:
         """DagModel whose ``fileloc`` is absolute and ``relative_fileloc`` is
@@ -587,6 +573,7 @@ class TestImportErrorFileAuthorization:
     def mixed_file_dags(
         self,
         testing_dag_bundle,
+        *,
         session: Session = NEW_SESSION,
     ) -> tuple[DagModel, DagModel]:
         """Two DagModels pointing at the same ``(relative_fileloc,
@@ -614,6 +601,7 @@ class TestImportErrorFileAuthorization:
     @provide_session
     def lonely_file_import_error(
         self,
+        *,
         session: Session = NEW_SESSION,
     ) -> ParseImportError:
         error = ParseImportError(
@@ -630,6 +618,7 @@ class TestImportErrorFileAuthorization:
     @provide_session
     def mixed_file_import_error(
         self,
+        *,
         session: Session = NEW_SESSION,
     ) -> ParseImportError:
         error = ParseImportError(

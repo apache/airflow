@@ -27,6 +27,7 @@ agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +185,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -273,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -784,7 +787,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -831,6 +837,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -860,6 +867,7 @@ iTerm
 iterm
 itertools
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -897,6 +905,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -1047,6 +1056,8 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
@@ -1131,6 +1142,7 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
@@ -1141,6 +1153,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1863,6 +1876,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

@@ -27,8 +27,9 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
@@ -64,7 +65,6 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunType,
     PreviousTIResponse,
-    TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -161,14 +161,17 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    ProcessTracker,
     _make_process_nondumpable,
     _remote_logging_conn,
     in_process_api_server,
+    make_buffered_socket_reader,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 
@@ -231,13 +234,16 @@ class TestSupervisor:
         """
         Test that the supervisor validates server URL and dry_run parameter combinations correctly.
         """
-        ti = TaskInstance(
+        ti = TaskInstanceDTO(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -256,6 +262,54 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
+        self,
+        test_dags_dir,
+        captured_logs,
+        client_with_ti_start,
+    ):
+        """SIGTERM to the supervisor process is forwarded to the task subprocess."""
+        ti = TaskInstanceDTO(
+            id=uuid7(),
+            task_id="signal_task",
+            dag_id="signal_forward_test",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        supervisor_pid = os.getpid()
+
+        def _kill_children():
+            for child in psutil.Process(supervisor_pid).children(recursive=True):
+                with suppress(psutil.NoSuchProcess):
+                    child.kill()
+
+        watchdog = threading.Timer(20.0, _kill_children)
+        watchdog.daemon = True
+        watchdog.start()
+
+        try:
+            with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+                supervise_task(
+                    ti=ti,
+                    dag_rel_path="signal_forward_test.py",
+                    token="",
+                    dry_run=True,
+                    client=client_with_ti_start,
+                    bundle_info=bundle_info,
+                )
+        finally:
+            watchdog.cancel()
+
+        stdout_events = [entry["event"] for entry in captured_logs if entry.get("logger") == "task.stdout"]
+        assert "EXECUTE_STARTED" in stdout_events
+        assert "ON_KILL_CALLED_VIA_SIGNAL_FORWARDING" in stdout_events
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -324,13 +378,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -399,13 +456,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -496,13 +556,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -525,13 +588,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -560,8 +626,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            what=TaskInstanceDTO(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=mock_client,
             target=subprocess_main,
@@ -599,13 +673,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=mock_client,
             target=lambda: None,
@@ -642,8 +719,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            what=TaskInstanceDTO(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -679,8 +764,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            what=TaskInstanceDTO(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -695,13 +788,16 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
-        ti = TaskInstance(
+        ti = TaskInstanceDTO(
             id=uuid7(),
             task_id="hello",
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -736,13 +832,16 @@ class TestWatchedSubprocess:
         """
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
-        ti = TaskInstance(
+        ti = TaskInstanceDTO(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         )
 
         # Create a mock client to assert calls to the client
@@ -863,8 +962,16 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            what=TaskInstanceDTO(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -941,8 +1048,16 @@ class TestWatchedSubprocess:
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
-                what=TaskInstance(
-                    id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                what=TaskInstanceDTO(
+                    id=ti_id,
+                    task_id="b",
+                    dag_id="c",
+                    run_id="d",
+                    try_number=1,
+                    dag_version_id=uuid7(),
+                    pool_slots=1,
+                    queue="default",
+                    priority_weight=1,
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
@@ -1146,13 +1261,16 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
+            what=TaskInstanceDTO(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1202,9 +1320,12 @@ class TestWatchedSubprocess:
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
-        process = mocker.Mock(spec=psutil.Process)
-        process.pid = 12345
-        return process
+        return mocker.Mock(
+            spec=ProcessTracker,
+            pid=12345,
+            ProcessNotFound=psutil.NoSuchProcess,
+            TimeoutExpired=psutil.TimeoutExpired,
+        )
 
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
@@ -1303,8 +1424,16 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            what=TaskInstanceDTO(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -3316,13 +3445,16 @@ class TestInProcessTestSupervisor:
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
-        ti = TaskInstance(
+        ti = TaskInstanceDTO(
             id=uuid7(),
-            task_id=task.task_id,
+            dag_version_id=uuid7(),
             dag_id="test_dag",
+            task_id=task.task_id,
             run_id="r",
             try_number=1,
-            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
@@ -3739,13 +3871,16 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
         bundle_info=FAKE_BUNDLE,
-        what=TaskInstance(
+        what=TaskInstanceDTO(
             id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             task_id="b",
             dag_id="c",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         client=client_with_ti_start,
         target=subprocess_main,
@@ -3996,3 +4131,101 @@ def test_ipc_trace_context_propagation(mocker):
     assert captured == [expected_span_id]
     # Context is detached after dispatch — no leak.
     assert get_current_span().get_span_context().span_id != expected_span_id
+
+
+class TestMakeBufferedSocketReader:
+    """Tests for the data= pre-seeding parameter added to make_buffered_socket_reader.
+
+    The ``data`` kwarg lets callers inject bytes that arrived on the socket
+    before the selector loop started (e.g. bytes drained from a subprocess
+    stdout/stderr pipe while waiting for a TCP handshake).  Complete lines
+    in ``data`` must be dispatched to the generator immediately on
+    construction; partial lines must be held in the buffer until the socket
+    delivers the remainder.
+    """
+
+    def _collecting_gen(self, received: list[bytes]):
+        """Generator that appends every line sent to it into *received*."""
+        while True:
+            line = yield
+            received.append(bytes(line))
+
+    def test_empty_data_dispatches_nothing_before_socket_reads(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"", on_close=on_close)
+        assert received == []
+
+    def test_complete_line_in_data_dispatched_immediately(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"hello\n", on_close=on_close)
+        assert received == [b"hello\n"]
+
+    def test_multiple_complete_lines_in_data_all_dispatched(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(
+            self._collecting_gen(received), data=b"line1\nline2\nline3\n", on_close=on_close
+        )
+        assert received == [b"line1\n", b"line2\n", b"line3\n"]
+
+    def test_partial_line_in_data_held_until_socket_completes_it(self):
+        """A line without a trailing newline in data must not be dispatched
+        until the socket delivers the rest of the line."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"partial", on_close=on_close
+            )
+            assert received == []  # incomplete line — must not fire yet
+            w.sendall(b" rest\n")
+            cb(r)
+            assert received == [b"partial rest\n"]
+        finally:
+            r.close()
+            w.close()
+
+    def test_complete_and_partial_lines_in_data_only_complete_dispatched(self):
+        """Only the complete line is flushed on construction; the trailing
+        fragment is retained and completed by subsequent socket reads."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"full\nincomplete", on_close=on_close
+            )
+            assert received == [b"full\n"]
+            w.sendall(b" suffix\n")
+            cb(r)
+            assert received == [b"full\n", b"incomplete suffix\n"]
+        finally:
+            r.close()
+            w.close()
+
+    def test_data_pre_seeding_does_not_trigger_on_close(self):
+        """Flushing pre-seeded lines must never invoke the on_close callback."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"line\n", on_close=on_close)
+        on_close.assert_not_called()
+
+    def test_socket_data_appended_after_pre_seeded_data(self):
+        """Bytes arriving on the socket are appended after any pre-seeded
+        partial content, preserving message order."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"seeded\n", on_close=on_close
+            )
+            w.sendall(b"live\n")
+            cb(r)
+            assert received == [b"seeded\n", b"live\n"]
+        finally:
+            r.close()
+            w.close()

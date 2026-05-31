@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.13",
+    "ruff==0.15.14",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",
@@ -98,12 +98,9 @@ dependencies = [
     "sphinxcontrib-jsmath>=1.0.1",
     "sphinxcontrib-mermaid>=1.0.0",
     "sphinxcontrib-qthelp>=1.0.3",
-    "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
-    # setuptools 82.0.0+ causes redoc to fail due to pkg_resources removal
-    # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
-    "setuptools<82.0.0",
+    "swagger-plugin-for-sphinx>=7.1.0,!=7.2.0",  # Exclude 7.2.0, see https://github.com/SAP/swagger-plugin-for-sphinx/issues/518
 ]
 "docs-gen" = [
     "diagrams>=0.24.4",

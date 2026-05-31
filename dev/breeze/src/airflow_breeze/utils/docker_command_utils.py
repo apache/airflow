@@ -101,6 +101,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
     ("go-sdk", "/opt/airflow/go-sdk"),
+    ("java-sdk", "/opt/airflow/java-sdk"),
     ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
