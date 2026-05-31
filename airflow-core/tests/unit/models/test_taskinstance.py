@@ -437,7 +437,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, dag_maker, create_task_instance, session):
+    def test_ti_updates_with_task(self, dag_maker, create_task_instance, *, session: Session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -467,7 +467,7 @@ class TestTaskInstance:
         run_task_instance(ti2, task2, session=session)
         # Ensure it's reloaded
         ti2.executor_config = None
-        ti2.refresh_from_db(session)
+        ti2.refresh_from_db(session=session)
         assert ti2.executor_config == {"bar": "baz"}
         session.rollback()
 
@@ -520,7 +520,7 @@ class TestTaskInstance:
         def run_with_error(ti):
             with contextlib.suppress(AirflowException):
                 dag_maker.run_ti(ti.task_id, ti.dag_run)
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
@@ -1410,7 +1410,8 @@ class TestTaskInstance:
         downstream_ti_state,
         expected_are_dependents_done,
         dag_maker,
-        session,
+        *,
+        session: Session,
     ):
         with dag_maker():
             EmptyOperator(task_id="0") >> EmptyOperator(task_id="downstream_task")
@@ -1418,11 +1419,11 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         downstream_ti = dr.get_task_instance("downstream_task", session=session)
 
-        downstream_ti.set_state(downstream_ti_state, session)
+        downstream_ti.set_state(downstream_ti_state, session=session)
         session.flush()
 
         ti0 = dr.get_task_instance(task_id="0", session=session)
-        assert ti0.are_dependents_done(session) == expected_are_dependents_done
+        assert ti0.are_dependents_done(session=session) == expected_are_dependents_done
 
     def test_xcom_push_flag(self, dag_maker):
         """
@@ -1504,7 +1505,7 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.try_number == 0
 
     @provide_session
-    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, *, session: Session):
         """Test that external_executor_id can store values exceeding 250 characters."""
         # Kubernetes pod names and other executor IDs can exceed 250 chars
         long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
@@ -2314,7 +2315,7 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, session):
+    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
