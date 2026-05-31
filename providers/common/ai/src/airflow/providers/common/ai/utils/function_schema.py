@@ -55,15 +55,24 @@ _DOCSTRING_SECTION_PREFIXES = (
 
 def extract_function_description(fn: Callable[..., Any]) -> str:
     """Return the first paragraph of *fn*'s docstring, stopping before Args/Returns sections."""
+    # Unwrap partials to get the underlying function's docstring.
+    if isinstance(fn, functools.partial):
+        return extract_function_description(fn.func)
+
+    # Callable objects (class instances) have no __name__; use the class name.
+    if not hasattr(fn, "__name__"):
+        return type(fn).__name__
+
     doc = inspect.getdoc(fn)
+    name: str = fn.__name__  # type: ignore[assignment]
     if not doc:
-        return getattr(fn, "__name__", type(fn).__name__)
+        return name
     result: list[str] = []
     for line in doc.split("\n"):
         if line.strip().lower().startswith(_DOCSTRING_SECTION_PREFIXES):
             break
         result.append(line)
-    return "\n".join(result).strip() or getattr(fn, "__name__", type(fn).__name__)
+    return "\n".join(result).strip() or name
 
 
 def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
@@ -77,6 +86,9 @@ def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     ``self``, ``cls``, ``*args``, and ``**kwargs`` are excluded.
     For ``functools.partial``, only the remaining free parameters appear.
     """
+    if inspect.isbuiltin(fn):
+        return _EMPTY_OBJECT_SCHEMA
+
     # Partials: sig from partial (bound args already removed), hints from inner fn.
     hint_source: Callable[..., Any] = fn
     if isinstance(fn, functools.partial):
@@ -114,10 +126,7 @@ def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
             actual_type = annotation
             desc = None
 
-        field_defs[param_name] = (
-            actual_type,
-            Field(default=default, description=desc) if desc else Field(default=default),
-        )
+        field_defs[param_name] = (actual_type, Field(default=default, description=desc))
 
     if not field_defs:
         return _EMPTY_OBJECT_SCHEMA
@@ -145,19 +154,14 @@ def callable_to_tool_spec(fn: Callable[..., Any]) -> ToolSpec:
     # this module imports ToolSpec from base.
     from airflow.providers.common.ai.hooks.base import ToolSpec
 
-    if isinstance(fn, functools.partial):
-        inner: Callable[..., Any] = fn.func
-        while isinstance(inner, functools.partial):
-            inner = inner.func
-        name = getattr(inner, "__name__", type(inner).__name__)
-        source = inner
-    else:
-        name = getattr(fn, "__name__", type(fn).__name__)
-        source = fn
+    inner: Callable[..., Any] = fn
+    while isinstance(inner, functools.partial):
+        inner = inner.func
+    name = getattr(inner, "__name__", type(inner).__name__)
 
     return ToolSpec(
         name=name,
-        description=extract_function_description(source),
-        parameters=build_function_json_schema(fn),  # fn not source: sig already reflects bound args
+        description=extract_function_description(fn),
+        parameters=build_function_json_schema(fn),
         fn=fn,
     )
