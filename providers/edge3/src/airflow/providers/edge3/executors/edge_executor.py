@@ -95,11 +95,10 @@ class EdgeExecutor(BaseExecutor):
         self.edge_queued_tasks = deepcopy(self.queued_tasks)
         super()._process_tasks(task_tuples)  # type: ignore[misc]
 
-    @provide_session
     def queue_workload(
         self,
         workload: workloads.All,
-        session: Session = NEW_SESSION,
+        session: Session,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
         if not isinstance(workload, workloads.ExecuteTask):

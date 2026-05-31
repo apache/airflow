@@ -15,4 +15,3 @@ airflow-core/src/airflow/serialization/definitions/dag.py::2
 airflow-core/tests/unit/listeners/test_listeners.py::7
 airflow-core/tests/unit/models/test_taskinstance.py::4
 airflow-core/tests/unit/models/test_timestamp.py::2
-providers/edge3/src/airflow/providers/edge3/executors/edge_executor.py::1
