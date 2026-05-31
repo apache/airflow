@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import get_type_hints
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -468,153 +467,6 @@ class TestBaseAIHookResolveTools:
         assert result == ["converted:greet", native_tool]
 
 
-class TestGetWrapperMetadataSources:
-    def test_plain_function_returns_self_for_both(self):
-        def fn(x: int) -> str:
-            return str(x)
-
-        sig_src, ann_src = BaseAIHook._get_wrapper_metadata_sources(fn)
-        assert sig_src is fn
-        assert ann_src is fn
-
-    def test_bound_method_returns_self_for_both(self):
-        class MyClass:
-            def method(self, x: int) -> str:
-                return str(x)
-
-        obj = MyClass()
-        # Store once — each attribute access on an instance creates a new bound-method object.
-        bound = obj.method
-        sig_src, ann_src = BaseAIHook._get_wrapper_metadata_sources(bound)
-        assert sig_src is bound
-        assert ann_src is bound
-
-    def test_simple_partial_returns_partial_and_underlying_func(self):
-        def fn(x: int, y: str) -> float:
-            return 1.0
-
-        p = functools.partial(fn, x=1)
-        sig_src, ann_src = BaseAIHook._get_wrapper_metadata_sources(p)
-        assert sig_src is p
-        assert ann_src is fn
-
-    def test_nested_partial_unwraps_to_original_function(self):
-        def fn(url: str, method: str, timeout: int) -> str:
-            return ""
-
-        p1 = functools.partial(fn, url="https://example.com")
-        p2 = functools.partial(p1, method="POST")
-
-        sig_src, ann_src = BaseAIHook._get_wrapper_metadata_sources(p2)
-        assert sig_src is p2
-        assert ann_src is fn
-
-    def test_callable_object_returns_call_method(self):
-        class Searcher:
-            def __call__(self, query: str) -> str:
-                return query
-
-        obj = Searcher()
-        sig_src, ann_src = BaseAIHook._get_wrapper_metadata_sources(obj)
-        assert sig_src is ann_src
-        assert tuple(inspect.signature(sig_src).parameters) == ("query",)
-
-
-class TestCopyWrapperIntrospectionMetadata:
-    def test_plain_function_copies_signature_and_annotations(self):
-        def fn(x: int, y: str) -> float:
-            return 1.0
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return fn(*args, **kwargs)
-
-        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
-
-        assert inspect.signature(wrapper) == inspect.signature(fn)
-        assert get_type_hints(wrapper) == {"x": int, "y": str, "return": float}
-
-    def test_nested_partial_annotations_resolved_from_underlying_function(self):
-        def fn(url: str, method: str, timeout: int) -> str:
-            return ""
-
-        p1 = functools.partial(fn, url="https://example.com")
-        p2 = functools.partial(p1, method="POST")
-
-        @functools.wraps(p2)
-        def wrapper(*args, **kwargs):
-            return p2(*args, **kwargs)
-
-        BaseAIHook._copy_wrapper_introspection_metadata(p2, wrapper)
-
-        sig = inspect.signature(wrapper)
-        # inspect.signature keeps bound params with defaults rather than removing them.
-        assert set(sig.parameters) == {"url", "method", "timeout"}
-        # Annotations are resolved from the unwrapped underlying function, covering all params.
-        assert get_type_hints(wrapper) == {"url": str, "method": str, "timeout": int, "return": str}
-
-    def test_uninspectable_signature_returns_early_without_raising(self):
-        def fn(x: int) -> str:
-            return str(x)
-
-        # Plain wrapper with no __signature__ pre-set.
-        def wrapper(*args, **kwargs):
-            return fn(*args, **kwargs)
-
-        with patch(
-            "airflow.providers.common.ai.hooks.base.inspect.signature",
-            side_effect=ValueError("no introspectable signature"),
-        ):
-            BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
-
-        # Must not raise, and __signature__ must not be set on the wrapper.
-        assert not hasattr(wrapper, "__signature__")
-
-    def test_get_type_hints_failure_falls_back_to_raw_annotations(self):
-        def fn(x: int) -> str:
-            return str(x)
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return fn(*args, **kwargs)
-
-        with patch(
-            "airflow.providers.common.ai.hooks.base.get_type_hints",
-            side_effect=NameError("NonExistentType"),
-        ):
-            BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
-
-        # Falls back to raw __annotations__ from functools.wraps
-        assert "x" in wrapper.__annotations__
-
-    def test_module_falls_back_to_fn_module_when_annotation_source_lacks_it(self):
-        def fn(x: int) -> int:
-            return x
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return fn(*args, **kwargs)
-
-        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
-        assert wrapper.__module__ == fn.__module__
-
-    def test_callable_object_copies_call_signature(self):
-        class Lookup:
-            def __call__(self, customer_id: str) -> dict:
-                return {}
-
-        obj = Lookup()
-
-        @functools.wraps(obj)
-        def wrapper(*args, **kwargs):
-            return obj(*args, **kwargs)
-
-        BaseAIHook._copy_wrapper_introspection_metadata(obj, wrapper)
-
-        sig = inspect.signature(wrapper)
-        assert tuple(sig.parameters) == ("customer_id",)
-
-
 class TestBaseAIHookLoggedCallable:
     def test_logged_callable_logs_and_returns(self):
         logger = MagicMock()
@@ -691,10 +543,6 @@ class TestBaseAIHookLoggedCallable:
         wrapped = BaseAIHook._logged_callable(functools.partial(fetch_metric, "prod"), logger)
 
         assert inspect.signature(wrapped) == inspect.signature(functools.partial(fetch_metric, "prod"))
-        assert get_type_hints(wrapped) == {
-            "metric_name": str,
-            "return": float,
-        }
 
     def test_logged_callable_preserves_callable_object_introspection(self):
         logger = MagicMock()
@@ -707,10 +555,6 @@ class TestBaseAIHookLoggedCallable:
 
         signature = inspect.signature(wrapped)
         assert tuple(signature.parameters) == ("customer_id",)
-        assert get_type_hints(wrapped) == {
-            "customer_id": str,
-            "return": dict[str, str],
-        }
 
 
 class TestBaseAIHookCachedCallable:

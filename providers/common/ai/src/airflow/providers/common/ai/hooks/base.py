@@ -19,19 +19,15 @@
 from __future__ import annotations
 
 import functools
-import inspect
 import json
 import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
-from typing_extensions import get_type_hints
-
+from airflow.providers.common.ai.utils.function_schema import callable_to_tool_spec
 from airflow.providers.common.compat.sdk import BaseHook
-
-_EMPTY_OBJECT_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
 
 # Attribute name for durable storage/counter bound to a framework agent instance.
 _AIRFLOW_DURABLE_ATTR = "_airflow_durable_state"
@@ -357,20 +353,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
             if isinstance(ts, BaseToolset):
                 specs = ts.as_tools()
             elif callable(ts):
-                if isinstance(ts, functools.partial):
-                    name = getattr(ts.func, "__name__", type(ts.func).__name__)
-                    doc = ts.func.__doc__ or ""
-                else:
-                    name = getattr(ts, "__name__", type(ts).__name__)
-                    doc = ts.__doc__ or ""
-                specs = [
-                    ToolSpec(
-                        name=name,
-                        description=doc,
-                        parameters=_EMPTY_OBJECT_SCHEMA,
-                        fn=ts,
-                    )
-                ]
+                specs = [callable_to_tool_spec(ts)]
             else:
                 native.append(ts)
                 continue
@@ -418,7 +401,6 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 logger.info("::endgroup::")
                 raise
 
-        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
         return wrapper
 
     @staticmethod
@@ -442,63 +424,4 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
             counter.cached_tool += 1
             return result
 
-        BaseAIHook._copy_wrapper_introspection_metadata(fn, wrapper)
         return wrapper
-
-    @staticmethod
-    def _copy_wrapper_introspection_metadata(
-        fn: Callable[..., Any],
-        wrapper: Callable[..., Any],
-    ) -> None:
-        """
-        Keep *wrapper* introspection aligned with *fn*.
-
-        Generic logging/caching wrappers use ``*args`` and ``**kwargs``, which can
-        lose or mismatch the original callable's signature and annotations.  This
-        helper copies consistent metadata onto the wrapper so schema/introspection
-        code sees the same callable shape as the original tool.
-        """
-        signature_source, annotation_source = BaseAIHook._get_wrapper_metadata_sources(fn)
-        try:
-            signature = inspect.signature(signature_source)
-        except (ValueError, TypeError):
-            return
-        setattr(wrapper, "__signature__", signature)
-        wrapper.__module__ = cast(
-            "str",
-            getattr(annotation_source, "__module__", None) or getattr(fn, "__module__", __name__),
-        )
-
-        try:
-            hints = get_type_hints(annotation_source, include_extras=True)
-        except (NameError, TypeError):
-            wrapper.__annotations__ = getattr(annotation_source, "__annotations__", {}).copy()
-            return
-
-        resolved = {name: hints[name] for name in signature.parameters if name in hints}
-        if "return" in hints:
-            resolved["return"] = hints["return"]
-        wrapper.__annotations__ = resolved
-
-    @staticmethod
-    def _get_wrapper_metadata_sources(
-        fn: Callable[..., Any],
-    ) -> tuple[Callable[..., Any], Callable[..., Any]]:
-        """
-        Return the best signature and annotation sources for *fn*.
-
-        Most callables can use the same object for both. Partials need the bound
-        signature from the partial itself but annotations from the underlying
-        function (unwrapped through any nesting), and callable objects expose
-        their useful metadata on ``obj.__call__``.
-        """
-        if isinstance(fn, functools.partial):
-            inner: Callable[..., Any] = fn.func
-            while isinstance(inner, functools.partial):
-                inner = inner.func
-            return fn, inner
-        if inspect.ismethod(fn) or inspect.isfunction(fn):
-            return fn, fn
-
-        call = cast("Callable[..., Any]", object.__getattribute__(fn, "__call__"))
-        return call, call

@@ -473,7 +473,7 @@ class TestPydanticAIHookCreateAgent:
         """BaseToolset items are expanded; native Tool objects are passed through unchanged."""
         from pydantic_ai.tools import Tool
 
-        from airflow.providers.common.ai.hooks.base import BaseToolset, ToolSpec
+        from airflow.providers.common.ai.hooks.base import BaseToolset
 
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -719,26 +719,25 @@ class TestPydanticAIHookRunAgent:
         mock_storage.cleanup.assert_not_called()
         assert BaseAIHook._pop_agent_durable(agent) is None
 
-    def test_tool_spec_to_native_forwards_sequential(self):
+    def test_tool_spec_to_native_tools_called(self):
         hook = PydanticAIHook()
 
-        def fn() -> str:
+        def fn(customer_id: int) -> str:
+            """test function"""
             return "ok"
 
-        spec = ToolSpec(
-            name="fn",
-            description="desc",
-            parameters={"type": "object", "properties": {}},
-            fn=fn,
-            sequential=True,
-        )
         with patch("airflow.providers.common.ai.hooks.pydantic_ai.Tool") as mock_tool_cls:
-            hook._tool_spec_to_native(spec)
-        mock_tool_cls.assert_called_once_with(
+            hook._resolve_tools(toolsets=[fn], enable_logging=False, storage=None, counter=None)
+        mock_tool_cls.from_schema.assert_called_once_with(
             fn,
             name="fn",
-            description="desc",
-            sequential=True,
+            description="test function",
+            sequential=False,
+            json_schema={
+                "properties": {"customer_id": {"type": "integer"}},
+                "required": ["customer_id"],
+                "type": "object",
+            },
         )
 
 

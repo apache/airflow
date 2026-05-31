@@ -191,11 +191,12 @@ class PydanticAIHook(BaseAIHook):
 
     def _tool_spec_to_native(self, spec: ToolSpec) -> Any:
         """Convert a :class:`~airflow.providers.common.ai.hooks.base.ToolSpec` to a pydantic-ai ``Tool``."""
-        return Tool(
+        return Tool.from_schema(
             spec.fn,
             name=spec.name,
             description=spec.description,
             sequential=spec.sequential,
+            json_schema=spec.parameters,
         )
 
     def create_agent(self, request: AgentRunRequest) -> Agent[None, Any]:
@@ -312,7 +313,7 @@ class PydanticAIHook(BaseAIHook):
                 result = agent.run_sync(request.prompt, **run_kwargs)
         else:
             result = agent.run_sync(request.prompt, **run_kwargs)
-
+        print(result.all_messages())
         usage = result.usage
         tool_names: list[str] = []
         for message in result.all_messages():
