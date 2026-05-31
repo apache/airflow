@@ -53,7 +53,8 @@ _DOCSTRING_SECTION_PREFIXES = (
 )
 
 
-def _first_docstring_paragraph(obj: Any) -> str:
+def _extract_docstring_summary(obj: Any) -> str:
+    """Return leading descriptive docstring text before Args/Returns-style sections."""
     doc = inspect.getdoc(obj)
     if not doc:
         return ""
@@ -66,7 +67,7 @@ def _first_docstring_paragraph(obj: Any) -> str:
 
 
 def extract_function_description(fn: Callable[..., Any]) -> str:
-    """Return the first paragraph of *fn*'s docstring, stopping before Args/Returns sections."""
+    """Return a short description for *fn* from its leading docstring text."""
     # Unwrap partials to get the underlying function's docstring.
     if isinstance(fn, functools.partial):
         return extract_function_description(fn.func)
@@ -75,12 +76,12 @@ def extract_function_description(fn: Callable[..., Any]) -> str:
     # Prefer __call__ docstring (what calling does), then class docstring, then class name.
     if not hasattr(fn, "__name__"):
         return (
-            _first_docstring_paragraph(type(fn).__call__)
-            or _first_docstring_paragraph(fn)
+            _extract_docstring_summary(type(fn).__call__)
+            or _extract_docstring_summary(fn)
             or type(fn).__name__
         )
 
-    return _first_docstring_paragraph(fn) or fn.__name__
+    return _extract_docstring_summary(fn) or fn.__name__
 
 
 def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
@@ -92,11 +93,10 @@ def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     Falls back to an empty object schema on any introspection failure.
 
     ``self``, ``cls``, ``*args``, and ``**kwargs`` are excluded.
+    Positional-only params are rejected because tool callables must accept
+    keyword arguments matching the generated schema.
     For ``functools.partial``, only the remaining free parameters appear.
     """
-    if inspect.isbuiltin(fn):
-        return _EMPTY_OBJECT_SCHEMA
-
     # Partials: sig from partial (bound args already removed), hints from inner fn.
     hint_source: Callable[..., Any] = fn
     if isinstance(fn, functools.partial):
@@ -118,6 +118,17 @@ def build_function_json_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     for param_name, param in sig.parameters.items():
         if param_name in _SKIP_PARAMS:
             continue
+        if param.kind is inspect.Parameter.POSITIONAL_ONLY:
+            # Auto-generated tool schemas describe named JSON object fields,
+            # and tool frameworks invoke the callable with keyword arguments
+            # derived from those fields. A positional-only parameter cannot be
+            # satisfied by that contract, so fail fast with a clear error.
+            name = getattr(fn, "__name__", type(fn).__name__)
+            raise ValueError(
+                f"Cannot build a tool schema for {name}: "
+                f"parameter {param_name!r} is positional-only. "
+                "Tool parameters must be callable by keyword."
+            )
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
 
