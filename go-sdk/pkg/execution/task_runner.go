@@ -116,6 +116,10 @@ func executeTask(
 
 	if err := task.Execute(ctx, logger); err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
+		// TODO(https://github.com/apache/airflow/issues/67797): emit RetryTask
+		// (UP_FOR_RETRY) when ti_context.should_retry is set. Today every
+		// failure maps to terminal FAILED because the supervisor honors this
+		// frame on exit 0 and we never send RetryTask, so retries are lost.
 		return TaskStateMsg{
 			State:   TaskStateFailed,
 			EndDate: time.Now().UTC(),
