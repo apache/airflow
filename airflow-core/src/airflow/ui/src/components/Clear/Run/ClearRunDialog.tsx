@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -44,6 +44,17 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+
+  // Reset local state when the dialog closes so re-opening shows the current run note,
+  // not whatever the user typed before cancelling. Previously this reset happened
+  // automatically because the parent conditionally unmounted this component; we now
+  // always render it (to let Ark UI's dismiss layer clean up pointer-events correctly).
+  useEffect(() => {
+    if (!open) {
+      setNote(dagRun.note);
+      setSelectedOptions(["existingTasks"]);
+    }
+  }, [open, dagRun.note]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 

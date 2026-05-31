@@ -109,9 +109,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
         </Menu.Content>
       </Menu.Root>
 
-      {open ? (
-        <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
-      ) : undefined}
+      <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
     </Box>
   );
 };

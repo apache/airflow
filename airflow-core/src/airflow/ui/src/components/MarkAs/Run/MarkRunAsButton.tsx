@@ -109,7 +109,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
         </Menu.Content>
       </Menu.Root>
 
-      {open ? <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} /> : undefined}
+      <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} />
     </Box>
   );
 };
