@@ -765,7 +765,6 @@ hiveserver
 hmsclient
 hoc
 homebrew
-honour
 hookimpl
 hookspec
 HostAliases
@@ -1471,7 +1470,6 @@ sendgrid
 sentimentMax
 ser
 serde
-serialisation
 serialise
 serializable
 SerializedDAG
@@ -1783,7 +1781,6 @@ unpause
 unpaused
 unpausing
 unpredicted
-Unrecognised
 unsanitized
 unscoped
 untestable

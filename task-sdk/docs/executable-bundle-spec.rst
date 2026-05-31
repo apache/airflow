@@ -176,7 +176,7 @@ DAG entry fields:
     Static list of ``task_id``\ s declared in the DAG. Empty lists are
     permitted but discouraged.
 
-Unrecognised top-level or DAG-entry keys MUST be ignored by the consumer so
+Unrecognized top-level or DAG-entry keys MUST be ignored by the consumer so
 that future SDK versions can extend the manifest without breaking older
 runtimes.
 
@@ -236,7 +236,7 @@ bundle-format one.
 end-to-end, destroying both the trailer and the hash invariant.
 
 Determinism: the trailer is byte-identical for byte-identical inputs, so a
-deterministic build plus a canonical (sorted-key) manifest serialisation
+deterministic build plus a canonical (sorted-key) manifest serialization
 yields a byte-identical bundle file (and therefore a stable
 ``binary_sha256``).
 
@@ -272,7 +272,7 @@ preserved by the build pipeline. The integrity check runs at scan/discovery
 time and is cached by ``(path, inode, mtime, size)``, so the exec hot path
 does not re-hash.
 
-The compiled executable MUST honour the SDK coordinator protocol —
+The compiled executable MUST honor the SDK coordinator protocol —
 ``--comm=<host:port>`` / ``--logs=<host:port>`` socket-based IPC.
 
 See :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`
