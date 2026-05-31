@@ -355,3 +355,40 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 
 	assert.Equal(t, "hello", gotVar)
 }
+
+// TestServeRegisterDagsFailureClosesComm asserts the failure-signaling
+// contract: when bundle registration fails after the sockets are connected,
+// Serve returns the error (so the caller exits non-zero) without writing a
+// terminal frame. The supervisor observes the failure as the comm socket
+// closing rather than as a TaskState message.
+func TestServeRegisterDagsFailureClosesComm(t *testing.T) {
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	wantErr := errors.New("boom registering dags")
+	provider := &fakeProvider{
+		register: func(bundlev1.Registry) error { return wantErr },
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	defer commConn.Close()
+	logsConn := <-logsCh
+	defer logsConn.Close()
+
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		assert.ErrorIs(t, err, wantErr)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after RegisterDags failure")
+	}
+
+	// No terminal frame was sent: the next read on the comm socket sees the
+	// connection close instead of a decodable frame.
+	require.NoError(t, commConn.SetReadDeadline(time.Now().Add(time.Second)))
+	_, err := readFrame(commConn)
+	require.Error(t, err)
+}

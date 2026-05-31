@@ -47,9 +47,21 @@ const dialTimeout = 30 * time.Second
 // comm and logs sockets, installs an slog handler that writes JSON-line
 // records to the logs connection, and dispatches on the first frame.
 //
-// Serve returns nil on a clean shutdown (task execution completed); a
+// Serve returns nil on a clean shutdown: the task ran and its terminal
+// TaskState/SucceedTask frame was delivered, and the caller should exit 0. A
 // non-nil error indicates a protocol-level failure (connection loss,
-// malformed frames, unknown first message type).
+// malformed frames, unknown first message type) that happens before or
+// instead of delivering a terminal frame.
+//
+// Failure-signaling contract: the caller (main) must turn a non-nil error
+// into a non-zero process exit. The supervisor derives the task's final state
+// primarily from the child's exit code -- a non-zero exit is recorded as
+// FAILED (or UP_FOR_RETRY when retries are configured), and a structured
+// TaskState frame is only honored when the process exits 0 (see the Python
+// supervisor's ActivitySubprocess.final_state). So an early error return here
+// fails closed without needing to send a frame; the post-connect paths below
+// log the reason at Error first so it still reaches the supervisor's log
+// stream over the already-connected logs socket.
 func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
@@ -105,6 +117,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	// dispatcher simple.
 	bundle, err := materialiseBundle(provider)
 	if err != nil {
+		logger.Error("Bundle registration failed", "error", err)
 		return fmt.Errorf("registering dags: %w", err)
 	}
 
@@ -112,12 +125,17 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 
 	frame, err := comm.ReadMessage()
 	if err != nil {
+		logger.Error("Failed to read initial message from supervisor", "error", err)
 		return fmt.Errorf("reading initial message: %w", err)
 	}
 
 	if frame.Err != nil {
 		errResp := decodeErrorResponse(frame.Err)
 		if errResp != nil {
+			logger.Error("Supervisor reported an error on the initial frame",
+				"error", errResp.Error,
+				"detail", errResp.Detail,
+			)
 			return fmt.Errorf(
 				"received error from supervisor: [%s] %v",
 				errResp.Error,
@@ -128,6 +146,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 
 	body, err := decodeIncomingBody(frame.Body)
 	if err != nil {
+		logger.Error("Failed to decode initial message", "error", err)
 		return fmt.Errorf("decoding initial message: %w", err)
 	}
 
@@ -144,6 +163,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 		logger.Debug("Task execution complete")
 
 	default:
+		logger.Error("Unexpected initial message type", "type", fmt.Sprintf("%T", body))
 		return fmt.Errorf("unexpected initial message type: %T", body)
 	}
 
