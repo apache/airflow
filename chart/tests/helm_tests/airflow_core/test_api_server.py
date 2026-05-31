@@ -122,14 +122,114 @@ class TestAPIServerDeployment:
             "-c",
             "exec airflow api-server --apps execution",
         ]
-        assert jmespath.search("spec.template.spec.containers[0].ports[0].name", deployment) == "api-server"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].ports[0].name", deployment) == "execution-api"
+        )
         assert jmespath.search("spec.selector.component", service) == "execution-api-server"
+        # The execution API must stay internal — pin to ClusterIP even when the
+        # public api-server is exposed via LoadBalancer/NodePort.
+        assert jmespath.search("spec.type", service) == "ClusterIP"
 
         for probe in ("livenessProbe", "readinessProbe", "startupProbe"):
             assert (
                 jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.path", deployment)
                 == "/execution/health"
             )
+
+    def test_execution_service_is_clusterip_even_when_api_server_service_is_loadbalancer(self):
+        docs = render_chart(
+            values={
+                "splitApiServersIntoCoreAndExecution": True,
+                "apiServer": {
+                    "service": {
+                        "type": "LoadBalancer",
+                        "loadBalancerIP": "1.2.3.4",
+                        "loadBalancerSourceRanges": ["10.0.0.0/8"],
+                    },
+                },
+            },
+            show_only=[
+                "templates/api-server/api-server-service.yaml",
+                "templates/api-server/execution-api-server-service.yaml",
+            ],
+        )
+
+        core_service = next(d for d in docs if d["metadata"]["name"] == "release-name-api-server")
+        execution_service = next(
+            d for d in docs if d["metadata"]["name"] == "release-name-execution-api-server"
+        )
+        assert jmespath.search("spec.type", core_service) == "LoadBalancer"
+        assert jmespath.search("spec.type", execution_service) == "ClusterIP"
+        # LB-specific fields must not leak onto the internal service.
+        assert jmespath.search("spec.loadBalancerIP", execution_service) is None
+        assert jmespath.search("spec.loadBalancerSourceRanges", execution_service) is None
+
+    def test_core_deployment_default_args_unchanged_when_split_disabled(self):
+        docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            "exec airflow api-server",
+        ]
+
+    def test_split_preserves_user_args_by_injecting_apps_flag(self):
+        # User customized the args to add --proxy-headers; the split must still
+        # produce per-app deployments without losing the user's customization.
+        docs = render_chart(
+            values={
+                "splitApiServersIntoCoreAndExecution": True,
+                "apiServer": {"args": ["bash", "-c", "exec airflow api-server --proxy-headers"]},
+            },
+            show_only=[
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/api-server/execution-api-server-deployment.yaml",
+            ],
+        )
+
+        core = next(d for d in docs if d["metadata"]["name"] == "release-name-api-server")
+        execution = next(d for d in docs if d["metadata"]["name"] == "release-name-execution-api-server")
+        assert jmespath.search("spec.template.spec.containers[0].args", core) == [
+            "bash",
+            "-c",
+            "exec airflow api-server --proxy-headers --apps core",
+        ]
+        assert jmespath.search("spec.template.spec.containers[0].args", execution) == [
+            "bash",
+            "-c",
+            "exec airflow api-server --proxy-headers --apps execution",
+        ]
+
+    def test_split_trusts_user_args_when_apps_flag_already_set(self):
+        docs = render_chart(
+            values={
+                "splitApiServersIntoCoreAndExecution": True,
+                "apiServer": {
+                    "args": ["bash", "-c", "exec airflow api-server --apps core,execution"],
+                },
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            "exec airflow api-server --apps core,execution",
+        ]
+
+    def test_split_fails_loudly_on_unrecognized_args_shape(self):
+        # If the user supplies args we cannot safely transform, we must fail
+        # at template time rather than silently leave the core deployment
+        # serving the execution app.
+        with pytest.raises(CalledProcessError) as exc_info:
+            render_chart(
+                values={
+                    "splitApiServersIntoCoreAndExecution": True,
+                    "apiServer": {"args": ["/custom/entrypoint.sh"]},
+                },
+                show_only=["templates/api-server/api-server-deployment.yaml"],
+            )
+        assert "splitApiServersIntoCoreAndExecution" in exc_info.value.stderr.decode()
 
     @pytest.mark.parametrize(
         ("values", "show_only"),
@@ -143,6 +243,23 @@ class TestAPIServerDeployment:
             (
                 {"apiServer": {"enabled": False}, "splitApiServersIntoCoreAndExecution": True},
                 "templates/api-server/execution-api-server-service.yaml",
+            ),
+            # HPA / PDB / NetworkPolicy must also be gated on the split flag.
+            ({"apiServer": {"hpa": {"enabled": True}}}, "templates/api-server/execution-api-server-hpa.yaml"),
+            (
+                {
+                    "apiServer": {"hpa": {"enabled": True}, "enabled": False},
+                    "splitApiServersIntoCoreAndExecution": True,
+                },
+                "templates/api-server/execution-api-server-hpa.yaml",
+            ),
+            (
+                {"apiServer": {"podDisruptionBudget": {"enabled": True}}},
+                "templates/api-server/execution-api-server-poddisruptionbudget.yaml",
+            ),
+            (
+                {"networkPolicies": {"enabled": True}},
+                "templates/api-server/execution-api-server-networkpolicy.yaml",
             ),
         ],
     )

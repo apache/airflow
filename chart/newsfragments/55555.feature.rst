@@ -1,0 +1,8 @@
+Add ``splitApiServersIntoCoreAndExecution`` option to run the Execution API in a dedicated Deployment
+
+When enabled, the existing api-server Deployment is restricted to ``--apps core`` and a new
+``<release>-execution-api-server`` Deployment plus internal-only (ClusterIP) Service is created
+with ``--apps execution``. The ``[core] execution_api_server_url`` value rendered into the
+Airflow config is rewritten so workers, the triggerer and the dag-processor connect to the new
+internal Service. Default is ``false`` (single combined api-server Deployment), so existing
+deployments are unaffected.

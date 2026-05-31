@@ -97,7 +97,7 @@
             "x-docsSection": "Common"
         },
         "splitApiServersIntoCoreAndExecution": {
-            "description": "Run the Core API Server and Execution API Server in separate Deployments.",
+            "description": "Run the Core API Server (public/UI traffic) and the Execution API Server (internal traffic from workers/triggerer/dag-processor) as two separate Deployments. When enabled, the existing api-server Deployment is restricted to `--apps core` and a new `<release>-execution-api-server` Deployment/Service is created with `--apps execution`. The execution Service is forced to ClusterIP regardless of `apiServer.service.type` so the internal surface is not accidentally exposed. The `[core] execution_api_server_url` config is rewritten to point workers at the new internal Service. Both Deployments share `apiServer.*` settings (replicas, hpa, pdb, resources, network policy, ingress, etc.) \u2014 operators who need independent tuning should override per-component using the existing knobs.",
             "type": "boolean",
             "default": false,
             "x-docsSection": "Airflow"

@@ -74,7 +74,28 @@ defaultAirflowDigest: ~
 # Version 3.1.0 and above is supported.
 airflowVersion: "3.2.2"
 
-# Run the Core API Server and Execution API Server in separate Deployments.
+# Run the Core API Server (public/UI traffic) and Execution API Server
+# (internal worker/triggerer/dag-processor traffic) as two separate
+# Deployments. When true:
+#   * The existing api-server Deployment is restricted to `--apps core`.
+#   * A new `<release>-execution-api-server` Deployment + ClusterIP Service
+#     is created with `--apps execution`. The Service is pinned to ClusterIP
+#     so the internal surface is not exposed even if `apiServer.service.type`
+#     is LoadBalancer/NodePort.
+#   * `[core] execution_api_server_url` is rewritten to point at the new
+#     internal Service.
+# Both Deployments share `apiServer.*` settings today (replicas, hpa, pdb,
+# resources, network policy, etc.). Customizing `apiServer.args` is
+# supported in two ways:
+#   * Standard form (`["bash", "-c", "exec airflow api-server <extra-flags>"]`):
+#     the chart appends `--apps core` / `--apps execution` for you, preserving
+#     `<extra-flags>` (e.g. `--proxy-headers`).
+#   * Explicit `--apps` (e.g. `--apps all` or `--apps core,execution`): the
+#     chart trusts your args verbatim and applies them to both Deployments
+#     unchanged. Use this only if you intentionally want to opt out of the
+#     split for one or both Deployments.
+# Args that match neither shape will cause `helm template` to fail rather
+# than silently leaving the core Deployment serving the execution app.
 splitApiServersIntoCoreAndExecution: false
 
 images:

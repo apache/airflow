@@ -38,7 +38,12 @@ metadata:
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.apiServer.service.type }}
+  # The execution API server is intended to be reachable only by in-cluster
+  # Airflow components (workers, triggerer, dag-processor, scheduler). Pin the
+  # service type to ClusterIP so that operators who expose the public API via
+  # LoadBalancer/NodePort on `apiServer.service.type` do not accidentally
+  # publish the execution surface to the same network.
+  type: ClusterIP
   selector:
     tier: airflow
     component: execution-api-server
@@ -49,11 +54,5 @@ spec:
       {{- range $key, $val := . }}
       {{ $key }}: {{ tpl (toString $val) $ }}
       {{- end }}
-  {{- end }}
-  {{- if .Values.apiServer.service.loadBalancerIP }}
-  loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
-  {{- end }}
-  {{- if .Values.apiServer.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges: {{- toYaml .Values.apiServer.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
 {{- end }}

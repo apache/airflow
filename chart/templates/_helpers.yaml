@@ -58,11 +58,46 @@ If release name contains chart name it will be used as a full name.
   {{- toYaml $rendered -}}
 {{- end }}
 
+{{/*
+Render the args for the (core) API Server deployment.
+
+When `splitApiServersIntoCoreAndExecution` is true we must guarantee the core
+deployment does NOT serve the `execution` app — otherwise the split is silently
+defeated and the core pods continue to handle Execution API traffic.
+
+Behavior:
+  * Flag off: passes `.Values.apiServer.args` through unchanged.
+  * Flag on, user already supplied `--apps` somewhere in the args: trust the user.
+  * Flag on, args follow the standard `["bash", "-c", "exec airflow api-server ..."]`
+    shape: inject `--apps core` into the shell command.
+  * Flag on, anything else: fail loudly so the operator must make an explicit
+    choice rather than ending up with a half-split cluster.
+*/}}
 {{- define "api_server_args" -}}
-  {{- if and .Values.splitApiServersIntoCoreAndExecution (deepEqual .Values.apiServer.args (list "bash" "-c" "exec airflow api-server")) -}}
-    {{- toYaml (list "bash" "-c" "exec airflow api-server --apps core") -}}
+  {{- include "_apiServerArgsForApp" (dict "context" . "app" "core") -}}
+{{- end }}
+
+{{/*
+Render the args for the Execution API Server deployment. Same rules as
+`api_server_args` but injects `--apps execution` instead of `--apps core`.
+*/}}
+{{- define "execution_api_server_args" -}}
+  {{- include "_apiServerArgsForApp" (dict "context" . "app" "execution") -}}
+{{- end }}
+
+{{- define "_apiServerArgsForApp" -}}
+  {{- $ctx := .context -}}
+  {{- $app := .app -}}
+  {{- $args := $ctx.Values.apiServer.args -}}
+  {{- if not $ctx.Values.splitApiServersIntoCoreAndExecution -}}
+    {{- tpl (toYaml $args) $ctx -}}
+  {{- else if contains "--apps" (toString $args) -}}
+    {{- tpl (toYaml $args) $ctx -}}
+  {{- else if and (kindIs "slice" $args) (eq (len $args) 3) (eq (index $args 0) "bash") (eq (index $args 1) "-c") (contains "airflow api-server" (toString (index $args 2))) -}}
+    {{- $newCmd := printf "%s --apps %s" (toString (index $args 2)) $app -}}
+    {{- tpl (toYaml (list "bash" "-c" $newCmd)) $ctx -}}
   {{- else -}}
-    {{- tpl (toYaml .Values.apiServer.args) . -}}
+    {{- fail (printf "When splitApiServersIntoCoreAndExecution=true, apiServer.args must either include '--apps' explicitly or follow the standard [\"bash\", \"-c\", \"exec airflow api-server ...\"] form so that '--apps %s' can be injected. Got: %s" $app (toString $args)) -}}
   {{- end -}}
 {{- end }}
 

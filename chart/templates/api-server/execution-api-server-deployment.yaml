@@ -160,10 +160,9 @@ spec:
           {{- if .Values.apiServer.command }}
           command: {{ tpl (toYaml .Values.apiServer.command) . | nindent 12 }}
           {{- end }}
-          args:
-            - bash
-            - -c
-            - exec airflow api-server --apps execution
+          {{- if .Values.apiServer.args }}
+          args: {{- include "execution_api_server_args" . | nindent 12 }}
+          {{- end }}
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
@@ -181,7 +180,7 @@ spec:
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
-            - name: api-server
+            - name: execution-api
               containerPort: {{ .Values.ports.apiServer }}
           livenessProbe:
             httpGet:
