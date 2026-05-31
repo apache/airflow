@@ -263,6 +263,23 @@ class TriggerRuleDep(BaseTIDep):
                 else:
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
+        def _has_stale_finished_upstreams(relevant_ids: set[str] | KeysView[str]) -> bool:
+            if not dep_context.ensure_fresh_tis_before_state_change or dep_context.finished_tis is None:
+                return False
+
+            def _relevant_states(
+                finished_tis: list[TaskInstance],
+            ) -> dict[tuple[str, int], str]:
+                return {
+                    (upstream.task_id, upstream.map_index): upstream.state
+                    for upstream in finished_tis
+                    if upstream.state is not None and _is_relevant_upstream(upstream, relevant_ids)
+                }
+
+            cached_states = _relevant_states(dep_context.finished_tis)
+            fresh_states = _relevant_states(dep_context.refresh_finished_tis(ti.get_dagrun(session), session))
+            return cached_states != fresh_states
+
         def _evaluate_setup_constraint(
             *, relevant_setups: Mapping[str, Operator]
         ) -> Iterator[tuple[TIDepStatus, bool]]:
@@ -332,7 +349,8 @@ class TriggerRuleDep(BaseTIDep):
                             changed,
                         )
                         return
-                changed = ti.set_state(new_state, session)
+                if not _has_stale_finished_upstreams(relevant_setups.keys()):
+                    changed = ti.set_state(new_state, session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
@@ -465,7 +483,8 @@ class TriggerRuleDep(BaseTIDep):
                             reason="Task should be skipped but the past depends are not met"
                         )
                         return
-                changed = ti.set_state(new_state, session)
+                if not _has_stale_finished_upstreams(task.upstream_task_ids):
+                    changed = ti.set_state(new_state, session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
