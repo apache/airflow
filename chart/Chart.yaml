@@ -75,6 +75,12 @@ annotations:
       links:
       - name: '#67681'
         url: https://github.com/apache/airflow/pull/67681
+    - description: >
+        Added support for configuring enableServiceLinks (default will become false in Chart 2.0)
+      kind: added
+      links:
+      - name: '#67447'
+        url: https://github.com/apache/airflow/pull/67447
     - description: Add optional OTel service to the Airflow Helm Chart
       kind: added
       links:
