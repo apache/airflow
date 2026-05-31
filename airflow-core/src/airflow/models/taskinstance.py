@@ -66,6 +66,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
+from sqlalchemy.orm.exc import DetachedInstanceError, ObjectDeletedError
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
@@ -1148,10 +1149,22 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     yield dep_status
 
     def __repr__(self) -> str:
-        prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
-        if self.map_index != -1:
-            prefix += f"map_index={self.map_index} "
-        return prefix + f"[{self.state}] ti_id={self.id}>"
+        # ``__repr__`` is used in logging and must never raise. Real values are printed
+        # whenever they can be read (including a normal lazy-load on an *attached* instance);
+        # we only fall back to a placeholder when SQLAlchemy cannot produce the value at all:
+        # a deferred column on a *detached* instance (DetachedInstanceError), or a row deleted
+        # out from under an expired instance (ObjectDeletedError).
+        def field(name: str) -> Any:
+            try:
+                return getattr(self, name)
+            except (DetachedInstanceError, ObjectDeletedError):
+                return "<deferred>"
+
+        prefix = f"<TaskInstance: {field('dag_id')}.{field('task_id')} {field('run_id')} "
+        map_index = field("map_index")
+        if map_index != -1:
+            prefix += f"map_index={map_index} "
+        return prefix + f"[{field('state')}] ti_id={field('id')}>"
 
     def next_retry_datetime(self):
         """
