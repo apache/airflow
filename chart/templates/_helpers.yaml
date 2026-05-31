@@ -1199,7 +1199,6 @@ Usage:
   {{- toYaml $newValues -}}
 {{- end -}}
 
-
 {{/*
 serviceAccountTokenVolume mount
 
@@ -1248,4 +1247,16 @@ Usage:
             fieldPath: metadata.namespace
           path: namespace
   {{- end }}
+{{- end -}}
+
+{{/*
+Set service links if not null.
+
+Usage:
+  {{ include "serviceLinks" . }}
+*/}}
+{{- define "serviceLinks" -}}
+{{- if not (eq .Values.enableServiceLinks nil) -}}
+enableServiceLinks: {{ .Values.enableServiceLinks }}
+{{- end }}
 {{- end -}}

@@ -102,6 +102,7 @@ spec:
       hostAliases: {{- toYaml .Values.webserver.hostAliases | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
+      {{- include "serviceLinks" . | nindent 6 }}
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
       {{- end }}
