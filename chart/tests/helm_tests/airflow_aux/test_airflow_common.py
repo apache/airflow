@@ -574,4 +574,4 @@ class TestAirflowCommon:
                     raise ValueError(f"Unhandled document type {doc}")
 
         for doc in docs:
-            assert matcher(doc) == enable_service_links
+            assert matcher(doc) == enable_service_links or False
