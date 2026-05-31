@@ -39,15 +39,6 @@ try:
 except NameError:
     from exceptiongroup import BaseExceptionGroup
 
-try:
-    from airflow.providers.standard.triggers.temporal import DateTimeTrigger as ExternalDateTimeTrigger
-except ModuleNotFoundError:
-    # If the providers package with DateTimeTrigger is not available (e.g. in
-    # minimal installs or tests), set the symbol to None so callers can
-    # explicitly check for availability. Using hasattr(self, DateTimeTrigger)
-    # is incorrect because hasattr expects a string attribute name.
-    ExternalDateTimeTrigger: type[DateTimeTrigger] | None = None
-
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import PartitionedExpandInput
@@ -72,6 +63,18 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.lazy_sequence import XComIterable
 
 
+ExternalDateTimeTrigger: type[DateTimeTrigger] | None
+
+try:
+    from airflow.providers.standard.triggers.temporal import DateTimeTrigger as ExternalDateTimeTrigger
+except ModuleNotFoundError:
+    # If the providers package with DateTimeTrigger is not available (e.g. in
+    # minimal installs or tests), set the symbol to None so callers can
+    # explicitly check for availability. Using hasattr(self, DateTimeTrigger)
+    # is incorrect because hasattr expects a string attribute name.
+    ExternalDateTimeTrigger = None
+
+
 class IterableOperator(BaseOperator):
     """
     Operator used for Dynamic Task Iteration (DTI) that runs a mapped operator over an iterable input.
@@ -93,11 +96,11 @@ class IterableOperator(BaseOperator):
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
         deep copy/unmapped instance of this operator.
-    :type operator: MappedOperator
+
     :param expand_input: Provider of the values (or partitions) to iterate
         over. Its ``iter_values(context)`` method is used to produce the
         per-index ``mapped_kwargs`` used to unmap the operator.
-    :type expand_input: ExpandInput
+
     :param kwargs: Additional keyword arguments forwarded to
         :class:`BaseOperator` when instantiating the IterableOperator
         (e.g. ``dag``, ``start_date``). Note that the IterableOperator
