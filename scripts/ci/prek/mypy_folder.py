@@ -34,7 +34,7 @@ from common_prek_utils import (
     console,
     get_all_provider_ids,
     initialize_breeze_prek,
-    run_command_via_breeze_shell,
+    run_command_via_breeze_run,
 )
 
 initialize_breeze_prek(__name__, __file__)
@@ -169,7 +169,7 @@ mypy_cmd = " ".join(mypy_cmd_parts)
 
 cmd = ["bash", "-c", mypy_cmd]
 
-res = run_command_via_breeze_shell(
+res = run_command_via_breeze_run(
     cmd=cmd,
     warn_image_upgrade_needed=True,
     extra_env={

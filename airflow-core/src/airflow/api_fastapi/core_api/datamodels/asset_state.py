@@ -16,18 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import JsonValue, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+_MAX_SERIALIZED_BYTES = 65535
 
 
 class AssetStateResponse(BaseModel):
     """A single asset state key/value pair with metadata."""
 
     key: str
-    value: str
+    value: JsonValue
     updated_at: datetime
 
 
@@ -41,4 +44,17 @@ class AssetStateCollectionResponse(BaseModel):
 class AssetStateBody(StrictBaseModel):
     """Request body for setting an asset state value."""
 
-    value: str = Field(max_length=65535)
+    value: JsonValue
+
+    @field_validator("value")
+    @classmethod
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        try:
+            serialized = json.dumps(v, allow_nan=False)
+        except ValueError:
+            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
+        if len(serialized) > _MAX_SERIALIZED_BYTES:
+            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        return v

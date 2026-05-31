@@ -76,6 +76,21 @@ def _validate_group_id(instance, attribute, value: str) -> None:
     validate_group_key(value)
 
 
+def _convert_doc_md(doc_md: str | None) -> str | None:
+    """Convert markdown file paths to file contents."""
+    if doc_md is None:
+        return doc_md
+
+    if doc_md.endswith(".md"):
+        try:
+            with open(doc_md) as fh:
+                return fh.read()
+        except FileNotFoundError:
+            return doc_md
+
+    return doc_md
+
+
 @attrs.define(repr=False)
 class TaskGroup(DAGNode):
     """
@@ -101,6 +116,7 @@ class TaskGroup(DAGNode):
         here and `'depends_on_past': False` in the operator's call
         `default_args`, the actual value will be `False`.
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
+    :param doc_md: Markdown documentation for the TaskGroup displayed in the UI
     :param ui_color: The fill color of the TaskGroup node when displayed in the UI
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :param add_suffix_on_collision: If this task group name already exists,
@@ -119,6 +135,7 @@ class TaskGroup(DAGNode):
     dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
     default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
     tooltip: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
+    doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
     children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
 
     upstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)

@@ -250,7 +250,6 @@
   },
   "task_one": "任务",
   "task_other": "任务",
-  "taskGroup": "任务分组",
   "taskId": "任务 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",

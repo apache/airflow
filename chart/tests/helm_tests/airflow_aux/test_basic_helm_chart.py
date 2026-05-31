@@ -204,6 +204,7 @@ class TestBaseChartTest:
         [
             "CeleryExecutor",
             "CeleryExecutor,KubernetesExecutor",
+            "CeleryExecutor,harvest_exec:KubernetesExecutor",
         ],
     )
     def test_labels_are_valid(self, executor):
@@ -326,6 +327,8 @@ class TestBaseChartTest:
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
+                elif executor == "CeleryExecutor,harvest_exec:KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-harvest_exec-KubernetesExecutor"
 
             if (
                 executor == "CeleryExecutor"

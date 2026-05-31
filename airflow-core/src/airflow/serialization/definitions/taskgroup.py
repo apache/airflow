@@ -47,6 +47,7 @@ class SerializedTaskGroup(DAGNode):
     parent_group: SerializedTaskGroup | None = attrs.field()
     dag: SerializedDAG = attrs.field()
     tooltip: str = attrs.field()
+    doc_md: str | None = attrs.field(default=None)
     default_args: dict[str, Any] = attrs.field(factory=dict)
 
     # TODO: Are these actually useful?
