@@ -74,6 +74,10 @@ export const PoolSummary = () => {
 
   pools?.forEach((pool) => {
     slotKeys.forEach((slotKey) => {
+      if (slotKey === "deferred_slots" && !pool.include_deferred) {
+        return;
+      }
+
       const slotValue = pool[slotKey];
 
       if (slotValue === UNLIMITED_SLOTS) {
