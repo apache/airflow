@@ -72,6 +72,8 @@ class PydanticAIHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
+        self._conn = None
+        self._conn_extra_dejson: dict[str, Any] | None = None
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -135,9 +137,11 @@ class PydanticAIHook(BaseHook):
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id)
+        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
+        extra: dict[str, Any] = (
+            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
+        )
 
-        extra: dict[str, Any] = conn.extra_dejson
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
@@ -179,7 +183,10 @@ class PydanticAIHook(BaseHook):
             return self.get_conn()
 
         conn = self.get_connection(self.llm_conn_id)
-        if conn.extra_dejson.get("model"):
+        self._conn = conn
+        self._conn_extra_dejson = conn.extra_dejson
+
+        if self._conn_extra_dejson.get("model"):
             return self.get_conn()
 
         return None
