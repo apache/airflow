@@ -87,11 +87,24 @@ class TestExtractFunctionDescription:
         f = lambda x: x
         assert extract_function_description(f) == "<lambda>"
 
-    def test_callable_object_falls_back_to_class_name(self):
+    def test_callable_object_uses_call_docstring(self):
         obj = _CallableObj()
-        # callable objects have no __name__; falls back to type name
-        result = extract_function_description(obj)
-        assert result == "_CallableObj"
+        # prefers __call__ docstring over class docstring over class name
+        assert extract_function_description(obj) == "Process value."
+
+    def test_callable_object_falls_back_to_class_docstring(self):
+        class _NoCallDoc:
+            """Describes the class."""
+
+            def __call__(self, x: int) -> int: ...
+
+        assert extract_function_description(_NoCallDoc()) == "Describes the class."
+
+    def test_callable_object_falls_back_to_class_name(self):
+        class _NoDocs:
+            def __call__(self, x: int) -> int: ...
+
+        assert extract_function_description(_NoDocs()) == "_NoDocs"
 
     @pytest.mark.parametrize(
         "header",
