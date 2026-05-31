@@ -36,6 +36,7 @@ import concurrent.futures
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai import RunContext
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
@@ -75,6 +76,14 @@ def airflow_toolset_to_langchain_tools(
     Each returned tool is backed by ``toolset.call_tool`` and carries the
     ``args_schema`` derived from the tool's JSON schema, so a LangChain agent or
     chain can call it the same way it calls any native LangChain tool.
+
+    If a tool raises pydantic-ai's :exc:`~pydantic_ai.exceptions.ModelRetry`
+    (the bundled SQL toolsets do this to ask the model to correct its input,
+    e.g. an unknown column), the bridge returns the retry message as the tool's
+    output so the model sees it and tries again. ``ModelRetry`` is a
+    feed-the-model-and-retry signal, not a failure; returning it mirrors that and
+    works regardless of how the agent handles tool errors. Raising instead would
+    abort the run under ``create_agent``'s default tool-error handling.
 
     The toolset's ``get_tools`` is invoked eagerly here to enumerate the tools.
 
@@ -140,10 +149,19 @@ def _build_structured_tool(
         return toolset_tool.args_validator.validate_python(kwargs)
 
     def _sync_call(**kwargs: Any) -> Any:
-        return _run_coro_sync(toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool))
+        try:
+            return _run_coro_sync(toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool))
+        except ModelRetry as e:
+            # ModelRetry is a "feed this back to the model and retry" signal, not a
+            # failure. Return the message as the tool output so the model self-corrects
+            # (see docstring); raising would abort under create_agent's default handling.
+            return str(e)
 
     async def _async_call(**kwargs: Any) -> Any:
-        return await toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool)
+        try:
+            return await toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool)
+        except ModelRetry as e:
+            return str(e)
 
     return structured_tool_cls.from_function(
         func=_sync_call,

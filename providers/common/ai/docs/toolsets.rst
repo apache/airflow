@@ -446,6 +446,14 @@ behaviour (connection resolution, ``SQLToolset``'s SQL validation, and
 ``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
 conversion time to enumerate the tools.
 
+When a toolset raises pydantic-ai's ``ModelRetry`` to ask the model to correct
+its input (``SQLToolset`` does this on, for example, an unknown column), the
+bridge returns that message as the tool's output so the model sees it and tries
+again. ``ModelRetry`` is a feed-the-model-and-retry signal rather than a
+failure, so returning it preserves the self-correction the toolset was written
+for and works no matter how the agent is configured to handle tool errors
+(raising would abort the run under ``create_agent``'s default handling).
+
 The bridge does not hold a toolset session open across calls: ``get_tools`` and
 every tool call each run under their own event loop, so for ``MCPToolset`` the
 connection is opened and torn down around each call. It reconnects per call,

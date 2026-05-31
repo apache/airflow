@@ -24,6 +24,7 @@ import pytest
 
 pytest.importorskip("langchain_core")
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
@@ -46,6 +47,7 @@ _ADD_ONE_SCHEMA: dict[str, Any] = {
     "properties": {"n": {"type": "integer", "description": "A number."}},
     "required": ["n"],
 }
+_BOOM_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
 
 
 class FakeToolset(AbstractToolset[None]):
@@ -76,6 +78,16 @@ class FakeToolset(AbstractToolset[None]):
                 max_retries=1,
                 args_validator=_INT_VALIDATOR,
             ),
+            "boom": ToolsetTool(
+                toolset=self,
+                tool_def=ToolDefinition(
+                    name="boom",
+                    description="Always asks the model to retry.",
+                    parameters_json_schema=_BOOM_SCHEMA,
+                ),
+                max_retries=1,
+                args_validator=_PASSTHROUGH,
+            ),
         }
 
     async def call_tool(self, name, tool_args, ctx, tool) -> Any:
@@ -84,6 +96,8 @@ class FakeToolset(AbstractToolset[None]):
             return f"echo: {tool_args['text']}"
         if name == "add_one":
             return tool_args["n"] + 1
+        if name == "boom":
+            raise ModelRetry("fix your input and try again")
         raise ValueError(name)
 
 
@@ -91,7 +105,7 @@ class TestAirflowToolsetToLangChainTools:
     def test_returns_one_tool_per_toolset_tool(self):
         tools = airflow_toolset_to_langchain_tools(FakeToolset())
 
-        assert {t.name for t in tools} == {"echo", "add_one"}
+        assert {t.name for t in tools} == {"echo", "add_one", "boom"}
 
     def test_carries_description_and_args_schema(self):
         tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}
@@ -130,6 +144,19 @@ class TestAirflowToolsetToLangChainTools:
 
         assert result == "echo: yo"
         assert toolset.calls == [("echo", {"text": "yo"})]
+
+    def test_model_retry_returned_as_tool_output_sync(self):
+        # ModelRetry is a "retry with this guidance" signal, not a failure: the
+        # bridge returns the message as the tool output so the model self-corrects
+        # rather than aborting the agent run.
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
+
+        assert boom.invoke({}) == "fix your input and try again"
+
+    def test_model_retry_returned_as_tool_output_async(self):
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
+
+        assert asyncio.run(boom.ainvoke({})) == "fix your input and try again"
 
     def test_deps_are_exposed_on_the_run_context(self):
         sentinel = object()
