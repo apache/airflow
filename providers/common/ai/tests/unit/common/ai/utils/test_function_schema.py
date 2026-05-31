@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 from typing import Annotated, Any
 
 import pytest
@@ -250,6 +251,12 @@ class TestBuildFunctionJsonSchema:
         schema = build_function_json_schema(fn)
         assert "kwargs" not in schema.get("properties", {})
 
+    def test_positional_only_rejected(self):
+        def fn(x: int, /, y: str): ...
+
+        with pytest.raises(ValueError, match="parameter 'x' is positional-only"):
+            build_function_json_schema(fn)
+
     def test_unannotated_param_included_as_any(self):
         def fn(x): ...
 
@@ -301,9 +308,15 @@ class TestBuildFunctionJsonSchema:
         assert "x" in schema["properties"]
         assert "x" not in schema.get("required", [])
 
-    def test_introspection_failure_returns_empty_schema(self):
-        # Built-in functions have no inspectable signature.
-        schema = build_function_json_schema(len)
+    def test_signature_failure_returns_empty_schema(self, monkeypatch):
+        def fn(x: int): ...
+
+        def raise_value_error(_):
+            raise ValueError("boom")
+
+        monkeypatch.setattr(inspect, "signature", raise_value_error)
+
+        schema = build_function_json_schema(fn)
         assert schema == _EMPTY_OBJECT_SCHEMA
 
     def test_callable_object_schema_from_call(self):
