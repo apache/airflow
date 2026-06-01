@@ -216,6 +216,10 @@ tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("generateJsonSchema2Pojo")
 }
 
+tasks.named("dokkaGeneratePublicationHtml") {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+}
+
 tasks.withType<Jar> {
     manifest {
         attributes(
