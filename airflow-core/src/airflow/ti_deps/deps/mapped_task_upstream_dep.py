@@ -49,8 +49,9 @@ class MappedTaskUpstreamDep(BaseTIDep):
     def _get_dep_statuses(
         self,
         ti: TaskInstance,
-        session: Session,
         dep_context: DepContext,
+        *,
+        session: Session,
     ) -> Iterator[TIDepStatus]:
         from airflow.models.taskinstance import TaskInstance
         from airflow.serialization.definitions.mappedoperator import is_mapped
@@ -103,6 +104,6 @@ class MappedTaskUpstreamDep(BaseTIDep):
                 new_state = TaskInstanceState.UPSTREAM_FAILED
             elif TaskInstanceState.SKIPPED in finished_states:
                 new_state = TaskInstanceState.SKIPPED
-            if new_state is not None and ti.set_state(new_state, session):
+            if new_state is not None and ti.set_state(new_state, session=session):
                 dep_context.have_changed_ti_states = True
         yield self._failing_status(reason="At least one of task's mapped dependencies has not succeeded!")

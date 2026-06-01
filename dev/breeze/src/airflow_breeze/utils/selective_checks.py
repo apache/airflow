@@ -116,6 +116,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_FILES = auto()
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
+    JAVA_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -214,15 +215,27 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.py",
-            r"^providers/.*\.py",
-            r"^pyproject.toml",
-            r"^hatch_build.py",
+            # Production Python source the runtime ships — excludes tests, docs,
+            # dev tooling, and generated files within those trees. Used by
+            # `run_python_scans` (SAST/SCA target) and the line-threshold check
+            # in `_is_large_enough_pr` to decide whether a PR's diff is large
+            # enough to force the full test matrix.
+            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
+            r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
+            r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
+            r"^providers/(?:[^/]+/)+src/.*\.py$",
+            r"^shared/[^/]+/src/.*\.py$",
+            r"^pyproject\.toml$",
+            r"^hatch_build\.py$",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.[jt]sx?",
-            r"^airflow-core/src/airflow/.*\.lock",
-            r"^airflow-core/src/airflow/ui/.*\.yaml$",
+            # Exclude the openapi-gen tree and translation bundles — those are
+            # generated / data files that ride under the same prefixes but
+            # carry no behavioral risk and would otherwise distort the
+            # production-code line-count gate.
+            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.[jt]sx?$",
+            r"^airflow-core/src/airflow/.*\.lock$",
+            r"^airflow-core/src/airflow/ui/(?!.*/(?:openapi-gen|i18n/locales)/).*\.yaml$",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_FILES: [
@@ -365,6 +378,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
+        ],
+        FileGroupForCi.JAVA_SDK_FILES: [
+            r"^java-sdk/",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -708,6 +724,12 @@ class SelectiveChecks:
 
         The heuristics are based on number of files changed and total lines changed,
         while excluding generated files which can be ignored.
+
+        The line-count check (``LINE_THRESHOLD``) only counts lines in production-code
+        files — tests, docs, newsfragments, generated files, translations, dev tooling,
+        and similar low-risk paths do not contribute to the line count. A 1000-line test
+        or docs PR is not the same shape of risk as a 1000-line change to scheduler
+        code, and only the latter should trigger the full test matrix.
         """
         FILE_THRESHOLD = 25
         LINE_THRESHOLD = 500
@@ -738,9 +760,24 @@ class SelectiveChecks:
             console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
             return False
 
+        # The line-count gate only counts churn in production code. We compose
+        # the existing `*_PRODUCTION_FILES` and helm groups rather than rolling
+        # a bespoke pattern set, so the definition of "production code" stays
+        # in lockstep with the rest of CI (e.g. SAST scans targeted by
+        # `run_python_scans` / `run_javascript_scans`).
+        production_files = list(
+            dict.fromkeys(
+                self._matching_files(FileGroupForCi.PYTHON_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
+                + self._matching_files(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
+                + self._matching_files(FileGroupForCi.HELM_FILES, CI_FILE_GROUP_MATCHES)
+            )
+        )
+        if not production_files:
+            return False
+
         try:
             result = run_command(
-                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
+                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + production_files,
                 capture_output=True,
                 text=True,
                 cwd=AIRFLOW_ROOT_PATH,
@@ -762,7 +799,8 @@ class SelectiveChecks:
                 if total_lines >= LINE_THRESHOLD:
                     console_print(
                         f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"in {files_changed} files[/]"
+                        f"of production code in {len(production_files)} file(s) "
+                        f"(of {files_changed} relevant file(s))[/]"
                     )
                     return True
         except Exception:
@@ -1008,6 +1046,10 @@ class SelectiveChecks:
     @cached_property
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
+
+    @cached_property
+    def run_java_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
@@ -1278,6 +1320,53 @@ class SelectiveChecks:
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
+    def _platform_excluded_providers(self) -> set[str]:
+        """Provider ids that opt out of the current ``self.platform`` via provider.yaml.
+
+        Mirrors the ``excluded-python-versions`` mechanism but keyed by Docker platform
+        string (e.g. ``linux/arm64``) so providers whose native dependencies are unavailable
+        on a given architecture can be removed from the test matrix at planning time.
+        """
+        excluded: set[str] = set()
+        for provider_id, provider_info in get_provider_dependencies().items():
+            if self.platform in provider_info.get("excluded-platforms", []):
+                excluded.add(provider_id)
+        return excluded
+
+    def _filter_platform_excluded_test_types(self, current_test_types: set[str]) -> None:
+        """Rewrite ``Providers[...]`` entries in-place to honor ``excluded-platforms``.
+
+        Handles three shapes produced upstream:
+
+        * ``Providers[foo]`` — dropped entirely when ``foo`` is excluded.
+        * ``Providers[a,foo,b]`` — rewritten to ``Providers[a,b]``; dropped if empty.
+        * ``Providers[-amazon,celery,google,standard]`` (negative, "all except") —
+          excluded providers are appended to the negation so they remain skipped.
+        """
+        excluded = self._platform_excluded_providers
+        if not excluded:
+            return
+        for original in tuple(current_test_types):
+            if not original.startswith("Providers[") or not original.endswith("]"):
+                continue
+            inner = original[len("Providers[") : -1]
+            if inner.startswith("-"):
+                negated = [p for p in inner[1:].split(",") if p]
+                additions = sorted(p for p in excluded if p not in negated)
+                if not additions:
+                    continue
+                current_test_types.remove(original)
+                current_test_types.add(f"Providers[-{','.join(sorted(negated + additions))}]")
+                continue
+            providers_in = [p for p in inner.split(",") if p]
+            kept = [p for p in providers_in if p not in excluded]
+            if kept == providers_in:
+                continue
+            current_test_types.remove(original)
+            if kept:
+                current_test_types.add(f"Providers[{','.join(kept)}]")
+
+    @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:
         if not self.run_unit_tests:
             return "[]"
@@ -1293,6 +1382,7 @@ class SelectiveChecks:
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
     def _get_individual_providers_list(self):
@@ -1302,6 +1392,7 @@ class SelectiveChecks:
             current_test_types.update(
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
+        self._filter_platform_excluded_test_types(current_test_types)
         return current_test_types
 
     @cached_property

@@ -74,7 +74,7 @@ class EdgeExecutor(BaseExecutor):
             self.team_name = None
 
     @provide_session
-    def start(self, session: Session = NEW_SESSION):
+    def start(self, *, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         check_db_manager_config()
         edge_db_manager = EdgeDBManager(session)
@@ -309,7 +309,7 @@ class EdgeExecutor(BaseExecutor):
         return purged_marker
 
     @provide_session
-    def sync(self, session: Session = NEW_SESSION) -> None:
+    def sync(self, *, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
         with Stats.timer("edge_executor.sync.duration"):
             orphaned = self._update_orphaned_jobs(session)

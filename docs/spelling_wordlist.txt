@@ -275,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -688,6 +689,7 @@ gdbm
 gdrive
 gelf
 gemini
+GenAI
 generateUploadUrl
 geq
 getattr
@@ -836,6 +838,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -864,6 +867,7 @@ iteratively
 iTerm
 iterm
 itertools
+Jaeger
 Jarek
 JavaCoordinator
 javascript
@@ -953,6 +957,8 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
+Langfuse
 LanguageServiceClient
 lastname
 latencies
@@ -1144,6 +1150,7 @@ openjdk
 openlineage
 OpenSearch
 opensearch
+OpenTelemetry
 oper
 OperatorLineage
 Opsgenie
@@ -1151,6 +1158,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1162,6 +1170,7 @@ oss
 ot
 OTel
 otel
+OTLP
 PaaS
 Pagerduty
 pagerduty
@@ -1571,6 +1580,7 @@ Stringified
 stringified
 stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed
