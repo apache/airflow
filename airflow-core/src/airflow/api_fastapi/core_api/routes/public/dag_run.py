@@ -363,7 +363,7 @@ def clear_dag_run(
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag_run_clear_bulk()), Depends(action_logging())],
 )
-def bulk_clear_dag_runs(
+def clear_dag_runs(
     dag_id: str,
     body: BulkDAGRunClearBody,
     dag_bag: DagBagDep,
@@ -373,8 +373,8 @@ def bulk_clear_dag_runs(
     """Clear multiple Dag Runs in a single request."""
     url_dag_id_is_wildcard = dag_id == "~"
 
-    seen_targets: set[tuple[str, str]] = set()
-    resolved_targets: list[tuple[str, str]] = []
+    # No ordered set type in Python, using a dict with throwaway values as replacement.
+    runs_to_clear: dict[tuple[str, str], None] = {}
     for run in body.dag_runs:
         if url_dag_id_is_wildcard:
             if not run.dag_id or run.dag_id == "~":
@@ -383,7 +383,7 @@ def bulk_clear_dag_runs(
                     f"When the URL dag_id is '~', every entry must provide a concrete dag_id "
                     f"(missing on dag_run_id: {run.dag_run_id!r}).",
                 )
-            target = (run.dag_id, run.dag_run_id)
+            run_to_clear = (run.dag_id, run.dag_run_id)
         else:
             entity_dag_id = run.dag_id or dag_id
             if entity_dag_id != dag_id:
@@ -391,14 +391,12 @@ def bulk_clear_dag_runs(
                     status.HTTP_400_BAD_REQUEST,
                     f"Entry dag_id {entity_dag_id!r} does not match the URL dag_id {dag_id!r}.",
                 )
-            target = (dag_id, run.dag_run_id)
-        if target not in seen_targets:
-            seen_targets.add(target)
-            resolved_targets.append(target)
+            run_to_clear = (dag_id, run.dag_run_id)
+        runs_to_clear[run_to_clear] = None
 
     if body.dry_run:
         affected: list[TaskInstanceResponse | NewTaskResponse] = []
-        for run_dag_id, run_id in resolved_targets:
+        for run_dag_id, run_id in runs_to_clear:
             get_dag_run_and_dag_for_clear(
                 session=session, dag_bag=dag_bag, dag_id=run_dag_id, dag_run_id=run_id
             )
@@ -418,7 +416,7 @@ def bulk_clear_dag_runs(
         )
 
     cleared_runs: list[DagRun] = []
-    for run_dag_id, run_id in resolved_targets:
+    for run_dag_id, run_id in runs_to_clear:
         dag_run, dag = get_dag_run_and_dag_for_clear(
             session=session, dag_bag=dag_bag, dag_id=run_dag_id, dag_run_id=run_id
         )
