@@ -48,7 +48,7 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
     These bundles reference a local directory containing Dag files. They are ideal for development and testing environments, but do not support versioning of the bundle, meaning tasks always run using the latest code.
 
 **airflow.providers.git.bundles.git.GitDagBundle**
-    These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository.
+    These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository. The `GitDagBundle` DOES support versioning.
 
 **airflow.providers.amazon.aws.bundles.s3.S3DagBundle**
     These bundles reference an S3 bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
@@ -61,16 +61,95 @@ Configuring Dag bundles
 
 Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list`. You can add one or more Dag bundles here.
 
-By default, Airflow adds a local Dag bundle, which is the same as the old Dags folder. This is done for backwards compatibility, and you can remove it if you do not want to use it. You can also keep it and add other Dag bundles, such as a git Dag bundle.
-
-For example, adding multiple Dag bundles to your ``airflow.cfg`` file:
+By default, Airflow adds a ``LocalDagBundle`` pointing at the configured Dags folder, maintaining the same behaviour as Airflow 2's Dags folder. The only kwarg is ``path``, which defaults to the value of :ref:`config:core__dags_folder` when omitted:
 
 .. code-block:: ini
 
     [dag_processor]
     dag_bundle_config_list = [
         {
-          "name": "my_git_repo",
+          "name": "dags-folder",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {
+            "path": "/opt/airflow/dags"
+          }
+        }
+      ]
+
+.. note::
+
+    ``LocalDagBundle`` does not support versioning. Tasks always run against the latest code on disk.
+
+For a Git Dag bundle, the only required kwarg is ``tracking_ref`` (a branch, tag, or commit SHA). Use ``git_conn_id`` to reference an Airflow connection that holds the repository credentials, or supply ``repo_url`` directly. You can also narrow the checkout to a subdirectory with ``subdir``, or use ``sparse_dirs`` to enable a sparse checkout of specific directories:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_git_bundle",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+          "kwargs": {
+            "tracking_ref": "main",
+            "git_conn_id": "my_git_conn"
+          }
+        }
+      ]
+
+.. note::
+
+    ``GitDagBundle`` supports versioning. Each Dag run records the Git commit it was created with, allowing reruns to use the exact same code even if the repository has since been updated.
+
+For an S3 Dag bundle, the required kwarg is ``bucket_name``. You can optionally set ``aws_conn_id`` (defaults to ``aws_default``) and ``prefix`` to scope the bundle to a subdirectory within the bucket:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_s3_dag_bundle",
+          "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+          "kwargs": {
+            "bucket_name": "my-airflow-dags-bucket",
+            "prefix": "dags/",
+            "aws_conn_id": "my_aws_conn"
+          }
+        }
+      ]
+
+.. note::
+
+    ``S3DagBundle`` does not support versioning. Tasks always run against the latest code in the bucket.
+
+For a GCS Dag bundle, the required kwarg is ``bucket_name``. You can optionally set ``gcp_conn_id`` (defaults to ``google_cloud_default``) and ``prefix`` to scope the bundle to a subdirectory within the bucket:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_gcs_dag_bundle",
+          "classpath": "airflow.providers.google.cloud.bundles.gcs.GCSDagBundle",
+          "kwargs": {
+            "bucket_name": "my-airflow-dags-bucket",
+            "prefix": "dags/",
+            "gcp_conn_id": "my_gcs_conn"
+          }
+        }
+      ]
+
+.. note::
+
+    ``GCSDagBundle`` does not support versioning. Tasks always run against the latest code in the bucket.
+
+You can combine multiple bundle types in a single deployment. The default ``LocalDagBundle`` can be removed if you no longer need it, or kept alongside other bundles:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_git_bundle",
           "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
           "kwargs": {"tracking_ref": "main", "git_conn_id": "my_git_conn"}
         },
