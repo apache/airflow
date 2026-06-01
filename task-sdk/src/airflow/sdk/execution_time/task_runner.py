@@ -137,6 +137,7 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
+from airflow.sdk.serde import allow_class, iter_pydantic_models
 from airflow.sdk.state import TaskScope
 from airflow.sdk.timezone import coerce_datetime
 
@@ -833,6 +834,42 @@ def _maybe_reschedule_startup_failure(
     )
 
 
+def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
+    """
+    Register every operator-declared XCom model class in the deserialization allow-list.
+
+    Runs once per task-run startup, walking the whole DAG, so a consumer task can
+    deserialize a producer's structured output even though only the producer
+    constructs the value. Reads the declared classes off real operators
+    (``getattr``) and off not-yet-expanded mapped operators (``partial_kwargs``),
+    and works regardless of how the DAG was loaded -- a fresh parse, or a cache
+    that reconstructs operators without running ``__init__``.
+
+    Failures to register a single class are logged and skipped rather than failing
+    task startup; a genuinely undeserializable declaration surfaces later as the
+    normal allow-list ImportError at consume time.
+    """
+    for op in dag.tasks:
+        if isinstance(op, MappedOperator):
+            fields = getattr(op.operator_class, "deserialization_allowed_class_fields", ())
+            values = [op.partial_kwargs.get(field) for field in fields]
+        else:
+            fields = getattr(op, "deserialization_allowed_class_fields", ())
+            values = [getattr(op, field, None) for field in fields]
+        for value in values:
+            if value is None:
+                continue
+            for model_cls in iter_pydantic_models(value):
+                try:
+                    allow_class(model_cls)
+                except ValueError as exc:
+                    log.warning(
+                        "Skipping XCom deserialization registration for a model class",
+                        task_id=op.task_id,
+                        error=str(exc),
+                    )
+
+
 @detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -890,6 +927,12 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
+
+    # Register operator-declared XCom model classes (e.g. ``output_type``) for
+    # the whole DAG so this task can deserialize structured output produced by
+    # any other task -- including mapped producers and DAGs loaded from a cache
+    # that bypasses operator ``__init__``.
+    _register_deserialization_allowed_classes(dag, log)
 
     # Surface the post-RUNNING startup breakdown so support engineers and DAG authors can
     # attribute apparent slow startup to bundle prep (Airflow-side, e.g. git fetch) vs.

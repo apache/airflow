@@ -18,51 +18,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.utils.output_type import (
-    iter_base_model_classes,
-    rehydrate_pydantic_output,
-)
+from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 
 
 class A(BaseModel):
     x: int
-
-
-class B(BaseModel):
-    y: str
-
-
-class C(BaseModel):
-    z: float
-
-
-class TestIterBaseModelClasses:
-    def test_single_class(self):
-        assert set(iter_base_model_classes(A)) == {A}
-
-    def test_str_skipped(self):
-        assert set(iter_base_model_classes(str)) == set()
-
-    def test_optional(self):
-        assert set(iter_base_model_classes(A | None)) == {A}
-
-    def test_union(self):
-        assert set(iter_base_model_classes(A | B)) == {A, B}
-
-    def test_list_of_models(self):
-        assert set(iter_base_model_classes(list[A])) == {A}
-
-    def test_dict_with_model_values(self):
-        assert set(iter_base_model_classes(dict[str, A])) == {A}
-
-    def test_nested_union_list_optional(self):
-        assert set(iter_base_model_classes(list[A | B | None])) == {A, B}
-
-    def test_mixed_with_primitives(self):
-        assert set(iter_base_model_classes(A | str | int | B)) == {A, B}
-
-    def test_three_models(self):
-        assert set(iter_base_model_classes(A | B | C)) == {A, B, C}
 
 
 class TestRehydratePydanticOutput:
