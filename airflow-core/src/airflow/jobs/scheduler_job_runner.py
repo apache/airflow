@@ -2853,6 +2853,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(DagRun.state == DagRunState.RUNNING)
                         .options(
                             load_only(
+                                TI.id,
                                 TI.dag_id,
                                 TI.task_id,
                                 TI.run_id,
