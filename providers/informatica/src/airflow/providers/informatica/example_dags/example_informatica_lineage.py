@@ -68,6 +68,12 @@ What this DAG demonstrates
   ``[informatica] disabled_for_operators`` in the example config block
   (commented out here; uncomment to test).
 
+* **Strict pre-execution validation (task: compute_customer_ltv)**
+  ``pre_execute=validate_informatica_lineage`` is set on the operator so
+  that the task fails **before** ``execute()`` if any inlet/outlet URI
+  cannot be resolved in the EDC catalog.  Without ``pre_execute``, the
+  listener logs a warning but does not block execution.
+
 * **Generic transfer with explicit target table (task: build_customer_segment_snapshot_generic)**
     A complex ``CTE``-based ``SELECT`` is executed by ``GenericTransfer`` and loaded
     into ``destination_table='customer_segment_snapshot'``.
@@ -88,6 +94,7 @@ from airflow.models.dag import DAG
 from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.informatica.lineage import disable_informatica_lineage
+from airflow.providers.informatica.lineage.validation import validate_informatica_lineage
 from airflow.sdk import Asset
 
 task_logger = logging.getLogger("airflow.task")
@@ -150,12 +157,15 @@ with DAG(
     )
 
     # ------------------------------------------------------------------
-    # Task 2 — MANUAL LINEAGE
+    # Task 2 — MANUAL LINEAGE + STRICT PRE-EXECUTE VALIDATION
     # Inlets/outlets are declared explicitly; auto-detection is skipped.
+    # pre_execute=validate_informatica_lineage fails the task *before*
+    # execute() if any URI cannot be resolved in the EDC catalog.
     # ------------------------------------------------------------------
     compute_customer_ltv = SQLExecuteQueryOperator(
         task_id="compute_customer_ltv",
         conn_id=_PG_CONN,
+        pre_execute=validate_informatica_lineage,
         sql="""
             INSERT INTO customer_ltv (
                 customer_id,

@@ -36,7 +36,7 @@ Features
 
 * ``Add automatic SQL lineage detection via sqlglot for SQL operators``
 * ``Add per-task and per-DAG selective lineage control with disable/enable helpers``
-* ``Refactor listener to two-phase model with fail-fast pre-validation before task execution``
+* ``Refactor lineage validation into shared logic: best-effort listener resolution plus optional strict pre_execute validation``
 * ``Add disabled_for_operators, auto_lineage_enabled, and request_timeout config options``
 * ``Add example DAG demonstrating auto, manual, disabled, and operator-excluded lineage modes``
 

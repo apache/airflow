@@ -86,6 +86,27 @@ Example:
 Timeout in seconds applied to every HTTP request made to the EDC REST API.
 Increase this value for slow or high-latency networks.
 
+Strict Pre-execute Validation
+-----------------------------
+
+Listener hooks are best-effort by default. If lineage objects cannot be resolved,
+the listener logs a warning and task execution continues.
+
+To fail a task before ``execute()`` when lineage resolution fails, set
+``pre_execute=validate_informatica_lineage`` on the operator:
+
+.. code-block:: python
+
+    from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+    from airflow.providers.informatica.lineage.validation import validate_informatica_lineage
+
+    task = SQLExecuteQueryOperator(
+        task_id="transform",
+        conn_id="postgres_default",
+        sql="INSERT INTO dst SELECT * FROM src",
+        pre_execute=validate_informatica_lineage,
+    )
+
 Per-task Selective Lineage
 --------------------------
 

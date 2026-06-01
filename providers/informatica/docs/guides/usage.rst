@@ -26,15 +26,17 @@ How It Works
 
 The Informatica plugin automatically detects tasks with lineage support and sends inlet/outlet information to Informatica EDC when tasks succeed. No additional configuration is required beyond defining inlets and outlets in your tasks.
 
+Lineage resolution in listener hooks is best-effort by default: resolution errors are logged as warnings and task execution continues. For strict behavior that fails a task before ``execute()`` when lineage cannot be resolved, set ``pre_execute=validate_informatica_lineage`` on that operator.
+
 Key Features
 ------------
 
-- **Manual Lineage**: Explicitly declare inlets and outlets using EDC object URIs — the provider validates each URI against the catalog before the task executes and creates the lineage links on success.
+- **Manual Lineage**: Explicitly declare inlets and outlets using EDC object URIs. By default, resolution is attempted in listeners and warnings are logged if objects cannot be resolved.
 - **Automatic SQL Lineage**: When ``auto_lineage_enabled = True`` (the default), the provider parses the ``sql`` attribute of SQL operators, resolves detected tables in the Informatica catalog, and creates lineage links automatically.  Supported SQL dialects include PostgreSQL, MySQL, Snowflake, BigQuery, Databricks, Redshift, SQLite, Oracle, Trino, Presto, Hive, Spark, and MSSQL.
 - **Lineage Priority**: Manual inlets/outlets always take precedence over automatic SQL lineage.  If a task has any inlets or outlets defined, SQL parsing is skipped entirely.
 - **Per-task Control**: Disable or re-enable automatic lineage per task or per DAG using :func:`~airflow.providers.informatica.lineage.disable_informatica_lineage` and :func:`~airflow.providers.informatica.lineage.enable_informatica_lineage`.
 - **Operator Exclusion**: Exclude entire operator classes via ``disabled_for_operators`` in ``airflow.cfg``.
-- **Fail-fast Validation**: Unresolvable URIs or tables fail the task *before* execution begins, preventing silent lineage gaps.
+- **Optional Fail-fast Validation**: For tasks that must enforce lineage integrity, use ``pre_execute=validate_informatica_lineage`` so unresolvable URIs or tables fail the task *before* execution begins.
 - **EDC Integration**: Native REST API integration with Informatica Enterprise Data Catalog.
 - **Configurable**: Extensive configuration options for different environments
 
@@ -156,7 +158,23 @@ automatic SQL lineage.
        )
 
 When this task succeeds, the provider creates a lineage link between the source and target
-objects in EDC.  URIs that cannot be resolved in the catalog fail the task before execution.
+objects in EDC.
+
+By default, unresolvable URIs are logged as warnings by listener hooks and do not block task
+execution.  To fail the task before ``execute()`` when lineage resolution fails, set
+``pre_execute=validate_informatica_lineage``:
+
+.. code-block:: python
+
+   from airflow.providers.informatica.lineage.validation import validate_informatica_lineage
+
+   task = PythonOperator(
+       task_id="transform",
+       python_callable=my_python_task,
+       inlets=[Asset("edc://object/source_table_abc123")],
+       outlets=[Asset("edc://object/target_table_xyz789")],
+       pre_execute=validate_informatica_lineage,
+   )
 
 Selective Lineage Control
 -------------------------

@@ -20,11 +20,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.listeners import hookimpl
-from airflow.providers.informatica.conf import auto_lineage_enabled, is_operator_disabled
 from airflow.providers.informatica.extractors import InformaticaLineageExtractor
-from airflow.providers.informatica.hooks.edc import InformaticaEDCError, InformaticaEDCHook
-from airflow.providers.informatica.lineage.resolver import get_resolver
-from airflow.providers.informatica.lineage.selective import is_task_auto_lineage_disabled
+from airflow.providers.informatica.hooks.edc import InformaticaEDCError
+from airflow.providers.informatica.lineage.validation import (
+    InformaticaLineageResolutionError,
+    pop_pre_execute_result,
+    resolve_informatica_lineage,
+    resolve_uri_to_object_id,
+)
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -32,34 +35,15 @@ if TYPE_CHECKING:
 
 _informatica_listener: InformaticaListener | None = None
 
+# Re-export for backward compatibility.
+__all__ = [
+    "InformaticaLineageResolutionError",
+    "InformaticaListener",
+    "get_informatica_listener",
+]
 
-class InformaticaLineageResolutionError(RuntimeError):
-    """Raised when an EDC object cannot be resolved for a lineage URI."""
-
-
-def _resolve_uri_to_object_id(hook: InformaticaLineageExtractor, uri: str) -> str:
-    """
-    Resolve an EDC lineage URI to an Informatica catalog object ID.
-
-    Manual lineage entries are treated as concrete object identifiers/URIs.
-    They are validated directly via ``get_object`` instead of being reparsed
-    and looked up again with ``find_object_id``.
-    """
-    log = logging.getLogger(__name__)
-    try:
-        obj = hook.get_object(uri)
-    except InformaticaEDCError as exc:
-        raise InformaticaLineageResolutionError(
-            f"Failed to resolve EDC object for URI {uri!r}: {exc}"
-        ) from exc
-
-    object_id = obj.get("id") if isinstance(obj, dict) else None
-    if not object_id:
-        raise InformaticaLineageResolutionError(
-            f"Could not resolve EDC object for URI {uri!r}. Ensure the object exists in the Informatica catalog."
-        )
-    log.debug("Resolved URI %r to EDC object_id=%s", uri, object_id)
-    return object_id
+# Backward-compatible alias.
+_resolve_uri_to_object_id = resolve_uri_to_object_id
 
 
 class InformaticaListener:
@@ -67,6 +51,8 @@ class InformaticaListener:
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
+        from airflow.providers.informatica.hooks.edc import InformaticaEDCHook
+
         self.hook = InformaticaLineageExtractor(edc_hook=InformaticaEDCHook())
         # Cache: _cache_key(ti) -> (valid_inlets, valid_outlets)
         # Populated by on_task_instance_running (pre-validation), consumed by
@@ -111,62 +97,58 @@ class InformaticaListener:
         self, previous_state: TaskInstanceState, task_instance: TaskInstance, *args, **kwargs
     ):
         """
-        Validate and pre-resolve all inlet/outlet URIs before the task executes.
+        Best-effort pre-resolution of inlet/outlet URIs before task execution.
 
-        Raises :class:`InformaticaLineageResolutionError` if any URI or table cannot
-        be resolved in the Informatica catalog.  This causes Airflow to fail the task
-        immediately - before the operator ``execute()`` is called.
+        Resolved pairs are cached so ``on_task_instance_success`` can create
+        lineage links without making a second round of EDC calls.
 
-        Resolved pairs are cached so ``on_task_instance_success`` can create lineage
-        links without making a second round of EDC calls.
+        .. note::
+
+            Exceptions raised inside listener hooks are caught and logged by
+            the Airflow task runner — they do **not** fail the task.  To fail
+            the task when lineage URIs cannot be resolved, use
+            :func:`~airflow.providers.informatica.lineage.validation.validate_informatica_lineage`
+            as a ``pre_execute`` hook on the operator instead.
         """
         task = getattr(task_instance, "task", None)
         if not task:
             return
 
-        self.log.debug("Pre-validating lineage for task %s", task_instance.task_id)
+        task_id = task_instance.task_id
 
-        if is_operator_disabled(task):
+        # If validate_informatica_lineage was already called via pre_execute,
+        # reuse its cached result instead of calling EDC again.
+        key = self._cache_key(task_instance)
+        pre_exec_result = pop_pre_execute_result(key)
+        if pre_exec_result is not None:
+            self._resolved_cache[key] = pre_exec_result
             self.log.debug(
-                "Lineage disabled for operator %s - skipping",
-                type(task).__name__,
+                "Reusing pre_execute cache for task %s: %d inlet(s), %d outlet(s)",
+                task_id,
+                len(pre_exec_result[0]),
+                len(pre_exec_result[1]),
             )
             return
 
-        inlets = getattr(task, "inlets", getattr(task_instance, "inlets", []))
-        outlets = getattr(task, "outlets", getattr(task_instance, "outlets", []))
+        self.log.debug("Pre-resolving lineage for task %s", task_id)
 
-        if inlets or outlets:
-            # Manual lineage - strict: any unresolvable URI fails the task immediately.
-            valid_inlets = self._resolve_uris_strict(inlets, "inlet", task_instance.task_id)
-            valid_outlets = self._resolve_uris_strict(outlets, "outlet", task_instance.task_id)
-        elif auto_lineage_enabled() and not is_task_auto_lineage_disabled(task):
-            # Auto-lineage - parse SQL, then strictly resolve every detected table.
-            resolver = get_resolver(task)
-            if resolver is not None:
-                result = resolver.resolve(task)
-                if result is not None:
-                    source_refs, target_refs = result
-                    self.log.info(
-                        "Auto-lineage detected %d source(s) and %d target(s) for task %s",
-                        len(source_refs),
-                        len(target_refs),
-                        task_instance.task_id,
-                    )
-                    valid_inlets = self._resolve_table_refs_strict(source_refs, task_instance.task_id)
-                    valid_outlets = self._resolve_table_refs_strict(target_refs, task_instance.task_id)
-                else:
-                    valid_inlets, valid_outlets = [], []
-            else:
-                valid_inlets, valid_outlets = [], []
-        else:
-            valid_inlets, valid_outlets = [], []
+        try:
+            valid_inlets, valid_outlets = resolve_informatica_lineage(task, task_id, hook=self.hook)
+        except (InformaticaLineageResolutionError, InformaticaEDCError):
+            self.log.warning(
+                "Could not pre-resolve lineage for task %s - "
+                "lineage links will not be created on success. "
+                "To fail the task on resolution errors, use "
+                "pre_execute=validate_informatica_lineage on the operator.",
+                task_id,
+                exc_info=True,
+            )
+            return
 
-        # Cache so on_task_instance_success can create links without re-calling EDC.
-        self._resolved_cache[self._cache_key(task_instance)] = (valid_inlets, valid_outlets)
+        self._resolved_cache[key] = (valid_inlets, valid_outlets)
         self.log.info(
-            "Pre-validation complete for task %s: %d inlet(s), %d outlet(s) resolved",
-            task_instance.task_id,
+            "Pre-resolution complete for task %s: %d inlet(s), %d outlet(s) resolved",
+            task_id,
             len(valid_inlets),
             len(valid_outlets),
         )
@@ -185,62 +167,6 @@ class InformaticaListener:
                     self.log.info("Lineage link created: %s -> %s", inlet_id, outlet_id)
                 except InformaticaEDCError:
                     self.log.exception("Failed to create lineage link from %s to %s", inlet_id, outlet_id)
-
-    def _resolve_uris_strict(self, items: list, role: str, task_id: str) -> list[tuple[str, str]]:
-        """
-        Resolve URI items to (uri, edc_object_id) tuples.
-
-        Raises :class:`InformaticaLineageResolutionError` on the first URI that
-        cannot be resolved so the task is failed before execution begins.
-        """
-        result: list[tuple[str, str]] = []
-        for item in items:
-            if isinstance(item, dict) and "dataset_uri" in item:
-                uri = item["dataset_uri"]
-            elif isinstance(item, str):
-                uri = item
-            elif hasattr(item, "uri") and isinstance(item.uri, str):
-                # Support Asset / Dataset objects (and any object with a .uri attribute).
-                uri = item.uri
-            else:
-                raise InformaticaLineageResolutionError(
-                    f"Invalid {role} entry for task {task_id!r}: expected a URI string, "
-                    f"dict with 'dataset_uri', or an Asset object, got {type(item).__name__!r}."
-                )
-            # Raises InformaticaLineageResolutionError if not found - fails the task.
-            object_id = _resolve_uri_to_object_id(self.hook, uri)
-            result.append((uri, object_id))
-        return result
-
-    def _resolve_table_refs_strict(self, refs: list, task_id: str) -> list[tuple[str, str]]:
-        """
-        Resolve TableRef objects to (table_label, edc_object_id) tuples.
-
-        Calls ``find_object_id`` which searches EDC by table name and narrows by
-        schema/database when multiple results are returned.  Raises
-        :class:`InformaticaLineageResolutionError` on the first unresolvable table
-        so the task is failed before execution begins.
-        """
-        result: list[tuple[str, str]] = []
-        for ref in refs:
-            catalog = ref.database or ""
-            schema = ref.schema or ""
-            table = ref.table
-            try:
-                object_id = self.hook.find_object_id(catalog, schema, table)
-            except InformaticaEDCError as e:
-                raise InformaticaLineageResolutionError(
-                    f"EDC error while resolving table {table!r} "
-                    f"(catalog={catalog!r}, schema={schema!r}) for task {task_id!r}: {e}"
-                ) from e
-            if not object_id:
-                raise InformaticaLineageResolutionError(
-                    f"Could not resolve EDC object for table {table!r} "
-                    f"(catalog={catalog!r}, schema={schema!r}) in task {task_id!r}. "
-                    "Ensure the table is registered in the Informatica catalog."
-                )
-            result.append((f"{catalog}/{schema}/{table}", object_id))
-        return result
 
 
 def get_informatica_listener() -> InformaticaListener:
