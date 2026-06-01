@@ -616,23 +616,23 @@ class TestTaskInstanceOperations:
         )
         assert result.count == 10
 
-    def test_get_task_states_basic(self):
-        """Test basic get_task_states functionality with just dag_id."""
+    def test_get_task_stores_basic(self):
+        """Test basic get_task_stores functionality with just dag_id."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/task-instances/states"
             assert request.url.params.get("dag_id") == "test_dag"
             assert request.url.params.get("task_group_id") == "group1"
             return httpx.Response(
-                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+                200, json={"task_stores": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_instances.get_task_states(dag_id="test_dag", task_group_id="group1")
-        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+        result = client.task_instances.get_task_stores(dag_id="test_dag", task_group_id="group1")
+        assert result.task_stores == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
-    def test_get_task_states_with_all_params(self):
-        """Test get_task_states with all optional parameters."""
+    def test_get_task_stores_with_all_params(self):
+        """Test get_task_stores with all optional parameters."""
 
         logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
         logical_dates = [timezone.parse(d) for d in logical_dates_str]
@@ -648,17 +648,17 @@ class TestTaskInstanceOperations:
             assert params.get_list("run_ids") == []
             assert params.get("map_index") == "0"
             return httpx.Response(
-                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+                200, json={"task_stores": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_instances.get_task_states(
+        result = client.task_instances.get_task_stores(
             dag_id="test_dag",
             map_index=0,
             task_group_id="group1",
             logical_dates=logical_dates,
         )
-        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+        assert result.task_stores == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
     def test_get_previous_basic(self):
         """Test basic get_previous functionality."""
@@ -1795,7 +1795,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=400)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.get(ti_id=self.TI_ID, key="job_id")
+        result = client.task_store.get(ti_id=self.TI_ID, key="job_id")
 
         assert isinstance(result, TaskStoreResponse)
         assert result.value == "spark_app_001"
@@ -1808,9 +1808,9 @@ class TestTaskStateOperations:
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.get(ti_id=self.TI_ID, key="job_id")
+        result = client.task_store.get(ti_id=self.TI_ID, key="job_id")
         assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.TASK_STATE_NOT_FOUND
+        assert result.error == ErrorType.task_store_NOT_FOUND
 
     def test_set_success(self):
         expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
@@ -1822,7 +1822,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(
+        result = client.task_store.set(
             ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
         assert result == OKResponse(ok=True)
@@ -1838,7 +1838,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(
+        result = client.task_store.set(
             ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
         assert result == OKResponse(ok=True)
@@ -1852,7 +1852,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(
+        result = client.task_store.set(
             ti_id=self.TI_ID,
             key="job_id",
             value="v",
@@ -1867,7 +1867,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.delete(ti_id=self.TI_ID, key="job_id")
+        result = client.task_store.delete(ti_id=self.TI_ID, key="job_id")
         assert result == OKResponse(ok=True)
 
     def test_clear_default_no_query_param(self):
@@ -1878,7 +1878,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.clear(ti_id=self.TI_ID)
+        result = client.task_store.clear(ti_id=self.TI_ID)
         assert result == OKResponse(ok=True)
 
     def test_clear_all_map_indices_sends_query_param(self):
@@ -1887,7 +1887,7 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.clear(ti_id=self.TI_ID, all_map_indices=True)
+        result = client.task_store.clear(ti_id=self.TI_ID, all_map_indices=True)
         assert result == OKResponse(ok=True)
 
 
@@ -1903,7 +1903,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=400)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.get(key="watermark", name="test_asset")
+        result = client.asset_store.get(key="watermark", name="test_asset")
 
         assert isinstance(result, AssetStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
@@ -1919,7 +1919,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=400)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.get(key="watermark", uri="s3://bucket/key")
+        result = client.asset_store.get(key="watermark", uri="s3://bucket/key")
 
         assert isinstance(result, AssetStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
@@ -1932,9 +1932,9 @@ class TestAssetStateOperations:
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.get(key="watermark", name="test_asset")
+        result = client.asset_store.get(key="watermark", name="test_asset")
         assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.ASSET_STATE_NOT_FOUND
+        assert result.error == ErrorType.asset_store_NOT_FOUND
 
     def test_set_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1946,7 +1946,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.set(key="watermark", value="2026-04-30T00:00:00Z", name="test_asset")
+        result = client.asset_store.set(key="watermark", value="2026-04-30T00:00:00Z", name="test_asset")
         assert result == OKResponse(ok=True)
 
     def test_set_by_uri_success(self):
@@ -1958,7 +1958,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.set(key="watermark", value="2026-04-30T00:00:00Z", uri="s3://bucket/key")
+        result = client.asset_store.set(key="watermark", value="2026-04-30T00:00:00Z", uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
 
     def test_delete_by_name_success(self):
@@ -1970,7 +1970,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.delete(key="watermark", name="test_asset")
+        result = client.asset_store.delete(key="watermark", name="test_asset")
         assert result == OKResponse(ok=True)
 
     def test_delete_by_uri_success(self):
@@ -1982,7 +1982,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.delete(key="watermark", uri="s3://bucket/key")
+        result = client.asset_store.delete(key="watermark", uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
 
     def test_clear_by_name_success(self):
@@ -1993,7 +1993,7 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.clear(name="test_asset")
+        result = client.asset_store.clear(name="test_asset")
         assert result == OKResponse(ok=True)
 
     def test_clear_by_uri_success(self):
@@ -2004,5 +2004,5 @@ class TestAssetStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.clear(uri="s3://bucket/key")
+        result = client.asset_store.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
