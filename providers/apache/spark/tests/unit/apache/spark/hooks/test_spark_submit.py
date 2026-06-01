@@ -21,6 +21,7 @@ import base64
 import os
 from io import StringIO
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
@@ -206,6 +207,19 @@ class TestSparkSubmitHook:
                 host="yarn",
                 extra=(
                     '{"deploy-mode": "cluster", "yarn_resourcemanager_webapp_address": "http://rm.test:8088"}'
+                ),
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_yarn_rm_kerberos",
+                conn_type="spark",
+                host="yarn",
+                extra=(
+                    '{"deploy-mode": "cluster", '
+                    '"yarn_resourcemanager_webapp_address": "http://rm.test:8088", '
+                    '"principal": "airflow@EXAMPLE.COM", '
+                    '"keytab": "cHJpdmlsZWdlZF91c2VyLmtleXRhYg=="}'
                 ),
             )
         )
@@ -1671,7 +1685,7 @@ class TestSparkSubmitHook:
     @pytest.mark.parametrize("use_auth", [False, True])
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
     def test_yarn_status_query_passes_auth_to_requests(self, mock_get, use_auth):
-        """yarn_rm_auth is passed to requests.get, including the default None."""
+        """Explicit yarn_rm_auth is passed to requests.get, including the default None."""
 
         class _SentinelAuth(requests.auth.AuthBase):
             def __call__(self, r):
@@ -1688,6 +1702,77 @@ class TestSparkSubmitHook:
         hook._query_yarn_application_status(self._RM_APP_ID)
 
         assert mock_get.call_args.kwargs["auth"] is auth
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_query_uses_kerberos_auth_from_connection(self, mock_get):
+        """Connection keytab + principal auto-enable HTTPKerberosAuth for RM requests."""
+
+        class _SentinelKerberosAuth(requests.auth.AuthBase):
+            def __call__(self, r):
+                return r
+
+        requests_kerberos = ModuleType("requests_kerberos")
+        requests_kerberos.HTTPKerberosAuth = _SentinelKerberosAuth
+        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
+
+        with (
+            patch.object(
+                SparkSubmitHook,
+                "_create_keytab_path_from_base64_keytab",
+                return_value="privileged_user.keytab",
+            ),
+            patch.dict("sys.modules", {"requests_kerberos": requests_kerberos}),
+        ):
+            hook = SparkSubmitHook(conn_id="spark_yarn_rm_kerberos", yarn_track_via_rm_api=True)
+            hook._query_yarn_application_status(self._RM_APP_ID)
+
+        assert isinstance(mock_get.call_args.kwargs["auth"], _SentinelKerberosAuth)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_query_prefers_provided_auth_over_kerberos_connection(self, mock_get):
+        """Explicit yarn_rm_auth stays an escape hatch even when Kerberos is configured."""
+
+        class _SentinelAuth(requests.auth.AuthBase):
+            def __call__(self, r):
+                return r
+
+        auth = _SentinelAuth()
+        mock_get.return_value = self._rm_status_resp("SUCCEEDED")
+
+        with (
+            patch.object(
+                SparkSubmitHook,
+                "_create_keytab_path_from_base64_keytab",
+                return_value="privileged_user.keytab",
+            ),
+            patch.dict("sys.modules", {"requests_kerberos": None}),
+        ):
+            hook = SparkSubmitHook(
+                conn_id="spark_yarn_rm_kerberos",
+                yarn_track_via_rm_api=True,
+                yarn_rm_auth=auth,
+            )
+            hook._query_yarn_application_status(self._RM_APP_ID)
+
+        assert mock_get.call_args.kwargs["auth"] is auth
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_yarn_status_tracking_fails_before_submit_when_kerberos_auth_dependency_missing(self, mock_popen):
+        """Kerberos RM tracking requires requests-kerberos before spark-submit starts."""
+        with patch.object(
+            SparkSubmitHook,
+            "_create_keytab_path_from_base64_keytab",
+            return_value="privileged_user.keytab",
+        ):
+            hook = SparkSubmitHook(conn_id="spark_yarn_rm_kerberos", yarn_track_via_rm_api=True)
+
+        with (
+            patch.dict("sys.modules", {"requests_kerberos": None}),
+            pytest.raises(RuntimeError, match="requests-kerberos"),
+        ):
+            hook.submit()
+
+        mock_popen.assert_not_called()
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_yarn_status_tracking_fails_before_submit_when_rm_url_missing(self, mock_popen):
@@ -1753,6 +1838,32 @@ class TestSparkSubmitHook:
         assert call_obj.args[0] == self._rm_kill_url()
         assert call_obj.kwargs["json"] == {"state": "KILLED"}
         assert call_obj.kwargs["auth"] is sentinel
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.put")
+    def test_on_kill_uses_kerberos_auth_from_connection(self, mock_put):
+        """Connection keytab + principal auto-enable HTTPKerberosAuth for RM kill requests."""
+
+        class _SentinelKerberosAuth(requests.auth.AuthBase):
+            def __call__(self, r):
+                return r
+
+        requests_kerberos = ModuleType("requests_kerberos")
+        requests_kerberos.HTTPKerberosAuth = _SentinelKerberosAuth
+        mock_put.return_value = MagicMock(spec=requests.Response, status_code=202)
+
+        with (
+            patch.object(
+                SparkSubmitHook,
+                "_create_keytab_path_from_base64_keytab",
+                return_value="privileged_user.keytab",
+            ),
+            patch.dict("sys.modules", {"requests_kerberos": requests_kerberos}),
+        ):
+            hook = SparkSubmitHook(conn_id="spark_yarn_rm_kerberos", yarn_track_via_rm_api=True)
+            hook._yarn_application_id = self._RM_APP_ID
+            hook.on_kill()
+
+        assert isinstance(mock_put.call_args.kwargs["auth"], _SentinelKerberosAuth)
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.put")
     def test_on_kill_tolerates_rm_failure(self, mock_put):

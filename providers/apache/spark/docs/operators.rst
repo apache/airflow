@@ -252,13 +252,16 @@ the application is submitted:
         yarn_track_via_rm_api=True,
     )
 
-Kerberized clusters also need an authentication object for the ResourceManager REST requests.
-Install ``requests-kerberos`` in the Airflow environment and pass ``HTTPKerberosAuth()`` via
-``yarn_rm_auth``:
+For Kerberized clusters, install ``requests-kerberos`` in the Airflow environment. When the
+Spark connection has both ``keytab`` and ``principal`` configured, Airflow automatically uses
+``HTTPKerberosAuth()`` for the ResourceManager REST requests.
+
+Use ``yarn_rm_auth`` only when the ResourceManager needs a custom ``requests`` authentication
+object:
 
 .. code-block:: python
 
-    from requests_kerberos import HTTPKerberosAuth
+    import requests
 
     SparkSubmitOperator(
         task_id="spark_pi",
@@ -267,5 +270,5 @@ Install ``requests-kerberos`` in the Airflow environment and pass ``HTTPKerberos
         java_class="org.apache.spark.examples.SparkPi",
         deploy_mode="cluster",
         yarn_track_via_rm_api=True,
-        yarn_rm_auth=HTTPKerberosAuth(),
+        yarn_rm_auth=requests.auth.HTTPBasicAuth("user", "password"),
     )

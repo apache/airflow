@@ -28,6 +28,7 @@ import tempfile
 import time
 import uuid
 from collections.abc import Iterator
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -125,9 +126,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         the switch to polling. Defaults to ``False``.
     :param yarn_rm_auth: Optional ``requests.auth.AuthBase`` instance used for
         every call to the YARN ResourceManager REST API (status polling and
-        kill). For Kerberized clusters, install ``requests-kerberos`` and pass
-        ``HTTPKerberosAuth()``. Defaults to ``None`` (no auth — works for
-        clusters running with ``hadoop.security.authentication=simple``).
+        kill). When omitted, Kerberos-enabled Spark connections with both
+        ``keytab`` and ``principal`` configured use ``requests-kerberos``
+        automatically. Defaults to ``None`` (no auth for non-Kerberos
+        connections).
     """
 
     conn_name_attr = "conn_id"
@@ -340,6 +342,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"got {self._connection['deploy_mode']!r}."
             )
         self._get_yarn_rm_base_url()
+        self._resolved_yarn_rm_auth
 
     def _resolve_connection(self) -> dict[str, Any]:
         # Build from connection master or default to yarn if not available
@@ -884,11 +887,34 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._yarn_rm_base_url = url.rstrip("/")
         return self._yarn_rm_base_url
 
+    @cached_property
+    def _resolved_yarn_rm_auth(self) -> AuthBase | None:
+        """
+        Resolve the auth object for YARN ResourceManager REST API requests.
+
+        Explicit ``yarn_rm_auth`` wins. If omitted, Kerberos-enabled Spark
+        connections automatically use ``requests_kerberos.HTTPKerberosAuth``.
+        """
+        if self._yarn_rm_auth is not None:
+            return self._yarn_rm_auth
+        if self._connection.get("keytab") and self._connection.get("principal"):
+            try:
+                from requests_kerberos import HTTPKerberosAuth
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Kerberos credentials are configured for Spark submit, but `requests-kerberos` "
+                    "is not installed. Install `requests-kerberos` to use "
+                    "`yarn_track_via_rm_api=True` with Kerberos, or pass `yarn_rm_auth` explicitly."
+                ) from exc
+            return HTTPKerberosAuth()
+
+        return None
+
     def _query_yarn_application_status(self, application_id: str) -> tuple[str, str]:
         """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.state`` and ``app.finalStatus``."""
         url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
         try:
-            resp = requests.get(url, auth=self._yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
+            resp = requests.get(url, auth=self._resolved_yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
         except requests.exceptions.RequestException as exc:
             raise RuntimeError(
                 f"YARN RM REST API request for application {application_id} failed: {exc}"
@@ -911,7 +937,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
         try:
             url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
-        except ValueError as exc:
+            auth = self._resolved_yarn_rm_auth
+        except (ValueError, RuntimeError) as exc:
             self.log.warning(
                 "Cannot send YARN kill for %s: %s",
                 application_id,
@@ -922,7 +949,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             resp = requests.put(
                 url,
                 json={"state": "KILLED"},
-                auth=self._yarn_rm_auth,
+                auth=auth,
                 timeout=self._HTTP_TIMEOUT,
             )
         except requests.exceptions.RequestException as exc:

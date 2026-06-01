@@ -124,10 +124,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         Cluster-side driver logs should be used after the switch to polling.
         Defaults to ``False``.
     :param yarn_rm_auth: Optional ``requests.auth.AuthBase`` instance used for every
-        call to the YARN ResourceManager REST API (status polling and kill). For
-        Kerberized clusters, install ``requests-kerberos`` and pass
-        ``HTTPKerberosAuth()``. Defaults to ``None`` (no auth — works for clusters
-        running with ``hadoop.security.authentication=simple``).
+        call to the YARN ResourceManager REST API (status polling and kill). When
+        omitted, Kerberos-enabled Spark connections with both ``keytab`` and
+        ``principal`` configured use ``requests-kerberos`` automatically.
+        Defaults to ``None`` (no auth for non-Kerberos connections).
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
