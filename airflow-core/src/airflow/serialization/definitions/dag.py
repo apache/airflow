@@ -720,11 +720,17 @@ class SerializedDAG:
         else:
             tasks_to_set_state = [(task, map_index) for map_index in map_indexes]
 
+        # Only set the state on the targeted task instances here. We do not pass
+        # ``downstream`` through to ``set_state`` because that helper would mark
+        # downstream task instances as the same state, which would then prevent the
+        # explicit downstream-clearing block below from finding them in the
+        # FAILED/UPSTREAM_FAILED state. Downstream handling is therefore done
+        # explicitly in the ``if downstream:`` block below.
         altered = set_state(
             tasks=tasks_to_set_state,
             run_id=run_id,
             upstream=upstream,
-            downstream=downstream,
+            downstream=False,
             future=future,
             past=past,
             state=state,
@@ -839,11 +845,17 @@ class SerializedDAG:
                 dag_runs_query = dag_runs_query.where(DagRun.logical_date >= logical_date)
 
         with lock_rows(dag_runs_query, session):
+            # Only set the state on the targeted task group instances here. Do
+            # not pass ``downstream`` through to ``set_state``; that helper
+            # would mark downstream task instances as the same state and
+            # prevent the explicit downstream-clearing block below from
+            # finding them in FAILED/UPSTREAM_FAILED. Downstream handling is
+            # done explicitly in the ``if downstream:`` block below.
             altered = set_state(
                 tasks=tasks_to_set_state,
                 run_id=run_id,
                 upstream=upstream,
-                downstream=downstream,
+                downstream=False,
                 future=future,
                 past=past,
                 state=state,
@@ -884,7 +896,9 @@ class SerializedDAG:
                     else:
                         clear_kwargs["end_date"] = logical_date
                         exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
-                    subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+                    subset.clear(
+                        exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs
+                    )
 
         return altered
 

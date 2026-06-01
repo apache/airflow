@@ -3063,6 +3063,11 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     }
 
 
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    "run_id",
+    ["test-run-id"],
+)
 def test_set_task_instance_state_downstream_clears_failed(run_id, session, dag_maker):
     """Test that set_task_instance_state with downstream=True clears downstream failed/upstream_failed"""
     start_date = datetime_tz(2020, 1, 1)
@@ -3183,10 +3188,11 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         (task_id, 1, dr2.run_id, TaskInstanceState.FAILED),
     ]
 
+    # When ``downstream`` is not passed, only the selected TI state is changed —
+    # downstream failed/upstream_failed tasks are NOT cleared (Airflow 2 semantics).
     dag.set_task_instance_state(
         task_id=task_id,
         map_indexes=[1],
-        downstream=True,
         future=True,
         run_id=dr1.run_id,
         state=TaskInstanceState.SUCCESS,
@@ -3195,10 +3201,10 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     assert dr1 in session, "Check session is passed down all the way"
 
     assert session.execute(ti_query).all() == [
-        ("downstream", -1, dr1.run_id, None),
+        ("downstream", -1, dr1.run_id, TaskInstanceState.FAILED),
         (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),
         (task_id, 1, dr1.run_id, TaskInstanceState.SUCCESS),
-        ("downstream", -1, dr2.run_id, None),
+        ("downstream", -1, dr2.run_id, TaskInstanceState.FAILED),
         (task_id, 0, dr2.run_id, TaskInstanceState.FAILED),
         (task_id, 1, dr2.run_id, TaskInstanceState.SUCCESS),
     ]
