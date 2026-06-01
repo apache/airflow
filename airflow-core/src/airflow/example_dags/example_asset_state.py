@@ -88,7 +88,7 @@ with DAG(
     @task(inlets=[ORDERS])
     def consume(asset_store=None):
         state = asset_store[ORDERS]
-        summary = json.loads(state.get("last_run_summary") or "{}")
+        summary = state.get("last_run_summary") or "{}"
         print(
             f"Processing {summary.get('rows_loaded', '?')} rows "
             f"up to watermark {state.get('watermark')}. "
