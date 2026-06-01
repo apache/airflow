@@ -43,10 +43,13 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         cluster_identifier: str,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
@@ -59,10 +62,17 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
@@ -80,10 +90,13 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         cluster_identifier: str,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
@@ -96,10 +109,17 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
@@ -117,10 +137,13 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         cluster_identifier: str,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
@@ -133,10 +156,17 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
@@ -154,10 +184,13 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         cluster_identifier: str,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
@@ -170,10 +203,17 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
@@ -188,10 +228,13 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         cluster_identifier: str,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 30,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
@@ -204,10 +247,17 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class RedshiftClusterTrigger(BaseTrigger):
