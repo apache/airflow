@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.cli.commands.state_store_command import cleanup_task_states
+from airflow.cli.commands.state_store_command import cleanup_task_store
 from airflow.state.metastore import MetastoreStateBackend
 
 pytestmark = pytest.mark.db_test
@@ -36,7 +36,7 @@ class TestStateStoreCleanupCommand:
             mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
             patch.object(backend, "cleanup"),
         ):
-            cleanup_task_states(args)
+            cleanup_task_store(args)
 
             backend.cleanup.assert_called_once_with()
 
@@ -47,7 +47,7 @@ class TestStateStoreCleanupCommand:
             mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
             patch.object(backend, "_summary_dry_run", return_value={"expired": []}),
         ):
-            cleanup_task_states(args)
+            cleanup_task_store(args)
 
             captured = capsys.readouterr()
             assert "Nothing to delete" in captured.out
@@ -58,7 +58,7 @@ class TestStateStoreCleanupCommand:
         with mock.patch(
             "airflow.cli.commands.state_store_command.get_state_backend", return_value=custom_backend
         ):
-            cleanup_task_states(args)
+            cleanup_task_store(args)
 
             captured = capsys.readouterr()
             assert "Custom backend configured" in captured.out

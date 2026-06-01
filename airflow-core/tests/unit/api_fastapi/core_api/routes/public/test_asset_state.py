@@ -22,9 +22,9 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.asset_state import AssetStateBody
+from airflow.api_fastapi.core_api.datamodels.asset_store import AssetStoreBody
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 
 from tests_common.test_utils.db import clear_db_assets
 
@@ -42,7 +42,7 @@ def _create_asset(session) -> AssetModel:
 
 
 def _create_asset_state(session, asset_id: int, key: str, value: str) -> None:
-    row = AssetStateModel(asset_id=asset_id, key=key, value=json.dumps(value))
+    row = AssetStoreModel(asset_id=asset_id, key=key, value=json.dumps(value))
     session.add(row)
     session.flush()
 
@@ -186,7 +186,7 @@ class TestSetAssetState(TestAssetStateEndpoint):
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_non_finite_float_rejected_by_validator(self, bad_value):
         with pytest.raises(ValidationError, match="non-finite"):
-            AssetStateBody(value=bad_value)
+            AssetStoreBody(value=bad_value)
 
     @pytest.mark.parametrize(
         ("value", "expected_db"),
@@ -200,9 +200,9 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_put_stores_json_encoded_value(self, test_client, value, expected_db):
         test_client.put(f"{self._base_url}/k", json={"value": value})
         row = self._session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == self.asset.id,
-                AssetStateModel.key == "k",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == self.asset.id,
+                AssetStoreModel.key == "k",
             )
         )
         assert row is not None

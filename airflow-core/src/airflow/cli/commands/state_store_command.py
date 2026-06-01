@@ -26,8 +26,8 @@ log = logging.getLogger(__name__)
 # Other state operations (list, get, delete per key) will be added here in the future.
 
 
-def cleanup_task_states(args) -> None:
-    """Remove expired task state rows (MetastoreStateBackend only)."""
+def cleanup_task_store(args) -> None:
+    """Remove expired task store rows (MetastoreStateBackend only)."""
     backend = get_state_backend()
 
     if not isinstance(backend, MetastoreStateBackend):
@@ -40,10 +40,10 @@ def cleanup_task_states(args) -> None:
         if not expired:
             print("Nothing to delete.")
             return
-        print(f"Would delete {len(expired)} task state row(s):\n")
+        print(f"Would delete {len(expired)} task store row(s):\n")
         for dag_id, run_id, task_id, map_index, key in expired:
             print(f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}")
         return
 
-    log.info("Running task state cleanup")
+    log.info("Running task store cleanup")
     backend.cleanup()

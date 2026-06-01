@@ -1790,7 +1790,7 @@ class TestTaskStateOperations:
 
     def test_get_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == f"/state/ti/{self.TI_ID}/job_id":
+            if request.url.path == f"/store/ti/{self.TI_ID}/job_id":
                 return httpx.Response(status_code=200, json={"value": "spark_app_001"})
             return httpx.Response(status_code=400)
 
@@ -1817,7 +1817,7 @@ class TestTaskStateOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
-            assert request.url.path == f"/state/ti/{self.TI_ID}/job_id"
+            assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
             assert b'"value":"spark_app_001"' in request.content
             return httpx.Response(status_code=204)
 
@@ -1863,7 +1863,7 @@ class TestTaskStateOperations:
     def test_delete_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == f"/state/ti/{self.TI_ID}/job_id"
+            assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
@@ -1873,7 +1873,7 @@ class TestTaskStateOperations:
     def test_clear_default_no_query_param(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == f"/state/ti/{self.TI_ID}"
+            assert request.url.path == f"/store/ti/{self.TI_ID}"
             assert "all_map_indices" not in str(request.url.query)
             return httpx.Response(status_code=204)
 
@@ -1895,7 +1895,7 @@ class TestAssetStateOperations:
     def test_get_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             if (
-                request.url.path == "/state/asset/by-name/value"
+                request.url.path == "/store/asset/by-name/value"
                 and request.url.params["name"] == "test_asset"
                 and request.url.params["key"] == "watermark"
             ):
@@ -1911,7 +1911,7 @@ class TestAssetStateOperations:
     def test_get_by_uri_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             if (
-                request.url.path == "/state/asset/by-uri/value"
+                request.url.path == "/store/asset/by-uri/value"
                 and request.url.params["uri"] == "s3://bucket/key"
                 and request.url.params["key"] == "watermark"
             ):
@@ -1939,7 +1939,7 @@ class TestAssetStateOperations:
     def test_set_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
-            assert request.url.path == "/state/asset/by-name/value"
+            assert request.url.path == "/store/asset/by-name/value"
             assert request.url.params["name"] == "test_asset"
             assert request.url.params["key"] == "watermark"
             assert b'"value":"2026-04-30T00:00:00Z"' in request.content
@@ -1952,7 +1952,7 @@ class TestAssetStateOperations:
     def test_set_by_uri_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
-            assert request.url.path == "/state/asset/by-uri/value"
+            assert request.url.path == "/store/asset/by-uri/value"
             assert request.url.params["uri"] == "s3://bucket/key"
             assert request.url.params["key"] == "watermark"
             return httpx.Response(status_code=204)
@@ -1964,7 +1964,7 @@ class TestAssetStateOperations:
     def test_delete_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/by-name/value"
+            assert request.url.path == "/store/asset/by-name/value"
             assert request.url.params["name"] == "test_asset"
             assert request.url.params["key"] == "watermark"
             return httpx.Response(status_code=204)
@@ -1976,7 +1976,7 @@ class TestAssetStateOperations:
     def test_delete_by_uri_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/by-uri/value"
+            assert request.url.path == "/store/asset/by-uri/value"
             assert request.url.params["uri"] == "s3://bucket/key"
             assert request.url.params["key"] == "watermark"
             return httpx.Response(status_code=204)
@@ -1988,7 +1988,7 @@ class TestAssetStateOperations:
     def test_clear_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/by-name/clear"
+            assert request.url.path == "/store/asset/by-name/clear"
             assert request.url.params["name"] == "test_asset"
             return httpx.Response(status_code=204)
 
@@ -1999,7 +1999,7 @@ class TestAssetStateOperations:
     def test_clear_by_uri_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/by-uri/clear"
+            assert request.url.path == "/store/asset/by-uri/clear"
             assert request.url.params["uri"] == "s3://bucket/key"
             return httpx.Response(status_code=204)
 

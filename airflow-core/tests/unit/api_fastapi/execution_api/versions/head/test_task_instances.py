@@ -48,7 +48,7 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1966,7 +1966,7 @@ class TestTIUpdateState:
         backend.set(scope, "checkpoint", "step_3", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
@@ -1975,7 +1975,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -2000,7 +2000,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -2027,7 +2027,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
 
 class TestTISkipDownstream:

@@ -23,9 +23,9 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.core_api.datamodels.task_state import TaskStateBody, TaskStatePatchBody
+from airflow.api_fastapi.core_api.datamodels.task_store import TaskStoreBody, TaskStorePatchBody
 from airflow.models.dagrun import DagRun
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import DagRunType
 
@@ -52,7 +52,7 @@ def _create_dag_run(dag_maker, session):
 
 
 def _create_task_state(session, key: str, value: str, dag_run: DagRun) -> None:
-    row = TaskStateModel(
+    row = TaskStoreModel(
         dag_run_id=dag_run.id,
         dag_id=DAG_ID,
         run_id=RUN_ID,
@@ -112,7 +112,7 @@ class TestListTaskState(TestTaskStateEndpoint):
 
     def test_map_index_isolation(self, test_client):
         """map_index=-1 (default) doesn't return rows for other map indices."""
-        row = TaskStateModel(
+        row = TaskStoreModel(
             dag_run_id=self.dag_run.id,
             dag_id=DAG_ID,
             run_id=RUN_ID,
@@ -205,7 +205,7 @@ class TestSetTaskState(TestTaskStateEndpoint):
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_non_finite_float_rejected_by_validator(self, bad_value):
         with pytest.raises(ValidationError, match="non-finite"):
-            TaskStateBody(value=bad_value)
+            TaskStoreBody(value=bad_value)
 
     def test_set_nonexistent_dag_run_returns_404(self, test_client):
         """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
@@ -231,11 +231,11 @@ class TestSetTaskState(TestTaskStateEndpoint):
     def test_put_stores_json_encoded_value(self, test_client, value, expected_db):
         test_client.put(f"{BASE_URL}/k", json={"value": value})
         row = self._session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_id == DAG_ID,
-                TaskStateModel.run_id == RUN_ID,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.key == "k",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_id == DAG_ID,
+                TaskStoreModel.run_id == RUN_ID,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.key == "k",
             )
         )
         assert row is not None
@@ -302,11 +302,11 @@ class TestPatchTaskState(TestTaskStateEndpoint):
 
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"}).status_code == 200
         row = self._session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_id == DAG_ID,
-                TaskStateModel.run_id == RUN_ID,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.key == "job_id",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_id == DAG_ID,
+                TaskStoreModel.run_id == RUN_ID,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.key == "job_id",
             )
         )
         assert row.value == '"v2"'
@@ -327,7 +327,7 @@ class TestPatchTaskState(TestTaskStateEndpoint):
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_patch_non_finite_float_rejected_by_validator(self, bad_value):
         with pytest.raises(ValidationError, match="non-finite"):
-            TaskStatePatchBody(value=bad_value)
+            TaskStorePatchBody(value=bad_value)
 
     @pytest.mark.parametrize(
         ("value", "expected_db"),
@@ -343,11 +343,11 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         self._session.commit()
         test_client.patch(f"{BASE_URL}/job_id", json={"value": value})
         row = self._session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_id == DAG_ID,
-                TaskStateModel.run_id == RUN_ID,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.key == "job_id",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_id == DAG_ID,
+                TaskStoreModel.run_id == RUN_ID,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.key == "job_id",
             )
         )
         self._session.refresh(row)
@@ -401,7 +401,7 @@ class TestClearTaskState(TestTaskStateEndpoint):
     def test_all_map_indices_clears_across_mapped_instances(self, test_client):
         """all_map_indices=true wipes state for every map index of the task."""
         for map_index in (-1, 0, 1):
-            row = TaskStateModel(
+            row = TaskStoreModel(
                 dag_run_id=self.dag_run.id,
                 dag_id=DAG_ID,
                 run_id=RUN_ID,

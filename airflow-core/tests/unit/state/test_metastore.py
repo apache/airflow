@@ -28,9 +28,9 @@ from sqlalchemy import Delete, select
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
 from airflow.state.metastore import MetastoreStateBackend
 from airflow.utils.session import create_session, create_session_async
@@ -148,10 +148,10 @@ class TestMetastoreStateBackendTaskScope:
         session.flush()
 
         row = session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_id == DAG_ID,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.key == "job_id",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_id == DAG_ID,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.key == "job_id",
             )
         )
         assert row is not None
@@ -247,7 +247,7 @@ class TestMetastoreStateBackendTaskScope:
         backend.set(scope, "job_id", "app_1234", session=session)
         session.flush()
 
-        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        row = session.scalar(select(TaskStoreModel).where(TaskStoreModel.key == "job_id"))
         assert row is not None
         assert row.expires_at is None
 
@@ -259,7 +259,7 @@ class TestMetastoreStateBackendTaskScope:
         backend.set(scope, "job_id", "app_1234", session=session)
         session.flush()
 
-        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        row = session.scalar(select(TaskStoreModel).where(TaskStoreModel.key == "job_id"))
         assert row is not None
         assert row.expires_at is None
 
@@ -273,7 +273,7 @@ class TestMetastoreStateBackendTaskScope:
 
         # Backdate expires_at on old_key to simulate it having expired
         old_row = session.scalar(
-            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "old_key")
+            select(TaskStoreModel).where(TaskStoreModel.dag_id == DAG_ID, TaskStoreModel.key == "old_key")
         )
         assert old_row is not None
         old_row.expires_at = timezone.utcnow() - timedelta(hours=1)
@@ -283,8 +283,8 @@ class TestMetastoreStateBackendTaskScope:
         backend.cleanup()
 
         session.expire_all()
-        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "old_key")) is None
-        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "new_key")) is not None
+        assert session.scalar(select(TaskStoreModel).where(TaskStoreModel.key == "old_key")) is None
+        assert session.scalar(select(TaskStoreModel).where(TaskStoreModel.key == "new_key")) is not None
 
     def test_cleanup_removes_expires_at_rows(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
@@ -294,7 +294,7 @@ class TestMetastoreStateBackendTaskScope:
         session.flush()
 
         row = session.scalar(
-            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "short_lived")
+            select(TaskStoreModel).where(TaskStoreModel.dag_id == DAG_ID, TaskStoreModel.key == "short_lived")
         )
         assert row is not None
         row.expires_at = timezone.utcnow() - timedelta(hours=1)
@@ -306,7 +306,7 @@ class TestMetastoreStateBackendTaskScope:
         session.expire_all()
 
         # cleaned up via expires_at, even though updated_at is recent
-        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "short_lived")) is None
+        assert session.scalar(select(TaskStoreModel).where(TaskStoreModel.key == "short_lived")) is None
 
     @conf_vars({("state_store", "state_cleanup_batch_size"): "2"})
     def test_cleanup_batches_deletes(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
@@ -329,7 +329,7 @@ class TestMetastoreStateBackendTaskScope:
             session.flush()
 
         session.execute(
-            TaskStateModel.__table__.update().values(expires_at=timezone.utcnow() - timedelta(hours=1))
+            TaskStoreModel.__table__.update().values(expires_at=timezone.utcnow() - timedelta(hours=1))
         )
         session.commit()
 
@@ -440,7 +440,7 @@ class TestMetastoreStateBackendAssetScope:
         backend.cleanup()
 
         session.expire_all()
-        assert session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)) is not None
+        assert session.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id)) is not None
 
 
 @pytest.mark.asyncio(loop_scope="class")

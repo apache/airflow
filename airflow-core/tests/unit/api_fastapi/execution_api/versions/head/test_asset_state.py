@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from airflow.models.asset import AssetActive, AssetModel
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ _BY_URI_CLEAR = "/execution/state/asset/by-uri/clear"
 @pytest.fixture(autouse=True)
 def reset_state_tables():
     with create_session() as session:
-        session.execute(delete(AssetStateModel))
+        session.execute(delete(AssetStoreModel))
         session.execute(delete(AssetModel))
 
 
@@ -108,9 +108,9 @@ class TestPutAssetStateByName:
 
         assert response.status_code == 204
         row = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == asset.id,
-                AssetStateModel.key == "watermark",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == asset.id,
+                AssetStoreModel.key == "watermark",
             )
         )
         assert row is not None
@@ -215,7 +215,7 @@ class TestClearAssetStateByName:
 
         assert response.status_code == 204
         with create_session() as session:
-            row = session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id))
+            row = session.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id))
             assert row is None
 
 
@@ -249,9 +249,9 @@ class TestPutAssetStateByUri:
 
         assert response.status_code == 204
         row = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == asset.id,
-                AssetStateModel.key == "watermark",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == asset.id,
+                AssetStoreModel.key == "watermark",
             )
         )
         assert row is not None
@@ -284,7 +284,7 @@ class TestClearAssetStateByUri:
 
         assert response.status_code == 204
         with create_session() as session:
-            row = session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id))
+            row = session.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id))
             assert row is None
 
 
