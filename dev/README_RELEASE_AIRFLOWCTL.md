@@ -166,7 +166,7 @@ git push apache "airflow-ctl/${VERSION_RC}"
 * Release candidate packages:
 
 ```shell script
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
