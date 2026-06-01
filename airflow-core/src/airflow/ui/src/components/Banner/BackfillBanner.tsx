@@ -19,8 +19,10 @@
 import { Box, Button, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
+import { MdInfo, MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
+
+import { Tooltip } from "src/components/ui";
 
 import {
   useBackfillServiceCancelBackfill,
@@ -107,6 +109,11 @@ const BackfillBanner = ({ dagId }: Props) => {
       <HStack alignItems="center" ml={3}>
         <RiArrowGoBackFill />
         <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
+        <Tooltip content={translate("backfill.schedulerPriorityHint")} showArrow>
+          <span>
+            <MdInfo />
+          </span>
+        </Tooltip>
         <Text fontSize="sm">
           {" "}
           <Time datetime={backfill.from_date} /> - <Time datetime={backfill.to_date} />
