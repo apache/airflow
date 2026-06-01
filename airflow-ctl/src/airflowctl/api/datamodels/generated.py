@@ -49,27 +49,6 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
-class AssetStateBody(BaseModel):
-    """
-    Request body for setting an asset state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(max_length=65535, title="Value")]
-
-
-class AssetStateResponse(BaseModel):
-    """
-    A single asset state key/value pair with metadata.
-    """
-
-    key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
-
-
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -369,6 +348,7 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGSourceResponse(BaseModel):
@@ -594,6 +574,7 @@ class ExternalViewResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
@@ -829,6 +810,7 @@ class ReactAppResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
@@ -976,12 +958,30 @@ class TaskOutletAssetReference(BaseModel):
 class TaskStateBody(BaseModel):
     """
     Request body for setting a task state value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(max_length=65535, title="Value")]
+    value: JsonValue
+    expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
+
+
+class TaskStatePatchBody(BaseModel):
+    """
+    Request body for patching only the value of an existing task state key.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
 
 
 class TaskStateResponse(BaseModel):
@@ -990,7 +990,7 @@ class TaskStateResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
     expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
 
@@ -1083,7 +1083,7 @@ class VariableResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: Annotated[str | None, Field(title="Value")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
@@ -1225,13 +1225,25 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStateCollectionResponse(BaseModel):
+class AssetStateBody(BaseModel):
     """
-    All asset state entries for an asset.
+    Request body for setting an asset state value.
     """
 
-    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateResponse(BaseModel):
+    """
+    A single asset state key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: JsonValue
+    updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
 class BackfillPostBody(BaseModel):
@@ -2014,6 +2026,15 @@ class AssetEventCollectionResponse(BaseModel):
     """
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetStateCollectionResponse(BaseModel):
+    """
+    All asset state entries for an asset.
+    """
+
+    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

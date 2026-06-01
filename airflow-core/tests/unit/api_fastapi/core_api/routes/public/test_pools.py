@@ -20,10 +20,11 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from airflow.models.pool import Pool
 from airflow.models.team import Team
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.config import conf_vars
@@ -50,7 +51,7 @@ POOL3_DESCRIPTION = "Some Description"
 
 
 @provide_session
-def _create_pools(session) -> None:
+def _create_pools(*, session: Session = NEW_SESSION) -> None:
     pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED, team_name="test")
     pool2 = Pool(pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED)
     pool3 = Pool(
@@ -63,7 +64,7 @@ def _create_pools(session) -> None:
 
 
 @provide_session
-def _create_team(session) -> None:
+def _create_team(*, session: Session = NEW_SESSION) -> None:
     session.add(Team(name="test"))
     session.commit()
 

@@ -43,7 +43,12 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, is_arg_set
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    BaseOperator,
+    is_arg_set,
+)
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -145,7 +150,9 @@ class TriggerDagRunOperator(BaseOperator):
         Default is ``[DagRunState.FAILED]``.
     :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
         DAG for the same logical date already exists.
-    :param fail_when_dag_is_paused: If the dag to trigger is paused, DagIsPaused will be raised.
+    :param fail_when_dag_is_paused: If the dag to trigger is paused, DagIsPaused will be raised. On
+        Airflow 3.x this requires Airflow 3.2.0+ (it relies on the task-SDK DAG state endpoint added then);
+        on Airflow 3.0/3.1 setting this raises ``NotImplementedError``.
     :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
     :param openlineage_inject_parent_info: whether to include OpenLineage metadata about the parent task
         in the triggered DAG run's conf, enabling improved lineage tracking. The metadata is only injected
@@ -218,8 +225,11 @@ class TriggerDagRunOperator(BaseOperator):
         run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
         self.run_after = run_after
-        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
-            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_2_PLUS:
+            raise NotImplementedError(
+                "Setting `fail_when_dag_is_paused` requires Airflow 3.2.0+ on Airflow 3.x "
+                "(it relies on the task-SDK DAG state endpoint added in 3.2.0)."
+            )
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
@@ -267,14 +277,17 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_run_id = run_id
 
         if self.fail_when_dag_is_paused:
-            dag_model = DagModel.get_current(self.trigger_dag_id)
-            if not dag_model:
-                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
-            if dag_model.is_paused:
-                # TODO: enable this when dag state endpoint available from task sdk
-                # if AIRFLOW_V_3_0_PLUS:
-                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
-                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+            if AIRFLOW_V_3_0_PLUS:
+                # Tasks cannot access the ORM directly in Airflow 3.x; fetch the DAG state via the
+                # task-SDK supervisor (GetDag execution-API endpoint, available from Airflow 3.2.0).
+                if context["ti"].get_dag(self.trigger_dag_id).is_paused:
+                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+            else:
+                dag_model = DagModel.get_current(self.trigger_dag_id)
+                if not dag_model:
+                    raise ValueError(f"Dag {self.trigger_dag_id} is not found")
+                if dag_model.is_paused:
+                    raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(
@@ -451,7 +464,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         @provide_session
         def _trigger_dag_run_af_2_execute_complete(
-            self, event_data: dict[str, Any], session: Session = NEW_SESSION
+            self, event_data: dict[str, Any], *, session: Session = NEW_SESSION
         ):
             # This logical_date is parsed from the return trigger event
             provided_logical_date = event_data["execution_dates"][0]

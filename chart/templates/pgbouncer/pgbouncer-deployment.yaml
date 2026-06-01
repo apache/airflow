@@ -88,6 +88,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
+      {{- include "serviceLinks" . | nindent 6 }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}

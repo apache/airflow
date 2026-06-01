@@ -28,7 +28,16 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.output_type import (
+    iter_base_model_classes,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.compat.sdk import BaseOperator
+
+try:
+    from airflow.sdk.serde import allow_class
+except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
+    allow_class = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -44,7 +53,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     Uses a :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
     for LLM access. Supports plain string output (default) and structured output
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
-    the result is serialized via ``model_dump()`` for XCom.
+    the model instance is returned to XCom unchanged so downstream tasks can
+    type-hint it directly (e.g. ``def downstream(result: MyModel) -> None``).
+    The class is auto-registered for deserialization in each process that parses
+    the DAG, so no edit to ``[core] allowed_deserialization_classes`` is required.
+    The Pydantic class must be defined at module scope: classes nested inside
+    a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
@@ -52,7 +66,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the LLM agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output.
+        ``BaseModel`` subclass for structured output; the model instance is
+        returned to XCom unchanged so downstream tasks can type-hint it
+        directly. The class must be defined at module scope -- nested classes
+        cannot be deserialized from XCom.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
@@ -70,6 +87,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
+    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
+        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+        ``model_dump()`` before being pushed to XCom. Default ``False`` --
+        the Pydantic instance flows through XCom unchanged. Set to ``True``
+        when a downstream consumer needs the dict shape (e.g. sending to an
+        external system that expects JSON-style payloads).
     """
 
     template_fields: Sequence[str] = (
@@ -93,6 +116,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,6 +125,13 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.output_type = output_type
+        self.serialize_output = serialize_output
+        # Skip registration when the user opted into the dict form -- the wire
+        # carries a plain dict in that case and never hits the allow-list gate.
+        self._serialize_model_output = serialize_output or allow_class is None
+        if not serialize_output and allow_class is not None:
+            for model_cls in iter_base_model_classes(output_type):
+                allow_class(model_cls)
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
         self.require_approval = require_approval
@@ -141,7 +172,17 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if isinstance(output, BaseModel):
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            # ``serialize_output=True`` was set explicitly, or this is an
+            # older Airflow version without ``airflow.sdk.serde.allow_class``.
+            # Either way, dump to dict so XCom carries a plain JSON payload.
             output = output.model_dump()
 
         return output
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
+        """Resume after human review and restore the Pydantic model for XCom consumers."""
+        output = super().execute_complete(context, generated_output, event)
+        return rehydrate_pydantic_output(
+            self.output_type, output, serialize_output=self._serialize_model_output
+        )

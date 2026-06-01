@@ -20,10 +20,27 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from pydantic import BaseModel
+
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import dag, task
+
+
+# [START howto_decorator_agent_structured_output_class]
+# Pydantic output classes must be defined at module scope so downstream
+# tasks can re-import them when deserializing the XCom payload.
+class Analysis(BaseModel):
+    """Structured analysis output for the agent example."""
+
+    summary: str
+    top_items: list[str]
+    row_count: int
+
+
+# [END howto_decorator_agent_structured_output_class]
+
 
 # ---------------------------------------------------------------------------
 # 1. SQL Agent: answer a question using database tools
@@ -125,13 +142,6 @@ example_agent_decorator()
 # [START howto_decorator_agent_structured]
 @dag(tags=["example"])
 def example_agent_structured_output():
-    from pydantic import BaseModel
-
-    class Analysis(BaseModel):
-        summary: str
-        top_items: list[str]
-        row_count: int
-
     @task.agent(
         llm_conn_id="pydanticai_default",
         system_prompt="You are a data analyst. Return structured results.",

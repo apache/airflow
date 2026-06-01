@@ -384,9 +384,7 @@ export const $AssetResponse = {
 export const $AssetStateBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         }
     },
     additionalProperties: false,
@@ -423,8 +421,7 @@ export const $AssetStateResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -2778,6 +2775,18 @@ export const $DAGRunClearBody = {
             ],
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -4125,6 +4134,18 @@ export const $ExternalViewResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         href: {
             type: 'string',
@@ -5494,6 +5515,18 @@ export const $ReactAppResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         bundle_url: {
             type: 'string',
@@ -6982,16 +7015,37 @@ export const $TaskResponse = {
 export const $TaskStateBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    const: 'default'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            default: 'default'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['value'],
     title: 'TaskStateBody',
-    description: 'Request body for setting a task state value.'
+    description: `Request body for setting a task state value.
+
+\`\`expires_at\`\` controls expiry:
+
+- \`\`"default"\`\`: apply the configured \`\`[state_store] default_retention_days\`\`.
+- \`\`null\`\`: never expire.
+- aware datetime: expire at that time.`
 } as const;
 
 export const $TaskStateCollectionResponse = {
@@ -7014,6 +7068,19 @@ export const $TaskStateCollectionResponse = {
     description: 'All task state entries for a task instance.'
 } as const;
 
+export const $TaskStatePatchBody = {
+    properties: {
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStatePatchBody',
+    description: 'Request body for patching only the value of an existing task state key.'
+} as const;
+
 export const $TaskStateResponse = {
     properties: {
         key: {
@@ -7021,8 +7088,7 @@ export const $TaskStateResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -7383,7 +7449,14 @@ export const $VariableResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Value'
         },
         description: {
@@ -7414,7 +7487,7 @@ export const $VariableResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
+    required: ['key', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -8898,6 +8971,17 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Setup Teardown Type'
+        },
+        doc_md: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Doc Md'
         }
     },
     type: 'object',
