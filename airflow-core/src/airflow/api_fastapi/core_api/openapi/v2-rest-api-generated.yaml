@@ -11360,9 +11360,7 @@ components:
     AssetStateBody:
       properties:
         value:
-          type: string
-          maxLength: 65535
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
       additionalProperties: false
       type: object
       required:
@@ -11391,8 +11389,7 @@ components:
           type: string
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         updated_at:
           type: string
           format: date-time
@@ -13021,6 +13018,12 @@ components:
             after clearing the Dag Run. If not specified, falls back to the DAG-level
             ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version``
             config option, and finally ``False`` (the historical default for clear/rerun).
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       additionalProperties: false
       type: object
       title: DAGRunClearBody
@@ -15810,9 +15813,7 @@ components:
     TaskStateBody:
       properties:
         value:
-          type: string
-          maxLength: 65535
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
       additionalProperties: false
       type: object
       required:
@@ -15841,8 +15842,7 @@ components:
           type: string
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         updated_at:
           type: string
           format: date-time

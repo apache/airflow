@@ -230,7 +230,6 @@
   },
   "task_one": "Εργασία",
   "task_other": "Εργασίες",
-  "taskGroup": "Ομάδα Εργασιών",
   "taskId": "ID Εργασίας",
   "taskInstance": {
     "dagVersion": "Έκδοση Dag",

@@ -16,10 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
+import { FiBookOpen } from "react-icons/fi";
 
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 
-export const GroupTaskHeader = ({ title }: { readonly title: string }) => (
-  <HeaderCard icon={<AiOutlineGroup />} stats={[]} title={title} />
-);
+export const GroupTaskHeader = ({
+  docMd,
+  title,
+}: {
+  readonly docMd?: string | null;
+  readonly title: string;
+}) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <HeaderCard
+      actions={
+        docMd === undefined || docMd === null ? undefined : (
+          <DisplayMarkdownButton
+            header={translate("taskGroup.documentation")}
+            icon={<FiBookOpen />}
+            mdContent={docMd}
+            text={translate("docs.documentation")}
+          />
+        )
+      }
+      icon={<AiOutlineGroup />}
+      stats={[]}
+      title={title}
+    />
+  );
+};

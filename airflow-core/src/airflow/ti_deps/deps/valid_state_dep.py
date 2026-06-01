@@ -52,7 +52,7 @@ class ValidStateDep(BaseTIDep):
         return hash((type(self), tuple(self._valid_states)))
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti, dep_context, *, session):
         if dep_context.ignore_ti_state:
             yield self._passing_status(reason="Context specified that state should be ignored.")
             return

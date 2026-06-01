@@ -513,6 +513,22 @@ def test_serialize_deserialize_deadline_alert(reference):
     assert deserialized.callback == original.callback
 
 
+def test_deserialize_deadline_alert_none_interval_raises():
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = BaseSerialization.serialize(valid)
+
+    # Inject downgrade corruption.
+    serialized[Encoding.VAR][DeadlineAlertFields.INTERVAL] = None
+
+    with pytest.raises(ValueError, match="interval"):
+        BaseSerialization.deserialize(serialized)
+
+
 @pytest.mark.parametrize(
     "conn_uri",
     [
@@ -754,7 +770,47 @@ def test_encode_asset_with_access_control():
         access_control=AssetAccessControl(producer_teams=["team_a"], allow_global=False),
     )
     encoded = encode_asset_like(asset)
-    assert encoded["access_control"] == {"producer_teams": ["team_a"], "allow_global": False}
+    assert encoded["access_control"] == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": [],
+        "allow_global": False,
+    }
+
+
+def test_encode_asset_with_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(consumer_teams=["team_ml", "team_data"]),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {
+        "producer_teams": [],
+        "consumer_teams": ["team_ml", "team_data"],
+        "allow_global": True,
+    }
+
+
+def test_encode_asset_with_both_producer_and_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(
+            producer_teams=["team_a"], consumer_teams=["team_b"], allow_global=False
+        ),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_b"],
+        "allow_global": False,
+    }
 
 
 def test_encode_asset_without_access_control_omits_key():
@@ -783,6 +839,31 @@ def test_decode_asset_with_access_control():
     assert decoded.access_control == {"producer_teams": ["team_a"], "allow_global": False}
 
 
+def test_decode_asset_with_consumer_teams():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+            "access_control": {
+                "producer_teams": ["team_a"],
+                "consumer_teams": ["team_ml"],
+                "allow_global": False,
+            },
+        }
+    )
+    assert decoded.access_control == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_ml"],
+        "allow_global": False,
+    }
+
+
 def test_decode_asset_defaults_access_control_to_empty_dict():
     from airflow.serialization.decoders import decode_asset_like
 
@@ -797,6 +878,46 @@ def test_decode_asset_defaults_access_control_to_empty_dict():
         }
     )
     assert decoded.access_control == {}
+
+
+def test_access_control_round_trip_with_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.decoders import decode_asset_like
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(
+            producer_teams=["team_a"], consumer_teams=["team_ml", "team_data"], allow_global=False
+        ),
+    )
+    encoded = encode_asset_like(asset)
+    decoded = decode_asset_like(encoded)
+
+    assert decoded.access_control == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_ml", "team_data"],
+        "allow_global": False,
+    }
+
+
+def test_access_control_round_trip_consumer_teams_only():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.decoders import decode_asset_like
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(consumer_teams=["team_ml"]),
+    )
+    encoded = encode_asset_like(asset)
+    decoded = decode_asset_like(encoded)
+
+    assert decoded.access_control["consumer_teams"] == ["team_ml"]
+    assert decoded.access_control["producer_teams"] == []
+    assert decoded.access_control["allow_global"] is True
 
 
 def test_encode_timezone():

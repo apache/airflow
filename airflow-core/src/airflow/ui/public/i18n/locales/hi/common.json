@@ -243,7 +243,6 @@
   },
   "task_one": "टास्क",
   "task_other": "टास्क्स",
-  "taskGroup": "टास्क ग्रुप",
   "taskId": "टास्क ID",
   "taskInstance": {
     "dagVersion": "डैग संस्करण",

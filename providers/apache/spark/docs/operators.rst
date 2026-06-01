@@ -199,6 +199,18 @@ a crash-safety net for teams running sync operators for log observability, org c
 because a Triggerer is not available. Teams with a Triggerer available may also consider
 deferrable operators, which free the worker slot but may come with added complexity.
 
+**Connection requirements for crash recovery**
+
+The reconnection polling calls the Spark standalone REST API
+(``GET /v1/submissions/status/{driverId}``). Make sure the Spark connection's
+``REST scheme`` and ``REST port`` extras match your cluster's configuration:
+
+* ``REST scheme`` — set to ``https`` if your cluster has TLS enabled on the REST port
+  (``spark.ssl.standalone.enabled=true``). Defaults to ``http``.
+* ``REST port`` — set to the value of ``spark.master.rest.port`` on your cluster. Defaults to ``6066``.
+
+See :doc:`connections/spark-submit` for how to configure these fields.
+
 .. note::
     Crash recovery in cluster mode requires Airflow 3.3+ (``task_state`` support). On earlier
     versions the operator falls back to the previous behavior of always submitting fresh.
