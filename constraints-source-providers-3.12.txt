@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-01T19:19:54.368854
+# This constraints file was automatically generated on 2026-06-01T23:40:07.834988
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -328,7 +328,7 @@ icalendar==7.1.2
 icdiff==2.0.10
 id==1.6.1
 identify==2.6.19
-idna==3.16
+idna==3.17
 ijson==3.4.0.post0
 imagesize==2.0.0
 immutabledict==4.3.1
@@ -410,11 +410,11 @@ mdurl==0.1.2
 memray==1.19.3
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.10.1
-microsoft-kiota-authentication-azure==1.10.1
-microsoft-kiota-http==1.10.1
-microsoft-kiota-serialization-json==1.10.1
-microsoft-kiota-serialization-text==1.10.1
+microsoft-kiota-abstractions==1.10.2
+microsoft-kiota-authentication-azure==1.10.2
+microsoft-kiota-http==1.10.2
+microsoft-kiota-serialization-json==1.10.2
+microsoft-kiota-serialization-text==1.10.2
 mistune==3.2.1
 mmh3==5.2.1
 more-itertools==11.1.0
@@ -614,10 +614,10 @@ rich-click==1.9.7
 rich-toolkit==0.19.10
 rich==13.9.4
 roman-numerals==4.1.0
-rpds-py==0.30.0
+rpds-py==2026.5.1
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.15.14
+ruff==0.15.15
 s3fs==2026.4.0
 s3transfer==0.17.1
 sagemaker_studio==1.0.26
@@ -628,7 +628,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.6
 semver==3.0.4
 sendgrid==6.12.5
-sentry-sdk==2.60.0
+sentry-sdk==2.61.0
 setproctitle==1.3.7
 setuptools==82.0.1
 shellingham==1.5.4
@@ -640,8 +640,8 @@ smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
 snowballstemmer==3.1.0
-snowflake-connector-python==4.5.0
-snowflake-snowpark-python==1.51.0
+snowflake-connector-python==4.6.0
+snowflake-snowpark-python==1.51.1
 snowflake-sqlalchemy==1.10.0
 sortedcontainers==2.4.0
 soupsieve==2.8.4
@@ -670,7 +670,7 @@ sqlglot==30.8.0
 sqlparse==0.5.5
 sse-starlette==3.4.4
 stack-data==0.6.3
-starlette==1.1.0
+starlette==1.2.0
 statsd==4.0.1
 std-uritemplate==2.0.10
 strictyaml==1.7.3
