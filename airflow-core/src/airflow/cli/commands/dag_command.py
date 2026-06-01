@@ -188,6 +188,7 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
             run_id=run_id,
             only_failed=args.only_failed,
             only_running=args.only_running,
+            only_skipped=args.only_skipped,
             session=session,
         )
     print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")

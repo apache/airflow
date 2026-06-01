@@ -1042,6 +1042,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         only_new: Literal[True],
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
@@ -1059,6 +1060,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         only_new: Literal[False] = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
@@ -1076,6 +1078,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         only_new: bool,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
@@ -1092,6 +1095,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
@@ -1111,6 +1115,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1127,6 +1132,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
@@ -1145,6 +1151,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_skipped: bool = False,
         only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
@@ -1162,6 +1169,7 @@ class SerializedDAG:
         :param end_date: The maximum logical_date to clear
         :param only_failed: Only clear failed tasks
         :param only_running: Only clear running tasks.
+        :param only_skipped: Only clear skipped tasks.
         :param only_new: Only newly added tasks in the latest version without clearing existing tasks
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
@@ -1185,6 +1193,8 @@ class SerializedDAG:
                 raise ValueError("only_new and only_failed are mutually exclusive")
             if only_running:
                 raise ValueError("only_new and only_running are mutually exclusive")
+            if only_skipped:
+                raise ValueError("only_new and only_skipped are mutually exclusive")
             if not run_id:
                 raise ValueError("only_new requires run_id to be specified")
             task_ids = _get_new_task_ids(self.dag_id, run_id, session)
@@ -1200,6 +1210,8 @@ class SerializedDAG:
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
+        if only_skipped:
+            state += [TaskInstanceState.SKIPPED]
 
         tis_result = self._get_task_instances(
             task_ids=task_ids,
@@ -1240,6 +1252,7 @@ class SerializedDAG:
         end_date=None,
         only_failed=False,
         only_running=False,
+        only_skipped=False,
         dag_run_state=DagRunState.QUEUED,
         dry_run: bool = False,
     ):
@@ -1250,6 +1263,7 @@ class SerializedDAG:
                     end_date=end_date,
                     only_failed=only_failed,
                     only_running=only_running,
+                    only_skipped=only_skipped,
                     dag_run_state=dag_run_state,
                     dry_run=True,
                 )
@@ -1263,6 +1277,7 @@ class SerializedDAG:
                 end_date=end_date,
                 only_failed=only_failed,
                 only_running=only_running,
+                only_skipped=only_skipped,
                 dag_run_state=dag_run_state,
                 dry_run=False,
             )
