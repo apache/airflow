@@ -532,6 +532,7 @@ class TestGetImportErrors:
     def import_error_with_multiple_dags(
         self,
         testing_dag_bundle,
+        *,
         session: Session = NEW_SESSION,
     ) -> tuple[ParseImportError, set[str]]:
         """One ParseImportError file mapping to three DagModel rows.
