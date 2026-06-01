@@ -50,7 +50,7 @@ def reset_state_tables():
 
 
 def _api_url(ti_id, key: str | None = None) -> str:
-    base = f"/execution/state/ti/{ti_id}"
+    base = f"/execution/store/ti/{ti_id}"
     return f"{base}/{key}" if key else base
 
 

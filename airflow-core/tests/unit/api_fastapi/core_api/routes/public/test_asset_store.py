@@ -58,7 +58,7 @@ class TestAssetStateEndpoint:
         self.asset = _create_asset(session)
         session.commit()
         self._session = session
-        self._base_url = f"/assets/{self.asset.id}/states"
+        self._base_url = f"/assets/{self.asset.id}/store"
 
     def teardown_method(self):
         self.clear_db()
@@ -68,26 +68,26 @@ class TestAssetNotFound(TestAssetStateEndpoint):
     """All endpoints return 404 when asset_id does not exist."""
 
     def test_list_unknown_asset_returns_404(self, test_client):
-        assert test_client.get("/assets/99999/states").status_code == 404
+        assert test_client.get("/assets/99999/store").status_code == 404
 
     def test_get_unknown_asset_returns_404(self, test_client):
-        assert test_client.get("/assets/99999/states/key").status_code == 404
+        assert test_client.get("/assets/99999/store/key").status_code == 404
 
     def test_set_unknown_asset_returns_404(self, test_client):
-        assert test_client.put("/assets/99999/states/key", json={"value": "v"}).status_code == 404
+        assert test_client.put("/assets/99999/store/key", json={"value": "v"}).status_code == 404
 
     def test_delete_unknown_asset_returns_404(self, test_client):
-        assert test_client.delete("/assets/99999/states/key").status_code == 404
+        assert test_client.delete("/assets/99999/store/key").status_code == 404
 
     def test_clear_unknown_asset_returns_404(self, test_client):
-        assert test_client.delete("/assets/99999/states").status_code == 404
+        assert test_client.delete("/assets/99999/store").status_code == 404
 
 
 class TestListAssetState(TestAssetStateEndpoint):
     def test_returns_empty_list_when_no_state(self, test_client):
         response = test_client.get(self._base_url)
         assert response.status_code == 200
-        assert response.json() == {"asset_states": [], "total_entries": 0}
+        assert response.json() == {"asset_store": [], "total_entries": 0}
 
     def test_returns_all_keys(self, test_client):
         _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
@@ -98,14 +98,14 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 2
-        keys = {item["key"]: item["value"] for item in data["asset_states"]}
+        keys = {item["key"]: item["value"] for item in data["asset_store"]}
         assert keys == {"watermark": "2026-05-01", "file_count": "42"}
 
     def test_returns_metadata_fields(self, test_client):
         _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
         self._session.commit()
 
-        item = test_client.get(self._base_url).json()["asset_states"][0]
+        item = test_client.get(self._base_url).json()["asset_store"][0]
         assert "updated_at" in item
         assert item["key"] == "watermark"
 
@@ -117,7 +117,7 @@ class TestListAssetState(TestAssetStateEndpoint):
         response = test_client.get(f"{self._base_url}?limit=2")
         data = response.json()
         assert data["total_entries"] == 3
-        assert len(data["asset_states"]) == 2
+        assert len(data["asset_store"]) == 2
 
     def test_pagination_offset(self, test_client):
         for k in ("watermark", "file_count", "last_run"):
@@ -127,7 +127,7 @@ class TestListAssetState(TestAssetStateEndpoint):
         response = test_client.get(f"{self._base_url}?limit=2&offset=2")
         data = response.json()
         assert data["total_entries"] == 3
-        assert len(data["asset_states"]) == 1
+        assert len(data["asset_store"]) == 1
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(self._base_url).status_code == 401
@@ -287,7 +287,7 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
         test_client.delete(self._base_url)
 
-        other_url = f"/assets/{other_asset.id}/states"
+        other_url = f"/assets/{other_asset.id}/store"
         assert test_client.get(f"{other_url}/watermark").json()["value"] == "theirs"
 
     def test_clears_slash_keyed_entries(self, test_client):

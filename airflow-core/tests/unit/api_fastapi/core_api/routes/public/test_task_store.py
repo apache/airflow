@@ -39,7 +39,7 @@ TASK_ID = "test_task"
 LOGICAL_DATE = timezone.datetime(2026, 1, 1)
 RUN_ID = DagRun.generate_run_id(run_type=DagRunType.MANUAL, logical_date=LOGICAL_DATE, run_after=LOGICAL_DATE)
 
-BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/states"
+BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/store"
 
 
 def _create_dag_run(dag_maker, session):
@@ -87,7 +87,7 @@ class TestListTaskState(TestTaskStateEndpoint):
     def test_returns_empty_list_when_no_state(self, test_client):
         response = test_client.get(BASE_URL)
         assert response.status_code == 200
-        assert response.json() == {"task_states": [], "total_entries": 0}
+        assert response.json() == {"task_store": [], "total_entries": 0}
 
     def test_returns_all_keys(self, test_client):
         _create_task_state(self._session, "job_id", "spark_001", self.dag_run)
@@ -98,7 +98,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 2
-        keys = {item["key"]: item["value"] for item in data["task_states"]}
+        keys = {item["key"]: item["value"] for item in data["task_store"]}
         assert keys == {"job_id": "spark_001", "checkpoint": "step_3"}
 
     def test_returns_state_metadata_fields(self, test_client):
@@ -106,7 +106,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         self._session.commit()
 
         response = test_client.get(BASE_URL)
-        item = response.json()["task_states"][0]
+        item = response.json()["task_store"][0]
         assert "updated_at" in item
         assert "expires_at" in item
 
@@ -135,7 +135,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         response = test_client.get(f"{BASE_URL}?limit=2")
         data = response.json()
         assert data["total_entries"] == 3
-        assert len(data["task_states"]) == 2
+        assert len(data["task_store"]) == 2
 
     def test_pagination_offset(self, test_client):
         for k in ("a", "b", "c"):
@@ -145,7 +145,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         response = test_client.get(f"{BASE_URL}?limit=2&offset=2")
         data = response.json()
         assert data["total_entries"] == 3
-        assert len(data["task_states"]) == 1
+        assert len(data["task_store"]) == 1
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(BASE_URL).status_code == 401
@@ -209,13 +209,13 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
     def test_set_nonexistent_dag_run_returns_404(self, test_client):
         """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
-        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/states/job_id"
+        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/store/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
 
     def test_set_nonexistent_task_id_returns_404(self, test_client):
         """set() returns 404 when task_id doesn not match any TaskInstance in the run."""
-        bad_url = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/nonexistent_task/states/job_id"
+        bad_url = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/nonexistent_task/store/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
 

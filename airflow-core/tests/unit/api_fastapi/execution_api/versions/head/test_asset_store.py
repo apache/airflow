@@ -32,10 +32,10 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.db_test
 
-_BY_NAME_VALUE = "/execution/state/asset/by-name/value"
-_BY_NAME_CLEAR = "/execution/state/asset/by-name/clear"
-_BY_URI_VALUE = "/execution/state/asset/by-uri/value"
-_BY_URI_CLEAR = "/execution/state/asset/by-uri/clear"
+_BY_NAME_VALUE = "/execution/store/asset/by-name/value"
+_BY_NAME_CLEAR = "/execution/store/asset/by-name/clear"
+_BY_URI_VALUE = "/execution/store/asset/by-uri/value"
+_BY_URI_CLEAR = "/execution/store/asset/by-uri/clear"
 
 
 @pytest.fixture(autouse=True)
