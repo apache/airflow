@@ -47,6 +47,7 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook
     connection-type: clickhouse
+    hook-name: "ClickHouse"
     ui-field-behaviour:
       hidden-fields: []
       relabeling:

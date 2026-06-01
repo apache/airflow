@@ -45,6 +45,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook",
                 "connection-type": "clickhouse",
+                "hook-name": "ClickHouse",
                 "ui-field-behaviour": {
                     "hidden-fields": [],
                     "relabeling": {"schema": "Database"},
