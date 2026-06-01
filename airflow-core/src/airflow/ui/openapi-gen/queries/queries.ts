@@ -2176,28 +2176,6 @@ export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTrigge
   requestBody: TriggerDAGRunPostBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
-* Bulk Clear Dag Runs
-* Clear multiple Dag Runs in a single request.
-*
-* When the URL ``dag_id`` is ``~``, every entry in ``dag_runs`` must
-* carry its own ``dag_id``. When the URL ``dag_id`` is a specific Dag,
-* entries may omit ``dag_id`` and inherit from the URL. ``dry_run``
-* returns the union of affected task instances across the listed runs
-* without mutating state; the real clear returns the post-clear Dag Runs.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.requestBody
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const useDagRunServiceBulkClearDagRuns = <TData = Common.DagRunServiceBulkClearDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  dagId: string;
-  requestBody: BulkDAGRunClearBody;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  dagId: string;
-  requestBody: BulkDAGRunClearBody;
-}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.bulkClearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
-/**
 * Clear Dag Run
 * @param data The data for the request.
 * @param data.dagId
@@ -2231,6 +2209,22 @@ export const useDagRunServiceGetListDagRunsBatch = <TData = Common.DagRunService
   dagId: "~";
   requestBody: DAGRunsBatchBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.getListDagRunsBatch({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Clear Dag Runs
+* Clear multiple Dag Runs in a single request.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceClearDagRuns = <TData = Common.DagRunServiceClearDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Favorite Dag
 * Mark the Dag as favorite.

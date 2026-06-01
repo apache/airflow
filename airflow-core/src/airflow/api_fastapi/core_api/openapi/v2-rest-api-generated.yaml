@@ -2777,80 +2777,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/clearDagRuns:
-    post:
-      tags:
-      - DagRun
-      summary: Bulk Clear Dag Runs
-      description: 'Clear multiple Dag Runs in a single request.
-
-
-        When the URL ``dag_id`` is ``~``, every entry in ``dag_runs`` must
-
-        carry its own ``dag_id``. When the URL ``dag_id`` is a specific Dag,
-
-        entries may omit ``dag_id`` and inherit from the URL. ``dry_run``
-
-        returns the union of affected task instances across the listed runs
-
-        without mutating state; the real clear returns the post-clear Dag Runs.'
-      operationId: bulk_clear_dag_runs
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BulkDAGRunClearBody'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                anyOf:
-                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
-                - $ref: '#/components/schemas/DAGRunCollectionResponse'
-                title: Response Bulk Clear Dag Runs
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
     post:
       tags:
@@ -3042,6 +2968,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/clearDagRuns:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Runs
+      description: Clear multiple Dag Runs in a single request.
+      operationId: clear_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunCollectionResponse'
+                title: Response Clear Dag Runs
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:

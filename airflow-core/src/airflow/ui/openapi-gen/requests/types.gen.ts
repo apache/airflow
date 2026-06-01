@@ -2942,13 +2942,6 @@ export type GetUpstreamAssetEventsData = {
 
 export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
 
-export type BulkClearDagRunsData = {
-    dagId: string;
-    requestBody: BulkDAGRunClearBody;
-};
-
-export type BulkClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
-
 export type ClearDagRunData = {
     dagId: string;
     dagRunId: string;
@@ -2978,6 +2971,13 @@ export type GetListDagRunsBatchData = {
 };
 
 export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
+export type ClearDagRunsData = {
+    dagId: string;
+    requestBody: BulkDAGRunClearBody;
+};
+
+export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
 
 export type GetDagRunStatsData = {
     dagId: string;
@@ -5420,37 +5420,6 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/clearDagRuns': {
-        post: {
-            req: BulkClearDagRunsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
         post: {
             req: ClearDagRunData;
@@ -5513,6 +5482,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearDagRuns': {
+        post: {
+            req: ClearDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
