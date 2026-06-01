@@ -51,7 +51,7 @@ There are three different places where callbacks can be defined.
 Callback Types
 --------------
 
-There are six types of events that can trigger a callback:
+There are five types of callbacks triggered on specific events:
 
 =========================================== ======================================================================= =================
 Name                                        Description                                                             Availability
