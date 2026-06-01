@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import functools
 import json
 import os
@@ -162,6 +163,7 @@ from airflow.sdk.execution_time.task_runner import (
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
+    _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
     detail_span,
@@ -5266,6 +5268,156 @@ class TestDetailSpan:
                 with pytest.raises(ValueError, match="boom"):
                     with detail_span("child"):
                         raise ValueError("boom")
+
+
+class TestRunExecuteCallable:
+    """Tests for ``_run_execute_callable``.
+
+    It runs the task's execute callable inside the task's contextvars context,
+    applies the execution timeout when one is configured, and wraps the call in
+    a ``task.execute`` detail span.
+    """
+
+    @staticmethod
+    def _make_task(execution_timeout=None):
+        task = mock.MagicMock(spec=BaseOperator)
+        task.execution_timeout = execution_timeout
+        return task
+
+    def test_returns_result_and_uses_contextvars_context(self):
+        """The callable runs inside the provided contextvars context and its return value is passed back."""
+        var = contextvars.ContextVar("marker")
+        var.set("outer")
+        ctx = contextvars.copy_context()
+
+        def execute(context):
+            var.set("inner")
+            return context["value"] * 2
+
+        task = self._make_task()
+        result = _run_execute_callable(context={"value": 21}, ctx=ctx, execute=execute, task=task)
+
+        assert result == 42
+        # The mutation happened inside the copied context, not the current one.
+        assert var.get() == "outer"
+        assert ctx[var] == "inner"
+        task.on_kill.assert_not_called()
+
+    def test_applies_execution_timeout(self):
+        """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
+        ctx = contextvars.copy_context()
+        task = self._make_task(execution_timeout=timedelta(milliseconds=10))
+
+        def execute(context):
+            time.sleep(2)
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, ctx=ctx, execute=execute, task=task)
+
+        task.on_kill.assert_called_once()
+
+    def test_fast_fails_when_timeout_already_elapsed(self):
+        """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
+        ctx = contextvars.copy_context()
+        task = self._make_task(execution_timeout=timedelta(seconds=-1))
+        execute = mock.MagicMock()
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, ctx=ctx, execute=execute, task=task)
+
+        execute.assert_not_called()
+        task.on_kill.assert_called_once()
+
+    def test_emits_task_execute_span_at_detail_level_2(self):
+        """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        ctx = contextvars.copy_context()
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, ctx=ctx, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" in names
+
+    def test_no_task_execute_span_at_detail_level_1(self):
+        """At detail level 1, no ``task.execute`` span is recorded but the callable still runs."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        ctx = contextvars.copy_context()
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, ctx=ctx, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" not in names
+
+    def test_task_execute_span_marked_error_on_regular_exception(self):
+        """A regular Exception from the callable marks the ``task.execute`` span as ERROR."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        ctx = contextvars.copy_context()
+        task = self._make_task()
+
+        def execute(context):
+            raise ValueError("boom")
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                with pytest.raises(ValueError, match="boom"):
+                    _run_execute_callable(context={}, ctx=ctx, execute=execute, task=task)
+
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        assert spans["task.execute"].status.status_code == trace.StatusCode.ERROR
+
+    def test_task_execute_span_marked_error_on_timeout(self):
+        """A timeout (AirflowTaskTimeout, a BaseException) is explicitly marked ERROR on the span.
+
+        OpenTelemetry only auto-sets ERROR status for Exception subclasses, so the timeout handler
+        sets it explicitly; this guards against that being lost.
+        """
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        ctx = contextvars.copy_context()
+        task = self._make_task(execution_timeout=timedelta(milliseconds=10))
+
+        def execute(context):
+            time.sleep(2)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                with pytest.raises(AirflowTaskTimeout):
+                    _run_execute_callable(context={}, ctx=ctx, execute=execute, task=task)
+
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        assert spans["task.execute"].status.status_code == trace.StatusCode.ERROR
+        task.on_kill.assert_called_once()
 
 
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
