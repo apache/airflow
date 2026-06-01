@@ -1445,6 +1445,7 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.external_task_ids == ["test_task"]
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Existence-check endpoints require Airflow 3.3+")
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable_check_existence_dag_not_found(self, dag_maker):
         from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
@@ -1467,6 +1468,7 @@ class TestExternalTaskSensorV3:
         ):
             op.execute(context=self.context)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Existence-check endpoints require Airflow 3.3+")
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable_check_existence_task_not_found(self, dag_maker):
         from airflow.sdk.execution_time.comms import DagTasksExistenceResult
@@ -1487,6 +1489,7 @@ class TestExternalTaskSensorV3:
         with pytest.raises(ExternalTaskNotFoundError):
             op.execute(context=self.context)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Existence-check endpoints require Airflow 3.3+")
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable_check_existence_task_group_not_found(self, dag_maker):
         from airflow.sdk.execution_time.comms import DagTaskGroupsExistenceResult

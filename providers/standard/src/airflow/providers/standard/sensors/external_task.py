@@ -46,6 +46,7 @@ from airflow.providers.standard.utils.sensor_helper import _get_count, _get_exte
 from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     BaseOperator,
 )
 from airflow.utils.file import correct_maybe_zipped
@@ -443,8 +444,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
             dttm_filter = self._get_dttm_filter(context)
             if AIRFLOW_V_3_0_PLUS:
-                if self.check_existence and not self._has_checked_existence:
-                    self._check_for_existence_af3(context)
+                # It relies on endpoints only available in Airflow 3.3+
+                if AIRFLOW_V_3_3_PLUS:
+                    if self.check_existence and not self._has_checked_existence:
+                        self._check_for_existence_af3(context)
 
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
@@ -556,9 +559,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         def _raise_if_dag_missing(exc: AirflowRuntimeError) -> None:
             if exc.error.error == ErrorType.DAG_NOT_FOUND:
-                raise ExternalDagNotFoundError(
-                    f"The external DAG {self.external_dag_id} does not exist."
-                ) from None
+                raise ExternalDagNotFoundError(f"The external DAG {self.external_dag_id} does not exist.")
             raise exc
 
         try:
