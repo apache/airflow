@@ -102,6 +102,35 @@ def dagbag():
 
 
 @pytest.fixture
+def create_dagruns():
+    def _create_dagruns(
+        dag_maker,
+        session,
+        last_scheduling_decision: datetime.datetime | None = None,
+        count: int = 20,
+    ):
+        dagrun = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            state=State.RUNNING,
+            run_after=datetime.datetime(2024, 1, 1),
+        )
+        dagrun.last_scheduling_decision = last_scheduling_decision
+        session.merge(dagrun)
+        for _ in range(count - 1):
+            dagrun = dag_maker.create_dagrun_after(
+                dagrun,
+                run_type=DagRunType.SCHEDULED,
+                state=State.RUNNING,
+                run_after=datetime.datetime(2024, 1, 1),
+            )
+
+            dagrun.last_scheduling_decision = last_scheduling_decision
+            session.merge(dagrun)
+
+    return _create_dagruns
+
+
+@pytest.fixture
 def deadline_test_dag(session):
     """Fixture that creates and syncs a basic DAG with two tasks."""
 
@@ -1005,6 +1034,7 @@ class TestDagRun:
         self,
         session,
         dag_maker,
+        create_dagruns,
         monkeypatch,
         new_dagruns_to_examine,
     ):
@@ -1014,28 +1044,6 @@ class TestDagRun:
             new_dagruns_to_examine,
         )
 
-        def create_dagruns(
-            last_scheduling_decision: datetime.datetime | None = None,
-            count: int = 20,
-        ):
-            dagrun = dag_maker.create_dagrun(
-                run_type=DagRunType.SCHEDULED,
-                state=State.RUNNING,
-                run_after=datetime.datetime(2024, 1, 1),
-            )
-            dagrun.last_scheduling_decision = last_scheduling_decision
-            session.merge(dagrun)
-            for _ in range(count - 1):
-                dagrun = dag_maker.create_dagrun_after(
-                    dagrun,
-                    run_type=DagRunType.SCHEDULED,
-                    state=State.RUNNING,
-                    run_after=datetime.datetime(2024, 1, 1),
-                )
-
-                dagrun.last_scheduling_decision = last_scheduling_decision
-                session.merge(dagrun)
-
         with dag_maker(
             dag_id="dummy_dag",
             schedule=datetime.timedelta(days=1),
@@ -1044,7 +1052,7 @@ class TestDagRun:
         ):
             EmptyOperator(task_id="dummy_task")
 
-        create_dagruns(None, 10)
+        create_dagruns(dag_maker, session, None, 10)
 
         with dag_maker(
             dag_id="dummy_dag2",
@@ -1054,7 +1062,7 @@ class TestDagRun:
         ):
             EmptyOperator(task_id="dummy_task2")
 
-        create_dagruns(timezone.utcnow(), 20)
+        create_dagruns(dag_maker, session, timezone.utcnow(), 20)
 
         session.flush()
 
@@ -1064,30 +1072,10 @@ class TestDagRun:
 
         assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None]) == 10
 
-    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(self, session, dag_maker, monkeypatch):
+    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(
+        self, session, dag_maker, create_dagruns, monkeypatch
+    ):
         monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 10)
-
-        def create_dagruns(
-            last_scheduling_decision: datetime.datetime | None = None,
-            count: int = 20,
-        ):
-            dagrun = dag_maker.create_dagrun(
-                run_type=DagRunType.SCHEDULED,
-                state=State.RUNNING,
-                run_after=datetime.datetime(2024, 1, 1),
-            )
-            dagrun.last_scheduling_decision = last_scheduling_decision
-            session.merge(dagrun)
-            for _ in range(count - 1):
-                dagrun = dag_maker.create_dagrun_after(
-                    dagrun,
-                    run_type=DagRunType.SCHEDULED,
-                    state=State.RUNNING,
-                    run_after=datetime.datetime(2024, 1, 1),
-                )
-
-                dagrun.last_scheduling_decision = last_scheduling_decision
-                session.merge(dagrun)
 
         with dag_maker(
             dag_id="dummy_dag",
@@ -1097,7 +1085,7 @@ class TestDagRun:
         ):
             EmptyOperator(task_id="dummy_task")
 
-        create_dagruns(None)
+        create_dagruns(dag_maker, session, None)
 
         with dag_maker(
             dag_id="dummy_dag2",
@@ -1107,7 +1095,7 @@ class TestDagRun:
         ):
             EmptyOperator(task_id="dummy_task2")
 
-        create_dagruns(func.now())
+        create_dagruns(dag_maker, session, timezone.utcnow())
 
         session.flush()
 
