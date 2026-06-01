@@ -1544,7 +1544,7 @@ def _handle_current_task_success(
 
     if conf.getboolean("state_store", "clear_on_success"):
         log.info(
-            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the server."
+            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
         context["task_state"]._clear_backend_only()
 
