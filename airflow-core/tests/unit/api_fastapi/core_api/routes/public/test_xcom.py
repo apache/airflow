@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
@@ -31,7 +33,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -41,6 +43,9 @@ from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clea
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
+
+if TYPE_CHECKING:
+    from airflow.sdk.types import MappedOperator
 
 pytestmark = pytest.mark.db_test
 
@@ -70,7 +75,7 @@ run_id = DagRun.generate_run_id(
 
 
 @provide_session
-def _create_xcom(key, value, backend, session=None) -> None:
+def _create_xcom(key, value, backend, *, session: Session = NEW_SESSION) -> None:
     XComModel.set(
         key=key,
         value=value,
@@ -82,7 +87,7 @@ def _create_xcom(key, value, backend, session=None) -> None:
 
 
 @provide_session
-def _create_dag_run(dag_maker, session=None):
+def _create_dag_run(dag_maker, *, session: Session = NEW_SESSION):
     with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date_parsed):
         EmptyOperator(task_id=TEST_TASK_ID)
     dag_maker.create_dagrun(
@@ -443,13 +448,16 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @provide_session
-    def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
+    def _create_xcom_entries(
+        self, dag_id, run_id, logical_date, task_id, mapped_ti=False, *, session: Session = NEW_SESSION
+    ):
         bundle_name = "testing"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
         session.merge(orm_dag_bundle)
         session.flush()
 
         with DAG(dag_id=dag_id) as dag:
+            task: EmptyOperator | MappedOperator
             if mapped_ti:
                 task = MockOperator.partial(task_id=task_id).expand(arg1=[0, 1])
             else:
@@ -464,6 +472,7 @@ class TestGetXComEntries(TestXComEndpoint):
         )
         session.add(dagrun)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
         if mapped_ti:
             for i in [0, 1]:
                 ti = create_task_instance(task, run_id=run_id, map_index=i, dag_version_id=dag_version.id)

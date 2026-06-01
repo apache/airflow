@@ -991,6 +991,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2789,6 +2795,11 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
+        doc_md:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Doc Md
       type: object
       required:
       - id

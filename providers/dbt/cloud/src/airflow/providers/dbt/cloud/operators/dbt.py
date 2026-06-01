@@ -250,10 +250,10 @@ class DbtCloudRunJobOperator(BaseOperator):
             # execution_timeout is a hard task-level limit (cancels the job),
             # while timeout only limits how long we wait for the job to finish.
             # If both are set, the earliest deadline wins.
-            end_time = time.monotonic() + self.timeout
+            end_time = time.time() + self.timeout
             execution_deadline = None
             if self.execution_timeout is not None:
-                execution_deadline = time.monotonic() + self.execution_timeout.total_seconds()
+                execution_deadline = time.time() + self.execution_timeout.total_seconds()
 
             job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
             job_run_status = self.hook.get_job_run_status(**job_run_info)

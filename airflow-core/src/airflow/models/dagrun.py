@@ -467,7 +467,7 @@ class DagRun(Base, LoggingMixin):
 
     @duration.expression  # type: ignore[no-redef]
     @provide_session
-    def duration(cls, session: Session = NEW_SESSION) -> Case:
+    def duration(cls, *, session: Session = NEW_SESSION) -> Case:
         dialect_name = get_dialect_name(session)
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
@@ -486,7 +486,7 @@ class DagRun(Base, LoggingMixin):
         return case(when_condition, else_=None)
 
     @provide_session
-    def check_version_id_exists_in_dr(self, dag_version_id: UUID, session: Session = NEW_SESSION):
+    def check_version_id_exists_in_dr(self, dag_version_id: UUID, *, session: Session = NEW_SESSION):
         select_stmt = (
             select(TI.dag_version_id)
             .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
@@ -584,7 +584,7 @@ class DagRun(Base, LoggingMixin):
         return synonym("_state", descriptor=property(self.get_state, self.set_state))
 
     @provide_session
-    def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
+    def refresh_from_db(self, *, session: Session = NEW_SESSION) -> None:
         """
         Reload the current dagrun from the database.
 
@@ -602,7 +602,7 @@ class DagRun(Base, LoggingMixin):
         cls,
         *,
         dag_ids: Iterable[str],
-        exclude_backfill,
+        exclude_backfill: bool,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
         """
@@ -772,9 +772,10 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState | None = None,
         no_backfills: bool = False,
         run_type: DagRunType | None = None,
-        session: Session = NEW_SESSION,
         logical_start_date: datetime | None = None,
         logical_end_date: datetime | None = None,
+        *,
+        session: Session = NEW_SESSION,
     ) -> list[DagRun]:
         """
         Return a set of dag runs for the given search criteria.
@@ -855,6 +856,7 @@ class DagRun(Base, LoggingMixin):
         run_id: str | None = None,
         task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """Return the task instances for this dag run."""
@@ -935,6 +937,7 @@ class DagRun(Base, LoggingMixin):
     def get_task_instances(
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
@@ -952,9 +955,9 @@ class DagRun(Base, LoggingMixin):
     def get_task_instance(
         self,
         task_id: str,
-        session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
+        session: Session = NEW_SESSION,
     ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
@@ -976,8 +979,9 @@ class DagRun(Base, LoggingMixin):
         dag_id: str,
         dag_run_id: str,
         task_id: str,
-        session: Session = NEW_SESSION,
+        *,
         map_index: int = -1,
+        session: Session = NEW_SESSION,
     ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
@@ -1005,7 +1009,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def get_previous_dagrun(
-        dag_run: DagRun, state: DagRunState | None = None, session: Session = NEW_SESSION
+        dag_run: DagRun, state: DagRunState | None = None, *, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
         Return the previous DagRun, if there is one.
@@ -1028,6 +1032,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_previous_scheduled_dagrun(
         dag_run_id: int,
+        *,
         session: Session = NEW_SESSION,
     ) -> DagRun | None:
         """
@@ -1119,7 +1124,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def update_state(
-        self, session: Session = NEW_SESSION, execute_callbacks: bool = True
+        self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
         Determine the overall state of the DagRun based on the state of its TaskInstances.
@@ -1164,7 +1169,7 @@ class DagRun(Base, LoggingMixin):
             tags=self.stats_tags,
         ):
             dag = self.get_dag()
-            info = self.task_instance_scheduling_decisions(session)
+            info = self.task_instance_scheduling_decisions(session=session)
 
             tis = info.tis
             schedulable_tis = info.schedulable_tis
@@ -1314,7 +1319,7 @@ class DagRun(Base, LoggingMixin):
         return schedulable_tis, callback
 
     @provide_session
-    def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
+    def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
@@ -1986,7 +1991,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
+    def get_latest_runs(cls, *, session: Session = NEW_SESSION) -> list[DagRun]:
         """Return the latest DagRun for each DAG."""
         subquery = (
             select(cls.dag_id, func.max(cls.logical_date).label("logical_date"))
@@ -2006,6 +2011,7 @@ class DagRun(Base, LoggingMixin):
     def schedule_tis(
         self,
         schedulable_tis: Iterable[TI],
+        *,
         session: Session = NEW_SESSION,
         max_tis_per_query: int | None = None,
     ) -> int:
@@ -2145,7 +2151,7 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def _get_log_template(log_template_id: int | None, session: Session = NEW_SESSION) -> LogTemplate:
+    def _get_log_template(log_template_id: int | None, *, session: Session = NEW_SESSION) -> LogTemplate:
         template: LogTemplate | None
         if log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))

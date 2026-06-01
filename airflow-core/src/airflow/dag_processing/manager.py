@@ -411,6 +411,7 @@ class DagFileProcessorManager(LoggingMixin):
     def deactivate_stale_dags(
         self,
         last_parsed: dict[DagFileInfo, datetime | None],
+        *,
         session: Session = NEW_SESSION,
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
@@ -588,7 +589,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     @provide_session
-    def _claim_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
+    def _claim_priority_files(self, *, session: Session = NEW_SESSION) -> list[DagFileInfo]:
         """Fetch priority parsing requests from the metadata database."""
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
@@ -617,6 +618,7 @@ class DagFileProcessorManager(LoggingMixin):
     @retry_db_transaction
     def _fetch_callbacks_from_db(
         self,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
         """Fetch callbacks from database and add them to the internal queue for execution."""
@@ -921,7 +923,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def clear_orphaned_import_errors(
-        self, bundle_name: str, observed_filelocs: set[str], session: Session = NEW_SESSION
+        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
     ):
         """
         Clear import errors for files that no longer exist.

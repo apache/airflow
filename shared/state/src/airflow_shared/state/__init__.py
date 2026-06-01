@@ -216,6 +216,11 @@ class BaseStateBackend(ABC):
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
 
+        **Important:** return only the raw reference string. The worker framework automatically
+        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
+        that wrapper before passing ``stored`` to ``deserialize_task_state_from_ref()``. Do not
+        wrap the reference yourself.
+
         The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
@@ -240,6 +245,11 @@ class BaseStateBackend(ABC):
         Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
+
+        **Important:** return only the raw reference string. The worker framework automatically
+        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
+        that wrapper before passing ``stored`` to ``deserialize_asset_state_from_ref()``. Do not
+        wrap the reference yourself.
 
         ``asset_ref`` is either the asset name or URI, depending on how the accessor was
         constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.

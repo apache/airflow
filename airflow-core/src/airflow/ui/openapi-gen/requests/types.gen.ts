@@ -100,7 +100,7 @@ export type AssetResponse = {
  * Request body for setting an asset state value.
  */
 export type AssetStateBody = {
-    value: string;
+    value: JsonValue;
 };
 
 /**
@@ -116,7 +116,7 @@ export type AssetStateCollectionResponse = {
  */
 export type AssetStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
 };
 
@@ -299,6 +299,24 @@ export type BulkCreateAction_VariableBody_ = {
 export type BulkDAGRunBody = {
     dag_run_id: string;
     dag_id?: string | null;
+};
+
+/**
+ * Request body for the bulk clear Dag Runs endpoint.
+ */
+export type BulkDAGRunClearBody = {
+    dry_run?: boolean;
+    only_failed?: boolean;
+    /**
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
+     */
+    run_on_latest_version?: boolean | null;
+    note?: string | null;
+    dag_runs: Array<BulkDAGRunBody>;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -748,9 +766,10 @@ export type DAGRunClearBody = {
      */
     only_new?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    note?: string | null;
 };
 
 /**
@@ -1065,6 +1084,7 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
@@ -1438,6 +1458,7 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;
@@ -1713,9 +1734,16 @@ export type TaskResponse = {
 
 /**
  * Request body for setting a task state value.
+ *
+ * ``expires_at`` controls expiry:
+ *
+ * - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+ * - ``null``: never expire.
+ * - aware datetime: expire at that time.
  */
 export type TaskStateBody = {
-    value: string;
+    value: JsonValue;
+    expires_at?: string | "default" | null;
 };
 
 /**
@@ -1727,11 +1755,18 @@ export type TaskStateCollectionResponse = {
 };
 
 /**
+ * Request body for patching only the value of an existing task state key.
+ */
+export type TaskStatePatchBody = {
+    value: JsonValue;
+};
+
+/**
  * A single task state key/value pair with metadata.
  */
 export type TaskStateResponse = {
     key: string;
-    value: string;
+    value: JsonValue;
     updated_at: string;
     expires_at: string | null;
 };
@@ -1825,7 +1860,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
     key: string;
-    value: string;
+    value?: string | null;
     description: string | null;
     is_encrypted: boolean;
     team_name: string | null;
@@ -2246,6 +2281,7 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+    doc_md?: string | null;
 };
 
 /**
@@ -2937,6 +2973,13 @@ export type GetListDagRunsBatchData = {
 };
 
 export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
+export type ClearDagRunsData = {
+    dagId: string;
+    requestBody: BulkDAGRunClearBody;
+};
+
+export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
 
 export type GetDagRunStatsData = {
     dagId: string;
@@ -3965,6 +4008,17 @@ export type SetTaskStateData = {
 };
 
 export type SetTaskStateResponse = void;
+
+export type PatchTaskStateData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStatePatchBody;
+    taskId: string;
+};
+
+export type PatchTaskStateResponse = unknown;
 
 export type DeleteTaskStateData = {
     dagId: string;
@@ -5430,6 +5484,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearDagRuns': {
+        post: {
+            req: ClearDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7260,6 +7345,31 @@ export type $OpenApiTs = {
                 422: HTTPValidationError;
             };
         };
+        patch: {
+            req: PatchTaskStateData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
         delete: {
             req: DeleteTaskStateData;
             res: {
@@ -7948,6 +8058,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

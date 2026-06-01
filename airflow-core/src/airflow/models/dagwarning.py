@@ -77,7 +77,7 @@ class DagWarning(Base):
     @classmethod
     @provide_session
     @retry_db_transaction
-    def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
+    def purge_inactive_dag_warnings(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
 

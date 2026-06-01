@@ -38,7 +38,11 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
@@ -332,10 +336,13 @@ class TestDagRunOperator:
                 {}, {"dag_id": "dag_id", "run_ids": ["run_id_1"], "poll_interval": 15, "run_id_1": "success"}
             )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
+    @pytest.mark.skipif(
+        not (AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_2_PLUS),
+        reason="On Airflow 3.0/3.1 the worker cannot resolve the DAG paused state",
+    )
+    def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail_below_3_2(self):
         with pytest.raises(
-            NotImplementedError, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x"
+            NotImplementedError, match="Setting `fail_when_dag_is_paused` requires Airflow 3.2.0"
         ):
             TriggerDagRunOperator(
                 task_id="test_task",
@@ -343,6 +350,45 @@ class TestDagRunOperator:
                 conf={"foo": "bar"},
                 fail_when_dag_is_paused=True,
             )
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="Needs the task-SDK GetDag endpoint added in Airflow 3.2.0"
+    )
+    def test_trigger_dagrun_fails_when_target_dag_is_paused(self):
+        from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            fail_when_dag_is_paused=True,
+            openlineage_inject_parent_info=False,
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.get_dag.return_value.is_paused = True
+
+        with pytest.raises(DagIsPaused, match=f"Dag {TRIGGERED_DAG_ID} is paused"):
+            task.execute(context={"ti": mock_ti})
+
+        mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="Needs the task-SDK GetDag endpoint added in Airflow 3.2.0"
+    )
+    def test_trigger_dagrun_proceeds_when_target_dag_is_not_paused(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            fail_when_dag_is_paused=True,
+            openlineage_inject_parent_info=False,
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.get_dag.return_value.is_paused = False
+
+        with pytest.raises(DagRunTriggerException) as exc_info:
+            task.execute(context={"ti": mock_ti})
+
+        assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+        mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun_with_str_conf(self):

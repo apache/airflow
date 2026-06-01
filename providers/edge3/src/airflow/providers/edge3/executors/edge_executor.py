@@ -74,7 +74,7 @@ class EdgeExecutor(BaseExecutor):
             self.team_name = None
 
     @provide_session
-    def start(self, session: Session = NEW_SESSION):
+    def start(self, *, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         check_db_manager_config()
         edge_db_manager = EdgeDBManager(session)
@@ -95,11 +95,10 @@ class EdgeExecutor(BaseExecutor):
         self.edge_queued_tasks = deepcopy(self.queued_tasks)
         super()._process_tasks(task_tuples)  # type: ignore[misc]
 
-    @provide_session
     def queue_workload(
         self,
         workload: workloads.All,
-        session: Session = NEW_SESSION,
+        session: Session,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
         if not isinstance(workload, workloads.ExecuteTask):
@@ -309,7 +308,7 @@ class EdgeExecutor(BaseExecutor):
         return purged_marker
 
     @provide_session
-    def sync(self, session: Session = NEW_SESSION) -> None:
+    def sync(self, *, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
         with Stats.timer("edge_executor.sync.duration"):
             orphaned = self._update_orphaned_jobs(session)

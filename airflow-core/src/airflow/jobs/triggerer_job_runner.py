@@ -193,6 +193,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
         self.team_name = team_name
+        # Set up only when _execute() starts the subprocess; keep it defined so that
+        # signal handlers (or other code) firing before startup don't hit AttributeError.
+        self.trigger_runner: TriggerRunnerSupervisor | None = None
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -201,7 +204,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     @provide_session
-    def is_needed(cls, session) -> bool:
+    def is_needed(cls, *, session: Session) -> bool:
         """
         Test if the triggerer job needs to be run (i.e., if there are triggers in the trigger table).
 
@@ -256,8 +259,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Waiting for triggers to clean up")
             # Tell the subtproc to stop and then wait for it.
             # If the user interrupts/terms again, _graceful_exit will allow them
-            # to force-kill here.
-            self.trigger_runner.kill(escalation_delay=10, force=True)
+            # to force-kill here. trigger_runner may be None if start() raised.
+            if self.trigger_runner is not None:
+                self.trigger_runner.kill(escalation_delay=10, force=True)
             self.log.info("Exited trigger loop")
         return None
 
@@ -873,8 +877,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Enqueue orphaned triggers for cancellation
             self.cancelling_triggers.update(cancel_trigger_ids)
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
-        super()._register_pipe_readers(stdout, stderr, requests, logs)
+    def _register_pipe_readers(
+        self,
+        stdout: socket,
+        stderr: socket,
+        requests: socket,
+        logs: socket,
+        *,
+        data: dict[socket, bytes],
+    ):
+        super()._register_pipe_readers(stdout, stderr, requests, logs, data=data)
 
         # We want to handle logging differently here, so un-register the one our parent class created
         self.selector.unregister(logs)

@@ -1,0 +1,1 @@
+Fix ``ONE_FAILED``/``ONE_SUCCESS``/``ONE_DONE`` trigger rules inside a mapped task group being evaluated against every upstream instance instead of the upstream instance sharing the task's own map index, which wrongly triggered the rule for every expanded instance when only one upstream had failed (or succeeded).
