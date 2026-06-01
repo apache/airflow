@@ -108,7 +108,6 @@ apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
-swagger-plugin-for-sphinx = { timestamp = "0001-01-01T00:00:00Z", span = "PT8H" }
 apache-airflow-kubernetes-tests = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-apache-druid = false
@@ -21387,8 +21386,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -22412,21 +22411,20 @@ wheels = [
 
 [[package]]
 name = "swagger-plugin-for-sphinx"
-version = "7.2.1"
+version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "jinja2" },
-    { name = "pyyaml" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/34/4cf23d045435f598c556f017b296b5ee017bb2fd03eecf044c3a8243fff1/swagger_plugin_for_sphinx-7.2.1.tar.gz", hash = "sha256:6387af0489087f7c3e9806b7c14a10abe2b78b417f660adbe503ec21e8dbe860", size = 121773, upload-time = "2026-06-01T07:28:25.221Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/00/1b2ea76705a887b47d2ba1fa38bb01222431697e6fd020f25c95d6a44615/swagger_plugin_for_sphinx-7.1.0.tar.gz", hash = "sha256:8a054d69600767721f8920f90f87e9078e1736d8c89a6fe74d38ea930f95c9e2", size = 118298, upload-time = "2026-05-27T08:10:11.488Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/46/daa5f14ec4f5cc21f886b4677e9db342886874f975fe02033a96355e2d85/swagger_plugin_for_sphinx-7.2.1-py3-none-any.whl", hash = "sha256:125bf3bae5d63fb59afd1595077c2f8b87cefcc1fe8f7813ad72a887ed3664d3", size = 13767, upload-time = "2026-06-01T07:28:23.904Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/14/43f25438e93fd40f172535b0fac0ab2a4827e13a74f62c35860ba04fc891/swagger_plugin_for_sphinx-7.1.0-py3-none-any.whl", hash = "sha256:1a6369c6e9ee5bca88c11a327e58c134a457401a6a7f8bb97e166d3a2568d4d7", size = 11644, upload-time = "2026-05-27T08:10:10.347Z" },
 ]
 
 [[package]]
