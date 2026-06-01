@@ -21,7 +21,7 @@ import contextlib
 import logging
 import urllib.parse
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
 from sqlalchemy import delete, select
@@ -476,7 +476,7 @@ class TestXComsSetEndpoint:
             ),
             pytest.param(
                 2000,
-                pytest.raises(httpx.HTTPStatusError),
+                pytest.raises(httpx2.HTTPStatusError),
                 id="2000-too-long",
             ),
         ],

@@ -21,7 +21,7 @@ import json
 
 import pendulum
 import pytest
-from httpx import Response
+from httpx2 import Response
 from sqlalchemy import select
 
 from airflow.models.dagbag import DBDagBag
