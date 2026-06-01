@@ -3052,10 +3052,10 @@ class TestSchedulerJob:
         assert res == 6
         session.flush()
         for ti in tis1[:3] + tis2[:3]:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == TaskInstanceState.QUEUED
         for ti in tis1[3:] + tis2[3:]:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == TaskInstanceState.SCHEDULED
 
         # The remaining TIs are queued
@@ -3064,7 +3064,7 @@ class TestSchedulerJob:
         session.flush()
 
         for ti in tis1 + tis2:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
@@ -4014,7 +4014,7 @@ class TestSchedulerJob:
         session = settings.Session()
 
         ti = dr.get_task_instance("dummy")
-        ti.set_state(State.SUCCESS, session)
+        ti.set_state(State.SUCCESS, session=session)
 
         with mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard:
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
@@ -4092,7 +4092,7 @@ class TestSchedulerJob:
         session = settings.Session()
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("test_task")
-        ti.set_state(state, session)
+        ti.set_state(state, session=session)
 
         self.job_runner._do_scheduling(session)
 
@@ -4126,7 +4126,7 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun()
 
         ti = dr.get_task_instance("dummy")
-        ti.set_state(State.SUCCESS, session)
+        ti.set_state(State.SUCCESS, session=session)
 
         self.job_runner._do_scheduling(session)
 
