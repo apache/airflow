@@ -1611,6 +1611,7 @@ class TestTIUpdateState:
             "state": "up_for_reschedule",
             "reschedule_date": "2024-10-31T11:03:00+00:00",
             "end_date": DEFAULT_END_DATE.isoformat(),
+            "rendered_map_index": "my-sensor-label",
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -1626,6 +1627,7 @@ class TestTIUpdateState:
         assert tis[0].next_method is None
         assert tis[0].next_kwargs is None
         assert tis[0].duration == 129600
+        assert tis[0].rendered_map_index == "my-sensor-label"
 
         trs = session.scalars(select(TaskReschedule)).all()
         assert len(trs) == 1

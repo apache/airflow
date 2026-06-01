@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, endpoint, schema
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIAwaitingInputStatePayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TIAwaitingInputStatePayload,
+    TIRescheduleStatePayload,
+)
 
 
 class AddVariableKeysEndpoint(VersionChange):
@@ -52,4 +55,14 @@ class AddAwaitingInputStatePayload(VersionChange):
         schema(TIAwaitingInputStatePayload).field("next_method").didnt_exist,
         schema(TIAwaitingInputStatePayload).field("next_kwargs").didnt_exist,
         schema(TIAwaitingInputStatePayload).field("rendered_map_index").didnt_exist,
+    )
+
+
+class AddRenderedMapIndexToReschedulePayload(VersionChange):
+    """Add the ``rendered_map_index`` field to TIRescheduleStatePayload."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRescheduleStatePayload).field("rendered_map_index").didnt_exist,
     )

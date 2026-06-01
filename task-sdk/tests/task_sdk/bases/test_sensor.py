@@ -310,6 +310,27 @@ class TestBaseSensor:
             state, _, _ = run_task(sensor)
         assert state == TaskInstanceState.SUCCESS
 
+    def test_reschedule_includes_rendered_map_index(self, run_task, make_sensor, time_machine):
+        """Test that RescheduleTask message includes rendered_map_index when map_index_template is set."""
+        sensor = make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=25,
+            mode="reschedule",
+            map_index_template="{{ task.task_id }}",
+        )
+        sensor.poke = Mock(return_value=False)
+
+        date1 = timezone.utcnow()
+        time_machine.move_to(date1, tick=False)
+
+        state, msg, _ = run_task(task=sensor)
+
+        assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+        assert isinstance(msg, RescheduleTask)
+        assert msg.rendered_map_index == SENSOR_OP
+        assert msg.end_date == date1
+
     def test_sensor_with_invalid_poke_interval(self):
         negative_poke_interval = -10
         non_number_poke_interval = "abcd"
