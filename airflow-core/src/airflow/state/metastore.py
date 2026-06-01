@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import structlog
 from sqlalchemy import delete, select
 
-from airflow._shared.state import AssetScope, BaseStoreBackend, StateScope, TaskScope
+from airflow._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset_store import AssetStoreModel
@@ -87,7 +87,7 @@ class MetastoreStateBackend(BaseStoreBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session
-    def get(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> str | None:
+    def get(self, scope: StoreScope, key: str, *, session: Session | None = NEW_SESSION) -> str | None:
         if TYPE_CHECKING:
             assert session is not None
         match scope:
@@ -101,7 +101,7 @@ class MetastoreStateBackend(BaseStoreBackend):
     @provide_session
     def set(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -119,7 +119,7 @@ class MetastoreStateBackend(BaseStoreBackend):
                 assert_never(scope)
 
     @provide_session
-    def delete(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> None:
+    def delete(self, scope: StoreScope, key: str, *, session: Session | None = NEW_SESSION) -> None:
         if TYPE_CHECKING:
             assert session is not None
         match scope:
@@ -133,7 +133,7 @@ class MetastoreStateBackend(BaseStoreBackend):
     @provide_session
     def clear(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         *,
         all_map_indices: bool = False,
         session: Session | None = NEW_SESSION,
@@ -148,7 +148,7 @@ class MetastoreStateBackend(BaseStoreBackend):
             case _:
                 assert_never(scope)
 
-    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+    async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
@@ -160,7 +160,7 @@ class MetastoreStateBackend(BaseStoreBackend):
 
     async def aset(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -176,7 +176,7 @@ class MetastoreStateBackend(BaseStoreBackend):
                 case _:
                     assert_never(scope)
 
-    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+    async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
@@ -187,7 +187,7 @@ class MetastoreStateBackend(BaseStoreBackend):
                     assert_never(scope)
 
     async def aclear(
-        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+        self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
         async with _async_session(session) as s:
             match scope:

@@ -22,7 +22,7 @@ import threading
 from airflow._shared.state import (
     AssetScope as AssetScope,
     BaseStoreBackend as BaseStoreBackend,
-    StateScope as StateScope,
+    StoreScope as StoreScope,
     TaskScope as TaskScope,
 )
 

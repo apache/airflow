@@ -70,14 +70,14 @@ class AssetScope:
             raise ValueError("AssetScope requires at least one of: asset_id, name, or uri")
 
 
-StateScope = TaskScope | AssetScope
+StoreScope = TaskScope | AssetScope
 
 
 class BaseStoreBackend(ABC):
     """
     Abstract backend for reading and writing task and asset state.
 
-    Each method receives a ``StateScope`` which is either a ``TaskScope`` or an ``AssetScope``.
+    Each method receives a ``StoreScope`` which is either a ``TaskScope`` or an ``AssetScope``.
     Implementations must handle both types. The standard dispatch pattern is::
 
         match scope:
@@ -96,7 +96,7 @@ class BaseStoreBackend(ABC):
     """
 
     @abstractmethod
-    def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
+    def get(self, scope: StoreScope, key: str, *, session: Session | None = None) -> str | None:
         """
         Return the stored JSON encoded value string, or None if the key does not exist.
 
@@ -107,7 +107,7 @@ class BaseStoreBackend(ABC):
     @abstractmethod
     def set(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -127,7 +127,7 @@ class BaseStoreBackend(ABC):
         """
 
     @abstractmethod
-    def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None:
+    def delete(self, scope: StoreScope, key: str, *, session: Session | None = None) -> None:
         """
         Delete a single key. No-op if the key does not exist.
 
@@ -136,7 +136,7 @@ class BaseStoreBackend(ABC):
 
     @abstractmethod
     def clear(
-        self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None
+        self, scope: StoreScope, *, all_map_indices: bool = False, session: Session | None = None
     ) -> None:
         """
         Delete all keys under the given scope.
@@ -150,7 +150,7 @@ class BaseStoreBackend(ABC):
         """
 
     @abstractmethod
-    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+    async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         """
         Async variant of ``get`` which returns a JSON encoded value string or None.
 
@@ -161,7 +161,7 @@ class BaseStoreBackend(ABC):
     @abstractmethod
     async def aset(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -176,7 +176,7 @@ class BaseStoreBackend(ABC):
         """
 
     @abstractmethod
-    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+    async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
         """
         Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
 
@@ -186,7 +186,7 @@ class BaseStoreBackend(ABC):
 
     @abstractmethod
     async def aclear(
-        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+        self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
