@@ -302,6 +302,271 @@ is layered: `/setup-steward` writes during adopt/upgrade,
 (check 8 there), and this check is the cheap static cross-check
 to surface drift between the two skill families.
 
+### 8c. Stale agent-worktrees under `.claude/worktrees/`
+
+Detect worktrees the agent (or a prior session) created under
+`<repo-root>/.claude/worktrees/` that have been left lying around
+beyond their useful life. **Main-checkout only** — worktrees can
+only be inspected from the checkout that owns them, and the
+`git worktree list` output is the same across the family anyway.
+
+Stale agent-worktrees are a real friction source: they hold
+branches (typically `main`, since `EnterWorktree` defaults to
+branching from `main`), so a subsequent `git checkout main` from
+the main checkout fails with *"main is already used by worktree
+at …"* — silently, in the middle of a longer command pipeline,
+producing confusing downstream failures. A session that ended
+without explicit `ExitWorktree(action: "remove")` leaves the
+worktree on disk; the next session has no way to know it is
+abandoned.
+
+The check:
+
+1. Run `git worktree list --porcelain` and filter to entries
+   whose `worktree` path is under `<repo-root>/.claude/worktrees/`.
+2. For each, compute the **age** — the maximum of:
+   - the worktree directory's `mtime` (file-system signal — how
+     long since anything inside changed); and
+   - `git -C <worktree> log -1 --format=%cI HEAD`'s commit time
+     (git-state signal — how recent the latest commit on the
+     worktree's branch is).
+
+   The max-of-two avoids two failure modes: a worktree whose
+   commits are old but whose files were touched recently (still
+   active) and a worktree whose files are old but whose branch
+   was recently rebased (still in use). Both look fresh to one
+   of the signals alone.
+
+3. Bucket the result against a threshold (default: **7 days**;
+   adopter override via `worktree_stale_days` in
+   `<project-config>/setup-steward.md` — if absent, default
+   stands):
+   - ✓ if age ≤ threshold
+   - ⚠ if age > threshold AND the worktree has zero
+     uncommitted changes (`git -C <worktree> status --porcelain`
+     is empty) — surface the path, age, branch name, and
+     propose `git worktree remove <path>` as the cleanup.
+   - ✗ if age > threshold AND the worktree has uncommitted
+     changes — surface the same info plus an explicit
+     *"uncommitted changes present"* warning, and propose
+     two-step cleanup: first commit-or-stash, then
+     `git worktree remove --force <path>` (or
+     `EnterWorktree(path)` to enter it interactively and
+     decide).
+
+4. The check is **read-only**: it never auto-removes a
+   worktree, never force-anything. The proposal lands in the
+   verify-report and the operator chooses to act.
+
+**Threshold rationale.** Agent-worktrees are designed for
+per-task isolation: open, work, close. A worktree older than
+7 days is overwhelmingly a session that ended without explicit
+cleanup. Lower thresholds (3 days, 1 day) hit false-positive
+on multi-day tasks that legitimately stretch across sessions;
+higher thresholds (14, 30 days) let the bug class persist
+long enough to actually break a `git checkout main` weeks
+later.
+
+**Why this check exists separately from worktree-init.**
+`worktree-init` wires up a newly-created worktree. There is
+no symmetric step for end-of-life: `EnterWorktree(action:
+"remove")` from inside a session removes it cleanly, but
+sessions that crash, get interrupted, or end via context-
+window-exhaustion leak. This check is the periodic cleanup
+sweep that catches the leakage.
+
+### 8d. Permission allow-list hygiene
+
+Audit the adopter's per-machine permission allow-list for
+patterns that grant arbitrary code execution, and surface
+the recommended read-only patterns the framework's skills
+use heavily. **Local-state only** — the framework never
+mutates `.claude/settings*.json`; this check produces
+*proposals* the operator confirms before any write.
+
+Two files to read:
+
+- `<repo-root>/.claude/settings.json` (committed,
+  project-wide).
+- `<repo-root>/.claude/settings.local.json` (gitignored,
+  per-machine — same security model as
+  `.apache-steward.local.lock`).
+
+For each, parse the JSON, walk `permissions.allow[]`, and
+bucket each entry against two canonical lists.
+
+**Forbidden — propose removal (✗ per entry hit):** broad
+wildcards over interpreters, shells, and package runners.
+Treat any of the following allow-list strings as an
+arbitrary-code-execution hole, regardless of how the
+adopter justified adding them:
+
+- `Bash(python *)`, `Bash(python3 *)`,
+  `Bash(node *)`, `Bash(bun *)`, `Bash(deno *)`,
+  `Bash(ruby *)`, `Bash(perl *)`, `Bash(php *)`,
+  `Bash(lua *)`
+- `Bash(bash *)`, `Bash(sh *)`, `Bash(zsh *)`,
+  `Bash(fish *)`, `Bash(eval *)`, `Bash(exec *)`,
+  `Bash(ssh *)`
+- `Bash(npx *)`, `Bash(bunx *)`, `Bash(uvx *)`,
+  `Bash(uv run *)`
+- `Bash(npm run *)`, `Bash(yarn run *)`,
+  `Bash(pnpm run *)`, `Bash(bun run *)`,
+  `Bash(make *)`, `Bash(just *)`, `Bash(cargo run *)`,
+  `Bash(go run *)`
+- `Bash(gh api *)`, `Bash(docker run *)`,
+  `Bash(docker exec *)`, `Bash(kubectl exec *)`,
+  `Bash(sudo *)`
+
+The list mirrors the *"Never allowlist a pattern that
+grants arbitrary code execution"* rule from Claude Code's
+user-level `/fewer-permission-prompts` slash command — the
+framework's copy lives here so adoption itself is not
+silently contingent on a sibling skill being present.
+**It is not exhaustive**: an allow-list entry that fits
+the *same category* (anything that can spawn an arbitrary
+process or shell out via a flag) is a ✗ even if its exact
+token does not appear above.
+
+**Recommended — propose addition (⚠ per entry missing):**
+narrow read-only patterns the framework's skills invoke
+often. An adopter who picks up the `security` family will
+hit these constantly; pre-allowing them removes the
+repetitive confirmation prompts without weakening the
+boundary. Tailor the recommendation to the families the
+adopter opted into via
+[`<committed-lock>` → `skill-families`](adopt.md#step-5--pick-the-skill-families):
+
+- **`security` family** —
+  - `mcp__claude_ai_Gmail__get_thread`
+  - `mcp__claude_ai_Gmail__search_threads`
+  - `mcp__claude_ai_Gmail__list_drafts`
+  - `mcp__claude_ai_Gmail__list_labels`
+  - `mcp__ponymail__search_list`
+  - `mcp__ponymail__auth_status`
+  - `mcp__ponymail__get_thread`
+  - `mcp__ponymail__get_email`
+  - `mcp__ponymail__list_restrictions`
+  - `mcp__apache-projects__project_stats`
+  - `mcp__apache-projects__get_committee`
+  - `mcp__apache-projects__get_group_members`
+  - `mcp__apache-projects__get_person`
+  - `mcp__apache-projects__search_people`
+  - `Bash(vulnogram-api-record-fetch *)`
+
+  (The `mcp__apache-projects__*` read tools back the roster /
+  affiliation lookups — also used by `contributor-nomination`,
+  the maintainer-side PMC/committer assessment skill. Both MCP
+  servers are installed from the latest `main` of `apache/comdev`;
+  see [`tools/apache-projects/tool.md`](../../../tools/apache-projects/tool.md)
+  and [`tools/ponymail/tool.md`](../../../tools/ponymail/tool.md).)
+
+- **Any family that ships docs / markdown** (effectively
+  every adopter, since the framework itself ships docs) —
+  - `Bash(lychee *)` — read-only link-checker invoked by
+    the *"run lychee before pushing a PR"* hygiene gate
+    documented in [`AGENTS.md`](../../../AGENTS.md).
+
+The recommended list is **deliberately narrow** — every
+entry is read-only, scoped to a specific tool, and
+verified against Claude Code's auto-allowed harness
+exclusions (`READONLY_COMMANDS`, `GIT_READ_ONLY_COMMANDS`,
+`GH_READ_ONLY_COMMANDS`, etc.) so the framework does not
+redundantly propose entries that never prompt anyway.
+
+**Implementation.** The classification logic and the atomic
+edit path are factored out into the
+[`tools/permission-audit`](../../../tools/permission-audit/README.md)
+CLI; the canonical forbidden + recommended-by-family lists
+live in
+[`tools/permission-audit/src/permission_audit/audit.py`](../../../tools/permission-audit/src/permission_audit/audit.py).
+The skill invokes the CLI once per settings file:
+
+```bash
+uv run --project <framework>/tools/permission-audit \
+  permission-audit audit <repo>/.claude/settings.local.json \
+  --families <comma-joined families from the lock>
+```
+
+The CLI emits structured JSON the skill folds into the verify
+report. Exit code `1` from the CLI maps to ✗ on this check.
+
+**Reporting shape:** group findings by file, then by bucket.
+For each forbidden entry, print the exact JSON-pointer-style
+path (`.permissions.allow[<index>]`) the CLI returned so the
+operator can locate it instantly; for each recommended entry
+missing, print the suggested string verbatim ready for paste.
+**Do not auto-write the files** — the per-machine
+`settings.local.json` is the operator's; surface the proposal
+and let `/setup-steward verify --apply-permission-audit`
+(interactive) or a hand-edit close the gap. The apply path
+calls
+
+```bash
+uv run --project <framework>/tools/permission-audit \
+  permission-audit apply <repo>/.claude/settings.local.json \
+  --add '<entry>' --remove '<entry>' ...
+```
+
+which holds a POSIX `fcntl.flock` advisory exclusive lock on
+the target file, re-parses under the lock, mutates
+`.permissions.allow[]` in place, writes to a sibling temp
+file, and `os.replace`s into place — so concurrent
+`/setup-isolated-setup-install` (which also writes to the same
+file's `sandbox.filesystem.*` arrays) does not silently
+clobber the diff. When the target file lives at a path the
+agent's sandbox marks as `denyWithinAllow` (the per-machine
+settings files typically are), the apply path requires the
+operator to authorise the sandbox bypass for that single write
+— it does not silently skip the file. ⚠ if either file is
+absent (most adopters will have at least
+`settings.local.json` after the first
+`/setup-isolated-setup-install` pass; absence is a soft signal
+not a hard fault).
+
+**Why we propose, never auto-apply.** The allow-list is
+the operator's *capability surface* for the agent in this
+checkout. Even an objectively-safer edit (drop a
+known-dangerous wildcard) is a capability change the
+operator must own, both to know it happened and to keep
+the audit trail human-readable. The framework's job is to
+*surface* the gap — the operator's job is to close it.
+
+### 8e. comdev MCP prerequisites (ASF projects)
+
+**Run this check only for ASF projects** — detect ASF the same way
+as [`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects):
+`<project-config>/project.md` declares `project_metadata.mandatory:
+true` or `Mail sources` `ponymail` `mandatory: yes`. Skip otherwise
+(the two MCP servers are optional for non-ASF adopters).
+
+For ASF projects, both the
+[PonyMail](../../../tools/ponymail/tool.md) and
+[Apache Projects](../../../tools/apache-projects/tool.md) MCP
+servers are mandatory pre-flight prerequisites, installed from the
+latest `main` of `apache/comdev` (tracked, not pinned). Confirm:
+
+1. **Registered.** `mcp__ponymail__*` and `mcp__apache-projects__*`
+   appear in the session tool list. ✗ on either missing — the
+   mandatory pre-flight gates in `security-issue-import` /
+   `security-issue-sync` (PonyMail) and `contributor-nomination`
+   (Apache Projects) will hard-stop. Remediation:
+   [`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects).
+2. **PonyMail authenticated.** For ASF projects an authenticated
+   LDAP session is required, not just a registered server — a
+   trivial `mcp__ponymail__auth_status()` should report an
+   authenticated session. ⚠ if registered but unauthenticated
+   (remediation: `mcp__ponymail__login()`).
+3. **Checkout on `main`, current.** Resolve each server's checkout
+   root from its `mcpServers` `args` path and confirm `origin` is
+   `apache/comdev`, the branch is `main`, and it is not behind the
+   last-fetched `origin/main`. This is the read-only, offline form
+   of the freshness assertion; the authoritative live fetch belongs
+   to [`/setup-steward upgrade` Step 6e](upgrade.md#step-6e--refresh-comdev-mcp-checkouts-asf-projects)
+   and [`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md).
+   ✗ off-`main` or non-`apache/comdev` remote; ⚠ behind
+   `origin/main`.
+
 ### 9. Project documentation mentions the framework
 
 Two files to check (per
@@ -346,5 +611,39 @@ list, ordered most → least urgent:
 - ✗ on check 4 / SHA-512 mismatch → **investigate first**;
   do not run upgrade until you understand why the
   released zip changed under the same version.
+- ⚠ on check 8c (stale agent-worktree, no uncommitted
+  changes) → `git worktree remove <path>` per the
+  per-worktree proposal in the report. Idempotent; safe to
+  batch across all flagged worktrees in one pass.
+- ✗ on check 8c (stale agent-worktree, **uncommitted
+  changes present**) → operator decision required. The
+  proposal lists each affected worktree with its branch
+  + diff summary; recover via `EnterWorktree(path)` (or
+  `cd <path>` outside the harness) to inspect, then either
+  commit / push or stash, then `git worktree remove --force
+  <path>`. Never propose `--force` without first
+  surfacing the diff.
+- ✗ on check 8d (forbidden allow-list entry — arbitrary
+  code execution) → propose removing the named entry from
+  the file's `permissions.allow[]` array. Print the JSON-
+  pointer path so the operator can locate it. Per-machine
+  `settings.local.json` writes go via
+  `/setup-steward verify --apply-permission-audit`
+  (interactive, atomic JSON edit, sandbox-bypass requires
+  per-write authorisation). Committed `settings.json`
+  writes are a regular file edit + commit; flag them
+  loudly because they bind every developer on the project.
+- ⚠ on check 8d (recommended allow-list entry missing) →
+  optional. Print the suggested string ready for paste;
+  apply via the same `--apply-permission-audit` flag, or
+  paste manually. The recommendation is family-scoped, so
+  an adopter who skipped the `security` family will not
+  see the Gmail / PonyMail entries surfaced as gaps.
+- ✗ on check 8e (ASF project, comdev MCP not registered or
+  off-`main`) → `/setup-steward adopt` Step 9c to (re-)install
+  from latest `apache/comdev` `main`. ⚠ on check 8e (PonyMail
+  unauthenticated, or checkout behind `origin/main`) →
+  `mcp__ponymail__login()` and/or `/setup-steward upgrade`
+  Step 6e (live fetch + `git pull --ff-only`).
 - All other ✗ / ⚠ → name the gap, give the one-line
   remediation.

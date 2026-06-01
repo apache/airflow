@@ -527,6 +527,50 @@ operator's read of the upgrade summary is the real signal.
 If every template scans clean, surface the section as
 `✓ all framework templates look generic`.
 
+## Step 6e — Refresh comdev MCP checkouts (ASF projects)
+
+**Run this step only for ASF projects** — detect ASF the same way
+as [`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects):
+`<project-config>/project.md` declares `project_metadata.mandatory:
+true` or `ponymail` `mandatory: yes`. Skip otherwise.
+
+The [PonyMail](../../../tools/ponymail/tool.md) and
+[Apache Projects](../../../tools/apache-projects/tool.md) MCP
+servers are installed from a local `apache/comdev` checkout and are
+**tracked at `main`, not pinned** (no tagged releases — contrast
+the cooldown-pinned system tools in the secure-setup update flow).
+An ASF adopter running `/setup-steward upgrade` should refresh that
+checkout in the same pass, so it does not silently rot between
+framework upgrades.
+
+For each of `ponymail` / `apache-projects` registered in the
+user/project `mcpServers` config, resolve the checkout root from
+its `args` path (`<comdev>/mcp/<server>/index.js`), then — **surface
+only, never auto-pull** (same contract as Step 6b):
+
+1. Confirm `origin` is an `apache/comdev` URL and the checkout is on
+   `main` (`git -C <root> rev-parse --abbrev-ref HEAD`). Flag a
+   detached HEAD / feature branch; remediation
+   `git -C <root> checkout main`.
+2. `git -C <root> fetch origin main` and report the behind-count
+   (`git -C <root> rev-list --count HEAD..origin/main`). When
+   behind, print — do not run:
+
+   ```bash
+   git -C <root> pull --ff-only
+   ( cd <root>/mcp/<server> && npm install )
+   ```
+
+   with the `github.com/apache/comdev/compare/<sha>...main` link.
+
+This is the adoption-flow mirror of
+[`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)'s
+comdev-MCP check — it exists here so the prereq rides along with the
+upgrade an ASF adopter actually runs. If a registered MCP is
+missing entirely, point the operator at
+[`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects)
+to (re-)install it.
+
 ## Step 7 — Update `<local-lock>`
 
 Write the new local lock with the values captured in Step

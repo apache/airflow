@@ -615,10 +615,25 @@ setup; the skills skip any block that is missing or marked `TODO`.
   and authenticated, the security skills use PonyMail as the primary
   read backend for mailing-list archive queries; Gmail remains the
   fallback for just-arrived inbound mail and the only backend for
-  draft composition.
+  draft composition. **ASF projects:** PonyMail is a mandatory
+  prerequisite (the manifest declares it `mandatory: yes`), so set
+  this to `true` and complete the install in Step 9c — the
+  mail-reading skills refuse to run when it is unavailable or
+  unauthenticated.
 - `private_lists: []` — list of private mailing-list addresses that
   PonyMail should query (e.g. `["security@<project>.apache.org"]`).
   Only used when `enabled: true`.
+
+### `apache-projects`
+
+- `enabled: false` — set to `true` if you have registered the
+  Apache Projects MCP in your Claude Code `mcpServers` block. When
+  enabled, `contributor-nomination` and the roster-resolution paths
+  in the security skills read ASF rosters / people / releases
+  through it (read-only, no auth). **ASF projects:** this is a
+  mandatory prerequisite (the manifest declares
+  `project_metadata.mandatory: true`), so set this to `true` and
+  complete the install in Step 9c.
 ```
 
 **Where to write the file.** Default to
@@ -681,11 +696,15 @@ canonical batch is:
    leave the relevant TODO in place. "Auto-detected
    `upstream_clone=<path>`, `upstream_fork_remote=<remote>` — use
    as detected, or customise?"
-3. **`tools.ponymail.enabled`** — *single-select, default `No`*.
-   "Enable PonyMail MCP as the primary mailing-list-archive
-   backend? (Gmail remains the fallback.)" Most adopters answer
-   `No` because they have not registered the PonyMail MCP in
-   their Claude Code `mcpServers` block.
+3. **`tools.ponymail.enabled`** — *single-select*. "Enable
+   PonyMail MCP as the primary mailing-list-archive backend?
+   (Gmail remains the fallback.)" **Default depends on the
+   manifest:** when `<project-config>/project.md → Mail sources`
+   declares `ponymail` with `mandatory: yes` (the ASF default),
+   default `Yes` and note that it is **required** for this
+   project, not optional — Step 9c walks the install. When
+   `mandatory: no`, default `No` (most non-ASF adopters have not
+   registered the MCP).
 
 If the user picks `Yes` for Ponymail in (3), follow up with **one
 more** question — do not ask it upfront:
@@ -693,6 +712,13 @@ more** question — do not ask it upfront:
 4. **`tools.ponymail.private_lists`** — *free-text*. "List the
    private mailing-list addresses PonyMail should query (one per
    line, e.g. `security@<adopter>.apache.org`)."
+
+5. **`tools.apache-projects.enabled`** — *single-select*. "Enable
+   the Apache Projects metadata MCP (read-only ASF rosters /
+   people / releases)?" **Default `Yes` for ASF projects** (the
+   manifest declares `project_metadata.mandatory: true`); default
+   `No` otherwise. Step 9c walks the install — the same `comdev`
+   checkout serves both MCP servers.
 
 Free-form chat is the fallback when the harness has no
 structured-Q&A tool. In that case still respect the order above
@@ -705,6 +731,76 @@ After the answers come back, write the file to disk with the
 collected values substituted in (leaving any unanswered field as
 `TODO` so the per-skill prompts can still pick it up later) and
 `git add` it.
+
+## Step 9c — comdev MCP prerequisites (ASF projects)
+
+**Run this step only for ASF projects.** Detect ASF by reading
+`<project-config>/project.md`: the project is ASF when
+`project_metadata.kind: apache-projects-mcp` with
+`mandatory: true` **or** `Mail sources` declares `ponymail` with
+`mandatory: yes` (both are the `_template` ASF defaults). A
+present `.asf.yaml` at the repo root corroborates. When neither
+mandatory flag is set (a non-ASF adopter that overrode them), skip
+this step — the two MCP servers are optional and the operator
+wires them up only if they answered `Yes` in Step 9b.
+
+For ASF projects the
+[PonyMail](../../../tools/ponymail/tool.md) and
+[Apache Projects](../../../tools/apache-projects/tool.md) MCP
+servers are **mandatory pre-flight prerequisites**, and — unlike
+the pinned system tools — they are installed from the **latest
+`main`** of `apache/comdev` (the servers ship as in-repo source
+with no tagged releases; see
+[`tools/ponymail/tool.md` → Keeping the checkout current](../../../tools/ponymail/tool.md#keeping-the-checkout-current)).
+A single `comdev` checkout serves both.
+
+This step **guides and verifies — it never auto-runs `git clone`,
+`npm install`, or edits the user's `mcpServers` block** (same
+hands-off contract as the secure-setup install). Walk the operator
+through it:
+
+1. **Check what is already registered.** Inspect the session's
+   tool list for `mcp__ponymail__*` and `mcp__apache-projects__*`.
+   Both present → confirm the checkout health (jump to 3). Either
+   missing → continue.
+2. **Surface the install commands** (do not run them):
+
+   ```bash
+   git clone https://github.com/apache/comdev.git
+   cd comdev && git checkout main          # track main, not a tag
+   ( cd mcp/ponymail-mcp        && npm install )
+   ( cd mcp/apache-projects-mcp && npm install )
+   ```
+
+   then the two `mcpServers` registrations (user scope shown):
+
+   ```bash
+   claude mcp add ponymail        node /abs/path/to/comdev/mcp/ponymail-mcp/index.js        -s user
+   claude mcp add apache-projects node /abs/path/to/comdev/mcp/apache-projects-mcp/index.js -s user
+   ```
+
+   PonyMail additionally needs the one-time ASF LDAP login
+   (`mcp__ponymail__login()`) — for ASF projects an **authenticated**
+   session is required, not just a registered server. Apache
+   Projects needs no auth.
+3. **Confirm the checkout tracks `main` and is current.** Once
+   registered, the freshness of the checkout is owned by the
+   secure-setup flow:
+   [`setup-isolated-setup-verify`](../setup-isolated-setup-verify/SKILL.md)
+   asserts it is on `main` and not behind `origin/main`, and
+   [`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)
+   runs the live `git fetch` + prints the `git pull --ff-only`.
+   `/setup-steward verify` (check 8e) and `/setup-steward upgrade`
+   (Step 6e) re-surface the same prereq so an ASF adopter does not
+   have to remember to run the isolated-setup skills separately.
+4. **Reflect the outcome** in the Step 9b `user.md` `tools` blocks
+   (`ponymail.enabled` / `apache-projects.enabled`) and the
+   recommended permission allow-list (the `mcp__apache-projects__*`
+   read tools — see [`verify.md`](verify.md) check 8d).
+
+Add `mcp__apache-projects__*` to the per-family permission
+allow-list recommendation exactly as the `mcp__ponymail__*` tools
+are handled — both are read-only and scoped.
 
 ## Step 10 — Worktree-aware post-checkout hook (FRESH only)
 
