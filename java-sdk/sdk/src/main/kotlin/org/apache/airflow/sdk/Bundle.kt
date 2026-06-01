@@ -22,18 +22,16 @@ package org.apache.airflow.sdk
 /**
  * An immutable snapshot of all [Dag]s that this JVM process can execute.
  *
- * <p>Build a [Bundle] by implementing [BundleBuilder], then pass it to [Server.serve]
- * to start accepting task-execution requests.
+ * Build a [Bundle] by implementing [BundleBuilder], then pass it to
+ * [Server.serve] to start accepting task-execution requests.
  *
- * @property version Implementation version read from the JAR manifest
- *   ({@code Implementation-Version}); falls back to {@code "0"} if absent.
- * @property dags All registered Dags keyed by [Dag.id]. Insertion order is preserved.
+ * @property dags All registered Dags keyed by [Dag.id].
+ * @throws IllegalArgumentException if any two Dags share the same ID.
  */
 class Bundle(
-  val version: String,
   dags: Iterable<Dag>,
 ) {
-  val dags: Map<String, Dag> = dags.associateByDagId()
+  internal val dags: Map<String, Dag> = dags.associateByDagId()
 }
 
 private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
@@ -49,11 +47,9 @@ private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
 /**
  * Entry point for declaring the [Dag]s that this bundle contains.
  *
- * <p>Implement this interface in the class named as {@code Main-Class} in your JAR
- * manifest. The build tooling instantiates it at compile time to record Dag and task
- * IDs in the manifest, enabling inspection without running the full process.
+ * Implement this interface to create a Dag bundle to be served by [Server].
  *
- * <pre>{@code
+ * ```java
  * public class MyBundleBuilder implements BundleBuilder {
  *     @Override
  *     public Iterable<Dag> getDags() {
@@ -64,23 +60,23 @@ private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
  *         Server.create(args).serve(new MyBundleBuilder().build());
  *     }
  * }
- * }</pre>
+ * ```
  */
 interface BundleBuilder {
   /**
    * Returns all [Dag]s that belong to this bundle.
    *
-   * <p>Called once during [build]; Dag IDs must be unique across the returned collection.
+   * Called once during [build]; Dag IDs must be unique across the returned
+   * collection.
+   *
+   * @throws IllegalArgumentException if any two Dags share the same ID.
    */
   fun getDags(): Iterable<Dag>
 
   /**
    * Constructs a [Bundle] from the Dags returned by [getDags].
    *
-   * <p>The bundle version is taken from the JAR's {@code Implementation-Version} manifest
-   * attribute, or {@code "0"} if that attribute is absent.
-   *
    * @throws IllegalArgumentException if any two Dags share the same ID.
    */
-  fun build(): Bundle = Bundle(this::class.java.`package`.implementationVersion ?: "0", getDags())
+  fun build(): Bundle = Bundle(getDags())
 }

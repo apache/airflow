@@ -17,6 +17,23 @@
  under the License.
  -->
 
+# v3.2.2
+
+## Improvements:
+
+- UI: Filter task instances by rendered map index (#66008) (#67163)
+- UI: Enable queue up new tasks (#63484) (#66869)
+- Pass ``try_number`` to extra links API (#65661) (#66171)
+- Update search parameters to better leverage DB indexes (#64963) (#65964)
+- Add cursor-based pagination for ``get_dag_runs`` endpoint (#65604) (#65746)
+- Support ordering ``XCom`` entries in the REST API and UI (#65418) (#65600)
+- UI: Add Dag runs filters for Consuming Asset (#63624) (#65306)
+- Align Dag capitalization from "DAG" to "Dag" in ``core_api`` (#66211) (#66304)
+
+## Bug Fixes:
+
+- Fix backfill params not overriding existing Dag run conf (#64939) (#65599)
+- Fix ``PATCH /dags`` pagination bug and document wildcard ``dag_id_pattern`` (#65309)
 
 # v3.2.1
 

@@ -41,6 +41,7 @@
     Operators <operators/index>
     Retry Policies <retry_policies>
     HITL Review <hitl_review>
+    Observability <observability>
 
 .. toctree::
     :hidden:

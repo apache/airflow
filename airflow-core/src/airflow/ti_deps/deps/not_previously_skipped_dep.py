@@ -48,7 +48,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
-        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session=session), session=session)
 
         finished_task_ids = {t.task_id for t in finished_tis}
 
@@ -100,7 +100,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                                 reason="Task should be skipped but the past depends are not met"
                             )
                             return
-                    ti.set_state(TaskInstanceState.SKIPPED, session)
+                    ti.set_state(TaskInstanceState.SKIPPED, session=session)
                     yield self._failing_status(
                         reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
                     )
