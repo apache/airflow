@@ -99,45 +99,31 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
     reset();
     setIsPending(true);
 
-    const settled = await Promise.allSettled(
-      dagRuns.map((dagRun) =>
-        DagRunService.clearDagRun({
-          dagId: dagRun.dag_id,
-          dagRunId: dagRun.dag_run_id,
-          requestBody: {
-            dry_run: false,
-            note: options.note ?? undefined,
-            only_failed: options.onlyFailed,
-            only_new: options.onlyNew,
-          },
-        }).then(() => dagRun),
-      ),
-    );
+    try {
+      // ``~`` clears runs across Dags atomically in a single request; every entry
+      // carries its own dag_id. The whole request succeeds or fails together.
+      await DagRunService.clearDagRuns({
+        dagId: "~",
+        requestBody: {
+          dag_runs: dagRuns.map((dagRun) => ({
+            dag_id: dagRun.dag_id,
+            dag_run_id: dagRun.dag_run_id,
+          })),
+          dry_run: false,
+          note: options.note ?? undefined,
+          only_failed: options.onlyFailed,
+          only_new: options.onlyNew,
+        },
+      });
 
-    const succeeded: Array<DAGRunResponse> = [];
-    const errors: Array<Record<string, unknown>> = [];
+      await invalidateQueries(dagRuns);
 
-    settled.forEach((outcome, index) => {
-      if (outcome.status === "fulfilled") {
-        succeeded.push(outcome.value);
-      } else {
-        const dagRun = dagRuns[index];
+      const successKeys = dagRuns.map(getRowKey);
 
-        errors.push({
-          error: dagRun
-            ? `${getRowKey(dagRun)}: ${formatError(outcome.reason)}`
-            : formatError(outcome.reason),
-        });
-      }
-    });
-
-    await invalidateQueries(dagRuns);
-
-    if (succeeded.length > 0) {
       toaster.create({
         description: translate("toaster.bulkClear.success.description", {
-          count: succeeded.length,
-          keys: succeeded.map((dagRun) => dagRun.dag_run_id).join(", "),
+          count: dagRuns.length,
+          keys: dagRuns.map((dagRun) => dagRun.dag_run_id).join(", "),
           resourceName: translate("dagRun_other"),
         }),
         title: translate("toaster.bulkClear.success.title", {
@@ -145,16 +131,16 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
         }),
         type: "success",
       });
-      deselectKeys(succeeded.map(getRowKey));
-    }
-
-    setData({ clear: { errors, success: succeeded.map(getRowKey) } });
-    setIsPending(false);
-
-    // Per-run failures keep the dialog open so the user can see what failed;
-    // the consumer renders ``data.clear.errors``.
-    if (errors.length === 0) {
+      deselectKeys(successKeys);
+      setData({ clear: { errors: [], success: successKeys } });
+      setIsPending(false);
       onSuccessConfirm();
+    } catch (error) {
+      // Atomic clear: on failure nothing was cleared. Surface a single
+      // request-level error and keep the dialog open (the consumer renders
+      // ``data.clear.errors``).
+      setData({ clear: { errors: [{ error: formatError(error) }], success: [] } });
+      setIsPending(false);
     }
   };
 
