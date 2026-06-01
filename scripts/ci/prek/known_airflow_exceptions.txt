@@ -352,7 +352,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_facto
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_lake.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/msgraph.py::3
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/wasb.py::2
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::10
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::9
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/container_instances.py::10
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1

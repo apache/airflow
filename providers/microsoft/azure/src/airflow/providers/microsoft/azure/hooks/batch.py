@@ -104,7 +104,7 @@ class AzureBatchHook(BaseHook):
             raise AirflowException("Batch Account URL parameter is missing.")
 
         credential: AzureNamedKeyCredential | AzureIdentityCredentialAdapter
-        if all([conn.login, conn.password]):
+        if conn.login and conn.password:
             credential = AzureNamedKeyCredential(conn.login, conn.password)
         else:
             managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
@@ -233,7 +233,13 @@ class AzureBatchHook(BaseHook):
         skus_to_use = [
             (image.node_agent_sku_id, image.image_reference)
             for image in images
-            if image.image_reference.publisher.lower() == publisher
+            if publisher is not None
+            and offer is not None
+            and sku_starts_with is not None
+            and image.image_reference.publisher is not None
+            and image.image_reference.offer is not None
+            and image.image_reference.sku is not None
+            and image.image_reference.publisher.lower() == publisher
             and image.image_reference.offer.lower() == offer
             and image.image_reference.sku.startswith(sku_starts_with)
         ]
@@ -257,7 +263,8 @@ class AzureBatchHook(BaseHook):
                 resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
                 raise RuntimeError(f"resize error encountered for pool {pool.id}:\n{resize_errors}")
             nodes = list(self.connection.list_nodes(pool.id))
-            if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
+            target_nodes = pool.target_dedicated_nodes or 0
+            if len(nodes) >= target_nodes and all(node.state in node_state for node in nodes):
                 return nodes
             # Allow the timeout to be controlled by the AzureBatchOperator
             # specified timeout. This way we don't interrupt a startTask inside
@@ -356,7 +363,8 @@ class AzureBatchHook(BaseHook):
                 fail_tasks = [
                     task
                     for task in tasks
-                    if task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
+                    if task.execution_info is not None
+                    and task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
                 ]
                 return fail_tasks
             for task in incomplete_tasks:
