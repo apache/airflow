@@ -4783,6 +4783,7 @@ export class StructureService {
                 version_number: data.versionNumber
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
