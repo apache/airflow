@@ -83,7 +83,7 @@ def _build_upsert_stmt(
     return stmt
 
 
-class MetastoreStateBackend(BaseStoreBackend):
+class MetastoreStoreBackend(BaseStoreBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session

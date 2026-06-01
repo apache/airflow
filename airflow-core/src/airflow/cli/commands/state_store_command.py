@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 
 from airflow.state import get_state_backend
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state.metastore import MetastoreStoreBackend
 
 log = logging.getLogger(__name__)
 
@@ -27,10 +27,10 @@ log = logging.getLogger(__name__)
 
 
 def cleanup_task_store(args) -> None:
-    """Remove expired task store rows (MetastoreStateBackend only)."""
+    """Remove expired task store rows (MetastoreStoreBackend only)."""
     backend = get_state_backend()
 
-    if not isinstance(backend, MetastoreStateBackend):
+    if not isinstance(backend, MetastoreStoreBackend):
         print("Custom backend configured — skipping cleanup (not supported).")
         return
 

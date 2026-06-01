@@ -49,7 +49,7 @@ from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -5237,7 +5237,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5262,7 +5262,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5285,7 +5285,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()

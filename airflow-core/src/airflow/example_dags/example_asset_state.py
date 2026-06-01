@@ -27,7 +27,6 @@ storing watermarks in Airflow Variables, which have no asset-level scoping.
 
 from __future__ import annotations
 
-import json
 import random
 from datetime import datetime, timezone
 
