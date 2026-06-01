@@ -23,12 +23,13 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.core_api.datamodels.task_state import TaskStateBody
+from airflow.api_fastapi.core_api.datamodels.task_state import TaskStateBody, TaskStatePatchBody
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -258,8 +259,102 @@ class TestSetTaskState(TestTaskStateEndpoint):
         assert response.status_code == 204
         assert test_client.get(f"{BASE_URL}/workflow/step_1").json()["key"] == "workflow/step_1"
 
+    def test_new_key_default_retention_applies_config(self, test_client, time_machine):
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
+        with conf_vars({("state_store", "default_retention_days"): "7"}):
+            test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": "default"})
+
+        resp = test_client.get(f"{BASE_URL}/job_id").json()
+        assert resp["expires_at"] == "2026-01-08T00:00:00Z"
+
+    def test_new_key_never_expiry(self, test_client):
+        """PUT with expires_at=null stores a key that never expires."""
+        test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": None})
+        assert test_client.get(f"{BASE_URL}/job_id").json()["expires_at"] is None
+
+    def test_new_key_explicit_expiry(self, test_client, time_machine):
+        """PUT with an explicit datetime uses that as expires_at."""
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
+        target = "2026-01-31T00:00:00Z"
+        test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": target})
+        assert test_client.get(f"{BASE_URL}/job_id").json()["expires_at"] == target
+
+    def test_put_overwrites_expiry_on_existing_key(self, test_client, time_machine):
+        """PUT on an existing key replaces expires_at with whatever the body specifies."""
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
+        test_client.put(f"{BASE_URL}/job_id", json={"value": "v1", "expires_at": "2026-01-31T00:00:00Z"})
+
+        # second request but with null expires_at
+        test_client.put(f"{BASE_URL}/job_id", json={"value": "v2", "expires_at": None})
+
+        resp = test_client.get(f"{BASE_URL}/job_id").json()
+        assert resp["value"] == "v2"
+        assert resp["expires_at"] is None
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.put(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
+
+
+class TestPatchTaskState(TestTaskStateEndpoint):
+    def test_patch_updates_value(self, test_client):
+        _create_task_state(self._session, "job_id", "v1", self.dag_run)
+        self._session.commit()
+
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"}).status_code == 200
+        row = self._session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.run_id == RUN_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "job_id",
+            )
+        )
+        assert row.value == '"v2"'
+
+    def test_patch_missing_key_returns_404(self, test_client):
+        assert test_client.patch(f"{BASE_URL}/nonexistent", json={"value": "v"}).status_code == 404
+
+    def test_patch_empty_body_returns_422(self, test_client):
+        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        assert test_client.patch(f"{BASE_URL}/job_id", json={}).status_code == 422
+
+    def test_patch_null_value_returns_422(self, test_client):
+        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
+
+    @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
+    def test_patch_non_finite_float_rejected_by_validator(self, bad_value):
+        with pytest.raises(ValidationError, match="non-finite"):
+            TaskStatePatchBody(value=bad_value)
+
+    @pytest.mark.parametrize(
+        ("value", "expected_db"),
+        [
+            (42, "42"),
+            ("hello", '"hello"'),
+            ({"k": 1}, '{"k": 1}'),
+            ([1, 2], "[1, 2]"),
+        ],
+    )
+    def test_patch_stores_json_encoded_value(self, test_client, value, expected_db):
+        _create_task_state(self._session, "job_id", "initial", self.dag_run)
+        self._session.commit()
+        test_client.patch(f"{BASE_URL}/job_id", json={"value": value})
+        row = self._session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.run_id == RUN_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "job_id",
+            )
+        )
+        self._session.refresh(row)
+        assert row.value == expected_db
+
+    def test_unauthorized_returns_401(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.patch(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
 
 
 class TestDeleteTaskState(TestTaskStateEndpoint):

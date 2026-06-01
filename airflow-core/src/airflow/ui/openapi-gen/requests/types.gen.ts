@@ -1714,9 +1714,16 @@ export type TaskResponse = {
 
 /**
  * Request body for setting a task state value.
+ *
+ * ``expires_at`` controls expiry:
+ *
+ * - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+ * - ``null``: never expire.
+ * - aware datetime: expire at that time.
  */
 export type TaskStateBody = {
     value: JsonValue;
+    expires_at?: string | "default" | null;
 };
 
 /**
@@ -1725,6 +1732,13 @@ export type TaskStateBody = {
 export type TaskStateCollectionResponse = {
     task_states: Array<TaskStateResponse>;
     total_entries: number;
+};
+
+/**
+ * Request body for patching only the value of an existing task state key.
+ */
+export type TaskStatePatchBody = {
+    value: JsonValue;
 };
 
 /**
@@ -1826,7 +1840,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
     key: string;
-    value: string;
+    value?: string | null;
     description: string | null;
     is_encrypted: boolean;
     team_name: string | null;
@@ -3967,6 +3981,17 @@ export type SetTaskStateData = {
 };
 
 export type SetTaskStateResponse = void;
+
+export type PatchTaskStateData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStatePatchBody;
+    taskId: string;
+};
+
+export type PatchTaskStateResponse = unknown;
 
 export type DeleteTaskStateData = {
     dagId: string;
@@ -7244,6 +7269,31 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        patch: {
+            req: PatchTaskStateData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
                 /**
                  * Unauthorized
                  */

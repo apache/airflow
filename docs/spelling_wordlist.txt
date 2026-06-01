@@ -838,6 +838,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -956,6 +957,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
 Langfuse
 LanguageServiceClient
 lastname
@@ -1578,6 +1580,7 @@ Stringified
 stringified
 stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed

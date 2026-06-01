@@ -6144,6 +6144,84 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Task State
+      summary: Patch Task State
+      description: Update the value of an existing task state key.
+      operationId: patch_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStatePatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
       - Task State
@@ -15814,12 +15892,31 @@ components:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: string
+            const: default
+          - type: 'null'
+          title: Expires At
+          default: default
       additionalProperties: false
       type: object
       required:
       - value
       title: TaskStateBody
-      description: Request body for setting a task state value.
+      description: 'Request body for setting a task state value.
+
+
+        ``expires_at`` controls expiry:
+
+
+        - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+
+        - ``null``: never expire.
+
+        - aware datetime: expire at that time.'
     TaskStateCollectionResponse:
       properties:
         task_states:
@@ -15836,6 +15933,17 @@ components:
       - total_entries
       title: TaskStateCollectionResponse
       description: All task state entries for a task instance.
+    TaskStatePatchBody:
+      properties:
+        value:
+          $ref: '#/components/schemas/JsonValue'
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: TaskStatePatchBody
+      description: Request body for patching only the value of an existing task state
+        key.
     TaskStateResponse:
       properties:
         key:
@@ -16080,7 +16188,9 @@ components:
           type: string
           title: Key
         value:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
         description:
           anyOf:
@@ -16098,7 +16208,6 @@ components:
       type: object
       required:
       - key
-      - value
       - description
       - is_encrypted
       - team_name

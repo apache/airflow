@@ -903,7 +903,7 @@ class TestClearTasks:
         assert sorted(new_tis) == ["2", "3"]
 
         session.rollback()
-        dr.refresh_from_db(session)
+        dr.refresh_from_db(session=session)
 
         assert dr.created_dag_version_id == old_dag_version.id
         assert len(dr.task_instances) == 2  # should be only the 2 earlier tasks

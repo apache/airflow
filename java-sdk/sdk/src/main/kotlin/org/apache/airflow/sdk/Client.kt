@@ -26,7 +26,7 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
  * A connection registered in Airflow's connection store.
  *
  * @property id Connection ID as configured in Airflow.
- * @property type Connection type (e.g. {@code "http"}, {@code "postgres"}), if configured.
+ * @property type Connection type (e.g. `"http"`, `"postgres"`), if configured.
  * @property host Hostname, if configured.
  * @property schema Schema or database name, if configured.
  * @property login Username, if configured.
@@ -48,9 +48,9 @@ data class Connection(
 /**
  * Client for Airflow API calls scoped to the current task instance.
  *
- * <p>An instance is provided when a task is being executed. All reads and writes are
- * automatically scoped to the current Dag run and task instance unless you pass
- * explicit IDs.
+ * An instance is provided when a task is being executed. All reads and writes
+ * are automatically scoped to the current Dag run and task instance unless you
+ * pass explicit IDs.
  */
 class Client internal constructor(
   internal val details: StartupDetails,
@@ -88,7 +88,7 @@ class Client internal constructor(
    * Retrieves an Airflow variable.
    *
    * @param key Variable key.
-   * @return The variable value, or {@code null} if the variable is not set.
+   * @return The variable value, or `null` if the variable is not set.
    * @throws ApiError if the API call fails.
    */
   fun getVariable(key: String): Any? = impl.getVariable(key).value
@@ -96,17 +96,23 @@ class Client internal constructor(
   /**
    * Reads an XCom value pushed by another task.
    *
-   * <p>The current Dag run's [dagId][TaskInstance.dagId] and [runId][TaskInstance.runId]
-   * are used by default; override them only when reading across Dags or runs.
+   * The current Dag run's [dagId][TaskInstance.dagId] and
+   * [runId][TaskInstance.runId] are used by default; override them only when
+   * reading across Dags or runs.
    *
    * @param key XCom key to read; defaults to [XCOM_RETURN_KEY].
    * @param dagId Dag that owns the XCom; defaults to the current Dag.
    * @param taskId Task that pushed the XCom.
    * @param runId Run that produced the XCom; defaults to the current run.
-   * @param mapIndex Map index of the source task instance, or {@code null} for non-mapped tasks.
-   * @param includePriorDates If {@code true}, also search earlier Dag-run dates.
-   * @return The XCom value, or {@code null} if none was pushed.
+   * @param mapIndex Map index of the source task instance.
+   * @param includePriorDates If `true`, also search earlier Dag-run dates.
+   * @return The XCom value, or `null` if none was pushed.
    * @throws ApiError if the API call fails.
+   *
+   * If `map_index` is set to `null` against a mapped task, the task's
+   * "collective result" is returned. Results from all mapped instances are
+   * aggregated into a list, ordered by the map index (ascending). For a
+   * non-mapped task, setting `map_index` to `null` is equivalent to `-1`.
    */
   @JvmOverloads fun getXCom(
     key: String = XCOM_RETURN_KEY,
@@ -128,8 +134,6 @@ class Client internal constructor(
 
   /**
    * Pushes an XCom value for downstream tasks to read.
-   *
-   * <p>The current task instance's identifiers are used automatically.
    *
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
    * @param value Value to push. Must be JSON-serializable.
