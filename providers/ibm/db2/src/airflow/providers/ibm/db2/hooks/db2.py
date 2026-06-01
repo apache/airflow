@@ -38,13 +38,13 @@ class Db2Hook(DbApiHook):
     Any additional Db2 connection string parameters can be added to the extra field.
     Parameter names will be automatically converted to uppercase.
 
-    :param db2_conn_id: The :ref:`Db2 connection id <howto/connection:db2>`
+    :param db2_conn_id: The :ref:`Db2 connection id <howto/connection:Db2>`
         reference to a specific Db2 database.
     """
 
     conn_name_attr = "db2_conn_id"
     default_conn_name = "db2_default"
-    conn_type = "db2"
+    conn_type = "Db2"
     hook_name = "IBM Db2"
     supports_autocommit = True
     supports_executemany = True

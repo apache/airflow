@@ -96,9 +96,8 @@ apache-airflow-providers-sqlite = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-shared-module-loading = false
 apache-airflow-providers-yandex = false
-apache-airflow-providers-db2 = false
-apache-airflow-scripts = false
 apache-airflow-shared-serialization = false
+apache-airflow-scripts = false
 apache-airflow-providers-exasol = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
@@ -136,6 +135,7 @@ apache-airflow-providers-singularity = false
 apache-airflow-providers-common-compat = false
 apache-airflow-ctl-tests = false
 apache-airflow-providers-tableau = false
+apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-common-sql = false
 apache-airflow-shared-configuration = false
 apache-airflow-providers-facebook = false
@@ -207,7 +207,6 @@ members = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-databricks",
     "apache-airflow-providers-datadog",
-    "apache-airflow-providers-db2",
     "apache-airflow-providers-dbt-cloud",
     "apache-airflow-providers-dingding",
     "apache-airflow-providers-discord",
@@ -224,6 +223,7 @@ members = [
     "apache-airflow-providers-grpc",
     "apache-airflow-providers-hashicorp",
     "apache-airflow-providers-http",
+    "apache-airflow-providers-ibm-db2",
     "apache-airflow-providers-ibm-mq",
     "apache-airflow-providers-imap",
     "apache-airflow-providers-influxdb",
@@ -1034,7 +1034,6 @@ all = [
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-databricks" },
     { name = "apache-airflow-providers-datadog" },
-    { name = "apache-airflow-providers-db2" },
     { name = "apache-airflow-providers-dbt-cloud" },
     { name = "apache-airflow-providers-dingding" },
     { name = "apache-airflow-providers-discord" },
@@ -1051,6 +1050,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
+    { name = "apache-airflow-providers-ibm-db2" },
     { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
@@ -1229,7 +1229,7 @@ datadog = [
     { name = "apache-airflow-providers-datadog" },
 ]
 db2 = [
-    { name = "apache-airflow-providers-db2" },
+    { name = "apache-airflow-providers-ibm-db2" },
 ]
 dbt-cloud = [
     { name = "apache-airflow-providers-dbt-cloud" },
@@ -1638,8 +1638,6 @@ requires-dist = [
     { name = "apache-airflow-providers-databricks", marker = "extra == 'databricks'", editable = "providers/databricks" },
     { name = "apache-airflow-providers-datadog", marker = "extra == 'all'", editable = "providers/datadog" },
     { name = "apache-airflow-providers-datadog", marker = "extra == 'datadog'", editable = "providers/datadog" },
-    { name = "apache-airflow-providers-db2", marker = "extra == 'all'", editable = "providers/db2" },
-    { name = "apache-airflow-providers-db2", marker = "extra == 'db2'", editable = "providers/db2" },
     { name = "apache-airflow-providers-dbt-cloud", marker = "extra == 'all'", editable = "providers/dbt/cloud" },
     { name = "apache-airflow-providers-dbt-cloud", marker = "extra == 'dbt-cloud'", editable = "providers/dbt/cloud" },
     { name = "apache-airflow-providers-dingding", marker = "extra == 'all'", editable = "providers/dingding" },
@@ -1674,6 +1672,8 @@ requires-dist = [
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'hashicorp'", editable = "providers/hashicorp" },
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
+    { name = "apache-airflow-providers-ibm-db2", marker = "extra == 'all'", editable = "providers/ibm/db2" },
+    { name = "apache-airflow-providers-ibm-db2", marker = "extra == 'db2'", editable = "providers/ibm/db2" },
     { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'all'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
@@ -4840,58 +4840,6 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
-name = "apache-airflow-providers-db2"
-version = "1.0.0"
-source = { editable = "providers/db2" }
-dependencies = [
-    { name = "apache-airflow" },
-    { name = "apache-airflow-providers-common-compat" },
-    { name = "apache-airflow-providers-common-sql" },
-    { name = "ibm-db" },
-    { name = "ibm-db-sa" },
-]
-
-[package.optional-dependencies]
-openlineage = [
-    { name = "apache-airflow-providers-openlineage" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "apache-airflow" },
-    { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-common-compat" },
-    { name = "apache-airflow-providers-common-sql" },
-    { name = "apache-airflow-providers-openlineage" },
-    { name = "apache-airflow-task-sdk" },
-]
-docs = [
-    { name = "apache-airflow-devel-common", extra = ["docs"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "apache-airflow", editable = "." },
-    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "ibm-db", specifier = ">=3.0.0" },
-    { name = "ibm-db-sa", specifier = ">=0.4.0" },
-]
-provides-extras = ["openlineage"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "apache-airflow", editable = "." },
-    { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
-    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
-]
-docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
-
-[[package]]
 name = "apache-airflow-providers-dbt-cloud"
 version = "4.9.2"
 source = { editable = "providers/dbt/cloud" }
@@ -5890,6 +5838,58 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-ibm-db2"
+version = "1.0.0"
+source = { editable = "providers/ibm/db2" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "ibm-db" },
+    { name = "ibm-db-sa" },
+]
+
+[package.optional-dependencies]
+openlineage = [
+    { name = "apache-airflow-providers-openlineage" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-openlineage" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "ibm-db", specifier = ">=3.0.0" },
+    { name = "ibm-db-sa", specifier = ">=0.4.0" },
+]
+provides-extras = ["openlineage"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
