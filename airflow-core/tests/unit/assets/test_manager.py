@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import itertools
 import logging
 from collections import Counter
 from typing import TYPE_CHECKING
@@ -39,7 +38,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.config import conf_vars
@@ -64,13 +63,6 @@ def clear_assets():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
-
-
-def create_mock_dag():
-    for dag_id in itertools.count(1):
-        mock_dag = mock.Mock(spec=DAG)
-        mock_dag.dag_id = dag_id
-        yield mock_dag
 
 
 class TestAssetManager:

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextlib import suppress
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -38,11 +39,11 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.fixture
     def end_time(self):
-        return time.monotonic() + 60 * 60 * 24 * 7
+        return time.time() + 60 * 60 * 24 * 7
 
     @pytest.fixture
     def execution_deadline(self):
-        return time.monotonic() + 60 * 60 * 24 * 7
+        return time.time() + 60 * 60 * 24 * 7
 
     def test_serialization(self, end_time, execution_deadline):
         """Assert DbtCloudRunJobTrigger correctly serializes its arguments and classpath."""
@@ -86,6 +87,36 @@ class TestDbtCloudRunJobTrigger:
         # TriggerEvent was not returned.
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.triggers.dbt.time")
+    @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_run_job_trigger_uses_wall_clock_end_time(
+        self, mock_get_job_status, mock_time, end_time
+    ):
+        """Assert serialized end_time is compared to wall-clock time, not monotonic time."""
+
+        mock_time.time.return_value = end_time - 60
+        mock_get_job_status.return_value = DbtCloudJobRunStatus.RUNNING.value
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0)
+
+        assert task.done() is False
+        mock_time.time.assert_called()
+        mock_time.monotonic.assert_not_called()
+        mock_get_job_status.assert_called_once_with(self.RUN_ID, self.ACCOUNT_ID)
+
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -151,7 +182,7 @@ class TestDbtCloudRunJobTrigger:
 
         mock_get_job_status.return_value = DbtCloudJobRunStatus.RUNNING.value
 
-        end_time = time.monotonic() - 1
+        end_time = time.time() - 1
         trigger = DbtCloudRunJobTrigger(
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
@@ -178,7 +209,7 @@ class TestDbtCloudRunJobTrigger:
 
         mock_get_job_status.return_value = DbtCloudJobRunStatus.RUNNING.value
 
-        execution_deadline = time.monotonic() - 1
+        execution_deadline = time.time() - 1
 
         trigger = DbtCloudRunJobTrigger(
             conn_id=self.CONN_ID,

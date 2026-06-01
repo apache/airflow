@@ -139,7 +139,19 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
             if not self.no_log_found(e):
-                self.log.warning("Error checking for previous log: %s", e)
+                # Read failed for a reason other than "object does not exist" (e.g. transient
+                # GCS outage, IAM glitch, network blip). Fall through to the upload would
+                # overwrite the existing blob with only the new content and *truncate* the
+                # prior log history. Fail closed instead: keep local logs and let the next
+                # heartbeat retry. ``no_log_found`` covers the 404 case, where it is safe to
+                # write the new content as a fresh blob.
+                self.log.warning(
+                    "Refusing to overwrite remote log %s: could not read existing content (%s). "
+                    "Keeping local logs for later retry.",
+                    remote_log_location,
+                    e,
+                )
+                return False
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
