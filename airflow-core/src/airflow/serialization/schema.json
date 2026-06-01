@@ -380,6 +380,11 @@
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },
+        "doc_md": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]},
         "ui_color": { "type": "string" },
         "ui_fgcolor": { "type": "string" },
         "upstream_group_ids": {

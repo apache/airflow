@@ -66,6 +66,7 @@ __all__ = [
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
+    "ResumableJobMixin",
     "RetryAction",
     "RetryDecision",
     "RetryPolicy",
@@ -117,6 +118,7 @@ if TYPE_CHECKING:
         cross_downstream,
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
@@ -233,6 +235,7 @@ __lazy_imports: dict[str, str] = {
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
+    "ResumableJobMixin": ".bases.resumablemixin",
     "RetryAction": ".definitions.retry_policy",
     "RetryDecision": ".definitions.retry_policy",
     "RetryPolicy": ".definitions.retry_policy",

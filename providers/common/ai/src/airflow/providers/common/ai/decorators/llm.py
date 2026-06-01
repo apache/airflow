@@ -18,9 +18,10 @@
 TaskFlow decorator for general-purpose LLM calls.
 
 The user writes a function that **returns the prompt string**. The decorator
-handles hook creation, agent configuration, LLM call, and output serialization.
-When ``output_type`` is a Pydantic ``BaseModel``, the result is serialized via
-``model_dump()`` for XCom.
+handles hook creation, agent configuration, and the LLM call. When
+``output_type`` is a Pydantic ``BaseModel`` subclass, the model instance is
+returned to XCom unchanged so downstream tasks can type-hint it directly.
+The class must be defined at module scope.
 """
 
 from __future__ import annotations
@@ -29,6 +30,10 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.validation import (
+    reject_sequence_with_unsupported_feature,
+    validate_prompt,
+)
 from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
@@ -87,8 +92,13 @@ class _LLMDecoratedOperator(DecoratedOperator, LLMOperator):
 
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
-        if not isinstance(self.prompt, str) or not self.prompt.strip():
-            raise TypeError("The returned value from the @task.llm callable must be a non-empty string.")
+        validate_prompt(self.prompt, decorator_name="@task.llm")
+        reject_sequence_with_unsupported_feature(
+            self.prompt,
+            decorator_name="@task.llm",
+            feature_name="require_approval",
+            feature_enabled=self.require_approval,
+        )
 
         self.render_template_fields(context)
         return LLMOperator.execute(self, context)

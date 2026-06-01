@@ -154,9 +154,10 @@ class TestUniqueConstraintErrorHandler:
     def test_handle_single_column_unique_constraint_error_without_stacktrace(
         self,
         mock_get_random_string,
-        session,
         table,
         expected_exception,
+        *,
+        session: Session,
     ) -> None:
         # Take Pool and Variable tables as test cases
         # Note: SQLA2 uses a more optimized bulk insert strategy when multiple objects are added to the
@@ -246,9 +247,10 @@ class TestUniqueConstraintErrorHandler:
     def test_handle_single_column_unique_constraint_error_with_stacktrace(
         self,
         mock_get_random_string,
-        session,
         table,
         expected_exception,
+        *,
+        session: Session,
     ) -> None:
         # Take Pool and Variable tables as test cases
         # Note: SQLA2 uses a more optimized bulk insert strategy when multiple objects are added to the
@@ -279,7 +281,8 @@ class TestUniqueConstraintErrorHandler:
     def test_handle_multiple_columns_unique_constraint_error_without_stacktrace(
         self,
         mock_get_random_string,
-        session,
+        *,
+        session: Session,
     ) -> None:
         expected_exception = HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -351,9 +354,10 @@ class TestUniqueConstraintErrorHandler:
     def test_handle_multiple_columns_unique_constraint_error_with_stacktrace(
         self,
         mock_get_random_string,
-        session,
         table,
         expected_exception,
+        *,
+        session: Session,
     ) -> None:
         if table == "DagRun":
             session.add(

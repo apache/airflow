@@ -384,9 +384,7 @@ export const $AssetResponse = {
 export const $AssetStateBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         }
     },
     additionalProperties: false,
@@ -423,8 +421,7 @@ export const $AssetStateResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -2778,6 +2775,18 @@ export const $DAGRunClearBody = {
             ],
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -6982,9 +6991,7 @@ export const $TaskResponse = {
 export const $TaskStateBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         }
     },
     additionalProperties: false,
@@ -7021,8 +7028,7 @@ export const $TaskStateResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -8898,6 +8904,17 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Setup Teardown Type'
+        },
+        doc_md: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Doc Md'
         }
     },
     type: 'object',

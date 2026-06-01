@@ -1,0 +1,75 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-ibm-mq
+name: IBM MQ
+
+state: not-ready
+lifecycle: incubation
+source-date-epoch: 1758787200
+description: |
+  `IBM MQ  <https://www.ibm.com/products/mq/>`__
+# IBM MQ ships its native C client library only for Linux x86_64, Windows x64 and Java
+# (https://www.ibm.com/support/pages/downloading-ibm-mq-94 — Redist clients). The
+# `ibmmq` Python bindings link against that C client at build time, so `uv sync
+# --resolution lowest-direct --all-extras` fails to build the sdist on aarch64.
+# Exclude the provider from the linux/arm64 test matrix until IBM publishes an aarch64
+# redistributable.
+excluded-platforms:
+  - linux/arm64
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: IBM MQ
+    external-doc-url: https://www.ibm.com/products/mq
+    logo: /docs/integration-logos/ibm-mq.png
+    tags: [software]
+
+hooks:
+  - integration-name: IBM MQ
+    python-modules:
+      - airflow.providers.ibm.mq.hooks.mq
+
+triggers:
+  - integration-name: IBM MQ
+    python-modules:
+      - airflow.providers.ibm.mq.triggers.mq
+
+connection-types:
+  - hook-class-name: airflow.providers.ibm.mq.hooks.mq.IBMMQHook
+    connection-type: ibmmq
+    ui-field-behaviour:
+      hidden-fields: ["schema"]
+      placeholders:
+        host: mq.example.com
+        port: "1414"
+        login: app_user
+        extra: |
+          {
+            "queue_manager": "QM1",
+            "channel": "DEV.APP.SVRCONN",
+            "open_options": "MQOO_INPUT_SHARED"
+          }
+
+queues:
+  - airflow.providers.ibm.mq.queues.mq.IBMMQMessageQueueProvider
