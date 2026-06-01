@@ -50,7 +50,7 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
     description: variable.description ?? "",
     key: variable.key,
     team_name: variable.team_name ?? "",
-    value: formatValue(variable.value),
+    value: formatValue(variable.value ?? ""),
   };
   const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
     onSuccessConfirm: onClose,

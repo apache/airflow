@@ -1869,6 +1869,18 @@ class TestVariablesOperations:
         response = client.variables.get(self.key)
         assert response == self.variable_response
 
+    def test_get_accepts_null_value(self):
+        """Servers with #65452 return ``value: null`` for a variable they cannot decrypt."""
+        payload = json.loads(self.variable_response.model_dump_json())
+        payload["value"] = None
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.variables.get(self.key)
+        assert response.value is None
+
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/variables"
