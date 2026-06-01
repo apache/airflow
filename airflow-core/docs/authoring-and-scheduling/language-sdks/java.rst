@@ -99,7 +99,7 @@ Java implementation
 
 .. note::
 
-  See how both ``transform`` in both Python and Java need to have an argument to accept upstream XCom. The
+  See how both ``transform`` in Python and Java need to have an argument to accept upstream XCom. The
   Python one is needed to declare dependency, and the Java one is needed to actually retrieve the value.
 
 Java entry point
