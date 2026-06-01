@@ -582,6 +582,7 @@ option_executor_start_airflow = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
+@option_sdk
 @option_standalone_dag_processor
 @option_terminal_multiplexer
 @option_use_uv
@@ -632,6 +633,7 @@ def start_airflow(
     providers_skip_constraints: bool,
     python: str,
     restart: bool,
+    sdk: tuple[str, ...],
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     terminal_multiplexer: str,
@@ -719,6 +721,7 @@ def start_airflow(
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         worker_type=worker_type,
+        sdk=sdk,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
