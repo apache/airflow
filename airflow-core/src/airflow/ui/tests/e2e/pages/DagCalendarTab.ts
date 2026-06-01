@@ -94,6 +94,7 @@ export class DagCalendarTab extends BasePage {
 
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
+      const tooltipTrigger = cell.locator("..");
 
       // Firefox sometimes fails to trigger tooltips on hover.
       // Retry the hover + tooltip visibility check to handle this.
@@ -101,9 +102,9 @@ export class DagCalendarTab extends BasePage {
 
       await expect(async () => {
         await this.page.mouse.move(0, 0);
-        await cell.scrollIntoViewIfNeeded();
-        await cell.hover();
-        await expect(this.tooltip).toBeVisible({ timeout: 3000 });
+        await tooltipTrigger.scrollIntoViewIfNeeded();
+        await tooltipTrigger.hover();
+        await expect(this.tooltip).toBeVisible({ timeout: 5000 });
         text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
       }).toPass({ intervals: [1000], timeout: 20_000 });
 
