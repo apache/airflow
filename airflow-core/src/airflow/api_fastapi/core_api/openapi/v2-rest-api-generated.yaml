@@ -13995,6 +13995,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         href:
           type: string
           title: Href
@@ -14940,6 +14946,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         bundle_url:
           type: string
           title: Bundle Url
@@ -16188,7 +16200,9 @@ components:
           type: string
           title: Key
         value:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
         description:
           anyOf:
@@ -16206,7 +16220,6 @@ components:
       type: object
       required:
       - key
-      - value
       - description
       - is_encrypted
       - team_name
