@@ -275,14 +275,6 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
             if http_verb not in {"GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"}:
                 continue
 
-            # Find dependencies=[...] kwarg
-            deps_kwarg = next(
-                (kw for kw in decorator.keywords if kw.arg == "dependencies"),
-                None,
-            )
-            if deps_kwarg is None or not isinstance(deps_kwarg.value, ast.List):
-                continue
-
             # Resolve the route path
             route_suffix = ""
             if decorator.args:
@@ -292,41 +284,64 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
             # Extract tag (for grouping in the RST table)
             tag = _extract_tag_from_decorator(decorator)
 
-            # Walk the dependency list
-            for dep_item in deps_kwarg.value.elts:
-                if not isinstance(dep_item, ast.Call):
-                    continue
-                # Must be Depends(...)
-                dep_name = (
-                    dep_item.func.id
-                    if isinstance(dep_item.func, ast.Name)
-                    else getattr(dep_item.func, "attr", "")
-                )
-                if dep_name != "Depends" or not dep_item.args:
-                    continue
+            # Find dependencies=[...] kwarg
+            deps_kwarg = next(
+                (kw for kw in decorator.keywords if kw.arg == "dependencies"),
+                None,
+            )
 
-                inner = dep_item.args[0]
-                if not isinstance(inner, ast.Call):
-                    continue
+            has_permission_dependency = False
+            if deps_kwarg is not None and isinstance(deps_kwarg.value, ast.List):
+                # Walk the dependency list
+                for dep_item in deps_kwarg.value.elts:
+                    if not isinstance(dep_item, ast.Call):
+                        continue
+                    # Must be Depends(...)
+                    dep_name = (
+                        dep_item.func.id
+                        if isinstance(dep_item.func, ast.Name)
+                        else getattr(dep_item.func, "attr", "")
+                    )
+                    if dep_name != "Depends" or not dep_item.args:
+                        continue
 
-                fn_name = _get_requires_access_call_name(inner)
-                if fn_name is None:
-                    continue
+                    inner = dep_item.args[0]
+                    if not isinstance(inner, ast.Call):
+                        continue
 
-                method = _extract_method_arg(inner)
-                entity = _extract_entity_arg(inner)
-                resource = _build_resource_label(fn_name, entity)
-                permission = entity if fn_name == "requires_access_view" else method
-                if not isinstance(permission, str):
-                    raise ValueError(f"Could not resolve required permission for {fn_name} in {path.name}")
+                    fn_name = _get_requires_access_call_name(inner)
+                    if fn_name is None:
+                        continue
 
+                    method = _extract_method_arg(inner)
+                    entity = _extract_entity_arg(inner)
+                    resource = _build_resource_label(fn_name, entity)
+                    permission = entity if fn_name == "requires_access_view" else method
+                    if not isinstance(permission, str):
+                        raise ValueError(
+                            f"Could not resolve required permission for {fn_name} in {path.name}"
+                        )
+
+                    results.append(
+                        PermissionEntry(
+                            http_method=http_verb,
+                            full_path=full_path,
+                            tag=tag,
+                            resource=resource,
+                            required_permission=permission,
+                            source_file=path.name,
+                        )
+                    )
+                    has_permission_dependency = True
+
+            if not has_permission_dependency:
                 results.append(
                     PermissionEntry(
                         http_method=http_verb,
                         full_path=full_path,
                         tag=tag,
-                        resource=resource,
-                        required_permission=permission,
+                        resource="Public",
+                        required_permission="No Airflow permission required",
                         source_file=path.name,
                     )
                 )
@@ -353,7 +368,16 @@ def extract_all_permissions(routes_dir: pathlib.Path) -> list[PermissionEntry]:
     # Deduplicate (same path+method+resource can appear from multiple deps)
     seen: set[PermissionEntry] = set()
     deduped: list[PermissionEntry] = []
-    for entry in sorted(all_entries):
+    sorted_entries = sorted(
+        all_entries,
+        key=lambda e: (
+            e.full_path,
+            e.http_method,
+            e.resource,
+            e.required_permission,
+        ),
+    )
+    for entry in sorted_entries:
         if entry not in seen:
             seen.add(entry)
             deduped.append(entry)

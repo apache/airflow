@@ -412,7 +412,7 @@ class TestExtractFromFile:
         assert e.resource == "View.PLUGINS"
         assert e.required_permission == "PLUGINS"
 
-    def test_no_dependencies_kwarg_skipped(self, tmp_path):
+    def test_no_dependencies_kwarg_extracted_as_public(self, tmp_path):
         f = _make_route_file(
             tmp_path,
             """
@@ -424,7 +424,31 @@ class TestExtractFromFile:
             """,
         )
         entries = extract_from_file(f)
-        assert entries == []
+        assert len(entries) == 1
+        e = entries[0]
+        assert e.http_method == "GET"
+        assert e.full_path == "/api/v2/version"
+        assert e.resource == "Public"
+        assert e.required_permission == "No Airflow permission required"
+
+    def test_only_unrelated_dependencies_extracted_as_public(self, tmp_path):
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            router = AirflowRouter(prefix="/version")
+
+            @router.get("", dependencies=[Depends(action_logging())])
+            def get_version(): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert len(entries) == 1
+        e = entries[0]
+        assert e.http_method == "GET"
+        assert e.full_path == "/api/v2/version"
+        assert e.resource == "Public"
+        assert e.required_permission == "No Airflow permission required"
 
     def test_multiple_deps_on_same_route_produces_multiple_entries(self, tmp_path):
         f = _make_route_file(
@@ -575,7 +599,31 @@ class TestExtractAllPermissions:
         assert len(all_entries) >= 100, f"Expected ≥100 entries, got {len(all_entries)}"
 
     def test_output_is_sorted(self, all_entries):
-        assert all_entries == sorted(all_entries)
+        expected = sorted(
+            all_entries,
+            key=lambda e: (
+                e.full_path,
+                e.http_method,
+                e.resource,
+                e.required_permission,
+            ),
+        )
+        assert all_entries == expected
+
+    def test_public_endpoints_coverage(self, all_entries):
+        """Verify that known public endpoints are extracted as Public."""
+        public_paths = {
+            "/api/v2/monitor/health": "GET",
+            "/api/v2/version": "GET",
+            "/api/v2/auth/login": "GET",
+            "/api/v2/auth/logout": "GET",
+        }
+        for path, method in public_paths.items():
+            matches = [e for e in all_entries if e.full_path == path and e.http_method == method]
+            assert len(matches) == 1, f"Expected exactly one match for public endpoint {method} {path}"
+            e = matches[0]
+            assert e.resource == "Public"
+            assert e.required_permission == "No Airflow permission required"
 
     def test_no_duplicate_entries(self, all_entries):
         seen: set[PermissionEntry] = set()

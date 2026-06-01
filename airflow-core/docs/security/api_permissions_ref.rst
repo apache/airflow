@@ -115,6 +115,14 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Asset``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/auth/login``
+     - ``Public``
+     - ``No Airflow permission required``
+   * - ``GET``
+     - ``/api/v2/auth/logout``
+     - ``Public``
+     - ``No Airflow permission required``
+   * - ``GET``
      - ``/api/v2/backfills``
      - ``DAG.RUN``
      - ``GET``
@@ -474,6 +482,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/jobs``
      - ``View.JOBS``
      - ``JOBS``
+   * - ``GET``
+     - ``/api/v2/monitor/health``
+     - ``Public``
+     - ``No Airflow permission required``
    * - ``PUT``
      - ``/api/v2/parseDagFile/{file_token}``
      - ``DAG``
@@ -538,3 +550,7 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/variables/{variable_key:path}``
      - ``Variable``
      - ``PUT``
+   * - ``GET``
+     - ``/api/v2/version``
+     - ``Public``
+     - ``No Airflow permission required``
