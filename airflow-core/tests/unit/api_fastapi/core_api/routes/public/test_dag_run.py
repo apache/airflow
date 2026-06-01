@@ -2041,6 +2041,58 @@ class TestBulkClearDagRuns:
         )
         assert response.status_code == 403
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        """A 403 at the route level if any entry references a Dag the user can't access; nothing is cleared."""
+        restricted_bundle_name = "restricted-bundle-clear"
+        restricted_team_name = "restricted-team-clear"
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        # Restrict DAG2 by attaching it to a team-scoped bundle the limited user has no access to.
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG2_ID).values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        states_before = {
+            run_id: session.scalar(select(DagRun.state).where(DagRun.run_id == run_id))
+            for run_id in (DAG1_RUN1_ID, DAG2_RUN1_ID)
+        }
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.post(
+                "/dags/~/clearDagRuns",
+                json={
+                    "dry_run": False,
+                    "dag_runs": [
+                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                    ],
+                },
+            )
+
+        assert response.status_code == 403
+        # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
+        session.expire_all()
+        for run_id, state_before in states_before.items():
+            assert session.scalar(select(DagRun.state).where(DagRun.run_id == run_id)) == state_before
+
 
 class TestClearDagRunOnlyNew:
     """Integration tests for only_new=True using a real two-version DAG.
