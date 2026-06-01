@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+
 import boto3
 import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
@@ -99,7 +102,7 @@ class TestSFTPToS3Operator:
             s3_key=S3_KEY,
             sftp_path=SFTP_PATH,
             sftp_conn_id=SFTP_CONN_ID,
-            s3_conn_id=S3_CONN_ID,
+            aws_conn_id=S3_CONN_ID,
             use_temp_file=use_temp_file,
             task_id="test_sftp_to_s3",
             dag=self.dag,
@@ -137,7 +140,7 @@ class TestSFTPToS3Operator:
                     s3_key=self.s3_key,
                     sftp_path="/tmp/wrong_path.txt",
                     sftp_conn_id=SFTP_CONN_ID,
-                    s3_conn_id=S3_CONN_ID,
+                    aws_conn_id=S3_CONN_ID,
                     fail_on_file_not_exist=fail_on_file_not_exist,
                     task_id="test_sftp_to_s3",
                     dag=self.dag,
@@ -148,7 +151,7 @@ class TestSFTPToS3Operator:
                 s3_key=self.s3_key,
                 sftp_path=self.sftp_path,
                 sftp_conn_id=SFTP_CONN_ID,
-                s3_conn_id=S3_CONN_ID,
+                aws_conn_id=S3_CONN_ID,
                 fail_on_file_not_exist=fail_on_file_not_exist,
                 task_id="test_sftp_to_s3",
                 dag=self.dag,
@@ -191,7 +194,7 @@ class TestSFTPToS3Operator:
             sftp_path=SFTP_PATH,
             sftp_conn_id=SFTP_CONN_ID,
             sftp_remote_host="localhost",
-            s3_conn_id=S3_CONN_ID,
+            aws_conn_id=S3_CONN_ID,
             task_id="test_sftp_to_s3_remote_host",
             dag=self.dag,
         )
@@ -208,3 +211,96 @@ class TestSFTPToS3Operator:
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not s3_hook.check_for_bucket(self.s3_bucket)
+
+
+class TestSFTPToS3OperatorInit:
+    """Unit tests for SFTPToS3Operator.__init__ that do not require an SSH server."""
+
+    def test_s3_conn_id_deprecated(self):
+        """s3_conn_id is a deprecated alias for aws_conn_id and must raise DeprecationWarning."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            op = SFTPToS3Operator(
+                task_id="test_deprecated",
+                s3_bucket=BUCKET,
+                s3_key=S3_KEY,
+                sftp_path=SFTP_PATH,
+                sftp_conn_id=SFTP_CONN_ID,
+                s3_conn_id="my_legacy_conn",
+            )
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, AirflowProviderDeprecationWarning)
+        ]
+        assert len(deprecation_warnings) == 1
+        assert "s3_conn_id" in str(deprecation_warnings[0].message)
+        assert op.aws_conn_id == "my_legacy_conn"
+
+    def test_aws_conn_id_default(self):
+        """aws_conn_id defaults to 'aws_default' and no AirflowProviderDeprecationWarning is raised."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            op = SFTPToS3Operator(
+                task_id="test_default",
+                s3_bucket=BUCKET,
+                s3_key=S3_KEY,
+                sftp_path=SFTP_PATH,
+                sftp_conn_id=SFTP_CONN_ID,
+            )
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, AirflowProviderDeprecationWarning)
+        ]
+        assert not deprecation_warnings
+        assert op.aws_conn_id == "aws_default"
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({}, {"replace": False, "encrypt": False, "gzip": False, "acl_policy": None}),
+            (
+                {"replace": True, "encrypt": True, "gzip": True, "acl_policy": "bucket-owner-full-control"},
+                {
+                    "replace": True,
+                    "encrypt": True,
+                    "gzip": True,
+                    "acl_policy": "bucket-owner-full-control",
+                },
+            ),
+        ],
+    )
+    def test_s3_upload_options(self, kwargs, expected):
+        """replace/encrypt/gzip/acl_policy are stored and default to False/None."""
+        op = SFTPToS3Operator(
+            task_id="test_options",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            **kwargs,
+        )
+        assert op.replace == expected["replace"]
+        assert op.encrypt == expected["encrypt"]
+        assert op.gzip == expected["gzip"]
+        assert op.acl_policy == expected["acl_policy"]
+
+    @pytest.mark.parametrize(
+        ("sftp_filenames", "s3_filenames"),
+        [
+            (None, None),
+            ("*", None),
+            ("prefix_", "renamed_"),
+            (["a.csv", "b.csv"], ["x.csv", "y.csv"]),
+        ],
+    )
+    def test_multi_file_params(self, sftp_filenames, s3_filenames):
+        """sftp_filenames and s3_filenames are stored correctly."""
+        op = SFTPToS3Operator(
+            task_id="test_multi",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_filenames=sftp_filenames,
+            s3_filenames=s3_filenames,
+        )
+        assert op.sftp_filenames == sftp_filenames
+        assert op.s3_filenames == s3_filenames

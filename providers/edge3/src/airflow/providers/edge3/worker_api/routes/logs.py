@@ -39,7 +39,7 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 
 @cache
 @provide_session
-def _logfile_path(task: TaskInstanceKey, session=NEW_SESSION) -> str:
+def _logfile_path(task: TaskInstanceKey, *, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
     ti = TaskInstance.get_task_instance(
         dag_id=task.dag_id,

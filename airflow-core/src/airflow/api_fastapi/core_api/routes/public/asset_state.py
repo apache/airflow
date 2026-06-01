@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -85,7 +86,9 @@ def list_asset_states(
         session=session,
     )
     rows = session.execute(paginated).all()
-    entries = [AssetStateResponse(key=r.key, value=r.value, updated_at=r.updated_at) for r in rows]
+    entries = [
+        AssetStateResponse(key=r.key, value=json.loads(r.value), updated_at=r.updated_at) for r in rows
+    ]
     return AssetStateCollectionResponse(asset_states=entries, total_entries=total_entries)
 
 
@@ -115,7 +118,7 @@ def get_asset_state(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Asset state key {key!r} not found",
         )
-    return AssetStateResponse(key=row.key, value=row.value, updated_at=row.updated_at)
+    return AssetStateResponse(key=row.key, value=json.loads(row.value), updated_at=row.updated_at)
 
 
 @asset_state_router.put(
@@ -131,7 +134,7 @@ def set_asset_state(
     session: SessionDep,
 ) -> None:
     """Set an asset state value. Creates or overwrites the key."""
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @asset_state_router.delete(

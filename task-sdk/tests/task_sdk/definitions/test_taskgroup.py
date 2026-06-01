@@ -68,6 +68,29 @@ class TestTaskGroup:
             TaskGroup(group_id)
         assert str(ctx.value) == exc_value
 
+    def test_resolve_documentation_file_not_rendered(self, tmp_path):
+        """Test that TaskGroup reads markdown files supplied as doc_md."""
+        raw_content = """
+        {% if True %}
+            External Markdown TaskGroup documentation
+        {% endif %}
+        """
+
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=pendulum.parse("20200101")):
+            tg = TaskGroup("group1", doc_md=str(path))
+
+        assert tg.doc_md == raw_content
+
+    def test_missing_documentation_file_uses_path_as_doc_md(self):
+        """Test that TaskGroup keeps missing markdown file paths as doc_md."""
+        with DAG(dag_id="test_dag", schedule=None, start_date=pendulum.parse("20200101")):
+            tg = TaskGroup("group1", doc_md="missing_file.md")
+
+        assert tg.doc_md == "missing_file.md"
+
 
 def test_task_group_dependencies_between_tasks_if_task_group_is_empty_1():
     """

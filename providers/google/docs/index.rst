@@ -125,7 +125,7 @@ PIP package                                 Version required
 ``gcsfs``                                   ``>=2023.10.0``
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
-``google-api-core``                         ``>=2.11.0,!=2.16.0,!=2.18.0``
+``google-api-core``                         ``>=2.30.3``
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``

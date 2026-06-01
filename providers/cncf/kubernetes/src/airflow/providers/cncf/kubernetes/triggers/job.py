@@ -145,8 +145,8 @@ class KubernetesJobTrigger(BaseTrigger):
             {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
-                "pod_names": [pod_name for pod_name in self.pod_names] if self.get_logs else None,
-                "pod_namespace": self.pod_namespace if self.get_logs else None,
+                "pod_names": list(self.pod_names),
+                "pod_namespace": self.pod_namespace,
                 "status": "error" if error_message else "success",
                 "message": f"Job failed with error: {error_message}"
                 if error_message

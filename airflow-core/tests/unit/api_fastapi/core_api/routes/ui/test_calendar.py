@@ -21,10 +21,11 @@ from datetime import datetime
 
 import pendulum
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import CronPartitionTimetable
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -38,7 +39,7 @@ class TestCalendar:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup_dag_runs(self, dag_maker, session=None) -> None:
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
         clear_db_runs()
         clear_db_dags()
         with dag_maker(
@@ -192,7 +193,7 @@ class TestPartitionedCalendar:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup_dag_runs(self, dag_maker, session=None) -> None:
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
         clear_db_runs()
         clear_db_dags()
         with dag_maker(

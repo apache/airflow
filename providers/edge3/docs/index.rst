@@ -58,6 +58,7 @@
     Configuration <configurations-ref>
     CLI <cli-ref>
     Python API <_api/airflow/providers/edge3/index>
+    Edge Worker REST API <edge-api-ref>
 
 .. toctree::
     :hidden:

@@ -32,7 +32,7 @@ from airflow.utils.db import DBLocks, create_global_lock
 
 
 @provide_session
-def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
+def _get_api_endpoint(*, session: Session = NEW_SESSION) -> dict[str, Any]:
     # Ensure all required DB modeals are created before starting the API
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
