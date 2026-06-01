@@ -541,6 +541,8 @@ class TaskStateAccessor:
         """
         Write or overwrite the value for the given key.
 
+        ``value`` must not be ``None`` — use ``delete()`` to remove a key.
+
         ``retention`` is an optional key that controls when this key expires:
 
         - ``timedelta(...)`` — expire after the given duration (e.g. ``timedelta(hours=6)``).
@@ -549,6 +551,9 @@ class TaskStateAccessor:
         """
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if value is None:
+            raise ValueError("Cannot set value as None")
 
         # expires_at is always resolved on the worker in UTC before being sent.
         now = datetime.now(tz=timezone.utc)
@@ -677,9 +682,12 @@ class AssetStateAccessor:
         return default
 
     def set(self, key: str, value: JsonValue) -> None:
-        """Write or overwrite the value for the given key."""
+        """Write or overwrite the value for the given key. ``value`` must not be ``None`` — use ``delete()`` to remove a key."""
         from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if value is None:
+            raise ValueError("Cannot set value as None")
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB

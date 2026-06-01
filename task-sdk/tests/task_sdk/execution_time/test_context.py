@@ -1149,6 +1149,10 @@ class TestTaskStateAccessor:
         with pytest.raises(AirflowRuntimeError):
             TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
 
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", None)
+
     def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
         """set() with no retention uses global default_retention_days config."""
 
@@ -1341,6 +1345,10 @@ class TestAssetStateAccessor:
         mock_supervisor_comms.send.assert_called_once_with(
             SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
         )
+
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            AssetStateAccessor(name=self.ASSET_NAME).set("watermark", None)
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
