@@ -345,8 +345,53 @@ jobs:
           if-no-files-found: 'error'
           overwrite: 'true'
 
+  build-java-sdk-docs:
+    needs: [build-info]
+    timeout-minutes: 30
+    name: "Build Java SDK Javadoc"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: "Checkout ${{ inputs.ref }}"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      # Keep these in sync:
+      # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
+      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+      # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
+      # - java-version in .github/workflows/codeql-analysis.yml and .github/workflows/publish-docs-to-s3.yml
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Build Java SDK Javadoc
+        working-directory: ./java-sdk
+        run: ./gradlew :sdk:dokkaGeneratePublicationHtml --no-daemon
+      - name: Stage Dokka output for publish pipeline
+        run: |
+          AIRFLOW_VERSION=$(python3 -c "
+          import re, pathlib
+          src = pathlib.Path('airflow-core/src/airflow/__init__.py').read_text()
+          print(re.search(r\"__version__ = '(.+?)'\", src).group(1))
+          ")
+          mkdir -p generated/_build/docs/apache-airflow-java-sdk/stable
+          cp -r java-sdk/sdk/build/dokka/html/. generated/_build/docs/apache-airflow-java-sdk/stable/
+          echo "${AIRFLOW_VERSION}" > generated/_build/docs/apache-airflow-java-sdk/stable.txt
+      - name: Upload Java SDK docs artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/apache-airflow-java-sdk/
+          retention-days: '7'
+          if-no-files-found: 'error'
+          overwrite: 'true'
+
   publish-docs-to-s3:
-    needs: [build-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -385,6 +430,11 @@ jobs:
           path: /mnt/_build
       - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
+      - name: "Download Java SDK docs artifact"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/apache-airflow-java-sdk
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
           sudo mkdir -vp ./files/sbom
@@ -417,7 +467,8 @@ jobs:
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
+          breeze release-management publish-docs --override-versioned --run-in-parallel
+          ${INCLUDE_DOCS} apache-airflow-java-sdk
       - name: Check disk space available
         run: df -H
       - name: "Update watermarks"
