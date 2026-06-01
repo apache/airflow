@@ -1135,7 +1135,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             assert self.task is not None
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
-            for dep_status in dep.get_dep_statuses(self, session, dep_context):
+            for dep_status in dep.get_dep_statuses(self, dep_context, session=session):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self,

@@ -183,6 +183,7 @@ class SerializedDAG:
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -482,7 +483,7 @@ class SerializedDAG:
             )
 
     @provide_session
-    def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
+    def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         from airflow.models.taskinstance import TaskInstance
 

@@ -348,6 +348,7 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGSourceResponse(BaseModel):

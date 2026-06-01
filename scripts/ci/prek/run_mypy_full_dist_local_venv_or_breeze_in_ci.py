@@ -289,7 +289,7 @@ if CI:
     # and to not change uv.lock or synchronize dependencies.
     from common_prek_utils import (
         initialize_breeze_prek,
-        run_command_via_breeze_shell,
+        run_command_via_breeze_run,
     )
 
     initialize_breeze_prek(__name__, __file__)
@@ -308,7 +308,7 @@ if CI:
     mypy_cmd = (
         f"TERM=ansi mypy --follow-imports=silent {shlex.quote(file_argument_ci)} {' '.join(mypy_extra_args)}"
     )
-    result = run_command_via_breeze_shell(
+    result = run_command_via_breeze_run(
         cmd=["bash", "-c", mypy_cmd],
         warn_image_upgrade_needed=True,
         extra_env={

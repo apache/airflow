@@ -362,7 +362,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def dag_state(args, session: Session = NEW_SESSION) -> None:
+def dag_state(args, *, session: Session = NEW_SESSION) -> None:
     """
     Return the state (and conf if exists) of a DagRun at the command line.
 
@@ -473,7 +473,7 @@ def dag_next_execution(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
+def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
 
@@ -561,7 +561,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_details(args, session: Session = NEW_SESSION):
+def dag_details(args, *, session: Session = NEW_SESSION):
     """Get DAG details given a DAG id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
@@ -583,7 +583,7 @@ def dag_details(args, session: Session = NEW_SESSION):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
+def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
     data = []
 
@@ -672,7 +672,7 @@ def dag_report(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
+def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """List latest n jobs."""
     queries = []
     if dag:
@@ -703,7 +703,7 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
+def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """List dag runs for a given DAG."""
     if dag:
         args.dag_id = dag.dag_id
@@ -741,7 +741,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
+def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Execute one single DagRun for a given DAG and logical date."""
     run_conf = None
     if args.conf:
@@ -799,7 +799,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
+def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
     manager = DagBundlesManager()
     manager.sync_bundles_to_db(session=session)
