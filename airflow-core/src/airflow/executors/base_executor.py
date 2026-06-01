@@ -359,7 +359,7 @@ class BaseExecutor(LoggingMixin):
                 item[1].sort_key,
             )
         )
-        return all_workloads[:open_slots]
+        return all_workloads[: max(0, open_slots)]
 
     def _process_workloads(self, workloads: Sequence[QueueableWorkload]) -> None:
         """

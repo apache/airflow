@@ -152,9 +152,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return (
-            self.celery_executor.slots_occupied + self.kubernetes_executor.slots_occupied - len(self.running)
-        )
+        return self.celery_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,
