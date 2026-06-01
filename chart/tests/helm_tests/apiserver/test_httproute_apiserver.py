@@ -153,7 +153,7 @@ class TestHTTPRouteAPIServer:
         assert jmespath.search("spec.rules[0].backendRefs[0].port", docs[0]) == 8443
 
     @pytest.mark.parametrize(
-        "global_value, api_server_value, expected",
+        ("global_value", "api_server_value", "expected"),
         [
             (None, None, False),
             (None, False, False),
