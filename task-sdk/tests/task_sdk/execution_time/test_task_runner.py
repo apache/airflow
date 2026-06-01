@@ -162,6 +162,7 @@ from airflow.sdk.execution_time.task_runner import (
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
+    _run_task_state_change_callbacks,
     _serialize_outlet_events,
     _xcom_push,
     detail_span,
@@ -5266,6 +5267,146 @@ class TestDetailSpan:
                 with pytest.raises(ValueError, match="boom"):
                     with detail_span("child"):
                         raise ValueError("boom")
+
+
+class TestCallbackSpans:
+    """Tests for spans emitted around task callback / pre-post-execute invocations."""
+
+    @staticmethod
+    def _make_tracer(exporter):
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        return provider.get_tracer("test")
+
+    def test_state_change_callback_span_at_level_2(self):
+        """A state-change callback gets a callback.<kind> span carrying kind/index/name attributes."""
+        exporter = InMemorySpanExporter()
+        t = self._make_tracer(exporter)
+        parent_ctx = TraceContextTextMapPropagator().extract(
+            new_dagrun_trace_carrier(task_span_detail_level=2)
+        )
+
+        def my_callback(context):
+            pass
+
+        task = BaseOperator(task_id="t", on_failure_callback=[my_callback])
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                _run_task_state_change_callbacks(task, "on_failure_callback", {}, mock.MagicMock())
+
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        assert "callback.on_failure_callback" in spans
+        attrs = spans["callback.on_failure_callback"].attributes
+        assert attrs["airflow.callback.kind"] == "on_failure_callback"
+        assert attrs["airflow.callback.index"] == 0
+        assert attrs["airflow.callback.name"] == "my_callback"
+
+    def test_state_change_callback_index_attribute(self):
+        """Each callback of the same kind gets its own span with the right index attribute."""
+        exporter = InMemorySpanExporter()
+        t = self._make_tracer(exporter)
+        parent_ctx = TraceContextTextMapPropagator().extract(
+            new_dagrun_trace_carrier(task_span_detail_level=2)
+        )
+
+        def cb_one(context):
+            pass
+
+        def cb_two(context):
+            pass
+
+        task = BaseOperator(task_id="t", on_success_callback=[cb_one, cb_two])
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                _run_task_state_change_callbacks(task, "on_success_callback", {}, mock.MagicMock())
+
+        indexes = sorted(
+            s.attributes["airflow.callback.index"]
+            for s in exporter.get_finished_spans()
+            if s.name == "callback.on_success_callback"
+        )
+        assert indexes == [0, 1]
+
+    def test_state_change_callback_no_span_at_level_1(self):
+        """At detail level 1 no callback span is recorded, but the callback still runs."""
+        exporter = InMemorySpanExporter()
+        t = self._make_tracer(exporter)
+        parent_ctx = TraceContextTextMapPropagator().extract(
+            new_dagrun_trace_carrier(task_span_detail_level=1)
+        )
+        ran = []
+
+        def my_callback(context):
+            ran.append(True)
+
+        task = BaseOperator(task_id="t", on_failure_callback=[my_callback])
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                _run_task_state_change_callbacks(task, "on_failure_callback", {}, mock.MagicMock())
+
+        assert ran == [True]
+        assert "callback.on_failure_callback" not in {s.name for s in exporter.get_finished_spans()}
+
+    def test_raising_state_change_callback_records_error_and_is_swallowed(self):
+        """A raising callback records ERROR status on its span and the exception is swallowed."""
+        exporter = InMemorySpanExporter()
+        t = self._make_tracer(exporter)
+        parent_ctx = TraceContextTextMapPropagator().extract(
+            new_dagrun_trace_carrier(task_span_detail_level=2)
+        )
+
+        def boom(context):
+            raise ValueError("boom")
+
+        task = BaseOperator(task_id="t", on_failure_callback=[boom])
+        log = mock.MagicMock()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                # Must not raise.
+                _run_task_state_change_callbacks(task, "on_failure_callback", {}, log)
+
+        span = next(s for s in exporter.get_finished_spans() if s.name == "callback.on_failure_callback")
+        assert span.status.status_code == trace.StatusCode.ERROR
+        log.exception.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("detail_level", "expected_present"),
+        [(2, True), (1, False)],
+    )
+    def test_pre_post_execute_hook_spans(
+        self, create_runtime_ti, mock_supervisor_comms, detail_level, expected_present
+    ):
+        """pre_execute / post_execute hooks get callback.<kind> spans only at detail level > 1."""
+        exporter = InMemorySpanExporter()
+        t = self._make_tracer(exporter)
+        parent_ctx = TraceContextTextMapPropagator().extract(
+            new_dagrun_trace_carrier(task_span_detail_level=detail_level)
+        )
+
+        def pre_hook(context):
+            pass
+
+        def post_hook(context, result):
+            pass
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                return "result"
+
+        task = MyOperator(task_id="t", pre_execute=pre_hook, post_execute=post_hook)
+        ti = create_runtime_ti(task=task)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                _execute_task(ti.get_template_context(), ti, mock.MagicMock())
+
+        names = {s.name for s in exporter.get_finished_spans()}
+        assert ("callback.pre_execute" in names) is expected_present
+        assert ("callback.post_execute" in names) is expected_present
 
 
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
