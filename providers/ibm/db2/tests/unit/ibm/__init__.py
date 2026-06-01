@@ -14,11 +14,4 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""IBM Db2 operators."""
-
 from __future__ import annotations
-
-__all__ = ["Db2Operator"]
-
-from airflow.providers.db2.operators.db2 import Db2Operator

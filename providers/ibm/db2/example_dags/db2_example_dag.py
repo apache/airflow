@@ -25,7 +25,7 @@ This DAG shows how to use the Db2 provider for common database operations:
 - Querying and processing results
 
 Prerequisites:
-1. Install the Db2 provider: pip install apache-airflow-providers-db2
+1. Install the Db2 provider: pip install apache-airflow-providers-ibm-db2
 2. Configure a Db2 connection in Airflow UI or via environment variable:
    AIRFLOW_CONN_DB2_DEFAULT='db2://user:password@host:port/database'
 """
@@ -35,8 +35,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
-from airflow.providers.db2.hooks.db2 import Db2Hook
-from airflow.providers.db2.operators.db2 import Db2Operator
+from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
+from airflow.providers.ibm.db2.operators.db2 import Db2Operator
 
 # Default arguments for the DAG
 default_args = {

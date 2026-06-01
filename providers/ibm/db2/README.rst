@@ -15,8 +15,8 @@
    specific language governing permissions and limitations
    under the License.
 
-``apache-airflow-providers-db2``
-=================================
+``apache-airflow-providers-ibm-db2``
+=====================================
 
 Provider package for IBM Db2 database support in Apache Airflow.
 
@@ -27,7 +27,7 @@ You can install this package via pip:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-db2
+    pip install apache-airflow-providers-ibm-db2
 
 Requirements
 ------------
@@ -69,7 +69,7 @@ Using the Db2Hook
 
 .. code-block:: python
 
-    from airflow.providers.db2.hooks.db2 import Db2Hook
+    from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
 
     hook = Db2Hook(db2_conn_id="db2_default")
     records = hook.get_records("SELECT * FROM employees WHERE dept = %s", parameters=("IT",))

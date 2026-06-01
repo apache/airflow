@@ -23,13 +23,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.db2.operators.db2 import Db2Operator
+from airflow.providers.ibm.db2.operators.db2 import Db2Operator
 
 
 class TestDb2Operator:
     """Test Db2Operator functionality."""
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_execute_simple_query(self, mock_hook_class):
         """Test executing a simple SELECT query."""
         mock_hook = mock_hook_class.return_value
@@ -53,7 +53,7 @@ class TestDb2Operator:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_execute_with_parameters(self, mock_hook_class):
         """Test executing query with parameters."""
         mock_hook = mock_hook_class.return_value
@@ -77,7 +77,7 @@ class TestDb2Operator:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_execute_with_autocommit(self, mock_hook_class):
         """Test executing with autocommit enabled."""
         mock_hook = mock_hook_class.return_value
@@ -99,7 +99,7 @@ class TestDb2Operator:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_execute_split_statements(self, mock_hook_class):
         """Test executing multiple statements split by semicolon."""
         mock_hook = mock_hook_class.return_value
@@ -123,7 +123,7 @@ class TestDb2Operator:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_execute_error_handling(self, mock_hook_class):
         """Test error handling and rollback."""
         mock_hook = mock_hook_class.return_value
@@ -146,7 +146,7 @@ class TestDb2Operator:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @mock.patch("airflow.providers.db2.operators.db2.Db2Hook")
+    @mock.patch("airflow.providers.ibm.db2.operators.db2.Db2Hook")
     def test_on_kill(self, mock_hook_class):
         """Test cleanup on task kill."""
         mock_hook = mock_hook_class.return_value

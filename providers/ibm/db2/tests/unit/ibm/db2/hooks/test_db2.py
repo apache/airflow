@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.db2.hooks.db2 import Db2Hook
+from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
 
 
 class TestDb2Hook:
@@ -58,7 +58,7 @@ class TestDb2Hook:
         )
         return conn
 
-    @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     @patch("ibm_db_dbi.connect")
     def test_get_conn(self, mock_connect, mock_get_connection, mock_connection):
         """Test get_conn method."""
@@ -82,7 +82,7 @@ class TestDb2Hook:
         assert "UID=db2user" in call_args
         assert "PWD=db2pass" in call_args
 
-    @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     @patch("ibm_db_dbi.connect")
     def test_get_conn_with_ssl(self, mock_connect, mock_get_connection, mock_connection_with_extras):
         """Test get_conn method with SSL configuration."""
@@ -102,7 +102,7 @@ class TestDb2Hook:
         assert "SSL=true" in call_args
         assert "SSLCERT=/path/to/cert.pem" in call_args
 
-    @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri(self, mock_get_connection, mock_connection):
         """Test get_uri method."""
         mock_get_connection.return_value = mock_connection
@@ -113,7 +113,7 @@ class TestDb2Hook:
         # Verify URI format
         assert uri == "db2+ibm_db://db2user:db2pass@localhost:50000/testdb"
 
-    @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri_with_special_chars_in_password(self, mock_get_connection):
         """Test get_uri method with special characters in password."""
         conn = Connection(
@@ -133,7 +133,7 @@ class TestDb2Hook:
         # Verify password is URL encoded
         assert "p%40ss%3Aword%21" in uri
 
-    @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri_with_defaults(self, mock_get_connection):
         """Test get_uri method with default values."""
         conn = Connection(
