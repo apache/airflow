@@ -36,7 +36,7 @@ from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponse
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
-    AssetStateResponse,
+    AssetStoreResponse,
     ConnectionResponse,
     DagResponse,
     DagRunState,
@@ -44,7 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
-    TaskStateResponse,
+    TaskStoreResponse,
     TerminalTIState,
     VariableResponse,
     XComResponse,
@@ -1797,7 +1797,7 @@ class TestTaskStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_state.get(ti_id=self.TI_ID, key="job_id")
 
-        assert isinstance(result, TaskStateResponse)
+        assert isinstance(result, TaskStoreResponse)
         assert result.value == "spark_app_001"
 
     def test_get_returns_error_response_on_404(self):
@@ -1905,7 +1905,7 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state.get(key="watermark", name="test_asset")
 
-        assert isinstance(result, AssetStateResponse)
+        assert isinstance(result, AssetStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
 
     def test_get_by_uri_success(self):
@@ -1921,7 +1921,7 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state.get(key="watermark", uri="s3://bucket/key")
 
-        assert isinstance(result, AssetStateResponse)
+        assert isinstance(result, AssetStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
 
     def test_get_returns_error_response_on_404(self):

@@ -120,12 +120,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateAccessors,
+    AssetStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
-    TaskStateAccessor,
+    TaskStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -297,7 +297,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state": TaskStateAccessor(
+                "task_store": TaskStoreAccessor(
                     ti_id=self.id,
                     scope=TaskScope(
                         dag_id=self.dag_id,
@@ -308,9 +308,9 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             }
             if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for i in self.task.inlets):
-                self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
+                self._cached_template_context["asset_store"] = AssetStoreAccessors(self.task.inlets)
                 # AssetAlias inlets are resolved to their concrete assets at context build time
-                # via GetAssetsByAlias comms. If an alias maps to no active assets, it doesnt contribute to asset_state.
+                # via GetAssetsByAlias comms. If an alias maps to no active assets, it doesnt contribute to asset_store.
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
@@ -1543,9 +1543,9 @@ def _handle_current_task_success(
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
     if conf.getboolean("state_store", "clear_on_success"):
-        log.info("Task state will be cleared by the server because clear_on_success is enabled.")
+        log.info("Task store will be cleared by the server because clear_on_success is enabled.")
 
-        context["task_state"]._clear_backend_only()
+        context["task_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,

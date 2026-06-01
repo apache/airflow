@@ -953,9 +953,9 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
-class TaskStateBody(BaseModel):
+class TaskStoreBody(BaseModel):
     """
-    Request body for setting a task state value.
+    Request body for setting a task store value.
 
     ``expires_at`` controls expiry:
 
@@ -971,9 +971,9 @@ class TaskStateBody(BaseModel):
     expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
 
 
-class TaskStatePatchBody(BaseModel):
+class TaskStorePatchBody(BaseModel):
     """
-    Request body for patching only the value of an existing task state key.
+    Request body for patching only the value of an existing task store key.
     """
 
     model_config = ConfigDict(
@@ -982,9 +982,9 @@ class TaskStatePatchBody(BaseModel):
     value: JsonValue
 
 
-class TaskStateResponse(BaseModel):
+class TaskStoreResponse(BaseModel):
     """
-    A single task state key/value pair with metadata.
+    A single task store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1223,9 +1223,9 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStateBody(BaseModel):
+class AssetStoreBody(BaseModel):
     """
-    Request body for setting an asset state value.
+    Request body for setting an asset store value.
     """
 
     model_config = ConfigDict(
@@ -1234,9 +1234,9 @@ class AssetStateBody(BaseModel):
     value: JsonValue
 
 
-class AssetStateResponse(BaseModel):
+class AssetStoreResponse(BaseModel):
     """
-    A single asset state key/value pair with metadata.
+    A single asset store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1982,12 +1982,12 @@ class TaskResponse(BaseModel):
     ]
 
 
-class TaskStateCollectionResponse(BaseModel):
+class TaskStoreCollectionResponse(BaseModel):
     """
-    All task state entries for a task instance.
+    All task store entries for a task instance.
     """
 
-    task_states: Annotated[list[TaskStateResponse], Field(title="Task States")]
+    task_store: Annotated[list[TaskStoreResponse], Field(title="Task Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -2027,12 +2027,12 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class AssetStateCollectionResponse(BaseModel):
+class AssetStoreCollectionResponse(BaseModel):
     """
-    All asset state entries for an asset.
+    All asset store entries for an asset.
     """
 
-    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
+    asset_store: Annotated[list[AssetStoreResponse], Field(title="Asset Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

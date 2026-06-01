@@ -1,0 +1,90 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from typing import Literal
+
+from pydantic import AwareDatetime, JsonValue, field_validator
+
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+_MAX_SERIALIZED_BYTES = 65535
+
+
+class TaskStoreResponse(BaseModel):
+    """A single task store key/value pair with metadata."""
+
+    key: str
+    value: JsonValue
+    updated_at: datetime
+    expires_at: datetime | None
+
+
+class TaskStoreCollectionResponse(BaseModel):
+    """All task store entries for a task instance."""
+
+    task_store: list[TaskStoreResponse]
+    total_entries: int
+
+
+class TaskStoreBody(StrictBaseModel):
+    """
+    Request body for setting a task store value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
+    """
+
+    value: JsonValue
+    expires_at: AwareDatetime | None | Literal["default"] = "default"
+
+    @field_validator("value")
+    @classmethod
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        try:
+            serialized = json.dumps(v, allow_nan=False)
+        except ValueError:
+            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
+        if len(serialized) > _MAX_SERIALIZED_BYTES:
+            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        return v
+
+
+class TaskStorePatchBody(StrictBaseModel):
+    """Request body for patching only the value of an existing task store key."""
+
+    value: JsonValue
+
+    @field_validator("value")
+    @classmethod
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        try:
+            serialized = json.dumps(v, allow_nan=False)
+        except ValueError:
+            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
+        if len(serialized) > _MAX_SERIALIZED_BYTES:
+            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        return v
