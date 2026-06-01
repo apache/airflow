@@ -787,7 +787,7 @@ class TestDagRun:
             ...
         self.create_dag_run(dag, logical_date=timezone.datetime(2015, 1, 1), session=session)
         self.create_dag_run(dag, logical_date=timezone.datetime(2015, 1, 2), session=session)
-        dagruns = DagRun.get_latest_runs(session)
+        dagruns = DagRun.get_latest_runs(session=session)
         session.close()
         for dagrun in dagruns:
             if dagrun.dag_id == "test_latest_runs_1":
@@ -1121,12 +1121,12 @@ class TestDagRun:
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )
-            ti = dag_run.get_task_instance(dag_task.task_id, session)
-            ti.set_state(TaskInstanceState.SUCCESS, session)
+            ti = dag_run.get_task_instance(dag_task.task_id, session=session)
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session)
+                dag_run.update_state(session=session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
@@ -1209,13 +1209,13 @@ class TestDagRun:
                 session=session,
             )
             dag_run.queued_at = queued_at
-            ti = dag_run.get_task_instance(dag_task.task_id, session)
-            ti.set_state(TaskInstanceState.SUCCESS, session)
+            ti = dag_run.get_task_instance(dag_task.task_id, session=session)
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
             ti.start_date = ti_start_date
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session)
+                dag_run.update_state(session=session)
 
             start_delay_call = call("dagrun.first_task_start_delay", mock.ANY, tags=expected_stat_tags)
             if expected:
@@ -3178,7 +3178,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     session.commit()
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 1
-    dr1.task_instance_scheduling_decisions(session)
+    dr1.task_instance_scheduling_decisions(session=session)
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 0
 
@@ -3408,7 +3408,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
             reduce(lambda x, y: x >> y, tasks)
 
     dr = dag_maker.create_dagrun()
-    tis = dr.task_instance_scheduling_decisions(session).tis
+    tis = dr.task_instance_scheduling_decisions(session=session).tis
     tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
     assert tis_for_state == expected
 

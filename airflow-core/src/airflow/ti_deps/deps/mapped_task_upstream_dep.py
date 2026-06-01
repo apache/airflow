@@ -49,8 +49,9 @@ class MappedTaskUpstreamDep(BaseTIDep):
     def _get_dep_statuses(
         self,
         ti: TaskInstance,
-        session: Session,
         dep_context: DepContext,
+        *,
+        session: Session,
     ) -> Iterator[TIDepStatus]:
         from airflow.models.taskinstance import TaskInstance
         from airflow.serialization.definitions.mappedoperator import is_mapped

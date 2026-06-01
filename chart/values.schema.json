@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -225,6 +225,15 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "enableServiceLinks": {
+            "description": "Enable Kubernetes service links. The default will become false in Chart 2.0.",
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Kubernetes"
         },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
@@ -968,7 +977,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.29.0"
+                            "default": "v0.30.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",

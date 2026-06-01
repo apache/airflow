@@ -275,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -836,6 +837,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -1151,6 +1153,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb

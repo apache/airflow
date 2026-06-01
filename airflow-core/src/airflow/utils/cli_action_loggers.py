@@ -112,6 +112,7 @@ def default_action_log(
     logical_date,
     host_name,
     full_command,
+    *,
     session: Session = NEW_SESSION,
     **_,
 ):
