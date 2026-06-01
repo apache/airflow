@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.parameters import QueryIncludeDownstream, QueryI
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, ReadableDagsFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.structure import (
     bind_output_assets_to_tasks,
     get_upstream_assets,
@@ -40,14 +40,22 @@ from airflow.utils.dag_edges import dag_edges
 structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 
+def check_structure_data_access(
+    request: Request,
+    user: GetUserDep,
+    external_dependencies: bool = False,
+) -> None:
+    """Check permissions for the structure endpoint."""
+    requires_access_dag("GET")(request, user)
+
+    if external_dependencies:
+        requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)(request, user)
+
+
 @structure_router.get(
     "/structure_data",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[
-        Depends(requires_access_dag("GET")),
-        Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)),
-        Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)),
-    ],
+    dependencies=[Depends(check_structure_data_access)],
 )
 def structure_data(
     session: SessionDep,

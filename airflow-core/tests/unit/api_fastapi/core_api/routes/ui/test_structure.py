@@ -26,6 +26,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -246,6 +248,23 @@ def asset3_id(make_dags, asset3, session) -> str:
 
 
 class TestStructureDataEndpoint:
+    @staticmethod
+    def _restrict_dag_access(
+        allowed_dag_ids: set[str],
+        allowed_entities: set[DagAccessEntity] | None = None,
+    ):
+        allowed_entities = allowed_entities or set()
+
+        def restricted_is_authorized_dag(self, *, method, user, access_entity=None, details=None):
+            return (
+                method == "GET"
+                and details is not None
+                and details.id in allowed_dag_ids
+                and (access_entity is None or access_entity in allowed_entities)
+            )
+
+        return mock.patch.object(SimpleAuthManager, "is_authorized_dag", restricted_is_authorized_dag)
+
     @pytest.mark.parametrize(
         ("params", "expected", "expected_queries_count"),
         [
@@ -685,6 +704,42 @@ class TestStructureDataEndpoint:
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
         assert response.status_code == 403
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_allow_structure_data_with_dag_specific_read(self, test_client):
+        with self._restrict_dag_access({DAG_ID}):
+            response = test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
+
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_deny_structure_data_for_unreadable_dag(self, test_client):
+        with self._restrict_dag_access({DAG_ID}):
+            response = test_client.get(
+                "/structure/structure_data", params={"dag_id": DAG_ID_EXTERNAL_TRIGGER}
+            )
+
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_external_dependencies_requires_dependency_access(self, test_client):
+        with self._restrict_dag_access({DAG_ID}):
+            response = test_client.get(
+                "/structure/structure_data",
+                params={"dag_id": DAG_ID, "external_dependencies": True},
+            )
+
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_external_dependencies_allows_dag_specific_read_with_dependency_access(self, test_client):
+        with self._restrict_dag_access({DAG_ID}, {DagAccessEntity.DEPENDENCIES}):
+            response = test_client.get(
+                "/structure/structure_data",
+                params={"dag_id": DAG_ID, "external_dependencies": True},
+            )
+
+        assert response.status_code == 200
 
     @mock.patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
