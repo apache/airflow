@@ -129,6 +129,7 @@ class EdgeExecutor(BaseExecutor):
                         concurrency_slots=1,
                         state=TaskInstanceState.QUEUED,
                         command=workload.model_dump_json(),
+                        team_name=self.team_name,
                     )
                 )
         elif isinstance(workload, workloads.ExecuteTask):

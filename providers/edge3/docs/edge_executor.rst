@@ -192,9 +192,9 @@ distinguished by reserved values in the identifier columns:
 
 When the worker fetches such a job through the worker API, the command payload is
 deserialized back into an ``ExecuteCallback`` workload (instead of an
-``ExecuteTask``) based on these identifiers. The worker then runs the callback
-through ``BaseExecutor.run_workload`` rather than the task supervisor flow used for
-normal tasks.
+ ``ExecuteTask``) based on these identifiers. On Airflow 3.3+, the worker executes
+ both task and callback workloads via ``BaseExecutor.run_workload`` (or the
+ ``airflow.sdk.execution_time.execute_workload`` entrypoint when using the subprocess path).
 
 .. note::
 
