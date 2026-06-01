@@ -1081,7 +1081,7 @@ class VariableResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: Annotated[str | None, Field(title="Value")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None

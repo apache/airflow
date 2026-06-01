@@ -16188,7 +16188,9 @@ components:
           type: string
           title: Key
         value:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
         description:
           anyOf:
@@ -16206,7 +16208,6 @@ components:
       type: object
       required:
       - key
-      - value
       - description
       - is_encrypted
       - team_name
