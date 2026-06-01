@@ -9,4 +9,3 @@ airflow-core/src/airflow/models/team.py::1
 airflow-core/src/airflow/models/trigger.py::7
 airflow-core/src/airflow/models/variable.py::2
 airflow-core/tests/unit/models/test_timestamp.py::2
-providers/edge3/src/airflow/providers/edge3/executors/edge_executor.py::1
