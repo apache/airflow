@@ -2728,12 +2728,12 @@ class TestResolveRunOnLatestVersion:
     def test_clear_endpoint_invokes_resolver_when_field_omitted(self, test_client):
         """Clearing without run_on_latest_version triggers the server-side resolver."""
         with mock.patch(
-            "airflow.api_fastapi.core_api.routes.public.dag_run.resolve_run_on_latest_version",
+            "airflow.api_fastapi.core_api.services.public.dag_run.resolve_run_on_latest_version",
             return_value=False,
         ) as mock_resolver:
             response = test_client.post(
                 f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
-                json={"dry_run": True},
+                json={"dry_run": False},
             )
         assert response.status_code == 200
         mock_resolver.assert_called_once()
