@@ -429,6 +429,8 @@ class TriggerRuleDep(BaseTIDep):
                         new_state = TaskInstanceState.UPSTREAM_FAILED
                     elif skipped == upstream:
                         new_state = TaskInstanceState.SKIPPED
+                    elif upstream_done and success == 0:
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif trigger_rule == TR.NONE_SKIPPED:
                     if skipped:
                         new_state = TaskInstanceState.SKIPPED
@@ -546,6 +548,14 @@ class TriggerRuleDep(BaseTIDep):
                             f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have "
                             f"succeeded or been skipped, but found {num_failures} non-success(es). "
                             f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        )
+                    )
+                elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS and success <= 0:
+                    yield self._failing_status(
+                        reason=(
+                            f"Task's trigger rule '{trigger_rule_str}' requires at least one upstream task "
+                            f"success, but none were found. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
