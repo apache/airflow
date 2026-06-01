@@ -333,3 +333,4 @@ def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
     operator.on_kill()
 
     operator._hook.cancel_run.assert_called_once_with(RUN_ID)
+
