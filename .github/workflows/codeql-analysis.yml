@@ -96,7 +96,10 @@ jobs:
         with:
           persist-credentials: false
 
-      # keep this in sync with the jvmTarget in java-sdk/build.gradle.kts
+      # Keep this version in sync with:
+      # - jvmTarget and languageVersion in java-sdk/build.gradle.kts
+      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+      # - java-version in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
       - name: Setup Java
         if: matrix.language == 'java'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0

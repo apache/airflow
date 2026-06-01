@@ -69,6 +69,7 @@ from airflow_breeze.commands.common_options import (
     option_project_name,
     option_python,
     option_run_db_tests_only,
+    option_sdk,
     option_skip_db_tests,
     option_standalone_dag_processor,
     option_terminal_multiplexer,
@@ -347,6 +348,7 @@ option_load_default_connections = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
+@option_sdk
 @option_run_db_tests_only
 @option_skip_db_tests
 @option_skip_environment_initialization
@@ -409,6 +411,7 @@ def shell(
     python: str,
     quiet: bool,
     restart: bool,
+    sdk: tuple[str, ...],
     run_db_tests_only: bool,
     skip_environment_initialization: bool,
     skip_db_tests: bool,
@@ -485,6 +488,7 @@ def shell(
         python=python,
         quiet=quiet,
         restart=restart,
+        sdk=sdk,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
