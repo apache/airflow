@@ -19,7 +19,7 @@
 def get_provider_info():
     """Return provider information for Db2."""
     return {
-        "package-name": "apache-airflow-providers-db2",
+        "package-name": "apache-airflow-providers-ibm-db2",
         "name": "IBM Db2",
         "description": "`IBM Db2 <https://www.ibm.com/products/db2>`__\n",
         "integrations": [
@@ -33,13 +33,13 @@ def get_provider_info():
         "hooks": [
             {
                 "integration-name": "IBM Db2",
-                "python-modules": ["airflow.providers.db2.hooks.db2"],
+                "python-modules": ["airflow.providers.ibm.db2.hooks.db2"],
             }
         ],
         "connection-types": [
             {
-                "hook-class-name": "airflow.providers.db2.hooks.db2.Db2Hook",
-                "connection-type": "db2",
+                "hook-class-name": "airflow.providers.ibm.db2.hooks.db2.Db2Hook",
+                "connection-type": "Db2",
             }
         ],
     }

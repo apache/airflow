@@ -41,13 +41,13 @@ A comprehensive example showing all major features of the Db2 provider.
 #### 1. Install the Db2 Provider
 
 ```bash
-pip install apache-airflow-providers-db2
+pip install apache-airflow-providers-ibm-db2
 ```
 
 Or install from the wheel file:
 
 ```bash
-pip install apache_airflow_providers_db2-1.0.0-py3-none-any.whl
+pip install apache_airflow_providers_ibm_db2-1.0.0-py3-none-any.whl
 ```
 
 #### 2. Configure Db2 Connection
@@ -235,7 +235,7 @@ schedule = ("0 0 * * *",)  # Run daily at midnight
 The Db2Operator is the recommended way to execute SQL:
 
 ```python
-from airflow.providers.db2.operators.db2 import Db2Operator
+from airflow.providers.ibm.db2.operators.db2 import Db2Operator
 
 create_table = Db2Operator(
     task_id="create_table",
@@ -249,7 +249,7 @@ create_table = Db2Operator(
 For programmatic queries, use Db2Hook:
 
 ```python
-from airflow.providers.db2.hooks.db2 import Db2Hook
+from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
 
 
 @task
@@ -278,11 +278,11 @@ If you see connection errors:
 
 #### Import Errors
 
-If you see "No module named 'airflow.providers.db2'":
+If you see "No module named 'airflow.providers.ibm.db2'":
 
 ```bash
 # Reinstall the provider
-pip install --force-reinstall apache-airflow-providers-db2
+pip install --force-reinstall apache-airflow-providers-ibm-db2
 ```
 
 #### Task Failures

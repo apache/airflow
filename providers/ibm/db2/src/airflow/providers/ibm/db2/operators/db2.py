@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
-from airflow.providers.db2.hooks.db2 import Db2Hook
+from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
