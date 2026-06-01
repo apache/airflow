@@ -955,6 +955,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
 LanguageServiceClient
 lastname
 latencies
@@ -1574,6 +1575,7 @@ Stringified
 stringified
 stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed
