@@ -1,1 +1,0 @@
-Fix ``[scheduler] use_job_schedule=False`` wrongly disabling asset- and partitioned-asset-triggered Dag run creation. The flag now disables only time-based (cron) scheduling, as documented; manually triggered and asset-triggered Dag runs are still created.
