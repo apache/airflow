@@ -51,6 +51,18 @@ export const CalendarCell = ({
   const hasData = Boolean(cellData && relevantCount > 0);
   const hasTooltip = Boolean(cellData);
 
+  // States present in this cell, computed with the same view-mode-aware logic the
+  // tooltip uses (see CalendarTooltip). Exposed as a `data-states` attribute so e2e
+  // tests can read run states from the DOM instead of hovering — the tooltip does
+  // not open reliably under synthetic pointer events in headless Firefox.
+  const runStates = cellData
+    ? Object.entries(cellData.counts)
+        .filter(
+          ([key, value]) => key !== "total" && value > 0 && (viewMode === "failed" ? key === "failed" : true),
+        )
+        .map(([key]) => key)
+    : [];
+
   const isMixedState =
     typeof backgroundColor === "object" && "planned" in backgroundColor && "actual" in backgroundColor;
 
@@ -60,6 +72,7 @@ export const CalendarCell = ({
       borderRadius="2px"
       cursor={hasData ? "pointer" : "default"}
       data-has-data={hasData ? "true" : "false"}
+      data-states={runStates.join(" ")}
       data-testid="calendar-cell"
       data-view-mode={viewMode}
       height="14px"
@@ -90,6 +103,7 @@ export const CalendarCell = ({
       borderRadius="2px"
       cursor={hasData ? "pointer" : "default"}
       data-has-data={hasData ? "true" : "false"}
+      data-states={runStates.join(" ")}
       data-testid="calendar-cell"
       data-view-mode={viewMode}
       height="14px"
