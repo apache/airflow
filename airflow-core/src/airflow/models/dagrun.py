@@ -643,6 +643,9 @@ class DagRun(Base, LoggingMixin):
         This will return zero or more DagRuns that are row-level-locked with a "SELECT ... FOR UPDATE"
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
+        With max_new_dagruns_per_loop_to_schedule > 0, this runs 2 queries, one for new dagruns (where
+        last_scheduling_decision is None) and for old (already examined) dagruns, cleared / requeued dagruns
+        will appear in the new dagruns query.
 
         :meta private:
         """
