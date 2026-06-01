@@ -48,7 +48,7 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
     These bundles reference a local directory containing Dag files. They are ideal for development and testing environments, but do not support versioning of the bundle, meaning tasks always run using the latest code.
 
 **airflow.providers.git.bundles.git.GitDagBundle**
-    These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository. The `GitDagBundle` DOES support versioning.
+    These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository. The `GitDagBundle` does support versioning.
 
 **airflow.providers.amazon.aws.bundles.s3.S3DagBundle**
     These bundles reference an S3 bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
