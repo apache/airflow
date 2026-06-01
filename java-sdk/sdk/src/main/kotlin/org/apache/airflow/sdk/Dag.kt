@@ -24,14 +24,14 @@ import kotlin.Throws
 /**
  * A collection of tasks with directional dependencies.
  *
- * <p>Create a [Dag] directly and register tasks with [addTask].
+ * Create a [Dag] directly and register tasks with [addTask].
  *
- * The [Builder.Dag] annotation should generally be preferred in user code, where the
- * annotation processor generates the wiring for you. Only use this class directly if
- * you need to do low-level plumbing.
+ * The [Builder.Dag] annotation should generally be preferred in user code,
+ * where the annotation processor generates the wiring for you. Only use this
+ * class directly if you need to do low-level plumbing.
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters, dashes,
- *   dots, or underscores; must be unique within a [Bundle].
+ * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
+ *    dashes, dots, or underscores; must be unique within a [Bundle].
  *
  * @see Builder.Dag
  */
@@ -43,19 +43,23 @@ class Dag(
   /**
    * Registers a task with this Dag.
    *
-   * <p>The class must have a public no-argument constructor and implement [Task].
+   * The class must have a public no-argument constructor and implement [Task].
    * Task IDs must be unique within a Dag.
    *
    * @param id Task identifier, unique within this Dag.
-   * @param definition Class that implements [Task]. Must have a public no-arg constructor.
+   * @param definition Class that implements [Task]. Must have a public no-arg
+   *    constructor.
    * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if a task already exists in the Dag with
+   *    the same ID.
    */
   fun addTask(
     id: String,
     definition: Class<out Task>,
   ): Dag {
-    // TODO: Check duplicate key.
-    tasks[id] = definition
+    require(tasks.putIfAbsent(id, definition) == null) {
+      "Tasks in Dag have duplicate ID: $id"
+    }
     return this
   }
 }
@@ -63,12 +67,13 @@ class Dag(
 /**
  * A single unit of work executed by Airflow.
  *
- * <p>Prefer using the [Builder.Task] annotation with [Builder.Dag] to have the
- * annotation processor generate an implementation for you. Only use this interface if
- * you need to do low-level plumbing.
+ * Prefer using the [Builder.Task] annotation with [Builder.Dag] to have the
+ * annotation processor generate an implementation for you. Only use this
+ * interface if you need to do low-level plumbing.
  *
- * <p>Implement this interface to define task logic. Airflow instantiates the class via
- * its no-argument constructor, then calls [execute] once per task-instance run.
+ * Implement this interface to define task logic. Airflow instantiates the class
+ * via its no-argument constructor, then calls [execute] once per task-instance
+ * run.
  *
  * @see Builder.Dag
  * @see Builder.Task
@@ -77,11 +82,12 @@ interface Task {
   /**
    * Executes this task.
    *
-   * <p>Any exception thrown marks the task instance as failed. Use [client] to read
-   * connections, variables, pull XComs, or to push an XCom for downstream tasks.
+   * Any exception thrown marks the task instance as failed. Use [client] to
+   * read connections, variables, pull XComs, or to push an XCom for downstream
+   * tasks.
    *
-   * @param context Runtime metadata for the current Dag run and task instance.
-   * @param client Client for Airflow API calls scoped to this task instance.
+   * @param context Runtime context for the current execution workload.
+   * @param client Client for Airflow API calls scoped to this exxecution.
    * @throws Exception on failure; the task instance is marked failed.
    */
   @Throws(Exception::class)

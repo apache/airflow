@@ -38,8 +38,8 @@ data class DagRun(
  * @property dagId ID of the parent Dag.
  * @property runId ID of the Dag run that triggered this instance.
  * @property taskId ID of the task within the Dag.
- * @property mapIndex Index within a mapped task group, if this is a mapped task instance.
- * @property tryNumber How many times this task instance has been attempted (1-based).
+ * @property mapIndex Index of a mapped task.
+ * @property tryNumber How many times this task instance has been attempted.
  */
 data class TaskInstance(
   @JvmField val dagId: String,
@@ -52,8 +52,8 @@ data class TaskInstance(
 /**
  * Runtime context passed to the task execution.
  *
- * <p>Provides metadata about the current Dag run and task instance.
- * Use [Client] to interact with Airflow at runtime (connections, variables, XComs).
+ * Provides metadata about the current Dag run and task instance. Use [Client]
+ * to interact with Airflow at runtime.
  *
  * @property dagRun Dag run the currently executing task instance belongs to.
  * @property ti Currently executing task instance.
@@ -63,7 +63,7 @@ data class Context(
   @JvmField val ti: TaskInstance,
 ) {
   internal companion object {
-    fun from(request: StartupDetails): Context =
+    fun from(request: StartupDetails) =
       Context(
         dagRun = with(request.tiContext.dagRun) { DagRun(dagId, runId) },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },

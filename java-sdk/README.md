@@ -19,8 +19,8 @@
 
 # Airflow Java SDK
 
-A **JVM** SDK for Apache Airflow. You can use any JVM-compatible language to write
-workflow bundles, and have Airflow consume the result.
+A **JVM** SDK for Apache Airflow. You can use any JVM-compatible language to
+write workflow bundles, and have Airflow consume the result.
 
 The SDK and execution-time logic is implemented in Kotlin.
 An example is bundled showing how the SDK can be used in Java.
@@ -30,6 +30,16 @@ An example is bundled showing how the SDK can be used in Java.
 ```bash
 ./gradlew build
 ```
+
+## Building documentation
+
+```bash
+./gradlew dokkaGenerate
+```
+
+This uses [Dokka](https://kotl.in/dokka) to build documentation of the Java SDK.
+This generates both an HTML representation and Javadoc.
+
 
 ## Running the example
 
