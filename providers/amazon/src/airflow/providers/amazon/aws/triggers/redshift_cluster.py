@@ -39,6 +39,9 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -86,6 +89,9 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -133,6 +139,9 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -180,6 +189,9 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -224,6 +236,9 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(

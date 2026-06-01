@@ -197,6 +197,7 @@ class TestRedshiftWaiterTriggers:
         _, kwargs = trigger.serialize()
         assert kwargs["verify"] is False
         assert kwargs["botocore_config"] == {"connect_timeout": 30}
+        assert "region_name" not in kwargs
 
     @pytest.mark.parametrize(
         ("trigger_cls", "default_delay", "default_max_attempts"),
