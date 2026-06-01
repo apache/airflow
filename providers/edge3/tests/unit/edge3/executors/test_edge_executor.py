@@ -602,7 +602,8 @@ class TestQueueWorkload:
         executor = EdgeExecutor()
         workload = self._make_execute_task()
 
-        executor.queue_workload(workload)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
 
         with create_session() as session:
             job = session.scalar(select(EdgeJobModel))
@@ -617,8 +618,10 @@ class TestQueueWorkload:
         executor = EdgeExecutor()
         workload = self._make_execute_task()
 
-        executor.queue_workload(workload)
-        executor.queue_workload(workload)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()
@@ -644,7 +647,8 @@ class TestQueueWorkload:
             log_path="test.log",
         )
 
-        executor.queue_workload(workload)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
 
         with create_session() as session:
             job = session.scalar(select(EdgeJobModel))
@@ -673,8 +677,10 @@ class TestQueueWorkload:
             log_path="test.log",
         )
 
-        executor.queue_workload(workload)
-        executor.queue_workload(workload)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()
@@ -683,5 +689,6 @@ class TestQueueWorkload:
 
     def test_queue_workload_unknown_type_raises(self):
         executor = EdgeExecutor()
-        with pytest.raises(TypeError, match="Don't know how to queue workload"):
-            executor.queue_workload(MagicMock(spec=[]))
+        with create_session() as session:
+            with pytest.raises(TypeError, match="Don't know how to queue workload"):
+                executor.queue_workload(MagicMock(spec=[]), session=session)
