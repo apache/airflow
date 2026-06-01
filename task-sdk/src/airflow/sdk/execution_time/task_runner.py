@@ -1543,8 +1543,9 @@ def _handle_current_task_success(
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
     if conf.getboolean("state_store", "clear_on_success"):
-        log.info("Task state will be cleared by the server because clear_on_success is enabled.")
-
+        log.info(
+            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the server."
+        )
         context["task_state"]._clear_backend_only()
 
     msg = SucceedTask(
