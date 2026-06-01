@@ -100,7 +100,9 @@ export class DagCalendarTab extends BasePage {
       let text = "";
 
       await expect(async () => {
-        await cell.hover({ force: true });
+        await this.page.mouse.move(0, 0);
+        await cell.scrollIntoViewIfNeeded();
+        await cell.hover();
         await expect(this.tooltip).toBeVisible({ timeout: 3000 });
         text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
       }).toPass({ intervals: [1000], timeout: 20_000 });
