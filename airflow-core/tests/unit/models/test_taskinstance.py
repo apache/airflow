@@ -33,8 +33,9 @@ import uuid6
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
@@ -3527,3 +3528,40 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
     assert ti.context_carrier["traceparent"] != original_ti_traceparent
     assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+@pytest.mark.db_test
+def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
+    """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
+
+    Regression test for issue #67813: the scheduler's orphaned-task adoption loaded
+    TaskInstances via ``load_only`` and then called ``repr(ti)`` on detached instances.
+    ``__repr__`` reads ``map_index`` and ``state`` (among others); on a detached instance
+    a column that was not loaded raises ``DetachedInstanceError``. ``__repr__`` is used in
+    logging and must degrade gracefully — printing ``<deferred>`` — instead of crashing.
+    """
+    with dag_maker("test_repr_deferred_columns", session=session):
+        EmptyOperator(task_id="op1")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="op1", session=session)
+    ti.state = State.QUEUED
+    session.commit()
+    ti_id = ti.id
+
+    # Reload the row with ``map_index`` and ``state`` left as deferred columns, then detach
+    # the instance so that touching them would otherwise require a (now-impossible) DB load.
+    session.expunge_all()
+    reloaded = session.scalar(
+        select(TaskInstance)
+        .where(TaskInstance.id == ti_id)
+        .options(load_only(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id))
+    )
+    session.expunge(reloaded)
+    unloaded = sa_inspect(reloaded).unloaded
+    assert "map_index" in unloaded
+    assert "state" in unloaded
+
+    result = repr(reloaded)  # would raise DetachedInstanceError without the guard
+
+    assert "<deferred>" in result
+    assert "[queued]" not in result
