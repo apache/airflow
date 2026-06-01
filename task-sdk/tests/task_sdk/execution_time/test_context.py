@@ -1123,6 +1123,24 @@ class TestTaskStateAccessor:
 
         assert result is None
 
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "job_id"}
+        )
+
+        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id", default="default-id")
+
+        assert result == "default-id"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStateResult(value="job-001")
+
+        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get(
+            "job_id", default="do-not-start-here"
+        )
+
+        assert result == "job-001"
+
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
@@ -1286,6 +1304,26 @@ class TestAssetStateAccessor:
         result = AssetStateAccessor(name=self.ASSET_NAME).get("missing_key")
 
         assert result is None
+
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "watermark"}
+        )
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-01-01T00:00:00+00:00"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-06-01T00:00:00+00:00")
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-06-01T00:00:00+00:00"
 
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(

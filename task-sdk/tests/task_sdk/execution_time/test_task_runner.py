@@ -5317,6 +5317,24 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
 
+    def test_task_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        captured = {}
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["task_state"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "watermark"}
+        )
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
+
     def test_task_state_set_sends_typed_values(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         """set() accepts any JsonValue — dict, int, list — not just strings."""
 
@@ -5432,6 +5450,27 @@ class TestTaskInstanceStateOperations:
             SetAssetStateByName(name="my_asset", key="watermark", value="2026-04-30")
         )
         mock_supervisor_comms.send.assert_any_call(GetAssetStateByName(name="my_asset", key="watermark"))
+
+    def test_asset_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        watched = Asset(name="my_asset", uri="s3://bucket/data")
+        captured = {}
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["asset_state"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = lambda msg: (
+            ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "watermark"})
+            if isinstance(msg, GetAssetStateByName)
+            else TestTaskInstanceStateOperations._watcher_side_effect(msg)
+        )
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
 
     def test_asset_state_delete(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")

@@ -54,14 +54,13 @@ with DAG(
     def load(asset_state=None):
         state = asset_state[ORDERS]
 
-        # First run: watermark is None — fall back to epoch start.
-        watermark = state.get("watermark") or "2026-01-01T00:00:00+00:00"
+        watermark = state.get("watermark", default="2026-01-01T00:00:00+00:00")
         records = _fetch_records(since=watermark)
         row_count = len(records)
 
         now = datetime.now(tz=timezone.utc).isoformat()
         state.set("watermark", now)
-        state.set("total_runs", (state.get("total_runs") or 0) + 1)
+        state.set("total_runs", state.get("total_runs", default=0) + 1)
         state.set(
             "last_run_summary",
             {

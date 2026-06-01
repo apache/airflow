@@ -506,9 +506,9 @@ class TaskStateAccessor:
     # is not implemented yet cos it's unclear whether task state values will be
     # used in templates.
 
-    def get(self, key: str) -> JsonValue:
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
         """
-        Return the stored value, or ``None`` if the key does not exist.
+        Return the stored value, or ``default`` if the key does not exist.
 
         Supported types: ``str``, ``int``, ``float``, ``bool``, ``list``, ``dict``.
         ``datetime`` is not JSON-serializable; store it as ``value.isoformat()`` and
@@ -535,7 +535,7 @@ class TaskStateAccessor:
                     key,
                 )
             return stored
-        return None
+        return default
 
     def set(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
         """
@@ -640,8 +640,8 @@ class AssetStateAccessor:
             return f"<AssetStateAccessor name={self._name!r}>"
         return f"<AssetStateAccessor uri={self._uri!r}>"
 
-    def get(self, key: str) -> JsonValue:
-        """Return the stored value, or ``None`` if the key does not exist."""
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Return the stored value, or ``default`` if the key does not exist."""
         from airflow.sdk.execution_time.comms import (
             AssetStateResult,
             ErrorResponse,
@@ -674,7 +674,7 @@ class AssetStateAccessor:
                     self._name or self._uri,
                 )
             return stored
-        return None
+        return default
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the given key."""
@@ -790,9 +790,9 @@ class AssetStateAccessors:
             return next(iter(self._by_name.values()))
         return next(iter(self._by_uri.values()))
 
-    def get(self, key: str) -> JsonValue:
-        """Return the stored value for the single-inlet task, or ``None`` if not found."""
-        return self._single_accessor().get(key)
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Return the stored value for the single-inlet or single-outlet task, or ``default`` if not found."""
+        return self._single_accessor().get(key, default)
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the single-inlet task."""
