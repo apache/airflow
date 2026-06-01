@@ -17,14 +17,24 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import contextvars
 import inspect
 import logging
 import time
-from asyncio import AbstractEventLoop, Semaphore
-from collections.abc import Callable, Generator
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from asyncio import (
+    FIRST_COMPLETED,
+    AbstractEventLoop,
+    Future,
+    Semaphore,
+    Task,
+    TimeoutError as AsyncTimeoutError,
+    gather,
+    wait,
+    wait_for,
+    wrap_future,
+)
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
@@ -46,61 +56,138 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
 
 
-def collect_futures(
-    loop: AbstractEventLoop, futures: list[Any]
-) -> Generator[Future | asyncio.futures.Future, None, None]:
-    """
-    Yield futures as they complete (sync or async).
-
-    :param loop: The asyncio event loop to use for async tasks
-    :param futures: List of Future or asyncio.futures.Future objects to collect
-    :return: Generator yielding Future or asyncio.futures.Future objects as they complete
-    """
-    yield from as_completed(f for f in futures if isinstance(f, Future))
-
-    async_tasks = [f for f in futures if isinstance(f, asyncio.futures.Future)]
-
-    if async_tasks:
-        for task, _ in zip(
-            async_tasks,
-            loop.run_until_complete(asyncio.gather(*async_tasks, return_exceptions=True)),
-        ):
-            yield task
-
-
-class ConcurrentExecutor:
+class AsyncAwareExecutor(Executor):
     """
     Executes both sync and async functions concurrently.
 
     Sync functions run in a ThreadPoolExecutor.
     Async coroutines run on an asyncio event loop with a semaphore limit.
+
+    :param loop: Event loop used to schedule async tasks and coordinate mixed execution.
+    :param max_workers: Maximum concurrent workers used by both thread pool and async semaphore.
     """
 
     def __init__(self, loop: AbstractEventLoop, max_workers: int = 4):
         self._loop = loop
+        self._max_workers = max_workers
         self._semaphore = Semaphore(max_workers)
         self._thread_pool = ThreadPoolExecutor(max_workers=max_workers)
+        self._async_tasks: set[Task[Any]] = set()
+        self._shutdown = False
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._thread_pool:
-            self._thread_pool.shutdown(wait=True)
+        self.shutdown(wait=True)
 
-    def submit(self, func: Callable, *args, **kwargs):
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        if self._shutdown:
+            return
+
+        self._shutdown = True
+
+        if cancel_futures:
+            for task in list(self._async_tasks):
+                task.cancel()
+
+        if wait and self._async_tasks:
+            self._loop.run_until_complete(gather(*self._async_tasks, return_exceptions=True))
+
+        self._thread_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+
+    def submit(self, func: Callable[..., Any] | Any, *args, **kwargs) -> Future[Any]:  # type: ignore[override]
+        """
+        Submit a callable for execution.
+
+        Always returns an asyncio.Future for consistency, whether the callable
+        is sync (run in thread pool) or async (run on the event loop).
+        """
+        if self._shutdown:
+            raise RuntimeError("cannot schedule new futures after shutdown")
+
         if inspect.iscoroutine(func):
             coro = func
         elif inspect.iscoroutinefunction(func):
             coro = func(*args, **kwargs)
         else:
-            return self._thread_pool.submit(func, *args, **kwargs)
+            # Wrap thread pool future as asyncio.Future for consistent return type
+            return wrap_future(self._thread_pool.submit(func, *args, **kwargs), loop=self._loop)
 
         async def guarded():
             async with self._semaphore:
                 return await coro
 
-        return self._loop.create_task(guarded())
+        task = self._loop.create_task(guarded())
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
+        return task
+
+    async def run_sync(self, func: Callable[..., Any], *args, **kwargs) -> Any:
+        """Run a sync callable in this executor's thread pool and await its result."""
+        future = self._thread_pool.submit(func, *args, **kwargs)
+        return await wrap_future(future, loop=self._loop)
+
+    def map(
+        self,
+        fn: Callable[..., Any],
+        *iterables: Iterable[Any],
+        timeout: float | None = None,
+        chunksize: int = 1,
+    ) -> Iterator[Any]:
+        """Apply fn to iterables and stream results in completion order."""
+        if chunksize < 1:
+            raise ValueError("chunksize must be >= 1")
+
+        if self._shutdown:
+            raise RuntimeError("cannot schedule new futures after shutdown")
+
+        start = time.monotonic()
+        iterator = zip(*iterables)
+        pending: dict[Future[Any], Future[Any]] = {}
+        exhausted = False
+
+        def _remaining_timeout() -> float | None:
+            if timeout is None:
+                return None
+            remaining = timeout - (time.monotonic() - start)
+            if remaining <= 0:
+                raise TimeoutError()
+            return remaining
+
+        def _submit_next() -> bool:
+            nonlocal exhausted
+
+            if exhausted:
+                return False
+
+            try:
+                args = next(iterator)
+            except StopIteration:
+                exhausted = True
+                return False
+
+            future = self.submit(fn, *args)
+            pending[future] = future
+            return True
+
+        while len(pending) < self._max_workers and _submit_next():
+            pass
+
+        while pending:
+            wait_timeout = _remaining_timeout()
+            done, _ = self._loop.run_until_complete(
+                wait(set(pending), timeout=wait_timeout, return_when=FIRST_COMPLETED)
+            )
+
+            if not done:
+                raise TimeoutError()
+
+            for completed in done:
+                pending.pop(completed)
+                while len(pending) < self._max_workers and _submit_next():
+                    pass
+                yield completed.result()
 
 
 class TaskExecutor(LoggingMixin):
@@ -224,12 +311,12 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
         coro_in_ctx = ctx.run(lambda: coro_func(*args, **kwargs))
 
         if task.execution_timeout:
-            return await asyncio.wait_for(coro_in_ctx, timeout=task.execution_timeout.total_seconds())
+            return await wait_for(coro_in_ctx, timeout=task.execution_timeout.total_seconds())
         return await coro_in_ctx
 
     try:
         result = await _run_in_context(execute, context=context)
-    except asyncio.TimeoutError:
+    except AsyncTimeoutError:
         task.on_kill()
         raise
 

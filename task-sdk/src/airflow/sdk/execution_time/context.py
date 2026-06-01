@@ -148,7 +148,7 @@ def airflow_context_vars_context(env_vars: dict[str, str]):
 
     This provides a thread-safe way to make airflow context variables (AIRFLOW_CTX_*)
     available during task execution without causing race conditions in concurrent
-    execution scenarios (e.g., IterableOperator with ConcurrentExecutor).
+    execution scenarios (e.g., IterableOperator with AsyncAwareExecutor).
 
     :param env_vars: Dictionary of airflow context variables (e.g., AIRFLOW_CTX_DAG_ID)
     """

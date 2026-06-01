@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import Future
+import time
 from unittest import mock
 
 import pytest
@@ -27,24 +27,24 @@ from airflow.sdk import BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import event_loop
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
-from airflow.sdk.execution_time.executor import ConcurrentExecutor, TaskExecutor, collect_futures
+from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
 
 from tests_common.test_utils.mock_context import mock_context
 
 
-class TestConcurrentExecutor:
+class TestAsyncAwareExecutor:
     def test_submit_sync_function_returns_future(self):
-        """Sync callables are dispatched to the thread pool and return a concurrent.futures.Future."""
+        """Sync callables are dispatched to the thread pool and return an asyncio.Future."""
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
                 future = executor.submit(lambda: 42)
-                assert isinstance(future, Future)
-                assert future.result() == 42
+                assert isinstance(future, asyncio.Future)
+                assert loop.run_until_complete(future) == 42
 
     def test_submit_async_coroutine_function_returns_task(self):
         """Async callables are scheduled on the event loop and return an asyncio.Task."""
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
 
                 async def async_fn():
                     return "async_result"
@@ -57,7 +57,7 @@ class TestConcurrentExecutor:
     def test_submit_coroutine_object_returns_task(self):
         """Passing a coroutine object (not a function) directly is also scheduled on the event loop."""
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
 
                 async def async_fn():
                     return "coro_result"
@@ -71,16 +71,16 @@ class TestConcurrentExecutor:
     def test_submit_sync_function_propagates_exception(self):
         """Exceptions raised inside sync callables are propagated when the future is resolved."""
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
                 future = executor.submit(lambda: (_ for _ in ()).throw(ValueError("boom")))
-                assert isinstance(future, Future)
+                assert isinstance(future, asyncio.Future)
                 with pytest.raises(ValueError, match="boom"):
-                    future.result()
+                    loop.run_until_complete(future)
 
     def test_submit_async_function_propagates_exception(self):
         """Exceptions raised inside async callables are propagated when the task is awaited."""
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
 
                 async def failing():
                     raise RuntimeError("async boom")
@@ -103,7 +103,7 @@ class TestConcurrentExecutor:
 
         max_workers = 2
         with event_loop() as loop:
-            with ConcurrentExecutor(loop=loop, max_workers=max_workers) as executor:
+            with AsyncAwareExecutor(loop=loop, max_workers=max_workers) as executor:
                 tasks = [executor.submit(count_concurrent) for _ in range(6)]
                 loop.run_until_complete(asyncio.gather(*tasks))
 
@@ -112,68 +112,108 @@ class TestConcurrentExecutor:
     def test_exit_shuts_down_thread_pool(self):
         """__exit__ calls shutdown on the thread pool."""
         with event_loop() as loop:
-            executor = ConcurrentExecutor(loop=loop, max_workers=2)
+            executor = AsyncAwareExecutor(loop=loop, max_workers=2)
             with mock.patch.object(
                 executor._thread_pool, "shutdown", wraps=executor._thread_pool.shutdown
             ) as shutdown_mock:
                 with executor:
                     pass
-                shutdown_mock.assert_called_once_with(wait=True)
+                shutdown_mock.assert_called_once_with(wait=True, cancel_futures=False)
 
     def test_context_manager_returns_self(self):
         """__enter__ returns the executor instance itself."""
         with event_loop() as loop:
-            executor = ConcurrentExecutor(loop=loop, max_workers=2)
+            executor = AsyncAwareExecutor(loop=loop, max_workers=2)
             with executor as ctx:
                 assert ctx is executor
 
+    def test_map_streams_completed_sync_results(self):
+        """map() yields completed results as work finishes instead of waiting for all items."""
 
-class TestCollectFutures:
-    def test_yields_sync_futures(self):
-        """collect_futures yields completed concurrent.futures.Future objects."""
+        def sleepy_value(delay: float) -> float:
+            time.sleep(delay)
+            return delay
+
         with event_loop() as loop:
-            f1: Future = Future()
-            f2: Future = Future()
-            f1.set_result("a")
-            f2.set_result("b")
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
+                started = time.monotonic()
+                result_iter = executor.map(sleepy_value, [0.25, 0.01])
+                first = next(result_iter)
 
-            results = list(collect_futures(loop, [f1, f2]))
-            assert set(results) == {f1, f2}
+        assert first == 0.01
+        # The faster work (0.01s) should complete well before the slower work (0.25s).
+        # Allow overhead for thread pool scheduling (typically ~0.15-0.2s on busy systems).
+        assert time.monotonic() - started < 0.35
 
-    def test_yields_async_tasks(self):
-        """collect_futures yields completed asyncio.Task objects."""
+    def test_shutdown_cancel_futures_cancels_async_tasks(self):
+        """shutdown(cancel_futures=True) cancels submitted async tasks."""
+
+        async def long_running():
+            await asyncio.sleep(60)
+
         with event_loop() as loop:
+            executor = AsyncAwareExecutor(loop=loop, max_workers=2)
+            task = executor.submit(long_running)
 
-            async def coro(val):
-                return val
+            executor.shutdown(wait=False, cancel_futures=True)
+            loop.run_until_complete(asyncio.sleep(0))
 
-            t1 = loop.create_task(coro("x"))
-            t2 = loop.create_task(coro("y"))
+        assert task.cancelled()
 
-            results = list(collect_futures(loop, [t1, t2]))
-            assert set(results) == {t1, t2}
-
-    def test_yields_mixed_futures_and_tasks(self):
-        """collect_futures handles a mix of concurrent.futures.Future and asyncio.Task."""
+    def test_submit_after_shutdown_raises_runtime_error(self):
         with event_loop() as loop:
-            f: Future = Future()
-            f.set_result(1)
+            executor = AsyncAwareExecutor(loop=loop, max_workers=2)
+            executor.shutdown(wait=False)
 
-            async def coro():
-                return 2
+            with pytest.raises(RuntimeError, match="cannot schedule new futures after shutdown"):
+                executor.submit(lambda: 1)
 
-            t = loop.create_task(coro())
-
-            results = list(collect_futures(loop, [f, t]))
-            assert len(results) == 2
-            assert f in results
-            assert t in results
-
-    def test_empty_list_yields_nothing(self):
-        """collect_futures with an empty list yields nothing."""
+    def test_map_rejects_non_positive_chunksize(self):
         with event_loop() as loop:
-            results = list(collect_futures(loop, []))
-            assert results == []
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
+                with pytest.raises(ValueError, match="chunksize must be >= 1"):
+                    list(executor.map(lambda x: x, [1, 2], chunksize=0))
+
+    def test_map_timeout_raises_timeout_error(self):
+        def slow_fn(delay: float) -> float:
+            time.sleep(delay)
+            return delay
+
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
+                with pytest.raises(TimeoutError):
+                    list(executor.map(slow_fn, [0.2], timeout=0.01))
+
+    def test_map_streams_completed_async_results(self):
+        async def async_sleepy_value(delay: float) -> float:
+            await asyncio.sleep(delay)
+            return delay
+
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
+                started = time.monotonic()
+                result_iter = executor.map(async_sleepy_value, [0.2, 0.01])
+                first = next(result_iter)
+
+        assert first == 0.01
+        # The faster work (0.01s) should complete well before the slower work (0.2s).
+        # Allow overhead for event loop scheduling (typically ~0.1-0.15s on busy systems).
+        assert time.monotonic() - started < 0.3
+
+    def test_shutdown_wait_true_waits_for_async_tasks(self):
+        async def short_running() -> str:
+            await asyncio.sleep(0.01)
+            return "done"
+
+        with event_loop() as loop:
+            executor = AsyncAwareExecutor(loop=loop, max_workers=2)
+            task = executor.submit(short_running)
+
+            executor.shutdown(wait=True)
+
+        assert task.done()
+        assert not task.cancelled()
+        assert task.result() == "done"
 
 
 class TestTaskExecutor:
