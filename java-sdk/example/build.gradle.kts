@@ -41,8 +41,6 @@ tasks.withType<Jar> {
     manifest {
         attributes(
             "Main-Class" to application.mainClass.get(),
-            "Implementation-Title" to "Example Java bundle",
-            "Implementation-Version" to "1",
         )
     }
 }
