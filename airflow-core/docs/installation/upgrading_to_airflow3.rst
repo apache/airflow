@@ -126,7 +126,7 @@ You can also configure these flags through configuration files. See `Configuring
 Key Import Updates
 ^^^^^^^^^^^^^^^^^^
 
-While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your DAGs and other
+While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your Dags and other
 code import Airflow components correctly in Airflow 3. The older paths are deprecated and will be removed in a future Airflow version.
 
 .. list-table::
@@ -388,6 +388,7 @@ These include:
   Airflow 3 dagruns already exist (going
   ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
   is skipped to avoid colliding with the previous run's ``logical_date``.
+- **Manual Dag runs and data intervals**: In Airflow 3, do not assume that a manually triggered Dag run's ``data_interval`` is derived from, or equal to, the supplied ``logical_date``. If your Dag logic needs the user-specified trigger date, use ``logical_date`` explicitly. This especially affects workflows that read ``data_interval_start`` or ``data_interval_end`` during manual triggering or when using ``TriggerDagRunOperator``. For detailed migration guidance, see :ref:`data-interval-manual-triggering`.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
@@ -406,3 +407,48 @@ These include:
 
       # Airflow 3 - specify task_ids to pull from other tasks
       value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")
+
+.. _data-interval-manual-triggering:
+
+Manual Dag Runs and ``logical_date``
+====================================
+
+For scheduled runs, ``logical_date`` and ``data_interval`` are both derived from
+the Dag's timetable.
+
+For manually triggered runs in Airflow 3, do not assume that
+``data_interval_start`` or ``data_interval_end`` are derived from, or equal to,
+the supplied ``logical_date``. The resulting ``data_interval`` depends on the
+timetable and the trigger path, and some APIs also allow the data interval to
+be provided explicitly.
+
+This matters most for Dags that:
+
+- use ``data_interval_start`` or ``data_interval_end`` during manual runs
+- trigger downstream Dags with ``TriggerDagRunOperator``
+- migrated from Airflow 2 and treated ``data_interval_start`` as the requested
+  manual run date
+
+Migration guidance
+------------------
+
+If your Dag logic needs the user-specified date for a manual run, use
+``logical_date`` explicitly.
+
+.. code-block:: python
+
+   from airflow.decorators import get_current_context, task
+
+
+   @task
+   def process_data():
+       context = get_current_context()
+       processing_date = context["logical_date"]
+       return f"Processing data for {processing_date}"
+
+Keep using ``data_interval_start`` and ``data_interval_end`` when you need the
+run's resolved interval semantics instead of the user-supplied trigger date.
+
+When upgrading from Airflow 2, review any manual-triggered workflows that read
+``data_interval_start`` or ``data_interval_end`` and confirm whether they
+really wanted the interval semantics or the requested logical date.

@@ -725,6 +725,7 @@ def test_persist_parsing_result_calls_update_db():
             manager,
             bundle_name="test-bundle",
             bundle_version="v1",
+            version_data=None,
             parsing_result=parsing_result,
             run_duration=1.5,
             relative_fileloc="dags/test.py",
@@ -2074,8 +2075,8 @@ class TestDagFileProcessorProcess:
         from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 
         with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
-            proc._create_log_forwarder((), "task.stdout")
-        mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
+            proc._create_log_forwarder((), "task.stdout", data=b"")
+        mock_base.assert_called_once_with((), "dag_processor.stdout", data=b"", log_level=logging.INFO)
 
     def test_handle_request_get_connection_masks_password_and_extra(self, proc):
         proc.client.connections.get.return_value = ConnectionResponse(

@@ -34,16 +34,6 @@ export class BasePage {
     });
   }
 
-  public async isLoggedIn(): Promise<boolean> {
-    try {
-      await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
-
-      return true;
-    } catch {
-      return !this.page.url().includes("/login");
-    }
-  }
-
   public async maximizeBrowser(): Promise<void> {
     try {
       await this.page.setViewportSize({ height: 1080, width: 1920 });
@@ -56,13 +46,13 @@ export class BasePage {
     await this.page.goto(path, { waitUntil: "domcontentloaded" });
   }
 
-  // Chakra v3 / Ark UI keeps the backdrop in the DOM until the close animation
-  // ends. On WebKit the animationend/transitionend event is occasionally
-  // dropped under CI load, leaving a `data-state="closed"` backdrop attached
-  // that intercepts pointer events on subsequent actions. Wait for every
-  // dialog backdrop to be detached before continuing.
+  // Ark UI sets `data-state="closed"` synchronously on the close flag flip,
+  // but unmount only fires after `animationend`/`transitionend` — which WebKit
+  // occasionally drops under CI load. Wait on the dialog state, not on DOM
+  // detachment, so the test does not depend on the animation event firing.
+  // Any dialog part still in `data-state="open"` means a modal is active.
   public async waitForAllDialogsClosed(timeout = 15_000): Promise<void> {
-    await expect(this.page.locator('[data-scope="dialog"][data-part="backdrop"]')).toHaveCount(0, {
+    await expect(this.page.locator('[data-scope="dialog"][data-state="open"]')).toHaveCount(0, {
       timeout,
     });
   }

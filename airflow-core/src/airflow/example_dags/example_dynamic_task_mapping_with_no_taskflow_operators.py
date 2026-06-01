@@ -55,6 +55,7 @@ with DAG(
     schedule=None,
     start_date=datetime(2022, 3, 4),
     catchup=False,
+    tags=["example"],
 ):
     # map the task to a list of values
     add_one_task = AddOneOperator.partial(task_id="add_one").expand(value=[1, 2, 3])

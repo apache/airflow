@@ -32,11 +32,14 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from sqlalchemy import (
     CTE,
+    Text,
     and_,
     case,
+    cast as sql_cast,
     delete,
     exists,
     func,
@@ -85,7 +88,7 @@ from airflow.models.asset import (
 )
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
-from airflow.models.callback import Callback, CallbackType, ExecutorCallback
+from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -327,7 +330,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
@@ -632,7 +635,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .select_from(ranked_query)
                 .join(
                     TI,
@@ -954,9 +956,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
@@ -1212,7 +1214,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         The method handles several key scenarios:
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
-        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
+           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
+           pre-deferral worker exit does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
 
@@ -1232,7 +1236,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
-        callback_keys_with_events: list[str] = []
+        callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
@@ -1257,16 +1261,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
-            else:
-                # Callback event (key is string UUID)
+            elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
+            else:
+                cls.logger().error("Unknown workload key type in event buffer: %r", key)
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, callback_id)
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1362,12 +1367,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            # There are two scenarios why the same TI with the same try_number is queued
-            # after executor is finished with it:
+            # There are multiple scenarios why the same TI with the same try_number looks queued or
+            # waiting after the executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
             # - in this case we should mark it as failed here.
             # 2) the TI has been requeued after getting deferred - in this case either our executor has it
             # or the TI is queued by another job. Either ways we should not fail it.
+            # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1381,6 +1388,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
+                or (
+                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
+                    # executor success from the defer exit for the same try_number.
+                    ti.state == TaskInstanceState.SCHEDULED
+                    and state == TaskInstanceState.SUCCESS
+                    and ti.next_method is not None
+                )
             )
 
             if ti_queued and not ti_requeued:
@@ -1553,7 +1567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(
@@ -1941,7 +1955,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # END: create dagruns
 
     @provide_session
-    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
@@ -2377,7 +2391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
             return callback
@@ -2484,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in schedulable_tis
                 ],
             )
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 
@@ -2500,7 +2514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert latest_dag_version
 
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
@@ -2537,7 +2551,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
         """
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
@@ -2578,7 +2592,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
@@ -2670,7 +2684,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
         """
         Check the Log table to see how many times a task instance has been stuck in queued.
 
@@ -2712,7 +2726,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
         metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
         stmt = (
             select(
@@ -2757,13 +2771,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
         stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
@@ -2796,7 +2810,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
         """
         Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
@@ -2898,7 +2912,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(
-        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
@@ -3078,7 +3092,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 

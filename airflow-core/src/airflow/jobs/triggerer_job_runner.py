@@ -27,7 +27,7 @@ import sys
 import threading
 import time
 from collections import deque
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Hashable, Iterable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
@@ -90,15 +90,26 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
+    handle_delete_xcom,
     handle_get_connection,
+    handle_get_dag_run_state,
+    handle_get_dr_count,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
     handle_mask_secret,
+    handle_put_variable,
+    handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
+from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
@@ -171,6 +182,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         capacity=None,
         queues: set[str] | None = None,
+        team_name: str | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -180,6 +192,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
+        self.team_name = team_name
+        # Set up only when _execute() starts the subprocess; keep it defined so that
+        # signal handlers (or other code) firing before startup don't hit AttributeError.
+        self.trigger_runner: TriggerRunnerSupervisor | None = None
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -188,7 +204,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     @provide_session
-    def is_needed(cls, session) -> bool:
+    def is_needed(cls, *, session: Session) -> bool:
         """
         Test if the triggerer job needs to be run (i.e., if there are triggers in the trigger table).
 
@@ -230,6 +246,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
+                team_name=self.team_name,
             )
 
             # Run the main DB comms loop in this process
@@ -242,8 +259,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Waiting for triggers to clean up")
             # Tell the subtproc to stop and then wait for it.
             # If the user interrupts/terms again, _graceful_exit will allow them
-            # to force-kill here.
-            self.trigger_runner.kill(escalation_delay=10, force=True)
+            # to force-kill here. trigger_runner may be None if start() raised.
+            if self.trigger_runner is not None:
+                self.trigger_runner.kill(escalation_delay=10, force=True)
             self.log.info("Exited trigger loop")
         return None
 
@@ -417,6 +435,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     job: Job | None = None
     capacity: int
     queues: set[str] | None = None
+    team_name: str | None = None
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
     runner_health_check_threshold = conf.getfloat("triggerer", "runner_health_check_threshold")
@@ -494,10 +513,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-        from airflow.sdk.api.datamodels._generated import (
-            TaskStatesResponse,
-            XComResponse,
-        )
 
         resp: BaseModel | None = None
         dump_opts: dict[str, bool] = {}
@@ -536,78 +551,31 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteXCom):
-            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            resp, dump_opts = handle_delete_xcom(self.client, msg)
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
-            if isinstance(xcom, XComResponse):
-                xcom_result = XComResult.from_xcom_response(xcom)
-                resp = xcom_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, SetXCom):
-            self.client.xcoms.set(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.value,
-                msg.map_index,
-                dag_result=msg.dag_result,
-                mapped_length=msg.mapped_length,
-            )
+            resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, GetDRCount):
-            dr_count = self.client.dag_runs.get_count(
-                dag_id=msg.dag_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
-            resp = dr_count
+            resp, dump_opts = handle_get_dr_count(self.client, msg)
         elif isinstance(msg, GetDagRunState):
-            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = DagRunStateResult.from_api_response(dr_resp)
+            resp, dump_opts = handle_get_dag_run_state(self.client, msg)
 
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
 
         elif isinstance(msg, GetTaskStates):
-            run_id_task_state_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(run_id_task_state_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(run_id_task_state_map)
-            else:
-                resp = run_id_task_state_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
-            resp = self.client.task_instances.get_previous(
-                dag_id=msg.dag_id,
-                task_id=msg.task_id,
-                logical_date=msg.logical_date,
-                map_index=msg.map_index,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
         elif isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
@@ -693,8 +661,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.capacity,
             self.health_check_threshold,
             queues=self.queues,
+            team_name=self.team_name,
         )
-        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
+        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues, team_name=self.team_name)
         self.update_triggers(set(ids))
 
     def handle_events(self):
@@ -908,8 +877,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Enqueue orphaned triggers for cancellation
             self.cancelling_triggers.update(cancel_trigger_ids)
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
-        super()._register_pipe_readers(stdout, stderr, requests, logs)
+    def _register_pipe_readers(
+        self,
+        stdout: socket,
+        stderr: socket,
+        requests: socket,
+        logs: socket,
+        *,
+        data: dict[socket, bytes],
+    ):
+        super()._register_pipe_readers(stdout, stderr, requests, logs, data=data)
 
         # We want to handle logging differently here, so un-register the one our parent class created
         self.selector.unregister(logs)
@@ -1110,6 +1087,10 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
         self._stop_event = None
+        self._shared_streams = SharedStreamManager(
+            log=self.log,
+            max_subscriber_queue=conf.getint("triggerer", "shared_stream_subscriber_queue_size"),
+        )
         self.blocked_main_thread_warning_threshold = conf.getfloat(
             "triggerer", "blocked_main_thread_warning_threshold"
         )
@@ -1177,6 +1158,12 @@ class TriggerRunner:
                 reader_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await reader_task
+            # Safety net: cancel any shared-stream poll tasks whose group
+            # survived per-trigger cleanup. The normal eviction path is
+            # ``SharedStreamManager.unsubscribe`` in ``run_trigger``'s
+            # finally; this call only matters when that path was bypassed
+            # (e.g. the unsubscribe coroutine raised and was swallowed).
+            await self._shared_streams.stop_all()
         # Wait for supporting tasks to complete
         await watchdog
 
@@ -1478,12 +1465,43 @@ class TriggerRunner:
 
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
+
+        # Triggers that opt into a shared underlying I/O stream
+        # (BaseEventTrigger.shared_stream_key returns non-None) consume a
+        # broadcast stream produced by SharedStreamManager and convert it
+        # via filter_shared_stream(). Everything else stays on the original
+        # standalone-run() path. The key is computed after
+        # render_template_fields so any templated attributes are already
+        # resolved when the key is constructed.
+        event_trigger: BaseEventTrigger | None = None
+        if isinstance(trigger, BaseEventTrigger):
+            event_trigger = trigger
+        shared_key: Hashable | None = None
+
         with _make_trigger_span(ti=trigger.task_instance, trigger_id=trigger_id, name=name) as span:
             try:
                 if context is not None:
                     trigger.render_template_fields(context=context)
 
-                async for event in trigger.run():
+                if event_trigger is not None:
+                    try:
+                        shared_key = event_trigger.shared_stream_key()
+                    except Exception:
+                        self.log.exception(
+                            "shared_stream_key() raised; falling back to standalone run",
+                            trigger_id=trigger_id,
+                        )
+                        shared_key = None
+
+                if shared_key is not None and event_trigger is not None:
+                    shared_stream = self._shared_streams.subscribe(
+                        trigger_id=trigger_id, trigger=event_trigger, key=shared_key
+                    )
+                    event_stream = event_trigger.filter_shared_stream(shared_stream)
+                else:
+                    event_stream = trigger.run()
+
+                async for event in event_stream:
                     await self.log.ainfo(
                         "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                     )
@@ -1527,6 +1545,17 @@ class TriggerRunner:
                 # fine, the cleanup process will understand that, but we want to
                 # allow triggers a chance to cleanup, either in that case or if
                 # they exit cleanly. Exception from cleanup methods are ignored.
+                if shared_key is not None:
+                    try:
+                        await self._shared_streams.unsubscribe(trigger_id, shared_key)
+                    except Exception:
+                        # Best-effort cleanup, but log so we don't lose
+                        # cancel-propagation or _handle_poll_terminate bugs.
+                        self.log.exception(
+                            "Failed to unsubscribe trigger from shared stream",
+                            trigger_id=trigger_id,
+                            key=shared_key,
+                        )
                 with suppress(Exception):
                     await trigger.cleanup()
 

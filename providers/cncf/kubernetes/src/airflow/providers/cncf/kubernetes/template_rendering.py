@@ -85,8 +85,9 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
     return sanitized_pod
 
 
+# Note: AIRFLOW_V_3_0_PLUS - this is only needed for Airflow 2.x, can be removed if the support is dropped
 @provide_session
-def get_rendered_k8s_spec(task_instance: TaskInstance, session=NEW_SESSION) -> dict | None:
+def get_rendered_k8s_spec(task_instance: TaskInstance, *, session=NEW_SESSION) -> dict | None:
     """Fetch rendered template fields from DB."""
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 

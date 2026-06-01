@@ -214,6 +214,12 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Dopasuj w dowolnym miejscu wartości (wyszukiwanie podciągu). Wolniejsze w dużych wdrożeniach, ponieważ nie może użyć domyślnego indeksu B-drzewa. Szczegóły w sekcji dokumentacji o niestandardowych indeksach metadanych.",
+      "title": "Dopasuj w dowolnym miejscu"
+    }
+  },
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -283,7 +289,10 @@
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
-  "taskGroup": "Grupa zadań",
+  "taskGroup_few": "Grupy zadań",
+  "taskGroup_many": "Grup zadań",
+  "taskGroup_one": "Grupa zadań",
+  "taskGroup_other": "Grupy zadań",
   "taskId": "Identyfikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",

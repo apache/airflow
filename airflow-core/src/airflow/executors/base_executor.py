@@ -38,6 +38,7 @@ from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -78,7 +79,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -217,7 +217,7 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -265,7 +265,7 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
-            self.queued_callbacks[workload.callback.id] = workload
+            self.queued_callbacks[workload.key] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
@@ -497,7 +497,7 @@ class BaseExecutor(LoggingMixin):
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
-        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
+        Note: Callback events (with CallbackKey keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -508,7 +508,9 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
+                if isinstance(key, CallbackKey) or (
+                    isinstance(key, TaskInstanceKey) and key.dag_id in dag_ids
+                ):
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events

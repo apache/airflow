@@ -119,7 +119,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
             task_instance = session.scalar(
                 select(TaskInstance).where(
                     TaskInstance.dag_id == self.task_instance.dag_id,
@@ -480,6 +480,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "table": self.table,
                 "metrics_thresholds": self.metrics_thresholds,
                 "location": self.location,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "poll_interval": self.poll_interval,
                 "date_filter_column": self.date_filter_column,
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,

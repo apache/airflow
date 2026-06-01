@@ -45,6 +45,15 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
+# Maps a Docker build platform string (as declared in ``provider.yaml`` under
+# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
+# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
+# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
+# its native dependency cannot be built.
+EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
+    "linux/arm64": ["aarch64", "arm64"],
+}
+
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
@@ -324,7 +333,7 @@ def run_command_via_breeze_shell(
     backend: str = "none",
     executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
-    project_name: str = "prek",
+    project_name: str = "breeze-prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
     enable_pseudo_terminal: bool = False,
@@ -375,7 +384,7 @@ def run_command_via_breeze_shell(
             print("With environment:")
             print(new_env)
     try:
-        result = subprocess.run(
+        return subprocess.run(
             subprocess_cmd,
             check=False,
             text=True,
@@ -392,7 +401,68 @@ def run_command_via_breeze_shell(
             down_command.extend(["--project-name", project_name])
         down_command.extend(["down", "--remove-orphans", "--volumes"])
         subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return result
+
+
+def run_command_via_breeze_run(
+    cmd: list[str],
+    python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    backend: str = "none",
+    executor: str = "LocalExecutor",
+    extra_env: dict[str, str] | None = None,
+    project_name: str = "breeze-prek",
+    skip_environment_initialization: bool = True,
+    warn_image_upgrade_needed: bool = False,
+    enable_pseudo_terminal: bool = False,
+    **other_popen_kwargs,
+) -> subprocess.CompletedProcess:
+    extra_env = extra_env or {}
+    # Kept for call-site compatibility. `breeze run` does not use `executor`.
+    _ = executor
+    subprocess_cmd: list[str] = [
+        "breeze",
+        "run",
+        "--python",
+        python_version,
+        "--backend",
+        backend,
+        "--tty",
+        "enabled" if enable_pseudo_terminal else "disabled",
+    ]
+    if not warn_image_upgrade_needed:
+        subprocess_cmd.append("--skip-image-upgrade-check")
+    if skip_environment_initialization:
+        # `breeze run` always runs non-interactively; keep parameter for compatibility.
+        pass
+    if project_name:
+        subprocess_cmd.extend(["--project-name", project_name])
+    subprocess_cmd.extend(cmd)
+    new_env = {
+        **os.environ,
+        "SKIP_BREEZE_SELF_UPGRADE_CHECK": "true",
+        "SKIP_GROUP_OUTPUT": "true",
+        "SKIP_SAVING_CHOICES": "true",
+        "ANSWER": "no",
+        **extra_env,
+    }
+
+    if os.environ.get("VERBOSE_COMMANDS") or os.environ.get("CI") == "true":
+        if console:
+            console.print(
+                f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
+            )
+            console.print("[magenta]With environment:[/]")
+            console.print(new_env)
+        else:
+            print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
+            print("With environment:")
+            print(new_env)
+    return subprocess.run(
+        subprocess_cmd,
+        check=False,
+        text=True,
+        **other_popen_kwargs,
+        env=new_env,
+    )
 
 
 class ConsoleDiff(difflib.Differ):

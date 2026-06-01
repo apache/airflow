@@ -42,19 +42,8 @@ export class RequiredActionsPage extends BasePage {
     return "/required_actions";
   }
 
-  public async getActionsTableRowCount(): Promise<number> {
-    const rows = this.actionsTable.locator("tbody").getByRole("row");
-    const isTableVisible = await this.actionsTable.isVisible();
-
-    return isTableVisible ? rows.count() : 0;
-  }
-
   public async isEmptyStateDisplayed(): Promise<boolean> {
     return this.emptyStateMessage.isVisible();
-  }
-
-  public async isTableDisplayed(): Promise<boolean> {
-    return this.actionsTable.isVisible();
   }
 
   public async navigateToRequiredActionsPage(): Promise<void> {

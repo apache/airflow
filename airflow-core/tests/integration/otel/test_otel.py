@@ -86,7 +86,7 @@ def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
     )
 
 
-def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
+def unpause_trigger_dag_and_get_run_id(dag_id: str, conf: dict | None = None) -> str:
     unpause_command = ["airflow", "dags", "unpause", dag_id]
 
     # Unpause the dag using the cli.
@@ -105,6 +105,11 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
         "--logical-date",
         execution_date.isoformat(),
     ]
+
+    if conf:
+        import json
+
+        trigger_command += ["--conf", json.dumps(conf)]
 
     # Trigger the dag using the cli.
     subprocess.run(trigger_command, check=True, env=os.environ.copy())
@@ -352,17 +357,13 @@ class TestOtelIntegration:
         finally:
             # Terminate the processes.
 
-            scheduler_process.terminate()
-            scheduler_process.wait()
-
+            self._terminate_process(scheduler_process)
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
+            self._terminate_process(apiserver_process)
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
@@ -382,6 +383,8 @@ class TestOtelIntegration:
             )
         return ti
 
+    # 160s = 10s startup + 90s dag-run wait + 10s post-run sleep + 30s shutdown grace + 20s CI buffer
+    @pytest.mark.execution_timeout(160)
     @pytest.mark.parametrize(
         ("legacy_names_on_bool", "legacy_names_exported"),
         [
@@ -417,6 +420,7 @@ class TestOtelIntegration:
             if legacy_names_exported:
                 assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
+    @pytest.mark.execution_timeout(160)
     def test_export_metrics_during_process_shutdown(self, capfd):
         out, dag = self.dag_execution_for_testing_metrics(capfd)
 
@@ -435,8 +439,51 @@ class TestOtelIntegration:
 
             assert set(metrics_to_check).issubset(metrics_dict.keys())
 
-    @pytest.mark.execution_timeout(90)
-    def test_dag_execution_succeeds(self, capfd):
+    @pytest.mark.execution_timeout(160)
+    @pytest.mark.parametrize(
+        ("task_span_detail_level", "expected_hierarchy"),
+        [
+            pytest.param(
+                None,
+                {
+                    "dag_run.otel_test_dag": None,
+                    "sub_span1": "worker.task1",
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                },
+                id="default_spans",
+            ),
+            pytest.param(
+                2,
+                # Additional detail spans are deferred to follow-up PRs; tracked
+                # at https://linear.app/astronomer/issue/ACD-157.
+                {
+                    "_verify_bundle_access": "parse",
+                    "parse": "startup",
+                    "get_template_context": "startup",
+                    "startup": "worker.task1",
+                    "render_templates": "_prepare",
+                    "_serialize_rendered_fields": "_prepare",
+                    "_validate_task_inlets_and_outlets": "_prepare",
+                    "_prepare": "run",
+                    "_execute_task": "run",
+                    "finalize": "worker.task1",
+                    "run": "worker.task1",
+                    "sub_span1": "_execute_task",
+                    "dag_run.otel_test_dag": None,
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                    # OpenLineage registers a listener by default, so its
+                    # on_task_instance_running / on_task_instance_success hook
+                    # calls get wrapped in spans at detail level > 1.
+                    "listener.on_task_instance_running": "_prepare",
+                    "listener.on_task_instance_success": "finalize",
+                },
+                id="detail_spans",
+            ),
+        ],
+    )
+    def test_dag_execution_succeeds(self, capfd, task_span_detail_level, expected_hierarchy):
         """The same scheduler will start and finish the dag processing."""
         scheduler_process = None
         apiserver_process = None
@@ -452,7 +499,13 @@ class TestOtelIntegration:
 
             assert dag is not None
 
-            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+            conf = None
+            if task_span_detail_level is not None:
+                from airflow_shared.observability.traces import TASK_SPAN_DETAIL_LEVEL_KEY
+
+                conf = {TASK_SPAN_DETAIL_LEVEL_KEY: task_span_detail_level}
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
 
             # Skip the span_status check.
             wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
@@ -468,17 +521,13 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            scheduler_process.terminate()
-            scheduler_process.wait()
-
+            self._terminate_process(scheduler_process)
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
+            self._terminate_process(apiserver_process)
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
@@ -490,8 +539,19 @@ class TestOtelIntegration:
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
-
-        trace = data["data"][-1]
+        # Find the trace for *this* dag run; selecting by position in the
+        # response is flaky because earlier-test traces accumulate in Jaeger.
+        matching = [
+            t
+            for t in data["data"]
+            if any(
+                tag.get("key") == "airflow.dag_run.run_id" and tag.get("value") == run_id
+                for span in t["spans"]
+                for tag in span.get("tags", [])
+            )
+        ]
+        assert len(matching) == 1, f"expected exactly one trace for run_id={run_id}, got {len(matching)}"
+        trace = matching[0]
         spans = trace["spans"]
 
         def get_span_hierarchy():
@@ -507,12 +567,18 @@ class TestOtelIntegration:
             return nested
 
         nested = get_span_hierarchy()
-        assert nested == {
-            "dag_run.otel_test_dag": None,
-            "sub_span1": "worker.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
-            "worker.task1": "task_run.task1",
-        }
+        assert nested == expected_hierarchy
+
+    @staticmethod
+    def _terminate_process(proc: subprocess.Popen, timeout: int = 30) -> None:
+        # Grace period covers OTel atexit flush (force_flush default: 10s);
+        # SIGKILL is the fallback if the process is still alive after timeout.
+        proc.terminate()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
 
     def start_scheduler(self, capture_output: bool = False):
         stdout = None if capture_output else subprocess.DEVNULL

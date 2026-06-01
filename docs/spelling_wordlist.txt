@@ -27,6 +27,7 @@ agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +185,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -273,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -542,6 +545,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -783,7 +787,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -815,7 +822,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -828,6 +837,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -857,6 +867,7 @@ iTerm
 iterm
 itertools
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -894,6 +905,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -1031,6 +1043,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1043,6 +1056,8 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
@@ -1079,6 +1094,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1121,10 +1137,12 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
@@ -1135,6 +1153,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1295,6 +1314,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1552,6 +1572,7 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
 STS
 subchart
@@ -1602,6 +1623,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1854,6 +1876,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

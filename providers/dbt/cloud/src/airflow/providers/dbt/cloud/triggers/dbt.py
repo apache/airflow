@@ -79,9 +79,43 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         """Make async connection to Dbt, polls for the pipeline run status."""
         hook = DbtCloudHook(self.conn_id, **self.hook_params)
         try:
-            while await self.is_still_running(hook):
+            while True:
+                now = time.time()
+
+                job_run_status = await hook.get_job_status(self.run_id, self.account_id)
+
+                if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": f"Job run {self.run_id} has completed successfully.",
+                            "run_id": self.run_id,
+                        }
+                    )
+                    return
+
+                elif job_run_status == DbtCloudJobRunStatus.CANCELLED.value:
+                    yield TriggerEvent(
+                        {
+                            "status": "cancelled",
+                            "message": f"Job run {self.run_id} has been cancelled.",
+                            "run_id": self.run_id,
+                        }
+                    )
+                    return
+
+                elif job_run_status == DbtCloudJobRunStatus.ERROR.value:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Job run {self.run_id} has failed.",
+                            "run_id": self.run_id,
+                        }
+                    )
+                    return
+
                 if self.execution_deadline is not None:
-                    if self.execution_deadline < time.time():
+                    if self.execution_deadline <= now:
                         yield TriggerEvent(
                             {
                                 "status": "timeout",
@@ -91,11 +125,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                         )
                         return
 
-                if self.end_time < time.time():
-                    # Perform a final status check before declaring timeout, in case the
-                    # job completed between the last poll and the timeout expiry.
-                    if not await self.is_still_running(hook):
-                        break
+                if self.end_time <= now:
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -105,34 +135,12 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                         }
                     )
                     return
+
                 await asyncio.sleep(self.poll_interval)
-            job_run_status = await hook.get_job_status(self.run_id, self.account_id)
-            if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Job run {self.run_id} has completed successfully.",
-                        "run_id": self.run_id,
-                    }
-                )
-            elif job_run_status == DbtCloudJobRunStatus.CANCELLED.value:
-                yield TriggerEvent(
-                    {
-                        "status": "cancelled",
-                        "message": f"Job run {self.run_id} has been cancelled.",
-                        "run_id": self.run_id,
-                    }
-                )
-            else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Job run {self.run_id} has failed.",
-                        "run_id": self.run_id,
-                    }
-                )
+
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
+            return
 
     async def is_still_running(self, hook: DbtCloudHook) -> bool:
         """Check whether the submitted job is running."""
