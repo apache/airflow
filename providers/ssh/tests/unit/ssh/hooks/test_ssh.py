@@ -791,10 +791,15 @@ class TestSSHHook:
             assert ret == (0, b"airflow\n", b"")
 
     def test_command_timeout_fail(self):
+        # cmd_timeout is forwarded to paramiko's exec_command, which uses it both to open the
+        # channel and to read the command output. It must therefore be large enough to reliably
+        # open the channel (otherwise a loaded runner raises "Timeout opening channel." instead of
+        # the AirflowException we expect) while staying smaller than the command runtime so the
+        # read loop times out. A sub-millisecond timeout makes channel opening flaky.
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
-            cmd_timeout=0.001,
+            cmd_timeout=0.5,
             banner_timeout=100,
         )
 
@@ -802,7 +807,7 @@ class TestSSHHook:
             with pytest.raises(AirflowException):
                 hook.exec_ssh_client_command(
                     client,
-                    "sleep 1",
+                    "sleep 5",
                     False,
                     None,
                 )
