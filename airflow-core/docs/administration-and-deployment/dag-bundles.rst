@@ -87,11 +87,12 @@ For a Git Dag bundle, the only required kwarg is ``tracking_ref`` (a branch, tag
     [dag_processor]
     dag_bundle_config_list = [
         {
-          "name": "my_git_bundle",
+          "name": "my-git-repo",
           "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
           "kwargs": {
+            "git_conn_id": "my_git_conn",
+            "subdir": "dags",
             "tracking_ref": "main",
-            "git_conn_id": "my_git_conn"
           }
         }
       ]
@@ -100,6 +101,8 @@ For a Git Dag bundle, the only required kwarg is ``tracking_ref`` (a branch, tag
 
     ``GitDagBundle`` supports versioning. Each Dag run records the Git commit it was created with, allowing reruns to use the exact same code even if the repository has since been updated.
 
+See :doc:`apache-airflow-providers-git:bundles/index` for the full list of kwargs and more examples.
+
 For an S3 Dag bundle, the required kwarg is ``bucket_name``. You can optionally set ``aws_conn_id`` (defaults to ``aws_default``) and ``prefix`` to scope the bundle to a subdirectory within the bucket:
 
 .. code-block:: ini
@@ -107,12 +110,12 @@ For an S3 Dag bundle, the required kwarg is ``bucket_name``. You can optionally 
     [dag_processor]
     dag_bundle_config_list = [
         {
-          "name": "my_s3_dag_bundle",
+          "name": "my-s3-dags",
           "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
           "kwargs": {
-            "bucket_name": "my-airflow-dags-bucket",
-            "prefix": "dags/",
-            "aws_conn_id": "my_aws_conn"
+            "aws_conn_id": "aws_default",
+            "bucket_name": "my-airflow-bucket",
+            "prefix": "dags/"
           }
         }
       ]
@@ -121,6 +124,8 @@ For an S3 Dag bundle, the required kwarg is ``bucket_name``. You can optionally 
 
     ``S3DagBundle`` does not support versioning. Tasks always run against the latest code in the bucket.
 
+See :doc:`apache-airflow-providers-amazon:bundles/index` for the full list of kwargs and more examples.
+
 For a GCS Dag bundle, the required kwarg is ``bucket_name``. You can optionally set ``gcp_conn_id`` (defaults to ``google_cloud_default``) and ``prefix`` to scope the bundle to a subdirectory within the bucket:
 
 .. code-block:: ini
@@ -128,12 +133,12 @@ For a GCS Dag bundle, the required kwarg is ``bucket_name``. You can optionally 
     [dag_processor]
     dag_bundle_config_list = [
         {
-          "name": "my_gcs_dag_bundle",
+          "name": "my-gcs-dags",
           "classpath": "airflow.providers.google.cloud.bundles.gcs.GCSDagBundle",
           "kwargs": {
-            "bucket_name": "my-airflow-dags-bucket",
-            "prefix": "dags/",
-            "gcp_conn_id": "my_gcs_conn"
+            "gcp_conn_id": "google_cloud_default",
+            "bucket_name": "my-airflow-bucket",
+            "prefix": "dags/"
           }
         }
       ]
@@ -141,6 +146,8 @@ For a GCS Dag bundle, the required kwarg is ``bucket_name``. You can optionally 
 .. note::
 
     ``GCSDagBundle`` does not support versioning. Tasks always run against the latest code in the bucket.
+
+See :doc:`apache-airflow-providers-google:bundles/index` for the full list of kwargs and more examples.
 
 You can combine multiple bundle types in a single deployment. The default ``LocalDagBundle`` can be removed if you no longer need it, or kept alongside other bundles:
 
