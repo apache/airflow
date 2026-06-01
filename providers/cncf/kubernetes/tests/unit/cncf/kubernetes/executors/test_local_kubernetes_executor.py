@@ -61,7 +61,7 @@ class TestLocalKubernetesExecutor:
 
         local_kubernetes_executor = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
 
-        assert local_kubernetes_executor.slots_occupied == 4
+        assert local_kubernetes_executor.slots_occupied == 5
         assert "queued_tasks" not in {c[0] for c in local_executor_mock.method_calls}
 
     def test_running(self):
