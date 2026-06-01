@@ -500,7 +500,7 @@ class EdgeWorker:
         logger.info(
             "Launched task subprocess pid=%d for %s",
             process.pid,
-            workload.display_name,
+            workload.display_name if AIRFLOW_V_3_3_PLUS else workload.ti.id,
         )
         return process, stderr_file_path
 
@@ -515,7 +515,11 @@ class EdgeWorker:
             kwargs={"workload": workload, "error_file_path": error_file_path},
         )
         process.start()
-        logger.info("Launched task fork pid=%d for %s", process.pid, workload.display_name)
+        logger.info(
+            "Launched task fork pid=%d for %s",
+            process.pid,
+            workload.display_name if AIRFLOW_V_3_3_PLUS else workload.ti.id,
+        )
         return process, error_file_path
 
     def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTypeBody, logfile: Path) -> Job:
