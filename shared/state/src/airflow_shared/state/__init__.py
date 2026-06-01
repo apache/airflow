@@ -73,7 +73,7 @@ class AssetScope:
 StateScope = TaskScope | AssetScope
 
 
-class BaseStateBackend(ABC):
+class BaseStoreBackend(ABC):
     """
     Abstract backend for reading and writing task and asset state.
 
@@ -208,17 +208,17 @@ class BaseStateBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
+    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
         """
-        Serialize a task state value before it is sent to the execution API for db persistence.
+        Serialize a task store value before it is sent to the execution API for db persistence.
 
-        Called by ``TaskStateAccessor.set()`` on the worker. The return value is what gets
+        Called by ``TaskStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_task_state_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_task_store_from_ref()``. Do not
         wrap the reference yourself.
 
         The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
@@ -228,27 +228,27 @@ class BaseStateBackend(ABC):
         """
         return json.dumps(value)
 
-    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored task state reference back to the actual value.
+        Resolve a stored task store reference back to the actual value.
 
-        Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
+        Called by ``TaskStoreAccessor.get()`` after the stored string is retrieved from
         the execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_task_state_to_ref`` encoding.
+        ``serialize_task_store_to_ref`` encoding.
         """
         return json.loads(stored)
 
-    def serialize_asset_state_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
+    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
         """
-        Serialize an asset state value before it is sent to the Execution API for db persistence.
+        Serialize an asset store value before it is sent to the Execution API for db persistence.
 
-        Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
+        Called by ``AssetStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_asset_state_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_asset_store_from_ref()``. Do not
         wrap the reference yourself.
 
         ``asset_ref`` is either the asset name or URI, depending on how the accessor was
@@ -261,12 +261,12 @@ class BaseStateBackend(ABC):
         """
         return json.dumps(value)
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored asset state reference back to the actual value.
+        Resolve a stored asset store reference back to the actual value.
 
-        Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
+        Called by ``AssetStoreAccessor.get()`` after the stored string is retrieved from
         the Execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_asset_state_to_ref`` encoding.
+        ``serialize_asset_store_to_ref`` encoding.
         """
         return json.loads(stored)
