@@ -62,7 +62,7 @@ def dag_run(session: Session) -> DagRun:
     return run
 
 
-class TestTaskStateModel:
+class TestTaskStoreModel:
     def test_insert_and_read(self, session: Session, dag_run: DagRun):
         row = TaskStoreModel(
             dag_run_id=dag_run.id,

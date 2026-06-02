@@ -49,7 +49,7 @@ def asset(session: Session) -> AssetModel:
     return a
 
 
-class TestAssetStateModel:
+class TestAssetStoreModel:
     def test_insert_and_read(self, session: Session, asset: AssetModel):
         """A row written for an asset key is readable back with the correct value."""
         row = AssetStoreModel(
