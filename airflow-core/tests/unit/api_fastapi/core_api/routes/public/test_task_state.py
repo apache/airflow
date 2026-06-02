@@ -267,6 +267,19 @@ class TestSetTaskState(TestTaskStateEndpoint):
         resp = test_client.get(f"{BASE_URL}/job_id").json()
         assert resp["expires_at"] == "2026-01-08T00:00:00Z"
 
+    def test_new_key_default_retention_zero_never_expires(self, test_client):
+        """PUT with expires_at=default and default_retention_days=0 stores a key that never expires."""
+        with conf_vars({("state_store", "default_retention_days"): "0"}):
+            test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": "default"})
+        assert test_client.get(f"{BASE_URL}/job_id").json()["expires_at"] is None
+
+    def test_new_key_negative_retention_days_returns_400(self, test_client):
+        """PUT with expires_at=default and default_retention_days<0 returns HTTP 400."""
+        with conf_vars({("state_store", "default_retention_days"): "-1"}):
+            resp = test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": "default"})
+        assert resp.status_code == 400
+        assert "default_retention_days" in resp.json()["detail"]
+
     def test_new_key_never_expiry(self, test_client):
         """PUT with expires_at=null stores a key that never expires."""
         test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": None})

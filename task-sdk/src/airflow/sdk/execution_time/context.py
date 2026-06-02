@@ -558,7 +558,12 @@ class TaskStateAccessor:
             expires_at = now + retention
         else:
             days = conf.getint("state_store", "default_retention_days")
-            expires_at = None if days <= 0 else now + timedelta(days=days)
+            if days < 0:
+                raise ValueError(
+                    f"[state_store] default_retention_days must be >= 0, got {days}. "
+                    "Set to 0 to disable expiry."
+                )
+            expires_at = None if days == 0 else now + timedelta(days=days)
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
