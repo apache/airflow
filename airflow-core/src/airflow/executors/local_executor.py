@@ -264,30 +264,36 @@ class LocalExecutor(BaseExecutor):
             # Send the shutdown message once for each alive worker
             if proc.is_alive():
                 self.activity_queue.put(None)
-        
+
         # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
         # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
         # and an unbounded proc.join() will hang the scheduler indefinitely.
-
-        for proc in self.workers.values():
-            if proc.is_alive():
-                try:
+        try:
+            for proc in self.workers.values():
+                if proc.is_alive():
                     while proc.is_alive():
                         self._read_results()
                         proc.join(timeout=0.05)
-                except (KeyboardInterrupt, SystemExit):
-                    self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
-                    for p in self.workers.values():
-                        if p.is_alive():
-                            p.terminate()
-                    raise
-            proc.close()
+        except (KeyboardInterrupt, SystemExit):
+            self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+            for p in self.workers.values():
+                if p.is_alive():
+                    p.terminate()
+                    p.join(timeout=0.2)
+            raise
+        finally:
+            # Process any extra results before closing
+            self._read_results()
 
-        # Process any extra results before closing
-        self._read_results()
+            for proc in self.workers.values():
+                try:
+                    proc.close()
+                except ValueError:
+                    # Raised if the process is still running/alive
+                    pass
 
-        self.activity_queue.close()
-        self.result_queue.close()
+            self.activity_queue.close()
+            self.result_queue.close()
 
     def terminate(self):
         """Forcefully terminate all worker processes under control of the executor."""
@@ -295,6 +301,7 @@ class LocalExecutor(BaseExecutor):
         for proc in self.workers.values():
             if proc.is_alive():
                 proc.terminate()
+                proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
