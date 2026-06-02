@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -299,3 +300,26 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(self._base_url).status_code == 401
+
+
+class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
+    """Tests to validate that core API routes must use MetastoreStateBackend directly."""
+
+    @pytest.mark.parametrize(
+        ("method", "path_suffix", "kwargs"),
+        [
+            ("get", "", {}),
+            ("get", "/watermark", {}),
+            ("put", "/watermark", {"json": {"value": "v2"}}),
+            ("delete", "/watermark", {}),
+            ("delete", "", {}),
+        ],
+    )
+    def test_route_never_calls_get_state_backend(self, test_client, method, path_suffix, kwargs):
+        _create_asset_state(self._session, self.asset.id, "watermark", "v1")
+        self._session.commit()
+
+        with patch("airflow.state.get_state_backend") as mock_get_backend:
+            getattr(test_client, method)(f"{self._base_url}{path_suffix}", **kwargs)
+
+        mock_get_backend.assert_not_called()

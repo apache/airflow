@@ -35,9 +35,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.models.asset import AssetModel
 from airflow.models.asset_state import AssetStateModel
-from airflow.state.metastore import MetastoreStateBackend
-
-_db_backend = MetastoreStateBackend()
+from airflow.state.metastore import _get_db_backend
 
 asset_state_router = AirflowRouter(
     tags=["Asset State"],
@@ -136,7 +134,7 @@ def set_asset_state(
     session: SessionDep,
 ) -> None:
     """Set an asset state value. Creates or overwrites the key."""
-    _db_backend.set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
+    _get_db_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @asset_state_router.delete(
@@ -151,7 +149,7 @@ def delete_asset_state(
     session: SessionDep,
 ) -> None:
     """Delete a single asset state key. No-op if the key does not exist."""
-    _db_backend.delete(AssetScope(asset_id=asset_id), key, session=session)
+    _get_db_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @asset_state_router.delete(
@@ -165,4 +163,4 @@ def clear_asset_state(
     session: SessionDep,
 ) -> None:
     """Delete all state keys for an asset."""
-    _db_backend.clear(AssetScope(asset_id=asset_id), session=session)
+    _get_db_backend().clear(AssetScope(asset_id=asset_id), session=session)

@@ -39,9 +39,7 @@ from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.configuration import conf
 from airflow.models.task_state import TaskStateModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.state.metastore import MetastoreStateBackend
-
-_db_backend = MetastoreStateBackend()
+from airflow.state.metastore import _get_db_backend
 
 task_state_router = AirflowRouter(
     tags=["Task State"],
@@ -189,7 +187,7 @@ def set_task_state(
     expires_at = _resolve_expires_at(body.expires_at)
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     try:
-        _db_backend.set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
+        _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -229,7 +227,7 @@ def patch_task_state(
         )
 
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    _db_backend.set(scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session)
+    _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session)
 
 
 @task_state_router.delete(
@@ -248,7 +246,7 @@ def delete_task_state(
 ) -> None:
     """Delete a single task state key. No-op if the key does not exist."""
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    _db_backend.delete(scope, key, session=session)
+    _get_db_backend().delete(scope, key, session=session)
 
 
 @task_state_router.delete(
@@ -272,4 +270,4 @@ def clear_task_state(
     the ``map_index`` parameter is ignored.
     """
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    _db_backend.clear(scope, all_map_indices=all_map_indices, session=session)
+    _get_db_backend().clear(scope, all_map_indices=all_map_indices, session=session)
