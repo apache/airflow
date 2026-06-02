@@ -72,7 +72,7 @@ PIP package                                 Version required
 ``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
 ``marshmallow``                             ``>=3``
-``flask_limiter``                           ``>3,!=3.13``
+``flask_limiter``                           ``>3``
 ==========================================  =====================================
 
 Cross provider package dependencies

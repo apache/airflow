@@ -62,6 +62,9 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle/|
           ^scripts/ci/license-templates/
         args:
           - --comment-style
@@ -517,7 +520,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.14']
+        additional_dependencies: ['ruff==0.15.15']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -680,6 +683,9 @@ repos:
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -712,6 +718,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/docs/connections/spark-submit.rst$|
+          ^providers/apache/spark/docs/operators\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -895,7 +902,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-excluded-provider-markers
-        name: Check excluded-provider python_version markers in pyproject.toml
+        name: Check excluded-provider python_version and platform markers in pyproject.toml
         language: python
         entry: ./scripts/ci/prek/check_excluded_provider_markers.py
         files: >
@@ -931,6 +938,17 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
+      - id: sync-provider-readme
+        name: Sync provider README.rst Requirements table with pyproject.toml
+        description: |
+          Provider README.rst files are regenerated from pyproject.toml at distribution-build
+          time. Between releases, dependency bumps in pyproject.toml do not propagate to the
+          committed README, leading to drift. This hook re-renders the Requirements table from
+          the current pyproject.toml whenever the latter changes.
+        entry: ./scripts/ci/prek/sync_provider_readme.py
+        language: python
+        files: ^providers/.*/pyproject\.toml$
+        pass_filenames: true
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
@@ -1200,3 +1218,10 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+      - id: ktlint
+        name: Run ktlint format
+        description: "Use ktlint (via Gradle) to format Kotlin and Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk ktlintFormat
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*$

@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``tableauserverclient``                     ``>=0.27,!=0.39``
+``tableauserverclient``                     ``>=0.27``
 ==========================================  ==================
 
 Cross provider package dependencies

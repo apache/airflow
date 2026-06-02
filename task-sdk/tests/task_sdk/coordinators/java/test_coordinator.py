@@ -40,6 +40,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     _JavaActivitySubprocess,
     _ResourceTracker,
     _start_server,
+    _walk_jars,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -213,6 +214,62 @@ class TestMainJar:
         _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
         with pytest.raises(FileNotFoundError, match="com.example.Missing"):
             _JarInfo.find([tmp_path], "com.example.Missing")
+
+    def test_symlink_cycle_does_not_infinite_recurse(self, tmp_path):
+        nested = tmp_path / "inner"
+        nested.mkdir()
+        _make_jar(nested / "app.jar", main_class="com.example.Loop", schema_version="2026-06-16")
+        loop = nested / "loop"
+        try:
+            loop.symlink_to(tmp_path)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        result = _JarInfo.find([tmp_path], "com.example.Loop")
+        assert result == _JarInfo("com.example.Loop", "2026-06-16")
+
+
+class TestWalkJars:
+    def test_skips_directory_whose_key_is_already_in_seen_dirs(self, tmp_path):
+        """A directory whose (st_dev, st_ino) is already in seen_dirs is skipped."""
+        _make_jar(tmp_path / "app.jar", main_class="com.example.Main", schema_version="2026-06-16")
+        st = tmp_path.stat()
+        seen_dirs: set[tuple[int, int]] = {(st.st_dev, st.st_ino)}
+        assert list(_walk_jars([tmp_path], seen_dirs)) == []
+
+    def test_records_visited_directories_in_seen_dirs(self, tmp_path):
+        """Every directory descended into is added to seen_dirs."""
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        _make_jar(sub / "app.jar", main_class="com.example.Main", schema_version="2026-06-16")
+        seen_dirs: set[tuple[int, int]] = set()
+        list(_walk_jars([tmp_path], seen_dirs))
+        assert (tmp_path.stat().st_dev, tmp_path.stat().st_ino) in seen_dirs
+        assert (sub.stat().st_dev, sub.stat().st_ino) in seen_dirs
+
+    def test_symlink_cycle_yields_each_jar_once(self, tmp_path):
+        """A symlink that loops back to an ancestor must not yield the same JAR twice."""
+        nested = tmp_path / "inner"
+        nested.mkdir()
+        jar = _make_jar(nested / "app.jar", main_class="com.example.Loop", schema_version="2026-06-16")
+        loop = nested / "loop"
+        try:
+            loop.symlink_to(tmp_path)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        seen_dirs: set[tuple[int, int]] = set()
+        yielded = list(_walk_jars([tmp_path], seen_dirs))
+        assert [p.resolve() for p in yielded] == [jar.resolve()]
+
+    def test_skip_logged_when_directory_revisited(self, tmp_path):
+        """A revisited directory triggers the 'Skipping already-visited directory' debug log."""
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        seen_dirs: set[tuple[int, int]] = {(sub.stat().st_dev, sub.stat().st_ino)}
+        with patch("airflow.sdk.coordinators.java.coordinator.log") as mock_log:
+            list(_walk_jars([sub], seen_dirs))
+        mock_log.debug.assert_any_call("Skipping already-visited directory", path=sub)
 
 
 class TestAcceptConnections:
