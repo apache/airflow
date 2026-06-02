@@ -100,7 +100,7 @@ Garbage collection semantics
 The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store cleanup-task-states``. This process removes state rows according to the following rules:
 
 **Time-based expiry (task state only)**
-  Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
+  Past rows are deleted, ie: rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
 
 **``default_retention_days`` fallback (task state only)**
   Keys written with no explicit ``retention`` (i.e. ``expires_at`` is ``NULL``) are governed by the global ``default_retention_days`` setting. When this setting is positive, the garbage collection job treats such rows as expiring ``default_retention_days`` days after their last update.
