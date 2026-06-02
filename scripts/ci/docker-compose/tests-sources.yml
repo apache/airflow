@@ -91,11 +91,8 @@ services:
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
-<<<<<<< HEAD
-      - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
-=======
       - ../../../providers/ibm/db2/tests:/opt/airflow/providers/ibm/db2/tests
->>>>>>> 5a055cded9 (Rename Db2 provider to IBM Db2 provider)
+      - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/informatica/tests:/opt/airflow/providers/informatica/tests
