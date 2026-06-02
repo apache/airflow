@@ -24,6 +24,7 @@ import pytest
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAgentHandle
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
@@ -84,7 +85,7 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock()
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
         mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
         mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
             "Analysis complete"
@@ -126,7 +127,7 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock()
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
         mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
         mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
             Summary(findings=["error spike"])
@@ -144,7 +145,7 @@ class TestLLMFileAnalysisOperator:
         assert isinstance(result, Summary)
         assert result.findings == ["error spike"]
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -155,9 +156,10 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
 
         op = LLMFileAnalysisOperator(
             task_id="test",
@@ -215,7 +217,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock()
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
         mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
         mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
             "LLM response"
@@ -253,7 +255,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock()
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
         mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
         mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
             Summary(findings=["error spike"])
@@ -329,7 +331,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock()
+        mock_agent = MagicMock(spec=PydanticAgentHandle)
         mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
         mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result("output")
 

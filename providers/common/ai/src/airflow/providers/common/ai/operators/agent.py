@@ -28,11 +28,8 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.base import AgentRunRequest, BaseAIHook, DurableContext
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
-from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
-from airflow.providers.common.ai.utils.output_type import (
-    iter_base_model_classes,
-    rehydrate_pydantic_output,
-)
+from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.validation import reject_sequence_with_unsupported_feature
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
