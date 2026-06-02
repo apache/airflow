@@ -58,7 +58,7 @@ from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
@@ -75,7 +75,6 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_RUN,
     RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
-    RESOURCE_DEADLINE,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
@@ -153,7 +152,6 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.CONFIG: RESOURCE_CONFIG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
-    MenuItem.DEADLINES: RESOURCE_DEADLINE,
     MenuItem.DOCS: RESOURCE_DOCS,
     MenuItem.PLUGINS: RESOURCE_PLUGIN,
     MenuItem.POOLS: RESOURCE_POOL,
@@ -169,6 +167,11 @@ if AIRFLOW_V_3_1_PLUS:
 
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
     _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_DEADLINE
+
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DEADLINE
 
 
 class FabAuthManager(BaseAuthManager[User]):
