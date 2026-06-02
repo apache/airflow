@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, ClassVar
@@ -207,6 +206,13 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
+    def _wait_for_modification_completion(self) -> None:
+        self.hook.get_waiter("replication_task_modified").wait(
+            Filters=[{"Name": "replication-task-arn", "Values": [self.replication_task_arn]}],
+            WithoutSettings=True,
+            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+        )
+
     def execute(self, context: Context) -> dict:
         tasks = self.hook.find_replication_tasks_by_arn(
             replication_task_arn=self.replication_task_arn, without_settings=True
@@ -220,8 +226,13 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         )
 
         if current_status == DmsTaskState.MODIFYING:
-            # boto3 stopped/ready waiters treat 'modifying' as a terminal failure — use poll loop.
-            current_status = self._wait_until_not_modifying()
+            self._wait_for_modification_completion()
+            tasks = self.hook.find_replication_tasks_by_arn(
+                replication_task_arn=self.replication_task_arn, without_settings=True
+            )
+            if not tasks:
+                raise ValueError(f"Replication task {self.replication_task_arn} not found.")
+            current_status = tasks[0].get("Status", "").lower()
 
         if current_status not in self.MODIFIABLE_STATES:
             raise RuntimeError(
@@ -251,59 +262,22 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                         aws_conn_id=self.aws_conn_id,
                     ),
                     method_name="execute_complete",
-                    kwargs={"result": result},
                 )
             else:
-                # modify_replication_task is async — poll until the task exits 'modifying'.
-                final_status = self._wait_until_not_modifying()
-                if final_status not in self.MODIFIABLE_STATES:
-                    raise RuntimeError(
-                        f"Replication task {self.replication_task_arn} ended in unexpected state "
-                        f"'{final_status}' after modification."
-                    )
+                self._wait_for_modification_completion()
 
         return result
 
-    def execute_complete(
-        self, context: Context, event: dict | None = None, result: dict | None = None
-    ) -> dict:
+    def execute_complete(self, context: Context, event: dict | None = None) -> dict:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
             raise RuntimeError(f"Error waiting for DMS task modification to complete: {validated_event}")
-        self.log.info("DMS replication task(%s) modification complete.", self.replication_task_arn)
-        return result or {}
-
-    def _wait_until_not_modifying(self) -> str:
-        """
-        Poll until the task leaves the 'modifying' state and return the final status.
-
-        boto3 waiters for replication_task_stopped and replication_task_ready both
-        treat 'modifying' as a terminal failure, so a polling loop is necessary.
-        """
-        for _ in range(self.waiter_max_attempts):
-            tasks = self.hook.find_replication_tasks_by_arn(
-                replication_task_arn=self.replication_task_arn, without_settings=True
-            )
-            if not tasks:
-                raise ValueError(f"Replication task {self.replication_task_arn} not found.")
-            status = tasks[0].get("Status", "").lower()
-            if status != DmsTaskState.MODIFYING:
-                self.log.info(
-                    "Replication task(%s) finished modifying, current status: '%s'.",
-                    self.replication_task_arn,
-                    status,
-                )
-                return status
-            self.log.info(
-                "Replication task(%s) still modifying, waiting %ds ...",
-                self.replication_task_arn,
-                self.waiter_delay,
-            )
-            time.sleep(self.waiter_delay)
-        raise RuntimeError(
-            f"Replication task {self.replication_task_arn} did not finish modifying "
-            f"after {self.waiter_max_attempts} attempts."
+        replication_task_arn = validated_event["replication_task_arn"]
+        self.log.info(
+            "DMS replication task(%s) modification complete.",
+            replication_task_arn,
         )
+        return {"ReplicationTaskArn": replication_task_arn}
 
 
 class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):
