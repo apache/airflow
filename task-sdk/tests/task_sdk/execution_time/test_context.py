@@ -1471,7 +1471,7 @@ class TestAssetStoreAccessors:
         a1 = Asset(name="asset_one", uri="s3://one")
         a2 = Asset(name="asset_two", uri="s3://two")
 
-        with pytest.raises(ValueError, match="2 concrete inlets"):
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
             AssetStoreAccessors([a1, a2]).get("watermark")
 
     def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
@@ -1496,6 +1496,62 @@ class TestAssetStoreAccessors:
         accessors = AssetStoreAccessors([alias])
 
         assert accessors._total == 0
+
+    def test_outlet_only_asset_is_accessible(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v1")
+
+        result = AssetStoreAccessors([], [asset])[asset].get("watermark")
+
+        assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_name_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetNameRef(name=self.ASSET_NAME)
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v2")
+
+        result = AssetStoreAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_uri_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetUriRef(uri=self.ASSET_URI)
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v2")
+
+        result = AssetStoreAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_outlet_only_single_shorthand_works(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v3")
+
+        result = AssetStoreAccessors([], [asset]).get("watermark")
+
+        assert result == "v3"
+
+    def test_asset_in_both_inlets_and_outlets_not_duplicated(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+
+        accessors = AssetStoreAccessors([asset], [asset])
+
+        assert accessors._total == 1
+
+    def test_outlet_alias_is_ignored(self, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+
+        accessors = AssetStoreAccessors([], [alias])
+
+        assert accessors._total == 0
+        mock_supervisor_comms.send.assert_not_called()
 
 
 class InMemoryStoreBackend(BaseStoreBackend):
