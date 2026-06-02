@@ -271,6 +271,11 @@ def create_task_execution_api_app() -> FastAPI:
             content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)
 
+    from airflow.api_fastapi.execution_api.exceptions import EXECUTION_API_ERROR_HANDLERS
+
+    for handler in EXECUTION_API_ERROR_HANDLERS:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
     return app
 
 
