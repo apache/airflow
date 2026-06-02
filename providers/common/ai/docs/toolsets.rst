@@ -313,6 +313,166 @@ This works because PydanticAI's MCP server classes implement
 code instead of being managed through Airflow connections and secret backends.
 
 
+.. _agent-skills:
+
+``AgentSkillsToolset``
+----------------------
+
+:class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` loads
+`Agent Skills <https://agentskills.io>`__ -- ``SKILL.md`` bundles (instructions,
+and optionally scripts and resources) that the model discovers and loads *on
+demand*. Only a compact catalog of skill names and descriptions sits in the
+prompt until the model decides it needs one, so a large skill library costs few
+tokens until used (progressive disclosure).
+
+It is backed by the community `pydantic-ai-skills
+<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT); native
+progressive disclosure is in flight upstream in `pydantic/pydantic-ai#5230
+<https://github.com/pydantic/pydantic-ai/pull/5230>`__. Install the optional
+extra to use it:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[skills]"
+
+Each source is a local directory or a connection-resolved
+:class:`~airflow.providers.common.ai.skills.GitSkills`. Sources are resolved when
+the agent enters the toolset, on the worker -- never while the DAG processor
+parses the file -- so a Git token is never baked into the serialized DAG, and
+cloned repositories are removed when the run ends.
+
+A local directory of ``SKILL.md`` bundles:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
+    :language: python
+    :start-after: [START howto_operator_agent_skills_local]
+    :end-before: [END howto_operator_agent_skills_local]
+
+A Git repository, with credentials from an Airflow connection:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
+    :language: python
+    :start-after: [START howto_operator_agent_skills_git]
+    :end-before: [END howto_operator_agent_skills_git]
+
+For a private repository, point ``conn_id`` at a
+:doc:`git connection <apache-airflow-providers-git:connections/git>`; credentials
+are resolved through the Git provider's ``GitHook`` (an HTTPS token in the
+connection password, or an SSH key in the connection's extra). A plain ``http://``
+URL with ``conn_id`` is rejected so a credential is never sent in cleartext, and a
+``repo_url`` that embeds a username/password is rejected (use ``conn_id``). After
+cloning, the credential is stripped from the checkout's ``.git/config``. As with
+any ``git clone``, the worker's own git configuration (credential helpers, SSH
+agent) may still apply, so run workers without ambient git credentials if you
+need strict isolation.
+
+.. warning::
+
+    Skill bundles can contain scripts that the agent may run on the worker via
+    the ``run_skill_script`` tool. For a remote source, anyone who can modify the
+    repository can introduce code that executes on your worker, outside DAG
+    review and versioning. Point ``GitSkills`` at a trusted repository, pin
+    ``branch`` to a trusted ref, and treat skill contents as code that runs in
+    your environment.
+
+Parameters
+^^^^^^^^^^
+
+- ``sources``: List of skill sources -- local directory paths and/or
+  :class:`~airflow.providers.common.ai.skills.GitSkills`.
+- ``exclude_tools``: Optional set of skill tool names to hide from the agent
+  (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+
+Using Agent Skills with other frameworks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``AgentSkillsToolset`` is a standard pydantic-ai toolset, so it also works with a
+plain ``pydantic_ai.Agent`` you build yourself, not just ``AgentOperator``.
+
+Because Agent Skills is a cross-framework format, the connection handling is also
+reusable through :func:`~airflow.providers.common.ai.skills.resolve_skills`, which
+resolves sources to local ``SKILL.md`` directories that any loader accepts:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.skills import GitSkills, resolve_skills
+
+    sources = ["./skills", GitSkills(repo_url="https://github.com/org/skills", conn_id="github_skills")]
+    with resolve_skills(sources) as dirs:
+        # LangChain DeepAgents
+        agent = create_deep_agent(model="openai:gpt-5.4", skills=dirs)
+        # ...or Strands
+        agent = Agent(plugins=[AgentSkills(skills=dirs)])
+
+``resolve_skills`` needs the Git provider (for ``GitSkills``) but not pydantic-ai,
+and removes any cloned directories when the ``with`` block exits.
+
+Working with LangChain
+----------------------
+
+Tools bridge in both directions between common.ai's toolsets and LangChain.
+
+**LangChain tools → ``AgentOperator``.** No Airflow code is needed. pydantic-ai
+ships `pydantic_ai.ext.langchain.LangChainToolset
+<https://ai.pydantic.dev/toolsets/>`__ upstream, which wraps existing LangChain
+tools as an ``AbstractToolset``. Drop it straight into ``AgentOperator``:
+
+.. code-block:: python
+
+    from pydantic_ai.ext.langchain import LangChainToolset
+
+    AgentOperator(
+        task_id="agent_with_langchain_tools",
+        prompt="Research the question and summarise.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[LangChainToolset([my_langchain_tool])],
+    )
+
+**common.ai toolsets → LangChain.** The reverse direction is what
+:func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
+provides. It converts any pydantic-ai toolset -- including ``SQLToolset``,
+``HookToolset``, and ``MCPToolset`` -- into a list of LangChain
+``StructuredTool`` objects, so a LangChain agent or chain can call Airflow's
+curated, connection-managed tools:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_toolset_bridge.py
+    :language: python
+    :start-after: [START example_langchain_toolset_bridge]
+    :end-before: [END example_langchain_toolset_bridge]
+
+Each generated tool keeps the source tool's name, description, and argument
+schema, and routes calls back through the original toolset, so the toolset's own
+behaviour (connection resolution, ``SQLToolset``'s SQL validation, and
+``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
+conversion time to enumerate the tools.
+
+When a toolset raises pydantic-ai's ``ModelRetry`` to ask the model to correct
+its input (``SQLToolset`` does this on, for example, an unknown column), the
+bridge returns that message as the tool's output so the model sees it and tries
+again. ``ModelRetry`` is a feed-the-model-and-retry signal rather than a
+failure, so returning it preserves the self-correction the toolset was written
+for and works no matter how the agent is configured to handle tool errors
+(raising would abort the run under ``create_agent``'s default handling).
+
+The bridge does not hold a toolset session open across calls: ``get_tools`` and
+every tool call each run under their own event loop, so for ``MCPToolset`` the
+connection is opened and torn down around each call. It reconnects per call,
+which is fine for stateless tools but unsuitable for ``stdio`` MCP servers (or
+any server that keeps state between calls), since each call starts a fresh
+session.
+
+.. note::
+
+    Outside an agent run there is no live ``RunContext``, so the bridge builds a
+    minimal one with an inert placeholder model. The bundled toolsets ignore the
+    context, so this is transparent for them. A custom toolset that reads live
+    run state (``ctx.model``, ``ctx.messages``, ``ctx.usage``) will not behave
+    correctly when bridged standalone.
+
+Requires the ``langchain`` extra:
+``pip install "apache-airflow-providers-common-ai[langchain]"``
+
+
 Security
 --------
 

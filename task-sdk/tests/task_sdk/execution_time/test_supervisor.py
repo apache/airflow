@@ -27,8 +27,9 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
@@ -72,10 +73,10 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
-    AssetStateResult,
-    ClearAssetStateByName,
-    ClearAssetStateByUri,
-    ClearTaskState,
+    AssetStoreResult,
+    ClearAssetStoreByName,
+    ClearAssetStoreByUri,
+    ClearTaskStore,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -83,9 +84,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetStateByName,
-    DeleteAssetStateByUri,
-    DeleteTaskState,
+    DeleteAssetStoreByName,
+    DeleteAssetStoreByUri,
+    DeleteTaskStore,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -95,8 +96,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStateByName,
-    GetAssetStateByUri,
+    GetAssetStoreByName,
+    GetAssetStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -108,8 +109,8 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
-    GetTaskState,
     GetTaskStates,
+    GetTaskStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -129,19 +130,19 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStateByName,
-    SetAssetStateByUri,
+    SetAssetStoreByName,
+    SetAssetStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskState,
+    SetTaskStore,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
-    TaskStateResult,
     TaskStatesResult,
+    TaskStoreResult,
     TICount,
     ToSupervisor,
     TriggerDagRun,
@@ -261,6 +262,54 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
+        self,
+        test_dags_dir,
+        captured_logs,
+        client_with_ti_start,
+    ):
+        """SIGTERM to the supervisor process is forwarded to the task subprocess."""
+        ti = TaskInstanceDTO(
+            id=uuid7(),
+            task_id="signal_task",
+            dag_id="signal_forward_test",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        supervisor_pid = os.getpid()
+
+        def _kill_children():
+            for child in psutil.Process(supervisor_pid).children(recursive=True):
+                with suppress(psutil.NoSuchProcess):
+                    child.kill()
+
+        watchdog = threading.Timer(20.0, _kill_children)
+        watchdog.daemon = True
+        watchdog.start()
+
+        try:
+            with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+                supervise_task(
+                    ti=ti,
+                    dag_rel_path="signal_forward_test.py",
+                    token="",
+                    dry_run=True,
+                    client=client_with_ti_start,
+                    bundle_info=bundle_info,
+                )
+        finally:
+            watchdog.cancel()
+
+        stdout_events = [entry["event"] for entry in captured_logs if entry.get("logger") == "task.stdout"]
+        assert "EXECUTE_STARTED" in stdout_events
+        assert "ON_KILL_CALLED_VIA_SIGNAL_FORWARDING" in stdout_events
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -2788,25 +2837,25 @@ REQUEST_TEST_CASES = [
         test_id="get_dag",
     ),
     RequestTestCase(
-        message=GetTaskState(ti_id=TI_ID, key="job_id"),
-        test_id="get_task_state",
+        message=GetTaskStore(ti_id=TI_ID, key="job_id"),
+        test_id="get_task_store",
         client_mock=ClientMock(
-            method_path="task_state.get",
+            method_path="task_store.get",
             args=(TI_ID, "job_id"),
-            response=TaskStateResult(value="spark_app_001"),
+            response=TaskStoreResult(value="spark_app_001"),
         ),
-        expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
+        expected_body={"value": "spark_app_001", "type": "TaskStoreResult"},
     ),
     RequestTestCase(
-        message=SetTaskState(
+        message=SetTaskStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
             expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
         ),
-        test_id="set_task_state",
+        test_id="set_task_store",
         client_mock=ClientMock(
-            method_path="task_state.set",
+            method_path="task_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2814,15 +2863,15 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetTaskState(
+        message=SetTaskStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
             expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
         ),
-        test_id="set_task_state_with_expires_at",
+        test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
-            method_path="task_state.set",
+            method_path="task_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2830,20 +2879,20 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteTaskState(ti_id=TI_ID, key="job_id"),
-        test_id="delete_task_state",
+        message=DeleteTaskStore(ti_id=TI_ID, key="job_id"),
+        test_id="delete_task_store",
         client_mock=ClientMock(
-            method_path="task_state.delete",
+            method_path="task_store.delete",
             args=(TI_ID, "job_id"),
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskState(ti_id=TI_ID),
-        test_id="clear_task_state",
+        message=ClearTaskStore(ti_id=TI_ID),
+        test_id="clear_task_store",
         client_mock=ClientMock(
-            method_path="task_state.clear",
+            method_path="task_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": False},
             response=OKResponse(ok=True),
@@ -2851,10 +2900,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskState(ti_id=TI_ID, all_map_indices=True),
-        test_id="clear_task_state_all_map_indices",
+        message=ClearTaskStore(ti_id=TI_ID, all_map_indices=True),
+        test_id="clear_task_store_all_map_indices",
         client_mock=ClientMock(
-            method_path="task_state.clear",
+            method_path="task_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": True},
             response=OKResponse(ok=True),
@@ -2862,34 +2911,34 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=GetAssetStateByName(name="debug_watcher_asset", key="watermark"),
-        test_id="get_asset_state_by_name",
+        message=GetAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        test_id="get_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.get",
+            method_path="asset_store.get",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
-            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
     ),
     RequestTestCase(
-        message=GetAssetStateByUri(uri="s3://bucket/key", key="watermark"),
-        test_id="get_asset_state_by_uri",
+        message=GetAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="get_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.get",
+            method_path="asset_store.get",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
-            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
     ),
     RequestTestCase(
-        message=SetAssetStateByName(
+        message=SetAssetStoreByName(
             name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
         ),
-        test_id="set_asset_state_by_name",
+        test_id="set_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.set",
+            method_path="asset_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2897,10 +2946,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetAssetStateByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
-        test_id="set_asset_state_by_uri",
+        message=SetAssetStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.set",
+            method_path="asset_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2908,10 +2957,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStateByName(name="debug_watcher_asset", key="watermark"),
-        test_id="delete_asset_state_by_name",
+        message=DeleteAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        test_id="delete_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.delete",
+            method_path="asset_store.delete",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2919,10 +2968,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStateByUri(uri="s3://bucket/key", key="watermark"),
-        test_id="delete_asset_state_by_uri",
+        message=DeleteAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="delete_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.delete",
+            method_path="asset_store.delete",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2930,10 +2979,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStateByName(name="debug_watcher_asset"),
-        test_id="clear_asset_state_by_name",
+        message=ClearAssetStoreByName(name="debug_watcher_asset"),
+        test_id="clear_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.clear",
+            method_path="asset_store.clear",
             args=(),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2941,10 +2990,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStateByUri(uri="s3://bucket/key"),
-        test_id="clear_asset_state_by_uri",
+        message=ClearAssetStoreByUri(uri="s3://bucket/key"),
+        test_id="clear_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.clear",
+            method_path="asset_store.clear",
             args=(),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),

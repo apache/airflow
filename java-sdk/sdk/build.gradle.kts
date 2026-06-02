@@ -27,6 +27,8 @@ val airflowSupervisorSchemaVersion: String by project
 
 plugins {
     kotlin("plugin.serialization") version "2.3.0"
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("org.jetbrains.dokka-javadoc") version "2.2.0"
     id("org.jsonschema2pojo") version "1.2.2"
 }
 
@@ -188,6 +190,16 @@ sourceSets {
     }
 }
 
+dokka {
+    dokkaSourceSets.configureEach {
+        // Suppress everything in 'execution' since it's implementation detail.
+        perPackageOption {
+            matchingRegex = """org\.apache\.airflow\.sdk\.execution.*"""
+            suppress.set(true)
+        }
+    }
+}
+
 tasks.named("generateJsonSchema2Pojo") {
     dependsOn("generatePointers")
 }
@@ -197,8 +209,7 @@ tasks.named("compileJava") {
 }
 
 tasks.named("compileKotlin") {
-    dependsOn("generateJsonSchema2Pojo")
-    dependsOn("generateDiscriminator")
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {

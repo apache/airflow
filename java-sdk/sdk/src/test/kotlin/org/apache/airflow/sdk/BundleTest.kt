@@ -29,7 +29,7 @@ internal class BundleTest {
   fun shouldIndexDagsByDagId() {
     val dag = Dag("dag")
 
-    val bundle = Bundle("0", listOf(dag))
+    val bundle = Bundle(listOf(dag))
 
     Assertions.assertEquals(mapOf("dag" to dag), bundle.dags)
   }
@@ -39,7 +39,7 @@ internal class BundleTest {
   fun shouldRejectDuplicateDagIds() {
     val error =
       Assertions.assertThrows(IllegalArgumentException::class.java) {
-        Bundle("0", listOf(Dag("dag"), Dag("dag")))
+        Bundle(listOf(Dag("dag"), Dag("dag")))
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)

@@ -28,6 +28,7 @@ from datetime import datetime
 from io import StringIO
 from multiprocessing import Process
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -48,6 +49,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -57,6 +59,12 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteCallback
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import ExecuteCallback
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 pytestmark = [pytest.mark.asyncio]
@@ -80,6 +88,23 @@ MOCK_COMMAND = {
     "dag_rel_path": "mock.py",
     "log_path": "mock.log",
     "bundle_info": {"name": "hello", "version": "abc"},
+    "type": "ExecuteTask",
+}
+
+MOCK_CALLBACK_COMMAND = {
+    "token": "mock",
+    "callback": {
+        "id": "12345678-1234-5678-1234-567812345678",
+        "fetch_method": "import_path",
+        "data": {
+            "path": "builtins.dict",
+            "kwargs": {"a": 1, "b": 2, "c": 3},
+        },
+    },
+    "dag_rel_path": "test.py",
+    "log_path": "test.log",
+    "bundle_info": {"name": "test_bundle", "version": "1.0"},
+    "type": "ExecuteCallback",
 }
 
 
@@ -1150,3 +1175,25 @@ class TestSignalHandling:
         with mock.patch("os.kill", side_effect=ProcessLookupError):
             worker_with_one_job.shutdown_handler()
         assert worker_with_one_job.drain is True
+
+
+class TestEdgeJobFetchedSerialization:
+    """Test that EdgeJobFetched serializes and deserializes with both ExecuteTask and ExecuteCallback."""
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
+    def test_serialize_with_execute_callback(self):
+        fetched = EdgeJobFetched(
+            dag_id=EXECUTE_CALLBACK_TAG,
+            task_id="12345678-1234-5678-1234-567812345678",
+            run_id=f"{EXECUTE_CALLBACK_TAG}-12345678-1234-5678-1234-567812345678",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_CALLBACK_COMMAND,  # type: ignore[arg-type]
+        )
+        serialized = fetched.model_dump_json()
+        deserialized = EdgeJobFetched(**json.loads(serialized))
+
+        assert deserialized.dag_id == EXECUTE_CALLBACK_TAG
+        assert deserialized.command.type == EXECUTE_CALLBACK_TAG
+        assert isinstance(deserialized.command, ExecuteCallback)

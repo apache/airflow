@@ -42,12 +42,13 @@ import javax.tools.Diagnostic
 /**
  * Container for the annotation-based Dag-authoring API.
  *
- * <p>This class is not instantiated directly. Its nested annotations drive the
- * [BuilderProcessor] annotation processor, which generates a {@code *Builder} class
+ * This class is not instantiated directly. Its nested annotations drive the
+ * [BuilderProcessor] annotation processor, which generates a `*Builder` class
  * for each class annotated with [Dag].
  *
- * <p>Example:
- * <pre>{@code
+ * Example:
+ *
+ * ```java
  * @Builder.Dag(id = "my_pipeline")
  * public class MyPipeline {
  *
@@ -55,23 +56,24 @@ import javax.tools.Diagnostic
  *     public long extract(Client client) { ... }
  *
  *     @Builder.Task(id = "transform")
- *     public long transform(Client client,
- *                           @Builder.XCom(task = "extract") long extracted) { ... }
+ *     public long transform(Client client, @Builder.XCom(task = "extract") long extracted) { ... }
  * }
- * }</pre>
+ * ```
  *
- * <p>The processor generates {@code MyPipelineBuilder.build()}, which returns a
- * fully-wired [Dag] ready to add to a [Bundle].
+ * The processor generates `MyPipelineBuilder.build()`, which returns a
+ * fully wired-up [Dag] ready to add to a [Bundle].
  */
 class Builder internal constructor() {
   /**
    * Annotation to automate a Dag-builder pattern.
    *
-   * When applied on a class Foo, this generates a FooBuilder class with a static build method
-   * to create the Dag structure automatically.
+   * When applied on a class Foo, this generates a FooBuilder class with a
+   * static build method to create the Dag structure automatically.
    *
-   * @param id Override the Dag ID. If empty or not provided, the annotated class's name is used by default.
-   * @param to Name of the Dag-builder class. If empty or not provided, use the annotated class name + "Builder".
+   * @param id Override the Dag ID. If empty or not provided, the annotated
+   *    class's name is used by default.
+   * @param to Name of the Dag-builder class. If empty or not provided, use the
+   *    annotated class name + "Builder".
    */
   @Target(AnnotationTarget.CLASS)
   @MustBeDocumented
@@ -83,7 +85,8 @@ class Builder internal constructor() {
   /**
    * Annotation to automate task definition in a Dag-builder pattern.
    *
-   * @param id Override the task ID. If empty or not provided, the annotated function's name is used by default.
+   * @param id Override the task ID. If empty or not provided, the annotated
+   *    function's name is used by default.
    */
   @Target(AnnotationTarget.FUNCTION)
   @MustBeDocumented
@@ -94,7 +97,8 @@ class Builder internal constructor() {
   /**
    * Annotation to mark a task definition's method parameter as an XCom input.
    *
-   * @param task The task ID to pull. If empty or not given, the annotated parameter's name is used by default.
+   * @param task The task ID to pull. If empty or not given, the annotated
+   *    parameter's name is used by default.
    * @param key The XCom key to pull. Defaults to the task's return value.
    */
   @Target(AnnotationTarget.VALUE_PARAMETER)
@@ -108,21 +112,22 @@ class Builder internal constructor() {
 /**
  * @suppress
  *
- * Annotation processor for [Builder.Dag]. Registered as a standard javac processor via
- * {@code META-INF/services/javax.annotation.processing.Processor}; not intended to be
+ * Annotation processor for [Builder.Dag].
+ *
+ * This is registered as a standard javac processor via
+ * `META-INF/services/javax.annotation.processing.Processor`; not intended to be
  * instantiated or referenced directly.
  *
- * <p>For each class annotated with [Builder.Dag], generates a {@code *Builder} class
+ * For each class annotated with [Builder.Dag], generates a `*Builder` class
  * containing:
- * <ul>
- *   <li>One inner class per [Builder.Task]-annotated method, implementing [Task].</li>
- *   <li>A static {@code build()} method that constructs the [Dag] and registers those
- *       inner classes as tasks.</li>
- * </ul>
  *
- * <p>[Builder.XCom]-annotated parameters are resolved via {@code client.getXCom} in the
- * generated {@code execute} body, with the result cast to the parameter's declared type.
- * Non-{@code void} return values are forwarded to {@code client.setXCom}.
+ * - One inner class per [Builder.Task]-annotated method, implementing [Task].
+ * - A static `build()` method that constructs the [Dag] and registers those
+ *   inner classes as tasks.
+ *
+ * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
+ * generated `execute` body, with the result cast to the parameter's declared
+ * type. Non-`void` return values are forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)

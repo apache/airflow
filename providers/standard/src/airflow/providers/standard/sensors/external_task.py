@@ -511,7 +511,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             )
 
     def _check_for_existence(self, session: Session) -> None:
-        dag_to_wait = DagModel.get_current(self.external_dag_id, session)
+        dag_to_wait = DagModel.get_current(self.external_dag_id, session=session)
 
         if not dag_to_wait:
             raise ExternalDagNotFoundError(f"The external DAG {self.external_dag_id} does not exist.")

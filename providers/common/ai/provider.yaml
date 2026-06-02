@@ -100,6 +100,41 @@ config:
         type: string
         example: "file:///tmp/airflow_durable_cache"
         default: ""
+      otel_export_enabled:
+        description: |
+          Attach pydantic-ai OpenTelemetry instrumentation to agents created by
+          this provider and emit GenAI spans (agent run, model call, tool call,
+          token usage) for ``AgentOperator`` / ``@task.agent`` / ``@task.llm``
+          and the other LLM operators.
+
+          Spans are emitted through Airflow's existing OpenTelemetry exporter,
+          configured under ``[traces]`` / the standard ``OTEL_EXPORTER_OTLP_*``
+          environment variables, and nest under the task span so they are
+          attributable to the originating DAG run and task instance. The
+          provider does not configure an exporter of its own: if core tracing
+          (``[traces] otel_on``) is not enabled in the worker process, no spans
+          are emitted. Off by default so installing the provider never starts
+          shipping spans without opt-in.
+        version_added: 0.4.0
+        type: boolean
+        example: "True"
+        default: "False"
+      capture_content:
+        description: |
+          Capture prompt, completion, and tool-call content on the emitted
+          GenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).
+
+          Off by default: only token counts, model id, latency, tool names, and
+          finish reason are recorded, never message text. Turning this on exports
+          model inputs and outputs to your tracing backend without redaction. Airflow's
+          secret masking applies to logs and rendered template fields, not to
+          OpenTelemetry span attributes, so it does not scrub this content.
+          Enable it only for debugging in a trusted environment. Has no effect
+          unless ``otel_export_enabled`` is ``True``.
+        version_added: 0.4.0
+        type: boolean
+        example: "False"
+        default: "False"
 
 
 connection-types:
