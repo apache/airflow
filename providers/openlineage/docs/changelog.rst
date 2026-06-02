@@ -37,7 +37,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``fix(openlineage): self-heal ProcessPoolExecutor on BrokenProcessPool (#67400)``
+* ``Self-heal ProcessPoolExecutor on BrokenProcessPool (#67400)``
 
 Misc
 ~~~~

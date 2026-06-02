@@ -33,11 +33,9 @@ Features
 ~~~~~~~~
 
 * ``Add 'GlueCatalogBatchDeletePartitionOperator' (#66721)``
-* ``Fix inconsistency in S3 transfer operators (#67378)``
 * ``Add 'OpenSearchServerlessCreateCollectionOperator' (#66549)``
 * ``Propogate 'verify' and 'botocore_config' in batch triggers (#67508)``
 * ``Add ExecuteCallback support to AWS ECS Executor (#63657)``
-* ``fix: Support log level parsing from container output in 'EcsRunTaskOperator' (#67180)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -45,7 +43,9 @@ Bug Fixes
 * ``Fix SageMaker processing stopped state handling (#67291)``
 * ``Fix EMR Serverless task failure on transient AWS throttling errors (#67222)``
 * ``Fix duplicated logs and memory issue with S3 log handler (#67144)``
-* ``fix: EksPodOperator 401 with cross-account AssumeRole via aws_conn_id (#65335)``
+* ``Fix EksPodOperator 401 with cross-account AssumeRole via aws_conn_id (#65335)``
+* ``Fix inconsistency in S3 transfer operators (#67378)``
+* ``Support log level parsing from container output in 'EcsRunTaskOperator' (#67180)``
 
 Misc
 ~~~~

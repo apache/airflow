@@ -33,7 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``feat: add idle/auto stop TTLs and master/worker instance flexibility … (#65653)``
+* ``Add idle/auto stop TTLs and master/worker instance flexibility … (#65653)``
 
 Bug Fixes
 ~~~~~~~~~

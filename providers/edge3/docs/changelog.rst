@@ -31,7 +31,7 @@ Changelog
 .....
 
 .. note::
-    This release of the Edge provider requires Apache Airflow 3.3+; the new execute-callback worker support (#67679) relies on APIs available only in Airflow 3.3 and later.
+    The new execute-callback worker support (#67679) requires Apache Airflow 3.3+, as it relies on APIs available only in Airflow 3.3 and later. The Edge provider itself continues to support Apache Airflow 3.0+; the execute-callback feature is simply inactive on older releases.
 
 Features
 ~~~~~~~~
@@ -44,7 +44,6 @@ Misc
 * ``Fix exceptions of positional session use in Edge provider (2) (#67812)``
 * ``Bump the edge-ui-package-updates group across 1 directory with 16 updates (#67740)``
 * ``Fix exceptions of positional session use in Edge provider (#67661)``
-* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
 * ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
 * ``Remove dead auth code from Airflow2 times in Edge (#67374)``
 * ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
@@ -52,9 +51,10 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
 * ``Correct README.rst common compat version reference inconsistency (#67554)``
 * ``Add some more clarifications on edge roles (#67379)``
-* ``docs(edge3): clarify WorkerQueuesBase.team_name is an experimental hint, cross-ref workload.rst (#66718)``
+* ``Clarify WorkerQueuesBase.team_name is an experimental hint, cross-ref workload.rst (#66718)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
