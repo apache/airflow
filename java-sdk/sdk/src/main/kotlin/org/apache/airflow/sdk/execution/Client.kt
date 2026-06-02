@@ -33,9 +33,9 @@ import org.apache.airflow.sdk.execution.comm.XComResult
  *
  * Transport contract between [org.apache.airflow.sdk.Client] and the coordinator.
  *
- * Implementations translate each SDK method call into the appropriate
- * message and unwrap the raw response model into the value expected by the public
- * SDK layer.
+ * Implementations translate each SDK method call into the appropriate message
+ * and unwrap the raw response model into the value expected by the public SDK
+ * layer.
  *
  * Currently, the only production implementation is [CoordinatorClient]. A test
  * double can be supplied via the internal [org.apache.airflow.sdk.Client]

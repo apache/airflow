@@ -70,7 +70,7 @@ class TaskTest {
   ): Bundle {
     val dag = Dag("test_dag")
     dag.addTask(taskId, taskClass)
-    return Bundle("1", listOf(dag))
+    return Bundle(listOf(dag))
   }
 
   private fun startupDetails(taskId: String): StartupDetails =

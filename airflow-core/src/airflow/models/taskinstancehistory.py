@@ -195,7 +195,7 @@ class TaskInstanceHistory(Base):
 
     @staticmethod
     @provide_session
-    def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
+    def record_ti(ti: TaskInstance, *, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
         exists_q = session.scalar(
             select(func.count(TaskInstanceHistory.task_id)).where(
@@ -221,6 +221,6 @@ class TaskInstanceHistory(Base):
             session.add(HITLDetailHistory(ti_hitl_detail))
 
     @provide_session
-    def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
+    def get_dagrun(self, *, session: Session = NEW_SESSION) -> DagRun:
         """Return the DagRun for this TaskInstanceHistory, matching TaskInstance."""
         return self.dag_run

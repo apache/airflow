@@ -55,25 +55,26 @@ private class Args(
 /**
  * Thrown when an Airflow API call returns an error response.
  *
- * <p>Extends [IllegalStateException] so callers can handle it without checked-exception
- * machinery.
+ * Extends [IllegalStateException] so callers can handle it without
+ * checked-exception machinery.
  */
 class ApiError(
   message: String,
 ) : IllegalStateException(message)
 
 /**
- * Connects this JVM process to the Airflow coordinator and dispatches task-execution
- * requests to the registered [Bundle].
+ * Connects this JVM process to the Airflow coordinator and dispatches task
+ * execution requests to the registered [Bundle].
  *
- * <p>The typical entry point is:
- * <pre>{@code
+ * The typical entry point is:
+ *
+ * ```java
  * public static void main(String[] args) {
  *     Server.create(args).serve(new MyBundleBuilder().build());
  * }
- * }</pre>
+ * ```
  *
- * <p>The process exits when the coordinator closes the connection (normally after
+ * The process exits when the coordinator closes the connection (normally after
  * one task-instance execution).
  */
 class Server(
@@ -85,14 +86,13 @@ class Server(
      * Parses coordinator addresses from command-line arguments and returns a
      * ready-to-use [Server].
      *
-     * <p>The arguments are supplied automatically by Airflow and are not intended
+     * The arguments are supplied automatically by Airflow and are not intended
      * to be constructed by hand:
-     * <ul>
-     *   <li>{@code --comm host:port} — address for task-execution messages.</li>
-     *   <li>{@code --logs host:port} — address for log forwarding.</li>
-     * </ul>
      *
-     * @param args Command-line arguments as received by {@code main}.
+     * * `--comm host:port` address for task-execution messages.
+     * * `--logs host:port` address for log forwarding.
+     *
+     * @param args Command-line arguments as received by `main`.
      * @return A configured [Server] ready to call [serve].
      */
     @JvmStatic
@@ -108,8 +108,8 @@ class Server(
    * Blocking entry point: connects to the coordinator and serves task-execution
    * requests from the given [bundle].
    *
-   * <p>This is a convenience wrapper around [serveAsync] for use from a plain
-   * {@code main} method. Prefer [serveAsync] when calling from an existing coroutine.
+   * This is a convenience wrapper around [serveAsync] for use from a plain
+   * `main` method. Prefer [serveAsync] when calling from an existing coroutine.
    * The call returns when the coordinator closes the connection (normally after
    * one task-instance execution).
    *
@@ -122,16 +122,16 @@ class Server(
   }
 
   /**
-   * Suspending entry point: connects to the coordinator and serves task-execution
-   * requests from the given [bundle].
+   * Suspending entry point: connects to the coordinator and serves
+   * task-execution requests from the given [bundle].
    *
-   * <p>Opens both the task-execution channel ({@code --comm}) and the log-forwarding
-   * channel ({@code --logs}) concurrently, then processes incoming requests until the
-   * coordinator closes the connection (normally after one task-instance execution).
-   * The coroutine returns once both channels have been closed.
+   * Opens both the task-execution channel (`--comm`) and the log-forwarding
+   * channel (`--logs`) concurrently, then processes incoming requests until the
+   * coordinator closes the connection (normally after one task-instance
+   * execution). The coroutine returns once both channels have been closed.
    *
-   * <p>Use this variant when calling from an existing coroutine scope; use the
-   * blocking [serve] from a plain {@code main} method.
+   * Use this variant when calling from an existing coroutine scope; use the
+   * blocking [serve] from a plain `main` method.
    *
    * @param bundle Bundle containing all Dags this process can execute.
    *

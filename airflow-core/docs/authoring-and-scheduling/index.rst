@@ -33,6 +33,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
     connections
     dynamic-task-mapping
     assets
+    Non-Python Task SDKs <language-sdks/index>
 
 .. _scheduling-section:
 

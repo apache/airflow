@@ -32,15 +32,16 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
-    from airflow.sdk.serde import allow_class
-
-    _allow_class: object | None = allow_class
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
-    _allow_class = None
+    _CORE_WALKER = False
 
-requires_allow_class = pytest.mark.skipif(
-    _allow_class is None,
-    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+# Returning the Pydantic instance through XCom (rather than a dict) only happens
+# on cores that register declared ``output_type`` classes from the worker-side
+# DAG walk. On older cores the operator dumps to a dict, so these tests skip.
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
 )
 
 
@@ -104,7 +105,7 @@ class TestLLMOperator:
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
 
-    @requires_allow_class
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
         """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
@@ -133,27 +134,13 @@ class TestLLMOperator:
             model_settings={"temperature": 0.9},
         )
 
-    @requires_allow_class
-    def test_init_rejects_nested_output_type(self):
-        """output_type defined inside a function carries ``<locals>`` and can't survive XCom."""
+    def test_declares_output_type_for_deserialization(self):
+        """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization.
 
-        def _build_op():
-            class Nested(BaseModel):
-                v: int
-
-            return LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Nested)
-
-        with pytest.raises(ValueError, match="defined inside a function"):
-            _build_op()
-
-    @requires_allow_class
-    def test_init_registers_output_type_in_extra_allowed(self):
-        """A module-scope BaseModel output_type is auto-registered for XCom deserialization."""
-        from airflow.sdk.module_loading import qualname
-        from airflow.sdk.serde import _extra_allowed
-
-        LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Entities)
-        assert qualname(Entities) in _extra_allowed
+        Registration happens in the core walk over the loaded DAG (covered by the
+        task-runner tests), not as an ``__init__`` side effect.
+        """
+        assert "output_type" in LLMOperator.deserialization_allowed_class_fields
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_serialize_output_returns_dict(self, mock_hook_cls):
@@ -354,7 +341,7 @@ class TestLLMOperatorApproval:
 
         assert result == "edited"
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_rehydrates_pydantic_for_structured_output(self):
         """When output_type is a BaseModel, execute_complete returns the model, not the JSON string."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)

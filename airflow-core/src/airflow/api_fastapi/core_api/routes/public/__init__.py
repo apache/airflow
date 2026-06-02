@@ -28,7 +28,7 @@ from airflow.api_fastapi.core_api.routes.public.backfills import backfills_route
 from airflow.api_fastapi.core_api.routes.public.config import config_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_parsing import dag_parsing_router
-from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
+from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_at_dag_router, dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
 from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
 from airflow.api_fastapi.core_api.routes.public.dag_tags import dag_tags_router
@@ -69,6 +69,7 @@ authenticated_router.include_router(assets_router)
 authenticated_router.include_router(backfills_router)
 authenticated_router.include_router(connections_router)
 authenticated_router.include_router(dag_run_router)
+authenticated_router.include_router(dag_run_at_dag_router)
 authenticated_router.include_router(dag_sources_router)
 authenticated_router.include_router(dag_stats_router)
 authenticated_router.include_router(config_router)

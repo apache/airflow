@@ -30,7 +30,7 @@ class RunnableExecDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, dep_context, *, session):
-        logical_date = ti.get_dagrun(session).logical_date
+        logical_date = ti.get_dagrun(session=session).logical_date
         if logical_date is None:
             return
 
