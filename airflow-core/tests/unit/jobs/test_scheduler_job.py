@@ -36,7 +36,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -3052,10 +3052,10 @@ class TestSchedulerJob:
         assert res == 6
         session.flush()
         for ti in tis1[:3] + tis2[:3]:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == TaskInstanceState.QUEUED
         for ti in tis1[3:] + tis2[3:]:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == TaskInstanceState.SCHEDULED
 
         # The remaining TIs are queued
@@ -3064,7 +3064,7 @@ class TestSchedulerJob:
         session.flush()
 
         for ti in tis1 + tis2:
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
@@ -3296,6 +3296,40 @@ class TestSchedulerJob:
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.NONE, "Tasks run by Backfill Jobs should be treated the same"
+
+    def test_adopt_or_reset_orphaned_tasks_loads_state_for_reset_logging(
+        self, dag_maker, session, mock_executor
+    ):
+        with dag_maker("test_adopt_or_reset_orphaned_tasks_loads_state_for_reset_logging", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = scheduler_job.id
+        session.commit()
+        session.expunge_all()
+
+        def refuse_adoption(tis):
+            assert len(tis) == 1
+            # ``repr(ti)`` in the reset path reads both ``state`` and ``map_index``; the query
+            # must load both so the reset log stays accurate (and never lazy-loads on detach).
+            unloaded = inspect(tis[0]).unloaded
+            assert "state" not in unloaded
+            assert "map_index" not in unloaded
+            # repr must render the real state, not the ``<deferred>`` fallback.
+            assert "queued" in repr(tis[0])
+            return tis
+
+        mock_executor.try_adopt_task_instances.side_effect = refuse_adoption
+
+        self.job_runner = SchedulerJobRunner(job=Job(), num_runs=0)
+
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 1
 
     def test_adopt_or_reset_orphaned_tasks_multiple_executors(self, dag_maker, mock_executors):
         """
@@ -4014,7 +4048,7 @@ class TestSchedulerJob:
         session = settings.Session()
 
         ti = dr.get_task_instance("dummy")
-        ti.set_state(State.SUCCESS, session)
+        ti.set_state(State.SUCCESS, session=session)
 
         with mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard:
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
@@ -4092,7 +4126,7 @@ class TestSchedulerJob:
         session = settings.Session()
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("test_task")
-        ti.set_state(state, session)
+        ti.set_state(state, session=session)
 
         self.job_runner._do_scheduling(session)
 
@@ -4126,7 +4160,7 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun()
 
         ti = dr.get_task_instance("dummy")
-        ti.set_state(State.SUCCESS, session)
+        ti.set_state(State.SUCCESS, session=session)
 
         self.job_runner._do_scheduling(session)
 

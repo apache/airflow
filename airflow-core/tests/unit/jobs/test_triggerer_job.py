@@ -1933,19 +1933,19 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
-            # AIP-103 task/asset state — triggerer has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — triggerer has no task execution context.
+            "GetTaskStore",
+            "SetTaskStore",
+            "DeleteTaskStore",
+            "ClearTaskStore",
+            "GetAssetStoreByName",
+            "GetAssetStoreByUri",
+            "SetAssetStoreByName",
+            "SetAssetStoreByUri",
+            "DeleteAssetStoreByName",
+            "DeleteAssetStoreByUri",
+            "ClearAssetStoreByName",
+            "ClearAssetStoreByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1967,9 +1967,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStoreResult",
+            "AssetStoreResult",
         }
 
         supervisor_diff = (

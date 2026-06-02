@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Dag that demonstrates the canonical AIP-103 task state pattern: a task submits a
-long-running external job, stores the job handle in task state, and polls
+Example Dag that demonstrates the canonical AIP-103 task store pattern: a task submits a
+long-running external job, stores the job handle in task store, and polls
 until completion.
 
 The first attempt always fails after submitting the job (simulating a
 worker crash / connection to external system being lost). The retry reads
-the job ID from task state and reattaches to the already-running job instead
+the job ID from task store and reattaches to the already-running job instead
 of submitting a duplicate.
 """
 
@@ -50,27 +50,27 @@ def _poll_job(job_id: str) -> dict:
 
 
 with DAG(
-    dag_id="example_task_state",
+    dag_id="example_task_store",
     schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["example", "task-state"],
+    tags=["example", "task-store"],
     doc_md=__doc__,
 ):
 
     @task(retries=2, retry_delay=timedelta(seconds=5))
     def run_job(**context):
-        task_state = context["task_state"]
+        task_store = context["task_store"]
         try_number = context["ti"].try_number
 
-        job_id = task_state.get("job_id")
+        job_id = task_store.get("job_id")
         if job_id:
             print(f"Try {try_number}: reattaching to existing job: {job_id}")
         else:
             job_id = _submit_job()
             # Store with NEVER_EXPIRE so the job ID survives across all retries.
-            task_state.set("job_id", job_id, retention=NEVER_EXPIRE)
-            task_state.set("submitted_at", datetime.now(tz=timezone.utc).isoformat())
+            task_store.set("job_id", job_id, retention=NEVER_EXPIRE)
+            task_store.set("submitted_at", datetime.now(tz=timezone.utc).isoformat())
             print(f"Try {try_number}: submitted job: {job_id}")
 
             # Simulate a crash after submission on the first attempt.
@@ -79,10 +79,10 @@ with DAG(
                 f"Simulated failure after submitting {job_id}. The next retry will reattach to this job."
             )
 
-        task_state.set("status", "running")
+        task_store.set("status", "running")
         result = _poll_job(job_id)
-        task_state.set("status", "complete")
-        task_state.set("result", json.dumps(result))
+        task_store.set("status", "complete")
+        task_store.set("result", json.dumps(result))
 
         print(f"Try {try_number}: job complete — {result['rows_written']} rows written")
         return result["rows_written"]

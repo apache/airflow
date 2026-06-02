@@ -73,7 +73,7 @@ spec:
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.otelCollector.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "otelCollector.serviceAccountName" . }}
-      {{- include "serviceLinks" . | nindent 6 }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       {{- if .Values.otelCollector.priorityClassName }}
       priorityClassName: {{ .Values.otelCollector.priorityClassName }}
       {{- end }}

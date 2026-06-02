@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.14",
+    "ruff==0.15.15",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",

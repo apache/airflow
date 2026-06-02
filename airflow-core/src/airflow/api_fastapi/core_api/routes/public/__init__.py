@@ -21,14 +21,14 @@ from fastapi import Depends, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.routes.public.asset_state import asset_state_router
+from airflow.api_fastapi.core_api.routes.public.asset_store import asset_store_router
 from airflow.api_fastapi.core_api.routes.public.assets import assets_router
 from airflow.api_fastapi.core_api.routes.public.auth import auth_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.public.config import config_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_parsing import dag_parsing_router
-from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
+from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_at_dag_router, dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
 from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
 from airflow.api_fastapi.core_api.routes.public.dag_tags import dag_tags_router
@@ -46,7 +46,7 @@ from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
 from airflow.api_fastapi.core_api.routes.public.pools import pools_router
 from airflow.api_fastapi.core_api.routes.public.providers import providers_router
 from airflow.api_fastapi.core_api.routes.public.task_instances import task_instances_router
-from airflow.api_fastapi.core_api.routes.public.task_state import task_state_router
+from airflow.api_fastapi.core_api.routes.public.task_store import task_store_router
 from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
@@ -69,6 +69,7 @@ authenticated_router.include_router(assets_router)
 authenticated_router.include_router(backfills_router)
 authenticated_router.include_router(connections_router)
 authenticated_router.include_router(dag_run_router)
+authenticated_router.include_router(dag_run_at_dag_router)
 authenticated_router.include_router(dag_sources_router)
 authenticated_router.include_router(dag_stats_router)
 authenticated_router.include_router(config_router)
@@ -81,8 +82,8 @@ authenticated_router.include_router(job_router)
 authenticated_router.include_router(plugins_router)
 authenticated_router.include_router(pools_router)
 authenticated_router.include_router(providers_router)
-authenticated_router.include_router(asset_state_router)
-authenticated_router.include_router(task_state_router)
+authenticated_router.include_router(asset_store_router)
+authenticated_router.include_router(task_store_router)
 authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_router)
 authenticated_router.include_router(tasks_router)

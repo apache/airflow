@@ -2980,6 +2980,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/clearDagRuns:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Runs
+      description: Clear multiple Dag Runs in a single request.
+      operationId: clear_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunCollectionResponse'
+                title: Response Clear Dag Runs
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagSources/{dag_id}:
     get:
       tags:
@@ -5570,13 +5633,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/states:
+  /api/v2/assets/{asset_id}/store:
     get:
       tags:
-      - Asset State
-      summary: List Asset States
-      description: List all state entries for an asset.
-      operationId: list_asset_states
+      - Asset Store
+      summary: List Asset Store
+      description: List all store entries for an asset.
+      operationId: list_asset_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5609,7 +5672,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssetStateCollectionResponse'
+                $ref: '#/components/schemas/AssetStoreCollectionResponse'
         '401':
           content:
             application/json:
@@ -5636,10 +5699,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Asset State
-      summary: Clear Asset State
-      description: Delete all state keys for an asset.
-      operationId: clear_asset_state
+      - Asset Store
+      summary: Clear Asset Store
+      description: Delete all store keys for an asset.
+      operationId: clear_asset_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5677,13 +5740,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/states/{key}:
+  /api/v2/assets/{asset_id}/store/{key}:
     get:
       tags:
-      - Asset State
-      summary: Get Asset State
-      description: Get a single asset state entry.
-      operationId: get_asset_state
+      - Asset Store
+      summary: Get Asset Store
+      description: Get a single asset store entry.
+      operationId: get_asset_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5706,7 +5769,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssetStateResponse'
+                $ref: '#/components/schemas/AssetStoreResponse'
         '401':
           content:
             application/json:
@@ -5733,10 +5796,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     put:
       tags:
-      - Asset State
-      summary: Set Asset State
-      description: Set an asset state value. Creates or overwrites the key.
-      operationId: set_asset_state
+      - Asset Store
+      summary: Set Asset Store
+      description: Set an asset store value. Creates or overwrites the key.
+      operationId: set_asset_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5758,7 +5821,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssetStateBody'
+              $ref: '#/components/schemas/AssetStoreBody'
       responses:
         '204':
           description: Successful Response
@@ -5788,10 +5851,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Asset State
-      summary: Delete Asset State
-      description: Delete a single asset state key. No-op if the key does not exist.
-      operationId: delete_asset_state
+      - Asset Store
+      summary: Delete Asset Store
+      description: Delete a single asset store key. No-op if the key does not exist.
+      operationId: delete_asset_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5835,13 +5898,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store:
     get:
       tags:
-      - Task State
-      summary: List Task States
-      description: List all task state entries for a task instance.
-      operationId: list_task_states
+      - Task Store
+      summary: List Task Store
+      description: List all task store entries for a task instance.
+      operationId: list_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5894,7 +5957,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStateCollectionResponse'
+                $ref: '#/components/schemas/TaskStoreCollectionResponse'
         '401':
           content:
             application/json:
@@ -5921,16 +5984,16 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Task State
-      summary: Clear Task State
-      description: 'Delete all task state keys for a task instance.
+      - Task Store
+      summary: Clear Task Store
+      description: 'Delete all task store keys for a task instance.
 
 
-        When ``all_map_indices=true``, state is cleared for every map index of the
+        When ``all_map_indices=true``, store is cleared for every map index of the
         task and
 
         the ``map_index`` parameter is ignored.'
-      operationId: clear_task_state
+      operationId: clear_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5995,13 +6058,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}:
     get:
       tags:
-      - Task State
-      summary: Get Task State
-      description: Get a single task state entry.
-      operationId: get_task_state
+      - Task Store
+      summary: Get Task Store
+      description: Get a single task store entry.
+      operationId: get_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6044,7 +6107,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStateResponse'
+                $ref: '#/components/schemas/TaskStoreResponse'
         '401':
           content:
             application/json:
@@ -6071,10 +6134,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     put:
       tags:
-      - Task State
-      summary: Set Task State
-      description: Set a task state value. Creates or overwrites the key.
-      operationId: set_task_state
+      - Task Store
+      summary: Set Task Store
+      description: Set a task store value. Creates or overwrites the key.
+      operationId: set_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6116,7 +6179,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskStateBody'
+              $ref: '#/components/schemas/TaskStoreBody'
       responses:
         '204':
           description: Successful Response
@@ -6146,10 +6209,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     patch:
       tags:
-      - Task State
-      summary: Patch Task State
-      description: Update the value of an existing task state key.
-      operationId: patch_task_state
+      - Task Store
+      summary: Patch Task Store
+      description: Update the value of an existing task store key.
+      operationId: patch_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6191,7 +6254,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskStatePatchBody'
+              $ref: '#/components/schemas/TaskStorePatchBody'
       responses:
         '200':
           description: Successful Response
@@ -6224,10 +6287,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Task State
-      summary: Delete Task State
-      description: Delete a single task state key. No-op if the key does not exist.
-      operationId: delete_task_state
+      - Task Store
+      summary: Delete Task Store
+      description: Delete a single task store key. No-op if the key does not exist.
+      operationId: delete_task_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -11435,7 +11498,7 @@ components:
       - watchers
       title: AssetResponse
       description: Asset serializer for responses.
-    AssetStateBody:
+    AssetStoreBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -11443,25 +11506,25 @@ components:
       type: object
       required:
       - value
-      title: AssetStateBody
-      description: Request body for setting an asset state value.
-    AssetStateCollectionResponse:
+      title: AssetStoreBody
+      description: Request body for setting an asset store value.
+    AssetStoreCollectionResponse:
       properties:
-        asset_states:
+        asset_store:
           items:
-            $ref: '#/components/schemas/AssetStateResponse'
+            $ref: '#/components/schemas/AssetStoreResponse'
           type: array
-          title: Asset States
+          title: Asset Store
         total_entries:
           type: integer
           title: Total Entries
       type: object
       required:
-      - asset_states
+      - asset_store
       - total_entries
-      title: AssetStateCollectionResponse
-      description: All asset state entries for an asset.
-    AssetStateResponse:
+      title: AssetStoreCollectionResponse
+      description: All asset store entries for an asset.
+    AssetStoreResponse:
       properties:
         key:
           type: string
@@ -11477,8 +11540,8 @@ components:
       - key
       - value
       - updated_at
-      title: AssetStateResponse
-      description: A single asset state key/value pair with metadata.
+      title: AssetStoreResponse
+      description: A single asset store key/value pair with metadata.
     AssetWatcherResponse:
       properties:
         name:
@@ -11883,6 +11946,49 @@ components:
       - dag_run_id
       title: BulkDAGRunBody
       description: Request body for bulk delete operations on Dag Runs.
+    BulkDAGRunClearBody:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+        only_failed:
+          type: boolean
+          title: Only Failed
+          default: false
+        only_new:
+          type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest Dag version without
+            clearing existing tasks.
+          default: false
+        run_on_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Run On Latest Version
+          description: (Experimental) Run on the latest bundle version of the Dag
+            after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
+            parameter, then the ``[core] rerun_with_latest_version`` config option,
+            and finally ``False``.
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/BulkDAGRunBody'
+          type: array
+          minItems: 1
+          title: Dag Runs
+      additionalProperties: false
+      type: object
+      required:
+      - dag_runs
+      title: BulkDAGRunClearBody
+      description: Request body for the bulk clear Dag Runs endpoint.
     BulkDeleteAction_BulkDAGRunBody_:
       properties:
         action:
@@ -13093,9 +13199,9 @@ components:
           - type: 'null'
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the Dag
-            after clearing the Dag Run. If not specified, falls back to the DAG-level
-            ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version``
-            config option, and finally ``False`` (the historical default for clear/rerun).
+            after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
+            parameter, then the ``[core] rerun_with_latest_version`` config option,
+            and finally ``False``.
         note:
           anyOf:
           - type: string
@@ -13995,6 +14101,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         href:
           type: string
           title: Href
@@ -14940,6 +15052,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         bundle_url:
           type: string
           title: Bundle Url
@@ -15888,7 +16006,7 @@ components:
       - extra_links
       title: TaskResponse
       description: Task serializer for responses.
-    TaskStateBody:
+    TaskStoreBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -15905,8 +16023,8 @@ components:
       type: object
       required:
       - value
-      title: TaskStateBody
-      description: 'Request body for setting a task state value.
+      title: TaskStoreBody
+      description: 'Request body for setting a task store value.
 
 
         ``expires_at`` controls expiry:
@@ -15917,23 +16035,23 @@ components:
         - ``null``: never expire.
 
         - aware datetime: expire at that time.'
-    TaskStateCollectionResponse:
+    TaskStoreCollectionResponse:
       properties:
-        task_states:
+        task_store:
           items:
-            $ref: '#/components/schemas/TaskStateResponse'
+            $ref: '#/components/schemas/TaskStoreResponse'
           type: array
-          title: Task States
+          title: Task Store
         total_entries:
           type: integer
           title: Total Entries
       type: object
       required:
-      - task_states
+      - task_store
       - total_entries
-      title: TaskStateCollectionResponse
-      description: All task state entries for a task instance.
-    TaskStatePatchBody:
+      title: TaskStoreCollectionResponse
+      description: All task store entries for a task instance.
+    TaskStorePatchBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -15941,10 +16059,10 @@ components:
       type: object
       required:
       - value
-      title: TaskStatePatchBody
-      description: Request body for patching only the value of an existing task state
+      title: TaskStorePatchBody
+      description: Request body for patching only the value of an existing task store
         key.
-    TaskStateResponse:
+    TaskStoreResponse:
       properties:
         key:
           type: string
@@ -15967,8 +16085,8 @@ components:
       - value
       - updated_at
       - expires_at
-      title: TaskStateResponse
-      description: A single task state key/value pair with metadata.
+      title: TaskStoreResponse
+      description: A single task store key/value pair with metadata.
     TimeDelta:
       properties:
         __type:

@@ -1136,7 +1136,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             # AIP-103: task_state is a live accessor backed by the supervisor pipe —
             # not serializable and meaningless in a virtualenv subprocess.
             # asset_state is excluded via its absence: only present when a task has inlets.
-            intentionally_excluded_context_keys.add("task_state")
+            intentionally_excluded_context_keys.add("task_store")
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
