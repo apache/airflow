@@ -50,8 +50,15 @@ def upgrade():
         sa.Column("key", sa.String(length=512), nullable=False),
         sa.Column("value", sa.Text().with_variant(mysql.MEDIUMTEXT(), "mysql"), nullable=False),
         sa.Column("updated_at", UtcDateTime(), nullable=False),
+        sa.Column("last_updated_by_ti_id", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(
             ["asset_id"], ["asset.id"], name="asset_store_asset_fkey", ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["last_updated_by_ti_id"],
+            ["task_instance.id"],
+            name="asset_store_ti_fkey",
+            ondelete="SET NULL",
         ),
         sa.PrimaryKeyConstraint("asset_id", "key", name="asset_store_pkey"),
     )

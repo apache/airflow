@@ -21,6 +21,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import structlog
 from sqlalchemy import delete, select
@@ -278,17 +279,36 @@ class MetastoreStoreBackend(BaseStoreBackend):
         )
         return row.value if row is not None else None
 
-    def _set_asset_store(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
+    def _set_asset_store(
+        self, scope: AssetScope, key: str, value: str, *, ti_id: UUID | None = None, session: Session
+    ) -> None:
         now = timezone.utcnow()
-        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
+        values = dict(
+            asset_id=scope.asset_id, key=key, value=value, updated_at=now, last_updated_by_ti_id=ti_id
+        )
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, last_updated_by_ti_id=ti_id),
         )
         session.execute(stmt)
+
+    @provide_session
+    def set_asset_store(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        ti_id: UUID | None,
+        session: Session | None = NEW_SESSION,
+    ) -> None:
+        """Write an asset store entry, recording which task instance made the write."""
+        if TYPE_CHECKING:
+            assert session is not None
+        self._set_asset_store(scope, key, value, ti_id=ti_id, session=session)
 
     def _delete_asset_store(self, scope: AssetScope, key: str, *, session: Session) -> None:
         session.execute(
@@ -434,19 +454,34 @@ class MetastoreStoreBackend(BaseStoreBackend):
         return row.value if row is not None else None
 
     async def _aset_asset_store(
-        self, scope: AssetScope, key: str, value: str, *, session: AsyncSession
+        self, scope: AssetScope, key: str, value: str, *, ti_id: UUID | None = None, session: AsyncSession
     ) -> None:
         now = timezone.utcnow()
-        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
+        values = dict(
+            asset_id=scope.asset_id, key=key, value=value, updated_at=now, last_updated_by_ti_id=ti_id
+        )
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, last_updated_by_ti_id=ti_id),
         )
         await session.execute(stmt)
+
+    async def aset_asset_store(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        ti_id: UUID | None,
+        session: AsyncSession | None = None,
+    ) -> None:
+        """Write an asset store entry, recording which task instance made the write."""
+        async with _async_session(session) as s:
+            await self._aset_asset_store(scope, key, value, ti_id=ti_id, session=s)
 
     async def _adelete_asset_store(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(

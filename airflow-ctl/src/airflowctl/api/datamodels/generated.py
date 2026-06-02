@@ -49,6 +49,17 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetStoreLastUpdatedBy(BaseModel):
+    """
+    Identifies the task instance that last wrote an asset store entry.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int, Field(title="Map Index")]
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -1272,6 +1283,7 @@ class AssetStoreResponse(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    last_updated_by: AssetStoreLastUpdatedBy | None = None
 
 
 class BackfillPostBody(BaseModel):

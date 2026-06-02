@@ -41,9 +41,11 @@ from airflow.api_fastapi.execution_api.datamodels.asset_store import (
     AssetStorePutBody,
     AssetStoreResponse,
 )
-from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute
 from airflow.models.asset import AssetModel
 from airflow.state import get_state_backend
+from airflow.state.metastore import MetastoreStoreBackend
 
 # TODO(AIP-103): enforce that the requesting task is registered with the asset
 # (via task_inlet_asset_reference or task_outlet_asset_reference) before
@@ -103,10 +105,16 @@ def set_asset_store_by_name(
     key: Annotated[str, Query(min_length=1)],
     body: AssetStorePutBody,
     session: SessionDep,
+    token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset store value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
+    backend = get_state_backend()
+    scope = AssetScope(asset_id=asset_id)
+    if isinstance(backend, MetastoreStoreBackend):
+        backend.set_asset_store(scope, key, json.dumps(body.value), ti_id=token.id, session=session)
+    else:
+        backend.set(scope, key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -153,10 +161,16 @@ def set_asset_store_by_uri(
     key: Annotated[str, Query(min_length=1)],
     body: AssetStorePutBody,
     session: SessionDep,
+    token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset store value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
+    backend = get_state_backend()
+    scope = AssetScope(asset_id=asset_id)
+    if isinstance(backend, MetastoreStoreBackend):
+        backend.set_asset_store(scope, key, json.dumps(body.value), ti_id=token.id, session=session)
+    else:
+        backend.set(scope, key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)

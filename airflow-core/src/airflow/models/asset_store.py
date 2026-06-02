@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text
+from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text, Uuid
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +43,7 @@ class AssetStoreModel(Base):
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    last_updated_by_ti_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint("asset_id", "key", name="asset_store_pkey"),
@@ -50,5 +52,11 @@ class AssetStoreModel(Base):
             ["asset.id"],
             name="asset_store_asset_fkey",
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["last_updated_by_ti_id"],
+            ["task_instance.id"],
+            name="asset_store_ti_fkey",
+            ondelete="SET NULL",
         ),
     )

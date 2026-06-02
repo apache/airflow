@@ -112,12 +112,23 @@ export type AssetStoreCollectionResponse = {
 };
 
 /**
+ * Identifies the task instance that last wrote an asset store entry.
+ */
+export type AssetStoreLastUpdatedBy = {
+    dag_id: string;
+    run_id: string;
+    task_id: string;
+    map_index: number;
+};
+
+/**
  * A single asset store key/value pair with metadata.
  */
 export type AssetStoreResponse = {
     key: string;
     value: JsonValue;
     updated_at: string;
+    last_updated_by?: AssetStoreLastUpdatedBy | null;
 };
 
 /**

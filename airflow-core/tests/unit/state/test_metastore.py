@@ -429,6 +429,45 @@ class TestMetastoreStoreBackendAssetScope:
 
         assert backend.get(scope2, "watermark", session=session) is None
 
+    def test_set_asset_store_writes_ti_id(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        backend.set_asset_store(scope, "watermark", "v", ti_id=ti.id)
+
+        with create_session() as s:
+            row = s.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id))
+        assert row is not None
+        assert row.last_updated_by_ti_id == ti.id
+
+    @pytest.mark.backend("postgres", "mysql", "sqlite")
+    def test_set_asset_store_upsert_updates_ti_id(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti1 = create_task_instance(task_id="task1")
+        ti2 = create_task_instance(task_id="task2")
+        scope = AssetScope(asset_id=asset_committed.id)
+        backend.set_asset_store(scope, "watermark", "v1", ti_id=ti1.id)
+        backend.set_asset_store(scope, "watermark", "v2", ti_id=ti2.id)
+
+        with create_session() as s:
+            row = s.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id))
+        assert row is not None
+        assert row.value == "v2"
+        assert row.last_updated_by_ti_id == ti2.id
+
+    def test_set_without_ti_id_stores_null(
+        self, session: Session, backend: MetastoreStoreBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset.id)
+        backend.set(scope, "watermark", "v", session=session)
+        session.flush()
+
+        row = session.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id))
+        assert row is not None
+        assert row.last_updated_by_ti_id is None
+
     def test_cleanup_does_not_touch_asset_state(
         self, session: Session, backend: MetastoreStoreBackend, asset: AssetModel
     ):
@@ -509,6 +548,20 @@ class TestMetastoreStoreBackendAsync:
         await backend.aclear(scope)
         assert await backend.aget(scope, "watermark") is None
         assert await backend.aget(scope, "file_count") is None
+
+    async def test_aset_asset_store_writes_ti_id(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        await backend.aset_asset_store(scope, "watermark", "v", ti_id=ti.id)
+
+        async with create_session_async() as s:
+            row = await s.scalar(
+                select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id)
+            )
+        assert row is not None
+        assert row.last_updated_by_ti_id == ti.id
 
     async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreStoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)

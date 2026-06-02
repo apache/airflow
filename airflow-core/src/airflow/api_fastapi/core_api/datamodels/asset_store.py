@@ -26,12 +26,22 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 _MAX_SERIALIZED_BYTES = 65535
 
 
+class AssetStoreLastUpdatedBy(BaseModel):
+    """Identifies the task instance that last wrote an asset store entry."""
+
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int
+
+
 class AssetStoreResponse(BaseModel):
     """A single asset store key/value pair with metadata."""
 
     key: str
     value: JsonValue
     updated_at: datetime
+    last_updated_by: AssetStoreLastUpdatedBy | None = None
 
 
 class AssetStoreCollectionResponse(BaseModel):

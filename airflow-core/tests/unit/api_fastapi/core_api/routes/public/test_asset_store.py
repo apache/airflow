@@ -109,6 +109,20 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert "updated_at" in item
         assert item["key"] == "watermark"
 
+    def test_last_updated_by_returned_when_set(self, test_client, create_task_instance):
+        ti = create_task_instance()
+        row = AssetStoreModel(
+            asset_id=self.asset.id, key="watermark", value='"v"', last_updated_by_ti_id=ti.id
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        item = test_client.get(self._base_url).json()["asset_store"][0]
+        assert item["last_updated_by"]["dag_id"] == ti.dag_id
+        assert item["last_updated_by"]["run_id"] == ti.run_id
+        assert item["last_updated_by"]["task_id"] == ti.task_id
+        assert item["last_updated_by"]["map_index"] == ti.map_index
+
     def test_pagination_limit(self, test_client):
         for k in ("watermark", "file_count", "last_run"):
             _create_asset_state(self._session, self.asset.id, k, "v")
@@ -144,6 +158,21 @@ class TestGetAssetState(TestAssetStateEndpoint):
         assert data["key"] == "watermark"
         assert data["value"] == "2026-05-01"
         assert "updated_at" in data
+        assert data["last_updated_by"] is None
+
+    def test_last_updated_by_returned_in_get(self, test_client, create_task_instance):
+        ti = create_task_instance()
+        row = AssetStoreModel(
+            asset_id=self.asset.id, key="watermark", value='"v"', last_updated_by_ti_id=ti.id
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        data = test_client.get(f"{self._base_url}/watermark").json()
+        assert data["last_updated_by"]["dag_id"] == ti.dag_id
+        assert data["last_updated_by"]["run_id"] == ti.run_id
+        assert data["last_updated_by"]["task_id"] == ti.task_id
+        assert data["last_updated_by"]["map_index"] == ti.map_index
 
     def test_missing_key_returns_404(self, test_client):
         assert test_client.get(f"{self._base_url}/nonexistent").status_code == 404

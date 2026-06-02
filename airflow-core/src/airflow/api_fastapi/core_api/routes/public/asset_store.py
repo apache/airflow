@@ -29,12 +29,14 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.asset_store import (
     AssetStoreBody,
     AssetStoreCollectionResponse,
+    AssetStoreLastUpdatedBy,
     AssetStoreResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.models.asset import AssetModel
 from airflow.models.asset_store import AssetStoreModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
 
 asset_store_router = AirflowRouter(
@@ -73,7 +75,12 @@ def list_asset_store(
             AssetStoreModel.key,
             AssetStoreModel.value,
             AssetStoreModel.updated_at,
+            TaskInstance.dag_id,
+            TaskInstance.run_id,
+            TaskInstance.task_id,
+            TaskInstance.map_index,
         )
+        .outerjoin(TaskInstance, AssetStoreModel.last_updated_by_ti_id == TaskInstance.id)
         .where(AssetStoreModel.asset_id == asset_id)
         .order_by(AssetStoreModel.key.asc())
     )
@@ -87,7 +94,20 @@ def list_asset_store(
     )
     rows = session.execute(paginated).all()
     entries = [
-        AssetStoreResponse(key=r.key, value=json.loads(r.value), updated_at=r.updated_at) for r in rows
+        AssetStoreResponse(
+            key=r.key,
+            value=json.loads(r.value),
+            updated_at=r.updated_at,
+            last_updated_by=AssetStoreLastUpdatedBy(
+                dag_id=r.dag_id,
+                run_id=r.run_id,
+                task_id=r.task_id,
+                map_index=r.map_index,
+            )
+            if r.dag_id is not None
+            else None,
+        )
+        for r in rows
     ]
     return AssetStoreCollectionResponse(asset_store=entries, total_entries=total_entries)
 
@@ -108,7 +128,13 @@ def get_asset_store(
             AssetStoreModel.key,
             AssetStoreModel.value,
             AssetStoreModel.updated_at,
-        ).where(
+            TaskInstance.dag_id,
+            TaskInstance.run_id,
+            TaskInstance.task_id,
+            TaskInstance.map_index,
+        )
+        .outerjoin(TaskInstance, AssetStoreModel.last_updated_by_ti_id == TaskInstance.id)
+        .where(
             AssetStoreModel.asset_id == asset_id,
             AssetStoreModel.key == key,
         )
@@ -118,7 +144,19 @@ def get_asset_store(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Asset store key {key!r} not found",
         )
-    return AssetStoreResponse(key=row.key, value=json.loads(row.value), updated_at=row.updated_at)
+    return AssetStoreResponse(
+        key=row.key,
+        value=json.loads(row.value),
+        updated_at=row.updated_at,
+        last_updated_by=AssetStoreLastUpdatedBy(
+            dag_id=row.dag_id,
+            run_id=row.run_id,
+            task_id=row.task_id,
+            map_index=row.map_index,
+        )
+        if row.dag_id is not None
+        else None,
+    )
 
 
 @asset_store_router.put(

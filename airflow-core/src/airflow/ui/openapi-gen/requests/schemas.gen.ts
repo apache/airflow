@@ -414,6 +414,31 @@ export const $AssetStoreCollectionResponse = {
     description: 'All asset store entries for an asset.'
 } as const;
 
+export const $AssetStoreLastUpdatedBy = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_id', 'task_id', 'map_index'],
+    title: 'AssetStoreLastUpdatedBy',
+    description: 'Identifies the task instance that last wrote an asset store entry.'
+} as const;
+
 export const $AssetStoreResponse = {
     properties: {
         key: {
@@ -427,6 +452,16 @@ export const $AssetStoreResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        last_updated_by: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/AssetStoreLastUpdatedBy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
