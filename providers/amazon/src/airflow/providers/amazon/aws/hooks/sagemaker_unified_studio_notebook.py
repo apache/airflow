@@ -254,8 +254,7 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
         The bucket path is read from the ``s3BucketPath`` provisioned resource of
         the project's default ("Tooling") environment via the DataZone APIs:
         ``GetEnvironment(GetProjectDefaultEnvironment(...))``. This mirrors how
-        the SageMaker Unified Studio frontend (MaxDomeWorkflowsTool) and the
-        MaxDome Python SDK resolve the project bucket, and accommodates projects
+        SageMaker Unified Studio resolves the project bucket, and accommodates projects
         whose bucket name does not follow the
         ``amazon-sagemaker-{account_id}-{region}-{project_id}`` template (for
         example, BYOR-bucket projects).
@@ -297,10 +296,6 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
     def _get_default_tooling_environment(self, domain_identifier: str, project_id: str) -> dict:
         """
         Resolve the project's default ("Tooling") environment via DataZone APIs.
-
-        Mirrors :class:`sagemaker_studio.projects.ProjectService.get_project_default_environment`
-        from the MaxDome Python SDK and the MaxDome Workflows tool's
-        ``useGetProjectDefaultEnvironment`` hook:
 
         1. ``ListEnvironmentBlueprints(managed=True, name="Tooling")`` →
            resolve the Tooling blueprint id.
