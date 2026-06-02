@@ -57,6 +57,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "include_id_token": {
+                        "description": "Include the _id_token cookie from the keycloak userinfo on login requests.\n",
+                        "type": "boolean",
+                        "version_added": None,
+                        "example": None,
+                        "default": "True",
+                    },
                     "realm": {
                         "description": "Realm configured in Keycloak associated to Airflow.\nThis realm define all users, roles and groups used in Airflow.\n",
                         "type": "string",

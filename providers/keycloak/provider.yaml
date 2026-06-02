@@ -73,6 +73,13 @@ config:
         version_added: 0.0.1
         example: ~
         default: ~
+      include_id_token:
+        description: |
+          Include the _id_token cookie from the keycloak userinfo on login requests.
+        type: boolean
+        version_added: ~
+        example: ~
+        default: "True"
       realm:
         description: |
           Realm configured in Keycloak associated to Airflow.

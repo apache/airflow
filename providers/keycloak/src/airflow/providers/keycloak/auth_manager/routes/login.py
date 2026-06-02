@@ -116,9 +116,10 @@ def login_callback(request: Request):
 
     # Save id token as separate cookie.
     # Cookies have a size limit (usually 4k), saving all the tokens in a same cookie goes beyond this limit
-    response.set_cookie(
-        COOKIE_NAME_ID_TOKEN, tokens["id_token"], path=cookie_path, secure=secure, httponly=True
-    )
+    if conf.getboolean("keycloak_auth_manager", "include_id_token", fallback=True):
+        response.set_cookie(
+            COOKIE_NAME_ID_TOKEN, tokens["id_token"], path=cookie_path, secure=secure, httponly=True
+        )
 
     return response
 
