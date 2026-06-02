@@ -222,7 +222,7 @@ Task state can expose in-progress metrics for observability — row counts, stat
                 {
                     "rows_loaded": total,
                     "status": "done"
-                }),
+                },
             )
 
 The ``progress`` key is visible through the REST API and the Airflow UI while the task is running.
