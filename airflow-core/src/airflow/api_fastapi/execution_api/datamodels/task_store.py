@@ -14,47 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import json
+import math
 from datetime import datetime
 
 from pydantic import JsonValue, field_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-
-_MAX_SERIALIZED_BYTES = 65535
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
-class AssetStateResponse(BaseModel):
-    """A single asset state key/value pair with metadata."""
-
-    key: str
-    value: JsonValue
-    updated_at: datetime
-
-
-class AssetStateCollectionResponse(BaseModel):
-    """All asset state entries for an asset."""
-
-    asset_states: list[AssetStateResponse]
-    total_entries: int
-
-
-class AssetStateBody(StrictBaseModel):
-    """Request body for setting an asset state value."""
+class TaskStoreResponse(StrictBaseModel):
+    """Task store value returned to a worker."""
 
     value: JsonValue
+
+
+class TaskStorePutBody(StrictBaseModel):
+    """Request body for setting a task store value."""
+
+    value: JsonValue
+    expires_at: datetime | None = None
 
     @field_validator("value")
     @classmethod
     def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
         if v is None:
             raise ValueError("value cannot be null")
-        try:
-            serialized = json.dumps(v, allow_nan=False)
-        except ValueError:
-            raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
-        if len(serialized) > _MAX_SERIALIZED_BYTES:
-            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("value must be a finite number; NaN and Inf are not JSON representable")
         return v

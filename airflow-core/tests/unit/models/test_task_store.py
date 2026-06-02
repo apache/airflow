@@ -25,7 +25,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -62,9 +62,9 @@ def dag_run(session: Session) -> DagRun:
     return run
 
 
-class TestTaskStateModel:
+class TestTaskStoreModel:
     def test_insert_and_read(self, session: Session, dag_run: DagRun):
-        row = TaskStateModel(
+        row = TaskStoreModel(
             dag_run_id=dag_run.id,
             task_id=TASK_ID,
             map_index=-1,
@@ -77,11 +77,11 @@ class TestTaskStateModel:
         session.flush()
 
         result = session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_run_id == dag_run.id,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.map_index == -1,
-                TaskStateModel.key == "remote_job_id",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_run_id == dag_run.id,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.map_index == -1,
+                TaskStoreModel.key == "remote_job_id",
             )
         )
         assert result is not None
@@ -92,7 +92,7 @@ class TestTaskStateModel:
     def test_duplicate_pk_raises(self, session: Session, dag_run: DagRun):
         """Inserting a second row with the same (dag_run_id, task_id, map_index, key) raises IntegrityError."""
         session.add(
-            TaskStateModel(
+            TaskStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
                 map_index=-1,
@@ -105,7 +105,7 @@ class TestTaskStateModel:
         session.flush()
 
         session.add(
-            TaskStateModel(
+            TaskStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
                 map_index=-1,
@@ -120,7 +120,7 @@ class TestTaskStateModel:
 
     def test_retries_share_state(self, session: Session, dag_run: DagRun):
         """Retries of the same task share the same row — updates are visible across retries."""
-        row = TaskStateModel(
+        row = TaskStoreModel(
             dag_run_id=dag_run.id,
             task_id=TASK_ID,
             map_index=-1,
@@ -136,10 +136,10 @@ class TestTaskStateModel:
         session.flush()
 
         result = session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_run_id == dag_run.id,
-                TaskStateModel.task_id == TASK_ID,
-                TaskStateModel.key == "remote_job_id",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_run_id == dag_run.id,
+                TaskStoreModel.task_id == TASK_ID,
+                TaskStoreModel.key == "remote_job_id",
             )
         )
         assert result is not None
@@ -149,7 +149,7 @@ class TestTaskStateModel:
         """Each mapped task instance gets its own independent state namespace."""
         for idx in (0, 1, 2):
             session.add(
-                TaskStateModel(
+                TaskStoreModel(
                     dag_run_id=dag_run.id,
                     task_id=TASK_ID,
                     map_index=idx,
@@ -163,11 +163,11 @@ class TestTaskStateModel:
 
         for idx in (0, 1, 2):
             result = session.scalar(
-                select(TaskStateModel).where(
-                    TaskStateModel.dag_run_id == dag_run.id,
-                    TaskStateModel.task_id == TASK_ID,
-                    TaskStateModel.map_index == idx,
-                    TaskStateModel.key == "checkpoint",
+                select(TaskStoreModel).where(
+                    TaskStoreModel.dag_run_id == dag_run.id,
+                    TaskStoreModel.task_id == TASK_ID,
+                    TaskStoreModel.map_index == idx,
+                    TaskStoreModel.key == "checkpoint",
                 )
             )
             assert result is not None
@@ -176,7 +176,7 @@ class TestTaskStateModel:
     def test_cascade_delete_on_dag_run(self, session: Session, dag_run: DagRun):
         """Deleting a DagRun cascades to its task_state rows — no orphans remain."""
         session.add(
-            TaskStateModel(
+            TaskStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
                 map_index=-1,
@@ -192,7 +192,7 @@ class TestTaskStateModel:
         session.flush()
 
         remaining = session.scalars(
-            select(TaskStateModel).where(TaskStateModel.dag_run_id == dag_run.id)
+            select(TaskStoreModel).where(TaskStoreModel.dag_run_id == dag_run.id)
         ).all()
         assert remaining == []
 
@@ -209,7 +209,7 @@ class TestTaskStateModel:
         session.flush()
 
         session.add(
-            TaskStateModel(
+            TaskStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
                 map_index=-1,
@@ -222,9 +222,9 @@ class TestTaskStateModel:
         session.flush()
 
         result = session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_run_id == run2.id,
-                TaskStateModel.key == "watermark",
+            select(TaskStoreModel).where(
+                TaskStoreModel.dag_run_id == run2.id,
+                TaskStoreModel.key == "watermark",
             )
         )
         assert result is None

@@ -72,10 +72,10 @@ class FakeTaskState:
         self._store[key] = value
 
 
-def make_context(task_state: FakeTaskState | None = None) -> dict:
+def make_context(task_store: FakeTaskState | None = None) -> dict:
     ctx: dict = {}
-    if task_state is not None:
-        ctx["task_state"] = task_state
+    if task_store is not None:
+        ctx["task_store"] = task_store
     return ctx
 
 

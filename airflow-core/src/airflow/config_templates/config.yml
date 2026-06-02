@@ -3125,7 +3125,7 @@ state_store:
       version_added: 3.3.0
       type: string
       example: "mypackage.state.CustomStateBackend"
-      default: "airflow.state.metastore.MetastoreStateBackend"
+      default: "airflow.state.metastore.MetastoreStoreBackend"
     clear_on_success:
       description: |
         If set to True, all task state keys for a task instance are automatically cleared

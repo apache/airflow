@@ -24,14 +24,14 @@ from pydantic import JsonValue, field_validator
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
-class AssetStateResponse(StrictBaseModel):
-    """Asset state value returned to a worker."""
+class AssetStoreResponse(StrictBaseModel):
+    """Asset store value returned to a worker."""
 
     value: JsonValue
 
 
-class AssetStatePutBody(StrictBaseModel):
-    """Request body for setting an asset state value."""
+class AssetStorePutBody(StrictBaseModel):
+    """Request body for setting an asset store value."""
 
     value: JsonValue
 
