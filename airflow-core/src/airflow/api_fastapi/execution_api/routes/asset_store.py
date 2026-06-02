@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Execution API routes for asset state.
+Execution API routes for asset store.
 
 Routes are split into ``/by-name`` and ``/by-uri`` sub-prefixes mirroring the
 existing ``/assets/by-name`` and ``/assets/by-uri`` pattern.  Callers pass
@@ -37,9 +37,9 @@ from sqlalchemy import select
 
 from airflow._shared.state import AssetScope
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.asset_state import (
-    AssetStatePutBody,
-    AssetStateResponse,
+from airflow.api_fastapi.execution_api.datamodels.asset_store import (
+    AssetStorePutBody,
+    AssetStoreResponse,
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute
 from airflow.models.asset import AssetModel
@@ -48,7 +48,7 @@ from airflow.state import get_state_backend
 # TODO(AIP-103): enforce that the requesting task is registered with the asset
 # (via task_inlet_asset_reference or task_outlet_asset_reference) before
 # allowing reads/writes. Currently any task with a valid execution token can
-# access any asset's state — the same gap exists in /assets and /asset-events.
+# access any asset's store — the same gap exists in /assets and /asset-events.
 # Proper fix is a unified asset-registration check across all asset routes,
 # not just here.
 router = VersionedAPIRouter(
@@ -81,100 +81,100 @@ def _resolve_asset_id_by_uri(uri: str, session: SessionDep) -> int:
 
 
 @router.get("/by-name/value")
-def get_asset_state_by_name(
+def get_asset_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
-) -> AssetStateResponse:
-    """Get an asset state value by asset name."""
+) -> AssetStoreResponse:
+    """Get an asset store value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
     value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Asset state key {key!r} not found"},
+            detail={"reason": "not_found", "message": f"Asset store key {key!r} not found"},
         )
-    return AssetStateResponse(value=json.loads(value))
+    return AssetStoreResponse(value=json.loads(value))
 
 
 @router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
-def set_asset_state_by_name(
+def set_asset_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    body: AssetStatePutBody,
+    body: AssetStorePutBody,
     session: SessionDep,
 ) -> None:
-    """Set an asset state value by asset name."""
+    """Set an asset store value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
     get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset_state_by_name(
+def delete_asset_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
-    """Delete a single asset state key by asset name."""
+    """Delete a single asset store key by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
     get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-name/clear", status_code=status.HTTP_204_NO_CONTENT)
-def clear_asset_state_by_name(
+def clear_asset_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
-    """Delete all state keys for an asset by asset name."""
+    """Delete all store keys for an asset by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
     get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
 
 
 @router.get("/by-uri/value")
-def get_asset_state_by_uri(
+def get_asset_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
-) -> AssetStateResponse:
-    """Get an asset state value by asset URI."""
+) -> AssetStoreResponse:
+    """Get an asset store value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
     value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Asset state key {key!r} not found"},
+            detail={"reason": "not_found", "message": f"Asset store key {key!r} not found"},
         )
-    return AssetStateResponse(value=json.loads(value))
+    return AssetStoreResponse(value=json.loads(value))
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
-def set_asset_state_by_uri(
+def set_asset_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    body: AssetStatePutBody,
+    body: AssetStorePutBody,
     session: SessionDep,
 ) -> None:
-    """Set an asset state value by asset URI."""
+    """Set an asset store value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
     get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset_state_by_uri(
+def delete_asset_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
-    """Delete a single asset state key by asset URI."""
+    """Delete a single asset store key by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
     get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-uri/clear", status_code=status.HTTP_204_NO_CONTENT)
-def clear_asset_state_by_uri(
+def clear_asset_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
-    """Delete all state keys for an asset by asset URI."""
+    """Delete all store keys for an asset by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
     get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)

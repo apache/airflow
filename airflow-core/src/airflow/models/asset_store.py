@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -28,7 +27,7 @@ from airflow.models.base import COLLATION_ARGS, Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class AssetStateModel(Base):
+class AssetStoreModel(Base):
     """
     Persists key/value state scoped to an asset identity.
 
@@ -36,7 +35,7 @@ class AssetStateModel(Base):
     Rows survive until explicitly deleted or the asset itself is deleted.
     """
 
-    __tablename__ = "asset_state"
+    __tablename__ = "asset_store"
 
     asset_id: Mapped[int] = mapped_column(Integer, nullable=False, primary_key=True)
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
@@ -45,11 +44,11 @@ class AssetStateModel(Base):
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
-        PrimaryKeyConstraint("asset_id", "key", name="asset_state_pkey"),
+        PrimaryKeyConstraint("asset_id", "key", name="asset_store_pkey"),
         ForeignKeyConstraint(
             ["asset_id"],
             ["asset.id"],
-            name="asset_state_asset_fkey",
+            name="asset_store_asset_fkey",
             ondelete="CASCADE",
         ),
     )

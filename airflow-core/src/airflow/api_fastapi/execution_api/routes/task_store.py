@@ -26,9 +26,9 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.task_state import (
-    TaskStatePutBody,
-    TaskStateResponse,
+from airflow.api_fastapi.execution_api.datamodels.task_store import (
+    TaskStorePutBody,
+    TaskStoreResponse,
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.taskinstance import TaskInstance as TI
@@ -59,12 +59,12 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
 
 
 @router.get("/{task_instance_id}/{key}")
-def get_task_state(
+def get_task_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
-) -> TaskStateResponse:
-    """Get value for a task state."""
+) -> TaskStoreResponse:
+    """Get value for a task store key."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
     value = get_state_backend().get(scope, key, session=session)
     if value is None:
@@ -72,53 +72,53 @@ def get_task_state(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"Task state key {key!r} not found",
+                "message": f"Task store key {key!r} not found",
             },
         )
-    return TaskStateResponse(value=json.loads(value))
+    return TaskStoreResponse(value=json.loads(value))
 
 
 @router.put("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
-def set_task_state(
+def set_task_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
-    body: TaskStatePutBody,
+    body: TaskStorePutBody,
     session: SessionDep,
 ) -> None:
-    """Set a task state key, creating or updating the row."""
+    """Set a task store key, creating or updating the row."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task_state(
+def delete_task_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
 ) -> None:
-    """Delete a single task state key."""
+    """Delete a single task store key."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().delete(scope, key, session=session)
 
 
 @router.delete("/{task_instance_id}", status_code=status.HTTP_204_NO_CONTENT)
-def clear_task_state(
+def clear_task_store(
     task_instance_id: UUID,
     session: SessionDep,
     all_map_indices: Annotated[bool, Query()] = False,
 ) -> None:
     """
-    Delete all task state keys for this task instance.
+    Delete all task store keys for this task instance.
 
     By default, only keys for the requesting TI's exact ``map_index`` are
     cleared — same isolation as DELETE endpoint above.
 
-    Pass ``?all_map_indices=true`` to wipe state for every mapped sibling of
+    Pass ``?all_map_indices=true`` to wipe store for every mapped sibling of
     the task in the same DAG run.  This is intentionally fleet-wide: the
     ``ti:self`` JWT authentication scope authenticates that the caller is
     a legitimate member of the mapped task group, and grants it authority
-    to reset shared task state on behalf of the whole group.
-    The SDK only forwards this flag when the user calls ``task_state.clear(all_map_indices=True)``
+    to reset shared task store on behalf of the whole group.
+    The SDK only forwards this flag when the user calls ``task_store.clear(all_map_indices=True)``
     explicitly, so the expanded scope is always an explicit opt-in by the task author.
 
     For non-mapped tasks (``map_index=-1``), there is only ever one index, so

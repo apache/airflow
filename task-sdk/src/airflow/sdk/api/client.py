@@ -47,8 +47,8 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
-    AssetStatePutBody,
-    AssetStateResponse,
+    AssetStorePutBody,
+    AssetStoreResponse,
     ConnectionResponse,
     DagResponse,
     DagRun,
@@ -61,9 +61,9 @@ from airflow.sdk.api.datamodels._generated import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
-    TaskStatePutBody,
-    TaskStateResponse,
     TaskStatesResponse,
+    TaskStorePutBody,
+    TaskStoreResponse,
     TerminalStateNonSuccess,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
@@ -704,42 +704,42 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
-class TaskStateOperations:
+class TaskStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse | ErrorResponse:
-        """Get a task state value from the API server."""
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStoreResponse | ErrorResponse:
+        """Get a task store value from the API server."""
         try:
-            resp = self.client.get(f"state/ti/{ti_id}/{key}")
+            resp = self.client.get(f"store/ti/{ti_id}/{key}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Task state key not found", ti_id=ti_id, key=key)
-                return ErrorResponse(error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": key})
+                log.debug("Task store key not found", ti_id=ti_id, key=key)
+                return ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return TaskStateResponse.model_validate_json(resp.read())
+        return TaskStoreResponse.model_validate_json(resp.read())
 
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
-        """Set a task state value via the API server."""
-        body = TaskStatePutBody(value=value, expires_at=expires_at)
-        self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
+        """Set a task store value via the API server."""
+        body = TaskStorePutBody(value=value, expires_at=expires_at)
+        self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
-        """Delete a single task state key via the API server."""
-        self.client.delete(f"state/ti/{ti_id}/{key}")
+        """Delete a single task store key via the API server."""
+        self.client.delete(f"store/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
     def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
-        """Clear all task state keys for a task instance via the API server."""
+        """Clear all task store keys for a task instance via the API server."""
         params = {"all_map_indices": "true"} if all_map_indices else {}
-        self.client.delete(f"state/ti/{ti_id}", params=params)
+        self.client.delete(f"store/ti/{ti_id}", params=params)
         return OKResponse(ok=True)
 
 
-class AssetStateOperations:
+class AssetStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
@@ -750,10 +750,10 @@ class AssetStateOperations:
     ) -> tuple[str, dict[str, str]]:
         if name:
             params: dict[str, str] = {"name": name}
-            endpoint = f"state/asset/by-name/{op}"
+            endpoint = f"store/asset/by-name/{op}"
         elif uri:
             params = {"uri": uri}
-            endpoint = f"state/asset/by-uri/{op}"
+            endpoint = f"store/asset/by-uri/{op}"
         else:
             raise ValueError("Either `name` or `uri` must be provided")
         if key is not None:
@@ -762,34 +762,34 @@ class AssetStateOperations:
 
     def get(
         self, key: str, *, name: str | None = None, uri: str | None = None
-    ) -> AssetStateResponse | ErrorResponse:
-        """Get an asset state value from the API server."""
+    ) -> AssetStoreResponse | ErrorResponse:
+        """Get an asset store value from the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         try:
             resp = self.client.get(endpoint, params=params)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Asset state key not found", name=name, uri=uri, key=key)
-                return ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": key})
+                log.debug("Asset store key not found", name=name, uri=uri, key=key)
+                return ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return AssetStateResponse.model_validate_json(resp.read())
+        return AssetStoreResponse.model_validate_json(resp.read())
 
     def set(
         self, key: str, value: JsonValue, *, name: str | None = None, uri: str | None = None
     ) -> OKResponse:
-        """Set an asset state value via the API server."""
+        """Set an asset store value via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
-        self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
+        self.client.put(endpoint, params=params, content=AssetStorePutBody(value=value).model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
-        """Delete a single asset state key via the API server."""
+        """Delete a single asset store key via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
 
     def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
-        """Clear all state keys for an asset via the API server."""
+        """Clear all store keys for an asset via the API server."""
         endpoint, params = self._resolve_endpoint("clear", name=name, uri=uri)
         self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
@@ -1232,15 +1232,15 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def task_state(self) -> TaskStateOperations:
-        """Operations related to task state."""
-        return TaskStateOperations(self)
+    def task_store(self) -> TaskStoreOperations:
+        """Operations related to task store."""
+        return TaskStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def asset_state(self) -> AssetStateOperations:
-        """Operations related to asset state."""
-        return AssetStateOperations(self)
+    def asset_store(self) -> AssetStoreOperations:
+        """Operations related to asset store."""
+        return AssetStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

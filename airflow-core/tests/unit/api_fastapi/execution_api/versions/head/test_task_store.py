@@ -32,7 +32,7 @@ from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import _jwt_bearer
 from airflow.models.dagrun import DagRun
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -45,12 +45,12 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def reset_state_tables():
     with create_session() as session:
-        session.execute(delete(TaskStateModel))
+        session.execute(delete(TaskStoreModel))
         session.execute(delete(DagRun))
 
 
 def _api_url(ti_id, key: str | None = None) -> str:
-    base = f"/execution/state/ti/{ti_id}"
+    base = f"/execution/store/ti/{ti_id}"
     return f"{base}/{key}" if key else base
 
 
@@ -88,11 +88,11 @@ class TestPutTaskState:
         assert response.status_code == 204
         with create_session() as session:
             row = session.scalar(
-                select(TaskStateModel).where(
-                    TaskStateModel.dag_id == ti.dag_id,
-                    TaskStateModel.run_id == ti.run_id,
-                    TaskStateModel.task_id == ti.task_id,
-                    TaskStateModel.key == "job_id",
+                select(TaskStoreModel).where(
+                    TaskStoreModel.dag_id == ti.dag_id,
+                    TaskStoreModel.run_id == ti.run_id,
+                    TaskStoreModel.task_id == ti.task_id,
+                    TaskStoreModel.key == "job_id",
                 )
             )
             assert row is not None
@@ -145,11 +145,11 @@ class TestPutTaskState:
         assert response.status_code == 204
         with create_session() as session:
             row = session.scalar(
-                select(TaskStateModel).where(
-                    TaskStateModel.dag_id == ti.dag_id,
-                    TaskStateModel.run_id == ti.run_id,
-                    TaskStateModel.task_id == ti.task_id,
-                    TaskStateModel.key == "job_id",
+                select(TaskStoreModel).where(
+                    TaskStoreModel.dag_id == ti.dag_id,
+                    TaskStoreModel.run_id == ti.run_id,
+                    TaskStoreModel.task_id == ti.task_id,
+                    TaskStoreModel.key == "job_id",
                 )
             )
             assert row is not None
@@ -243,9 +243,9 @@ class TestClearTaskState:
         assert response.status_code == 204
         with create_session() as session:
             remaining = session.scalars(
-                select(TaskStateModel.key).where(
-                    TaskStateModel.dag_id == ti.dag_id,
-                    TaskStateModel.task_id == ti.task_id,
+                select(TaskStoreModel.key).where(
+                    TaskStoreModel.dag_id == ti.dag_id,
+                    TaskStoreModel.task_id == ti.task_id,
                 )
             ).all()
             assert remaining == []
@@ -262,7 +262,7 @@ class TestClearTaskState:
             now = timezone.utcnow()
             for idx in indices:
                 session.add(
-                    TaskStateModel(
+                    TaskStoreModel(
                         dag_run_id=ti.dag_run.id,
                         dag_id=ti.dag_id,
                         run_id=ti.run_id,
@@ -288,9 +288,9 @@ class TestClearTaskState:
         with create_session() as session:
             remaining_indices = sorted(
                 session.scalars(
-                    select(TaskStateModel.map_index).where(
-                        TaskStateModel.dag_id == ti.dag_id,
-                        TaskStateModel.task_id == ti.task_id,
+                    select(TaskStoreModel.map_index).where(
+                        TaskStoreModel.dag_id == ti.dag_id,
+                        TaskStoreModel.task_id == ti.task_id,
                     )
                 ).all()
             )
@@ -308,9 +308,9 @@ class TestClearTaskState:
         assert response.status_code == 204
         with create_session() as session:
             remaining = session.scalars(
-                select(TaskStateModel).where(
-                    TaskStateModel.dag_id == ti.dag_id,
-                    TaskStateModel.task_id == ti.task_id,
+                select(TaskStoreModel).where(
+                    TaskStoreModel.dag_id == ti.dag_id,
+                    TaskStoreModel.task_id == ti.task_id,
                 )
             ).all()
             assert remaining == []
