@@ -1628,6 +1628,7 @@ summarization
 superclass
 sur
 svg
+swappable
 symlink
 symlinks
 synthesises

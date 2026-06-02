@@ -86,7 +86,6 @@ class TestGetDAGSource:
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         response: Response = test_client.get(f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"})
 
-        assert isinstance(response, Response)
         assert response.status_code == 200
         assert dag_content == response.content.decode()
         with pytest.raises(json.JSONDecodeError):
@@ -114,7 +113,6 @@ class TestGetDAGSource:
             f"{API_PREFIX}/{TEST_DAG_ID}",
             headers=headers,
         )
-        assert isinstance(response, Response)
         assert response.status_code == 200
         assert response.json() == {
             "content": dag_content,

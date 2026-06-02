@@ -120,6 +120,38 @@ class BulkDAGRunBody(BaseModel):
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
 
 
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
+
+
+class BulkDAGRunClearBody(BaseModel):
+    """
+    Request body for the bulk clear Dag Runs endpoint.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
+            title="Run On Latest Version",
+        ),
+    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
+
+
 class BulkDeleteActionBulkDAGRunBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -155,10 +187,6 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
-
-
-class Note(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class BulkUpdateActionBulkDAGRunBody(BaseModel):
@@ -344,7 +372,7 @@ class DAGRunClearBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).",
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
             title="Run On Latest Version",
         ),
     ] = None

@@ -1037,6 +1037,7 @@ export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<Re
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.triggerDagRun>>;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<ReturnType<typeof DagRunService.getListDagRunsBatch>>;
+export type DagRunServiceClearDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRuns>>;
 export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>>;

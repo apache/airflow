@@ -971,6 +971,64 @@ export const $BulkDAGRunBody = {
     description: 'Request body for bulk delete operations on Dag Runs.'
 } as const;
 
+export const $BulkDAGRunClearBody = {
+    properties: {
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            default: true
+        },
+        only_failed: {
+            type: 'boolean',
+            title: 'Only Failed',
+            default: false
+        },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest Dag version without clearing existing tasks.',
+            default: false
+        },
+        run_on_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGRunBody'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Dag Runs'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_runs'],
+    title: 'BulkDAGRunClearBody',
+    description: 'Request body for the bulk clear Dag Runs endpoint.'
+} as const;
+
 export const $BulkDeleteAction_BulkDAGRunBody_ = {
     properties: {
         action: {
@@ -2774,7 +2832,7 @@ export const $DAGRunClearBody = {
                 }
             ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
         },
         note: {
             anyOf: [
