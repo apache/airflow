@@ -258,7 +258,7 @@ Coordinators
 ------------
 
 Coordinators bridge the Airflow worker and a non-Python language runtime.
-See :doc:`airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
+See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
 
 .. rubric:: JVM
 
