@@ -1376,14 +1376,15 @@ export const useImportErrorServiceGetImportError = <TData = Common.ImportErrorSe
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
   filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Jobs
 * Get all jobs.

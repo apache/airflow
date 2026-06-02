@@ -1767,3 +1767,14 @@ QueryParseImportErrorFilenameFilter = Annotated[
         )
     ),
 ]
+QueryParseImportErrorBundleNameFilter = Annotated[
+    FilterParam,
+    Depends(
+        filter_param_factory(
+            ParseImportError.bundle_name,
+            str | None,
+            filter_name="bundle_name",
+            description="Exact bundle name match. Returns only import errors from this specific bundle.",
+        )
+    ),
+]

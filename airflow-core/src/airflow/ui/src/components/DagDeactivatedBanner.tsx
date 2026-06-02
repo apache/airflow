@@ -31,10 +31,13 @@ export const DagDeactivatedBanner = () => {
 
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, { enabled: dagId !== "" });
   const relativeFileloc = dag?.relative_fileloc ?? "";
+  const bundleName = dag?.bundle_name ?? undefined;
 
-  const { data } = useImportErrorServiceGetImportErrors({ filename: relativeFileloc }, undefined, {
-    enabled: dag?.is_stale && relativeFileloc.length > 0,
-  });
+  const { data } = useImportErrorServiceGetImportErrors(
+    { bundleName, filename: relativeFileloc },
+    undefined,
+    { enabled: dag?.is_stale && relativeFileloc.length > 0 },
+  );
 
   if (dagId === "" || !dag?.is_stale) {
     return undefined;

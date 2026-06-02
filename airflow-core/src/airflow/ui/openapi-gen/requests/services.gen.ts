@@ -3305,7 +3305,8 @@ export class ImportErrorService {
                 order_by: data.orderBy,
                 filename_pattern: data.filenamePattern,
                 filename_prefix_pattern: data.filenamePrefixPattern,
-                filename: data.filename
+                filename: data.filename,
+                bundle_name: data.bundleName
             },
             errors: {
                 401: 'Unauthorized',

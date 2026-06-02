@@ -3949,6 +3949,10 @@ export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
     /**
+     * Exact bundle name match. Returns only import errors from this specific bundle.
+     */
+    bundleName?: string | null;
+    /**
      * Exact filename match. Returns only the import error for this specific file path.
      */
     filename?: string | null;

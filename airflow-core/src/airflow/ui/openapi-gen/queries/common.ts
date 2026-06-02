@@ -671,14 +671,15 @@ export const UseImportErrorServiceGetImportErrorKeyFn = ({ importErrorId }: {
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<ReturnType<typeof ImportErrorService.getImportErrors>>;
 export type ImportErrorServiceGetImportErrorsQueryResult<TData = ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImportErrors";
-export const UseImportErrorServiceGetImportErrorsKeyFn = ({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const UseImportErrorServiceGetImportErrorsKeyFn = ({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
   filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<TData = JobServiceGetJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useJobServiceGetJobsKey = "JobServiceGetJobs";

@@ -416,6 +416,82 @@ class TestGetImportErrors:
         assert response_json["total_entries"] == expected_total_entries
         assert [ie["filename"] for ie in response_json["import_errors"]] == expected_filenames
 
+    @pytest.mark.parametrize(
+        ("bundle_name", "expected_total_entries", "expected_filenames"),
+        [
+            (BUNDLE_NAME, 3, [FILENAME1, FILENAME2, FILENAME3]),
+            ("nonexistent_bundle", 0, []),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_bundle_name_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        bundle_name,
+        expected_total_entries,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        """Test that the ``bundle_name`` filter returns only errors from the matching bundle."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"bundle_name": bundle_name})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == expected_total_entries
+        assert [ie["filename"] for ie in response_json["import_errors"]] == expected_filenames
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_bundle_name_and_filename_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        permitted_dag_model_all,
+        session,
+    ):
+        """Test that combining ``bundle_name`` and ``filename`` filters finds the right error
+        when two bundles share the same relative_fileloc (the multi-bundle cross-contamination case).
+        """
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+
+        shared_filename = FILENAME1
+        other_dag = DagModel(
+            fileloc=f"/other/{shared_filename}",
+            relative_fileloc=shared_filename,
+            dag_id="dag_in_other_bundle",
+            is_paused=False,
+            bundle_name=other_bundle,
+        )
+        session.add(other_dag)
+        session.add(
+            ParseImportError(
+                bundle_name=other_bundle,
+                filename=shared_filename,
+                stacktrace="wrong bundle error",
+                timestamp=TIMESTAMP1,
+            )
+        )
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, permitted_dag_model_all | {other_dag.dag_id}
+        )
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get(
+            "/importErrors", params={"filename": shared_filename, "bundle_name": BUNDLE_NAME}
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
+        assert response_json["import_errors"][0]["stack_trace"] == STACKTRACE1
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401

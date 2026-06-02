@@ -1376,14 +1376,15 @@ export const ensureUseImportErrorServiceGetImportErrorData = (queryClient: Query
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
   filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
 /**
 * Get Jobs
 * Get all jobs.
