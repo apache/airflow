@@ -140,7 +140,7 @@ class AgentRunRequest:
     :param output_type: Expected structured output type or backend-specific JSON schema
         mapping (default: ``str``).
     :param instructions: System-level instructions for the agent.
-    :param toolsets: List of :class:`BaseToolset` instances the agent may call.
+    :param toolsets: List of tools/toolsets the agent may call (BaseToolset instances, plain callables, or backend-native tool objects).
     :param usage_limits: Backend-specific usage limits; ignored if the hook does not support them.
     :param message_history: Prior conversation state from a previous :class:`AgentRunResult`.
     :param enable_tool_logging: When ``True`` (default), wraps Airflow-resolved tool callables with
