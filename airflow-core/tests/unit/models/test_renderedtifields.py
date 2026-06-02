@@ -374,16 +374,16 @@ class TestRenderedTaskInstanceFields:
 
     def test_write_upsert_existing_record(self, dag_maker, session):
         """
-        Test that write() handles a pre-existing row without raising IntegrityError.
+        Verify that write() updates an existing row instead of failing on its primary key.
 
-        The first row is seeded via a direct INSERT (bypassing write()), simulating
-        a row already committed by the first SDK request. The second call goes through
-        write() with different values, which must succeed and update the record.
+        A row is seeded via a direct INSERT (bypassing write()) to represent a record
+        already present for this task instance. Calling write() with different values
+        must update that row via the upsert's DO UPDATE branch.
 
-        A plain INSERT statement would raise IntegrityError here; write() must use a
-        database-level upsert to handle the conflict atomically. This is the scenario
-        that occurs when the SDK retries an RTIF PUT after a client-side timeout causes
-        two concurrent transactions to target the same primary key.
+        This exercises the upsert's update path within a single transaction; it does not
+        reproduce the concurrent-transaction race from #61705, which needs two separate
+        uncommitted transactions and cannot be triggered reliably in a unit test. The
+        atomic single-statement upsert is what closes that race in production.
         """
         with dag_maker("test_write_upsert", session=session):
             task = BashOperator(task_id="test", bash_command="echo original")

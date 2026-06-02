@@ -38,12 +38,9 @@ from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
-    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
-    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
-    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -253,8 +250,6 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
         :param session: SqlAlchemy Session
         """
-        dialect_name = get_dialect_name(session)
-
         values = {
             "dag_id": self.dag_id,
             "task_id": self.task_id,
@@ -268,35 +263,13 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             "k8s_pod_yaml": self.k8s_pod_yaml,
         }
 
-        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-
-        if dialect_name == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            pg_stmt = pg_insert(RenderedTaskInstanceFields).values(**values)
-            stmt = pg_stmt.on_conflict_do_update(
-                index_elements=["dag_id", "task_id", "run_id", "map_index"],
-                set_=update_on_conflict,
-            )
-        elif dialect_name == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            mysql_stmt = mysql_insert(RenderedTaskInstanceFields).values(**values)
-            stmt = mysql_stmt.on_duplicate_key_update(**update_on_conflict)
-        elif dialect_name == "sqlite":
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            sqlite_stmt = sqlite_insert(RenderedTaskInstanceFields).values(**values)
-            stmt = sqlite_stmt.on_conflict_do_update(
-                index_elements=["dag_id", "task_id", "run_id", "map_index"],
-                set_=update_on_conflict,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported database dialect '{dialect_name}' for RTIF upsert. "
-                "Supported dialects are: postgresql, mysql, sqlite."
-            )
-
+        stmt = build_upsert_stmt(
+            get_dialect_name(session),
+            RenderedTaskInstanceFields,
+            ["dag_id", "task_id", "run_id", "map_index"],
+            values,
+            update_on_conflict,
+        )
         session.execute(stmt)
 
     @classmethod
