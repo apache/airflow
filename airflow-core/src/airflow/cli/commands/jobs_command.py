@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 @providers_configuration_loaded
 @provide_session
-def check(args, session: Session = NEW_SESSION) -> None:
+def check(args, *, session: Session = NEW_SESSION) -> None:
     """Check if job(s) are still alive."""
     if args.allow_multiple and args.limit <= 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")

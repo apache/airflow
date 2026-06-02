@@ -27,6 +27,7 @@ agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +185,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -273,6 +275,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -686,6 +689,7 @@ gdbm
 gdrive
 gelf
 gemini
+GenAI
 generateUploadUrl
 geq
 getattr
@@ -721,6 +725,7 @@ googleapis
 GoogleDisplayVideo
 gpu
 gpus
+Gradle
 Grafana
 graphviz
 Groq
@@ -784,7 +789,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -831,6 +839,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -859,7 +868,9 @@ iteratively
 iTerm
 iterm
 itertools
+Jaeger
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -897,6 +908,7 @@ jsonl
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -946,6 +958,8 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
+Langfuse
 LanguageServiceClient
 lastname
 latencies
@@ -1047,6 +1061,8 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
@@ -1083,6 +1099,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1130,9 +1147,11 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
+OpenTelemetry
 oper
 OperatorLineage
 Opsgenie
@@ -1140,6 +1159,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1151,6 +1171,7 @@ oss
 ot
 OTel
 otel
+OTLP
 PaaS
 Pagerduty
 pagerduty
@@ -1300,6 +1321,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1559,6 +1581,7 @@ Stringified
 stringified
 stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed
@@ -1606,6 +1629,7 @@ summarization
 superclass
 sur
 svg
+swappable
 symlink
 symlinks
 synthesises
@@ -1861,6 +1885,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

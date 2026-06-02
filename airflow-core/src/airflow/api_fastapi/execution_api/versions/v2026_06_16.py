@@ -59,22 +59,22 @@ class AddAssetsByAliasEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (endpoint("/assets/by-alias", ["GET"]).didnt_exist,)
 
 
-class AddStateEndpoints(VersionChange):
-    """Add task state and asset state CRUD endpoints."""
+class AddTaskAndAssetStoreEndpoints(VersionChange):
+    """Add task store and asset store API endpoints."""
 
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        endpoint("/state/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
-        endpoint("/state/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
-        endpoint("/state/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
-        endpoint("/state/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-name/value", ["GET"]).didnt_exist,
-        endpoint("/state/asset/by-name/value", ["PUT"]).didnt_exist,
-        endpoint("/state/asset/by-name/value", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-name/clear", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-uri/value", ["GET"]).didnt_exist,
-        endpoint("/state/asset/by-uri/value", ["PUT"]).didnt_exist,
-        endpoint("/state/asset/by-uri/value", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-uri/clear", ["DELETE"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["GET"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["PUT"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-name/clear", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["GET"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["PUT"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-uri/clear", ["DELETE"]).didnt_exist,
     )

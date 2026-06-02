@@ -42,14 +42,14 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -751,20 +751,6 @@ class TestGetMappedTaskInstances:
             dags={
                 "mapped_tis": {
                     "success": 3,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
                     "failed": 0,
                     "running": 0,
                 },
@@ -5304,17 +5290,17 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -5329,7 +5315,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5337,7 +5323,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -5352,7 +5338,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5360,7 +5346,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
@@ -6771,6 +6757,46 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 "status_code": 403,
             }
         ]
+
+    @pytest.mark.parametrize("task_count", [5, 10, 20])
+    def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
+        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
+        # each extra task instance must add exactly QUERIES_PER_TASK_INSTANCE query (its DELETE),
+        # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
+        # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
+        QUERIES_PER_TASK_INSTANCE = 1
+        BASE_QUERY_COUNT = 5
+
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": tuple(range(task_count))}],
+        )
+        request_body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"task_id": self.TASK_ID, "map_index": map_index} for map_index in range(task_count)
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch(self.ENDPOINT_URL, json=request_body)
+
+        assert response.status_code == 200
+        assert len(response.json()["delete"]["success"]) == task_count
+
+        query_count = sum(result.values())
+        expected_query_count = BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE
+        assert query_count == expected_query_count, (
+            f"Bulk-delete query count {query_count} does not match expected {expected_query_count} "
+            f"for {task_count} task instances. "
+            f"A regression that re-queries each task instance would give "
+            f"~{BASE_QUERY_COUNT + task_count * 2} queries instead."
+        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})

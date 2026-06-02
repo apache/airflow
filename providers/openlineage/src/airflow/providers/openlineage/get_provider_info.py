@@ -50,6 +50,13 @@ def get_provider_info():
             "openlineage": {
                 "description": "This section applies settings for OpenLineage integration.\n",
                 "options": {
+                    "config_conn_id": {
+                        "description": "Specify a Generic Airflow connection ID that contains OpenLineage configuration in connection\nextra. This can be used to keep the OpenLineage transport configuration, including auth settings,\noutside of the Airflow configuration file.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "openlineage_default",
+                        "default": "",
+                    },
                     "config_path": {
                         "description": "Specify the path to the YAML configuration file.\nThis ensures backwards compatibility with passing config through the `openlineage.yml` file.\n",
                         "version_added": None,

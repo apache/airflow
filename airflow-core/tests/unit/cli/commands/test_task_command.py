@@ -22,9 +22,8 @@ import io
 import json
 import logging
 import os
-import shutil
 from argparse import ArgumentParser
-from contextlib import contextmanager, redirect_stdout
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,7 +44,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -68,13 +67,6 @@ def reset(dag_id):
         session.execute(delete(DagRun).where(DagRun.dag_id == dag_id))
         session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
         session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
-
-
-@contextmanager
-def move_back(old_path, new_path):
-    shutil.move(old_path, new_path)
-    yield
-    shutil.move(new_path, old_path)
 
 
 class TestCliTasks:
@@ -540,12 +532,6 @@ class TestCliTasks:
         output = stdout.getvalue()
         # no indentation before property name
         assert "# property: bash_command" in output.split("\n")
-
-
-def _set_state_and_try_num(ti, session):
-    ti.state = TaskInstanceState.QUEUED
-    ti.try_number += 1
-    session.commit()
 
 
 class TestLogsfromTaskRunCommand:

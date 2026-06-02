@@ -32,7 +32,20 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+
+# AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
+# airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
+# the import fails at module load time. The fallback class is never raised by
+# old task-sdk, so the except clause below simply never fires — behaviour is
+# identical to pre-1.2.2 task-sdk.
+try:
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+except ImportError:
+
+    class AirflowSecretsBackendAccessDenied(PermissionError):  # type: ignore[no-redef]
+        """Compat stub — never raised by task-sdk <1.2.2."""
+
+
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session

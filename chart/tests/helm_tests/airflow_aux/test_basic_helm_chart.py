@@ -34,7 +34,6 @@ OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-redis"),
     ("ServiceAccount", "test-basic-airflow-scheduler"),
     ("ServiceAccount", "test-basic-airflow-statsd"),
-    ("ServiceAccount", "test-basic-airflow-otel-collector"),
     ("ServiceAccount", "test-basic-airflow-triggerer"),
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-api-secret-key"),
@@ -46,7 +45,6 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
     ("ConfigMap", "test-basic-airflow-statsd"),
-    ("ConfigMap", "test-basic-airflow-otel-collector"),
     ("Role", "test-basic-airflow-pod-launcher-role"),
     ("Role", "test-basic-airflow-pod-log-reader-role"),
     ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
@@ -54,7 +52,6 @@ OBJECTS_STD_NAMING = {
     ("Service", "test-basic-airflow-api-server"),
     ("Service", "test-basic-airflow-redis"),
     ("Service", "test-basic-airflow-statsd"),
-    ("Service", "test-basic-airflow-otel-collector"),
     ("Service", "test-basic-airflow-triggerer"),
     ("Service", "test-basic-airflow-worker"),
     ("Service", "test-basic-postgresql"),
@@ -63,7 +60,6 @@ OBJECTS_STD_NAMING = {
     ("Deployment", "test-basic-airflow-dag-processor"),
     ("Deployment", "test-basic-airflow-scheduler"),
     ("Deployment", "test-basic-airflow-statsd"),
-    ("Deployment", "test-basic-airflow-otel-collector"),
     ("StatefulSet", "test-basic-airflow-redis"),
     ("StatefulSet", "test-basic-airflow-worker"),
     ("StatefulSet", "test-basic-airflow-triggerer"),
@@ -98,7 +94,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-redis"),
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
-            ("ServiceAccount", "test-basic-otel-collector"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-api-secret-key"),
@@ -110,7 +105,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
-            ("ConfigMap", "test-basic-otel-collector"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
@@ -120,14 +114,12 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-otel-collector"),
             ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-api-server"),
             ("Deployment", "test-basic-dag-processor"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-otel-collector"),
             ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
@@ -186,6 +178,7 @@ class TestBaseChartTest:
                 "executor": executor,
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
             },
         )
         kind_names_tuples = {
@@ -211,6 +204,7 @@ class TestBaseChartTest:
         [
             "CeleryExecutor",
             "CeleryExecutor,KubernetesExecutor",
+            "CeleryExecutor,harvest_exec:KubernetesExecutor",
         ],
     )
     def test_labels_are_valid(self, executor):
@@ -333,6 +327,8 @@ class TestBaseChartTest:
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
+                elif executor == "CeleryExecutor,harvest_exec:KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-harvest_exec-KubernetesExecutor"
 
             if (
                 executor == "CeleryExecutor"

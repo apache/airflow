@@ -63,28 +63,6 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
-class AssetStatePutBody(BaseModel):
-    """
-    Request body for setting an asset state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
-class AssetStateResponse(BaseModel):
-    """
-    Asset state value returned to a worker.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -177,6 +155,14 @@ class HITLUser(BaseModel):
 
     id: Annotated[str, Field(title="Id")]
     name: Annotated[str, Field(title="Name")]
+
+
+class HTTPExceptionResponse(BaseModel):
+    """
+    HTTPException Model used for error response.
+    """
+
+    detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -367,35 +353,35 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
-class TaskStatePutBody(BaseModel):
-    """
-    Request body for setting a task state value.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
-
-
-class TaskStateResponse(BaseModel):
-    """
-    Task state value returned to a worker.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    value: Annotated[str, Field(title="Value")]
-
-
 class TaskStatesResponse(BaseModel):
     """
     Response for task states with run_id, task and state.
     """
 
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TaskStorePutBody(BaseModel):
+    """
+    Request body for setting a task store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
+
+
+class TaskStoreResponse(BaseModel):
+    """
+    Task store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -594,6 +580,28 @@ class AssetResponse(BaseModel):
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+
+
+class AssetStorePutBody(BaseModel):
+    """
+    Request body for setting an asset store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStoreResponse(BaseModel):
+    """
+    Asset store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
 
 
 class HITLDetailRequest(BaseModel):

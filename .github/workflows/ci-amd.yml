@@ -126,6 +126,7 @@ jobs:
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
+      run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-mypy-providers: ${{ steps.selective-checks.outputs.run-mypy-providers }}
@@ -954,6 +955,37 @@ jobs:
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
 
+  tests-java-sdk:
+    name: "Java SDK tests"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-java-sdk-tests == 'true'
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      # keep this in sync with the jvmTarget in java-sdk/build.gradle.kts
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: Run Java SDK tests
+        working-directory: ./java-sdk
+        run: ./gradlew test
+
   tests-airflow-ctl:
     name: "Airflow CTL tests"
     uses: ./.github/workflows/airflow-distributions-tests.yml
@@ -1007,6 +1039,7 @@ jobs:
       - tests-task-sdk
       - tests-airflow-ctl
       - tests-go-sdk
+      - tests-java-sdk
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
