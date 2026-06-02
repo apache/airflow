@@ -471,7 +471,7 @@ class TestEdgeWorker:
         # With ``return 1`` this would have been 0; ``sys.exit(1)`` propagates the non-zero code.
         assert process.exitcode == 1
         # And the parent's success check therefore reports failure instead of a false success.
-        job = Job(edge_job=edge_job, process=process, logfile=tmp_path / "file.log")
+        job = Job(edge_job=edge_job, process=process, logfile=tmp_path / "file.log")  # type: ignore[arg-type]
         assert job.is_success is False
         # Confirm the non-zero exit came from the supervisor failure path (not an unrelated early error).
         assert error_file_path.exists()
