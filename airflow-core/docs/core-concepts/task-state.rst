@@ -95,7 +95,7 @@ Import ``NEVER_EXPIRE`` from ``airflow.sdk.execution_time.context``:
 
 .. code-block:: python
 
-    from airflow.sdk.execution_time.context import NEVER_EXPIRE
+    from airflow.sdk import NEVER_EXPIRE
 
     task_state.set("job_id", job_id, retention=NEVER_EXPIRE)
 
@@ -138,7 +138,7 @@ the default retention window.
     from datetime import timedelta
 
     from airflow.sdk import DAG, task
-    from airflow.sdk.execution_time.context import NEVER_EXPIRE
+    from airflow.sdk import NEVER_EXPIRE
 
 
     with DAG("spark_job_dag", schedule=None):
@@ -152,7 +152,7 @@ the default retention window.
             if job_id is None:
                 job_id = spark_client.submit_job(...)
                 # Store with NEVER_EXPIRE so the key is not garbage-collected before the job finishes
-                task_state.set("job_id", str(job_id), retention=NEVER_EXPIRE)
+                task_state.set("job_id", job_id, retention=NEVER_EXPIRE)
 
             # Reattach to the job and wait for completion.
             result = spark_client.wait_for_completion(job_id)
