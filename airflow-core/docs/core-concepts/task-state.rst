@@ -219,7 +219,7 @@ Task state can expose in-progress metrics for observability — row counts, stat
 
             task_state.set(
                 "progress",
-                json.dumps({
+                {
                     "rows_loaded": total,
                     "status": "done"
                 }),
