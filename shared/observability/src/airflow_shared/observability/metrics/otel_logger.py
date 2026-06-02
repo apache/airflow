@@ -30,6 +30,7 @@ from opentelemetry.sdk.metrics._internal.export import (
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 )
+from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
@@ -146,7 +147,8 @@ class _OtelTimer(Timer):
     """
     An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
 
-    OpenTelemetry does not have a native timer, we will store the values as a Gauge.
+    OpenTelemetry does not have a native timer; values are stored as a Histogram so that
+    all observations (count, sum, bucket distribution) are preserved across multiple recordings.
 
     :param name: The name of the timer.
     :param tags: Tags to append to the timer.
@@ -160,9 +162,9 @@ class _OtelTimer(Timer):
 
     def stop(self, send: bool = True) -> None:
         super().stop(send)
-        if self.name and send and self.duration:
-            self.otel_logger.metrics_map.set_gauge_value(
-                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
+        if self.name and send and self.duration is not None:
+            self.otel_logger.metrics_map.record_histogram_value(
+                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, self.tags
             )
 
 
@@ -278,11 +280,11 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """OTel does not have a native timer, stored as a Gauge whose value is elapsed ms."""
+        """Record a timing observation as a Histogram to preserve distribution information."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
+            self.metrics_map.record_histogram_value(full_name(prefix=self.prefix, name=stat), float(dt), tags)
 
     def timer(
         self,
@@ -314,15 +316,29 @@ class InternalGauge:
         self.gauge.set(new_value, attributes=self.attributes)
 
 
+class InternalHistogram:
+    """Stores a histogram instrument for timer/timing metrics."""
+
+    def __init__(self, meter, name: str):
+        otel_safe_name = _get_otel_safe_name(name)
+        self.histogram = meter.create_histogram(name=otel_safe_name, unit="ms")
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(self.histogram))
+
+    def record(self, value: float, tags: Attributes) -> None:
+        self.histogram.record(value, attributes=tags)
+
+
 class MetricsMap:
     """Stores Otel Instruments."""
 
     def __init__(self, meter):
         self.meter = meter
         self.map = {}
+        self.histograms: dict[str, InternalHistogram] = {}
 
     def clear(self) -> None:
         self.map.clear()
+        self.histograms.clear()
 
     def _create_counter(self, name):
         """Create a new counter or up_down_counter for the provided name."""
@@ -376,6 +392,21 @@ class MetricsMap:
 
         self.map[key].set_value(value, delta)
 
+    def record_histogram_value(self, name: str, value: float, tags: Attributes) -> None:
+        """
+        Record a timing observation in a Histogram instrument.
+
+        Unlike a Gauge, a Histogram accumulates all observations so that count, sum,
+        and bucket distribution are preserved across multiple recordings.
+
+        :param name: The name of the histogram to record.
+        :param value: The timing observation in milliseconds.
+        :param tags: Attributes to attach to the observation.
+        """
+        if name not in self.histograms:
+            self.histograms[name] = InternalHistogram(meter=self.meter, name=name)
+        self.histograms[name].record(value, tags)
+
 
 def flush_otel_metrics():
     provider = metrics.get_meter_provider()
@@ -400,6 +431,15 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
+    """
+    Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
+
+    Histogram instruments (used for ``timing()`` / ``timer()`` metrics) are aggregated with
+    :class:`~opentelemetry.sdk.metrics.view.ExponentialBucketHistogramAggregation`
+    so that bucket boundaries adapt automatically to the observed data range.  This avoids
+    the need to hand-tune explicit bucket boundaries for metrics that span very different
+    scales (milliseconds to hours).
+    """
     otel_env_config = load_metrics_env_config()
 
     effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
@@ -453,6 +493,12 @@ def get_otel_logger(
         MeterProvider(
             resource=resource,
             metric_readers=readers,
+            views=[
+                View(
+                    instrument_type=metrics.Histogram,
+                    aggregation=ExponentialBucketHistogramAggregation(),
+                )
+            ],
             shutdown_on_exit=False,
         ),
     )
