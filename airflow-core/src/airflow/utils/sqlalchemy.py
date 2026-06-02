@@ -251,11 +251,11 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
-        return PodGenerator.deserialize_model_dict(pod_dict)
+        return ApiClient()._ApiClient__deserialize_model(pod_dict, V1Pod)
     except Exception:
         return None
 
