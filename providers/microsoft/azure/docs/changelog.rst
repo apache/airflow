@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+.. warning::
+  The ``AzureBatchHook`` and ``AzureBatchOperator`` have been migrated to the ``azure-batch`` 15.x
+  SDK (track 2). This is a breaking change and requires ``azure-batch>=15.0.0``.
+
+  The following changes were introduced:
+
+* Hooks
+  * ``AzureBatchHook.get_conn`` and ``AzureBatchHook.connection`` now return an ``azure.batch.BatchClient``
+    instead of an ``azure.batch.BatchServiceClient``.
+  * Shared key authentication now uses ``azure.core.credentials.AzureNamedKeyCredential`` instead of
+    ``azure.batch.batch_auth.SharedKeyCredentials``.
+  * ``AzureBatchHook.configure_pool`` no longer accepts the ``os_family`` and ``os_version`` parameters.
+    Cloud service configuration is not supported by the track 2 SDK; use a virtual machine configuration
+    (``vm_publisher``, ``vm_offer``, ``vm_sku``, ``vm_version`` or ``use_latest_image_and_sku``) instead.
+  * The Batch model classes were renamed by the SDK: ``PoolAddParameter`` is now ``BatchPoolCreateOptions``,
+    ``JobAddParameter`` is now ``BatchJobCreateOptions``, ``TaskAddParameter`` is now ``BatchTaskCreateOptions``,
+    and ``CloudTask`` is now ``BatchTask``.
+
+* Operators
+  * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
+    provided to configure the pool's virtual machine image.
+
 13.3.0
 ......
 
