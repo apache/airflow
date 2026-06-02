@@ -36,7 +36,7 @@ class ResumableJobMixin:
     resubmitting a duplicate.
 
     **How it works:** On the first run, after submitting the job, the external ID (driver ID, YARN
-    application ID, etc.) is persisted to ``task_state`` before polling starts. On retry, the mixin
+    application ID, etc.) is persisted to ``task_store`` before polling starts. On retry, the mixin
     reads that ID back and reconnects to the already-running job instead of starting a new one.
 
     **What it does not do:** It does not free the worker slot during polling (use deferrable for that),
@@ -46,7 +46,7 @@ class ResumableJobMixin:
     is supported.
 
     Subclasses must implement the methods specific to their external system. The mixin owns
-    only ``execute_resumable()`` and the task_state read/write logic.
+    only ``execute_resumable()`` and the task_store read/write logic.
 
     Example::
 
@@ -80,7 +80,7 @@ class ResumableJobMixin:
         # that because ResumableJobMixin does not inherit from it directly.
         log: Logger
 
-    # Key used to store and retrieve the external job ID from task_state across retries.
+    # Key used to store and retrieve the external job ID from task_store across retries.
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
@@ -88,7 +88,7 @@ class ResumableJobMixin:
         """
         Core of the resumable execution logic. Call this from execute() when reconnection is supported.
 
-        On initial run: submits the job, persists the external ID to task_state, then polls.
+        On initial run: submits the job, persists the external ID to task_store, then polls.
 
         Behaviour on retry:
         - On retry with active job: skips submission, reconnects to the running job.
@@ -96,15 +96,15 @@ class ResumableJobMixin:
         - On retry with failed job: falls through and resubmits fresh.
 
         Known limitation: there is a small window between ``submit_job`` returning and
-        ``task_state.set`` completing. If the worker dies in that gap, the next retry still
+        ``task_store.set`` completing. If the worker dies in that gap, the next retry still
         holds the previous (terminal) ID and will resubmit a fresh job rather than reconnecting.
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
-        task_state = context.get("task_state")
+        task_store = context.get("task_store")
 
-        if task_state is not None:
-            external_id = task_state.get(self.external_id_key)
+        if task_store is not None:
+            external_id = task_store.get(self.external_id_key)
             if external_id:
                 status = self.get_job_status(external_id)
                 if self.is_job_active(status):
@@ -126,8 +126,8 @@ class ResumableJobMixin:
 
         external_id = self.submit_job(context)
 
-        if task_state is not None and external_id is not None:
-            task_state.set(self.external_id_key, external_id)
+        if task_store is not None and external_id is not None:
+            task_store.set(self.external_id_key, external_id)
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)

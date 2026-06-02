@@ -14,32 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import math
-
-from pydantic import JsonValue, field_validator
-
-from airflow.api_fastapi.core_api.base import StrictBaseModel
-
-
-class AssetStateResponse(StrictBaseModel):
-    """Asset state value returned to a worker."""
-
-    value: JsonValue
-
-
-class AssetStatePutBody(StrictBaseModel):
-    """Request body for setting an asset state value."""
-
-    value: JsonValue
-
-    @field_validator("value")
-    @classmethod
-    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
-        if v is None:
-            raise ValueError("value cannot be null")
-        if isinstance(v, float) and not math.isfinite(v):
-            raise ValueError("value must be a finite number; NaN and Inf are not JSON representable")
-        return v

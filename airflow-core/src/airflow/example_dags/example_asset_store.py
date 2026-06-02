@@ -15,19 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Dag that demonstrates using AIP-103 asset state to track a watermark across DAG runs.
+Example Dag that demonstrates using AIP-103 asset store to track a watermark across DAG runs.
 The producer reads the last watermark, processes only new records, then
 advances the watermark. The consumer is triggered by the asset event and
-reads asset state to understand what the producer just loaded.
+reads asset store to understand what the producer just loaded.
 
-Asset state persists on the asset across runs — unlike task state which is
+Asset store persists on the asset across runs — unlike task store which is
 scoped to a single task instance. This replaces the common pattern of
 storing watermarks in Airflow Variables, which have no asset-level scoping.
 """
 
 from __future__ import annotations
 
-import json
 import random
 from datetime import datetime, timezone
 
@@ -42,17 +41,17 @@ def _fetch_records(since: str) -> list[dict]:
 
 
 with DAG(
-    dag_id="example_asset_state_producer",
+    dag_id="example_asset_store_producer",
     schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["example", "asset-state"],
+    tags=["example", "asset-store"],
     doc_md=__doc__,
 ):
 
     @task(inlets=[ORDERS], outlets=[ORDERS])
-    def load(asset_state=None):
-        state = asset_state[ORDERS]
+    def load(asset_store=None):
+        state = asset_store[ORDERS]
 
         watermark = state.get("watermark", default="2026-01-01T00:00:00+00:00")
         records = _fetch_records(since=watermark)
@@ -77,17 +76,17 @@ with DAG(
 
 
 with DAG(
-    dag_id="example_asset_state_consumer",
+    dag_id="example_asset_store_consumer",
     schedule=[ORDERS],
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["example", "asset-state"],
+    tags=["example", "asset-store"],
 ):
 
     @task(inlets=[ORDERS])
-    def consume(asset_state=None):
-        state = asset_state[ORDERS]
-        summary = json.loads(state.get("last_run_summary") or "{}")
+    def consume(asset_store=None):
+        state = asset_store[ORDERS]
+        summary = state.get("last_run_summary") or "{}"
         print(
             f"Processing {summary.get('rows_loaded', '?')} rows "
             f"up to watermark {state.get('watermark')}. "

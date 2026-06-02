@@ -120,6 +120,38 @@ class BulkDAGRunBody(BaseModel):
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
 
 
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
+
+
+class BulkDAGRunClearBody(BaseModel):
+    """
+    Request body for the bulk clear Dag Runs endpoint.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
+            title="Run On Latest Version",
+        ),
+    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
+
+
 class BulkDeleteActionBulkDAGRunBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -155,10 +187,6 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
-
-
-class Note(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class BulkUpdateActionBulkDAGRunBody(BaseModel):
@@ -344,7 +372,7 @@ class DAGRunClearBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).",
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
             title="Run On Latest Version",
         ),
     ] = None
@@ -574,6 +602,7 @@ class ExternalViewResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
@@ -809,6 +838,7 @@ class ReactAppResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
@@ -953,9 +983,9 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
-class TaskStateBody(BaseModel):
+class TaskStoreBody(BaseModel):
     """
-    Request body for setting a task state value.
+    Request body for setting a task store value.
 
     ``expires_at`` controls expiry:
 
@@ -971,9 +1001,9 @@ class TaskStateBody(BaseModel):
     expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
 
 
-class TaskStatePatchBody(BaseModel):
+class TaskStorePatchBody(BaseModel):
     """
-    Request body for patching only the value of an existing task state key.
+    Request body for patching only the value of an existing task store key.
     """
 
     model_config = ConfigDict(
@@ -982,9 +1012,9 @@ class TaskStatePatchBody(BaseModel):
     value: JsonValue
 
 
-class TaskStateResponse(BaseModel):
+class TaskStoreResponse(BaseModel):
     """
-    A single task state key/value pair with metadata.
+    A single task store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1223,9 +1253,9 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStateBody(BaseModel):
+class AssetStoreBody(BaseModel):
     """
-    Request body for setting an asset state value.
+    Request body for setting an asset store value.
     """
 
     model_config = ConfigDict(
@@ -1234,9 +1264,9 @@ class AssetStateBody(BaseModel):
     value: JsonValue
 
 
-class AssetStateResponse(BaseModel):
+class AssetStoreResponse(BaseModel):
     """
-    A single asset state key/value pair with metadata.
+    A single asset store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1982,12 +2012,12 @@ class TaskResponse(BaseModel):
     ]
 
 
-class TaskStateCollectionResponse(BaseModel):
+class TaskStoreCollectionResponse(BaseModel):
     """
-    All task state entries for a task instance.
+    All task store entries for a task instance.
     """
 
-    task_states: Annotated[list[TaskStateResponse], Field(title="Task States")]
+    task_store: Annotated[list[TaskStoreResponse], Field(title="Task Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -2027,12 +2057,12 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class AssetStateCollectionResponse(BaseModel):
+class AssetStoreCollectionResponse(BaseModel):
     """
-    All asset state entries for an asset.
+    All asset store entries for an asset.
     """
 
-    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
+    asset_store: Annotated[list[AssetStoreResponse], Field(title="Asset Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

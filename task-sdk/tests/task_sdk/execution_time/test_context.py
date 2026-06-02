@@ -53,42 +53,42 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
-    AssetStateResult,
-    ClearAssetStateByName,
-    ClearAssetStateByUri,
-    ClearTaskState,
+    AssetStoreResult,
+    ClearAssetStoreByName,
+    ClearAssetStoreByUri,
+    ClearTaskStore,
     ConnectionResult,
     DagRunResult,
-    DeleteAssetStateByName,
-    DeleteAssetStateByUri,
-    DeleteTaskState,
+    DeleteAssetStoreByName,
+    DeleteAssetStoreByUri,
+    DeleteTaskStore,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetsByAlias,
-    GetAssetStateByName,
-    GetAssetStateByUri,
+    GetAssetStoreByName,
+    GetAssetStoreByUri,
     GetDagRun,
-    GetTaskState,
+    GetTaskStore,
     GetXCom,
     OKResponse,
-    SetAssetStateByName,
-    SetAssetStateByUri,
-    SetTaskState,
-    TaskStateResult,
+    SetAssetStoreByName,
+    SetAssetStoreByUri,
+    SetTaskStore,
+    TaskStoreResult,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.context import (
     NEVER_EXPIRE,
-    AssetStateAccessor,
-    AssetStateAccessors,
+    AssetStoreAccessor,
+    AssetStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
-    TaskStateAccessor,
+    TaskStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
@@ -101,7 +101,7 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
-from airflow.sdk.state import BaseStateBackend
+from airflow.sdk.state import BaseStoreBackend
 
 from tests_common.test_utils.config import conf_vars
 
@@ -387,7 +387,7 @@ class TestCurrentContext:
         for i in range(max_stack_depth):
             # Create all contexts in ascending order
             new_context = {"ContextId": i}
-            # Like 15 nested with statements
+            # Like 15 nested with Storements
             ctx_obj = set_current_context(new_context)
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
@@ -395,7 +395,7 @@ class TestCurrentContext:
             # Iterate over contexts in reverse order - stack is LIFO
             ctx = get_current_context()
             assert ctx["ContextId"] == i
-            # End of with statement
+            # End of with Storement
             ctx_list[i].__exit__(None, None, None)
 
 
@@ -1102,40 +1102,40 @@ class TestSecretsBackend:
                 _get_connection("nonexistent_conn")
 
 
-class TestTaskStateAccessor:
+class TestTaskStoreAccessor:
     TI_ID = UUID("01900000-0000-0000-0000-000000000001")
     SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
 
     def test_get_returns_value(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = TaskStateResult(value="app_001")
+        mock_supervisor_comms.send.return_value = TaskStoreResult(value="app_001")
 
-        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
 
         assert result == "app_001"
-        mock_supervisor_comms.send.assert_called_once_with(GetTaskState(ti_id=self.TI_ID, key="job_id"))
+        mock_supervisor_comms.send.assert_called_once_with(GetTaskStore(ti_id=self.TI_ID, key="job_id"))
 
     def test_get_returns_none_on_404(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
-            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "missing_key"}
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "missing_key"}
         )
 
-        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("missing_key")
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("missing_key")
 
         assert result is None
 
     def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
-            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "job_id"}
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}
         )
 
-        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id", default="default-id")
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id", default="default-id")
 
         assert result == "default-id"
 
     def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = TaskStateResult(value="job-001")
+        mock_supervisor_comms.send.return_value = TaskStoreResult(value="job-001")
 
-        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get(
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get(
             "job_id", default="do-not-start-here"
         )
 
@@ -1147,11 +1147,11 @@ class TestTaskStateAccessor:
         )
 
         with pytest.raises(AirflowRuntimeError):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
 
     def test_set_none_raises(self, mock_supervisor_comms):
         with pytest.raises(ValueError, match="Cannot set value as None"):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", None)
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", None)
 
     def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
         """set() with no retention uses global default_retention_days config."""
@@ -1161,10 +1161,10 @@ class TestTaskStateAccessor:
         time_machine.move_to(now, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(
+            SetTaskStore(
                 ti_id=self.TI_ID,
                 key="job_id",
                 value="app_001",
@@ -1178,12 +1178,12 @@ class TestTaskStateAccessor:
         now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(now, tick=False)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
             "job_id", "app_001", retention=timedelta(days=7)
         )
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(
+            SetTaskStore(
                 ti_id=self.TI_ID,
                 key="job_id",
                 value="app_001",
@@ -1196,10 +1196,10 @@ class TestTaskStateAccessor:
 
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001", retention=NEVER_EXPIRE)
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001", retention=NEVER_EXPIRE)
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
+            SetTaskStore(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
 
     def test_set_global_default_zero_sends_null_expires_at(self, mock_supervisor_comms):
@@ -1207,41 +1207,41 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         with conf_vars({("state_store", "default_retention_days"): "0"}):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
+            SetTaskStore(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
 
-        mock_supervisor_comms.send.assert_called_once_with(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
+        mock_supervisor_comms.send.assert_called_once_with(DeleteTaskStore(ti_id=self.TI_ID, key="job_id"))
 
     def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
         mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskState(ti_id=self.TI_ID, all_map_indices=False)
+            ClearTaskStore(ti_id=self.TI_ID, all_map_indices=False)
         )
 
     def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
 
         mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskState(ti_id=self.TI_ID, all_map_indices=True)
+            ClearTaskStore(ti_id=self.TI_ID, all_map_indices=True)
         )
 
     def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
         """datetime is not JSON-serializable; callers must use .isoformat() first."""
         with pytest.raises(ValidationError):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
                 "watermark",
                 datetime(2026, 5, 15, tzinfo=dt_timezone.utc),
             )
@@ -1249,20 +1249,20 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.assert_not_called()
 
     def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
-        """Custom backend ref is wrapped in external state marker before going to DB."""
+        """Custom backend ref is wrapped in external Store marker before going to DB."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        backend = MagicMock(spec=BaseStateBackend)
-        backend.serialize_task_state_to_ref.return_value = "s3://bucket/ti_123/job_id"
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_task_store_to_ref.return_value = "s3://bucket/ti_123/job_id"
 
         with (
             patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend),
             conf_vars({("state_store", "default_retention_days"): "0"}),
         ):
-            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "spark_001")
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "spark_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(
+            SetTaskStore(
                 ti_id=self.TI_ID,
                 key="job_id",
                 value=_wrap_external_ref("s3://bucket/ti_123/job_id"),
@@ -1271,59 +1271,59 @@ class TestTaskStateAccessor:
         )
 
     def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
-        """External state marker is detected and the ref is passed to deserialize."""
-        mock_supervisor_comms.send.return_value = TaskStateResult(
+        """External Store marker is detected and the ref is passed to deserialize."""
+        mock_supervisor_comms.send.return_value = TaskStoreResult(
             value=_wrap_external_ref("s3://bucket/ti_123/job_id")
         )
 
-        backend = MagicMock(spec=BaseStateBackend)
-        backend.deserialize_task_state_from_ref.return_value = {"rows": 123}
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_task_store_from_ref.return_value = {"rows": 123}
 
         with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
-            result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+            result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
 
         assert result == {"rows": 123}
-        backend.deserialize_task_state_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
+        backend.deserialize_task_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
 
 
-class TestAssetStateAccessor:
+class TestAssetStoreAccessor:
     ASSET_NAME = "debug_watcher_asset"
     ASSET_URI = "s3://bucket/key"
 
     def test_get_returns_value(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-04-30T00:00:00Z")
 
-        result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get("watermark")
 
         assert result == "2026-04-30T00:00:00Z"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_get_returns_none_on_404(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
-            error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "missing_key"}
+            error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "missing_key"}
         )
 
-        result = AssetStateAccessor(name=self.ASSET_NAME).get("missing_key")
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get("missing_key")
 
         assert result is None
 
     def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
-            error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "watermark"}
+            error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"}
         )
 
-        result = AssetStateAccessor(name=self.ASSET_NAME).get(
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
             "watermark", default="2026-01-01T00:00:00+00:00"
         )
 
         assert result == "2026-01-01T00:00:00+00:00"
 
     def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-06-01T00:00:00+00:00")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-06-01T00:00:00+00:00")
 
-        result = AssetStateAccessor(name=self.ASSET_NAME).get(
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
             "watermark", default="2026-01-01T00:00:00+00:00"
         )
 
@@ -1335,84 +1335,84 @@ class TestAssetStateAccessor:
         )
 
         with pytest.raises(AirflowRuntimeError):
-            AssetStateAccessor(name=self.ASSET_NAME).get("some_key")
+            AssetStoreAccessor(name=self.ASSET_NAME).get("some_key")
 
     def test_set_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-04-30T00:00:00Z")
+        AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-04-30T00:00:00Z")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
+            SetAssetStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
         )
 
     def test_set_none_raises(self, mock_supervisor_comms):
         with pytest.raises(ValueError, match="Cannot set value as None"):
-            AssetStateAccessor(name=self.ASSET_NAME).set("watermark", None)
+            AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", None)
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
+        AssetStoreAccessor(name=self.ASSET_NAME).delete("watermark")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            DeleteAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_clear_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).clear()
+        AssetStoreAccessor(name=self.ASSET_NAME).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStoreByName(name=self.ASSET_NAME))
 
     def test_get_by_uri(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-04-30T00:00:00Z")
 
-        result = AssetStateAccessor(uri=self.ASSET_URI).get("watermark")
+        result = AssetStoreAccessor(uri=self.ASSET_URI).get("watermark")
 
         assert result == "2026-04-30T00:00:00Z"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+            GetAssetStoreByUri(uri=self.ASSET_URI, key="watermark")
         )
 
     def test_set_by_uri(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(uri=self.ASSET_URI).set("watermark", "2026-04-30T00:00:00Z")
+        AssetStoreAccessor(uri=self.ASSET_URI).set("watermark", "2026-04-30T00:00:00Z")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
+            SetAssetStoreByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
         )
 
     def test_delete_by_uri(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(uri=self.ASSET_URI).delete("watermark")
+        AssetStoreAccessor(uri=self.ASSET_URI).delete("watermark")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            DeleteAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+            DeleteAssetStoreByUri(uri=self.ASSET_URI, key="watermark")
         )
 
     def test_clear_by_uri(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(uri=self.ASSET_URI).clear()
+        AssetStoreAccessor(uri=self.ASSET_URI).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStoreByUri(uri=self.ASSET_URI))
 
     def test_set_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
-        """Custom backend ref is wrapped in external state marker before going to DB."""
+        """Custom backend ref is wrapped in external Store marker before going to DB."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        backend = MagicMock(spec=BaseStateBackend)
-        backend.serialize_asset_state_to_ref.return_value = "s3://bucket/assets/orders/watermark"
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_asset_store_to_ref.return_value = "s3://bucket/assets/orders/watermark"
 
         with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
-            AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
+            AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByName(
+            SetAssetStoreByName(
                 name=self.ASSET_NAME,
                 key="watermark",
                 value=_wrap_external_ref("s3://bucket/assets/orders/watermark"),
@@ -1420,105 +1420,105 @@ class TestAssetStateAccessor:
         )
 
     def test_get_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
-        """External state marker is detected and the ref is passed to deserialize."""
-        mock_supervisor_comms.send.return_value = AssetStateResult(
+        """External Store marker is detected and the ref is passed to deserialize."""
+        mock_supervisor_comms.send.return_value = AssetStoreResult(
             value=_wrap_external_ref("s3://bucket/assets/orders/watermark")
         )
 
-        backend = MagicMock(spec=BaseStateBackend)
-        backend.deserialize_asset_state_from_ref.return_value = "2026-05-01"
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_asset_store_from_ref.return_value = "2026-05-01"
 
         with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
-            result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+            result = AssetStoreAccessor(name=self.ASSET_NAME).get("watermark")
 
         assert result == "2026-05-01"
-        backend.deserialize_asset_state_from_ref.assert_called_once_with(
+        backend.deserialize_asset_store_from_ref.assert_called_once_with(
             "s3://bucket/assets/orders/watermark"
         )
 
 
-class TestAssetStateAccessors:
+class TestAssetStoreAccessors:
     ASSET_NAME = "my_asset"
     ASSET_URI = "s3://bucket/key"
 
     def test_subscript_by_asset_routes_by_name(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="v1")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v1")
 
-        result = AssetStateAccessors([asset])[asset].get("watermark")
+        result = AssetStoreAccessors([asset])[asset].get("watermark")
 
         assert result == "v1"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_subscript_by_asset_name_ref(self, mock_supervisor_comms):
         ref = AssetNameRef(name=self.ASSET_NAME)
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="v2")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v2")
 
-        result = AssetStateAccessors([ref])[ref].get("watermark")
+        result = AssetStoreAccessors([ref])[ref].get("watermark")
 
         assert result == "v2"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_subscript_by_uri_ref(self, mock_supervisor_comms):
         ref = AssetUriRef(uri=self.ASSET_URI)
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="v3")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v3")
 
-        result = AssetStateAccessors([ref])[ref].get("watermark")
+        result = AssetStoreAccessors([ref])[ref].get("watermark")
 
         assert result == "v3"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+            GetAssetStoreByUri(uri=self.ASSET_URI, key="watermark")
         )
 
     def test_get_single_inlet_simplified(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.send.return_value = AssetStateResult(value="v4")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v4")
 
-        result = AssetStateAccessors([asset]).get("watermark")
+        result = AssetStoreAccessors([asset]).get("watermark")
 
         assert result == "v4"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_set_single_inlet_simplified(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessors([asset]).set("watermark", "2026-05-01")
+        AssetStoreAccessors([asset]).set("watermark", "2026-05-01")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
+            SetAssetStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
         )
 
     def test_delete_single_inlet_simplified(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessors([asset]).delete("watermark")
+        AssetStoreAccessors([asset]).delete("watermark")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            DeleteAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_clear_single_inlet_simplified(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessors([asset]).clear()
+        AssetStoreAccessors([asset]).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStoreByName(name=self.ASSET_NAME))
 
     def test_double_reference_raises(self):
         a1 = Asset(name="asset_one", uri="s3://one")
         a2 = Asset(name="asset_two", uri="s3://two")
 
-        with pytest.raises(ValueError, match="2 concrete inlets"):
-            AssetStateAccessors([a1, a2]).get("watermark")
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
+            AssetStoreAccessors([a1, a2]).get("watermark")
 
     def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
@@ -1529,7 +1529,7 @@ class TestAssetStateAccessors:
             assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
         )
 
-        accessors = AssetStateAccessors([alias])
+        accessors = AssetStoreAccessors([alias])
 
         mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
         resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
@@ -1539,35 +1539,91 @@ class TestAssetStateAccessors:
         alias = AssetAlias(name="empty_alias")
         mock_supervisor_comms.send.return_value = AssetsByAliasResult(assets=[])
 
-        accessors = AssetStateAccessors([alias])
+        accessors = AssetStoreAccessors([alias])
 
         assert accessors._total == 0
 
+    def test_outlet_only_asset_is_accessible(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v1")
 
-class InMemoryStateBackend(BaseStateBackend):
+        result = AssetStoreAccessors([], [asset])[asset].get("watermark")
+
+        assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_name_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetNameRef(name=self.ASSET_NAME)
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v2")
+
+        result = AssetStoreAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_outlet_only_uri_ref_is_accessible(self, mock_supervisor_comms):
+        ref = AssetUriRef(uri=self.ASSET_URI)
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v2")
+
+        result = AssetStoreAccessors([], [ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStoreByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_outlet_only_single_shorthand_works(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="v3")
+
+        result = AssetStoreAccessors([], [asset]).get("watermark")
+
+        assert result == "v3"
+
+    def test_asset_in_both_inlets_and_outlets_not_duplicated(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+
+        accessors = AssetStoreAccessors([asset], [asset])
+
+        assert accessors._total == 1
+
+    def test_outlet_alias_is_ignored(self, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+
+        accessors = AssetStoreAccessors([], [alias])
+
+        assert accessors._total == 0
+        mock_supervisor_comms.send.assert_not_called()
+
+
+class InMemoryStoreBackend(BaseStoreBackend):
     """Simple in-memory test backend."""
 
     def __init__(self):
         self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
         self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
 
-    def serialize_task_state_to_ref(self, *, value, key: str, ti_id: str) -> str:
+    def serialize_task_store_to_ref(self, *, value, key: str, ti_id: str) -> str:
         ref = f"mem://{ti_id}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_state_to_ref(self, *, value, key: str, asset_ref: str) -> str:
+    def serialize_asset_store_to_ref(self, *, value, key: str, asset_ref: str) -> str:
         ref = f"mem://{asset_ref}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
@@ -1588,13 +1644,13 @@ class InMemoryStateBackend(BaseStateBackend):
     async def aclear(self, scope, *, all_map_indices=False): ...
 
 
-class TestTaskStateAccessorWithCustomBackend:
+class TestTaskStoreAccessorWithCustomBackend:
     TI_ID = UUID("01900000-0000-0000-0000-000000000002")
     SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
 
     @pytest.fixture(autouse=True)
     def backend(self):
-        b = InMemoryStateBackend()
+        b = InMemoryStoreBackend()
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_backend",
             return_value=b,
@@ -1609,10 +1665,10 @@ class TestTaskStateAccessorWithCustomBackend:
         frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(frozen_dt, tick=False)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
         # comms message has the mem:// reference, not the actual value
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(
+            SetTaskStore(
                 ti_id=self.TI_ID,
                 key="job_id",
                 value=_wrap_external_ref(expected_ref),
@@ -1627,9 +1683,9 @@ class TestTaskStateAccessorWithCustomBackend:
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
         ref = _wrap_external_ref(f"mem://{self.TI_ID}/job_id")
         backend._actual_key_value_store["job_id"] = "app_001"
-        mock_supervisor_comms.send.return_value = TaskStateResult(value=ref)
+        mock_supervisor_comms.send.return_value = TaskStoreResult(value=ref)
 
-        result = TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
         # actual value is resolved from mem:// reference via backend
         assert result == "app_001"
 
@@ -1638,12 +1694,12 @@ class TestTaskStateAccessorWithCustomBackend:
         backend._actual_key_value_store["job_id"] = "app_001"
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).delete("job_id")
 
         # backend does not have the value anymore
         assert "job_id" not in backend._actual_key_value_store
         # request to delete reference in DB was made
-        mock_supervisor_comms.send.assert_any_call(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
+        mock_supervisor_comms.send.assert_any_call(DeleteTaskStore(ti_id=self.TI_ID, key="job_id"))
 
     def test_clears_all_from_backend_and_clears_db(self, mock_supervisor_comms, backend):
         """clear() purges all backend objects for the TI and removes all DB references."""
@@ -1651,19 +1707,19 @@ class TestTaskStateAccessorWithCustomBackend:
         backend._actual_key_value_store["checkpoint"] = "step_3"
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
+        TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
-        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=self.TI_ID, all_map_indices=False))
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStore(ti_id=self.TI_ID, all_map_indices=False))
 
 
-class TestAssetStateAccessorWithCustomBackend:
+class TestAssetStoreAccessorWithCustomBackend:
     ASSET_NAME = "my_asset"
 
     @pytest.fixture(autouse=True)
     def backend(self):
-        b = InMemoryStateBackend()
+        b = InMemoryStoreBackend()
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_backend",
             return_value=b,
@@ -1674,12 +1730,12 @@ class TestAssetStateAccessorWithCustomBackend:
         """set() stores actual value in backend and sends mem:// reference via comms."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
+        AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
 
         expected_ref = f"mem://{self.ASSET_NAME}/watermark"
         # comms message has the mem:// reference, not the actual value
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetStateByName(
+            SetAssetStoreByName(
                 name=self.ASSET_NAME,
                 key="watermark",
                 value=_wrap_external_ref(expected_ref),
@@ -1693,9 +1749,9 @@ class TestAssetStateAccessorWithCustomBackend:
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
         ref = _wrap_external_ref(f"mem://{self.ASSET_NAME}/watermark")
         backend._actual_key_value_store["watermark"] = "2026-05-01"
-        mock_supervisor_comms.send.return_value = AssetStateResult(value=ref)
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value=ref)
 
-        result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get("watermark")
 
         # actual value is resolved from mem:// reference via backend
         assert result == "2026-05-01"
@@ -1705,13 +1761,13 @@ class TestAssetStateAccessorWithCustomBackend:
         backend._actual_key_value_store["watermark"] = "2026-05-01"
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
+        AssetStoreAccessor(name=self.ASSET_NAME).delete("watermark")
 
         # backend doesn't have the value anymore
         assert "watermark" not in backend._actual_key_value_store
         # request to delete reference in DB was made
         mock_supervisor_comms.send.assert_any_call(
-            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+            DeleteAssetStoreByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_clear_purges_all_from_backend_and_clears_db(self, mock_supervisor_comms, backend):
@@ -1720,8 +1776,8 @@ class TestAssetStateAccessorWithCustomBackend:
         backend._actual_key_value_store["file_count"] = "42"
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        AssetStateAccessor(name=self.ASSET_NAME).clear()
+        AssetStoreAccessor(name=self.ASSET_NAME).clear()
 
         assert "watermark" not in backend._actual_key_value_store
         assert "file_count" not in backend._actual_key_value_store
-        mock_supervisor_comms.send.assert_any_call(ClearAssetStateByName(name=self.ASSET_NAME))
+        mock_supervisor_comms.send.assert_any_call(ClearAssetStoreByName(name=self.ASSET_NAME))

@@ -353,9 +353,17 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
-class TaskStatePutBody(BaseModel):
+class TaskStatesResponse(BaseModel):
     """
-    Request body for setting a task state value.
+    Response for task states with run_id, task and state.
+    """
+
+    task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TaskStorePutBody(BaseModel):
+    """
+    Request body for setting a task store value.
     """
 
     model_config = ConfigDict(
@@ -365,23 +373,15 @@ class TaskStatePutBody(BaseModel):
     expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
-class TaskStateResponse(BaseModel):
+class TaskStoreResponse(BaseModel):
     """
-    Task state value returned to a worker.
+    Task store value returned to a worker.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     value: JsonValue
-
-
-class TaskStatesResponse(BaseModel):
-    """
-    Response for task states with run_id, task and state.
-    """
-
-    task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -582,9 +582,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
-class AssetStatePutBody(BaseModel):
+class AssetStorePutBody(BaseModel):
     """
-    Request body for setting an asset state value.
+    Request body for setting an asset store value.
     """
 
     model_config = ConfigDict(
@@ -593,9 +593,9 @@ class AssetStatePutBody(BaseModel):
     value: JsonValue
 
 
-class AssetStateResponse(BaseModel):
+class AssetStoreResponse(BaseModel):
     """
-    Asset state value returned to a worker.
+    Asset store value returned to a worker.
     """
 
     model_config = ConfigDict(
