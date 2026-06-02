@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic_ai import Agent
-from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai.hooks.base import (
     AgentRunRequest,
@@ -30,6 +29,7 @@ from airflow.providers.common.ai.hooks.base import (
     AgentUsage,
     BaseAIHook,
     BaseToolset,
+    Capability,
     DurableContext,
     DurableStats,
     ToolSpec,
@@ -65,7 +65,7 @@ class TestBaseAIHookInit:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -79,32 +79,17 @@ class TestBaseAIHookInit:
         assert hook.model_id == "openai:gpt-5"
 
 
-class TestBaseAIHookAgentDurable:
-    def test_bind_pop_round_trip(self):
-        agent = Agent(TestModel())
-        storage = MagicMock()
-        counter = MagicMock()
-
-        BaseAIHook._bind_agent_durable(agent, storage, counter)
-        assert agent._airflow_durable_state == (storage, counter)
-        assert BaseAIHook._pop_agent_durable(agent) == (storage, counter)
-        assert BaseAIHook._pop_agent_durable(agent) is None
-        assert not hasattr(agent, "_airflow_durable_state")
-
-
 class TestValidateRunRequest:
     def test_rejects_toolsets_when_unsupported(self):
         class ConcreteHook(BaseAIHook):
             conn_type = "test"
             hook_name = "Test"
-            supports_toolsets = False
-            supports_usage_limits = True
-            supports_durable = True
+            capabilities = frozenset({Capability.USAGE_LIMITS, Capability.DURABLE})
 
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -115,21 +100,19 @@ class TestValidateRunRequest:
 
         hook = ConcreteHook(llm_conn_id="test_conn")
         request = AgentRunRequest(prompt="hi", toolsets=[MagicMock()])
-        with pytest.raises(ValueError, match="toolsets are not supported"):
+        with pytest.raises(ValueError, match="toolsets not supported"):
             hook.validate_run_request(request)
 
     def test_rejects_usage_limits_when_unsupported(self):
         class ConcreteHook(BaseAIHook):
             conn_type = "test"
             hook_name = "Test"
-            supports_toolsets = True
-            supports_usage_limits = False
-            supports_durable = True
+            capabilities = frozenset({Capability.TOOLSETS, Capability.DURABLE})
 
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -140,11 +123,77 @@ class TestValidateRunRequest:
 
         hook = ConcreteHook(llm_conn_id="test_conn")
         request = AgentRunRequest(prompt="hi", usage_limits=MagicMock())
-        with pytest.raises(ValueError, match="usage_limits are not supported"):
+        with pytest.raises(ValueError, match="usage_limits not supported"):
             hook.validate_run_request(request)
+
+    def test_rejects_durable_when_unsupported(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+            capabilities = frozenset({Capability.TOOLSETS, Capability.USAGE_LIMITS})
+
+            def get_model(self):
+                return None
+
+            def _build_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook(llm_conn_id="test_conn")
+        request = AgentRunRequest(
+            prompt="hi",
+            durable_context=DurableContext(dag_id="d", task_id="t", run_id="r"),
+        )
+
+        with pytest.raises(ValueError, match="durable execution not supported"):
+            hook.validate_run_request(request)
+
+    def test_create_agent_validates_before_building(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+            capabilities = frozenset()  # no capabilities — toolsets will be rejected
+
+            def __init__(self):
+                super().__init__(llm_conn_id="test_conn")
+                self.built = False
+
+            def get_model(self):
+                return None
+
+            def _build_agent(self, request):
+                self.built = True
+                return "agent"
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook()
+
+        with pytest.raises(ValueError, match="toolsets not supported"):
+            hook.create_agent(AgentRunRequest(prompt="hi", toolsets=[MagicMock()]))
+
+        assert hook.built is False
 
 
 class TestAgentRunResult:
+    def test_agent_usage_defaults_to_none(self):
+        assert AgentUsage() == AgentUsage(
+            requests=None,
+            tool_calls=None,
+            input_tokens=None,
+            output_tokens=None,
+            total_tokens=None,
+        )
+
     def test_dataclass_fields(self):
         usage = AgentUsage(requests=1, tool_calls=2, total_tokens=10)
         result = AgentRunResult(
@@ -210,7 +259,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -228,7 +277,7 @@ class TestBaseAIHookResolveTools:
             def as_tools(self):
                 return [ToolSpec(name="my_tool", description="desc", parameters={}, fn=my_tool)]
 
-        result = hook._resolve_tools([MyToolset()], enable_logging=False, storage=None, counter=None)
+        result = hook._resolve_tools([MyToolset()], enable_logging=False)
 
         assert len(result) == 1
         assert result[0]["name"] == "my_tool"
@@ -248,7 +297,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -269,7 +318,7 @@ class TestBaseAIHookResolveTools:
             def as_tools(self):
                 return [ToolSpec(name="original", description="", parameters={}, fn=original)]
 
-        [wrapped_fn] = hook._resolve_tools([SimpleToolset()], enable_logging=True, storage=None, counter=None)
+        [wrapped_fn] = hook._resolve_tools([SimpleToolset()], enable_logging=True)
         wrapped_fn()
 
         assert calls == ["original"]
@@ -285,7 +334,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -300,7 +349,7 @@ class TestBaseAIHookResolveTools:
             """Roll a six-sided die and return the result."""
             return "4"
 
-        result = hook._resolve_tools([roll_dice], enable_logging=False, storage=None, counter=None)
+        result = hook._resolve_tools([roll_dice], enable_logging=False)
 
         assert len(result) == 1
         assert result[0]["name"] == "roll_dice"
@@ -317,7 +366,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -335,7 +384,7 @@ class TestBaseAIHookResolveTools:
 
         helper = MyHelper()
         bound_method = helper.search
-        result = hook._resolve_tools([bound_method], enable_logging=False, storage=None, counter=None)
+        result = hook._resolve_tools([bound_method], enable_logging=False)
 
         assert len(result) == 1
         assert result[0]["name"] == "search"
@@ -352,7 +401,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -368,7 +417,7 @@ class TestBaseAIHookResolveTools:
             return f"{db}: {query}"
 
         partial_tool = functools.partial(query_db, db="prod")
-        result = hook._resolve_tools([partial_tool], enable_logging=False, storage=None, counter=None)
+        result = hook._resolve_tools([partial_tool], enable_logging=False)
 
         assert len(result) == 1
         assert result[0]["name"] == "query_db"
@@ -385,7 +434,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -401,7 +450,7 @@ class TestBaseAIHookResolveTools:
                 return query
 
         searcher = Searcher()
-        result = hook._resolve_tools([searcher], enable_logging=False, storage=None, counter=None)
+        result = hook._resolve_tools([searcher], enable_logging=False)
 
         assert len(result) == 1
         assert result[0]["name"] == "Searcher"
@@ -417,7 +466,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -429,7 +478,7 @@ class TestBaseAIHookResolveTools:
         hook = ConcreteHook.__new__(ConcreteHook)
 
         native_tool_obj = object()  # not a function, not a BaseToolset
-        result = hook._resolve_tools([native_tool_obj], enable_logging=True, storage=None, counter=None)
+        result = hook._resolve_tools([native_tool_obj], enable_logging=True)
 
         assert result == [native_tool_obj]
 
@@ -443,7 +492,7 @@ class TestBaseAIHookResolveTools:
             def get_model(self):
                 return None
 
-            def create_agent(self, request):
+            def _build_agent(self, request):
                 return None
 
             def run_agent(self, agent, request):
@@ -460,11 +509,101 @@ class TestBaseAIHookResolveTools:
             def as_tools(self):
                 return [ToolSpec(name="greet", description="", parameters={}, fn=lambda: "hi")]
 
-        result = hook._resolve_tools(
-            [MyToolset(), native_tool], enable_logging=False, storage=None, counter=None
-        )
+        result = hook._resolve_tools([MyToolset(), native_tool], enable_logging=False)
 
         assert result == ["converted:greet", native_tool]
+
+    def test_resolve_tools_applies_cache_wrapper_and_forces_sequential_for_resolved_specs(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def _build_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+
+        def original():
+            return "result"
+
+        def cached(fn):
+            def wrapper():
+                return fn()
+
+            return wrapper
+
+        class SimpleToolset(BaseToolset):
+            def as_tools(self):
+                return [ToolSpec(name="original", description="", parameters={}, fn=original)]
+
+        [spec] = hook._resolve_tools(
+            [SimpleToolset()],
+            enable_logging=False,
+            cache_wrapper=cached,
+            force_sequential=True,
+        )
+
+        assert spec.sequential is True
+        assert spec.fn is not original
+
+    def test_resolve_tools_cache_hit_skips_logging_wrapper(self):
+        mock_log = MagicMock()
+
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            @property
+            def log(self):
+                return mock_log
+
+            def get_model(self):
+                return None
+
+            def _build_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec.fn
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+        calls = []
+
+        def original():
+            calls.append("original")
+            return "computed"
+
+        def cache_hit_wrapper(fn):
+            def wrapper():
+                return "cached"
+
+            return wrapper
+
+        class SimpleToolset(BaseToolset):
+            def as_tools(self):
+                return [ToolSpec(name="original", description="", parameters={}, fn=original)]
+
+        [wrapped] = hook._resolve_tools(
+            [SimpleToolset()],
+            enable_logging=True,
+            cache_wrapper=cache_hit_wrapper,
+        )
+
+        assert wrapped() == "cached"
+        assert calls == []
+        mock_log.info.assert_not_called()
 
 
 class TestBaseAIHookLoggedCallable:
@@ -556,44 +695,39 @@ class TestBaseAIHookLoggedCallable:
         signature = inspect.signature(wrapped)
         assert tuple(signature.parameters) == ("customer_id",)
 
+    def test_logged_callable_preserves_async_function_behavior(self):
+        logger = MagicMock()
 
-class TestBaseAIHookCachedCallable:
-    def test_cached_callable_saves_and_returns(self):
-        storage = MagicMock()
-        counter = MagicMock()
-        counter.next_step.return_value = 1
-        storage.load_tool_result.return_value = (False, None)
+        async def fn(value):
+            return value * 2
 
-        calls = []
+        wrapped = BaseAIHook._logged_callable(fn, logger)
 
-        def fn():
-            calls.append(1)
-            return "computed"
+        assert inspect.iscoroutinefunction(wrapped)
+        assert asyncio.run(wrapped(3)) == 6
+        logger.info.assert_called()
 
-        wrapped = BaseAIHook._cached_callable(fn, storage, counter)
-        result = wrapped()
+    def test_logged_callable_preserves_async_partial_behavior(self):
+        logger = MagicMock()
 
-        assert result == "computed"
-        assert calls == [1]
-        storage.save_tool_result.assert_called_once_with("tool_step_1", "computed")
+        async def fn(prefix, value):
+            return f"{prefix}:{value}"
 
-    def test_cached_callable_replays_on_hit(self):
-        storage = MagicMock()
-        counter = MagicMock()
-        counter.replayed_tool = 0
-        counter.next_step.return_value = 1
-        storage.load_tool_result.return_value = (True, "cached_value")
+        wrapped = BaseAIHook._logged_callable(functools.partial(fn, "prod"), logger)
 
-        calls = []
+        assert inspect.iscoroutinefunction(wrapped)
+        assert asyncio.run(wrapped("cpu")) == "prod:cpu"
+        logger.info.assert_called()
 
-        def fn():
-            calls.append(1)
-            return "computed"
+    def test_logged_callable_preserves_async_callable_object_behavior(self):
+        logger = MagicMock()
 
-        wrapped = BaseAIHook._cached_callable(fn, storage, counter)
-        result = wrapped()
+        class Lookup:
+            async def __call__(self, value):
+                return value.upper()
 
-        assert result == "cached_value"
-        assert calls == []
-        assert counter.replayed_tool == 1
-        storage.save_tool_result.assert_not_called()
+        wrapped = BaseAIHook._logged_callable(Lookup(), logger)
+
+        assert inspect.iscoroutinefunction(wrapped)
+        assert asyncio.run(wrapped("abc")) == "ABC"
+        logger.info.assert_called()

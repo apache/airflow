@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import functools
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai import Agent
@@ -32,9 +34,11 @@ from airflow.providers.common.ai.hooks.base import (
     AgentRunResult,
     AgentUsage,
     BaseAIHook,
+    Capability,
     DurableStats,
     ToolSpec,
 )
+from airflow.providers.common.ai.mixins.durable import DurableAgentMixin, DurableState
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
@@ -42,7 +46,15 @@ if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
 
-class PydanticAIHook(BaseAIHook):
+@dataclass
+class PydanticAgentHandle:
+    """Pydantic-ai agent plus optional durable cache state for one run."""
+
+    agent: Agent[None, Any]
+    durable_state: DurableState | None = None
+
+
+class PydanticAIHook(DurableAgentMixin, BaseAIHook[PydanticAgentHandle]):
     """
     Hook for LLM access via pydantic-ai.
 
@@ -68,9 +80,7 @@ class PydanticAIHook(BaseAIHook):
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
 
-    supports_toolsets = True
-    supports_durable = True
-    supports_usage_limits = True
+    capabilities = frozenset({Capability.TOOLSETS, Capability.USAGE_LIMITS, Capability.DURABLE})
 
     def __init__(
         self,
@@ -200,13 +210,13 @@ class PydanticAIHook(BaseAIHook):
             json_schema=spec.parameters,
         )
 
-    def create_agent(self, request: AgentRunRequest) -> Agent[None, Any]:
+    def _build_agent(self, request: AgentRunRequest) -> PydanticAgentHandle:
         """
-        Build a pydantic-ai ``Agent`` from *request*.
+        Build a pydantic-ai ``Agent`` handle from *request*.
 
         When :attr:`~AgentRunRequest.durable_context` is set, initialises durable
-        storage and step counter and binds them to the returned agent for use by
-        :meth:`run_agent`. When ``[common.ai] otel_export_enabled`` is set and the
+        storage and step counter and returns them alongside the native agent for use
+        by :meth:`run_agent`. When ``[common.ai] otel_export_enabled`` is set and the
         worker has an OpenTelemetry exporter configured, the agent is instrumented to
         emit GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
@@ -218,11 +228,9 @@ class PydanticAIHook(BaseAIHook):
         framework-neutral callables / ``BaseToolset`` specs and pydantic-ai ``AbstractToolset``
         instances, but not to native ``Tool`` instances.
         """
-        self.validate_run_request(request)
-
-        storage = counter = None
+        durable_state = None
         if request.durable_context is not None:
-            storage, counter = self._init_durable(request.durable_context)
+            durable_state = self._init_durable(request.durable_context)
 
         extra_kwargs = dict(request.agent_params or {})
         if request.toolsets:
@@ -242,17 +250,25 @@ class PydanticAIHook(BaseAIHook):
                 resolved: list[Any] = []
                 for item in pipeline_items:
                     if isinstance(item, Tool):
-                        # Native pydantic-ai Tool objects are preserved as-is. They keep their
-                        # original schema/configuration, but do not receive Airflow's callable
-                        # logging or durable tool-result caching wrappers.
+                        # Native pydantic-ai Tool objects are callable, so this check must happen
+                        # before _resolve_tools(); otherwise they would be rebuilt from their
+                        # __call__ signature as Airflow-resolved callables instead of preserving
+                        # their original schema/configuration.
                         resolved.append(item)
                     else:
+                        cache_wrapper = None
+                        if durable_state is not None:
+                            cache_wrapper = functools.partial(
+                                self._cached_callable,
+                                storage=durable_state.storage,
+                                counter=durable_state.counter,
+                            )
                         resolved.extend(
                             self._resolve_tools(
                                 [item],
                                 request.enable_tool_logging,
-                                storage,
-                                counter,
+                                cache_wrapper,
+                                force_sequential=durable_state is not None,
                             )
                         )
                 extra_kwargs["tools"] = resolved
@@ -264,17 +280,17 @@ class PydanticAIHook(BaseAIHook):
 
             if abstract_items:
                 processed: list[Any] = list(abstract_items)
-                if storage is not None and counter is not None:
+                if request.enable_tool_logging:
+                    processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
+                if durable_state is not None:
                     processed = [
                         CachingToolset(
                             wrapped=ts,
-                            storage=storage,
-                            counter=counter,
+                            storage=durable_state.storage,
+                            counter=durable_state.counter,
                         )
                         for ts in processed
                     ]
-                if request.enable_tool_logging:
-                    processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
                 extra_kwargs["toolsets"] = processed
                 self.log.info(
                     "Agent abstract toolsets configured: count=%d types=%s",
@@ -288,8 +304,6 @@ class PydanticAIHook(BaseAIHook):
             instructions=request.instructions,
             **extra_kwargs,
         )
-        if storage is not None and counter is not None:
-            self._bind_agent_durable(agent, storage, counter)
         if "instrument" not in extra_kwargs:
             # Set the public ``agent.instrument`` property rather than the
             # ``Agent(instrument=...)`` constructor kwarg, which is deprecated in
@@ -298,33 +312,45 @@ class PydanticAIHook(BaseAIHook):
             settings = genai_instrumentation_settings()
             if settings is not None:
                 agent.instrument = settings
-        return agent
+        return PydanticAgentHandle(agent=agent, durable_state=durable_state)
 
-    def run_agent(self, agent: Agent[None, Any], request: AgentRunRequest) -> AgentRunResult:
+    def run_agent(self, agent: PydanticAgentHandle, request: AgentRunRequest) -> AgentRunResult:
         """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base.AgentRunResult`."""
+        if not isinstance(agent, PydanticAgentHandle):
+            raise TypeError("PydanticAIHook.run_agent() requires a PydanticAgentHandle from create_agent().")
+
+        native_agent = agent.agent
+        durable_state = agent.durable_state
+        if request.durable_context is None and durable_state is not None:
+            raise ValueError(
+                "PydanticAIHook.run_agent() received durable state, but request.durable_context is not set."
+            )
+        if request.durable_context is not None and durable_state is None:
+            raise ValueError("Durable execution requires a PydanticAgentHandle with durable state.")
+
         run_kwargs: dict[str, Any] = {}
         if request.message_history is not None:
             run_kwargs["message_history"] = request.message_history
         if request.usage_limits is not None:
             run_kwargs["usage_limits"] = request.usage_limits
 
-        durable = self._pop_agent_durable(agent)
-        storage, counter = durable if durable else (None, None)
+        storage = durable_state.storage if durable_state is not None else None
+        counter = durable_state.counter if durable_state is not None else None
 
         if storage is not None and counter is not None:
-            if agent.model is None:
+            if native_agent.model is None:
                 raise ValueError("Agent model must be set when durable=True")
-            model = agent.model
+            model = native_agent.model
             resolved_model = infer_model(model) if isinstance(model, str) else model
             caching_model = CachingModel(
                 resolved_model,
                 storage=storage,
                 counter=counter,
             )
-            with agent.override(model=caching_model):
-                result = agent.run_sync(request.prompt, **run_kwargs)
+            with native_agent.override(model=caching_model):
+                result = native_agent.run_sync(request.prompt, **run_kwargs)
         else:
-            result = agent.run_sync(request.prompt, **run_kwargs)
+            result = native_agent.run_sync(request.prompt, **run_kwargs)
         usage = result.usage
         tool_names: list[str] = []
         for message in result.all_messages():

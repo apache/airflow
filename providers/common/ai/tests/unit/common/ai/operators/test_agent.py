@@ -23,7 +23,13 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import (
+    AgentRunRequest,
+    AgentRunResult,
+    AgentUsage,
+    BaseAIHook,
+    Capability,
+)
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -57,9 +63,7 @@ def _make_mock_hook(output, *, message_history=None):
     """Return (mock_hook, mock_agent) wired for AgentOperator.execute."""
     mock_hook = MagicMock(spec=BaseAIHook)
     mock_hook.llm_conn_id = "my_llm"
-    mock_hook.supports_toolsets = True
-    mock_hook.supports_durable = True
-    mock_hook.supports_usage_limits = True
+    mock_hook.capabilities = frozenset({Capability.TOOLSETS, Capability.DURABLE, Capability.USAGE_LIMITS})
     mock_agent = MagicMock()
     mock_hook.create_agent.return_value = mock_agent
     mock_hook.run_agent.return_value = _make_agent_run_result(output, message_history=message_history)
@@ -71,9 +75,7 @@ class TestAgentOperatorHookCapabilities:
     def test_execute_rejects_toolsets_when_hook_does_not_support_them(self, mock_hook_cls):
         mock_hook = MagicMock(spec=BaseAIHook)
         mock_hook.llm_conn_id = "strands_conn"
-        mock_hook.supports_toolsets = False
-        mock_hook.supports_durable = False
-        mock_hook.supports_usage_limits = False
+        mock_hook.capabilities = frozenset()  # no capabilities — all features rejected
 
         def create_agent(request):
             BaseAIHook.validate_run_request(mock_hook, request)
@@ -88,7 +90,7 @@ class TestAgentOperatorHookCapabilities:
             llm_conn_id="strands_conn",
             toolsets=[MagicMock()],
         )
-        with pytest.raises(ValueError, match="toolsets are not supported"):
+        with pytest.raises(ValueError, match="toolsets not supported"):
             op.execute(context=MagicMock())
 
 

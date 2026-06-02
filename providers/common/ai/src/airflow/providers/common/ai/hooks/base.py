@@ -24,24 +24,40 @@ import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from enum import Enum
+from typing import Any, ClassVar, Generic, TypeVar
 
+from airflow.providers.common.ai.utils.callables import is_async_callable
 from airflow.providers.common.ai.utils.function_schema import callable_to_tool_spec
 from airflow.providers.common.compat.sdk import BaseHook
 
-# Attribute name for durable storage/counter bound to a framework agent instance.
-_AIRFLOW_DURABLE_ATTR = "_airflow_durable_state"
+AgentT = TypeVar("AgentT")
+
+
+class Capability(str, Enum):
+    """
+    Capability tokens declared by concrete hook classes.
+
+    A hook advertises its support by including the relevant tokens in its
+    :attr:`BaseAIHook.capabilities` frozenset.
+    :meth:`BaseAIHook.validate_run_request` rejects requests that use a
+    feature whose token is absent.
+    """
+
+    TOOLSETS = "toolsets"
+    USAGE_LIMITS = "usage_limits"
+    DURABLE = "durable"
 
 
 @dataclass
 class AgentUsage:
     """Token and request usage from an agent run, when the backend exposes it."""
 
-    requests: int = 0
-    tool_calls: int = 0
-    input_tokens: int = 0
-    output_tokens: int = 0
-    total_tokens: int = 0
+    requests: int | None = None
+    tool_calls: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 @dataclass
@@ -116,11 +132,13 @@ class AgentRunRequest:
 
     Encapsulates everything the hook needs to build and run an agent in a single
     framework-neutral structure, so that :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
-    has zero framework-specific imports.
+    has zero framework-specific imports. This contract is currently validated by
+    the pydantic-ai hook family and may evolve as more framework backends are added.
 
     :param prompt: User prompt for this invocation (plain ``str`` or a multimodal
         ``Sequence`` accepted by the backend agent's run API).
-    :param output_type: Expected structured output type (default: ``str``).
+    :param output_type: Expected structured output type or backend-specific JSON schema
+        mapping (default: ``str``).
     :param instructions: System-level instructions for the agent.
     :param toolsets: List of :class:`BaseToolset` instances the agent may call.
     :param usage_limits: Backend-specific usage limits; ignored if the hook does not support them.
@@ -134,7 +152,7 @@ class AgentRunRequest:
     """
 
     prompt: str | Sequence[Any]
-    output_type: type[Any] = str
+    output_type: type[Any] | dict[str, Any] | None = str
     instructions: str = ""
     toolsets: list[Any] | None = None
     usage_limits: Any = None
@@ -158,7 +176,7 @@ class BaseToolset(metaclass=ABCMeta):
         """Return the list of tools this toolset exposes."""
 
 
-class BaseAIHook(BaseHook, metaclass=ABCMeta):
+class BaseAIHook(BaseHook, Generic[AgentT], metaclass=ABCMeta):
     """
     Abstract hook for multi-turn LLM agents.
 
@@ -168,18 +186,17 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     :param llm_conn_id: Optional connection ID override (subclasses may apply a default).
     :param model_id: Optional model override; not all backends use this parameter.
 
-    Subclasses implement :meth:`get_model`, :meth:`create_agent`, :meth:`run_agent`, and
+    Subclasses implement :meth:`get_model`, :meth:`_build_agent`, :meth:`run_agent`, and
     :meth:`_tool_spec_to_native`.
 
-    Shared helpers :meth:`_init_durable`, :meth:`_resolve_tools`, :meth:`_logged_callable`, and
-    :meth:`_cached_callable` are provided for all hooks.
+    Shared helpers :meth:`_resolve_tools` and :meth:`_logged_callable` are provided for all hooks.
+    Durable cache helpers live in ``DurableAgentMixin`` so non-durable hooks do not inherit
+    backend-specific durable mechanics.
     """
 
     conn_name_attr = "llm_conn_id"
 
-    supports_toolsets: ClassVar[bool] = False
-    supports_durable: ClassVar[bool] = False
-    supports_usage_limits: ClassVar[bool] = False
+    capabilities: ClassVar[frozenset[Capability]] = frozenset()
 
     def __init__(
         self,
@@ -192,7 +209,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         self.model_id = model_id
 
     @classmethod
-    def get_agent_hook(cls, conn_id: str, *, hook_params: dict[str, Any] | None = None) -> BaseAIHook:
+    def get_agent_hook(cls, conn_id: str, *, hook_params: dict[str, Any] | None = None) -> BaseAIHook[Any]:
         """
         Return an agent hook for *conn_id*, verifying it implements this contract.
 
@@ -212,11 +229,15 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """Return the backend model/client used to construct agents."""
 
     def get_conn(self) -> Any:
-        """Return the backend model/client. Delegates to :meth:`get_model`."""
+        """
+        Return the backend model/client for :class:`~airflow.hooks.base.BaseHook` compatibility.
+
+        Agent hooks use :meth:`get_model` internally; this shim keeps the traditional ``get_conn()``
+        hook API available for callers that expect it.
+        """
         return self.get_model()
 
-    @abstractmethod
-    def create_agent(self, request: AgentRunRequest) -> Any:
+    def create_agent(self, request: AgentRunRequest) -> AgentT:
         """
         Build (but do not run) the agent described by *request*.
 
@@ -224,29 +245,27 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         :meth:`_resolve_tools` and constructing the framework-native agent object
         with the model, tools, instructions, and output type from *request*.
 
-        When :attr:`AgentRunRequest.durable_context` is set, implementations
-        should call :meth:`_init_durable` and bind the returned storage/counter
-        to the agent via :meth:`_bind_agent_durable` so that :meth:`run_agent`
-        can retrieve and clean them up.
-
-        Implementations must call :meth:`validate_run_request` at the start of
-        this method before any agent construction or durable initialisation.
-
         :param request: All parameters needed to configure the agent.
-        :returns: Framework-native agent object, ready to be passed to :meth:`run_agent`.
+        :returns: Framework-native agent handle, ready to be passed to :meth:`run_agent`.
         """
+        self.validate_run_request(request)
+        return self._build_agent(request)
 
     @abstractmethod
-    def run_agent(self, agent: Any, request: AgentRunRequest) -> AgentRunResult:
+    def _build_agent(self, request: AgentRunRequest) -> AgentT:
+        """Build the framework-native agent handle after :meth:`validate_run_request` succeeds."""
+
+    @abstractmethod
+    def run_agent(self, agent: AgentT, request: AgentRunRequest) -> AgentRunResult:
         """
         Execute *agent* for *request* and return a normalized :class:`AgentRunResult`.
 
-        Implementations with durable execution should pop durable state via
-        :meth:`_pop_agent_durable`, apply it during the run, and call
-        ``storage.cleanup()`` only after a successful run (keep the cache file
-        when the run raises so Airflow retries can replay cached steps).
+        Implementations with durable execution should keep durable state on their
+        concrete agent handle, apply it during the run, and call ``storage.cleanup()``
+        only after a successful run (keep the cache file when the run raises so
+        Airflow retries can replay cached steps).
 
-        :param agent: Framework-native agent produced by :meth:`create_agent`.
+        :param agent: Framework-native agent handle produced by :meth:`create_agent`.
         :param request: The same request used to create the agent (prompt, usage
             limits, message history, etc.).
         """
@@ -267,64 +286,30 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """
         Raise if *request* uses features this hook implementation does not support.
 
-        Hook implementations call this at the start of :meth:`create_agent`.
+        :meth:`create_agent` calls this before delegating to the hook implementation.
         """
         hook_name = type(self).__name__
         conn_id = self.llm_conn_id or "unknown"
-        if request.toolsets and not self.supports_toolsets:
+        if request.toolsets and Capability.TOOLSETS not in self.capabilities:
             raise ValueError(
-                f"toolsets are not supported for connection {conn_id!r} (conn_type resolves to {hook_name}). "
+                f"toolsets not supported for connection {conn_id!r} (conn_type resolves to {hook_name})."
             )
-        if request.usage_limits is not None and not self.supports_usage_limits:
+        if request.usage_limits is not None and Capability.USAGE_LIMITS not in self.capabilities:
             raise ValueError(
-                f"usage_limits are not supported for connection {conn_id!r} "
-                f"(conn_type resolves to {hook_name})."
+                f"usage_limits not supported for connection {conn_id!r} (conn_type resolves to {hook_name})."
             )
-        if request.durable_context is not None and not self.supports_durable:
+        if request.durable_context is not None and Capability.DURABLE not in self.capabilities:
             raise ValueError(
-                f"durable execution requires a hook that supports durable caching; "
-                f"got {hook_name} for connection {conn_id!r}."
+                f"durable execution not supported for connection {conn_id!r} (conn_type resolves to {hook_name})."
             )
-
-    def _init_durable(self, ctx: DurableContext) -> tuple[Any, Any]:
-        """
-        Create and return a ``DurableStorage`` / ``DurableStepCounter`` pair for *ctx*.
-
-        Hooks call this inside :meth:`create_agent` when
-        :attr:`AgentRunRequest.durable_context` is set.
-        """
-        from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-        from airflow.providers.common.ai.durable.storage import DurableStorage
-
-        storage = DurableStorage(
-            dag_id=ctx.dag_id,
-            task_id=ctx.task_id,
-            run_id=ctx.run_id,
-            map_index=ctx.map_index,
-        )
-        counter = DurableStepCounter()
-        return storage, counter
-
-    @staticmethod
-    def _bind_agent_durable(agent: Any, storage: Any, counter: Any) -> None:
-        """Associate *storage* and *counter* with *agent* until :meth:`run_agent` completes."""
-        setattr(agent, _AIRFLOW_DURABLE_ATTR, (storage, counter))
-
-    @staticmethod
-    def _pop_agent_durable(agent: Any) -> tuple[Any, Any] | None:
-        """Remove and return durable state bound to *agent*, if any."""
-        state = getattr(agent, _AIRFLOW_DURABLE_ATTR, None)
-        if state is None:
-            return None
-        delattr(agent, _AIRFLOW_DURABLE_ATTR)
-        return state
 
     def _resolve_tools(
         self,
         toolsets: list[Any],
         enable_logging: bool,
-        storage: Any,
-        counter: Any,
+        cache_wrapper: Callable[[Callable[..., Any]], Callable[..., Any]] | None = None,
+        *,
+        force_sequential: bool = False,
     ) -> list[Any]:
         """
         Convert a mixed list of toolsets / callables / native tools into framework-native tools.
@@ -339,14 +324,18 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         * Anything else — passed through unchanged (assumed to be a native tool object already
           constructed for the target framework).
 
-        The processing pipeline for ``BaseToolset`` and callable items:
-        *fn* → optional cache wrap → optional log wrap → :meth:`_tool_spec_to_native`.
+        The processing pipeline for ``BaseToolset`` and callable items is built inside-out:
+        *fn* → optional log wrapper → optional cache wrapper → :meth:`_tool_spec_to_native`.
+        At execution time, the outer cache wrapper runs first, so durable cache hits skip
+        the logging wrapper.
 
         :param toolsets: Mix of :class:`BaseToolset` instances, callables (functions, bound
             methods, :func:`functools.partial`, or callable objects), and native tool objects.
         :param enable_logging: When ``True``, wrap each callable with :meth:`_logged_callable`.
-        :param storage: ``DurableStorage`` instance, or ``None`` to skip caching.
-        :param counter: ``DurableStepCounter`` instance, or ``None`` to skip caching.
+        :param cache_wrapper: Optional wrapper used by durable hooks to cache Airflow-resolved
+            callable tools. Native backend tool objects are passed through unchanged.
+        :param force_sequential: When ``True``, mark all Airflow-resolved callable tools as
+            sequential. Native backend tool objects are passed through unchanged.
         """
         native: list[Any] = []
         for ts in toolsets:
@@ -359,16 +348,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 continue
             for spec in specs:
                 fn = spec.fn
-                if storage is not None and counter is not None:
-                    fn = self._cached_callable(fn, storage, counter)
                 if enable_logging:
                     fn = self._logged_callable(fn, self.log, name=spec.name)
+                if cache_wrapper is not None:
+                    fn = cache_wrapper(fn)
                 adapted = ToolSpec(
                     name=spec.name,
                     description=spec.description,
                     parameters=spec.parameters,
                     fn=fn,
-                    sequential=spec.sequential,
+                    sequential=spec.sequential or force_sequential,
                 )
                 native.append(self._tool_spec_to_native(adapted))
         return native
@@ -383,8 +372,30 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """Wrap *fn* to log tool name, args, timing, and exceptions."""
         _tool_name = name or getattr(fn, "__name__", type(fn).__name__)
 
+        if is_async_callable(fn):
+
+            @functools.wraps(fn)
+            async def async_wrapper(*args, **kwargs):
+                logger.info("::group::Tool call: %s", _tool_name)
+                if kwargs:
+                    logger.debug("Tool args: %s", json.dumps(kwargs, default=str))
+                start = time.monotonic()
+                try:
+                    result = await fn(*args, **kwargs)
+                    elapsed = time.monotonic() - start
+                    logger.info("Tool %s returned in %.2fs", _tool_name, elapsed)
+                    return result
+                except Exception:
+                    elapsed = time.monotonic() - start
+                    logger.exception("Tool %s failed after %.2fs", _tool_name, elapsed)
+                    raise
+                finally:
+                    logger.info("::endgroup::")
+
+            return async_wrapper
+
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def sync_wrapper(*args, **kwargs):
             logger.info("::group::Tool call: %s", _tool_name)
             if kwargs:
                 logger.debug("Tool args: %s", json.dumps(kwargs, default=str))
@@ -393,35 +404,12 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 result = fn(*args, **kwargs)
                 elapsed = time.monotonic() - start
                 logger.info("Tool %s returned in %.2fs", _tool_name, elapsed)
-                logger.info("::endgroup::")
                 return result
             except Exception:
                 elapsed = time.monotonic() - start
                 logger.exception("Tool %s failed after %.2fs", _tool_name, elapsed)
-                logger.info("::endgroup::")
                 raise
+            finally:
+                logger.info("::endgroup::")
 
-        return wrapper
-
-    @staticmethod
-    def _cached_callable(
-        fn: Callable[..., Any],
-        storage: Any,
-        counter: Any,
-    ) -> Callable[..., Any]:
-        """Wrap *fn* to cache its result in *storage* using a monotonic step counter."""
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            step = counter.next_step()
-            key = f"tool_step_{step}"
-            found, cached = storage.load_tool_result(key)
-            if found:
-                counter.replayed_tool += 1
-                return cached
-            result = fn(*args, **kwargs)
-            storage.save_tool_result(key, result)
-            counter.cached_tool += 1
-            return result
-
-        return wrapper
+        return sync_wrapper

@@ -25,6 +25,7 @@ adsinsights
 afterall
 agentcore
 agentic
+AgentT
 ai
 aio
 aiobotocore

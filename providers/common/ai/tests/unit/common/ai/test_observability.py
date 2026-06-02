@@ -25,6 +25,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai import observability
+from airflow.providers.common.ai.hooks.base import AgentRunRequest
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
 
@@ -106,13 +107,17 @@ class TestEndToEndSpanEmission:
         with (
             patch.object(observability, "conf", _conf(enabled=True, capture=capture)),
             patch.object(observability, "_live_tracer_provider", return_value=provider),
-            patch.object(hook, "get_conn", return_value=TestModel()),
+            patch.object(hook, "get_model", return_value=TestModel()),
         ):
-            agent = hook.create_agent(instructions="be helpful")
+            request = AgentRunRequest(
+                prompt=TestEndToEndSpanEmission._PROMPT,
+                instructions="be helpful",
+            )
+            agent = hook.create_agent(request)
             # Stand in for the worker's task span: open a parent and run inside it.
             with provider.get_tracer("test").start_as_current_span("worker.task") as parent:
                 parent_trace_id = parent.get_span_context().trace_id
-                agent.run_sync(TestEndToEndSpanEmission._PROMPT)
+                hook.run_agent(agent, request)
 
         spans = exporter.get_finished_spans()
         genai = [s for s in spans if s.attributes and any(k.startswith("gen_ai.") for k in s.attributes)]

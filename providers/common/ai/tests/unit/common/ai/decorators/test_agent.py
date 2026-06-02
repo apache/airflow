@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
-from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook, Capability
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -46,9 +46,7 @@ def _make_run_result(output):
 
 def _make_mock_hook(run_result):
     mock_hook = MagicMock(spec=BaseAIHook)
-    mock_hook.supports_toolsets = True
-    mock_hook.supports_durable = False
-    mock_hook.supports_usage_limits = True
+    mock_hook.capabilities = frozenset({Capability.TOOLSETS, Capability.USAGE_LIMITS})
     mock_hook.create_agent.return_value = MagicMock()
     mock_hook.run_agent.return_value = run_result
     return mock_hook
