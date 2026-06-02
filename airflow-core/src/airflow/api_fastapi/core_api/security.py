@@ -63,7 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -730,46 +730,73 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
     return inner
 
 
+def _build_dag_run_access_requests(
+    entity_methods: list[tuple[str, ResourceMethod]],
+) -> list[IsAuthorizedDagRequest]:
+    """
+    Build per-entity DagRun authorization requests for a batched access check.
+
+    ``entity_methods`` is a list of ``(dag_id, method)`` pairs with unresolvable
+    entries (no dag_id or the ``~`` wildcard) already filtered out by the caller.
+    The team for each dag is resolved once and shared across that dag's requests.
+    """
+    resolved_dag_ids = {dag_id for dag_id, _ in entity_methods}
+    dag_id_to_team = {dag_id: DagModel.get_team_name(dag_id) for dag_id in resolved_dag_ids}
+    return [
+        {
+            "method": method,
+            "access_entity": DagAccessEntity.RUN,
+            "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
+        }
+        for dag_id, method in entity_methods
+    ]
+
+
 def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUser, str], None]:
     def inner(
         request: BulkBody[BulkDAGRunBody],
         user: GetUserDep,
         dag_id: str,
     ) -> None:
-        resolved_dag_ids: set[str] = set()
-        for action in request.actions:
-            for entity in action.entities:
-                if isinstance(entity, str):
-                    entity_dag_id: str | None = dag_id
-                else:
-                    entity_dag_id = entity.dag_id or dag_id
-                if entity_dag_id and entity_dag_id != "~":
-                    resolved_dag_ids.add(entity_dag_id)
-
-        dag_id_to_team = {d: DagModel.get_team_name(d) for d in resolved_dag_ids}
-
-        requests: list[IsAuthorizedDagRequest] = []
+        entity_methods: list[tuple[str, ResourceMethod]] = []
         for action in request.actions:
             methods = _get_resource_methods_from_bulk_request(action)
             for entity in action.entities:
                 if isinstance(entity, str):
-                    entity_dag_id = dag_id
+                    entity_dag_id: str | None = dag_id
                 else:
                     entity_dag_id = entity.dag_id or dag_id
                 # Entities that can't be resolved are surfaced as 400 in the service's BulkResponse.
                 if not entity_dag_id or entity_dag_id == "~":
                     continue
                 for method in methods:
-                    requests.append(
-                        {
-                            "method": method,
-                            "access_entity": DagAccessEntity.RUN,
-                            "details": DagDetails(
-                                id=entity_dag_id, team_name=dag_id_to_team.get(entity_dag_id)
-                            ),
-                        }
-                    )
+                    entity_methods.append((entity_dag_id, method))
 
+        requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseUser, str], None]:
+    def inner(
+        body: BulkDAGRunClearBody,
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for run in body.dag_runs:
+            entity_dag_id = run.dag_id or dag_id
+            if not entity_dag_id or entity_dag_id == "~":
+                continue
+            entity_methods.append((entity_dag_id, "PUT"))
+
+        requests = _build_dag_run_access_requests(entity_methods)
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
                 requests=requests,
