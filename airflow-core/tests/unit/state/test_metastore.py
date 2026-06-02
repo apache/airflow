@@ -539,7 +539,7 @@ class TestStateStoreConfig:
         assert conf.getint("state_store", "state_cleanup_batch_size") == 50
 
 
-class TestResolveStateBackend:
+class TestResolveStoreBackend:
     @conf_vars({("state_store", "backend"): "airflow.state.metastore.MetastoreStoreBackend"})
     def test_resolve_returns_configured_backend(self):
         """resolve_state_backend() imports and returns the explicitly configured backend class."""
@@ -554,5 +554,5 @@ class TestResolveStateBackend:
     @conf_vars({("state_store", "backend"): "airflow.models.dagrun.DagRun"})
     def test_invalid_backend_raises_type_error(self):
         """resolve_state_backend() raises TypeError when the configured class is not a BaseStateBackend subclass."""
-        with pytest.raises(TypeError, match="not a subclass of `BaseStateBackend`"):
+        with pytest.raises(TypeError, match="not a subclass of `BaseStoreBackend`"):
             resolve_state_backend()
