@@ -3895,6 +3895,32 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
     run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
 
+def _ensure_default_python_for_reproducible_client() -> None:
+    """Fail fast unless running under the default Python.
+
+    The client generator post-processes ``trigger_dag_run_post_body.py`` with ``ast.unparse``,
+    which re-emits that file using the running interpreter's grammar. Building under any Python
+    other than ``DEFAULT_PYTHON_MAJOR_MINOR_VERSION`` therefore produces a non-reproducible client
+    (and the generation step may not even emit the wheel/sdist). Refuse to continue rather than
+    silently producing a bad package.
+    """
+    current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if current_python_version == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+        return
+    console_print(
+        f"[error]Python version mismatch: current version is {current_python_version}, "
+        f"but the reproducible client must be built with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]"
+    )
+    console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
+    console_print(
+        "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+        f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+        "  - For a legacy global install, reinstall with the right Python:\n"
+        f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+    )
+    sys.exit(1)
+
+
 @release_management_group.command(name="prepare-python-client", help="Prepares python client packages.")
 @option_distribution_format
 @option_version_suffix
@@ -3928,6 +3954,7 @@ def prepare_python_client(
     only_publish_build_scripts: bool,
     security_schemes: str,
 ):
+    _ensure_default_python_for_reproducible_client()
     shutil.rmtree(PYTHON_CLIENT_TMP_DIR, ignore_errors=True)
     PYTHON_CLIENT_TMP_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(src=SOURCE_API_YAML_PATH, dst=TARGET_API_YAML_PATH)
@@ -4001,23 +4028,11 @@ def prepare_python_client(
         This patch:
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
-        """
-        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
-            console_print(
-                f"[error]Python version mismatch: current version is {current_python_version}, "
-                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
-                f"reproducibility problems with prepared package.[/]"
-            )
-            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
-            console_print(
-                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
-                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
-                "  - For a legacy global install, reinstall with the right Python:\n"
-                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
-            )
-            sys.exit(1)
 
+        The interpreter is already pinned to ``DEFAULT_PYTHON_MAJOR_MINOR_VERSION`` by
+        ``_ensure_default_python_for_reproducible_client`` at the start of the command, so the
+        ``ast.unparse`` re-emit below is reproducible.
+        """
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )

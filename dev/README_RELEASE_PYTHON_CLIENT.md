@@ -530,7 +530,8 @@ file containing airflow sources in dist folder.
 > client generator applies the `trigger_dag_run_post_body.py` AST patch with `ast.unparse`, which
 > re-emits that file using the running interpreter's grammar, so building under a different Python
 > (e.g. the host's 3.11+/3.13) produces a non-reproducible client and the `prepare-python-client`
-> step may not even emit the wheel/sdist. Pin the interpreter explicitly:
+> step may not even emit the wheel/sdist. `prepare-python-client` refuses to run under any other
+> Python and exits early with this guidance, so pin the interpreter explicitly:
 >
 > ```shell
 > UV_PYTHON=3.10 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
