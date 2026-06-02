@@ -238,10 +238,12 @@ class LocalExecutor(BaseExecutor):
         self._check_workers()
 
     def _read_results(self):
-        while not self.result_queue.empty():
-            key, state, exc = self.result_queue.get()
-
-            self.change_state(key, state)
+        try:
+            while not self.result_queue.empty():
+                key, state, exc = self.result_queue.get()
+                self.change_state(key, state)
+        except (OSError, EOFError):
+            self.log.exception("Error reading from result queue")
 
     def end(self) -> None:
         """End the executor."""
@@ -257,10 +259,23 @@ class LocalExecutor(BaseExecutor):
             # Send the shutdown message once for each alive worker
             if proc.is_alive():
                 self.activity_queue.put(None)
+        
+        # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
+        # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
+        # and an unbounded proc.join() will hang the scheduler indefinitely.
 
         for proc in self.workers.values():
             if proc.is_alive():
-                proc.join()
+                try:
+                    while proc.is_alive():
+                        self._read_results()
+                        proc.join(timeout=0.05)
+                except (KeyboardInterrupt, SystemExit):
+                    self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+                    for p in self.workers.values():
+                        if p.is_alive():
+                            p.terminate()
+                    raise
             proc.close()
 
         # Process any extra results before closing
@@ -270,7 +285,11 @@ class LocalExecutor(BaseExecutor):
         self.result_queue.close()
 
     def terminate(self):
-        """Terminate the executor is not doing anything."""
+        """Forcefully terminate all worker processes under control of the executor."""
+        self.log.info("Terminating all LocalExecutor worker processes.")
+        for proc in self.workers.values():
+            if proc.is_alive():
+                proc.terminate()
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
