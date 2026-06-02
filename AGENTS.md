@@ -226,6 +226,17 @@ any other variant), **translate it to the `upstream` convention** in what you
 propose to the user, rather than perpetuating the old name. Flag the stale
 documentation so it can be fixed in a follow-up.
 
+### Before starting: check for an existing PR
+
+Before working on an issue, check for open PRs already addressing it
+(`gh pr list --search "<issue number or keywords>"`, and look for `closes:`
+/ `fixes:` references). Airflow allows parallel work — "better PR wins"
+(see `contributing-docs/04_how_to_contribute.rst`) — but it is not the
+default: prefer reviewing and building on an existing PR. Open a separate
+one only *if your approach is genuinely different*. Do not blindly open
+another near-identical PR for an issue that already has one (or several) —
+that just adds reviewer noise.
+
 ### Creating Pull Requests
 
 **Always push to the user's fork (`origin`)**, not to `upstream` (`apache/airflow`).
