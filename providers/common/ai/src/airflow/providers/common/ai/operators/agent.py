@@ -22,17 +22,14 @@ import json
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
-from airflow.providers.common.ai.utils.output_type import (
-    iter_base_model_classes,
-    rehydrate_pydantic_output,
-)
+from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -42,9 +39,12 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
-    from airflow.sdk.serde import allow_class
-except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
-    allow_class = None  # type: ignore[assignment]
+    # See LLMOperator: new enough cores register declared ``output_type`` classes
+    # from a worker-side DAG walk, so the model instance flows through XCom; older
+    # cores dump to a dict instead.
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+    _CORE_WALKER = False
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -150,6 +150,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         when a downstream consumer needs the dict shape.
     """
 
+    deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
+
     template_fields: Sequence[str] = (
         "prompt",
         "llm_conn_id",
@@ -189,10 +191,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        self._serialize_model_output = serialize_output or allow_class is None
-        if not serialize_output and allow_class is not None:
-            for model_cls in iter_base_model_classes(output_type):
-                allow_class(model_cls)
+        # See LLMOperator: instance flows when the core registers ``output_type``
+        # via its worker-side DAG walk; otherwise (or on opt-in) dump to a dict.
+        self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
