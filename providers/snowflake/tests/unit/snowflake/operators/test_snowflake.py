@@ -372,6 +372,33 @@ class TestSnowflakeSqlApiOperator:
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
 
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    def test_snowflake_sql_api_execute_operator_async_passes_aiohttp_session_kwargs(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        """
+        Asserts that aiohttp session kwargs are passed to the trigger when the operator defers.
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SINGLE_STMT,
+            statement_count=1,
+            deferrable=True,
+            hook_params={"aiohttp_session_kwargs": {"trust_env": True}},
+        )
+
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(create_context(operator))
+
+        assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
+            "Trigger is not a SnowflakeSqlApiTrigger"
+        )
+        assert exc.value.trigger.aiohttp_session_kwargs == {"trust_env": True}
+
     def test_snowflake_sql_api_execute_complete_failure(self):
         """Test SnowflakeSqlApiOperator raise RuntimeError of error event"""
 

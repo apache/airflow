@@ -45,6 +45,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         snowflake_conn_id: str,
         token_life_time: timedelta,
         token_renewal_delta: timedelta,
+        aiohttp_session_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.poll_interval = poll_interval
@@ -52,6 +53,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         self.snowflake_conn_id = snowflake_conn_id
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
+        self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize SnowflakeSqlApiTrigger arguments and classpath."""
@@ -63,6 +65,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                 "snowflake_conn_id": self.snowflake_conn_id,
                 "token_life_time": self.token_life_time,
                 "token_renewal_delta": self.token_renewal_delta,
+                "aiohttp_session_kwargs": self.aiohttp_session_kwargs,
             },
         )
 
@@ -72,6 +75,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             self.snowflake_conn_id,
             self.token_life_time,
             self.token_renewal_delta,
+            aiohttp_session_kwargs=self.aiohttp_session_kwargs,
         )
 
         try:
@@ -102,6 +106,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                 self.snowflake_conn_id,
                 self.token_life_time,
                 self.token_renewal_delta,
+                aiohttp_session_kwargs=self.aiohttp_session_kwargs,
             )
 
         return await hook.get_sql_api_query_status_async(query_id)
