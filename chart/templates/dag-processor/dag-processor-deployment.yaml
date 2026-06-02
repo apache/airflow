@@ -110,6 +110,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "dagProcessor.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:

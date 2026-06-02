@@ -39,10 +39,10 @@
     ]
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/eslint-parser": "^7.28.6",
-    "@babel/plugin-transform-runtime": "^7.29.0",
-    "@babel/preset-env": "^7.29.5",
+    "@babel/core": "^7.29.7",
+    "@babel/eslint-parser": "^7.29.7",
+    "@babel/plugin-transform-runtime": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "babel-loader": "^10.1.1",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "7.1.4",
@@ -56,7 +56,7 @@
     "stylelint": "^17.12.0",
     "terser-webpack-plugin": "^5.6.0",
     "url-loader": "4.1.1",
-    "webpack": "^5.107.1",
+    "webpack": "^5.107.2",
     "webpack-cli": "^7.0.2",
     "webpack-license-plugin": "^4.5.1",
     "webpack-manifest-plugin": "^6.0.1"

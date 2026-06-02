@@ -57,8 +57,8 @@ class BulkDAGRunBody(StrictBaseModel):
     dag_id: str | None = None
 
 
-class DAGRunClearBody(StrictBaseModel):
-    """Dag Run serializer for clear endpoint body."""
+class BaseDAGRunClear(StrictBaseModel):
+    """Shared options for the single-run and bulk Dag Run clear endpoints."""
 
     dry_run: bool = True
     only_failed: bool = False
@@ -68,23 +68,29 @@ class DAGRunClearBody(StrictBaseModel):
     )
     run_on_latest_version: bool | None = Field(
         default=None,
-        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. "
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing. "
         "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
         "then the ``[core] rerun_with_latest_version`` config option, "
-        "and finally ``False`` (the historical default for clear/rerun).",
+        "and finally ``False``.",
     )
-    note: str | None = Field(
-        default=None,
-        max_length=1000,
-    )
+    note: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="before")
     @classmethod
-    def validate_model(cls, data: Any) -> Any:
-        """Validate clear Dag run form."""
+    def validate_only_new_only_failed_mutually_exclusive(cls, data: Any) -> Any:
         if data.get("only_new") and data.get("only_failed"):
             raise ValueError("only_new and only_failed are mutually exclusive")
         return data
+
+
+class DAGRunClearBody(BaseDAGRunClear):
+    """Dag Run serializer for clear endpoint body."""
+
+
+class BulkDAGRunClearBody(BaseDAGRunClear):
+    """Request body for the bulk clear Dag Runs endpoint."""
+
+    dag_runs: list[BulkDAGRunBody] = Field(min_length=1)
 
 
 class DAGRunResponse(BaseModel):

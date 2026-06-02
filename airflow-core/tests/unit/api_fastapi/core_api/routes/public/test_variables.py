@@ -276,6 +276,32 @@ class TestGetVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    def test_get_should_respond_200_with_null_value_when_decryption_fails(self, test_client, session):
+        """
+        Regression test for https://github.com/apache/airflow/pull/65452.
+
+        If the stored value cannot be decrypted (for example after a Fernet key
+        rotation) ``Variable.get_val`` returns ``None``. The endpoint must then
+        respond with HTTP 200 and ``"value": null`` instead of failing with an
+        HTTP 500 caused by response-schema validation.
+        """
+        from cryptography.fernet import InvalidToken
+
+        self.create_variables()
+        with mock.patch("airflow.models.variable.get_fernet") as mock_get_fernet:
+            mock_get_fernet.return_value.decrypt.side_effect = InvalidToken
+            response = test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {
+            "key": TEST_VARIABLE_KEY,
+            "value": None,
+            "description": TEST_VARIABLE_DESCRIPTION,
+            "is_encrypted": True,
+            "team_name": None,
+        }
+
 
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact

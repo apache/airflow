@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import signal
 import sys
 import time
 from importlib import import_module
@@ -246,15 +247,40 @@ class CallbackSubprocess(WatchedSubprocess):
         self._exit_code = self._exit_code if self._exit_code is not None else 1
         return self._exit_code
 
+    def _get_callback_execution_timeout(self) -> int:
+        """Read the callback_execution_timeout config value."""
+        from airflow.sdk.configuration import conf
+
+        return conf.getint("callbacks", "callback_execution_timeout", fallback=0)
+
     def _monitor_subprocess(self):
         """
         Monitor the subprocess until it exits.
 
         A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating
         or timeout handling, just process output monitoring and stuck-socket cleanup.
+
+        If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
+        is killed after that many seconds.
         """
+        timeout = self._get_callback_execution_timeout()
+        start_monotonic = time.monotonic()
+
         while self._exit_code is None or self._open_sockets:
             self._service_subprocess(max_wait_time=MIN_HEARTBEAT_INTERVAL)
+
+            # Enforce execution timeout if configured.
+            if timeout > 0 and self._exit_code is None:
+                elapsed = time.monotonic() - start_monotonic
+                if elapsed > timeout:
+                    log.warning(
+                        "Callback execution timeout exceeded; terminating subprocess",
+                        pid=self.pid,
+                        timeout_seconds=timeout,
+                        elapsed_seconds=elapsed,
+                    )
+                    self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
+                    break
 
             # If the process has exited but sockets remain open, apply a timeout
             # to prevent hanging indefinitely on stuck sockets.

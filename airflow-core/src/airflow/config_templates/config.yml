@@ -3197,3 +3197,18 @@ profiling:
       type: boolean
       example: ~
       default: "False"
+
+callbacks:
+  description: |
+    Configuration for callbacks (deadline alerts, etc.).
+  options:
+    callback_execution_timeout:
+      description: |
+        Maximum execution time in seconds for deadline callbacks.
+        Set to a positive integer to enable. When a callback exceeds this duration,
+        it is terminated with SIGTERM followed by SIGKILL if it does not exit within 5 seconds.
+        0 means no timeout (default).
+      version_added: 3.3.0
+      type: integer
+      example: "300"
+      default: "0"

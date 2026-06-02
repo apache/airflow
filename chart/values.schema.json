@@ -226,6 +226,12 @@
                 "type": "string"
             }
         },
+        "enableServiceLinks": {
+            "description": "Enable Kubernetes service links. The default is false in Chart 2.0.",
+            "type": "boolean",
+            "default": false,
+            "x-docsSection": "Kubernetes"
+        },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
             "type": "array",
