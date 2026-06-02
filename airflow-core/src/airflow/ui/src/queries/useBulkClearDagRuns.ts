@@ -29,7 +29,7 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import { DagRunService } from "openapi/requests/services.gen";
-import type { BulkActionResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
@@ -51,29 +51,14 @@ export type BulkClearDagRunsOptions = {
 // the result straight into ``deselectKeys`` without an extra mapping.
 const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}.${dagRun.dag_run_id}`;
 
-const formatError = (reason: unknown): string => {
-  if (reason instanceof Error) {
-    return reason.message;
-  }
-  if (typeof reason === "object" && reason !== null && "body" in reason) {
-    const { body } = reason as { body?: { detail?: unknown } };
-
-    if (body?.detail !== undefined) {
-      return typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
-    }
-  }
-
-  return String(reason);
-};
-
 export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
-  const [data, setData] = useState<{ clear: BulkActionResponse } | undefined>(undefined);
+  const [error, setError] = useState<unknown>(undefined);
   const [isPending, setIsPending] = useState(false);
   const { t: translate } = useTranslation(["common", "dags"]);
 
   const reset = () => {
-    setData(undefined);
+    setError(undefined);
   };
 
   const invalidateQueries = async (dagRuns: ReadonlyArray<DAGRunResponse>) => {
@@ -118,8 +103,6 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
 
       await invalidateQueries(dagRuns);
 
-      const successKeys = dagRuns.map(getRowKey);
-
       toaster.create({
         description: translate("toaster.bulkClear.success.description", {
           count: dagRuns.length,
@@ -131,18 +114,16 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
         }),
         type: "success",
       });
-      deselectKeys(successKeys);
-      setData({ clear: { errors: [], success: successKeys } });
+      deselectKeys(dagRuns.map(getRowKey));
       setIsPending(false);
       onSuccessConfirm();
-    } catch (error) {
-      // Atomic clear: on failure nothing was cleared. Surface a single
-      // request-level error and keep the dialog open (the consumer renders
-      // ``data.clear.errors``).
-      setData({ clear: { errors: [{ error: formatError(error) }], success: [] } });
+    } catch (clearError) {
+      // Atomic clear: on failure nothing was cleared. Surface the raw error so
+      // ErrorAlert can render the response detail, and keep the dialog open.
+      setError(clearError);
       setIsPending(false);
     }
   };
 
-  return { bulkClear, data, isPending, reset };
+  return { bulkClear, error, isPending, reset };
 };
