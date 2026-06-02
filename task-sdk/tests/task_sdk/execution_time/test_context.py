@@ -387,7 +387,7 @@ class TestCurrentContext:
         for i in range(max_stack_depth):
             # Create all contexts in ascending order
             new_context = {"ContextId": i}
-            # Like 15 nested with Storements
+            # Like 15 nested with statements
             ctx_obj = set_current_context(new_context)
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
@@ -395,7 +395,7 @@ class TestCurrentContext:
             # Iterate over contexts in reverse order - stack is LIFO
             ctx = get_current_context()
             assert ctx["ContextId"] == i
-            # End of with Storement
+            # End of with statement
             ctx_list[i].__exit__(None, None, None)
 
 
