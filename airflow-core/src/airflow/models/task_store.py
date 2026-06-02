@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -28,7 +27,7 @@ from airflow.models.base import COLLATION_ARGS, Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class TaskStateModel(Base):
+class TaskStoreModel(Base):
     """
     Persists key/value state for a task within a single DAG run.
 
@@ -37,7 +36,7 @@ class TaskStateModel(Base):
     values so they get independent namespaces automatically.
     """
 
-    __tablename__ = "task_state"
+    __tablename__ = "task_store"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
@@ -54,18 +53,18 @@ class TaskStateModel(Base):
     # Optional override for early expiry. When set, garbage collection deletes this row when
     # expires_at < now(), even if updated_at is recent. NULL means no early expiry —
     # the row is still cleaned up by the global `updated_at + default_retention_days` check.
-    # Populated via task_state.set(retention_days=N) for keys that should expire differently
+    # Populated via task_store.set(retention_days=N) for keys that should expire differently
     # than the deployment wide default.
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_uq"),
+        UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_store_uq"),
         ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],
-            name="task_state_dag_run_fkey",
+            name="task_store_dag_run_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index"),
-        Index("idx_task_state_expires_at", "expires_at"),
+        Index("idx_task_store_lookup", "dag_id", "run_id", "task_id", "map_index"),
+        Index("idx_task_store_expires_at", "expires_at"),
     )

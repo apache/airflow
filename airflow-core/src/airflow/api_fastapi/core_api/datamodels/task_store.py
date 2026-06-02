@@ -27,8 +27,8 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 _MAX_SERIALIZED_BYTES = 65535
 
 
-class TaskStateResponse(BaseModel):
-    """A single task state key/value pair with metadata."""
+class TaskStoreResponse(BaseModel):
+    """A single task store key/value pair with metadata."""
 
     key: str
     value: JsonValue
@@ -36,16 +36,16 @@ class TaskStateResponse(BaseModel):
     expires_at: datetime | None
 
 
-class TaskStateCollectionResponse(BaseModel):
-    """All task state entries for a task instance."""
+class TaskStoreCollectionResponse(BaseModel):
+    """All task store entries for a task instance."""
 
-    task_states: list[TaskStateResponse]
+    task_store: list[TaskStoreResponse]
     total_entries: int
 
 
-class TaskStateBody(StrictBaseModel):
+class TaskStoreBody(StrictBaseModel):
     """
-    Request body for setting a task state value.
+    Request body for setting a task store value.
 
     ``expires_at`` controls expiry:
 
@@ -71,8 +71,8 @@ class TaskStateBody(StrictBaseModel):
         return v
 
 
-class TaskStatePatchBody(StrictBaseModel):
-    """Request body for patching only the value of an existing task state key."""
+class TaskStorePatchBody(StrictBaseModel):
+    """Request body for patching only the value of an existing task store key."""
 
     value: JsonValue
 
