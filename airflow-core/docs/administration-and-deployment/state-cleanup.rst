@@ -40,7 +40,7 @@ If ``[state_store] default_retention_days = 0``, keys written without an explici
 
 .. note::
 
-   Custom backends (``[state_store] backend`` set to anything other than the default) are **explicitly skipped**. The cleanup command prints a message and exits cleanly without deleting anything. If your custom backend needs its own retention logic, implement it in ``BaseStateBackend.cleanup()`` and call it from your own maintenance process.
+   Custom backends (``[state_store] backend`` set to anything other than the default) are **explicitly not cleaned up**. The cleanup command prints a message and exits cleanly without deleting anything. If your custom backend needs its own retention logic, implement it in ``BaseStateBackend.cleanup()`` and call it from your own maintenance process.
 
 
 Running cleanup
