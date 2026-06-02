@@ -68,6 +68,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -644,6 +645,20 @@ class DagRunOperations(BaseOperations):
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
+
+
+class TasksOperations(BaseOperations):
+    """Task operations."""
+
+    def states_for_dag_run(
+        self, dag_id: str, dag_run_id: str, limit: int = 100
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Get the status of all task instances in a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+            limit=limit,
+        )
 
 
 class JobsOperations(BaseOperations):
