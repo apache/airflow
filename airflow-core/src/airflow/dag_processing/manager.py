@@ -32,40 +32,35 @@ import time
 import zipfile
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import select, update
-from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
+from airflow.dag_processing.api_client import DagProcessingApiClient
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
-from airflow.models.asset import remove_references_to_deleted_dags
-from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dagwarning import DagWarning
-from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.errors import ParseImportError
+from airflow.executors.base_executor import get_execution_api_server_url
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
+from airflow.sdk.api.client import Client
+from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time.comms import GetConnection, GetVariable
+from airflow.sdk.execution_time.request_handlers import handle_get_connection, handle_get_variable
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -74,20 +69,16 @@ from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
     kill_child_processes_by_pids,
 )
-from airflow.utils.retries import retry_db_transaction
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Sequence
     from socket import socket
 
-    from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
-
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
-    from airflow.sdk.api.client import Client
+
+
+log = logging.getLogger(__name__)
 
 
 class DagParsingStat(NamedTuple):
@@ -147,6 +138,74 @@ def _config_bool_factory(section: str, key: str):
 
 def _config_get_factory(section: str, key: str):
     return functools.partial(conf.get, section, key)
+
+
+def _dag_processing_api_server_url() -> str:
+    """
+    Resolve the DAG Processing API URL the processor persists through.
+
+    Defaults to the ``/dag-processing`` mount on the configured API server (a sibling of the
+    ``/execution`` mount), so a standard deployment that already runs the API server needs no
+    extra configuration. Set ``[core] dag_processing_api_server_url`` to point at a different
+    host.
+
+    The default is derived from the resolved Execution API URL (``execution_api_server_url``),
+    not just ``[api] base_url``, so a deployment that points the processor's Execution API at an
+    internal service URL keeps both sibling clients on the same host.
+    """
+    explicit = conf.get("core", "dag_processing_api_server_url", fallback=None)
+    if explicit:
+        return explicit
+    execution_url = get_execution_api_server_url().rstrip("/")
+    if execution_url.endswith("/execution"):
+        return f"{execution_url[: -len('/execution')]}/dag-processing"
+    return f"{execution_url}/dag-processing"
+
+
+def _api_token() -> str | None:
+    """
+    Return the token the DAG processor presents to the API server, or ``None``.
+
+    The DAG processor parses (and forks) user code, so it must not hold the deployment signing
+    key or be able to mint tokens. It only *carries* a token provisioned by a trusted component:
+    read from the file at ``[dag_processor] api_token_path`` (written by the deployment / control
+    plane). The same token authenticates both the DAG Processing and Execution API clients. The
+    issuance of that token is intentionally left to the deployment (the AIP-92 non-task principal
+    question); the processor never signs one itself.
+    """
+    token_path = conf.get("dag_processor", "api_token_path", fallback=None)
+    if not token_path:
+        return None
+    try:
+        return Path(token_path).read_text().strip() or None
+    except OSError:
+        log.warning("Could not read the DAG processor API token from %s", token_path)
+        return None
+
+
+class _DagProcessorSecretsComms:
+    """
+    Minimal ``SUPERVISOR_COMMS`` for the DAG processor process.
+
+    Bundle initialization (e.g. ``GitDagBundle`` resolving its git connection) runs in the
+    manager process, which holds no metadata-DB connection. Installing this as
+    ``task_runner.SUPERVISOR_COMMS`` makes ``ensure_secrets_backend_loaded()`` select
+    ``ExecutionAPISecretsBackend``; this shim then resolves the connection/variable lookups it
+    sends through the manager's remote Execution API client -- the same path the worker and
+    triggerer use -- so DB-stored bundle credentials resolve without direct DB access.
+    """
+
+    def __init__(self, client: Client) -> None:
+        self._client = client
+
+    def send(self, msg: Any, **kwargs: Any) -> Any:
+        if isinstance(msg, GetConnection):
+            return handle_get_connection(self._client, msg)[0]
+        if isinstance(msg, GetVariable):
+            return handle_get_variable(self._client, msg)[0]
+        # Other messages (e.g. MaskSecret emitted while masking a fetched secret) do not apply to
+        # the manager process; ignore them.
+        return None
 
 
 def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathLike[str] | None):
@@ -275,8 +334,12 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
-    """API server to interact with Metadata DB"""
+    _dag_processing_client: DagProcessingApiClient = attrs.field(
+        init=False,
+        factory=lambda: DagProcessingApiClient(_dag_processing_api_server_url(), token=_api_token()),
+    )
+    """Client for the DAG Processing API. The DAG processor never reads or writes the metadata
+    database directly; all persistence and metadata reads are routed through the API server."""
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -295,8 +358,8 @@ class DagFileProcessorManager(LoggingMixin):
         sys.exit(os.EX_OK)
 
     def sync_bundles(self) -> None:
-        """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        """Sync configured DAG bundles to the metadata database via the DAG Processing API."""
+        self._dag_processing_client.sync_bundles()
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -317,35 +380,44 @@ class DagFileProcessorManager(LoggingMixin):
 
     def before_run(self) -> None:
         """Set up state required before the parsing loop starts. Default implementation; override to customize."""
-        self.prepare_server_process_context()
         self.prepare_process_context()
         self.register_exit_signals()
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
+        self._setup_secrets_comms()
         self.prepare_bundles()
         self._symlink_latest_log_directory()
         # To prevent COW in forked process parsing dag file
         gc.freeze()
 
     def after_run(self) -> None:
-        """Tear down state after the parsing loop exits. Default no-op; override to customize."""
+        """Tear down state after the parsing loop exits."""
+        # Drop the secrets shim installed in before_run so it does not outlive the loop.
+        if isinstance(getattr(task_runner, "SUPERVISOR_COMMS", None), _DagProcessorSecretsComms):
+            del task_runner.SUPERVISOR_COMMS
 
-    def prepare_server_process_context(self) -> None:
+    def _setup_secrets_comms(self) -> None:
         """
-        Mark this process as running in "server" context so MetastoreBackend is available.
+        Route the manager's own connection/variable lookups through the remote Execution API.
 
-        Override to a no-op in subclasses that do not require direct DB access (e.g. API-backed
-        deployments under AIP-92).
+        Bundle initialization resolves credentials here (see :class:`_DagProcessorSecretsComms`).
+        Child parser processes reset ``SUPERVISOR_COMMS`` to their own comms in
+        ``_parse_file_entrypoint()``, so this only affects the manager process.
         """
-        # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
-        # The manager needs MetastoreBackend to retrieve connections from the database
-        # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
-        # This marks the manager as "server" context so ensure_secrets_backend_loaded() provides
-        # MetastoreBackend instead of falling back to EnvironmentVariablesBackend only.
-        # Child parser processes explicitly override this by setting _AIRFLOW_PROCESS_CONTEXT=client
-        # in _parse_file_entrypoint() to prevent inheriting server privileges.
-        # Related: https://github.com/apache/airflow/pull/57459
-        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+        try:
+            comms = _DagProcessorSecretsComms(self.client)
+        except Exception:
+            # Without a signing key the processor cannot authenticate to the Execution API;
+            # skip the shim so bundle init still resolves env/external-backend credentials
+            # instead of crashing. (DB-stored bundle credentials will not resolve in this case.)
+            self.log.warning(
+                "Could not initialize the Execution API client for bundle credentials; "
+                "bundle-init connections will resolve only from non-database secrets backends",
+                exc_info=True,
+            )
+            return
+        # Duck-typed comms: the shim implements the .send() interface the secrets backend uses.
+        task_runner.SUPERVISOR_COMMS = comms  # type: ignore[assignment]
 
     def prepare_process_context(self) -> None:
         """Initialize transport-neutral process state (selector, stats) before the parsing loop starts."""
@@ -406,62 +478,24 @@ class DagFileProcessorManager(LoggingMixin):
         """Clean up stale DAG bundle version usage records."""
         BundleUsageTrackingManager().remove_stale_bundle_versions()
 
-    @provide_session
-    def deactivate_stale_dags(
-        self,
-        last_parsed: dict[DagFileInfo, datetime | None],
-        *,
-        session: Session = NEW_SESSION,
-    ):
-        """Detect and deactivate DAGs which are no longer present in files."""
-        to_deactivate = set()
-        inactive_bundles = set(
-            session.scalars(select(DagBundleModel.name).where(DagBundleModel.active.is_(False))).all()
-        )
-        query = select(
-            DagModel.dag_id,
-            DagModel.bundle_name,
-            DagModel.fileloc,
-            DagModel.last_parsed_time,
-            DagModel.relative_fileloc,
-        ).where(~DagModel.is_stale)
-        dags_parsed = session.execute(query)
-
-        for dag in dags_parsed:
-            # Dags whose bundle has been removed from config (bundle no longer active) are stale —
-            # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name in inactive_bundles:
-                self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
-                    dag.dag_id,
-                    dag.bundle_name,
-                )
-                to_deactivate.add(dag.dag_id)
-                continue
-            # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
-            # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
-            # This is especially relevant for Dag files that generate Dags in a dynamic manner.
-            file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
-            if last_finish_time := last_parsed.get(file_info, None):
-                if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info(
-                        "Deactivating stale DAG %s. Not parsed for %s seconds (last parsed: %s).",
-                        dag.dag_id,
-                        int((last_finish_time - dag.last_parsed_time).total_seconds()),
-                        dag.last_parsed_time,
-                    )
-                    to_deactivate.add(dag.dag_id)
-
-        if to_deactivate:
-            deactivated_dagmodel = session.execute(
-                update(DagModel)
-                .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_stale=True)
-                .execution_options(synchronize_session="fetch")
+    def deactivate_stale_dags(self, last_parsed: dict[DagFileInfo, datetime | None]) -> None:
+        """Detect and deactivate DAGs which are no longer present in files, via the DAG Processing API."""
+        entries = [
+            {
+                "bundle_name": file_info.bundle_name,
+                "relative_fileloc": str(file_info.rel_path),
+                "last_finish_time": last_finish_time.isoformat(),
+            }
+            for file_info, last_finish_time in last_parsed.items()
+            if last_finish_time is not None
+        ]
+        try:
+            self._dag_processing_client.deactivate_stale_dags(
+                stale_dag_threshold=int(self.stale_dag_threshold), last_parsed=entries
             )
-            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
-            if deactivated:
-                self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+        except Exception:
+            # A transient API outage must not crash the parse loop; the next cycle retries.
+            self.log.exception("Error deactivating stale DAGs via the DAG Processing API")
 
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -551,12 +585,23 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
     def claim_priority_files(self) -> list[DagFileInfo]:
-        """
-        Fetch and claim files requested for priority parsing.
-
-        Default implementation reads from the metadata DB; override to source requests from an API.
-        """
-        return self._claim_priority_files()
+        """Fetch and claim files requested for priority parsing, via the DAG Processing API."""
+        bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        try:
+            claimed = self._dag_processing_client.claim_priority_files(list(bundles))
+        except Exception:
+            # A transient API outage must not crash the parse loop; the next cycle retries.
+            self.log.exception("Error claiming priority parse requests via the DAG Processing API")
+            return []
+        return [
+            DagFileInfo(
+                rel_path=Path(entry["relative_fileloc"]),
+                bundle_name=entry["bundle_name"],
+                bundle_path=bundles[entry["bundle_name"]].path,
+            )
+            for entry in claimed
+            if entry["bundle_name"] in bundles
+        ]
 
     def request_bundle_refresh(self, bundle_names: str | Iterable[str]) -> None:
         """
@@ -587,66 +632,17 @@ class DagFileProcessorManager(LoggingMixin):
             and bundle.name not in self._force_refresh_bundles
         )
 
-    @provide_session
-    def _claim_priority_files(self, *, session: Session = NEW_SESSION) -> list[DagFileInfo]:
-        """Fetch priority parsing requests from the metadata database."""
-        files: list[DagFileInfo] = []
-        bundles = {b.name: b for b in self._dag_bundles}
-        requests = session.scalars(
-            select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
-        )
-        for request in requests:
-            bundle = bundles[request.bundle_name]
-            files.append(
-                DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
-                )
-            )
-            session.delete(request)
-        return files
-
     def fetch_callbacks(self) -> list[CallbackRequest]:
-        """
-        Fetch and claim callbacks for this manager's bundles.
-
-        Default implementation reads from the metadata DB; override to source callbacks from an API.
-        """
-        return self._fetch_callbacks_from_db()
-
-    @provide_session
-    @retry_db_transaction
-    def _fetch_callbacks_from_db(
-        self,
-        *,
-        session: Session = NEW_SESSION,
-    ) -> list[CallbackRequest]:
-        """Fetch callbacks from database and add them to the internal queue for execution."""
-        self.log.debug("Fetching callbacks from the database.")
-
-        callback_queue: list[CallbackRequest] = []
-        with prohibit_commit(session) as guard:
-            bundle_names = [bundle.name for bundle in self._dag_bundles]
-            query: Select[tuple[DbCallbackRequest]] = with_row_locks(
-                select(DbCallbackRequest)
-                .where(DbCallbackRequest.bundle_name.in_(bundle_names))
-                .order_by(DbCallbackRequest.priority_weight.desc())
-                .limit(self.max_callbacks_per_loop),
-                of=DbCallbackRequest,
-                session=session,
-                skip_locked=True,
+        """Fetch and claim callbacks for this manager's bundles, via the DAG Processing API."""
+        try:
+            return self._dag_processing_client.fetch_callbacks(
+                bundle_names=[bundle.name for bundle in self._dag_bundles],
+                limit=self.max_callbacks_per_loop,
             )
-            callbacks: Sequence[DbCallbackRequest] = [
-                cb[0] if isinstance(cb, tuple) else cb for cb in session.scalars(query)
-            ]
-            for callback in callbacks:
-                req = callback.get_callback_request()
-                try:
-                    callback_queue.append(req)
-                    session.delete(callback)
-                except Exception as e:
-                    self.log.warning("Error adding callback for execution: %s, %s", callback, e)
-            guard.commit()
-        return callback_queue
+        except Exception:
+            # A transient API outage must not crash the parse loop; the next cycle retries.
+            self.log.exception("Error fetching callbacks via the DAG Processing API")
+            return []
 
     def prepare_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
         """
@@ -689,51 +685,35 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue([file_info], mode="front")
         stats.incr("dag_processing.other_callback_count")
 
-    @provide_session
-    def get_bundle_state(self, bundle_name: str, *, session: Session = NEW_SESSION) -> BundleState | None:
+    def get_bundle_state(self, bundle_name: str) -> BundleState | None:
         """
-        Return the persisted refresh state for a bundle.
+        Return the persisted refresh state for a bundle, via the DAG Processing API.
 
-        Returns ``None`` if the bundle has no database record.
+        Returns ``None`` if the bundle has no record.
         """
-        row = session.scalar(
-            select(DagBundleModel)
-            .where(DagBundleModel.name == bundle_name)
-            .options(load_only(DagBundleModel.last_refreshed, DagBundleModel.version))
-        )
-        if row is None:
+        data = self._dag_processing_client.get_bundle_state(bundle_name)
+        if data is None:
             return None
-        return BundleState(last_refreshed=row.last_refreshed, version=row.version)
+        return BundleState(last_refreshed=data["last_refreshed"], version=data["version"])
 
-    @provide_session
-    def update_bundle_state(
-        self,
-        bundle_name: str,
-        *,
-        last_refreshed: datetime,
-        version: str | None,
-        session: Session = NEW_SESSION,
-    ) -> None:
+    def update_bundle_state(self, bundle_name: str, *, last_refreshed: datetime, version: str | None) -> None:
         """
-        Persist the post-refresh state for a bundle.
+        Persist the post-refresh state for a bundle, via the DAG Processing API.
 
-        Always updates ``last_refreshed``. Updates ``version`` only when ``version`` is not
-        ``None`` — pass ``None`` to leave the stored version unchanged (e.g. for non-versioned
-        bundles or when the version did not change after a refresh).
+        Always updates ``last_refreshed``; updates ``version`` only when ``version`` is not
+        ``None`` (pass ``None`` to leave the stored version unchanged).
         """
-        values: dict[str, Any] = {"last_refreshed": last_refreshed}
-        if version is not None:
-            values["version"] = version
-        session.execute(update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values))
+        self._dag_processing_client.update_bundle_state(
+            bundle_name, last_refreshed=last_refreshed, version=version
+        )
 
     def purge_inactive_dag_warnings(self) -> None:
-        """
-        Purge warnings for inactive/stale DAGs.
-
-        Default implementation deletes records from the metadata DB; override to
-        source warnings from an API or skip the cleanup entirely.
-        """
-        DagWarning.purge_inactive_dag_warnings()
+        """Purge warnings for inactive/stale DAGs, via the DAG Processing API."""
+        try:
+            self._dag_processing_client.purge_inactive_dag_warnings()
+        except Exception:
+            # A transient API outage must not crash the parse loop; the next cycle retries.
+            self.log.exception("Error purging inactive DAG warnings via the DAG Processing API")
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
@@ -846,11 +826,17 @@ class DagFileProcessorManager(LoggingMixin):
 
             known_files[bundle.name] = found_files
 
-            self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
-            self.clear_orphaned_import_errors(
-                bundle_name=bundle.name,
-                observed_filelocs=self._get_observed_filelocs(found_files),
-            )
+            try:
+                self._dag_processing_client.reconcile(
+                    bundle_name=bundle.name,
+                    observed_filelocs=self._get_observed_filelocs(found_files),
+                )
+            except Exception:
+                self.log.exception(
+                    "Error reconciling bundle %s via the DAG Processing API; "
+                    "skipping stale reconciliation this cycle",
+                    bundle.name,
+                )
 
         if any_refreshed:
             self.handle_removed_files(known_files=known_files)
@@ -899,48 +885,12 @@ class DagFileProcessorManager(LoggingMixin):
 
         return observed_filelocs
 
-    def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-        """Deactivate DAGs that come from files that are no longer present in bundle."""
-        observed_filelocs = self._get_observed_filelocs(present)
-        with create_session() as session:
-            any_deactivated = DagModel.deactivate_deleted_dags(
-                bundle_name=bundle_name,
-                rel_filelocs=observed_filelocs,
-                session=session,
-            )
-            # Only run cleanup if we actually deactivated any DAGs
-            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
-            if any_deactivated:
-                remove_references_to_deleted_dags(session=session)
-
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if known_files:
                 self._log_file_processing_stats(known_files=known_files)
             self.last_stat_print_time = time.monotonic()
-
-    @provide_session
-    def clear_orphaned_import_errors(
-        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
-    ):
-        """
-        Clear import errors for files that no longer exist.
-
-        :param session: session for ORM operations
-        """
-        self.log.debug("Removing old import errors")
-        try:
-            errors = session.scalars(
-                select(ParseImportError)
-                .where(ParseImportError.bundle_name == bundle_name)
-                .options(load_only(ParseImportError.filename))
-            )
-            for error in errors:
-                if error.filename not in observed_filelocs:
-                    session.delete(error)
-        except Exception:
-            self.log.exception("Error removing old import errors")
 
     def _log_file_processing_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """
@@ -1091,13 +1041,10 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
 
-    @provide_session
     def handle_parsing_result(
         self,
         file: DagFileInfo,
         proc: DagFileProcessorProcess,
-        *,
-        session: Session = NEW_SESSION,
     ) -> None:
         """
         Post-process a single finished parse result.
@@ -1106,11 +1053,6 @@ class DagFileProcessorManager(LoggingMixin):
         and persists DAGs/import-errors via :meth:`persist_parsing_result`.
         Extracted from ``_collect_results`` to keep result handling and
         persistence separate.
-
-        Owns its own DB session via ``@provide_session`` so subclasses that
-        forward results without touching the metadata DB (e.g. AIP-92 API-backed
-        deployments) can override this method without inheriting a session
-        created by the caller.
 
         If persistence fails, the error is logged and the previous persisted
         DAG/import-error counts are preserved while a minimal timestamp update
@@ -1142,7 +1084,6 @@ class DagFileProcessorManager(LoggingMixin):
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
-                    session=session,
                 )
             except Exception:
                 self.log.exception(
@@ -1174,36 +1115,15 @@ class DagFileProcessorManager(LoggingMixin):
         parsing_result: DagFileParsingResult,
         run_duration: float,
         relative_fileloc: str | None,
-        session: Session,
     ) -> None:
-        """Persist parsed DAG data to the metadata database."""
-        import_errors: dict[tuple[str, str], str] = {}
-        if parsing_result.import_errors:
-            import_errors = {
-                (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
-            }
-
-        # Build the set of files that were parsed. This includes the file that was parsed,
-        # even if it no longer contains DAGs, so we can clear old import errors.
-        files_parsed: set[tuple[str, str]] | None = None
-        if relative_fileloc is not None:
-            files_parsed = {(bundle_name, relative_fileloc)}
-            files_parsed.update(import_errors.keys())
-
-        warnings = parsing_result.warnings or []
-        if warnings and isinstance(warnings[0], dict):
-            warnings = [DagWarning(**warn) for warn in warnings]
-
-        update_dag_parsing_results_in_db(
+        """Persist parsed DAG data via the DAG Processing API."""
+        self._dag_processing_client.persist_parsing_result(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             version_data=version_data,
-            dags=parsing_result.serialized_dags,
-            import_errors=import_errors,
-            parse_duration=run_duration,
-            warnings=set(warnings),
-            session=session,
-            files_parsed=files_parsed,
+            parsing_result=parsing_result,
+            run_duration=run_duration,
+            relative_fileloc=relative_fileloc,
         )
 
     def _collect_results(self):
@@ -1269,12 +1189,14 @@ class DagFileProcessorManager(LoggingMixin):
 
     @functools.cached_property
     def client(self) -> Client:
-        from airflow.sdk.api.client import Client
-
-        client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
-        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"
-        return client
+        # Parse-time connection/variable/xcom reads go to the remote Execution API, so the
+        # processor holds no metadata-DB connection. It carries the externally-provisioned token
+        # (see _api_token); it does not mint one, since it parses user code.
+        return Client(
+            base_url=get_execution_api_server_url(),
+            token=_api_token() or "",
+            dry_run=False,
+        )
 
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()

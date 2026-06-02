@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 from collections import deque
 from importlib import reload
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -31,6 +32,8 @@ from airflow.executors.executor_constants import (
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestStandaloneCommand:
@@ -81,6 +84,29 @@ class TestStandaloneCommand:
         env = cmd.calculate_env()
 
         assert "AIRFLOW__CORE__AUTH_MANAGER" not in env
+
+    @mock.patch("airflow.api_fastapi.auth.tokens.JWTGenerator")
+    @mock.patch("airflow.api_fastapi.auth.tokens.get_signing_args", return_value={"secret_key": "s"})
+    @mock.patch("airflow.api_fastapi.auth.tokens.get_signing_key", return_value="the-secret")
+    def test_provision_dag_processor_token(self, _get_key, _get_args, mock_generator):
+        """Standalone mints the processor's token and provisions it via env + a token file."""
+        mock_generator.return_value.generate.return_value = "minted-token"
+        env: dict[str, str] = {}
+        with conf_vars(
+            {
+                ("execution_api", "jwt_audience"): "exec-aud",
+                ("dag_processor", "jwt_audience"): "dag-proc-aud",
+            }
+        ):
+            StandaloneCommand()._provision_dag_processor_token(env)
+
+        # The processor never mints: standalone provisions the token + a shared signing key.
+        assert env["AIRFLOW__API_AUTH__JWT_SECRET"] == "the-secret"
+        token_path = env["AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH"]
+        assert Path(token_path).read_text() == "minted-token"
+        # Token is minted for both the Execution and DAG Processing audiences.
+        assert mock_generator.call_args.kwargs["audience"] == ["exec-aud", "dag-proc-aud"]
+        Path(token_path).unlink()
 
     @mock.patch("airflow.cli.commands.standalone_command.os.path.exists", return_value=False)
     @mock.patch("airflow.cli.commands.standalone_command.create_auth_manager")

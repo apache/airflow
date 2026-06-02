@@ -20,6 +20,7 @@ import logging
 import os
 import socket
 import subprocess
+import tempfile
 import threading
 import time
 from collections import deque
@@ -189,7 +190,49 @@ class StandaloneCommand:
             env["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
             os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath  # also in this process!
 
+        self._provision_dag_processor_token(env)
+
         return env
+
+    def _provision_dag_processor_token(self, env: dict[str, str]) -> None:
+        """
+        Mint the API token the DAG processor presents and point it at a file via env.
+
+        The DAG processor parses user code, so it must not hold the signing key or mint its own
+        token. Standalone runs in a trusted context (it already holds the signing key the
+        scheduler uses to mint task tokens), so it mints the processor's token here and provisions
+        it through ``[dag_processor] api_token_path``. The token carries both the Execution and DAG
+        Processing audiences (the processor calls both APIs) and a sentinel subject, since the
+        Execution API is task-instance scoped.
+        """
+        from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_args, get_signing_key
+
+        try:
+            # Materialise a signing key shared by every standalone subprocess, so the api-server
+            # validates the token with the same key it is minted with here.
+            secret = get_signing_key("api_auth", "jwt_secret", make_secret_key_if_needed=True)
+            env["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
+            os.environ["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
+
+            audiences = [
+                conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
+                conf.get_mandatory_list_value("dag_processor", "jwt_audience")[0],
+            ]
+            token = JWTGenerator(
+                valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+                # A JWT ``aud`` may be a list; the generator's hint is single-audience, but the
+                # processor presents this one token to both the Execution and DAG Processing APIs.
+                audience=audiences,  # type: ignore[arg-type]
+                issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
+                **get_signing_args(make_secret_key_if_needed=True),
+            ).generate({"sub": "00000000-0000-0000-0000-000000000000"})
+
+            fd, path = tempfile.mkstemp(prefix="airflow-standalone-", suffix=".token")
+            with os.fdopen(fd, "w") as token_file:
+                token_file.write(token)
+            env["AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH"] = path
+        except Exception as e:
+            self.print_output("standalone", f"Could not provision the DAG processor API token: {e}")
 
     def find_user_info(self):
         if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":
