@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import os
 import sys
+import warnings
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
@@ -834,7 +836,17 @@ class OpenLineageListener:
 
     def _fork_execute(self, callable, callable_name: str):
         self.log.debug("Will fork to execute OpenLineage process.")
-        pid = os.fork()
+        with warnings.catch_warnings():
+            # On Python 3.12+, os.fork() in a multi-threaded process emits a
+            # DeprecationWarning.  The fork here is intentional and the child
+            # takes precautions (ORM reconfiguration, os._exit) so the warning
+            # is safe to suppress.
+            warnings.filterwarnings(
+                "ignore",
+                message=".*use of fork\\(\\) may lead to deadlocks in the child",
+                category=DeprecationWarning,
+            )
+            pid = os.fork()
         if pid:
             process = psutil.Process(pid)
             try:
@@ -879,6 +891,7 @@ class OpenLineageListener:
             self._executor = ProcessPoolExecutor(
                 max_workers=conf.dag_state_change_process_pool_size(),
                 initializer=_executor_initializer,
+                mp_context=multiprocessing.get_context("forkserver"),
             )
         return self._executor
 
