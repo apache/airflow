@@ -2208,6 +2208,25 @@ execution_api:
       type: integer
       example: ~
       default: "600"
+    otel_trace_propagation:
+      version_added: 3.3.0
+      description: |
+        Controls when W3C trace context (``traceparent``/``tracestate``) is extracted from
+        incoming Execution API requests and attached to the OpenTelemetry context.
+
+        ``only-authenticated`` (default): trace context is extracted as a FastAPI dependency
+        on authenticated routes, after JWT verification succeeds. Unauthenticated requests
+        (including probes and attack traffic) cannot inject trace context.
+
+        ``unsafe-always``: trace context is extracted on all routes (including unauthenticated ones
+        such as health checks), before JWT verification. Use this when you want trace context
+        propagated even on auth failures. If untrusted traffic can reach your API server this can
+        result in data pollution or load/cost in your OTel trace store.
+
+        ``never``: trace context is never extracted. Use this to disable the feature entirely.
+      default: "only-authenticated"
+      example: ~
+      type: string
     jwt_audience:
       version_added: 3.0.0
       description: |
