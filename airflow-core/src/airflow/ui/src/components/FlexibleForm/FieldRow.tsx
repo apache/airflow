@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, Stack } from "@chakra-ui/react";
+import { Field, Grid, Stack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -58,25 +58,25 @@ export const FieldRow = ({
   };
 
   return (
-    <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
-      <Stack>
-        <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+    <Field.Root invalid={!isValid} required={isRequired(param)}>
+      <Grid alignItems="start" gap={4} templateColumns={{ base: "1fr", md: "minmax(0, 30%) minmax(0, 70%)" }}>
+        <Field.Label fontSize="md" minWidth={0} overflowWrap="anywhere">
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
-      </Stack>
-      <Stack css={{ flexBasis: "70%" }}>
-        <FieldSelector name={name} namespace={namespace} onUpdate={onUpdate} />
-        {param.description === null ? (
-          param.schema.description_md === undefined ? undefined : (
-            <Field.HelperText>
-              <ReactMarkdown>{param.schema.description_md}</ReactMarkdown>
-            </Field.HelperText>
-          )
-        ) : (
-          <Field.HelperText>{param.description}</Field.HelperText>
-        )}
-        {isValid ? undefined : <Field.ErrorText>{String(error)}</Field.ErrorText>}
-      </Stack>
+        <Stack minWidth={0}>
+          <FieldSelector name={name} namespace={namespace} onUpdate={onUpdate} />
+          {param.description === null ? (
+            param.schema.description_md === undefined ? undefined : (
+              <Field.HelperText>
+                <ReactMarkdown>{param.schema.description_md}</ReactMarkdown>
+              </Field.HelperText>
+            )
+          ) : (
+            <Field.HelperText>{param.description}</Field.HelperText>
+          )}
+          {isValid ? undefined : <Field.ErrorText>{String(error)}</Field.ErrorText>}
+        </Stack>
+      </Grid>
     </Field.Root>
   );
 };
