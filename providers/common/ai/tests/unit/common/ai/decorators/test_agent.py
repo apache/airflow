@@ -26,15 +26,13 @@ from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 try:
-    from airflow.sdk.serde import allow_class
-
-    _allow_class: object | None = allow_class
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
-    _allow_class = None
+    _CORE_WALKER = False
 
-requires_allow_class = pytest.mark.skipif(
-    _allow_class is None,
-    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
 )
 
 
@@ -175,7 +173,7 @@ class TestAgentDecoratedOperator:
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
-    @requires_allow_class
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
         """BaseModel output flows through XCom as the Pydantic instance."""

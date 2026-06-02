@@ -578,7 +578,7 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
-                ti.prepare_db_for_next_try(session)
+                ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(
@@ -591,7 +591,7 @@ def _create_ti_state_update_query_and_update_state(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
-                    session,
+                    session=session,
                 )
         try:
             _emit_task_span(ti, state=updated_state)
@@ -894,7 +894,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    task_instance.update_rtif(put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}

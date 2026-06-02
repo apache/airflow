@@ -89,7 +89,7 @@ spec:
           tolerations: {{- toYaml $tolerations | nindent 12 }}
           topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
           serviceAccountName: {{ include "databaseCleanup.serviceAccountName" . }}
-          {{- include "serviceLinks" . | nindent 10 }}
+          enableServiceLinks: {{ .Values.enableServiceLinks }}
           imagePullSecrets: {{- include "image_pull_secrets" . | nindent 12 }}
           securityContext: {{ $securityContext | nindent 12 }}
           containers:

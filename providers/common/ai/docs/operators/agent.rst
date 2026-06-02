@@ -123,14 +123,15 @@ back. The model instance is pushed to XCom unchanged so downstream tasks can
 type-hint the class directly (``def downstream(result: MyModel)``) and use
 attribute access (``result.field``).
 
-The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable
-from ``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
-process that parses the DAG. The Pydantic class must be defined at **module
-scope** and bound to an attribute matching its ``__name__``. Same-DAG
-downstream tasks need no configuration. The UI's XCom viewer renders the value
-via the ``stringify`` path (no configuration needed; see the ``LLMOperator``
-guide for the exact representation). Cross-DAG ``xcom_pull`` consumers still
-need the class ``qualname`` added to ``[core] allowed_deserialization_classes``.
+The declared ``output_type`` (and any ``BaseModel`` reachable from
+``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
+the worker when it loads the DAG, before any task runs. The Pydantic class must
+be defined at **module scope** and bound to an attribute matching its
+``__name__``. Same-DAG downstream tasks need no configuration. The UI's XCom
+viewer renders the value via the ``stringify`` path (no configuration needed;
+see the ``LLMOperator`` guide for the exact representation). Cross-DAG
+``xcom_pull`` consumers still need the class ``qualname`` added to
+``[core] allowed_deserialization_classes``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
