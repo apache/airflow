@@ -38,18 +38,24 @@ with the new prefix.
 Separating API Servers
 -----------------------
 
-By default, both the Core API Server and the Execution API Server are served together:
+By default, all applications are served together:
 
 .. code-block:: bash
 
    airflow api-server
    # same as
    airflow api-server --apps all
-   # or
+
+``--apps all`` serves the Core API Server, the Execution API Server, and the DAG Processing
+API Server. You can also select a subset of applications, for example to serve only the Core
+and Execution API Servers:
+
+.. code-block:: bash
+
    airflow api-server --apps core,execution
 
-If you want to separate the Core API Server and the Execution API Server, you can run them
-separately. This might be useful for scaling them independently or for deploying them on different machines.
+If you want to separate the applications, you can run them separately. This might be useful for
+scaling them independently or for deploying them on different machines.
 
 .. code-block:: bash
 
@@ -57,6 +63,16 @@ separately. This might be useful for scaling them independently or for deploying
    airflow api-server --apps core
    # serve only the Execution API Server
    airflow api-server --apps execution
+   # serve only the DAG Processing API Server
+   airflow api-server --apps dag-processing
+
+.. note::
+
+   The standalone DAG processor (``airflow dag-processor``) reads and writes its metadata through
+   the DAG Processing API Server, so the API server it connects to must include the ``dag-processing``
+   app. ``airflow api-server --apps all`` includes it; a subset such as ``--apps core,execution`` does
+   not. If the ``dag-processing`` app is missing, the DAG processor's requests return ``404`` and it
+   cannot run.
 
 Known Issues
 ------------

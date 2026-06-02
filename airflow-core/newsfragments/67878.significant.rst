@@ -1,0 +1,53 @@
+DAG processor now reads and writes metadata exclusively through the API server
+
+The standalone DAG processor (``airflow dag-processor``) no longer connects to the metadata
+database directly. It persists parse results and reads all metadata through the API server,
+mirroring how workers and triggerers already operate.
+
+**What changed:**
+
+- The DAG processor process opens no metadata-database connection. Persistence (serialized
+  DAGs, import errors, warnings), stale-DAG and orphaned-import-error reconciliation, bundle
+  synchronization and state, priority-parse-request and callback claiming, and the processor's
+  own ``Job`` liveness record all go through the API server.
+- Parse-time ``Connection``/``Variable``/``XCom`` reads from DAG files resolve through the
+  Execution API rather than an in-process app backed by the local database.
+
+**Behaviour changes:**
+
+- An API server must be reachable for the DAG processor to run. A deployment that previously
+  ran ``airflow dag-processor`` with only a database connection (no API server) must now also
+  run the API server.
+- The API server fronting the DAG processor must run the ``dag-processing`` app. Start it with
+  ``airflow api-server --apps all`` or include ``dag-processing`` explicitly; a subset such as
+  ``--apps core,execution`` omits it and the DAG processor cannot run.
+- The DAG processor authenticates to the API server with a bearer token the deployment
+  provisions; it does not mint its own. Because it parses user code, it is not given the signing
+  key. Provide the token via a file referenced by ``[dag_processor] api_token_path``.
+
+**Configuration:**
+
+- ``[core] dag_processing_api_server_url`` selects the DAG Processing API endpoint. It defaults
+  to the ``/dag-processing`` mount on the configured API server (``{BASE_URL}/dag-processing``),
+  so deployments that already run the API server need no extra configuration. Set it to point
+  the DAG processor at a different host.
+- ``[dag_processor] api_token_path`` is the path to a file holding the bearer token the DAG
+  processor presents to the API server (for both the DAG Processing and Execution APIs). The
+  token is minted by the deployment or control plane, not the processor.
+
+**Migration:**
+
+- Ensure the API server is running and reachable from the DAG processor. If the DAG processor
+  runs on a host without the default API server, set ``[core] dag_processing_api_server_url``
+  (and ``[core] execution_api_server_url`` for parse-time metadata reads) to its address.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [x] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+  * [ ] API changes

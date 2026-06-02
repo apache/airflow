@@ -752,7 +752,7 @@ ARG_API_SERVER_LOG_CONFIG = Arg(
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),
-    help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
+    help="Applications to run (comma-separated). Default is all. Options: core, execution, dag-processing, all",
     default="all",
 )
 ARG_API_SERVER_ALLOW_PROXY_FORWARDING = Arg(
