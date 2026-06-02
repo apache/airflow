@@ -745,7 +745,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
-            if trigger.asset_watchers:
+            if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
 
             return workloads.RunTrigger(
@@ -1276,10 +1276,10 @@ class TriggerRunner:
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
                 # Reconstruct AssetStateAccessors from watched_assets
                 from airflow.sdk.definitions.asset import Asset
-                from airflow.sdk.execution_time.context import AssetStateAccessors
+                from airflow.sdk.execution_time.context import AssetStoreAccessors
 
                 # Potentially address Asset vs. AssetRef, AssetUriRef, etc.
-                trigger_instance.asset_state = AssetStateAccessors(
+                trigger_instance.asset_store = AssetStoreAccessors(
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
 
