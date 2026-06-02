@@ -50,6 +50,7 @@ Misc
 ~~~~
 
 * ``Bump minimum google-api-core to 2.30.3 to fix Dag import timeout (#67774)``
+* ``Migrate Stackdriver logging config to RemoteLogIO pattern (#66513)``
 * ``Remove further findings from positional session check (#67712)``
 * ``Rework StackdriverTaskHandler for the structlog era #65191 (#65198)``
 * ``Fixing mypy errors in google gen ai provider and tests (#67276)``

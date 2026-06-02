@@ -36,6 +36,11 @@ Features
 * ``Forward Airflow Dag params to Databricks job parameters in CreateJobs/SubmitRun/RunNow (#66613)``
 * ``Add session-level query tags to Databricks SQL operators (#66895)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Lock in Databricks workflow depends_on parent-key behavior (#66681)``
+
 Misc
 ~~~~
 

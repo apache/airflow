@@ -35,6 +35,7 @@ Features
 * ``Add 'GlueCatalogBatchDeletePartitionOperator' (#66721)``
 * ``Add 'OpenSearchServerlessCreateCollectionOperator' (#66549)``
 * ``Propogate 'verify' and 'botocore_config' in batch triggers (#67508)``
+* ``Propogate 'verify' and 'botocore_config' in redshift cluster triggers (#67876)``
 * ``Add ExecuteCallback support to AWS ECS Executor (#63657)``
 
 Bug Fixes

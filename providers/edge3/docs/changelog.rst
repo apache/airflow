@@ -38,6 +38,11 @@ Features
 
 * ``Fix edge executor to support handling execute callback workload (#67679)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge worker fork mode reporting supervisor failures as success (#67887)``
+
 Misc
 ~~~~
 
