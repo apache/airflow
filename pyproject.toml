@@ -249,7 +249,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-http>=4.13.2"
 ]
 "ibm.mq" = [
-    "apache-airflow-providers-ibm-mq>=0.1.0"
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
 ]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
@@ -454,7 +454,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
-    "apache-airflow-providers-ibm-mq>=0.1.0",
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -1410,6 +1410,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1534,15 +1535,10 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-
-# REMOVE BY 2026-05-31 — once 7.1.0 is older than the global 4-day cooldown
-# this override is redundant and should be deleted along with the line below.
-swagger-plugin-for-sphinx = "8 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1557,6 +1553,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1681,15 +1678,10 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-
-# REMOVE BY 2026-05-31 along with the matching entry above.
-swagger-plugin-for-sphinx = "8 hours"
-
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1710,7 +1702,7 @@ apache-airflow-task-sdk-integration-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
-apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-listeners = { workspace = true }

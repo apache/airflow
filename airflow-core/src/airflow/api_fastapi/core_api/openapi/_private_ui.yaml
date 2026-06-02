@@ -991,6 +991,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:

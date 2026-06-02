@@ -1320,6 +1320,53 @@ class SelectiveChecks:
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
+    def _platform_excluded_providers(self) -> set[str]:
+        """Provider ids that opt out of the current ``self.platform`` via provider.yaml.
+
+        Mirrors the ``excluded-python-versions`` mechanism but keyed by Docker platform
+        string (e.g. ``linux/arm64``) so providers whose native dependencies are unavailable
+        on a given architecture can be removed from the test matrix at planning time.
+        """
+        excluded: set[str] = set()
+        for provider_id, provider_info in get_provider_dependencies().items():
+            if self.platform in provider_info.get("excluded-platforms", []):
+                excluded.add(provider_id)
+        return excluded
+
+    def _filter_platform_excluded_test_types(self, current_test_types: set[str]) -> None:
+        """Rewrite ``Providers[...]`` entries in-place to honor ``excluded-platforms``.
+
+        Handles three shapes produced upstream:
+
+        * ``Providers[foo]`` — dropped entirely when ``foo`` is excluded.
+        * ``Providers[a,foo,b]`` — rewritten to ``Providers[a,b]``; dropped if empty.
+        * ``Providers[-amazon,celery,google,standard]`` (negative, "all except") —
+          excluded providers are appended to the negation so they remain skipped.
+        """
+        excluded = self._platform_excluded_providers
+        if not excluded:
+            return
+        for original in tuple(current_test_types):
+            if not original.startswith("Providers[") or not original.endswith("]"):
+                continue
+            inner = original[len("Providers[") : -1]
+            if inner.startswith("-"):
+                negated = [p for p in inner[1:].split(",") if p]
+                additions = sorted(p for p in excluded if p not in negated)
+                if not additions:
+                    continue
+                current_test_types.remove(original)
+                current_test_types.add(f"Providers[-{','.join(sorted(negated + additions))}]")
+                continue
+            providers_in = [p for p in inner.split(",") if p]
+            kept = [p for p in providers_in if p not in excluded]
+            if kept == providers_in:
+                continue
+            current_test_types.remove(original)
+            if kept:
+                current_test_types.add(f"Providers[{','.join(kept)}]")
+
+    @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:
         if not self.run_unit_tests:
             return "[]"
@@ -1335,6 +1382,7 @@ class SelectiveChecks:
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
     def _get_individual_providers_list(self):
@@ -1344,6 +1392,7 @@ class SelectiveChecks:
             current_test_types.update(
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
+        self._filter_platform_excluded_test_types(current_test_types)
         return current_test_types
 
     @cached_property

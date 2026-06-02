@@ -28,6 +28,7 @@ import os
 import re
 import shlex
 import string
+import time
 from collections.abc import Callable, Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, suppress
 from enum import Enum
@@ -908,6 +909,24 @@ class KubernetesPodOperator(BaseOperator):
 
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
+        # Translate ``execution_timeout`` into an absolute deadline plumbed to
+        # the trigger via ``trigger_kwargs["_execution_deadline"]``. Anchoring
+        # on ``ti.start_date`` keeps the deadline stable across re-deferrals
+        # (``logging_interval`` re-entries), since Airflow preserves the
+        # original ``start_date`` when a task resumes from defer.
+        trigger_kwargs = dict(self.trigger_kwargs or {})
+        defer_timeout: datetime.timedelta | None = None
+        if self.execution_timeout is not None and context is not None:
+            ti_start_date = context["ti"].start_date
+            execution_deadline = int(ti_start_date.timestamp() + self.execution_timeout.total_seconds())
+            trigger_kwargs["_execution_deadline"] = execution_deadline
+            # Pad ``defer.timeout`` past the deadline so the framework
+            # backstop doesn't preempt the trigger's ``status="timeout"``
+            # emission and orphan the pod via the ``__fail__`` path.
+            remaining = execution_deadline - time.time()
+            poll_buffer = max(60, int(self.poll_interval * 2))
+            defer_timeout = datetime.timedelta(seconds=max(remaining, 0) + poll_buffer)
+
         trigger = KubernetesPodTrigger(
             pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
             pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
@@ -928,7 +947,7 @@ class KubernetesPodOperator(BaseOperator):
             termination_grace_period=self.termination_grace_period,
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
-            trigger_kwargs=self.trigger_kwargs,
+            trigger_kwargs=trigger_kwargs,
         )
         pod_container_state = trigger.define_pod_container_state(self.pod) if self.pod else None
         if context and (
@@ -949,7 +968,7 @@ class KubernetesPodOperator(BaseOperator):
                 },
             )
         else:
-            self.defer(trigger=trigger, method_name="trigger_reentry")
+            self.defer(trigger=trigger, method_name="trigger_reentry", timeout=defer_timeout)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
@@ -1018,8 +1037,13 @@ class KubernetesPodOperator(BaseOperator):
             )
             self.trigger_kwargs = dict(self.trigger_kwargs or {})
             self.trigger_kwargs["_redefer_count"] = redefer_count + 1
+            # Re-pass ``context`` so ``invoke_defer_method`` can recompute the
+            # ``execution_deadline`` for this re-deferral. ``ti.start_date`` is
+            # preserved across resumes, so the deadline stays anchored to the
+            # original task start.
             self.invoke_defer_method(
                 last_log_time=last_log_time,
+                context=context,
             )
             # invoke_defer_method raises TaskDeferred, execution does not continue here
 
