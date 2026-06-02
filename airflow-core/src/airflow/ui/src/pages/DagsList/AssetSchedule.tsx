@@ -68,7 +68,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
     { enabled: !timetablePartitioned },
   );
 
-  const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
+  const nextRunEvents: Array<NextRunEvent> = nextRun?.events ?? [];
   const queuedAssetEvents = new Map<number, string>();
 
   if (!timetablePartitioned) {
@@ -103,7 +103,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
   }
 
   if (timetablePartitioned) {
-    const pendingCount = (nextRun?.pending_partition_count as number | undefined) ?? 0;
+    const pendingCount = nextRun?.pending_partition_count ?? 0;
 
     if (pendingCount === 0) {
       return (
@@ -148,7 +148,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
         <Popover.Body>
           <AssetExpression
             events={pendingEvents}
-            expression={(nextRun?.asset_expression ?? assetExpression) as ExpressionType}
+            expression={nextRun?.asset_expression ?? assetExpression ?? undefined}
           />
         </Popover.Body>
       </Popover.Content>

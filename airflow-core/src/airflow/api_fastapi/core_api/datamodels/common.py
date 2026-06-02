@@ -29,6 +29,94 @@ from pydantic import Discriminator, Field, Tag
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
+# Asset Scheduling Expression Data Models
+#
+# These mirror the JSON produced by ``BaseAsset.as_expression()`` (see
+# ``airflow.serialization.definitions.assets``), which is stored verbatim in
+# ``DagModel.asset_expression``. Declaring them gives the REST API -- and the
+# TypeScript client generated from its OpenAPI spec -- a real type instead of an
+# opaque ``dict``. The shape is a recursive boolean tree whose leaves are assets,
+# asset aliases, or asset references.
+
+
+class AssetExpressionAssetInfo(BaseModel):
+    """
+    Body of an ``asset`` leaf node.
+
+    ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+    persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+    optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+    degrades gracefully instead of failing response validation.
+    """
+
+    uri: str
+    name: str
+    group: str
+    id: int | None = None
+
+
+class AssetExpressionAliasInfo(BaseModel):
+    """Body of an ``alias`` leaf node."""
+
+    name: str
+    group: str
+
+
+class AssetExpressionAsset(BaseModel):
+    """An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``."""
+
+    asset: AssetExpressionAssetInfo
+
+
+class AssetExpressionAlias(BaseModel):
+    """An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``."""
+
+    alias: AssetExpressionAliasInfo
+
+
+class AssetExpressionRef(BaseModel):
+    """An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``."""
+
+    asset_ref: dict[str, str]
+
+
+class AssetExpressionAny(BaseModel):
+    """An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied."""
+
+    any: list[AssetExpression]
+
+
+class AssetExpressionAll(BaseModel):
+    """An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied."""
+
+    all: list[AssetExpression]
+
+
+def _asset_expression_discriminator(value: Any) -> str | None:
+    """Select an expression variant by the single key that is present."""
+    keys = ("asset", "alias", "asset_ref", "any", "all")
+    if isinstance(value, dict):
+        present = [key for key in keys if key in value]
+    else:
+        present = [key for key in keys if getattr(value, key, None) is not None]
+    return present[0] if len(present) == 1 else None
+
+
+AssetExpression = Annotated[
+    Union[
+        Annotated[AssetExpressionAsset, Tag("asset")],
+        Annotated[AssetExpressionAlias, Tag("alias")],
+        Annotated[AssetExpressionRef, Tag("asset_ref")],
+        Annotated[AssetExpressionAny, Tag("any")],
+        Annotated[AssetExpressionAll, Tag("all")],
+    ],
+    Discriminator(_asset_expression_discriminator),
+]
+"""A nested asset scheduling expression; see ``BaseAsset.as_expression()``."""
+
+AssetExpressionAny.model_rebuild()
+AssetExpressionAll.model_rebuild()
+
 # Common Bulk Data Models
 T = TypeVar("T")
 K = TypeVar("K")

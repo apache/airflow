@@ -137,7 +137,17 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            asset_expression={
+                "any": [
+                    {
+                        "asset": {
+                            "uri": "test://scheduled_asset",
+                            "name": "scheduled_asset",
+                            "group": "test-group",
+                        }
+                    }
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -156,7 +166,9 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},
+            asset_expression={
+                "any": [{"asset": {"uri": "test://asset1", "name": "test_asset_1", "group": "test-group"}}]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -174,7 +186,11 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            asset_expression={
+                "any": [
+                    {"asset": {"uri": "s3://bucket/dataset", "name": "dataset_asset", "group": "test-group"}}
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,

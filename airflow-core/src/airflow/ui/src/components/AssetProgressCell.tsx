@@ -21,7 +21,7 @@ import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPendingPartitionedDagRun } from "openapi/queries";
 import type { PartitionedDagRunAssetResponse } from "openapi/requests/types.gen";
-import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
+import { AssetExpression } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { Popover } from "src/components/ui";
 
@@ -35,7 +35,7 @@ type Props = {
 export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalRequired }: Props) => {
   const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({ dagId, partitionKey });
 
-  const assetExpression = data?.asset_expression as ExpressionType | undefined;
+  const assetExpression = data?.asset_expression ?? undefined;
   const assets: Array<PartitionedDagRunAssetResponse> = data?.assets ?? [];
 
   const events: Array<NextRunEvent> = assets
