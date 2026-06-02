@@ -30,7 +30,7 @@ What gets cleaned up
 
 The cleanup command operates only on **task state** rows in the default state backend. Asset state rows are never touched by this command. Asset state rows are removed only by the orphan sweep when an asset is deactivated (see :ref:`state-store`).
 
-A task state row is eligible for deletion when its ``expires_at`` timestamp is in the past. ``expires_at`` is computed on the worker at write time:
+A task state row is eligible for deletion when its expires, i.e: ``expires_at`` timestamp is in the past. ``expires_at`` is computed on the worker when a task state row is written:
 
 * Keys written with an explicit ``retention=timedelta(...)`` expire after that duration from the time of the write.
 * Keys written with ``retention=None`` (the default) pick up an expiry based on ``[state_store] default_retention_days``. If that value is ``> 0``, the key expires that many days after the write.
