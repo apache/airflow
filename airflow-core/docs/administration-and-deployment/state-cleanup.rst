@@ -33,7 +33,7 @@ The cleanup command operates only on **task state** rows in the default state ba
 A task state row is eligible for deletion when its expires, i.e: ``expires_at`` timestamp is in the past. ``expires_at`` is computed on the worker when a task state row is written:
 
 * Keys written with an explicit ``retention=timedelta(...)`` expire after that duration from the time of the write.
-* Keys written with ``retention=None`` (the default) pick up an expiry based on ``[state_store] default_retention_days``. If that value is ``> 0``, the key expires that many days after the write.
+* Keys written with ``retention=None`` (the default) pick up an expiry based on ``[state_store] default_retention_days``. 
 * Keys written with ``retention=NEVER_EXPIRE`` have ``expires_at = NULL`` and a flag that marks them as permanent. They are **never** deleted by this command regardless of configuration.
 
 If ``[state_store] default_retention_days = 0``, keys written without an explicit retention have ``expires_at = NULL`` (no expiry) and are also skipped. Only keys with a non-null, past ``expires_at`` are removed.
