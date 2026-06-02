@@ -616,23 +616,23 @@ class TestTaskInstanceOperations:
         )
         assert result.count == 10
 
-    def test_get_task_stores_basic(self):
-        """Test basic get_task_stores functionality with just dag_id."""
+    def test_get_task_states_basic(self):
+        """Test basic get_task_states functionality with just dag_id."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/task-instances/states"
             assert request.url.params.get("dag_id") == "test_dag"
             assert request.url.params.get("task_group_id") == "group1"
             return httpx.Response(
-                200, json={"task_stores": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_instances.get_task_stores(dag_id="test_dag", task_group_id="group1")
-        assert result.task_stores == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+        result = client.task_instances.get_task_states(dag_id="test_dag", task_group_id="group1")
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
-    def test_get_task_stores_with_all_params(self):
-        """Test get_task_stores with all optional parameters."""
+    def test_get_task_states_with_all_params(self):
+        """Test get_task_states with all optional parameters."""
 
         logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
         logical_dates = [timezone.parse(d) for d in logical_dates_str]
@@ -648,17 +648,17 @@ class TestTaskInstanceOperations:
             assert params.get_list("run_ids") == []
             assert params.get("map_index") == "0"
             return httpx.Response(
-                200, json={"task_stores": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_instances.get_task_stores(
+        result = client.task_instances.get_task_states(
             dag_id="test_dag",
             map_index=0,
             task_group_id="group1",
             logical_dates=logical_dates,
         )
-        assert result.task_stores == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
     def test_get_previous_basic(self):
         """Test basic get_previous functionality."""
@@ -1810,7 +1810,7 @@ class TestTaskStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_store.get(ti_id=self.TI_ID, key="job_id")
         assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.task_store_NOT_FOUND
+        assert result.error == ErrorType.TASK_STORE_NOT_FOUND
 
     def test_set_success(self):
         expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
@@ -1934,7 +1934,7 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_store.get(key="watermark", name="test_asset")
         assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.asset_store_NOT_FOUND
+        assert result.error == ErrorType.ASSET_STORE_NOT_FOUND
 
     def test_set_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
