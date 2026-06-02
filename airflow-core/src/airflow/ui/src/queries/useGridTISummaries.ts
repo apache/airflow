@@ -91,6 +91,10 @@ export const useGridTiSummariesStream = ({
 
         // eslint-disable-next-line no-await-in-loop -- sequential reads required; each chunk depends on the previous buffer state
         for (let result = await reader.read(); !result.done; result = await reader.read()) {
+          if (abortController.signal.aborted) {
+            break;
+          }
+
           const { value } = result;
 
           buffer += decoder.decode(value, { stream: true });
@@ -99,10 +103,18 @@ export const useGridTiSummariesStream = ({
 
           buffer = lines.pop() ?? "";
 
-          for (const line of lines.filter((ln) => ln.trim())) {
-            const summary = JSON.parse(line) as GridTISummaries;
+          const newSummaries = lines
+            .filter((ln) => ln.trim())
+            .map((line) => JSON.parse(line) as GridTISummaries);
 
-            setSummariesByRunId((prev) => new Map(prev).set(summary.run_id, summary));
+          if (newSummaries.length > 0) {
+            setSummariesByRunId((prev) => {
+              const next = new Map(prev);
+
+              newSummaries.forEach((summary) => next.set(summary.run_id, summary));
+
+              return next;
+            });
           }
         }
       } catch (error) {
@@ -142,7 +154,20 @@ export const useGridTiSummariesStream = ({
   // invalidateQueries() calls — never from polling intervals — so this never
   // double-fires with the interval-based refresh above.
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let scheduleId: number | ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (cb: () => void) =>
+      typeof globalThis.requestAnimationFrame === "function"
+        ? globalThis.requestAnimationFrame(cb)
+        : setTimeout(cb, 0);
+
+    const cancel = (id: number | ReturnType<typeof setTimeout>) => {
+      if (typeof globalThis.cancelAnimationFrame === "function" && typeof id === "number") {
+        globalThis.cancelAnimationFrame(id);
+      } else {
+        clearTimeout(id as ReturnType<typeof setTimeout>);
+      }
+    };
 
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       const [firstKey] = event.query.queryKey as Array<unknown>;
@@ -153,16 +178,24 @@ export const useGridTiSummariesStream = ({
         typeof firstKey === "string" &&
         GRID_MUTATION_WATCHED_KEYS.has(firstKey)
       ) {
-        // Debounce: a single mutation invalidates several matching queries in one tick.
-        clearTimeout(timeoutId);
-        // eslint-disable-next-line max-nested-callbacks
-        timeoutId = setTimeout(() => setRefreshTick((tick) => tick + 1), 0);
+        // Debounce: a single mutation invalidates several matching queries in one tick/frame.
+        if (scheduleId !== undefined) {
+          cancel(scheduleId);
+        }
+
+        scheduleId = schedule(() => {
+          setRefreshTick((tick) => tick + 1);
+          scheduleId = undefined;
+        });
       }
     });
 
     return () => {
       unsubscribe();
-      clearTimeout(timeoutId);
+
+      if (scheduleId !== undefined) {
+        cancel(scheduleId);
+      }
     };
   }, [queryClient]);
 
