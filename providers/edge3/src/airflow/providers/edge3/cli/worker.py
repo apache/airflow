@@ -32,7 +32,7 @@ from functools import cached_property
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
-from typing import IO, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, NoReturn
 
 import anyio
 from aiofiles import open as aio_open
@@ -422,7 +422,7 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    def _run_job_via_supervisor(self, workload: ExecuteTypeBody, error_file_path: Path) -> int:
+    def _run_job_via_supervisor(self, workload: ExecuteTypeBody, error_file_path: Path) -> NoReturn:
         """Run a task by calling the supervisor directly (executes inside a forked child process)."""
         _reset_parent_signal_state()
 
@@ -435,7 +435,7 @@ class EdgeWorker:
             if AIRFLOW_V_3_3_PLUS:
                 from airflow.executors.base_executor import BaseExecutor
 
-                BaseExecutor.run_workload(
+                exit_code = BaseExecutor.run_workload(
                     workload=workload,
                     server=self._execution_api_server_url,
                 )
@@ -448,7 +448,7 @@ class EdgeWorker:
                     f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
                     f"try_number={ti.try_number}"
                 )
-                supervise(
+                exit_code = supervise(
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                     # Same like in airflow/executors/local_executor.py:_execute_workload()
                     ti=ti,  # type: ignore[arg-type]
@@ -458,12 +458,17 @@ class EdgeWorker:
                     server=self._execution_api_server_url,
                     log_path=workload.log_path,
                 )
-            return 0
         except Exception:
             logger.exception("Task execution failed")
             with suppress(Exception):
                 error_file_path.write_text(traceback.format_exc())
-            return 1
+            exit_code = 1
+
+        # Exit explicitly so the real exit code propagates to the parent process.
+        # the child would always exit 0 without this, so a failed supervisor
+        # (non-zero ``exit_code``, e.g. when ``run_workload`` reports a task failure without raising)
+        # would be misreported as success by the parent's ``Job.is_success`` check.
+        sys.exit(exit_code)
 
     def _launch_job_subprocess(self, workload: ExecuteTypeBody) -> tuple[subprocess.Popen, Path]:
         """Launch workload via a fresh Python interpreter (subprocess.Popen)."""
@@ -700,6 +705,7 @@ class EdgeWorker:
                         break
             await self._push_logs_in_chunks(job)
 
+            logger.info("The code is changed: %s", job.edge_job.identifier)
             if job.is_success:
                 logger.info("Job completed: %s", job.edge_job.identifier)
                 await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
