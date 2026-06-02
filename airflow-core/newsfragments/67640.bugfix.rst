@@ -1,0 +1,1 @@
+Fix inflated ``total_entries`` in ``GET /api/v2/importErrors`` when one import-error file references multiple DAGs.
