@@ -29,15 +29,13 @@ from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
-    from airflow.sdk.serde import allow_class
-
-    _allow_class: object | None = allow_class
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
-    _allow_class = None
+    _CORE_WALKER = False
 
-requires_allow_class = pytest.mark.skipif(
-    _allow_class is None,
-    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
 )
 
 
@@ -119,7 +117,7 @@ class TestLLMFileAnalysisOperator:
         )
         mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
 
-    @requires_allow_class
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
@@ -272,7 +270,7 @@ class TestLLMFileAnalysisOperatorApproval:
         assert exc_info.value.kwargs["generated_output"] == '{"findings":["error spike"]}'
         mock_upsert.assert_called_once()
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_with_approval_restores_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_test",
@@ -289,7 +287,7 @@ class TestLLMFileAnalysisOperatorApproval:
         assert isinstance(result, Summary)
         assert result.findings == ["error spike"]
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_with_approval_restores_modified_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_modified_test",

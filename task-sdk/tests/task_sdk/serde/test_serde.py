@@ -44,6 +44,7 @@ from airflow.sdk.serde import (
     _match_regexp,
     allow_class,
     deserialize,
+    iter_pydantic_models,
     serialize,
 )
 
@@ -454,6 +455,25 @@ class TestSerDe:
 
         with pytest.raises(ValueError, match="cannot be re-imported|does not resolve"):
             allow_class(Mismatched)
+
+    def test_iter_pydantic_models_shapes(self):
+        """iter_pydantic_models finds models in bare, optional/union, and container annotations."""
+
+        class M1(BaseModel):
+            a: int
+
+        class M2(BaseModel):
+            b: int
+
+        assert set(iter_pydantic_models(M1)) == {M1}
+        assert set(iter_pydantic_models(M1 | None)) == {M1}
+        assert set(iter_pydantic_models(M1 | M2)) == {M1, M2}
+        assert set(iter_pydantic_models(list[M1])) == {M1}
+        assert set(iter_pydantic_models(dict[str, M2])) == {M2}
+        assert set(iter_pydantic_models(list[M1 | M2 | None])) == {M1, M2}
+        # Non-model annotations yield nothing.
+        assert set(iter_pydantic_models(str)) == set()
+        assert set(iter_pydantic_models(list[int])) == set()
 
     def test_incompatible_version(self):
         data = dict(
