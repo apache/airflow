@@ -674,6 +674,8 @@ class BaseSerialization:
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var)
             tr_cls = import_string(tr_cls_name)
+            if not (isinstance(tr_cls, type) and issubclass(tr_cls, BaseTrigger)):
+                raise ValueError(f"{tr_cls_name!r} is not a BaseTrigger subclass")
             return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}

@@ -2788,6 +2788,17 @@ class TestStringifiedDAGs:
         dr = dag_maker.create_dagrun(partition_key="runtime-key")
         assert dr.partition_key == "runtime-key"
 
+    def test_base_trigger_deserialization_rejects_non_trigger_class(self):
+        """A serialized BASE_TRIGGER whose class path is not a BaseTrigger subclass is rejected on load."""
+        from airflow.serialization.enums import DagAttributeTypes
+
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize(["subprocess.run", {"args": ["true"]}]),
+            type_=DagAttributeTypes.BASE_TRIGGER,
+        )
+        with pytest.raises(ValueError, match="not a BaseTrigger subclass"):
+            BaseSerialization.deserialize(encoded)
+
 
 def test_kubernetes_optional():
     """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
