@@ -32,11 +32,13 @@ from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
+import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import BaseModel
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
@@ -162,6 +164,7 @@ from airflow.sdk.execution_time.task_runner import (
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
+    _register_deserialization_allowed_classes,
     _serialize_outlet_events,
     _xcom_push,
     detail_span,
@@ -248,9 +251,14 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     mock_dagbag.return_value = mock_bag_instance
     mock_dag = mock.Mock(spec=DAG)
     mock_task = mock.Mock(spec=BaseOperator)
+    # The worker walks dag.tasks to register declared deserialization classes;
+    # give the mock an iterable tasks list and an empty declaration so the walk
+    # is a no-op for this BundleDagBag-construction test.
+    mock_task.deserialization_allowed_class_fields = ()
 
     mock_bag_instance.dags = {"super_basic": mock_dag}
     mock_dag.task_dict = {"a": mock_task}
+    mock_dag.tasks = [mock_task]
 
     what = StartupDetails(
         ti=TaskInstanceDTO(
@@ -5769,3 +5777,70 @@ class TestTaskInstanceStateOperations:
             for call in mock_supervisor_comms.send.call_args_list
         ]
         assert ClearTaskState not in sent_types
+
+
+class _WalkerModelA(BaseModel):
+    a: int
+
+
+class _WalkerModelB(BaseModel):
+    b: int
+
+
+class _WalkerOperator(BaseOperator):
+    """Operator that declares a Pydantic ``output_type`` for deserialization."""
+
+    deserialization_allowed_class_fields = ("output_type",)
+
+    def __init__(self, *, output_type=str, value=None, **kwargs):
+        super().__init__(**kwargs)
+        self.output_type = output_type
+        self.value = value
+
+    def execute(self, context):
+        return None
+
+
+class TestRegisterDeserializationAllowedClasses:
+    """The worker-side walk registers operator-declared XCom classes for the whole DAG.
+
+    ``allow_class`` is patched to a spy so these assert the walk *extracts* the right
+    classes from both real and mapped operators; ``allow_class``'s own import
+    validation is covered by the serde tests.
+    """
+
+    def test_registers_real_and_mapped_operators(self):
+
+        with DAG("walker_dag") as dag:
+            # Non-mapped producer: output_type is a plain attribute.
+            _WalkerOperator(task_id="real", output_type=_WalkerModelA)
+            # Mapped producer: output_type lives in partial_kwargs and __init__ never
+            # runs at parse -- the case the old __init__ registration could not reach.
+            _WalkerOperator.partial(task_id="mapped", output_type=_WalkerModelB).expand(value=[1, 2])
+
+        registered: list[type] = []
+        with patch("airflow.sdk.execution_time.task_runner.allow_class", side_effect=registered.append):
+            _register_deserialization_allowed_classes(dag, structlog.get_logger())
+
+        assert _WalkerModelA in registered, "real operator output_type not registered"
+        assert _WalkerModelB in registered, "mapped operator output_type not registered"
+
+    def test_default_operator_registers_nothing(self):
+
+        with DAG("walker_dag_plain") as dag:
+            BaseOperator(task_id="plain")
+
+        registered: list[type] = []
+        with patch("airflow.sdk.execution_time.task_runner.allow_class", side_effect=registered.append):
+            _register_deserialization_allowed_classes(dag, structlog.get_logger())
+        assert registered == []
+
+    def test_bad_declaration_is_skipped_not_fatal(self):
+        """A class that fails ``allow_class`` validation is logged and skipped, not raised."""
+
+        with DAG("walker_dag_bad") as dag:
+            _WalkerOperator(task_id="real", output_type=_WalkerModelA)
+
+        with patch("airflow.sdk.execution_time.task_runner.allow_class", side_effect=ValueError("nope")):
+            # Must not raise -- the walk swallows per-class registration errors.
+            _register_deserialization_allowed_classes(dag, structlog.get_logger())
