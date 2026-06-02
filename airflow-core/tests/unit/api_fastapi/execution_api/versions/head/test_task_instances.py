@@ -48,12 +48,12 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.config import conf_vars
@@ -1961,13 +1961,13 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         backend.set(scope, "checkpoint", "step_3", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
@@ -1976,7 +1976,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -1989,7 +1989,7 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -2001,7 +2001,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -2016,7 +2016,7 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -2028,7 +2028,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
 
 
 class TestTISkipDownstream:

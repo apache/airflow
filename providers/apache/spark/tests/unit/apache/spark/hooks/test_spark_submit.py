@@ -397,6 +397,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn"
@@ -420,6 +422,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn"
@@ -443,6 +447,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "mesos://host:5050"
@@ -465,6 +471,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn://yarn-master"
@@ -489,6 +497,8 @@ class TestSparkSubmitHook:
             "namespace": "mynamespace",
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "k8s://https://k8s-master"
@@ -515,6 +525,8 @@ class TestSparkSubmitHook:
             "namespace": "airflow",
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "k8s://https://k8s-master"
@@ -538,6 +550,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark2-submit"
@@ -559,6 +573,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
@@ -619,6 +635,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
@@ -641,6 +659,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
@@ -662,6 +682,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
@@ -684,6 +706,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": "user/spark@airflow.org",
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--principal"] == "user/spark@airflow.org"
@@ -706,6 +730,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": "will-override",
             "keytab": None,
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--principal"] == "will-override"
@@ -732,6 +758,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": "privileged_user.keytab",
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "privileged_user.keytab"
@@ -757,6 +785,8 @@ class TestSparkSubmitHook:
             "namespace": None,
             "principal": None,
             "keytab": "will-override",
+            "rest_scheme": "http",
+            "rest_port": 6066,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "will-override"

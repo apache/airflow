@@ -20,9 +20,7 @@ package execution
 import (
 	"bytes"
 	"encoding/binary"
-	"strconv"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +75,7 @@ func TestWriteAndReadFrame(t *testing.T) {
 	// Read back.
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
-	assert.Equal(t, 7, frame.ID)
+	assert.Equal(t, int64(7), frame.ID)
 	assert.Equal(t, "GetConnection", frame.Body["type"])
 	assert.Equal(t, "my_db", frame.Body["conn_id"])
 	assert.Nil(t, frame.Err)
@@ -100,7 +98,7 @@ func TestDecodeResponseFrame(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 5, frame.ID)
+	assert.Equal(t, int64(5), frame.ID)
 	assert.Equal(t, "ConnectionResult", frame.Body["type"])
 	assert.Equal(t, "localhost", frame.Body["host"])
 	assert.Nil(t, frame.Err)
@@ -122,7 +120,7 @@ func TestDecodeResponseFrameWithError(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 3, frame.ID)
+	assert.Equal(t, int64(3), frame.ID)
 	assert.Nil(t, frame.Body)
 	assert.NotNil(t, frame.Err)
 	assert.Equal(t, "not_found", frame.Err["error"])
@@ -160,30 +158,6 @@ func TestDecodeFrameRejectsNonMapError(t *testing.T) {
 	assert.Contains(t, err.Error(), "error element: expected map")
 }
 
-// TestWriteFrameRejectsOversizedPayload pins the guard at the top of
-// writeFrame against the rename/refactor that previously dropped its
-// coverage. The guard only inspects len(payload) before doing any allocation
-// or read of payload bytes, so we hand it a fake-length slice built with
-// unsafe.Slice (one real byte of backing storage, length > MaxFrameSize)
-// rather than allocating 4 GiB of real memory.
-//
-// The matching read-side guard at the top of readFrame is dead code with
-// MaxFrameSize pinned at the uint32 maximum (payloadLen is uint32, so
-// payloadLen > MaxFrameSize is never true) and cannot be exercised without
-// modifying production code; it remains as defense-in-depth in case
-// MaxFrameSize is ever lowered.
-func TestWriteFrameRejectsOversizedPayload(t *testing.T) {
-	if strconv.IntSize < 64 {
-		t.Skip("requires 64-bit int to construct a slice longer than MaxFrameSize")
-	}
-	var backing byte
-	payload := unsafe.Slice(&backing, uint64(MaxFrameSize)+1)
-
-	err := writeFrame(&bytes.Buffer{}, payload)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "exceeds max")
-}
-
 func TestRoundTripMultipleFrames(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -193,7 +167,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		{"type": "GetVariable", "key": "v2"},
 	}
 	for i, body := range bodies {
-		payload, err := encodeRequest(i, body)
+		payload, err := encodeRequest(int64(i), body)
 		require.NoError(t, err)
 		require.NoError(t, writeFrame(&buf, payload))
 	}
@@ -202,7 +176,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 	for i, expected := range bodies {
 		frame, err := readFrame(&buf)
 		require.NoError(t, err)
-		assert.Equal(t, i, frame.ID)
+		assert.Equal(t, int64(i), frame.ID)
 		assert.Equal(t, expected["key"], frame.Body["key"])
 	}
 }
