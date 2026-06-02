@@ -402,6 +402,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         results: KubernetesResults,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """Change state of the task based on KubernetesResults."""
@@ -721,7 +722,13 @@ class KubernetesExecutor(BaseExecutor):
 
             timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
             cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-            with create_session() as session:
+            # Must be an *independent* (non-scoped) session. try_adopt_task_instances runs
+            # inside the scheduler's own transaction (adopt_or_reset_orphaned_tasks); a scoped
+            # session here would resolve to that same thread-local session, and the context
+            # manager's commit()/close() on exit would commit the scheduler's in-flight work
+            # early (releasing its FOR UPDATE SKIP LOCKED row locks) and detach the orphaned
+            # TaskInstances it still holds, crashing the reset path (#67813).
+            with create_session(scoped=False) as session:
                 # Iterate the scalar cursor straight into the set so we never
                 # materialize an intermediate list — keeps the memory
                 # footprint flat regardless of how many sibling schedulers

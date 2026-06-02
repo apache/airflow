@@ -44,6 +44,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
+import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
 import DeleteRunButton from "./DeleteRunButton";
@@ -373,6 +374,7 @@ export const DagRuns = () => {
             {selectedRows.size} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
+          <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <BulkDeleteDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>

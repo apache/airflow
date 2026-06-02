@@ -770,6 +770,17 @@ ARG_SSL_KEY = Arg(
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
 )
+ARG_SSL_CA_FILE = Arg(
+    ("--ssl-ca-file",),
+    default=conf.get("api", "ssl_ca_file", fallback=None),
+    help="(Optional) Path to the SSL CA file",
+)
+ARG_SSL_CERT_REQS = Arg(
+    ("--ssl-cert-reqs",),
+    default=conf.get("api", "ssl_cert_reqs", fallback="none"),
+    help="(Optional) Set certificate verification options.",
+    choices=("none", "optional", "required"),
+)
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
@@ -2173,6 +2184,8 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
+            ARG_SSL_CA_FILE,
+            ARG_SSL_CERT_REQS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),

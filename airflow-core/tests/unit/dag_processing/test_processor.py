@@ -2075,8 +2075,8 @@ class TestDagFileProcessorProcess:
         from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 
         with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
-            proc._create_log_forwarder((), "task.stdout")
-        mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
+            proc._create_log_forwarder((), "task.stdout", data=b"")
+        mock_base.assert_called_once_with((), "dag_processor.stdout", data=b"", log_level=logging.INFO)
 
     def test_handle_request_get_connection_masks_password_and_extra(self, proc):
         proc.client.connections.get.return_value = ConnectionResponse(

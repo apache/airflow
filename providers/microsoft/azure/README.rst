@@ -50,9 +50,9 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ===========================
+==========================================  ===================
 PIP package                                 Version required
-==========================================  ===========================
+==========================================  ===================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
@@ -71,7 +71,7 @@ PIP package                                 Version required
 ``azure-synapse-spark``                     ``>=0.2.0``
 ``azure-synapse-artifacts``                 ``>=0.17.0``
 ``azure-storage-file-datalake``             ``>=12.9.1``
-``azure-kusto-data``                        ``>=4.1.0,!=4.6.0,!=5.0.0``
+``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=2.0.0``
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
 ``azure-mgmt-compute``                      ``>=33.0.0``
@@ -84,7 +84,7 @@ PIP package                                 Version required
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-==========================================  ===========================
+==========================================  ===================
 
 Cross provider package dependencies
 -----------------------------------

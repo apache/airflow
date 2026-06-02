@@ -21,6 +21,14 @@ from collections.abc import AsyncIterator, Sequence
 from enum import Enum
 from typing import Any, Literal
 
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    GatewayTimeout,
+    InternalServerError,
+    ResourceExhausted,
+    ServiceUnavailable,
+)
 from google.cloud.run_v2 import Execution
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -28,6 +36,21 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 DEFAULT_BATCH_LOCATION = "us-central1"
+
+# gRPC errors that indicate a transient failure of the Cloud Run API rather
+# than a terminal state of the underlying job. Re-polling is the right move:
+# any of these surfacing from get_operation while the Cloud Run execution is
+# still progressing would otherwise crash the trigger and have Airflow's
+# task-level retry re-submit the whole job. Anything outside this tuple
+# (NotFound, PermissionDenied, auth failures, ...) still propagates.
+_RETRYABLE_GRPC_EXCEPTIONS = (
+    ServiceUnavailable,  # 503 / UNAVAILABLE
+    InternalServerError,  # 500 / INTERNAL
+    DeadlineExceeded,  # 504 / DEADLINE_EXCEEDED
+    GatewayTimeout,  # 504 / gateway timeout
+    ResourceExhausted,  # 429 / RESOURCE_EXHAUSTED
+    Aborted,  # ABORTED — usually retryable concurrency conflict
+)
 
 
 class RunJobStatus(Enum):
@@ -112,11 +135,27 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         timeout = self.timeout
         self.hook = self._get_async_hook()
         while timeout is None or timeout > 0:
-            operation = await self.hook.get_operation(
-                operation_name=self.operation_name,
-                location=self.location,
-                use_regional_endpoint=self.use_regional_endpoint,
-            )
+            try:
+                operation = await self.hook.get_operation(
+                    operation_name=self.operation_name,
+                    location=self.location,
+                    use_regional_endpoint=self.use_regional_endpoint,
+                )
+            except _RETRYABLE_GRPC_EXCEPTIONS as e:
+                self.log.warning(
+                    "Transient error from Cloud Run get_operation (%s). Retrying... (%s)",
+                    type(e).__name__,
+                    e,
+                )
+
+                if timeout is not None:
+                    timeout -= self.polling_period_seconds
+
+                if timeout is None or timeout > 0:
+                    await asyncio.sleep(self.polling_period_seconds)
+
+                continue
+
             if operation.done:
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.

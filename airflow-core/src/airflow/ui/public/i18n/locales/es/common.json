@@ -245,7 +245,6 @@
   "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
-  "taskGroup": "Grupo de Tareas",
   "taskId": "ID de la Tarea",
   "taskInstance": {
     "dagVersion": "Versión del Dag",
