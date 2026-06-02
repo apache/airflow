@@ -46,3 +46,4 @@ class RunTrigger(BaseModel):
     dag_run_data: dict | None = (
         None  # Serialized DagRun data in dict format so it can be deserialized in trigger subprocess.
     )
+    queued_at: float | None = None
