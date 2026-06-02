@@ -120,12 +120,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateAccessors,
+    AssetStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
-    TaskStateAccessor,
+    TaskStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -298,7 +298,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state": TaskStateAccessor(
+                "task_store": TaskStoreAccessor(
                     ti_id=self.id,
                     scope=TaskScope(
                         dag_id=self.dag_id,
@@ -310,7 +310,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state"] = AssetStateAccessors(
+                self._cached_template_context["asset_store"] = AssetStoreAccessors(
                     self.task.inlets, self.task.outlets
                 )
                 # AssetAlias inlets are resolved to their concrete assets at context build time via
@@ -1593,7 +1593,7 @@ def _handle_current_task_success(
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
-        context["task_state"]._clear_backend_only()
+        context["task_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,

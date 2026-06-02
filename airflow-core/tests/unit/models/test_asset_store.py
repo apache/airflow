@@ -24,7 +24,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 
 from tests_common.test_utils.db import clear_db_assets
 
@@ -49,10 +49,10 @@ def asset(session: Session) -> AssetModel:
     return a
 
 
-class TestAssetStateModel:
+class TestAssetStoreModel:
     def test_insert_and_read(self, session: Session, asset: AssetModel):
         """A row written for an asset key is readable back with the correct value."""
-        row = AssetStateModel(
+        row = AssetStoreModel(
             asset_id=asset.id,
             key="last_processed_at",
             value="2026-04-24T00:00:00Z",
@@ -61,9 +61,9 @@ class TestAssetStateModel:
         session.flush()
 
         result = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == asset.id,
-                AssetStateModel.key == "last_processed_at",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == asset.id,
+                AssetStoreModel.key == "last_processed_at",
             )
         )
         assert result is not None
@@ -71,26 +71,26 @@ class TestAssetStateModel:
 
     def test_duplicate_pk_raises(self, session: Session, asset: AssetModel):
         """Inserting a second row with the same (asset_id, key) raises IntegrityError."""
-        session.add(AssetStateModel(asset_id=asset.id, key="watermark", value="first"))
+        session.add(AssetStoreModel(asset_id=asset.id, key="watermark", value="first"))
         session.flush()
 
-        session.add(AssetStateModel(asset_id=asset.id, key="watermark", value="duplicate"))
+        session.add(AssetStoreModel(asset_id=asset.id, key="watermark", value="duplicate"))
         with pytest.raises(IntegrityError):
             session.flush()
 
     def test_multiple_keys_per_asset(self, session: Session, asset: AssetModel):
         """An asset can hold multiple independent keys in the same namespace."""
         for key in ("watermark", "last_file_count", "last_error"):
-            session.add(AssetStateModel(asset_id=asset.id, key=key, value=f"val_{key}"))
+            session.add(AssetStoreModel(asset_id=asset.id, key=key, value=f"val_{key}"))
         session.flush()
 
-        results = session.scalars(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)).all()
+        results = session.scalars(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id)).all()
         assert len(results) == 3
 
     def test_cascade_delete_on_asset(self, session: Session, asset: AssetModel):
         """Deleting an asset cascades to its asset_state rows — no orphans remain."""
         session.add(
-            AssetStateModel(
+            AssetStoreModel(
                 asset_id=asset.id,
                 key="last_processed_at",
                 value="2026-04-24T00:00:00Z",
@@ -101,7 +101,7 @@ class TestAssetStateModel:
         session.execute(delete(AssetModel).where(AssetModel.id == asset.id))
         session.flush()
 
-        remaining = session.scalars(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)).all()
+        remaining = session.scalars(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id)).all()
         assert remaining == []
 
     def test_different_assets_are_isolated(self, session: Session, asset: AssetModel):
@@ -111,7 +111,7 @@ class TestAssetStateModel:
         session.flush()
 
         session.add(
-            AssetStateModel(
+            AssetStoreModel(
                 asset_id=asset.id,
                 key="watermark",
                 value="asset1_value",
@@ -120,16 +120,16 @@ class TestAssetStateModel:
         session.flush()
 
         result = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == asset2.id,
-                AssetStateModel.key == "watermark",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == asset2.id,
+                AssetStoreModel.key == "watermark",
             )
         )
         assert result is None
 
     def test_state_survives_across_runs(self, session: Session, asset: AssetModel):
         """Asset state is not scoped to a DAG run — updating a value persists it for future reads."""
-        row = AssetStateModel(
+        row = AssetStoreModel(
             asset_id=asset.id,
             key="watermark",
             value="2026-04-01T00:00:00Z",
@@ -141,9 +141,9 @@ class TestAssetStateModel:
         session.flush()
 
         result = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == asset.id,
-                AssetStateModel.key == "watermark",
+            select(AssetStoreModel).where(
+                AssetStoreModel.asset_id == asset.id,
+                AssetStoreModel.key == "watermark",
             )
         )
         assert result is not None

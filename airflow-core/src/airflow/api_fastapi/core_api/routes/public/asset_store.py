@@ -26,20 +26,20 @@ from airflow._shared.state import AssetScope
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.asset_state import (
-    AssetStateBody,
-    AssetStateCollectionResponse,
-    AssetStateResponse,
+from airflow.api_fastapi.core_api.datamodels.asset_store import (
+    AssetStoreBody,
+    AssetStoreCollectionResponse,
+    AssetStoreResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 from airflow.state import get_state_backend
 
-asset_state_router = AirflowRouter(
-    tags=["Asset State"],
-    prefix="/assets/{asset_id}/states",
+asset_store_router = AirflowRouter(
+    tags=["Asset Store"],
+    prefix="/assets/{asset_id}/store",
 )
 
 
@@ -56,26 +56,26 @@ def _get_asset_or_404(asset_id: int, session: SessionDep) -> int:
 AssetIdDep = Annotated[int, Depends(_get_asset_or_404)]
 
 
-@asset_state_router.get(
+@asset_store_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
-def list_asset_states(
+def list_asset_store(
     asset_id: AssetIdDep,
     limit: QueryLimit,
     offset: QueryOffset,
     session: SessionDep,
-) -> AssetStateCollectionResponse:
-    """List all state entries for an asset."""
+) -> AssetStoreCollectionResponse:
+    """List all store entries for an asset."""
     base = (
         select(
-            AssetStateModel.key,
-            AssetStateModel.value,
-            AssetStateModel.updated_at,
+            AssetStoreModel.key,
+            AssetStoreModel.value,
+            AssetStoreModel.updated_at,
         )
-        .where(AssetStateModel.asset_id == asset_id)
-        .order_by(AssetStateModel.key.asc())
+        .where(AssetStoreModel.asset_id == asset_id)
+        .order_by(AssetStoreModel.key.asc())
     )
     paginated, total_entries = paginated_select(
         statement=base,
@@ -87,80 +87,80 @@ def list_asset_states(
     )
     rows = session.execute(paginated).all()
     entries = [
-        AssetStateResponse(key=r.key, value=json.loads(r.value), updated_at=r.updated_at) for r in rows
+        AssetStoreResponse(key=r.key, value=json.loads(r.value), updated_at=r.updated_at) for r in rows
     ]
-    return AssetStateCollectionResponse(asset_states=entries, total_entries=total_entries)
+    return AssetStoreCollectionResponse(asset_store=entries, total_entries=total_entries)
 
 
-@asset_state_router.get(
+@asset_store_router.get(
     "/{key:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
-def get_asset_state(
+def get_asset_store(
     asset_id: AssetIdDep,
     key: str,
     session: SessionDep,
-) -> AssetStateResponse:
-    """Get a single asset state entry."""
+) -> AssetStoreResponse:
+    """Get a single asset store entry."""
     row = session.execute(
         select(
-            AssetStateModel.key,
-            AssetStateModel.value,
-            AssetStateModel.updated_at,
+            AssetStoreModel.key,
+            AssetStoreModel.value,
+            AssetStoreModel.updated_at,
         ).where(
-            AssetStateModel.asset_id == asset_id,
-            AssetStateModel.key == key,
+            AssetStoreModel.asset_id == asset_id,
+            AssetStoreModel.key == key,
         )
     ).one_or_none()
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset state key {key!r} not found",
+            detail=f"Asset store key {key!r} not found",
         )
-    return AssetStateResponse(key=row.key, value=json.loads(row.value), updated_at=row.updated_at)
+    return AssetStoreResponse(key=row.key, value=json.loads(row.value), updated_at=row.updated_at)
 
 
-@asset_state_router.put(
+@asset_store_router.put(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="PUT"))],
 )
-def set_asset_state(
+def set_asset_store(
     asset_id: AssetIdDep,
     key: str,
-    body: AssetStateBody,
+    body: AssetStoreBody,
     session: SessionDep,
 ) -> None:
-    """Set an asset state value. Creates or overwrites the key."""
+    """Set an asset store value. Creates or overwrites the key."""
     get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
 
 
-@asset_state_router.delete(
+@asset_store_router.delete(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
-def delete_asset_state(
+def delete_asset_store(
     asset_id: AssetIdDep,
     key: str,
     session: SessionDep,
 ) -> None:
-    """Delete a single asset state key. No-op if the key does not exist."""
+    """Delete a single asset store key. No-op if the key does not exist."""
     get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
-@asset_state_router.delete(
+@asset_store_router.delete(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
-def clear_asset_state(
+def clear_asset_store(
     asset_id: AssetIdDep,
     session: SessionDep,
 ) -> None:
-    """Delete all state keys for an asset."""
+    """Delete all store keys for an asset."""
     get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
