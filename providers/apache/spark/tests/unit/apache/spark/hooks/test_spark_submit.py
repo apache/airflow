@@ -23,6 +23,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, call, mock_open, patch
 
+import kubernetes
 import pytest
 from kubernetes.client import V1Pod, V1PodStatus
 
@@ -1123,6 +1124,29 @@ class TestSparkSubmitHook:
             "spark-pi-edf2ace37be7353a958b38733a12f8e6-driver", "mynamespace", **kwargs
         )
 
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_on_kill_deletes_pod_when_k8s_api_tracking_and_submit_sp_already_exited(self, mock_get_client):
+        """on_kill must delete the driver pod when K8s-API tracking is active even if spark-submit
+        has already exited.
+        """
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+        hook._submit_sp = MagicMock()
+        # spark-submit already exited
+        hook._submit_sp.poll.return_value = 0
+
+        mock_client = mock_get_client.return_value
+
+        hook.on_kill()
+
+        mock_client.delete_namespaced_pod.assert_called_once_with(
+            "spark-app-abc-driver",
+            "mynamespace",
+            body=kubernetes.client.V1DeleteOptions(),
+            pretty=True,
+        )
+
     @pytest.mark.parametrize(
         ("command", "expected"),
         [
@@ -1487,6 +1511,21 @@ class TestSparkSubmitHook:
             hook._poll_k8s_driver_via_api()
 
         assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_post_submit_commands_run_exactly_once_on_k8s_path(self, mock_get_client):
+        """_run_post_submit_commands must fire exactly once: in _poll_k8s_driver_via_api finally."""
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Succeeded"))
+
+        with patch.object(hook, "_run_post_submit_commands") as mock_cmd:
+            hook._poll_k8s_driver_via_api()
+
+        mock_cmd.assert_called_once()
 
     @patch("time.sleep")
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")

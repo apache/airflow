@@ -243,3 +243,7 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
 * The Spark connection ``master`` must be ``k8s://...`` and ``deploy_mode`` must be ``cluster``.
 * Do not set ``spark.kubernetes.submission.waitAppCompletion=true`` in your ``conf`` — this
   conflicts with the flag and a ``ValueError`` will be raised at task start.
+* The Airflow worker must be able to reach the Kubernetes API server and have permission to
+  read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
+* This path bypasses ``ResumableJobMixin``, so Airflow retries submit a fresh driver instead of
+  reconnecting to an existing one. Set ``execution_timeout`` to bound wall-clock time.

@@ -304,7 +304,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "`track_driver_via_k8s_api=True` requires a namespace; "
                 "set it in the connection extra as `namespace` or via `spark.kubernetes.namespace` in conf."
             )
-        if self._conf.get(_K8S_WAIT_APP_COMPLETION_CONF, "").lower() == "true":
+        if str(self._conf.get(_K8S_WAIT_APP_COMPLETION_CONF, "")).lower() == "true":
             raise ValueError(
                 f"`track_driver_via_k8s_api=True` is incompatible with "
                 f"`{_K8S_WAIT_APP_COMPLETION_CONF}=true`; remove it from your conf or set it to 'false'."
@@ -700,10 +700,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     "No driver id is known: something went wrong when executing the spark submit command"
                 )
         finally:
-            # In cluster mode with driver tracking, the operator calls poll_until_complete
-            # after submit() returns, so post_submit_commands are deferred there to preserve
-            # the "runs after job finishes" contract. In all other modes, run them here.
-            if not self._should_track_driver_status:
+            # K8s-API tracking defers post-submit commands to _poll_k8s_driver_via_api's finally
+            # block so they run once after the driver reaches a terminal state. Spark cluster-mode
+            # driver tracking defers them to poll_until_complete for the same reason. All other
+            # modes run them here, immediately after spark-submit exits.
+            if not self._should_track_driver_status and not self._should_track_driver_via_k8s_api():
                 self._run_post_submit_commands()
 
         return self._driver_id
@@ -970,6 +971,25 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
+    def _delete_driver_pod(self) -> None:
+        """Delete the Kubernetes driver pod, logging a warning on failure."""
+        import kubernetes
+
+        self.log.info("Deleting driver pod %s on Kubernetes", self._kubernetes_driver_pod)
+        try:
+            client = kube_client.get_kube_client()
+            client.delete_namespaced_pod(
+                self._kubernetes_driver_pod,
+                self._connection["namespace"],
+                body=kubernetes.client.V1DeleteOptions(),
+                pretty=True,
+            )
+            self.log.info("Deleted driver pod %s", self._kubernetes_driver_pod)
+        except kube_client.ApiException:
+            self.log.exception(
+                "Exception when attempting to delete driver pod %s", self._kubernetes_driver_pod
+            )
+
     def on_kill(self) -> None:
         """Kill Spark submit command."""
         self.log.debug("Kill Command is being called")
@@ -982,6 +1002,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.info(
                     "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
                 )
+
+        if self._should_track_driver_via_k8s_api() and self._kubernetes_driver_pod:
+            # spark-submit exits early under waitAppCompletion=false, so _submit_sp.poll() is
+            # not None during the poll loop — the deletion block below is skipped on kill.
+            self._delete_driver_pod()
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info("Sending kill signal to %s", self._connection["spark_binary"])
@@ -1007,23 +1032,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
-                self.log.info("Killing pod %s on Kubernetes", self._kubernetes_driver_pod)
-
-                # Currently only instantiate Kubernetes client for killing a spark pod.
-                try:
-                    import kubernetes
-
-                    client = kube_client.get_kube_client()
-                    api_response = client.delete_namespaced_pod(
-                        self._kubernetes_driver_pod,
-                        self._connection["namespace"],
-                        body=kubernetes.client.V1DeleteOptions(),
-                        pretty=True,
-                    )
-
-                    self.log.info("Spark on K8s killed with response: %s", api_response)
-
-                except kube_client.ApiException:
-                    self.log.exception("Exception when attempting to kill Spark on K8s")
+                self._delete_driver_pod()
 
         self._run_post_submit_commands()
