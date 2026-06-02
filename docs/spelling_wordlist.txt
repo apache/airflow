@@ -725,6 +725,7 @@ googleapis
 GoogleDisplayVideo
 gpu
 gpus
+Gradle
 Grafana
 graphviz
 Groq
