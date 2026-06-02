@@ -1244,6 +1244,7 @@ class TaskInfoComplete(TaskInfo):
     includes = []
     excludes = [
         "_BaseOperator__instantiated",
+        "_BaseOperator__init_kwargs",  # Causes recursion error on AF3, nothing useful there
         "_dag",
         "_hook",
         "_log",
@@ -1324,6 +1325,7 @@ def get_airflow_run_facet(
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
+    include_full_task_info: bool = False,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
@@ -1333,7 +1335,7 @@ def get_airflow_run_facet(
             taskInstance=TaskInstanceInfo(task_instance),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
-                if conf.include_full_task_info()
+                if include_full_task_info
                 else TaskInfo(task, runtime_assets=runtime_assets)
             ),
             taskUuid=task_uuid,
@@ -1839,8 +1841,14 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
 
 
 def _emits_ol_events(task: AnyOperator) -> bool:
-    config_selective_enabled = is_selective_lineage_enabled(task)
-    config_disabled_for_operators = is_operator_disabled(task)
+    from airflow.providers.openlineage.utils.emission_policy import resolve_task_emission_policy
+
+    # resolve_task_emission_policy already incorporates the selective_enable check.
+    controls = resolve_task_emission_policy(
+        operator=task,
+        dag_id=task.dag_id,
+        task_id=task.task_id,
+    )
 
     is_task_schedulable_method = getattr(TaskInstance, "is_task_schedulable", None)  # Added in 3.2.0 #56039
     if is_task_schedulable_method and callable(is_task_schedulable_method):
@@ -1870,8 +1878,7 @@ def _emits_ol_events(task: AnyOperator) -> bool:
 
     emits_ol_events = all(
         (
-            config_selective_enabled,
-            not config_disabled_for_operators,
+            controls.emit,
             not is_skipped_as_empty_operator,
         )
     )

@@ -35,6 +35,7 @@
     :caption: Guides
 
     Intro <guides/structure>
+    Emission policy <emission_policy>
     Supported classes <supported_classes>
     Custom Operators <guides/developer>
     Job Hierarchy & Macros <macros>
