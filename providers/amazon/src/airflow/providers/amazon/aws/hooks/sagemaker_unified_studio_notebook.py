@@ -382,8 +382,6 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
             )
         blueprint_id = blueprints[0]["id"]
 
-        # Match MaxDomePythonSDK.ProjectService.get_project_default_environment:
-        # a single ListEnvironments call (no pagination), filtered by blueprint.
         environments = (
             self.conn.list_environments(
                 domainIdentifier=domain_identifier,
