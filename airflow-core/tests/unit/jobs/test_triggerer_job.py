@@ -1149,13 +1149,19 @@ def test_trigger_runner_exception_stops_triggerer():
     import signal
 
     job_runner = TriggererJobRunner(Job())
-    time.sleep(0.1)
 
     # Wait 4 seconds for the triggerer to stop
     try:
 
         def on_timeout(signum, frame):
-            os.kill(job_runner.trigger_runner.pid, signal.SIGKILL)
+            # _execute() sets up trigger_runner asynchronously; on a slow runner the
+            # timer can fire before the subprocess exists. Re-arm and try again rather
+            # than dereferencing a not-yet-started runner.
+            runner = job_runner.trigger_runner
+            if runner is None:
+                signal.setitimer(signal.ITIMER_REAL, 0.1)
+                return
+            os.kill(runner.pid, signal.SIGKILL)
 
         signal.signal(signal.SIGALRM, on_timeout)
         signal.setitimer(signal.ITIMER_REAL, 0.1)
@@ -1927,19 +1933,19 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
-            # AIP-103 task/asset state — triggerer has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — triggerer has no task execution context.
+            "GetTaskStore",
+            "SetTaskStore",
+            "DeleteTaskStore",
+            "ClearTaskStore",
+            "GetAssetStoreByName",
+            "GetAssetStoreByUri",
+            "SetAssetStoreByName",
+            "SetAssetStoreByUri",
+            "DeleteAssetStoreByName",
+            "DeleteAssetStoreByUri",
+            "ClearAssetStoreByName",
+            "ClearAssetStoreByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1961,9 +1967,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStoreResult",
+            "AssetStoreResult",
         }
 
         supervisor_diff = (

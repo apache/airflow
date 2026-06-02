@@ -25,6 +25,20 @@ from pydantic_ai.messages import ImageUrl
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
+try:
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:
+    _CORE_WALKER = False
+
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
+)
+
+
+class Summary(BaseModel):
+    text: str
+
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
@@ -159,13 +173,10 @@ class TestAgentDecoratedOperator:
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
-        """BaseModel output is serialized with model_dump."""
-
-        class Summary(BaseModel):
-            text: str
-
+        """BaseModel output flows through XCom as the Pydantic instance."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -178,7 +189,8 @@ class TestAgentDecoratedOperator:
         )
         result = op.execute(context={})
 
-        assert result == {"text": "Great results"}
+        assert isinstance(result, Summary)
+        assert result.text == "Great results"
 
     def test_durable_kwarg_passes_through_to_operator(self):
         """durable=True is forwarded to AgentOperator via **kwargs."""

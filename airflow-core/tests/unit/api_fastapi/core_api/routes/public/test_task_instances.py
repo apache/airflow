@@ -42,14 +42,14 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -751,20 +751,6 @@ class TestGetMappedTaskInstances:
             dags={
                 "mapped_tis": {
                     "success": 3,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
                     "failed": 0,
                     "running": 0,
                 },
@@ -5251,17 +5237,17 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -5276,7 +5262,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5284,7 +5270,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -5299,7 +5285,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5307,7 +5293,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
 
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):

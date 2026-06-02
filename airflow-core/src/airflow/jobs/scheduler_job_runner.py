@@ -86,7 +86,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
@@ -330,7 +330,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
@@ -1567,7 +1567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(
@@ -1955,7 +1955,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # END: create dagruns
 
     @provide_session
-    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
@@ -2391,7 +2391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
             return callback
@@ -2498,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in schedulable_tis
                 ],
             )
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 
@@ -2514,7 +2514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert latest_dag_version
 
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
@@ -2551,7 +2551,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
         """
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
@@ -2592,7 +2592,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
@@ -2684,7 +2684,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
         """
         Check the Log table to see how many times a task instance has been stuck in queued.
 
@@ -2726,7 +2726,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
         metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
         stmt = (
             select(
@@ -2771,13 +2771,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
         stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
@@ -2810,7 +2810,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
         """
         Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
@@ -2851,7 +2851,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(DagRun.state == DagRunState.RUNNING)
-                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id, TI.external_executor_id))
+                        .options(
+                            load_only(
+                                TI.id,
+                                TI.dag_id,
+                                TI.task_id,
+                                TI.run_id,
+                                TI.map_index,
+                                TI.state,
+                                TI.external_executor_id,
+                            )
+                        )
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
@@ -2912,7 +2922,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(
-        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
@@ -3092,7 +3102,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 
@@ -3124,7 +3134,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
-        self._cleanup_orphaned_asset_state(session=session)
+        self._cleanup_orphaned_asset_store(session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3234,19 +3244,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             existing_warned_dag_ids.add(warning.dag_id)
 
     @staticmethod
-    def _cleanup_orphaned_asset_state(*, session: Session) -> None:
+    def _cleanup_orphaned_asset_store(*, session: Session) -> None:
         """
-        Delete asset_state rows for assets no longer active in any Dag.
+        Delete asset_store rows for assets no longer active in any Dag.
 
         When _orphan_unreferenced_assets removes an asset from asset_active, its
-        asset_state rows become unreachable — no task can write to them anymore.
+        asset_store rows become unreachable — no task can write to them anymore.
         This runs in the same pass as asset orphanage to keep the table clean.
         """
         active_asset_ids = select(AssetModel.id).join(
             AssetActive,
             (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
         )
-        session.execute(delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
+        session.execute(delete(AssetStoreModel).where(AssetStoreModel.asset_id.not_in(active_asset_ids)))
 
     def _executor_to_workloads(
         self,

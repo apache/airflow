@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import signal
 import socket
 from dataclasses import dataclass
 from operator import attrgetter
@@ -239,3 +240,68 @@ class TestCallbackHandleRequest:
 
         if client_mock:
             mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)
+
+
+class TestCallbackExecutionTimeout:
+    """Tests for the callback_execution_timeout config enforcement."""
+
+    @pytest.fixture
+    def callback_subprocess(self, mocker):
+        read_end, write_end = socket.socketpair()
+        proc = CallbackSubprocess(
+            process_log=mocker.MagicMock(),
+            id="12345678-1234-5678-1234-567812345678",
+            pid=12345,
+            stdin=write_end,
+            client=mocker.Mock(),
+            process=mocker.Mock(),
+        )
+        yield proc
+        read_end.close()
+        write_end.close()
+
+    def test_timeout_zero_does_not_kill(self, callback_subprocess, mocker):
+        """When timeout=0, no kill is issued regardless of how long the subprocess runs."""
+        proc = callback_subprocess
+
+        # Simulate subprocess exiting normally after some iterations
+        call_count = 0
+
+        def fake_service_subprocess(self_arg, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 3:
+                proc._exit_code = 0
+            return proc._exit_code
+
+        mocker.patch.object(
+            CallbackSubprocess, "_service_subprocess", autospec=True, side_effect=fake_service_subprocess
+        )
+        mocker.patch.object(
+            CallbackSubprocess, "_get_callback_execution_timeout", autospec=True, return_value=0
+        )
+        mock_kill = mocker.patch.object(CallbackSubprocess, "kill", autospec=True)
+
+        proc._monitor_subprocess()
+
+        mock_kill.assert_not_called()
+        assert proc._exit_code == 0
+
+    def test_timeout_kills_long_running_subprocess(self, callback_subprocess, mocker):
+        """When timeout>0 and the subprocess exceeds the timeout, it is killed."""
+        proc = callback_subprocess
+
+        # Simulate time progressing beyond the timeout
+        time_values = iter([100.0, 100.0, 106.0])  # start, start, elapsed > 5s timeout
+        mocker.patch("airflow.sdk.execution_time.callback_supervisor.time.monotonic", side_effect=time_values)
+
+        # Subprocess never exits on its own
+        mocker.patch.object(CallbackSubprocess, "_service_subprocess", autospec=True, return_value=None)
+        mocker.patch.object(
+            CallbackSubprocess, "_get_callback_execution_timeout", autospec=True, return_value=5
+        )
+        mock_kill = mocker.patch.object(CallbackSubprocess, "kill", autospec=True)
+
+        proc._monitor_subprocess()
+
+        mock_kill.assert_called_once_with(proc, signal.SIGTERM, escalation_delay=5.0, force=True)

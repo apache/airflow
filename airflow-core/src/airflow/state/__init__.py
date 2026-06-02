@@ -21,30 +21,30 @@ import threading
 
 from airflow._shared.state import (
     AssetScope as AssetScope,
-    BaseStateBackend as BaseStateBackend,
-    StateScope as StateScope,
+    BaseStoreBackend as BaseStoreBackend,
+    StoreScope as StoreScope,
     TaskScope as TaskScope,
 )
 
 
-def resolve_state_backend() -> type[BaseStateBackend]:
+def resolve_state_backend() -> type[BaseStoreBackend]:
     from airflow.configuration import conf
 
     clazz = conf.getimport("state_store", "backend")
     if clazz is None:
         raise ValueError("state_store.backend is not configured or resolved to None.")
-    if not issubclass(clazz, BaseStateBackend):
+    if not issubclass(clazz, BaseStoreBackend):
         raise TypeError(
-            f"Your custom state backend `{clazz.__name__}` is not a subclass of `BaseStateBackend`."
+            f"Your custom state backend `{clazz.__name__}` is not a subclass of `BaseStoreBackend`."
         )
     return clazz
 
 
-_backend_instance: BaseStateBackend | None = None
+_backend_instance: BaseStoreBackend | None = None
 _backend_lock = threading.Lock()
 
 
-def get_state_backend() -> BaseStateBackend:
+def get_state_backend() -> BaseStoreBackend:
     """Return a cached instance of the configured state backend."""
     global _backend_instance
     if _backend_instance is None:

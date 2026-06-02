@@ -26,7 +26,7 @@ Your First Airflow Pull Request — 15-Minute Guide
 Purpose
 -------
 This page walks **new contributors** through opening their first
-Apache Airflow pull request (PR) in about five minutes.  We present *one*
+Apache Airflow pull request (PR) in about 15 minutes.  We present *one*
 local option (Breeze) and *one* fully-hosted option (GitHub Codespaces).
 Everything else lives in the advanced guides.
 

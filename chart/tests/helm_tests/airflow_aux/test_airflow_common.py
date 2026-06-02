@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -523,3 +524,54 @@ class TestAirflowCommon:
                 else doc["spec"]["template"]["spec"]["imagePullSecrets"]
             )
             assert got_image_pull_secrets == expected_image_pull_secrets
+
+    @pytest.mark.parametrize(
+        "enable_service_links",
+        [True, False],
+    )
+    def test_service_links(
+        self,
+        enable_service_links,
+    ):
+        release_name = "test-basic"
+        docs = render_chart(
+            name=release_name,
+            values={
+                "enableServiceLinks": enable_service_links,
+                "executor": "CeleryExecutor,KubernetesExecutor",
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/configmaps/configmap.yaml",
+            ],
+        )
+
+        def matcher(doc):
+            match doc["kind"]:
+                case "Pod":
+                    return doc["spec"].get("enableServiceLinks")
+                case "CronJob":
+                    return doc["spec"]["jobTemplate"]["spec"]["template"]["spec"].get("enableServiceLinks")
+                case "Deployment" | "StatefulSet" | "Job":
+                    return doc["spec"]["template"]["spec"].get("enableServiceLinks")
+                case "ConfigMap":
+                    pod_template_raw = doc["data"]["pod_template_file.yaml"]
+                    k8s_objects = yaml.full_load_all(pod_template_raw)
+                    v = [matcher(doc) for doc in k8s_objects]
+                    assert len(v) == 1
+                    return v[0]
+                case _:
+                    raise ValueError(f"Unhandled document type {doc}")
+
+        for doc in docs:
+            assert matcher(doc) == enable_service_links

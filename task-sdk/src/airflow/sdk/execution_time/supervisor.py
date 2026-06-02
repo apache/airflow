@@ -62,18 +62,18 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
-    AssetStateResult,
-    ClearAssetStateByName,
-    ClearAssetStateByUri,
-    ClearTaskState,
+    AssetStoreResult,
+    ClearAssetStoreByName,
+    ClearAssetStoreByUri,
+    ClearTaskStore,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DeferTask,
-    DeleteAssetStateByName,
-    DeleteAssetStateByUri,
-    DeleteTaskState,
+    DeleteAssetStoreByName,
+    DeleteAssetStoreByUri,
+    DeleteTaskStore,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -82,8 +82,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStateByName,
-    GetAssetStateByUri,
+    GetAssetStoreByName,
+    GetAssetStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -94,8 +94,8 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
-    GetTaskState,
     GetTaskStates,
+    GetTaskStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -112,18 +112,18 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStateByName,
-    SetAssetStateByUri,
+    SetAssetStoreByName,
+    SetAssetStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskState,
+    SetTaskStore,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskState,
-    TaskStateResult,
+    TaskStoreResult,
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
@@ -1391,10 +1391,31 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code is not None:
             return self._exit_code
 
+        # Forward termination signals to the task subprocess so the operator's
+        # on_kill() hook runs on graceful shutdown (e.g. K8s pod SIGTERM).
+        # Without this the supervisor exits on SIGTERM without notifying the
+        # child, leaving spawned resources (pods, subprocesses, etc.) running.
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+        prev_sigint = signal.getsignal(signal.SIGINT)
+
+        def _forward_signal(signum, frame):
+            log.info(
+                "Received signal, forwarding to task subprocess",
+                signal=signal.Signals(signum).name,
+                pid=self.pid,
+            )
+            with suppress(ProcessLookupError):
+                os.kill(self.pid, signum)
+
+        signal.signal(signal.SIGTERM, _forward_signal)
+        signal.signal(signal.SIGINT, _forward_signal)
+
         try:
             self._monitor_subprocess()
         finally:
             self.selector.close()
+            signal.signal(signal.SIGTERM, prev_sigterm)
+            signal.signal(signal.SIGINT, prev_sigint)
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
@@ -1801,53 +1822,53 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
-        elif isinstance(msg, GetTaskState):
-            task_state = self.client.task_state.get(msg.ti_id, msg.key)
+        elif isinstance(msg, GetTaskStore):
+            task_store = self.client.task_store.get(msg.ti_id, msg.key)
             resp = (
-                task_state
-                if isinstance(task_state, ErrorResponse)
-                else TaskStateResult.from_task_state_response(task_state)
+                task_store
+                if isinstance(task_store, ErrorResponse)
+                else TaskStoreResult.from_task_store_response(task_store)
             )
-        elif isinstance(msg, SetTaskState):
-            self.client.task_state.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+        elif isinstance(msg, SetTaskStore):
+            self.client.task_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteTaskState):
-            self.client.task_state.delete(msg.ti_id, msg.key)
+        elif isinstance(msg, DeleteTaskStore):
+            self.client.task_store.delete(msg.ti_id, msg.key)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearTaskState):
-            self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+        elif isinstance(msg, ClearTaskStore):
+            self.client.task_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, GetAssetStateByName):
-            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+        elif isinstance(msg, GetAssetStoreByName):
+            asset_store = self.client.asset_store.get(msg.key, name=msg.name)
             resp = (
-                asset_state
-                if isinstance(asset_state, ErrorResponse)
-                else AssetStateResult.from_asset_state_response(asset_state)
+                asset_store
+                if isinstance(asset_store, ErrorResponse)
+                else AssetStoreResult.from_asset_store_response(asset_store)
             )
-        elif isinstance(msg, GetAssetStateByUri):
-            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+        elif isinstance(msg, GetAssetStoreByUri):
+            asset_store = self.client.asset_store.get(msg.key, uri=msg.uri)
             resp = (
-                asset_state
-                if isinstance(asset_state, ErrorResponse)
-                else AssetStateResult.from_asset_state_response(asset_state)
+                asset_store
+                if isinstance(asset_store, ErrorResponse)
+                else AssetStoreResult.from_asset_store_response(asset_store)
             )
-        elif isinstance(msg, SetAssetStateByName):
-            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+        elif isinstance(msg, SetAssetStoreByName):
+            self.client.asset_store.set(msg.key, msg.value, name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, SetAssetStateByUri):
-            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+        elif isinstance(msg, SetAssetStoreByUri):
+            self.client.asset_store.set(msg.key, msg.value, uri=msg.uri)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateByName):
-            self.client.asset_state.delete(msg.key, name=msg.name)
+        elif isinstance(msg, DeleteAssetStoreByName):
+            self.client.asset_store.delete(msg.key, name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateByUri):
-            self.client.asset_state.delete(msg.key, uri=msg.uri)
+        elif isinstance(msg, DeleteAssetStoreByUri):
+            self.client.asset_store.delete(msg.key, uri=msg.uri)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateByName):
-            self.client.asset_state.clear(name=msg.name)
+        elif isinstance(msg, ClearAssetStoreByName):
+            self.client.asset_store.clear(name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateByUri):
-            self.client.asset_state.clear(uri=msg.uri)
+        elif isinstance(msg, ClearAssetStoreByUri):
+            self.client.asset_store.clear(uri=msg.uri)
             resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)

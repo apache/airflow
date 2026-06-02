@@ -254,6 +254,16 @@ collector interfaces used to capture and retrieve asset lineage metadata during 
 
 .. autoapimodule:: airflow.sdk.lineage
 
+Coordinators
+------------
+
+Coordinators bridge the Airflow worker and a non-Python language runtime.
+See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
+
+.. rubric:: JVM
+
+.. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
+
 Execution Time Components
 -------------------------
 .. rubric:: Context

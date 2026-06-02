@@ -268,7 +268,7 @@ class TestJob:
             hb_callback = Mock()
             job.heartbeat(heartbeat_callback=hb_callback)
 
-            hb_callback.assert_called_once_with(ANY)
+            hb_callback.assert_called_once_with(session=ANY)
 
             hb_callback.reset_mock()
             perform_heartbeat(job=job, heartbeat_callback=hb_callback, only_if_necessary=True)

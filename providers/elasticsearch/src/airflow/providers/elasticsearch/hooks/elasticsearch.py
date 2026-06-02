@@ -29,6 +29,7 @@ from elasticsearch import Elasticsearch
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch._compat import apply_compat_with
+from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -262,10 +263,25 @@ class ElasticsearchSQLHook(DbApiHook):
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
     ):
-        # TODO: Custom ElasticsearchSQLCursor is incompatible with polars.read_database.
-        # To support: either adapt cursor to polars._executor interface or create custom polars reader.
-        # https://github.com/apache/airflow/pull/50454
-        raise NotImplementedError("Polars is not supported for Elasticsearch")
+        """
+        Execute an Elasticsearch SQL query and return the results as a Polars DataFrame.
+
+        This method uses Elasticsearch SQL cursor-based pagination instead of DB-API,
+        as Elasticsearch is not fully compatible with polars.read_database.
+
+        :param sql: SQL query string
+        :param parameters: Optional query parameters
+        :param kwargs: Additional arguments passed to the underlying reader
+        :return: polars.DataFrame
+        """
+        client = self.get_conn().es
+
+        return read_sql_to_polars(
+            client=client,
+            query=sql,
+            params=parameters,
+            **kwargs,
+        )
 
 
 class ElasticsearchPythonHook(BaseHook):

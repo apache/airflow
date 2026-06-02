@@ -248,6 +248,9 @@ apache-airflow = "airflow.__main__:main"
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
 ]
+"ibm.mq" = [
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
+]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
 ]
@@ -451,6 +454,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -1174,6 +1178,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/src",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/src",
@@ -1404,6 +1410,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1460,6 +1467,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
@@ -1527,7 +1535,6 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
 # Manual overrides (kept outside the auto-generated block above so the
@@ -1546,6 +1553,7 @@ apache-airflow-ctl = false
 apache-airflow-ctl-tests = false
 apache-airflow-dev = false
 apache-airflow-devel-common = false
+apache-airflow-docker-stack = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
@@ -1602,6 +1610,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
@@ -1669,12 +1678,10 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1695,7 +1702,7 @@ apache-airflow-task-sdk-integration-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
-apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-listeners = { workspace = true }
@@ -1761,6 +1768,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-informatica = { workspace = true }
@@ -1898,6 +1906,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/ibm/mq",
     "providers/imap",
     "providers/influxdb",
     "providers/informatica",

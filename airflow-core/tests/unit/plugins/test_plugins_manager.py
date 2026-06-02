@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import importlib
 import inspect
 import logging
@@ -54,21 +53,6 @@ def _clean_listeners():
     get_listener_manager().clear()
     yield
     get_listener_manager().clear()
-
-
-@pytest.fixture
-def mock_metadata_distribution(mocker):
-    @contextlib.contextmanager
-    def wrapper(*args, **kwargs):
-        if sys.version_info < (3, 12):
-            patch_fq = "importlib_metadata.distributions"
-        else:
-            patch_fq = "importlib.metadata.distributions"
-
-        with mock.patch(patch_fq, *args, **kwargs) as m:
-            yield m
-
-    return wrapper
 
 
 class TestPluginsManager:

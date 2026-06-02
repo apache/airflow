@@ -358,7 +358,7 @@ def _guess_debugger() -> _SupportedDebugger:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
+def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
     dag_run, _ = fetch_dag_run_from_run_id_or_logical_date_string(
         dag_id=args.dag_id,

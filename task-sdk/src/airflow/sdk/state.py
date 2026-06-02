@@ -20,6 +20,6 @@ from __future__ import annotations
 
 from airflow.sdk._shared.state import (
     AssetScope as AssetScope,
-    BaseStateBackend as BaseStateBackend,
+    BaseStoreBackend as BaseStoreBackend,
     TaskScope as TaskScope,
 )

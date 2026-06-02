@@ -929,6 +929,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
 
+    # Names of constructor fields whose values may contain Pydantic model classes
+    # this operator can emit to XCom (e.g. ``("output_type",)``). The worker
+    # registers those classes in the deserialization allow-list before running
+    # tasks, so downstream consumers can deserialize the instances without an
+    # ``[core] allowed_deserialization_classes`` edit. Empty by default.
+    deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ()
+
     operator_extra_links: Collection[BaseOperatorLink] = ()
 
     # Defines the color in the UI
