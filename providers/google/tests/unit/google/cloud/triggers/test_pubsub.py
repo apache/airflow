@@ -81,7 +81,7 @@ class TestPubsubPullTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
     async def test_async_pubsub_pull_trigger_passes_return_immediately(self, mock_pull):
         """Test that return_immediately is passed to the hook."""
-        mock_pull.return_value = await generate_messages(1)
+        mock_pull.return_value = generate_messages(1)
         trigger = PubsubPullTrigger(
             project_id=PROJECT_ID,
             subscription="subscription",

@@ -520,7 +520,7 @@ class TestPubSubPullOperator:
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
-            return_immediately=False,
+            return_immediately=True,
         )
 
         mock_hook.return_value.pull.return_value = []
