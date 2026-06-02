@@ -1,21 +1,26 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements. See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership. The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License. You may obtain a copy of the License at
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
- .. http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied. See the License for the
-   specific language governing permissions and limitations
-   under the License.
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 .. _concepts:task-store:
+
+.. spelling:word-list::
+
+   intra
+   checkpointing
 
 Task Store
 ==========
@@ -37,6 +42,7 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
     from airflow.sdk import task
     import random
 
+
     @task
     def my_task(**context):
         # Retrieve task_store from context
@@ -57,7 +63,7 @@ Reference
 -------------
 
 ``get(key, default)``
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Returns the stored string value, or the ``default`` value if the key does not exist.
 
@@ -120,7 +126,7 @@ Deletes a single key. No-op if the key does not exist.
 
 Deletes *all* task store keys for this task instance.
 
-For :doc:`mapped tasks <dynamic-task-mapping>`, the default clears only the current map index. Pass ``all_map_indices=True`` to wipe the store across **every** mapped instance of the task (fleet-wide reset).
+For :doc:`mapped tasks </authoring-and-scheduling/dynamic-task-mapping>`, the default clears only the current map index. Pass ``all_map_indices=True`` to wipe the store across **every** mapped instance of the task (fleet-wide reset).
 
 .. code-block:: python
 
@@ -146,7 +152,6 @@ the default retention window.
 
     from airflow.sdk import DAG, task
     from airflow.sdk import NEVER_EXPIRE
-
 
     with DAG("spark_job_dag", schedule=None):
 
@@ -176,7 +181,6 @@ For tasks that process paginated or batched data, store the last-completed offse
 
     from airflow.sdk import DAG, task
 
-
     with DAG("paginated_ingest", schedule="@daily"):
 
         @task
@@ -205,7 +209,6 @@ Task store can expose in-progress metrics for observability — row counts, stat
 
     from airflow.sdk import DAG, task
 
-
     with DAG("row_ingest", schedule="@hourly"):
 
         @task
@@ -218,18 +221,12 @@ Task store can expose in-progress metrics for observability — row counts, stat
                 total += len(batch)
                 task_store.set(
                     "progress",
-                    {
-                        "rows_loaded": total,
-                        "status": "running"
-                    },
+                    {"rows_loaded": total, "status": "running"},
                 )
 
             task_store.set(
                 "progress",
-                {
-                    "rows_loaded": total,
-                    "status": "done"
-                },
+                {"rows_loaded": total, "status": "done"},
             )
 
 The ``progress`` key is visible through the REST API and the Airflow UI while the task is running.
@@ -243,7 +240,7 @@ Task store behaves slightly differently depending on whether a task runs synchro
 Synchronous tasks
 ~~~~~~~~~~~~~~~~~
 
-If the worker process crashes, the task instance is retried. Task store data written before the crash is preserved, so the retry can pick up where the previous attempt left off (see the `External job resumption`_pattern above).
+If the worker process crashes, the task instance is retried. Task store data written before the crash is preserved, so the retry can pick up where the previous attempt left off (see the `External job resumption`_ pattern above).
 
 Deferrable tasks
 ~~~~~~~~~~~~~~~~

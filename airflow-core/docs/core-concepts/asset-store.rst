@@ -1,21 +1,26 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements. See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership. The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License. You may obtain a copy of the License at
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
- .. http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied. See the License for the
-   specific language governing permissions and limitations
-   under the License.
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 .. _concepts:asset-store:
+
+.. spelling:word-list::
+
+   subscripted
+   subscripting
 
 Asset Store
 ===========
@@ -41,6 +46,7 @@ If using asset store in a ``BaseEventTrigger``, the ``self.asset_store`` paramet
    .. code-block:: python
 
        # my_asset defined above ...
+
 
        @task(inlets=[my_asset], outlets=[my_asset])
        def write_asset(**context):
@@ -80,6 +86,7 @@ When building Triggers used for asset "watching", asset store can be retrieved u
     from airflow.sdk import Asset, BaseEventTrigger, TriggerEvent
     from collections.abc import AsyncIterator
 
+
     class GenericEventTrigger(BaseEventTrigger):
         ...
 
@@ -96,6 +103,7 @@ In the example above, ``my_data`` is created using the ``name`` However, the ``u
 
     from airflow.sdk import Asset, BaseEventTrigger, TriggerEvent
     from collections.abc import AsyncIterator
+
 
     class GenericEventTrigger(BaseEventTrigger):
         ...
@@ -232,7 +240,7 @@ Asset store rows persist indefinitely. They are **not** subject to the ``[state_
 
 The only automatic cleanup is an *orphan sweep*: when an asset is deactivated (no ``asset_active`` record exists), its store rows are removed during the next garbage-collection pass. Until that sweep runs, stale rows may exist in the database but cannot be written to. The Execution API resolver filters to active assets only.
 
-To remove asset store entries explicitly, call ``clear()`` from within a task, or use the :ref:`REST API <state-api:asset-store-endpoints>`.
+To remove asset store entries explicitly, call ``clear()`` from within a task, or use the REST API.
 
 .. note::
 
