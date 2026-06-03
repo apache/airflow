@@ -91,10 +91,6 @@ log = structlog.get_logger(logger_name=__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-# Type alias used inside classes that define a ``list()`` method, which
-# shadows the builtin ``list`` and confuses mypy when used in annotations.
-_list = list
-
 
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
@@ -939,22 +935,10 @@ class PluginsOperations(BaseOperations):
 class TaskInstanceOperations(BaseOperations):
     """Task instance operations."""
 
-    def _parse_task_instance_response(
-        self, data: dict | _list
-    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
-        """Parse task instance response data into appropriate models."""
-        if isinstance(data, list):
-            return [TaskInstanceResponse.model_validate(item) for item in data]
-        if "task_instances" in data:
-            return TaskInstanceCollectionResponse.model_validate(data)
-        return TaskInstanceResponse.model_validate(data)
-
-    def get(
-        self, dag_id: str, dag_run_id: str, task_id: str
-    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
+    def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse:
         """Get a task instance."""
         self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
-        return self._parse_task_instance_response(self.response.json())
+        return TaskInstanceResponse.model_validate_json(self.response.content)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances."""
@@ -974,11 +958,17 @@ class TaskInstanceOperations(BaseOperations):
         return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 
     def update(
-        self, dag_id: str, dag_run_id: str, task_id: str, body: PatchTaskInstanceBody
-    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
-        """Update a task instance."""
-        self.response = self.client.patch(
-            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
-            json=body.model_dump(mode="json", exclude_unset=True),
-        )
-        return self._parse_task_instance_response(self.response.json())
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        body: PatchTaskInstanceBody,
+        map_index: int | None = None,
+    ) -> TaskInstanceCollectionResponse:
+        """Update task instance state. When map_index is given, only that mapped instance is affected."""
+        if map_index is not None:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}"
+        else:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        self.response = self.client.patch(path, json=body.model_dump(mode="json", exclude_unset=True))
+        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
