@@ -61,7 +61,6 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
-    AssetEventsResult,
     AssetResult,
     AssetStateStoreResult,
     AwaitInputTask,
@@ -136,6 +135,8 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
+    handle_get_asset_event_by_asset,
+    handle_get_asset_event_by_asset_alias,
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
@@ -1767,34 +1768,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetAssetsByAlias):
             resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
         elif isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(
-                uri=msg.uri,
-                name=msg.name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-                partition_key=msg.partition_key,
-                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
-                extra=msg.extra,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
+            resp, dump_opts = handle_get_asset_event_by_asset(self.client, msg)
         elif isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(
-                alias_name=msg.alias_name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-                partition_key=msg.partition_key,
-                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
-                extra=msg.extra,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
+            resp, dump_opts = handle_get_asset_event_by_asset_alias(self.client, msg)
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
         elif isinstance(msg, GetXComCount):
