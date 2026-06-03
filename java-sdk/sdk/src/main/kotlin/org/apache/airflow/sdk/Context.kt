@@ -58,10 +58,25 @@ data class TaskInstance(
  * @property dagRun Dag run the currently executing task instance belongs to.
  * @property ti Currently executing task instance.
  */
-data class Context(
+class Context internal constructor(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,
 ) {
+  private var lineageData: MutableMap<String, Any?>? = null
+
+  fun setLineage(data: Map<String, Any?>) {
+    lineageData = data.toMutableMap()
+  }
+
+  fun putLineage(
+    key: String,
+    value: Any?,
+  ) {
+    (lineageData ?: mutableMapOf<String, Any?>().also { lineageData = it })[key] = value
+  }
+
+  internal fun consumeLineage(): Map<String, Any?>? = lineageData?.toMap()
+
   internal companion object {
     fun from(request: StartupDetails) =
       Context(

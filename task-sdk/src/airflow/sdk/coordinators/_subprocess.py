@@ -318,6 +318,7 @@ class SubprocessCoordinator(BaseCoordinator):
             command=command,
             subprocess_schema_version=subprocess_schema_version,
             startup_timeout=self.task_startup_timeout,
+            lineage_handler=self.on_lineage_received,
         )
         exit_code = process.wait()
         return self.ExecutionResult(exit_code, process.final_state)

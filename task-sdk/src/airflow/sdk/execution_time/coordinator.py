@@ -105,6 +105,15 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
+    def on_lineage_received(self, *, ti_id: str, payload: dict[str, Any]) -> None:
+        """Forward an opt-in lang-SDK lineage payload to listeners. Override to customise."""
+        from airflow.sdk.listener import get_listener_manager
+
+        try:
+            get_listener_manager().hook.on_lang_task_lineage_received(ti_id=ti_id, payload=payload)
+        except Exception:
+            log.exception("Error dispatching lang-SDK lineage payload to listeners", ti_id=ti_id)
+
 
 class _CoordinatorSpec(pydantic.BaseModel):
     classpath: str

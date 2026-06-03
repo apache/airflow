@@ -3342,6 +3342,40 @@ class TestHandleRequest:
         watched_subprocess.client.task_instances.succeed.assert_not_called()
 
 
+class TestForwardLineage:
+    @pytest.fixture
+    def watched_subprocess(self, mocker):
+        _, write_end = socket.socketpair()
+        return ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=write_end,
+            client=mocker.Mock(),
+            process=mocker.Mock(),
+        )
+
+    def test_invokes_handler_with_ti_id_and_payload(self, watched_subprocess):
+        calls = []
+        watched_subprocess.lineage_handler = lambda **kw: calls.append(kw)
+        watched_subprocess._forward_lineage({"producer": "java", "rows": 42})
+        assert calls == [{"ti_id": str(TI_ID), "payload": {"producer": "java", "rows": 42}}]
+
+    def test_noop_when_payload_is_none(self, watched_subprocess):
+        calls = []
+        watched_subprocess.lineage_handler = lambda **kw: calls.append(kw)
+        watched_subprocess._forward_lineage(None)
+        assert calls == []
+
+    def test_noop_when_handler_is_none(self, watched_subprocess):
+        watched_subprocess.lineage_handler = None
+        watched_subprocess._forward_lineage({"producer": "java"})
+
+    def test_swallows_handler_exceptions(self, watched_subprocess):
+        watched_subprocess.lineage_handler = lambda **_: (_ for _ in ()).throw(RuntimeError("boom"))
+        watched_subprocess._forward_lineage({"producer": "java"})
+
+
 class TestSetSupervisorComms:
     class DummyComms:
         pass

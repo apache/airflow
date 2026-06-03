@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from cadwyn import HeadVersion, Version, VersionBundle
 
+from airflow.sdk.execution_time.schema.versions.v2026_06_30 import AddLanguageSDKLineageField
+
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-06-30", AddLanguageSDKLineageField),
     Version("2026-06-16"),
 )

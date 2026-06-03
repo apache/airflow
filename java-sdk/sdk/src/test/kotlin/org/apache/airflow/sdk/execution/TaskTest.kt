@@ -64,6 +64,56 @@ class TaskTest {
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
   }
 
+  @Test
+  @DisplayName("Should omit lineage from SucceedTask when task does not set it")
+  fun shouldOmitLineageWhenNotSet() {
+    val result = runTask(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"), noOpClient())
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertNull((result as SucceedTask).lineage)
+  }
+
+  @Test
+  @DisplayName("Should attach lineage payload via Context.setLineage")
+  @Suppress("UNCHECKED_CAST")
+  fun shouldAttachLineagePayloadFromContext() {
+    val result =
+      runTask(
+        bundleWith("emit", LineageEmittingTask::class.java),
+        startupDetails(taskId = "emit"),
+        noOpClient(),
+      )
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    val lineage =
+      requireNotNull((result as SucceedTask).lineage as? Map<String, Any?>) {
+        "lineage was not propagated"
+      }
+    Assertions.assertEquals("java-sdk", lineage["producer"])
+    Assertions.assertEquals(listOf("a", "b"), lineage["inputs"])
+  }
+
+  @Test
+  @DisplayName("Should propagate lineage on failure")
+  @Suppress("UNCHECKED_CAST")
+  fun shouldPropagateLineageOnFailure() {
+    val result =
+      runTask(
+        bundleWith("fail-emit", FailingLineageEmittingTask::class.java),
+        startupDetails(taskId = "fail-emit"),
+        noOpClient(),
+      )
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    val state = result as TaskState
+    Assertions.assertEquals(TaskState.State.FAILED, state.state)
+    val lineage =
+      requireNotNull(state.lineage as? Map<String, Any?>) {
+        "lineage was not propagated on failure"
+      }
+    Assertions.assertEquals("boom", lineage["reason"])
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -143,5 +193,24 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("boom")
+  }
+
+  class LineageEmittingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      context.setLineage(mapOf("producer" to "java-sdk", "inputs" to listOf("a", "b")))
+    }
+  }
+
+  class FailingLineageEmittingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      context.putLineage("reason", "boom")
+      throw IllegalStateException("boom")
+    }
   }
 }
