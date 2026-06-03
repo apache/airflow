@@ -22,6 +22,7 @@ import logging
 import time
 from typing import Any
 
+from airflow.api_fastapi.auth.dag_processor_token import provision_dag_processor_token_file
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
@@ -90,6 +91,21 @@ def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
         except Exception:
             # Don't let a completion failure mask the original parsing-loop exception.
             log.warning("Failed to mark DAG processor Job %s as %s", job_id, state, exc_info=True)
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def provision_dag_processor_token(args):
+    """
+    Mint the DAG processor's API token and write it to a file (trusted bootstrap step).
+
+    Run by a trusted component (a deployment init step, not the processor itself), which holds the
+    signing key. Writes to ``--output`` or, by default, ``[dag_processor] api_token_path``. The DAG
+    processor then only reads that file. Re-run before ``[dag_processor] jwt_expiration_time``
+    elapses to rotate the token in place.
+    """
+    path = provision_dag_processor_token_file(getattr(args, "output", None))
+    print(f"DAG processor API token written to {path}")
 
 
 @enable_memray_trace(component=MemrayTraceComponents.dag_processor)

@@ -85,9 +85,11 @@ class TestStandaloneCommand:
 
         assert "AIRFLOW__CORE__AUTH_MANAGER" not in env
 
-    @mock.patch("airflow.api_fastapi.auth.tokens.JWTGenerator")
-    @mock.patch("airflow.api_fastapi.auth.tokens.get_signing_args", return_value={"secret_key": "s"})
-    @mock.patch("airflow.api_fastapi.auth.tokens.get_signing_key", return_value="the-secret")
+    @mock.patch("airflow.api_fastapi.auth.dag_processor_token.JWTGenerator")
+    @mock.patch(
+        "airflow.api_fastapi.auth.dag_processor_token.get_signing_args", return_value={"secret_key": "s"}
+    )
+    @mock.patch("airflow.cli.commands.standalone_command.get_signing_key", return_value="the-secret")
     def test_provision_dag_processor_token(self, _get_key, _get_args, mock_generator):
         """Standalone mints the processor's token and provisions it via env + a token file."""
         mock_generator.return_value.generate.return_value = "minted-token"

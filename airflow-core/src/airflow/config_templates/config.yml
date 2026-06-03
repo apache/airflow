@@ -3001,10 +3001,23 @@ dag_processor:
         Path to a file containing the bearer token the DAG processor presents to the API server
         (for both the DAG Processing and Execution APIs). The DAG processor parses user code, so
         it must not hold the signing key or mint its own token; the deployment (or control plane)
-        provisions this token and writes it to the file. If unset, the processor sends no token.
+        provisions this token and writes it to the file. The processor re-reads this file as it is
+        rotated, so a refreshed token is picked up without a restart. If unset, the processor sends
+        no token.
       example: "/var/run/airflow/dag-processor-token"
       default: ~
       type: string
+
+    jwt_expiration_time:
+      version_added: 3.3.0
+      description: |
+        Lifetime, in seconds, of the token a trusted component (the deployment's token-provisioning
+        step, or ``airflow standalone``) mints for the DAG processor and writes to ``api_token_path``.
+        The provisioning step should re-mint before this elapses so the long-running processor keeps
+        a valid token. The processor itself never mints a token; this only configures the minter.
+      default: "86400"
+      type: integer
+      example: ~
 
     dag_bundle_config_list:
       description: |

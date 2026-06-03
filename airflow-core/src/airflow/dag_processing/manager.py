@@ -336,7 +336,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     _dag_processing_client: DagProcessingApiClient = attrs.field(
         init=False,
-        factory=lambda: DagProcessingApiClient(_dag_processing_api_server_url(), token=_api_token()),
+        factory=lambda: DagProcessingApiClient(_dag_processing_api_server_url(), token_getter=_api_token),
     )
     """Client for the DAG Processing API. The DAG processor never reads or writes the metadata
     database directly; all persistence and metadata reads are routed through the API server."""
@@ -1187,11 +1187,13 @@ class DagFileProcessorManager(LoggingMixin):
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
 
-    @functools.cached_property
+    @property
     def client(self) -> Client:
         # Parse-time connection/variable/xcom reads go to the remote Execution API, so the
         # processor holds no metadata-DB connection. It carries the externally-provisioned token
-        # (see _api_token); it does not mint one, since it parses user code.
+        # (see _api_token); it does not mint one, since it parses user code. Not cached: the token
+        # is re-read here so each parser process spawned later carries a token rotated on disk by
+        # the deployment, rather than a stale one baked in at manager start-up.
         return Client(
             base_url=get_execution_api_server_url(),
             token=_api_token() or "",

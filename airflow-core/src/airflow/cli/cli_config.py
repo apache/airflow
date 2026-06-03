@@ -218,6 +218,12 @@ ARG_OUTPUT_PATH = Arg(
     type=str,
     default="[CWD]" if BUILD_DOCS else os.getcwd(),
 )
+ARG_DAG_PROCESSOR_TOKEN_OUTPUT = Arg(
+    ("--output",),
+    help="File to write the token to. Defaults to the `[dag_processor] api_token_path` config.",
+    type=str,
+    default=None,
+)
 ARG_PID = Arg(("--pid",), help="PID file location", nargs="?")
 ARG_DAEMON = Arg(
     ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
@@ -2247,6 +2253,18 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_VERBOSE,
             ARG_DEV,
+        ),
+    ),
+    ActionCommand(
+        name="provision-dag-processor-token",
+        help=(
+            "Mint the DAG processor's API token and write it to a file. Run by a trusted "
+            "deployment step (which holds the signing key), not by the processor itself."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_processor_command.provision_dag_processor_token"),
+        args=(
+            ARG_DAG_PROCESSOR_TOKEN_OUTPUT,
+            ARG_VERBOSE,
         ),
     ),
     ActionCommand(

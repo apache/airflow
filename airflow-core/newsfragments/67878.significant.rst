@@ -23,7 +23,13 @@ mirroring how workers and triggerers already operate.
   ``--apps core,execution`` omits it and the DAG processor cannot run.
 - The DAG processor authenticates to the API server with a bearer token the deployment
   provisions; it does not mint its own. Because it parses user code, it is not given the signing
-  key. Provide the token via a file referenced by ``[dag_processor] api_token_path``.
+  key. A trusted component mints the token and writes it to the file referenced by
+  ``[dag_processor] api_token_path``; the processor only reads that file, re-reading it as the
+  token is rotated, so a refreshed token is picked up without a restart.
+- ``airflow provision-dag-processor-token`` mints the token and writes it to that file. The
+  bundled Helm chart (an init container) and docker-compose example run it for you; in a custom
+  deployment, run it from a trusted context that holds the signing key before the processor starts,
+  and re-run it before ``[dag_processor] jwt_expiration_time`` elapses to rotate the token.
 
 **Configuration:**
 
@@ -32,14 +38,18 @@ mirroring how workers and triggerers already operate.
   so deployments that already run the API server need no extra configuration. Set it to point
   the DAG processor at a different host.
 - ``[dag_processor] api_token_path`` is the path to a file holding the bearer token the DAG
-  processor presents to the API server (for both the DAG Processing and Execution APIs). The
-  token is minted by the deployment or control plane, not the processor.
+  processor presents to the API server (for both the DAG Processing and Execution APIs).
+- ``[dag_processor] jwt_expiration_time`` is the lifetime of the minted token (default 24h); the
+  provisioning step should re-mint before it elapses.
 
 **Migration:**
 
 - Ensure the API server is running and reachable from the DAG processor. If the DAG processor
   runs on a host without the default API server, set ``[core] dag_processing_api_server_url``
   (and ``[core] execution_api_server_url`` for parse-time metadata reads) to its address.
+- Provision the DAG processor's token (``airflow provision-dag-processor-token``) from a trusted
+  context that holds the signing key, and point the processor at it with
+  ``[dag_processor] api_token_path``. The Helm chart and docker-compose example do this by default.
 
 * Types of change
 

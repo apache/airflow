@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING
 from termcolor import colored
 
 from airflow.api_fastapi.app import create_auth_manager
+from airflow.api_fastapi.auth.dag_processor_token import provision_dag_processor_token_file
+from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
@@ -205,8 +207,6 @@ class StandaloneCommand:
         Processing audiences (the processor calls both APIs) and a sentinel subject, since the
         Execution API is task-instance scoped.
         """
-        from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_args, get_signing_key
-
         try:
             # Materialise a signing key shared by every standalone subprocess, so the api-server
             # validates the token with the same key it is minted with here.
@@ -214,22 +214,11 @@ class StandaloneCommand:
             env["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
             os.environ["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
 
-            audiences = [
-                conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
-                conf.get_mandatory_list_value("dag_processor", "jwt_audience")[0],
-            ]
-            token = JWTGenerator(
-                valid_for=conf.getint("execution_api", "jwt_expiration_time"),
-                # A JWT ``aud`` may be a list; the generator's hint is single-audience, but the
-                # processor presents this one token to both the Execution and DAG Processing APIs.
-                audience=audiences,  # type: ignore[arg-type]
-                issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
-                **get_signing_args(make_secret_key_if_needed=True),
-            ).generate({"sub": "00000000-0000-0000-0000-000000000000"})
-
+            # Standalone is the trusted launcher, so it mints the processor's token here (the
+            # processor never mints its own); the same minting is used by real deployments.
             fd, path = tempfile.mkstemp(prefix="airflow-standalone-", suffix=".token")
-            with os.fdopen(fd, "w") as token_file:
-                token_file.write(token)
+            os.close(fd)
+            provision_dag_processor_token_file(path, make_secret_key_if_needed=True)
             env["AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH"] = path
         except Exception as e:
             self.print_output("standalone", f"Could not provision the DAG processor API token: {e}")

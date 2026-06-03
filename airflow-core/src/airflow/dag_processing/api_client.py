@@ -28,7 +28,7 @@ from urllib.parse import quote
 import httpx
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     from airflow.dag_processing.processor import DagFileParsingResult
 
@@ -43,6 +43,62 @@ _TRANSIENT_RETRIES = 3
 _TRANSIENT_BACKOFF = 0.5
 
 
+def _parse_iso_datetime(value: str) -> datetime:
+    """
+    Parse an ISO-8601 timestamp from the API server, tolerating a trailing ``Z``.
+
+    The server emits UTC timestamps with a ``Z`` designator (e.g. ``2026-06-03T03:52:13.938753Z``),
+    but ``datetime.fromisoformat`` only accepts ``Z`` on Python 3.11+. Normalise it to an explicit
+    offset so parsing works on the oldest supported runtime (3.10).
+    """
+    if value.endswith("Z"):
+        value = f"{value[:-1]}+00:00"
+    return datetime.fromisoformat(value)
+
+
+# How long a token read from the provisioned file is reused before re-reading. Keeps the tight
+# parse loop from stat-ing the file on every request while still picking up a rotated token quickly.
+_TOKEN_CACHE_TTL = 30.0
+
+
+class _CallableBearerAuth(httpx.Auth):
+    """
+    Attach a bearer token read from a callable, re-reading it as the deployment rotates it.
+
+    The DAG processor never holds the signing key; a trusted component provisions its token to a
+    file (``[dag_processor] api_token_path``) and rotates it there before expiry. Reading the token
+    per-request (rather than baking it into the client once) lets a long-running processor pick up a
+    rotated token without restarting. The value is cached for ``_TOKEN_CACHE_TTL`` to avoid a file
+    read on every call; a ``401`` forces an immediate re-read and one retry, so a rotation that lands
+    mid-window is honoured without waiting out the cache.
+    """
+
+    def __init__(self, token_getter: Callable[[], str | None], *, cache_ttl: float = _TOKEN_CACHE_TTL):
+        self._token_getter = token_getter
+        self._cache_ttl = cache_ttl
+        self._cached: str | None = None
+        self._cached_at = 0.0
+
+    def _token(self, *, refresh: bool = False) -> str | None:
+        now = time.monotonic()
+        if refresh or self._cached is None or now - self._cached_at >= self._cache_ttl:
+            self._cached = self._token_getter()
+            self._cached_at = now
+        return self._cached
+
+    def auth_flow(self, request: httpx.Request):
+        token = self._token()
+        if token:
+            request.headers["Authorization"] = f"Bearer {token}"
+        response = yield request
+        if response.status_code == 401:
+            # The token may have rotated on disk since the cached read; re-read and retry once.
+            fresh = self._token(refresh=True)
+            if fresh and fresh != token:
+                request.headers["Authorization"] = f"Bearer {fresh}"
+                yield request
+
+
 class DagProcessingApiClient:
     """
     Forward DAG-processor persistence to the ``/dag-processing`` API sub-app.
@@ -53,12 +109,20 @@ class DagProcessingApiClient:
     connections are pooled across the manager's parse loop.
     """
 
-    def __init__(self, base_url: str, *, token: str | None = None, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        token_getter: Callable[[], str | None] | None = None,
+        timeout: float = 30.0,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
-        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        # The token is read from ``token_getter`` per request (see _CallableBearerAuth), not baked
+        # in, so a token rotated on disk by the deployment is picked up without a restart.
+        auth = _CallableBearerAuth(token_getter) if token_getter is not None else None
         # ``retries`` retries connection failures (request never sent) at the transport level.
         self._client = httpx.Client(
-            headers=headers,
+            auth=auth,
             timeout=timeout,
             transport=httpx.HTTPTransport(retries=_CONNECT_RETRIES),
         )
@@ -157,7 +221,7 @@ class DagProcessingApiClient:
             return None
         last_refreshed = data.get("last_refreshed")
         return {
-            "last_refreshed": datetime.fromisoformat(last_refreshed) if last_refreshed else None,
+            "last_refreshed": _parse_iso_datetime(last_refreshed) if last_refreshed else None,
             "version": data.get("version"),
         }
 
