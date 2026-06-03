@@ -2117,7 +2117,47 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
 
-    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+    def test_cursor_pagination_order_by_run_after_roundtrips(self, test_client, session):
+        """
+        Sorting by ``run_after`` (a column-form ``to_replace`` backed by an association proxy)
+        must not raise a 500 when ``has_next=true``.  Regression for
+        https://github.com/apache/airflow/issues/67970.
+
+        Verify the full cursor round-trip: the first page must include a ``next_cursor``,
+        and following that cursor must return the remaining TIs without overlap.
+        """
+        dag_id = "example_python_operator"
+        total_tis = 5
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
+            ],
+            dag_id=dag_id,
+        )
+        # First page — limit < total so next_cursor must be present
+        response1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["-run_after"], "cursor": ""},
+        )
+        assert response1.status_code == 200, response1.json()
+        body1 = response1.json()
+        assert len(body1["task_instances"]) == 3
+        next_cursor = body1["next_cursor"]
+        assert next_cursor is not None, "next_cursor must be present when more rows exist"
+
+        # Second page — follow the cursor; must not 500 and must return remaining TIs
+        response2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 10, "order_by": ["-run_after"], "cursor": next_cursor},
+        )
+        assert response2.status_code == 200, response2.json()
+        body2 = response2.json()
+        ids1 = {ti["id"] for ti in body1["task_instances"]}
+        ids2 = {ti["id"] for ti in body2["task_instances"]}
+        assert ids1.isdisjoint(ids2), "Pages must not overlap"
+        assert len(ids1) + len(ids2) == total_tis
+
         """
         Task group lookup should use the DAG version from the run, not the latest version.
 
