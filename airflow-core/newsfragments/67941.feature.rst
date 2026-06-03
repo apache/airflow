@@ -1,0 +1,1 @@
+Deferred triggers can now look up asset events through the triggerer, so a trigger may wait for an asset event (optionally filtered by ``partition_key``) instead of holding a worker slot.
