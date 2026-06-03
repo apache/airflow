@@ -39,7 +39,7 @@ from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.configuration import conf
 from airflow.models.task_store import TaskStoreModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.state import get_state_backend
+from airflow.state.metastore import _get_db_backend
 
 task_store_router = AirflowRouter(
     tags=["Task Store"],
@@ -55,13 +55,20 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
     """
     Resolve the expires_at value from the request body.
 
-    - ``"default"``: apply configured default_retention_days
+    - ``"default"``: apply configured ``[state_store] default_retention_days``.
+      ``0`` means never expire. Negative values raise HTTP 400.
     - ``None``: never expire
     - datetime: use as-is
     """
     if expires_at == "default":
         days = conf.getint("state_store", "default_retention_days")
-        return datetime.now(tz=timezone.utc) + timedelta(days=days)
+        if days < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"[state_store] default_retention_days must be >= 0, got {days}. "
+                "Set to 0 to disable expiry.",
+            )
+        return None if days == 0 else datetime.now(tz=timezone.utc) + timedelta(days=days)
     return expires_at
 
 
@@ -187,7 +194,7 @@ def set_task_store(
     expires_at = _resolve_expires_at(body.expires_at)
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     try:
-        get_state_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
+        _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -227,9 +234,7 @@ def patch_task_store(
         )
 
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    get_state_backend().set(
-        scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session
-    )
+    _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session)
 
 
 @task_store_router.delete(
@@ -248,7 +253,7 @@ def delete_task_store(
 ) -> None:
     """Delete a single task store key. No-op if the key does not exist."""
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    get_state_backend().delete(scope, key, session=session)
+    _get_db_backend().delete(scope, key, session=session)
 
 
 @task_store_router.delete(
@@ -272,4 +277,4 @@ def clear_task_store(
     the ``map_index`` parameter is ignored.
     """
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)
+    _get_db_backend().clear(scope, all_map_indices=all_map_indices, session=session)

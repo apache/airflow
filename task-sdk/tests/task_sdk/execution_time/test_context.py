@@ -1123,6 +1123,24 @@ class TestTaskStoreAccessor:
 
         assert result is None
 
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}
+        )
+
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id", default="default-id")
+
+        assert result == "default-id"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStoreResult(value="job-001")
+
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get(
+            "job_id", default="do-not-start-here"
+        )
+
+        assert result == "job-001"
+
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
@@ -1130,6 +1148,10 @@ class TestTaskStoreAccessor:
 
         with pytest.raises(AirflowRuntimeError):
             TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
+
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", None)
 
     def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
         """set() with no retention uses global default_retention_days config."""
@@ -1190,6 +1212,12 @@ class TestTaskStoreAccessor:
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskStore(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
+
+    def test_set_raises_on_negative_retention_days(self, mock_supervisor_comms):
+        """set() raises ValueError when default_retention_days is negative."""
+        with conf_vars({("state_store", "default_retention_days"): "-1"}):
+            with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
+                TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
@@ -1287,6 +1315,26 @@ class TestAssetStoreAccessor:
 
         assert result is None
 
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"}
+        )
+
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-01-01T00:00:00+00:00"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-06-01T00:00:00+00:00")
+
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-06-01T00:00:00+00:00"
+
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
@@ -1303,6 +1351,10 @@ class TestAssetStoreAccessor:
         mock_supervisor_comms.send.assert_called_once_with(
             SetAssetStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
         )
+
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", None)
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
