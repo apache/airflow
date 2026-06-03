@@ -18,6 +18,10 @@
 package main
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -98,6 +102,37 @@ func TestRootArgs_AllowsBuildFlagsAfterDoubleDash(t *testing.T) {
 		cmd.SetArgs(argv)
 		assert.NoError(t, cmd.Execute(), "args=%v should validate", argv)
 	}
+}
+
+// TestRunIntrospect_ClassifiesExecFailure verifies the exec-startability
+// classification that drives the --executable host-fallback path: a file the
+// OS refuses to exec (wrong format / arch stand-in) is reported as
+// errExecNotStartable, while a binary that runs and exits non-zero is not.
+func TestRunIntrospect_ClassifiesExecFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("exec-format semantics differ on Windows")
+	}
+	dir := t.TempDir()
+
+	// A non-binary file with the exec bit set: execve rejects it with an
+	// exec-format error, standing in for a foreign-arch executable.
+	garbage := filepath.Join(dir, "garbage")
+	require.NoError(t, os.WriteFile(garbage, []byte("not a real executable\n"), 0o755))
+	_, err := runIntrospect(garbage, "--airflow-metadata")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errExecNotStartable)
+
+	// A script that starts and exits non-zero is a genuine run failure, not
+	// an unrunnable binary, so it must NOT be classified as not-startable.
+	failing := filepath.Join(dir, "failing")
+	require.NoError(t, os.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755))
+	_, err = runIntrospect(failing, "--airflow-metadata")
+	require.Error(t, err)
+	assert.False(
+		t,
+		errors.Is(err, errExecNotStartable),
+		"non-zero exit should not be errExecNotStartable",
+	)
 }
 
 func TestRootArgs_RejectsExtraPositionalBeforeDash(t *testing.T) {

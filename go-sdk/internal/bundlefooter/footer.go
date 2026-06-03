@@ -16,20 +16,23 @@
 // under the License.
 
 // Package bundlefooter implements the AFBNDL01 trailer described in
-// ADR 0004 (and providers/sdk/executable/docs/bundle-spec.rst). A bundle
-// file is the compiled executable with three appended regions: the source
-// bytes, the manifest bytes, and a fixed 32-byte trailer that locates them.
+// ADR 0004 (and task-sdk/docs/executable-bundle-spec.rst). A bundle file is
+// the compiled executable with three appended regions: the source bytes, the
+// manifest bytes, and a fixed 64-byte trailer that locates them and carries a
+// SHA-256 over the binary region for integrity.
 //
 // The trailer layout (all little-endian) is:
 //
-//	bytes  0..3   source_len    uint32
-//	bytes  4..7   metadata_len  uint32
-//	bytes  8..11  footer_ver    uint32  (= 1)
-//	bytes 12..23  reserved      12 bytes, zero
-//	bytes 24..31  magic         8 bytes ASCII "AFBNDL01"
+//	bytes  0..3   source_len     uint32
+//	bytes  4..7   metadata_len   uint32
+//	bytes  8..11  footer_ver     uint32  (= 1)
+//	bytes 12..43  binary_sha256  32 bytes (SHA-256 of the binary region)
+//	bytes 44..55  reserved       12 bytes, zero
+//	bytes 56..63  magic          8 bytes ASCII "AFBNDL01"
 package bundlefooter
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -40,7 +43,7 @@ import (
 
 const (
 	// TrailerSize is the fixed length of the trailer, in bytes.
-	TrailerSize = 32
+	TrailerSize = 64
 
 	// FooterVersion is the currently defined trailer-format version.
 	FooterVersion = 1
@@ -61,11 +64,16 @@ var ErrNotBundle = errors.New("bundlefooter: not a bundle (magic mismatch)")
 // is something other than FooterVersion.
 var ErrUnknownVersion = errors.New("bundlefooter: unknown footer version")
 
-// Trailer carries the parsed contents of a bundle's 32-byte trailer.
+// ErrHashMismatch is returned by Read when the SHA-256 recomputed over the
+// binary region does not match the binary_sha256 recorded in the trailer.
+var ErrHashMismatch = errors.New("bundlefooter: binary_sha256 mismatch")
+
+// Trailer carries the parsed contents of a bundle's 64-byte trailer.
 type Trailer struct {
 	SourceLen     uint32
 	MetadataLen   uint32
 	FooterVersion uint32
+	BinarySHA256  [sha256.Size]byte
 }
 
 // Append writes the source bytes, metadata bytes, and trailer to the end of
@@ -87,6 +95,14 @@ func Append(execPath string, source, metadata []byte) error {
 		)
 	}
 
+	// Compute binary_sha256 over the file as it stands now: at this point the
+	// whole file is the binary region, so the digest matches what a reader
+	// recomputes over [0, source_start) after the append.
+	binaryHash, err := hashFile(execPath)
+	if err != nil {
+		return fmt.Errorf("bundlefooter: hashing binary region of %s: %w", execPath, err)
+	}
+
 	f, err := os.OpenFile(execPath, os.O_RDWR|os.O_APPEND, 0)
 	if err != nil {
 		return fmt.Errorf("bundlefooter: opening %s: %w", execPath, err)
@@ -104,7 +120,7 @@ func Append(execPath string, source, metadata []byte) error {
 		}
 	}
 
-	trailer := encodeTrailer(uint32(len(source)), uint32(len(metadata)))
+	trailer := encodeTrailer(uint32(len(source)), uint32(len(metadata)), binaryHash)
 	if _, err := f.Write(trailer[:]); err != nil {
 		return fmt.Errorf("bundlefooter: writing trailer: %w", err)
 	}
@@ -154,6 +170,14 @@ func Read(path string) (source, metadata []byte, err error) {
 		return nil, nil, fmt.Errorf("bundlefooter: empty binary region")
 	}
 
+	binaryHash, err := hashRegion(f, sourceStart)
+	if err != nil {
+		return nil, nil, fmt.Errorf("bundlefooter: hashing binary region of %s: %w", path, err)
+	}
+	if binaryHash != t.BinarySHA256 {
+		return nil, nil, fmt.Errorf("%w: %s", ErrHashMismatch, path)
+	}
+
 	if t.SourceLen > 0 {
 		source = make([]byte, t.SourceLen)
 		if _, err := f.ReadAt(source, sourceStart); err != nil && !errors.Is(err, io.EOF) {
@@ -194,19 +218,20 @@ func IsBundle(path string) (bool, error) {
 	return tail == Magic, nil
 }
 
-func encodeTrailer(sourceLen, metadataLen uint32) [TrailerSize]byte {
+func encodeTrailer(sourceLen, metadataLen uint32, binaryHash [sha256.Size]byte) [TrailerSize]byte {
 	var t [TrailerSize]byte
 	binary.LittleEndian.PutUint32(t[0:4], sourceLen)
 	binary.LittleEndian.PutUint32(t[4:8], metadataLen)
 	binary.LittleEndian.PutUint32(t[8:12], FooterVersion)
-	// bytes 12..23 are reserved, zero
-	copy(t[24:32], Magic[:])
+	copy(t[12:44], binaryHash[:])
+	// bytes 44..55 are reserved, zero
+	copy(t[56:64], Magic[:])
 	return t
 }
 
 func decodeTrailer(b [TrailerSize]byte) (Trailer, error) {
 	var magic [8]byte
-	copy(magic[:], b[24:32])
+	copy(magic[:], b[56:64])
 	if magic != Magic {
 		return Trailer{}, ErrNotBundle
 	}
@@ -215,8 +240,41 @@ func decodeTrailer(b [TrailerSize]byte) (Trailer, error) {
 		MetadataLen:   binary.LittleEndian.Uint32(b[4:8]),
 		FooterVersion: binary.LittleEndian.Uint32(b[8:12]),
 	}
+	copy(t.BinarySHA256[:], b[12:44])
 	if t.FooterVersion != FooterVersion {
 		return Trailer{}, fmt.Errorf("%w: %d", ErrUnknownVersion, t.FooterVersion)
 	}
 	return t, nil
+}
+
+// hashFile computes SHA-256 over the entire contents of the file at path.
+func hashFile(path string) ([sha256.Size]byte, error) {
+	var sum [sha256.Size]byte
+	f, err := os.Open(path)
+	if err != nil {
+		return sum, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return sum, err
+	}
+	copy(sum[:], h.Sum(nil))
+	return sum, nil
+}
+
+// hashRegion computes SHA-256 over the first length bytes of f, seeking to the
+// start first. It is used to recompute binary_sha256 over the binary region
+// [0, source_start). It does not disturb subsequent ReadAt calls.
+func hashRegion(f *os.File, length int64) ([sha256.Size]byte, error) {
+	var sum [sha256.Size]byte
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return sum, err
+	}
+	h := sha256.New()
+	if _, err := io.CopyN(h, f, length); err != nil {
+		return sum, err
+	}
+	copy(sum[:], h.Sum(nil))
+	return sum, nil
 }

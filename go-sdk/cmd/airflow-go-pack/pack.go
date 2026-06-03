@@ -20,6 +20,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -53,12 +54,16 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	}
 
 	sourcePath := opts.source
-	var execPath string
+	// execPath is the binary that receives the footer (the deployable artefact,
+	// which MAY be cross-compiled). introspectPath is the binary we exec to read
+	// --airflow-metadata, which MUST run on the host.
+	var execPath, introspectPath string
 	cleanupExec := func() {}
 	defer func() { cleanupExec() }()
 
 	if opts.executable != "" {
 		execPath = opts.executable
+		introspectPath = opts.executable
 		if sourcePath == "" {
 			return fmt.Errorf(
 				"--executable requires --source: cannot infer the DAG source for a pre-built binary",
@@ -73,12 +78,27 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 			sourcePath = discovered
 		}
 
-		tmp, cleanup, err := buildPackage(stderr, opts.pkg, opts.buildArgs)
+		artifact, cleanup, err := buildPackage(stderr, opts.pkg, opts.buildArgs, false)
 		if err != nil {
 			return err
 		}
-		execPath = tmp
+		execPath = artifact
 		cleanupExec = cleanup
+		introspectPath = artifact
+
+		// Reading the manifest means exec'ing the binary, so it must be a
+		// host-native build. When cross-compiling, the artefact cannot run
+		// here; build a throwaway host binary from the same sources and build
+		// flags (DAG/task identity is arch-independent) solely to introspect.
+		if isCrossCompile() {
+			hostBin, cleanupHost, err := buildPackage(stderr, opts.pkg, opts.buildArgs, true)
+			if err != nil {
+				return fmt.Errorf("building host binary for metadata introspection: %w", err)
+			}
+			prevCleanup := cleanupExec
+			cleanupExec = func() { cleanupHost(); prevCleanup() }
+			introspectPath = hostBin
+		}
 	}
 
 	if _, err := os.Stat(execPath); err != nil {
@@ -88,9 +108,49 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return fmt.Errorf("source file %s: %w", sourcePath, err)
 	}
 
-	meta, err := readAirflowMetadata(execPath)
+	meta, err := readAirflowMetadata(introspectPath)
 	if err != nil {
-		return fmt.Errorf("--airflow-metadata: %w", err)
+		// In --executable mode the introspection binary is the user's
+		// pre-built artefact. If it cannot be exec'd here (e.g. it was built
+		// for a different CPU arch), build a throwaway host-native binary to
+		// read the manifest from instead. The package to rebuild is the
+		// directory holding --source (the bundle's main package), not opts.pkg
+		// (which defaults to the caller's cwd). The pre-built --executable is
+		// still what gets packed.
+		if opts.executable != "" && errors.Is(err, errExecNotStartable) {
+			pkgDir, derr := filepath.Abs(filepath.Dir(sourcePath))
+			if derr != nil {
+				return fmt.Errorf(
+					"cannot exec --executable to read metadata (%w); resolving source package dir failed: %v",
+					err,
+					derr,
+				)
+			}
+			fmt.Fprintf(
+				stderr,
+				"warning: --executable %s is not runnable on %s/%s; building a host binary from %q to read metadata\n",
+				opts.executable,
+				runtime.GOOS,
+				runtime.GOARCH,
+				pkgDir,
+			)
+			hostBin, cleanupHost, berr := buildPackage(stderr, pkgDir, opts.buildArgs, true)
+			if berr != nil {
+				return fmt.Errorf(
+					"cannot exec --executable to read metadata (%w); host fallback build of %q failed: %v",
+					err,
+					pkgDir,
+					berr,
+				)
+			}
+			defer cleanupHost()
+			meta, err = readAirflowMetadata(hostBin)
+			if err != nil {
+				return fmt.Errorf("--airflow-metadata (host fallback build of %q): %w", pkgDir, err)
+			}
+		} else {
+			return fmt.Errorf("--airflow-metadata: %w", err)
+		}
 	}
 	if len(meta.Dags) == 0 {
 		return fmt.Errorf("bundle exposes no dags: nothing to pack")
@@ -224,11 +284,29 @@ func splitNonEmpty(s string) []string {
 	return out
 }
 
+// isCrossCompile reports whether the go build environment targets a platform
+// other than the host. The introspection build (which we exec to read
+// --airflow-metadata) must be host-native; a cross-compiled artefact cannot
+// run on the build machine.
+func isCrossCompile() bool {
+	goos := os.Getenv("GOOS")
+	goarch := os.Getenv("GOARCH")
+	return (goos != "" && goos != runtime.GOOS) || (goarch != "" && goarch != runtime.GOARCH)
+}
+
 // buildPackage runs `go build [extraArgs...] -o <tmp>/bundle <pkg>` and
 // returns the path to the freshly built executable plus a cleanup function.
 // extraArgs is the slice that comes after the "--" separator on the
 // airflow-go-pack command line; we drop the leading "--" before forwarding.
-func buildPackage(stderr io.Writer, pkg string, extraArgs []string) (string, func(), error) {
+// When forceHostArch is set, GOOS/GOARCH are pinned to the host so the result
+// is runnable here regardless of any cross-compile settings in the
+// environment.
+func buildPackage(
+	stderr io.Writer,
+	pkg string,
+	extraArgs []string,
+	forceHostArch bool,
+) (string, func(), error) {
 	tmpDir, err := os.MkdirTemp("", "airflow-go-pack-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("creating temp dir: %w", err)
@@ -251,6 +329,11 @@ func buildPackage(stderr io.Writer, pkg string, extraArgs []string) (string, fun
 	args = append(args, "-o", outPath, pkg)
 
 	cmd := exec.Command("go", args...)
+	if forceHostArch {
+		// Later duplicate keys win in os/exec, so these override any
+		// GOOS/GOARCH inherited from the environment.
+		cmd.Env = append(os.Environ(), "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
+	}
 	cmd.Stdout = stderr
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
@@ -272,12 +355,26 @@ func readAirflowMetadata(execPath string) (airflowmetadata.Manifest, error) {
 	return meta, nil
 }
 
+// errExecNotStartable marks an introspection failure where the process never
+// ran — typically the binary was built for a different CPU arch / OS, so the
+// OS rejected the exec (e.g. "exec format error", "bad CPU type"). It is
+// distinct from the binary running and exiting non-zero (an *exec.ExitError),
+// which signals a genuine --airflow-metadata failure rather than an
+// unrunnable binary.
+var errExecNotStartable = errors.New("introspection binary could not be exec'd")
+
 func runIntrospect(execPath string, flag string) ([]byte, error) {
 	cmd := exec.Command(execPath, flag)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			// The process did not start (no exit status). Wrap with the
+			// sentinel so callers can decide whether to fall back to a build.
+			return nil, fmt.Errorf("%w: %s %s: %v", errExecNotStartable, execPath, flag, err)
+		}
 		return nil, fmt.Errorf("%s %s: %w: %s", execPath, flag, err, stderr.String())
 	}
 	return stdout.Bytes(), nil

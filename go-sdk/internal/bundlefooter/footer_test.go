@@ -127,6 +127,25 @@ func TestRead_UnknownVersion(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrUnknownVersion))
 }
 
+func TestRead_HashMismatch(t *testing.T) {
+	binary := []byte("\x7FELFstub-binary-bytes")
+	source := []byte("src")
+	metadata := []byte("md")
+	path := writeTempBinary(t, binary)
+	require.NoError(t, Append(path, source, metadata))
+
+	// Corrupt a byte inside the binary region; the trailer's binary_sha256
+	// no longer matches what Read recomputes over [0, source_start).
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	require.NoError(t, err)
+	_, err = f.WriteAt([]byte{'X'}, 0)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	_, _, err = Read(path)
+	require.ErrorIs(t, err, ErrHashMismatch)
+}
+
 type bundleStat struct {
 	size int
 }
