@@ -98,14 +98,16 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     if include_renewal_lifetime:
         cmdv.extend(["-r", renewal_lifetime])
 
-    cmdv.extend([
-        "-k",  # host ticket
-        "-t",
-        keytab,  # specify keytab
-        "-c",
-        conf.get_mandatory_value("kerberos", "ccache"),  # specify credentials cache
-        cmd_principal,
-    ])
+    cmdv.extend(
+        [
+            "-k",  # host ticket
+            "-t",
+            keytab,  # specify keytab
+            "-c",
+            conf.get_mandatory_value("kerberos", "ccache"),  # specify credentials cache
+            cmd_principal,
+        ]
+    )
     log.info("Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv))
 
     with subprocess.Popen(
