@@ -30,12 +30,20 @@ from airflow.providers.presto.hooks.presto import PrestoHook
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
-# Hive table names may be qualified as `<database>.<table>`; identifiers must
-# be plain word characters so they can be safely interpolated into the Presto
-# query that selects partition stats. Identifiers cannot be bound as parameters
-# in standard SQL.
-_HIVE_TABLE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$")
-_HIVE_COLUMN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# The table, the partition columns, and the metastore columns projected in the Presto
+# stats SELECT are interpolated as identifiers, which cannot be bound as SQL parameters.
+# Plain word identifiers are emitted unchanged; anything else is double-quoted with
+# embedded quotes doubled (how Presto/Trino escape identifiers). Kept local rather than
+# reusing common.sql's ``Dialect.escape_word``, which needs a live connection and does
+# not double embedded quotes.
+_PLAIN_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _quote_presto_identifier(identifier: str) -> str:
+    """Quote a Presto/Trino identifier unless it is already a plain word identifier."""
+    if _PLAIN_IDENT_RE.fullmatch(identifier):
+        return identifier
+    return '"' + identifier.replace('"', '""') + '"'
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -104,32 +112,25 @@ class HiveStatsCollectionOperator(BaseOperator):
         """Get default expressions."""
         if col in self.excluded_columns:
             return {}
-        exp = {(col, "non_null"): f"COUNT({col})"}
+        # Quote only the interpolated identifier in the SQL value; the dict key keeps the
+        # bare column name, which is what gets stored in the ``hive_stats.col`` column.
+        quoted_col = _quote_presto_identifier(col)
+        exp = {(col, "non_null"): f"COUNT({quoted_col})"}
         if col_type in {"double", "int", "bigint", "float"}:
-            exp[(col, "sum")] = f"SUM({col})"
-            exp[(col, "min")] = f"MIN({col})"
-            exp[(col, "max")] = f"MAX({col})"
-            exp[(col, "avg")] = f"AVG({col})"
+            exp[(col, "sum")] = f"SUM({quoted_col})"
+            exp[(col, "min")] = f"MIN({quoted_col})"
+            exp[(col, "max")] = f"MAX({quoted_col})"
+            exp[(col, "avg")] = f"AVG({quoted_col})"
         elif col_type == "boolean":
-            exp[(col, "true")] = f"SUM(CASE WHEN {col} THEN 1 ELSE 0 END)"
-            exp[(col, "false")] = f"SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)"
+            exp[(col, "true")] = f"SUM(CASE WHEN {quoted_col} THEN 1 ELSE 0 END)"
+            exp[(col, "false")] = f"SUM(CASE WHEN NOT {quoted_col} THEN 1 ELSE 0 END)"
         elif col_type == "string":
-            exp[(col, "len")] = f"SUM(CAST(LENGTH({col}) AS BIGINT))"
-            exp[(col, "approx_distinct")] = f"APPROX_DISTINCT({col})"
+            exp[(col, "len")] = f"SUM(CAST(LENGTH({quoted_col}) AS BIGINT))"
+            exp[(col, "approx_distinct")] = f"APPROX_DISTINCT({quoted_col})"
 
         return exp
 
     def execute(self, context: Context) -> None:
-        if not _HIVE_TABLE_RE.match(self.table):
-            raise ValueError(
-                f"Invalid Hive table identifier: {self.table!r}. Must match {_HIVE_TABLE_RE.pattern}."
-            )
-        for partition_key in self.partition.keys():
-            if not _HIVE_COLUMN_RE.match(partition_key):
-                raise ValueError(
-                    f"Invalid partition column name: {partition_key!r}. Must match {_HIVE_COLUMN_RE.pattern}."
-                )
-
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
@@ -144,15 +145,18 @@ class HiveStatsCollectionOperator(BaseOperator):
                 assign_exprs = self.get_default_exprs(col, col_type)
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
-        exprs_str = ",\n        ".join(f"{v} AS {k[0]}__{k[1]}" for k, v in exprs.items())
+        exprs_str = ",\n        ".join(
+            f"{v} AS {_quote_presto_identifier(f'{k[0]}__{k[1]}')}" for k, v in exprs.items()
+        )
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        # PrestoHook overrides DbApiHook's default `%s` placeholder with `?`,
-        # so the WHERE clause is built against the hook's declared placeholder.
+        # Build the WHERE clause against the hook's declared parameter placeholder
+        # (PrestoHook defaults to `?`; a connection may override it via the `placeholder` extra).
         placeholder = presto.placeholder
-        where_clause_ = [f"{k} = {placeholder}" for k in self.partition.keys()]
+        where_clause_ = [f"{_quote_presto_identifier(k)} = {placeholder}" for k in self.partition.keys()]
         where_clause = " AND\n        ".join(where_clause_)
-        sql = f"SELECT {exprs_str} FROM {self.table} WHERE {where_clause};"
+        quoted_table = ".".join(_quote_presto_identifier(part) for part in self.table.split("."))
+        sql = f"SELECT {exprs_str} FROM {quoted_table} WHERE {where_clause};"
 
         self.log.info("Executing SQL check: %s", sql)
         row = presto.get_first(sql, parameters=tuple(self.partition.values()))

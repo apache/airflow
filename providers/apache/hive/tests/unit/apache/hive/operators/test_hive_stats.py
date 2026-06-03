@@ -313,31 +313,93 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             ),
         )
 
+    @pytest.mark.parametrize(
+        ("table", "expected_from"),
+        [
+            # Plain identifiers (including a qualified <db>.<table>) are emitted
+            # unquoted exactly as before, so existing Dags are unaffected.
+            ("plain_table", "FROM plain_table"),
+            ("db.tbl", "FROM db.tbl"),
+            # Identifiers with other characters are double-quoted; a qualified
+            # name is quoted per dotted component.
+            ("weird-table", 'FROM "weird-table"'),
+            ("my-db.my-tbl", 'FROM "my-db"."my-tbl"'),
+            # An embedded double quote is doubled, so an injection payload is
+            # contained as a single inert identifier instead of breaking out of
+            # the FROM clause (and is no longer rejected outright).
+            ('evil"; DROP TABLE users--', 'FROM "evil""; DROP TABLE users--"'),
+        ],
+    )
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
-    def test_execute_rejects_invalid_table_identifier(
-        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    def test_execute_quotes_table_identifier(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, table, expected_from
     ):
-        # The Presto SELECT interpolates the table identifier; the operator
-        # rejects any value that does not match the <db>.<table> allowlist
-        # so callers cannot smuggle whitespace or punctuation into the
-        # identifier position.
-        self.kwargs["table"] = "evil; DROP TABLE users--"
-        with pytest.raises(ValueError, match="Invalid Hive table identifier"):
-            HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+
+        self.kwargs["table"] = table
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_sql = mock_presto_hook.return_value.get_first.call_args.args[0]
+        assert expected_from in presto_sql
 
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
-    def test_execute_rejects_invalid_partition_column(
+    def test_execute_quotes_partition_column(
         self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
     ):
-        # Partition keys reach the SELECT clause as column identifiers and
-        # are validated against the same allowlist.
+        # A partition key that is not a plain identifier (here it contains a
+        # space) is double-quoted in the WHERE clause while its value is still
+        # bound as a parameter, so special-character columns keep working
+        # without relying on the caller to escape them.
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+
         self.kwargs["partition"] = {"evil col": "value"}
-        with pytest.raises(ValueError, match="Invalid partition column name"):
-            HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_call = mock_presto_hook.return_value.get_first.call_args
+        assert '"evil col" = ?' in presto_call.args[0]
+        assert presto_call.kwargs["parameters"] == ("value",)
+
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_quotes_special_char_projection_column(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    ):
+        # A metastore column whose name is not a plain identifier (here it contains
+        # a hyphen) is double-quoted everywhere it is interpolated into the Presto
+        # SELECT -- both in the stat expressions and in their aliases -- so the
+        # projection no longer emits invalid SQL like COUNT(weird-col). The bare
+        # column name is still what gets stored in hive_stats.col; the quoting must
+        # not leak into the inserted data (the dict key stays unquoted).
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [
+            _FakeCol("weird-col", "string")
+        ]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+        # A string column yields three default exprs (non_null, len, approx_distinct)
+        # plus the COUNT(*) entry; supply matching positional results so the pivot
+        # that builds the inserted rows is exercised rather than zipping to empty.
+        mock_presto_hook.return_value.get_first.return_value = [1, 2, 3, 4]
+
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_sql = mock_presto_hook.return_value.get_first.call_args.args[0]
+        assert 'COUNT("weird-col")' in presto_sql
+        assert 'AS "weird-col__non_null"' in presto_sql
+        assert "COUNT(weird-col)" not in presto_sql
+
+        inserted_rows = mock_mysql_hook.return_value.insert_rows.call_args.kwargs["rows"]
+        col_values = {row[4] for row in inserted_rows}
+        assert "weird-col" in col_values  # the bare column name is stored, ...
+        assert '"weird-col"' not in col_values  # ... the SQL quoting did not leak into the data
 
     @patch("airflow.providers.apache.hive.operators.hive_stats.json.dumps")
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
