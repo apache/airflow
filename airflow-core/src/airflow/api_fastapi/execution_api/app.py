@@ -25,7 +25,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import attrs
-import jwt as pyjwt
 import svcs
 from cadwyn import (
     Cadwyn,
@@ -43,6 +42,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
 if TYPE_CHECKING:
     import httpx
@@ -132,37 +132,20 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 
 class JWTReissueMiddleware(BaseHTTPMiddleware):
-    # Grace period (in seconds) for refreshing tokens that have just expired.
-    # This handles the race condition where a token expires between the security
-    # middleware's auth check and this middleware's reissue validation.
-    # The signature and all other claims are still fully verified.
-    REISSUE_GRACE_LEEWAY: int = 60
-
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
         auth_header = request.headers.get("authorization")
         if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
             try:
                 async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    try:
-                        claims = await validator.avalidated_claims(token, {})
-                    except pyjwt.ExpiredSignatureError:
-                        # Token may have expired between the auth check and here
-                        # (e.g. token lifetime boundary crossed during request
-                        # processing). Re-validate with a short grace period so
-                        # the client receives a fresh replacement token and can
-                        # retry automatically. The signature and all other
-                        # claims are still fully verified.
-                        claims = await validator.avalidated_claims(
-                            token, {}, extra_leeway=self.REISSUE_GRACE_LEEWAY
-                        )
+                    validated_token = await _jwt_bearer(request, services)
+                    claims = validated_token.claims.model_dump()
+                    claims["sub"] = str(validated_token.id)
 
                     # Workload tokens are long-lived and meant to survive queue
-                    # wait times so avoid refreshing them. If avalidated_claims
+                    # wait times so avoid refreshing them. If JWTBearer
                     # raises for a workload token, the outer except handles it.
                     if claims.get("scope") == "workload":
                         return response

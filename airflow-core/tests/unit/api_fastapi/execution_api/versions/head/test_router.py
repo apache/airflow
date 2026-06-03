@@ -71,15 +71,14 @@ def test_expiring_token_is_reissued(
 
 
 @pytest.mark.db_test
-def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: FastAPI, time_machine):
-    """A token that expired just before JWTReissueMiddleware runs is still refreshed.
+def test_reissue_reuses_cached_claims_from_jwt_bearer(client, exec_app: FastAPI, time_machine):
+    """Ensure reissue uses claims already validated by JWTBearer.
 
-    Covers the race where a token expires between the security middleware's auth
-    check and this middleware's own validation, causing tasks to die even though
-    heartbeats were being sent on time.
+    If middleware validates the JWT again, this test would fail because the mocked
+    second validation call raises ExpiredSignatureError.
     """
     moment = 1743451846  # A "random" unix epoch timestamp.
-    validity = 600
+    validity = 60
     claims = {
         "sub": "edb09971-4e0e-4221-ad3f-800852d38085",
         "iat": moment,
@@ -87,20 +86,16 @@ def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: Fa
     }
 
     auth = AsyncMock(spec=JWTValidator)
-    # First call (strict validation, no extra_leeway) fails because the token just expired.
-    # Second call (with REISSUE_GRACE_LEEWAY) succeeds, allowing a fresh token to be issued.
     auth.avalidated_claims.side_effect = [
-        jwt.ExpiredSignatureError("Signature has expired"),
         claims,
+        jwt.ExpiredSignatureError("Signature has expired"),
     ]
 
-    # Move time to 5 seconds past token expiry to simulate the race condition.
-    time_machine.move_to(moment + validity + 5, tick=False)
+    time_machine.move_to(moment + 31, tick=False)
 
     lifespan.registry.register_value(JWTValidator, auth)
 
     response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
 
-    # The Refreshed-API-Token header must be present so the client can update its token
-    # and recover on the next retry, even though the original token had just expired.
     assert "Refreshed-API-Token" in response.headers
+    assert auth.avalidated_claims.await_count == 1
