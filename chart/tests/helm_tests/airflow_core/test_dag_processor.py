@@ -63,7 +63,9 @@ class TestDagProcessor:
         actual = jmespath.search(
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
         )
-        assert actual is None
+        # No wait-for-migrations init container (other init containers, e.g. the API token minter,
+        # may still be present, so this is an empty match rather than a missing initContainers list).
+        assert not actual
 
     def test_wait_for_migration_security_contexts_are_configurable(self):
         docs = render_chart(

@@ -34,6 +34,9 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__API__BASE_URL: 'http://airflow-apiserver:8080/'
     AIRFLOW__API_AUTH__JWT_SECRET: 'test-secret-key-for-testing'
+    # The DAG processor never mints its own token (it parses user code): airflow-init mints one to
+    # this shared file and the processor reads it. See airflow-init / [dag_processor] api_token_path.
+    AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH: '/opt/airflow/api-token/dag-processor-token'
     AIRFLOW_VAR_TEST_VARIABLE_KEY: 'test_variable_value'
     AIRFLOW_CONN_TEST_CONNECTION: 'postgresql://testuser:testpass@testhost:5432/testdb'
     HOST_OS: ${HOST_OS:-linux}
@@ -41,6 +44,7 @@ x-airflow-common:
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
+    - airflow-api-token:/opt/airflow/api-token
   depends_on:
     &airflow-common-depends-on
     postgres:
@@ -72,6 +76,8 @@ services:
         /entrypoint airflow version
         echo "Running airflow config list to create default config file if missing."
         /entrypoint airflow config list >/dev/null
+        echo "Minting the DAG processor API token (processor parses user code, so it never mints its own)."
+        /entrypoint airflow provision-dag-processor-token
         if [ "${HOST_OS}" == "linux" ]; then
             echo "Change ownership of files in /opt/airflow to ${AIRFLOW_UID}:0"
             chown -R "${AIRFLOW_UID}:0" /opt/airflow/
@@ -128,3 +134,7 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+
+volumes:
+  # Shares the DAG processor API token from airflow-init (which mints it) to the processor.
+  airflow-api-token:

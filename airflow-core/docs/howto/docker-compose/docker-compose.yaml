@@ -66,6 +66,11 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET:-airflow_jwt_secret}
     AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW__API_AUTH__JWT_ISSUER:-airflow}
+    # The DAG processor parses user code, so it never mints its own API token: airflow-init mints
+    # one to this shared file and the processor reads it (re-reading it as it is rotated). For a
+    # hardened deployment, run the processor in a separate image that does not carry the signing
+    # key above; see the Helm chart for that pattern.
+    AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH: '/opt/airflow/api-token/dag-processor-token'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -81,6 +86,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - airflow-api-token:/opt/airflow/api-token
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -270,6 +276,10 @@ services:
         echo
         /entrypoint airflow config list >/dev/null
         echo
+        echo "Minting the DAG processor API token (the processor never mints its own)."
+        echo
+        /entrypoint airflow provision-dag-processor-token
+        echo
         echo "Files in shared volumes:"
         echo
         ls -la /opt/airflow/{logs,dags,plugins,config}
@@ -335,3 +345,5 @@ services:
 
 volumes:
   postgres-db-volume:
+  # Shares the DAG processor API token from airflow-init (which mints it) to the processor.
+  airflow-api-token:
