@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -462,3 +463,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
                 AssetStoreModel.asset_id == scope.asset_id,
             )
         )
+
+
+@functools.cache
+def _get_db_backend() -> MetastoreStoreBackend:
+    """Return a cached MetastoreStoreBackend instance for DB-direct access."""
+    return MetastoreStoreBackend()

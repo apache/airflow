@@ -36,6 +36,19 @@ set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at module scope in that
 module. See the OpenSearch provider's logging guide for the updated override
 example.
 
+1.9.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor Opensearch log formatter to use timezone.from_timestamp (#66856)``
+* ``Deprecate implicit REMOTE_TASK_LOG registration in OpensearchTaskHandler (#67106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.9.2
 .....
 

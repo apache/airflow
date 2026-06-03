@@ -38,7 +38,7 @@ from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -239,13 +239,38 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session):
+    def write(self, session: Session = NEW_SESSION):
         """
         Write instance to database.
 
+        Uses a database-level upsert (INSERT ... ON CONFLICT DO UPDATE) to
+        atomically insert or update the record, avoiding race conditions that
+        can occur with session.merge() when concurrent requests (e.g. from
+        client-side timeout retries) target the same primary key.
+
         :param session: SqlAlchemy Session
         """
-        session.merge(self)
+        values = {
+            "dag_id": self.dag_id,
+            "task_id": self.task_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+        update_on_conflict = {
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+
+        stmt = build_upsert_stmt(
+            get_dialect_name(session),
+            RenderedTaskInstanceFields,
+            ["dag_id", "task_id", "run_id", "map_index"],
+            values,
+            update_on_conflict,
+        )
+        session.execute(stmt)
 
     @classmethod
     @provide_session
