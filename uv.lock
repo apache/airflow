@@ -75,6 +75,7 @@ apache-airflow-providers-redis = false
 apache-airflow-shared-dagnode = false
 apache-airflow-providers-apache-pinot = false
 apache-airflow-providers-weaviate = false
+google-cloud-aiplatform = { timestamp = "0001-01-01T00:00:00Z", span = "PT4H" }
 apache-airflow-providers-akeyless = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-ssh = false
@@ -5537,7 +5538,7 @@ requires-dist = [
     { name = "google-api-python-client", specifier = ">=2.0.2" },
     { name = "google-auth", specifier = ">=2.29.0" },
     { name = "google-auth-httplib2", specifier = ">=0.0.1" },
-    { name = "google-cloud-aiplatform", extras = ["evaluation"], specifier = ">=1.145.0" },
+    { name = "google-cloud-aiplatform", extras = ["evaluation"], specifier = ">=1.155.0" },
     { name = "google-cloud-alloydb", specifier = ">=0.4.0" },
     { name = "google-cloud-automl", specifier = ">=2.12.0" },
     { name = "google-cloud-batch", specifier = ">=0.13.0" },
@@ -12335,7 +12336,7 @@ wheels = [
 
 [[package]]
 name = "google-cloud-aiplatform"
-version = "1.148.1"
+version = "1.155.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docstring-parser" },
@@ -12351,9 +12352,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/f3/b2a9417014c93858a2e3266134f931eefd972c2d410b25d7b8782fc6f143/google_cloud_aiplatform-1.148.1.tar.gz", hash = "sha256:75d605fba34e68714bd08e1e482755d0a6e3ae972805f809d088e686c30879e7", size = 10278758, upload-time = "2026-04-17T23:45:26.738Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/d8/a6bda03cc18afdb1b9aabcfbc938b0fa48d0c8230c00cd867adc73ba2ac5/google_cloud_aiplatform-1.155.0.tar.gz", hash = "sha256:1835500ddc73351f5ba2166b356fac4e691afb3a28d3be664fad42c680b4bb62", size = 11055432, upload-time = "2026-06-03T15:20:59.392Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/5b/e3515d7bbba602c2b0f6a0da5431785e897252443682e4735d0e6873dc8f/google_cloud_aiplatform-1.148.1-py2.py3-none-any.whl", hash = "sha256:035101e2d8e65c6a706cc3930b2452de7ddcbde50dd130320fcea0d8b03b0c5a", size = 8434481, upload-time = "2026-04-17T23:45:22.919Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/b9/d141c9d94c15ef1897b155499c172198433037a13f4cadaa473878224d37/google_cloud_aiplatform-1.155.0-py2.py3-none-any.whl", hash = "sha256:f6416b90c7f2178886fccdae0d2e449a9d8379a025b08afee15e614f9c510574", size = 9191363, upload-time = "2026-06-03T15:20:56.112Z" },
 ]
 
 [package.optional-dependencies]
@@ -14155,14 +14156,14 @@ wheels = [
 
 [[package]]
 name = "importlib-metadata"
-version = "9.0.0"
+version = "8.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "zipp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/01/15bb152d77b21318514a96f43af312635eb2500c96b55398d020c93d86ea/importlib_metadata-9.0.0.tar.gz", hash = "sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc", size = 56405, upload-time = "2026-03-20T06:42:56.999Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/72/c600ae4f68c28fc19f9c31b9403053e5dbb8cace2e6842c7b7c3e4d42fe9/importlib_metadata-8.9.0.tar.gz", hash = "sha256:58850626cef4bd2df100378b0f2aea9724a7b92f10770d547725b047078f99ee", size = 56140, upload-time = "2026-03-20T16:56:26.362Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/3d/2d244233ac4f76e38533cfcb2991c9eb4c7bf688ae0a036d30725b8faafe/importlib_metadata-9.0.0-py3-none-any.whl", hash = "sha256:2d21d1cc5a017bd0559e36150c21c830ab1dc304dedd1b7ea85d20f45ef3edd7", size = 27789, upload-time = "2026-03-20T06:42:55.665Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/f9/97f2ca8bb3ec6e4b1d64f983ebe98b9a192faddff67fac3d6303a537e670/importlib_metadata-8.9.0-py3-none-any.whl", hash = "sha256:e0f761b6ea91ced3b0844c14c9d955224d538105921f8e6754c00f6ca79fba7f", size = 27220, upload-time = "2026-03-20T16:56:25.07Z" },
 ]
 
 [[package]]
@@ -15278,7 +15279,7 @@ wheels = [
 
 [[package]]
 name = "litellm"
-version = "1.82.6"
+version = "1.85.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -15294,9 +15295,9 @@ dependencies = [
     { name = "tiktoken" },
     { name = "tokenizers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/29/75/1c537aa458426a9127a92bc2273787b2f987f4e5044e21f01f2eed5244fd/litellm-1.82.6.tar.gz", hash = "sha256:2aa1c2da21fe940c33613aa447119674a3ad4d2ad5eb064e4d5ce5ee42420136", size = 17414147, upload-time = "2026-03-22T06:36:00.452Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/fc/1d30a65cdc3a5370f974e4f571eb497d88243b6abd58269a635da0045bb4/litellm-1.85.2.tar.gz", hash = "sha256:4e8064db7aab0017d0a57fbbd203aa7afa0cf462ccbee4d1328edfa45c50d465", size = 15346880, upload-time = "2026-05-27T08:03:30.285Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/6c/5327667e6dbe9e98cbfbd4261c8e91386a52e38f41419575854248bbab6a/litellm-1.82.6-py3-none-any.whl", hash = "sha256:164a3ef3e19f309e3cabc199bef3d2045212712fefdfa25fc7f75884a5b5b205", size = 15591595, upload-time = "2026-03-22T06:35:56.795Z" },
+    { url = "https://files.pythonhosted.org/packages/85/89/d8c1566085dcf2274374094abdee3b76b84623b46a0cf01115d078a7bd9d/litellm-1.85.2-py3-none-any.whl", hash = "sha256:16d6b63a2c78e1e250e54691f63669ab15c49e11ae6e0457462ac609c4a52352", size = 16980870, upload-time = "2026-05-27T08:03:26.659Z" },
 ]
 
 [[package]]
@@ -21393,8 +21394,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
