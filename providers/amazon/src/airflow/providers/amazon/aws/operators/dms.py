@@ -123,9 +123,11 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Modifies an existing AWS DMS replication task.
 
-    The task must already be stopped before modification. Use :class:`DmsStopTaskOperator`
-    upstream in the Dag to stop it, and :class:`DmsStartTaskOperator` downstream to restart
-    it afterwards if needed.
+    The task must already be in a modifiable state before modification.
+    Use :class:`DmsStopTaskOperator` upstream in the Dag to stop it, and
+    :class:`DmsStartTaskOperator` downstream to restart it afterwards if needed.
+
+    Valid modifiable states are ``stopped``, ``ready``, and ``failed``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

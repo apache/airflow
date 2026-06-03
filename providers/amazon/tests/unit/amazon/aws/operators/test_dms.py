@@ -359,6 +359,28 @@ class TestDmsModifyTaskOperator:
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_waiter")
     @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_task_raises_if_task_disappears_during_pre_wait(
+        self, mock_conn, mock_get_waiter, mock_find
+    ):
+        mock_find.side_effect = [
+            self._modifying_task(),
+            [],
+        ]
+        mock_get_waiter.return_value.wait.return_value = None
+        with mock.patch.object(DmsHook, "modify_replication_task") as mock_modify:
+            op = DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                waiter_delay=0,
+            )
+            with pytest.raises(ValueError, match="not found"):
+                op.execute(None)
+        mock_modify.assert_not_called()
+        mock_get_waiter.assert_called_once_with("replication_task_modified")
+
+    @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
+    @mock.patch.object(DmsHook, "get_waiter")
+    @mock.patch.object(DmsHook, "get_conn")
     def test_modify_task_raises_if_waiter_exceeded(self, mock_conn, mock_get_waiter, mock_find):
         stopped_task = self._stopped_task()
         expected = {"ReplicationTaskArn": self.TASK_ARN}
