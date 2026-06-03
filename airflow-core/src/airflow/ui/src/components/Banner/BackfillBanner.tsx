@@ -22,8 +22,6 @@ import { useTranslation } from "react-i18next";
 import { MdInfo, MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
-import { Tooltip } from "src/components/ui";
-
 import {
   useBackfillServiceCancelBackfill,
   useBackfillServiceListBackfillsUi,
@@ -32,6 +30,7 @@ import {
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
