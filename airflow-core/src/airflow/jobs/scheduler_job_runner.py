@@ -109,6 +109,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.metrics import stats_utils
+from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
@@ -1924,12 +1925,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         try:
             mapper = timetable.get_partition_mapper(name=name, uri=uri)
-            if not mapper.is_rollup:
+            if not is_rollup(mapper):
                 return True
             return self._check_rollup_asset_status(
                 asset_id=asset_id,
                 apdr=apdr,
-                mapper=cast("RollupMapper", mapper),
+                mapper=mapper,
                 actual_by_asset=actual_by_asset,
             )
         except Exception:

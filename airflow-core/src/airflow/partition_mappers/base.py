@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -154,3 +154,8 @@ class RollupMapper(PartitionMapper):
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
         )
+
+
+def is_rollup(mapper: PartitionMapper) -> TypeGuard[RollupMapper]:
+    """Return ``True`` if *mapper* is a rollup mapper, narrowing the type to :class:`RollupMapper`."""
+    return mapper.is_rollup
