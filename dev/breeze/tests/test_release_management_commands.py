@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from airflow_breeze.commands.release_management_commands import (
+    _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
 )
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
 @pytest.mark.parametrize(
@@ -60,3 +64,29 @@ def test_should_include_provider_in_issue(
         )
         is expected
     )
+
+
+def _fake_version_info(version: str) -> SimpleNamespace:
+    major, minor = (int(part) for part in version.split("."))
+    return SimpleNamespace(major=major, minor=minor, micro=0, releaselevel="final", serial=0)
+
+
+def test_ensure_default_python_for_reproducible_client_passes_on_default(monkeypatch):
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.sys.version_info",
+        _fake_version_info(DEFAULT_PYTHON_MAJOR_MINOR_VERSION),
+    )
+    # Must not raise / exit when running under the default Python.
+    _ensure_default_python_for_reproducible_client()
+
+
+@pytest.mark.parametrize("wrong_version", ["3.11", "3.13", "3.9"])
+def test_ensure_default_python_for_reproducible_client_exits_on_mismatch(monkeypatch, wrong_version):
+    assert wrong_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.sys.version_info",
+        _fake_version_info(wrong_version),
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        _ensure_default_python_for_reproducible_client()
+    assert exc_info.value.code == 1
