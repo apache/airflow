@@ -416,27 +416,59 @@ export const $AssetStoreCollectionResponse = {
 
 export const $AssetStoreLastUpdatedBy = {
     properties: {
-        dag_id: {
+        kind: {
             type: 'string',
+            title: 'Kind'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Dag Id'
         },
         run_id: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run Id'
         },
         task_id: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Task Id'
         },
         map_index: {
-            type: 'integer',
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Map Index'
         }
     },
     type: 'object',
-    required: ['dag_id', 'run_id', 'task_id', 'map_index'],
+    required: ['kind'],
     title: 'AssetStoreLastUpdatedBy',
-    description: 'Identifies the task instance that last wrote an asset store entry.'
+    description: 'Writer info for the last write to an asset store entry.'
 } as const;
 
 export const $AssetStoreResponse = {

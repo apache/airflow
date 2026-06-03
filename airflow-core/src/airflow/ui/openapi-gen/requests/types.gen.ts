@@ -112,13 +112,14 @@ export type AssetStoreCollectionResponse = {
 };
 
 /**
- * Identifies the task instance that last wrote an asset store entry.
+ * Writer info for the last write to an asset store entry.
  */
 export type AssetStoreLastUpdatedBy = {
-    dag_id: string;
-    run_id: string;
-    task_id: string;
-    map_index: number;
+    kind: string;
+    dag_id?: string | null;
+    run_id?: string | null;
+    task_id?: string | null;
+    map_index?: number | null;
 };
 
 /**

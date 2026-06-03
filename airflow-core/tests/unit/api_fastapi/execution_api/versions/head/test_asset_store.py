@@ -121,7 +121,7 @@ class TestPutAssetStateByName:
         exec_app: FastAPI,
         create_task_instance: CreateTaskInstance,
     ):
-        """Create a real TI and wire the mock auth to use its UUID so FK constraints pass."""
+        """Create a real TI and wire the mock auth to use its UUID so the route can look up writer info."""
         self._ti: TaskInstance = create_task_instance()
 
         async def _auth(request: Request) -> TIToken:
@@ -145,8 +145,8 @@ class TestPutAssetStateByName:
         # DB stores JSON-encoded string
         assert row.value == '"2026-04-29"'
 
-    def test_put_records_ti_id(self, client: TestClient, asset: AssetModel, session: Session):
-        """PUT writes last_updated_by_ti_id from the JWT token."""
+    def test_put_records_writer(self, client: TestClient, asset: AssetModel, session: Session):
+        """PUT writes about writer fields resolved from the JWT token's TI."""
         response = client.put(
             _BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={"value": "v"}
         )
@@ -159,7 +159,11 @@ class TestPutAssetStateByName:
             )
         )
         assert row is not None
-        assert row.last_updated_by_ti_id == self._ti.id
+        assert row.last_updated_by_kind == "task"
+        assert row.last_updated_by_dag_id == self._ti.dag_id
+        assert row.last_updated_by_run_id == self._ti.run_id
+        assert row.last_updated_by_task_id == self._ti.task_id
+        assert row.last_updated_by_map_index == self._ti.map_index
 
     def test_put_int_value_roundtrip(self, client: TestClient, asset: AssetModel):
         response = client.put(
@@ -288,7 +292,7 @@ class TestPutAssetStateByUri:
         exec_app: FastAPI,
         create_task_instance: CreateTaskInstance,
     ):
-        """Create a real TI and wire the mock auth to use its UUID so FK constraints pass."""
+        """Create a real TI and wire the mock auth to use its UUID so the route can look up writer info."""
         self._ti: TaskInstance = create_task_instance()
 
         async def _auth(request: Request) -> TIToken:
@@ -311,8 +315,8 @@ class TestPutAssetStateByUri:
         assert row is not None
         assert row.value == '"2026-04-29"'
 
-    def test_put_records_ti_id(self, client: TestClient, asset: AssetModel, session: Session):
-        """PUT writes last_updated_by_ti_id from the JWT token."""
+    def test_put_records_writer(self, client: TestClient, asset: AssetModel, session: Session):
+        """PUT writes writer fields resolved from the JWT token's TI."""
         response = client.put(
             _BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"}, json={"value": "v"}
         )
@@ -325,7 +329,11 @@ class TestPutAssetStateByUri:
             )
         )
         assert row is not None
-        assert row.last_updated_by_ti_id == self._ti.id
+        assert row.last_updated_by_kind == "task"
+        assert row.last_updated_by_dag_id == self._ti.dag_id
+        assert row.last_updated_by_run_id == self._ti.run_id
+        assert row.last_updated_by_task_id == self._ti.task_id
+        assert row.last_updated_by_map_index == self._ti.map_index
 
     def test_put_unknown_uri_returns_404(self, client: TestClient):
         response = client.put(

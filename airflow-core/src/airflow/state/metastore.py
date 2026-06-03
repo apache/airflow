@@ -21,12 +21,11 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import structlog
 from sqlalchemy import delete, select
 
-from airflow._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow._shared.state import AssetScope, AssetStoreWriterKind, BaseStoreBackend, StoreScope, TaskScope
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset_store import AssetStoreModel
@@ -280,18 +279,34 @@ class MetastoreStoreBackend(BaseStoreBackend):
         return row.value if row is not None else None
 
     def _set_asset_store(
-        self, scope: AssetScope, key: str, value: str, *, ti_id: UUID | None = None, session: Session
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStoreWriterKind | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: Session,
     ) -> None:
         now = timezone.utcnow()
-        values = dict(
-            asset_id=scope.asset_id, key=key, value=value, updated_at=now, last_updated_by_ti_id=ti_id
+        kind_str = kind.value if kind is not None else None
+        writer_info = dict(
+            last_updated_by_kind=kind_str,
+            last_updated_by_dag_id=dag_id,
+            last_updated_by_run_id=run_id,
+            last_updated_by_task_id=task_id,
+            last_updated_by_map_index=map_index,
         )
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now, last_updated_by_ti_id=ti_id),
+            dict(value=value, updated_at=now, **writer_info),
         )
         session.execute(stmt)
 
@@ -302,13 +317,28 @@ class MetastoreStoreBackend(BaseStoreBackend):
         key: str,
         value: str,
         *,
-        ti_id: UUID | None,
+        kind: AssetStoreWriterKind,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
         session: Session | None = NEW_SESSION,
     ) -> None:
-        """Write an asset store entry, recording which task instance made the write."""
+        """Write an asset store entry, recording who made the write."""
+        kind.validate_writer_fields(dag_id, run_id, task_id, map_index)
         if TYPE_CHECKING:
             assert session is not None
-        self._set_asset_store(scope, key, value, ti_id=ti_id, session=session)
+        self._set_asset_store(
+            scope,
+            key,
+            value,
+            kind=kind,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            session=session,
+        )
 
     def _delete_asset_store(self, scope: AssetScope, key: str, *, session: Session) -> None:
         session.execute(
@@ -454,19 +484,35 @@ class MetastoreStoreBackend(BaseStoreBackend):
         return row.value if row is not None else None
 
     async def _aset_asset_store(
-        self, scope: AssetScope, key: str, value: str, *, ti_id: UUID | None = None, session: AsyncSession
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStoreWriterKind | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: AsyncSession,
     ) -> None:
         now = timezone.utcnow()
-        values = dict(
-            asset_id=scope.asset_id, key=key, value=value, updated_at=now, last_updated_by_ti_id=ti_id
+        kind_str = kind.value if kind is not None else None
+        writer_info = dict(
+            last_updated_by_kind=kind_str,
+            last_updated_by_dag_id=dag_id,
+            last_updated_by_run_id=run_id,
+            last_updated_by_task_id=task_id,
+            last_updated_by_map_index=map_index,
         )
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now, last_updated_by_ti_id=ti_id),
+            dict(value=value, updated_at=now, **writer_info),
         )
         await session.execute(stmt)
 
@@ -476,12 +522,27 @@ class MetastoreStoreBackend(BaseStoreBackend):
         key: str,
         value: str,
         *,
-        ti_id: UUID | None,
+        kind: AssetStoreWriterKind,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
         session: AsyncSession | None = None,
     ) -> None:
-        """Write an asset store entry, recording which task instance made the write."""
+        """Write an asset store entry, recording who made the write."""
+        kind.validate_writer_fields(dag_id, run_id, task_id, map_index)
         async with _async_session(session) as s:
-            await self._aset_asset_store(scope, key, value, ti_id=ti_id, session=s)
+            await self._aset_asset_store(
+                scope,
+                key,
+                value,
+                kind=kind,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                session=s,
+            )
 
     async def _adelete_asset_store(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(

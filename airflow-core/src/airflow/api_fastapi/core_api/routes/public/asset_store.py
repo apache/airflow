@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
-from airflow._shared.state import AssetScope
+from airflow._shared.state import AssetScope, AssetStoreWriterKind
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -36,8 +36,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.models.asset import AssetModel
 from airflow.models.asset_store import AssetStoreModel
-from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
+from airflow.state.metastore import MetastoreStoreBackend
 
 asset_store_router = AirflowRouter(
     tags=["Asset Store"],
@@ -75,12 +75,12 @@ def list_asset_store(
             AssetStoreModel.key,
             AssetStoreModel.value,
             AssetStoreModel.updated_at,
-            TaskInstance.dag_id,
-            TaskInstance.run_id,
-            TaskInstance.task_id,
-            TaskInstance.map_index,
+            AssetStoreModel.last_updated_by_kind,
+            AssetStoreModel.last_updated_by_dag_id,
+            AssetStoreModel.last_updated_by_run_id,
+            AssetStoreModel.last_updated_by_task_id,
+            AssetStoreModel.last_updated_by_map_index,
         )
-        .outerjoin(TaskInstance, AssetStoreModel.last_updated_by_ti_id == TaskInstance.id)
         .where(AssetStoreModel.asset_id == asset_id)
         .order_by(AssetStoreModel.key.asc())
     )
@@ -99,12 +99,13 @@ def list_asset_store(
             value=json.loads(r.value),
             updated_at=r.updated_at,
             last_updated_by=AssetStoreLastUpdatedBy(
-                dag_id=r.dag_id,
-                run_id=r.run_id,
-                task_id=r.task_id,
-                map_index=r.map_index,
+                kind=r.last_updated_by_kind,
+                dag_id=r.last_updated_by_dag_id,
+                run_id=r.last_updated_by_run_id,
+                task_id=r.last_updated_by_task_id,
+                map_index=r.last_updated_by_map_index,
             )
-            if r.dag_id is not None
+            if r.last_updated_by_kind is not None
             else None,
         )
         for r in rows
@@ -128,13 +129,12 @@ def get_asset_store(
             AssetStoreModel.key,
             AssetStoreModel.value,
             AssetStoreModel.updated_at,
-            TaskInstance.dag_id,
-            TaskInstance.run_id,
-            TaskInstance.task_id,
-            TaskInstance.map_index,
-        )
-        .outerjoin(TaskInstance, AssetStoreModel.last_updated_by_ti_id == TaskInstance.id)
-        .where(
+            AssetStoreModel.last_updated_by_kind,
+            AssetStoreModel.last_updated_by_dag_id,
+            AssetStoreModel.last_updated_by_run_id,
+            AssetStoreModel.last_updated_by_task_id,
+            AssetStoreModel.last_updated_by_map_index,
+        ).where(
             AssetStoreModel.asset_id == asset_id,
             AssetStoreModel.key == key,
         )
@@ -149,12 +149,13 @@ def get_asset_store(
         value=json.loads(row.value),
         updated_at=row.updated_at,
         last_updated_by=AssetStoreLastUpdatedBy(
-            dag_id=row.dag_id,
-            run_id=row.run_id,
-            task_id=row.task_id,
-            map_index=row.map_index,
+            kind=row.last_updated_by_kind,
+            dag_id=row.last_updated_by_dag_id,
+            run_id=row.last_updated_by_run_id,
+            task_id=row.last_updated_by_task_id,
+            map_index=row.last_updated_by_map_index,
         )
-        if row.dag_id is not None
+        if row.last_updated_by_kind is not None
         else None,
     )
 
@@ -172,7 +173,14 @@ def set_asset_store(
     session: SessionDep,
 ) -> None:
     """Set an asset store value. Creates or overwrites the key."""
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, json.dumps(body.value), session=session)
+    backend = get_state_backend()
+    scope = AssetScope(asset_id=asset_id)
+    if isinstance(backend, MetastoreStoreBackend):
+        backend.set_asset_store(
+            scope, key, json.dumps(body.value), kind=AssetStoreWriterKind.API, session=session
+        )
+    else:
+        backend.set(scope, key, json.dumps(body.value), session=session)
 
 
 @asset_store_router.delete(

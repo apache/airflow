@@ -51,13 +51,14 @@ class AssetAliasResponse(BaseModel):
 
 class AssetStoreLastUpdatedBy(BaseModel):
     """
-    Identifies the task instance that last wrote an asset store entry.
+    Writer info for the last write to an asset store entry.
     """
 
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    map_index: Annotated[int, Field(title="Map Index")]
+    kind: Annotated[str, Field(title="Kind")]
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
 
 
 class AssetWatcherResponse(BaseModel):

@@ -35,7 +35,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Query, status
 from sqlalchemy import select
 
-from airflow._shared.state import AssetScope
+from airflow._shared.state import AssetScope, AssetStoreWriterKind
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset_store import (
     AssetStorePutBody,
@@ -44,8 +44,30 @@ from airflow.api_fastapi.execution_api.datamodels.asset_store import (
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute
 from airflow.models.asset import AssetModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreStoreBackend
+
+_TIWriterFields = tuple[str, str, str, int]
+
+
+def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
+    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
+    row = session.execute(
+        select(
+            TaskInstance.dag_id,
+            TaskInstance.run_id,
+            TaskInstance.task_id,
+            TaskInstance.map_index,
+        ).where(TaskInstance.id == token.id)
+    ).one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"reason": "ti_not_found", "message": f"Task instance {token.id!r} not found"},
+        )
+    return row.dag_id, row.run_id, row.task_id, row.map_index
+
 
 # TODO(AIP-103): enforce that the requesting task is registered with the asset
 # (via task_inlet_asset_reference or task_outlet_asset_reference) before
@@ -112,7 +134,18 @@ def set_asset_store_by_name(
     backend = get_state_backend()
     scope = AssetScope(asset_id=asset_id)
     if isinstance(backend, MetastoreStoreBackend):
-        backend.set_asset_store(scope, key, json.dumps(body.value), ti_id=token.id, session=session)
+        dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
+        backend.set_asset_store(
+            scope,
+            key,
+            json.dumps(body.value),
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            session=session,
+        )
     else:
         backend.set(scope, key, json.dumps(body.value), session=session)
 
@@ -168,7 +201,18 @@ def set_asset_store_by_uri(
     backend = get_state_backend()
     scope = AssetScope(asset_id=asset_id)
     if isinstance(backend, MetastoreStoreBackend):
-        backend.set_asset_store(scope, key, json.dumps(body.value), ti_id=token.id, session=session)
+        dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
+        backend.set_asset_store(
+            scope,
+            key,
+            json.dumps(body.value),
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            session=session,
+        )
     else:
         backend.set(scope, key, json.dumps(body.value), session=session)
 

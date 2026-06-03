@@ -112,12 +112,20 @@ class TestListAssetState(TestAssetStateEndpoint):
     def test_last_updated_by_returned_when_set(self, test_client, create_task_instance):
         ti = create_task_instance()
         row = AssetStoreModel(
-            asset_id=self.asset.id, key="watermark", value='"v"', last_updated_by_ti_id=ti.id
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id=ti.dag_id,
+            last_updated_by_run_id=ti.run_id,
+            last_updated_by_task_id=ti.task_id,
+            last_updated_by_map_index=ti.map_index,
         )
         self._session.add(row)
         self._session.commit()
 
         item = test_client.get(self._base_url).json()["asset_store"][0]
+        assert item["last_updated_by"]["kind"] == "task"
         assert item["last_updated_by"]["dag_id"] == ti.dag_id
         assert item["last_updated_by"]["run_id"] == ti.run_id
         assert item["last_updated_by"]["task_id"] == ti.task_id
@@ -163,12 +171,20 @@ class TestGetAssetState(TestAssetStateEndpoint):
     def test_last_updated_by_returned_in_get(self, test_client, create_task_instance):
         ti = create_task_instance()
         row = AssetStoreModel(
-            asset_id=self.asset.id, key="watermark", value='"v"', last_updated_by_ti_id=ti.id
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id=ti.dag_id,
+            last_updated_by_run_id=ti.run_id,
+            last_updated_by_task_id=ti.task_id,
+            last_updated_by_map_index=ti.map_index,
         )
         self._session.add(row)
         self._session.commit()
 
         data = test_client.get(f"{self._base_url}/watermark").json()
+        assert data["last_updated_by"]["kind"] == "task"
         assert data["last_updated_by"]["dag_id"] == ti.dag_id
         assert data["last_updated_by"]["run_id"] == ti.run_id
         assert data["last_updated_by"]["task_id"] == ti.task_id
@@ -236,6 +252,17 @@ class TestSetAssetState(TestAssetStateEndpoint):
         )
         assert row is not None
         assert row.value == expected_db
+
+    def test_put_records_api_kind(self, test_client):
+        """PUT via the Core API sets last_updated_by.kind='api' in the response."""
+        test_client.put(f"{self._base_url}/watermark", json={"value": "v"})
+
+        data = test_client.get(f"{self._base_url}/watermark").json()
+        assert data["last_updated_by"]["kind"] == "api"
+        assert data["last_updated_by"]["dag_id"] is None
+        assert data["last_updated_by"]["run_id"] is None
+        assert data["last_updated_by"]["task_id"] is None
+        assert data["last_updated_by"]["map_index"] is None
 
     @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
     def test_core_api_write_read_roundtrip(self, test_client, value):

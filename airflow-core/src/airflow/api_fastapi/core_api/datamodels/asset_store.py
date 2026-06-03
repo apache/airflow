@@ -27,12 +27,13 @@ _MAX_SERIALIZED_BYTES = 65535
 
 
 class AssetStoreLastUpdatedBy(BaseModel):
-    """Identifies the task instance that last wrote an asset store entry."""
+    """Writer info for the last write to an asset store entry."""
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    map_index: int
+    kind: str
+    dag_id: str | None = None
+    run_id: str | None = None
+    task_id: str | None = None
+    map_index: int | None = None
 
 
 class AssetStoreResponse(BaseModel):

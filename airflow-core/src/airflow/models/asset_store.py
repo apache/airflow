@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
-from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text, Uuid
+from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
+from airflow._shared.state import AssetStoreWriterKind
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -34,6 +34,10 @@ class AssetStoreModel(Base):
 
     Not scoped to any DAG run — a watermark written in run 1 is readable by run 2.
     Rows survive until explicitly deleted or the asset itself is deleted.
+
+    ``last_updated_by_*`` columns record who last wrote this entry. They are denormalized
+    (no FK) so that the references survives DAG run cleanup, and so cases like watchers (``BaseEventTrigger``)
+    can write without a task instance.
     """
 
     __tablename__ = "asset_store"
@@ -43,7 +47,12 @@ class AssetStoreModel(Base):
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    last_updated_by_ti_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
+    last_updated_by_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_updated_by_dag_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_run_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_task_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint("asset_id", "key", name="asset_store_pkey"),
@@ -53,10 +62,10 @@ class AssetStoreModel(Base):
             name="asset_store_asset_fkey",
             ondelete="CASCADE",
         ),
-        ForeignKeyConstraint(
-            ["last_updated_by_ti_id"],
-            ["task_instance.id"],
-            name="asset_store_ti_fkey",
-            ondelete="SET NULL",
-        ),
     )
+
+    @property
+    def last_updated_by_kind_enum(self) -> AssetStoreWriterKind | None:
+        if self.last_updated_by_kind is None:
+            return None
+        return AssetStoreWriterKind(self.last_updated_by_kind)
