@@ -158,12 +158,31 @@ breeze would have shown. From the repo root:
 
 ```bash
 PROVIDER_ID=<dotted.id>      # e.g. amazon, cncf.kubernetes
-PROVIDER_PATH=$(echo "$PROVIDER_ID" | tr '.' '/')
-LAST_TAG=$(git tag --list "providers-${PROVIDER_PATH}/*" --sort=-v:refname | head -n1)
+PROVIDER_PATH=$(echo "$PROVIDER_ID" | tr '.' '/')   # folder path: cncf/kubernetes
+PROVIDER_TAG=$(echo "$PROVIDER_ID" | tr '.' '-')    # tag segment: cncf-kubernetes
+# Pick the latest *final* release tag. Two gotchas the tag pattern must handle:
+#  * dotted provider ids use HYPHENS in tag names (providers-cncf-kubernetes/<ver>),
+#    even though the source folder uses slashes — build the tag prefix from
+#    PROVIDER_TAG, not PROVIDER_PATH;
+#  * skip the sentinel upper-bound tags (providers-<id>/99.98.0, /99.99.0) and rc
+#    tags — git's default version sort orders "1.2.0rc1" AFTER "1.2.0", so a bare
+#    `head -n1` would otherwise select a sentinel or a release candidate.
+LAST_TAG=$(git tag --list "providers-${PROVIDER_TAG}/*" --sort=-v:refname \
+    | grep -vE '/99\.9[0-9]\.' | grep -vE 'rc[0-9]+$' | head -n1)
 git log --pretty=format:'%H %h %cd %s' --date=short \
     "${LAST_TAG}..apache-https-for-providers/main" \
     -- "providers/${PROVIDER_PATH}/"
 ```
+
+> [!WARNING]
+> This git query is a convenience for building the per-provider commit list, but
+> the **authoritative set is what breeze prints in the Phase 1 "Commit" tables**
+> for each provider. The tag-based range can still diverge from breeze when a
+> provider's most recent *final* tag is not the last actually-published release
+> (for example, a wave commit bumped the version on `main` but the published
+> baseline is older), which makes breeze include repo-wide commits this query
+> misses. When the two disagree, trust breeze's list and reconcile against it
+> before classifying.
 
 Capture the full hash, short hash, date, subject, and `#NNNN` PR number for
 each commit. Note that some old providers also have legacy paths under
@@ -484,8 +503,12 @@ list the same way as Phase 2 of the initial run:
 
 ```bash
 PROVIDER_ID=<dotted.id>
-PROVIDER_PATH=$(echo "$PROVIDER_ID" | tr '.' '/')
-LAST_TAG=$(git tag --list "providers-${PROVIDER_PATH}/*" --sort=-v:refname | head -n1)
+PROVIDER_PATH=$(echo "$PROVIDER_ID" | tr '.' '/')   # folder path (slashes)
+PROVIDER_TAG=$(echo "$PROVIDER_ID" | tr '.' '-')    # tag segment (hyphens)
+# Same tag-selection rules as Phase 2: hyphenated tag segment, and skip sentinel
+# (99.98.0/99.99.0) and rc tags so we compare against the last *final* release.
+LAST_TAG=$(git tag --list "providers-${PROVIDER_TAG}/*" --sort=-v:refname \
+    | grep -vE '/99\.9[0-9]\.' | grep -vE 'rc[0-9]+$' | head -n1)
 git log --pretty=format:'%H %h %cd %s' --date=short \
     "${LAST_TAG}..apache-https-for-providers/main" \
     -- "providers/${PROVIDER_PATH}/"

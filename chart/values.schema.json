@@ -227,12 +227,9 @@
             }
         },
         "enableServiceLinks": {
-            "description": "Enable Kubernetes service links. The default will become false in Chart 2.0.",
-            "type": [
-                "boolean",
-                "null"
-            ],
-            "default": null,
+            "description": "Enable Kubernetes service links. The default is false in Chart 2.0.",
+            "type": "boolean",
+            "default": false,
             "x-docsSection": "Kubernetes"
         },
         "imagePullSecrets": {

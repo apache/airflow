@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+0.7.3
+.....
+
+Misc
+~~~~
+
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 0.7.2
 .....
 
