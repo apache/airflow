@@ -20,6 +20,7 @@
 .. spelling:word-list::
 
    intra
+   Intra
    checkpointing
 
 Task Store
