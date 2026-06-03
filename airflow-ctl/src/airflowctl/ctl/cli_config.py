@@ -26,6 +26,7 @@ import datetime
 import inspect
 import os
 import sys
+import types as builtin_types
 import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
@@ -54,28 +55,40 @@ BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
 
 def _is_list_annotation(annotation: Any) -> bool:
-    """
-    Check whether a Pydantic field annotation is a list type.
-
-    Handles ``Annotated[list[...] | None, ...]`` and similar wrapped forms
-    that ``typing.get_origin`` alone cannot detect.
-    """
+    """Check whether a Pydantic field annotation is a list type (including Optional[list[...]])."""
     origin = typing.get_origin(annotation)
-
-    # Direct list[...]
     if origin is list:
         return True
-
-    # Unwrap Annotated[X, ...]
-    if origin is typing.Annotated:
-        inner = typing.get_args(annotation)[0]
-        return _is_list_annotation(inner)
-
-    # Unwrap Union / X | None
-    if origin is typing.Union:
+    # Handle both typing.Union (Optional[list[...]]) and PEP-604 X | Y (types.UnionType)
+    if origin is typing.Union or isinstance(annotation, builtin_types.UnionType):
         return any(_is_list_annotation(arg) for arg in typing.get_args(annotation) if arg is not type(None))
-
     return False
+
+
+def _parse_task_ids_cli_arg(value: str) -> list:
+    """
+    Parse the --task-ids CLI string into the format expected by ClearTaskInstancesBody.
+
+    Accepts comma-separated entries of two forms:
+    - ``task_id``             — clears all map indices of that task
+    - ``task_id:map_index``   — clears only the specific mapped instance
+
+    Example: ``"extract:0,transform"`` → ``[TaskIds(root=["extract", 0]), "transform"]``
+    """
+    entries: list = []
+    for entry in (v.strip() for v in value.split(",") if v.strip()):
+        if ":" in entry:
+            task_id, _, map_index_str = entry.rpartition(":")
+            try:
+                entries.append(generated_datamodels.TaskIds(root=[task_id, int(map_index_str)]))
+            except ValueError:
+                raise ValueError(
+                    f"Invalid --task-ids entry '{entry}': "
+                    f"expected 'task_id:map_index' where map_index is an integer."
+                ) from None
+        else:
+            entries.append(entry)
+    return entries
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -439,10 +452,11 @@ class CommandFactory:
             "_check_flag_and_exit_if_server_response_error",
             # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
             "bulk",
-            "_parse_task_instance_response",
         ]
         self.excluded_output_keys = [
             "total_entries",
+            "next_cursor",
+            "previous_cursor",
         ]
 
     def _inspect_operations(self) -> None:
@@ -755,7 +769,11 @@ class CommandFactory:
                             ):
                                 val = args_dict[expanded_parameter]
                                 if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
-                                    if _is_list_annotation(
+                                    if expanded_parameter == "task_ids":
+                                        # task_ids supports nested [task_id, map_index] pairs;
+                                        # use the dedicated parser to preserve that structure.
+                                        val = _parse_task_ids_cli_arg(val)
+                                    elif _is_list_annotation(
                                         datamodel.model_fields[expanded_parameter].annotation
                                     ):
                                         val = [v.strip() for v in val.split(",") if v.strip()]
