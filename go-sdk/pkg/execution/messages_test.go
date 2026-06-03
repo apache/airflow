@@ -48,6 +48,8 @@ func TestDecodeStartupDetails(t *testing.T) {
 			"logical_date":        "2024-01-15T00:00:00Z",
 			"data_interval_start": "2024-01-14T00:00:00Z",
 			"data_interval_end":   "2024-01-15T00:00:00Z",
+			"max_tries":           int64(3),
+			"should_retry":        true,
 		},
 	}
 
@@ -64,6 +66,8 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", details.BundleInfo.Version)
 	assert.NotNil(t, details.TIContext.LogicalDate)
+	assert.Equal(t, 3, details.TIContext.MaxTries)
+	assert.True(t, details.TIContext.ShouldRetry)
 }
 
 func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
@@ -395,6 +399,15 @@ func TestTaskStateMsgToMap_PreservesSubsecondPrecision(t *testing.T) {
 	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
 	m := msg.toMap()
 	assert.Equal(t, "2024-01-15T10:30:00.123456789Z", m["end_date"])
+}
+
+func TestRetryTaskMsgToMap(t *testing.T) {
+	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	msg := RetryTaskMsg{EndDate: endDate, Reason: "test error"}
+	m := msg.toMap()
+	assert.Equal(t, "RetryTask", m["type"])
+	assert.Equal(t, "test error", m["reason"])
+	assert.Equal(t, "2024-01-15T10:30:00Z", m["end_date"])
 }
 
 func TestTaskStateConstants_WireValues(t *testing.T) {
