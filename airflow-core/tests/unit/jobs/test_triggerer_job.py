@@ -2303,7 +2303,7 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 class TestBuildContextFromDagRunData:
     """Tests for TriggerRunner._build_context_from_dag_run_data (triggerer callback context)."""
 
-    _BASE_DAG_RUN_DATA = {
+    _BASE_DAG_RUN_DATA: dict = {
         "dag_id": "example_dag",
         "run_id": "manual__2024-01-01",
         "logical_date": "2024-01-01T00:00:00+00:00",
