@@ -109,7 +109,7 @@ def resolve_uri_to_object_id(hook: InformaticaLineageExtractor, uri: str) -> str
     """
     Resolve an EDC lineage URI to an Informatica catalog object ID.
 
-    Manual lineage entries are treated as concrete object identifiers/URIs.
+    Manual lineage entries are treated as concrete object identifiers/uris.
     They are validated directly via ``get_object`` instead of being reparsed
     and looked up again with ``find_object_id``.
 
