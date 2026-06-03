@@ -267,10 +267,12 @@ The Analytics Operator is ideal for performing efficient, high-performance analy
 Supported Storage Systems
 -------------------------
 - S3
+- GCS (Google Cloud Storage)
+- Azure Blob Storage
 - Local File System
 
 .. note::
-   GCS, Azure, HTTP, Delta, Iceberg are not yet supported but will be added in the future.
+   HTTP and Delta are not yet supported but will be added in the future.
 
 
 
@@ -311,6 +313,22 @@ S3 Storage
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_s3]
     :end-before: [END howto_analytics_operator_with_s3]
+
+GCS Storage
+-----------
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_gcs]
+    :end-before: [END howto_analytics_operator_with_gcs]
+
+Azure Blob Storage
+------------------
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_azure]
+    :end-before: [END howto_analytics_operator_with_azure]
 
 Local File System Storage
 -------------------------
