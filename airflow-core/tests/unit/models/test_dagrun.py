@@ -1746,6 +1746,126 @@ def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion
     assert rows == [(0, "q_0"), (1, "q_1"), (2, "q_2")]
 
 
+def _make_literal_mapped_dagrun(dag_maker, session, *, dag_id, conf=None):
+    """Build a literal-mapped DAG and its running DagRun, returning (dr, dag_version_id).
+
+    Unlike _make_mapped_dag_for_expansion (which leaves an xcom-mapped task unexpanded so callers
+    can drive TaskMap.expand_mapped_task by hand), this builds a literal .expand([...]) so that
+    create_dagrun materializes the mapped TIs immediately. Callers can then re-invoke the mutation
+    hook on those persisted TIs by calling dr.verify_integrity(...) -- the real scheduler method --
+    inside their own prohibit_commit guard.
+    """
+    with dag_maker(dag_id=dag_id, session=session, serialized=True):
+
+        @task
+        def mapped_task(arg):
+            return arg
+
+        mapped_task.expand(arg=[1, 2, 3])
+    dr = dag_maker.create_dagrun(conf=conf or {})
+    dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
+    return dr, dag_version_id
+
+
+def test_freshly_built_mapped_ti_exposes_dag_run_as_loaded_none(dag_maker, session):
+    """A freshly-built mapped TaskInstance exposes dag_run as loaded-None, not a lazy-load or raise.
+
+    TaskMap.expand_mapped_task constructs each expanded TI with TaskInstance(task, run_id=..., ...)
+    and invokes the mutation hook on it before it is merged into a session. A conf-routing hook that
+    resolves the DagRun by attribute access (the _resolve_dagrun discipline) relies on ti.dag_run
+    returning None here -- without hitting the DB and without raising DetachedInstanceError -- so it
+    can fall through to a non-DB resolution path. This pins that lifecycle fact (documented on
+    TaskInstance.get_dagrun); if a future change made the relationship eager-load or raise on a
+    transient instance, the workaround would silently change behavior and this test would flag it.
+    """
+    with dag_maker(dag_id="test_loaded_none_canary", session=session, serialized=True) as dag:
+        EmptyOperator(task_id="solo")
+    dr = dag_maker.create_dagrun()
+
+    task = dag.task_dict["solo"]
+    ti = TI(
+        task,
+        run_id=dr.run_id,
+        map_index=0,
+        dag_version_id=DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id,
+    )
+
+    # Transient: not attached to any session, so a real _resolve_dagrun cannot lazy-load via it.
+    assert sa_inspect(ti).session is None
+    # Attribute access returns None rather than raising or emitting a query -- the load-as-None state.
+    assert ti.dag_run is None
+
+
+def test_naive_committing_hook_crashes_on_verify_integrity_under_guard(dag_maker, session):
+    """A committing hook crashes on the real verify_integrity path under the guard, not just the helper.
+
+    The committed expand_mapped_task tests hand-roll the prohibit_commit wrapper. This drives the
+    actual scheduler method dr.verify_integrity(...) -- which re-invokes the mutation hook on every
+    task instance -- inside the guard, proving the guard is genuinely live on the production path. A
+    hook calling the @provide_session-decorated get_dagrun() with no session reuses the guarded scoped
+    session; create_session() commits on exit and trips the before_commit guard.
+    """
+
+    def naive_hook(task_instance):
+        task_instance.get_dagrun()
+
+    dr, dag_version_id = _make_literal_mapped_dagrun(
+        dag_maker, session, dag_id="test_verify_integrity_naive_hook"
+    )
+
+    with _registered_mutation_hook(naive_hook):
+        with prohibit_commit(session):
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+
+def test_resolve_dagrun_attribute_access_is_safe_on_verify_integrity_under_guard(dag_maker, session):
+    """An attribute-access conf-routing hook survives the real verify_integrity path under the guard.
+
+    Mirrors the _resolve_dagrun mechanism a conf-routing cluster policy uses: inspect whether dag_run
+    is loaded and whether the TI is attached, then resolve only via ti.dag_run attribute access --
+    never opening a committing create_session(). Driven through dr.verify_integrity(...) under a real
+    prohibit_commit guard, this pins that the attribute-access path is non-committing and non-raising
+    on the production method, which the committed safe_hook test (explicit SELECT on the attached
+    session) does not exercise.
+
+    The if/elif branches deliberately mirror the real (out-of-repo) _resolve_dagrun so they act as a
+    regression anchor: if a future change to ti.dag_run's lazy-load semantics broke the eager-loaded
+    or attached path, attribute access here would raise and the test would catch it.
+    """
+    seen_map_indices = []
+
+    def resolve_dagrun_like_hook(task_instance):
+        state = sa_inspect(task_instance)
+        if "dag_run" not in state.unloaded:
+            _ = task_instance.dag_run  # eager-loaded: cheap attribute read
+        elif state.session is not None:
+            _ = task_instance.dag_run  # attached: lazy-load via the outer session, no new session
+        # else: transient -> a real _resolve_dagrun walks the stack; nothing to do here.
+        seen_map_indices.append(task_instance.map_index)
+
+    dr, dag_version_id = _make_literal_mapped_dagrun(
+        dag_maker, session, dag_id="test_verify_integrity_resolve_dagrun", conf={"route": "high"}
+    )
+
+    with _registered_mutation_hook(resolve_dagrun_like_hook):
+        with prohibit_commit(session) as guard:
+            dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+            guard.commit()
+
+    # The attribute-access hook ran (without raising or committing) on every persisted mapped TI:
+    # verify_integrity re-invokes it via _check_for_removed_or_restored_tasks, and the expanded TIs
+    # all survive. Any raise inside the hook would have propagated out of verify_integrity and failed
+    # the test directly -- no flag needed.
+    assert sorted(seen_map_indices) == [0, 1, 2]
+    indices = session.scalars(
+        select(TI.map_index)
+        .where(TI.task_id == "mapped_task", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert indices == [0, 1, 2]
+
+
 def test_verify_integrity_handles_stale_data_error(dag_maker, session):
     """Test that StaleDataError during _create_task_instances is caught and session is rolled back."""
     with dag_maker("test_stale_data_error_dag", session=session) as dag:
