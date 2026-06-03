@@ -209,6 +209,42 @@ class TestCeleryExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
+    @mock.patch("airflow.providers.celery.executors.celery_executor.Stats.incr")
+    def test_update_task_state_unexpected_state_logs_warning_and_increments_metric(
+        self, mock_stats_incr, caplog
+    ):
+        executor = celery_executor.CeleryExecutor()
+        key = TaskInstanceKey("dag_id", "task_id", "run_id", 1)
+        info = {"hostname": "celery@worker1"}
+
+        with caplog.at_level(logging.WARNING, logger=executor.log.name):
+            executor.update_task_state(key, "SOME_UNKNOWN_STATE", info)
+
+        assert "Unexpected Celery task state" in caplog.text
+        assert "celery@worker1" in caplog.text
+        mock_stats_incr.assert_called_once_with("celery.task_unexpected_state")
+
+    @mock.patch("airflow.providers.celery.executors.celery_executor.Stats.incr")
+    def test_update_all_workload_states_missing_broker_state_logs_warning_and_increments_metric(
+        self, mock_stats_incr, caplog
+    ):
+        executor = celery_executor.CeleryExecutor()
+        key = TaskInstanceKey("dag_id", "task_id", "run_id", 1)
+        mock_async_result = AsyncResult("some-celery-task-id")
+        executor.workloads = {key: mock_async_result}
+
+        with mock.patch.object(
+            executor.bulk_state_fetcher,
+            "get_many",
+            return_value={"some-celery-task-id": (None, None)},
+        ):
+            with caplog.at_level(logging.WARNING, logger=executor.log.name):
+                executor.update_all_workload_states()
+
+        assert "Celery task absent from broker state" in caplog.text
+        assert "some-celery-task-id" in caplog.text
+        mock_stats_incr.assert_called_once_with("celery.task_not_found_in_broker")
+
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
         ("command", "raise_exception"),
@@ -919,7 +955,7 @@ def test_process_workloads_routes_execute_callback(mock_send_workloads, callback
     executor = celery_executor.CeleryExecutor()
     executor._process_workloads([workload])
 
-    mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
+    mock_send_workloads.assert_called_once_with([(callback_id, workload, expected_queue, None)])
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
