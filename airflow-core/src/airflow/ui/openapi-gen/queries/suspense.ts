@@ -224,6 +224,17 @@ export const useConnectionServiceGetConnectionSuspense = <TData = Common.Connect
   connectionId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey), queryFn: () => ConnectionService.getConnection({ connectionId }) as TData, ...options });
 /**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTestSuspense = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) as TData, ...options });
+/**
 * Get Connections
 * Get all connection entries.
 * @param data The data for the request.
