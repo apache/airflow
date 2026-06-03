@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+3.6.5
+.....
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 5 updates (#67733)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#67512)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+* ``Bump eslint (via audit fix) (#67220)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove findings from positional session check in Core Utils (#67777)``
+   * ``[main] CI: Upgrade important CI environment (#67593)``
+   * ``[main] CI: Upgrade important CI environment (#67313)``
+
+
 3.6.4
 .....
 

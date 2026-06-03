@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-impala``
 
-Release: ``1.9.2``
+Release: ``1.9.3``
 
 
 `Apache Impala <https://impala.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.impala`` provider. All classes for this 
 are in ``airflow.providers.apache.impala`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.3/>`_.
 
 Installation
 ------------
@@ -90,4 +90,4 @@ Extra           Dependencies
 ==============  ======================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.3/changelog.html>`_.
