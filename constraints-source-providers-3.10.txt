@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-01T23:38:52.572554
+# This constraints file was automatically generated on 2026-06-03T14:31:09.547354
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -80,7 +80,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 apispec==6.10.0
-apprise==1.10.0
+apprise==1.11.0
 argcomplete==3.6.3
 arro3-core==0.8.0
 asana==5.2.4
@@ -101,7 +101,7 @@ aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.41.0
-azure-cosmos==4.15.0
+azure-cosmos==4.16.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
@@ -160,7 +160,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.1
 cloudpickle==3.1.1
-cohere==7.0.0
+cohere==7.0.2
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
@@ -234,7 +234,7 @@ gitdb==4.0.12
 google-ads==31.0.0
 google-analytics-admin==0.29.0
 google-api-core==2.30.3
-google-api-python-client==2.196.0
+google-api-python-client==2.197.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
 google-auth==2.53.0
@@ -337,7 +337,7 @@ imagesize==2.0.0
 immutabledict==4.3.1
 importlib_metadata==9.0.0
 importlib_resources==7.1.0
-impyla==0.22.0
+impyla==0.23.0
 inflection==0.5.1
 influxdb-client==1.50.0
 influxdb3-python==0.19.0
@@ -379,13 +379,13 @@ kubernetes==35.0.0
 kubernetes_asyncio==35.0.1
 kylinpy==2.8.4
 langchain-core==1.4.0
-langchain-protocol==0.0.15
+langchain-protocol==0.0.16
 langchain==1.3.2
 langgraph-checkpoint==4.1.1
 langgraph-prebuilt==1.1.0
 langgraph-sdk==0.3.15
 langgraph==1.2.2
-langsmith==0.8.6
+langsmith==0.8.7
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 librt==0.11.0
@@ -395,7 +395,7 @@ litellm==1.82.6
 llama-index-core==0.14.22
 llama-index-embeddings-openai==0.6.0
 llama-index-instrumentation==0.5.0
-llama-index-llms-openai==0.7.8
+llama-index-llms-openai==0.7.9
 llama-index-workflows==2.20.0
 lockfile==0.12.2
 logfire-api==4.34.0
@@ -406,7 +406,7 @@ markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
 marshmallow==3.26.2
 matplotlib-inline==0.2.2
-mcp==1.27.1
+mcp==1.27.2
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
 memray==1.19.3
@@ -423,7 +423,7 @@ more-itertools==11.1.0
 moto==5.2.1
 mpmath==1.3.0
 msal-extensions==1.3.1
-msal==1.36.0
+msal==1.37.0
 msgpack==1.1.2
 msgraph-core==1.4.0
 msgraphfs==0.4
@@ -505,8 +505,8 @@ pipdeptree==2.35.3
 platformdirs==4.10.0
 pluggy==1.6.0
 plyvel==1.5.1
-polars-runtime-32==1.41.1
-polars==1.41.1
+polars-runtime-32==1.41.2
+polars==1.41.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.6.0
@@ -536,9 +536,9 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-skills==0.11.0
-pydantic-ai-slim==1.103.0
+pydantic-ai-slim==1.104.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.103.0
+pydantic-graph==1.104.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -612,7 +612,7 @@ retryhttp==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.8.0
-rich-click==1.9.7
+rich-click==1.9.8
 rich-toolkit==0.19.10
 rich==13.9.4
 rpds-py==0.30.0
@@ -705,7 +705,7 @@ traitlets==5.15.0
 trino==0.337.0
 trove-classifiers==2026.5.22.10
 twine==6.2.0
-typer==0.26.2
+typer==0.26.3
 types-Deprecated==1.3.1.20260520
 types-Markdown==3.10.2.20260518
 types-PyMySQL==1.1.0.20260518
@@ -739,7 +739,7 @@ urllib3==2.7.0
 userpath==1.9.2
 uuid6==2025.0.1
 uuid_utils==0.16.0
-uv==0.11.16
+uv==0.11.17
 uvicorn==0.48.0
 uvloop==0.22.1
 validators==0.35.0
