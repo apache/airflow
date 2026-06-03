@@ -131,6 +131,8 @@ func TestSerializeTask(t *testing.T) {
 	assert.Equal(t, "main", data["_task_module"])
 	assert.Equal(t, "go", data["language"])
 	assert.Equal(t, []string{"transform"}, data["downstream_task_ids"])
+	// template_fields is always present (matches Python), empty for Go tasks.
+	assert.Equal(t, []any{}, data["template_fields"])
 	_, hasQueue := data["queue"]
 	assert.False(t, hasQueue, "queue should be omitted when unset")
 }
@@ -289,10 +291,19 @@ func TestSerializeDagMinimal(t *testing.T) {
 	tt := result["timetable"].(map[string]any)
 	assert.Equal(t, "airflow.timetables.simple.NullTimetable", tt["__type"])
 
+	// Optional spec fields stay omitted when unset.
 	_, hasDesc := result["description"]
 	assert.False(t, hasDesc)
-	_, hasCatchup := result["catchup"]
-	assert.False(t, hasCatchup)
+	_, hasTags := result["tags"]
+	assert.False(t, hasTags)
+
+	// Python always serializes these (no schema default to omit against), so
+	// a minimal Dag still carries them at their resolved [core] defaults.
+	assert.Equal(t, false, result["catchup"])
+	assert.Equal(t, false, result["disable_bundle_versioning"])
+	assert.Equal(t, defaultMaxActiveTasksPerDag, result["max_active_tasks"])
+	assert.Equal(t, defaultMaxActiveRunsPerDag, result["max_active_runs"])
+	assert.Equal(t, 0, result["max_consecutive_failed_dag_runs"])
 }
 
 func TestSerializeDagWithTasks(t *testing.T) {
@@ -364,7 +375,8 @@ func TestSerializeDagWithSpec(t *testing.T) {
 	assert.Equal(t, "@daily", v["expression"])
 
 	assert.Equal(t, "Extract, transform, load", result["description"])
-	assert.Equal(t, []any{"prod", "etl"}, result["tags"])
+	// Tags are emitted sorted, matching Python's set-backed serialization.
+	assert.Equal(t, []any{"etl", "prod"}, result["tags"])
 	assert.Equal(t, "ETL Pipeline", result["dag_display_name"])
 	assert.Equal(t, "## ETL", result["doc_md"])
 	assert.Equal(t, 32, result["max_active_tasks"])
@@ -382,14 +394,39 @@ func TestSerializeDagWithSpec(t *testing.T) {
 	assert.InDelta(t, float64(start.Unix()), startDate, 0.001)
 }
 
-func TestApplyDagSpec_OmitsSchemaDefaults(t *testing.T) {
-	spec := bundlev1.DagSpec{
-		MaxActiveTasks: 16,
-		MaxActiveRuns:  16,
-	}
+func TestApplyDagSpec_AlwaysEmitsNonSchemaDefaultFields(t *testing.T) {
+	// catchup, disable_bundle_versioning and the three max_* fields have no
+	// JSON-schema default, so Python always serializes them. An empty spec
+	// must still emit them at their resolved [core] defaults.
 	data := map[string]any{}
-	applyDagSpec(data, spec)
-	assert.Empty(t, data, "values equal to schema defaults must be omitted")
+	applyDagSpec(data, bundlev1.DagSpec{})
+
+	assert.Equal(t, false, data["catchup"])
+	assert.Equal(t, false, data["disable_bundle_versioning"])
+	assert.Equal(t, defaultMaxActiveTasksPerDag, data["max_active_tasks"])
+	assert.Equal(t, defaultMaxActiveRunsPerDag, data["max_active_runs"])
+	assert.Equal(t, 0, data["max_consecutive_failed_dag_runs"])
+
+	// Fields with a false/empty schema default stay omitted when unset.
+	for _, k := range []string{
+		"description", "start_date", "end_date", "tags", "dag_display_name",
+		"doc_md", "dagrun_timeout", "fail_fast", "render_template_as_native_obj",
+		"is_paused_upon_creation",
+	} {
+		_, ok := data[k]
+		assert.Falsef(t, ok, "%q should be omitted when unset", k)
+	}
+}
+
+func TestApplyDagSpec_OmitsFalseSchemaDefaultBooleans(t *testing.T) {
+	// fail_fast and render_template_as_native_obj default to false in the
+	// schema, so Python omits them unless explicitly true.
+	data := map[string]any{}
+	applyDagSpec(data, bundlev1.DagSpec{FailFast: false, RenderTemplateAsNativeObj: false})
+	_, hasFailFast := data["fail_fast"]
+	assert.False(t, hasFailFast)
+	_, hasNative := data["render_template_as_native_obj"]
+	assert.False(t, hasNative)
 }
 
 func TestComputeRelativeFileloc(t *testing.T) {
