@@ -65,32 +65,6 @@ def _is_list_annotation(annotation: Any) -> bool:
     return False
 
 
-def _parse_task_ids_cli_arg(value: str) -> list:
-    """
-    Parse the --task-ids CLI string into the format expected by ClearTaskInstancesBody.
-
-    Accepts comma-separated entries of two forms:
-    - ``task_id``             — clears all map indices of that task
-    - ``task_id:map_index``   — clears only the specific mapped instance
-
-    Example: ``"extract:0,transform"`` → ``[TaskIds(root=["extract", 0]), "transform"]``
-    """
-    entries: list = []
-    for entry in (v.strip() for v in value.split(",") if v.strip()):
-        if ":" in entry:
-            task_id, _, map_index_str = entry.rpartition(":")
-            try:
-                entries.append(generated_datamodels.TaskIds(root=[task_id, int(map_index_str)]))
-            except ValueError:
-                raise ValueError(
-                    f"Invalid --task-ids entry '{entry}': "
-                    f"expected 'task_id:map_index' where map_index is an integer."
-                ) from None
-        else:
-            entries.append(entry)
-    return entries
-
-
 def lazy_load_command(import_path: str) -> Callable:
     """Create a lazy loader for command."""
     _, _, name = import_path.rpartition(".")
@@ -769,11 +743,7 @@ class CommandFactory:
                             ):
                                 val = args_dict[expanded_parameter]
                                 if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
-                                    if expanded_parameter == "task_ids":
-                                        # task_ids supports nested [task_id, map_index] pairs;
-                                        # use the dedicated parser to preserve that structure.
-                                        val = _parse_task_ids_cli_arg(val)
-                                    elif _is_list_annotation(
+                                    if _is_list_annotation(
                                         datamodel.model_fields[expanded_parameter].annotation
                                     ):
                                         val = [v.strip() for v in val.split(",") if v.strip()]
