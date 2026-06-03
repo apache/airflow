@@ -72,7 +72,7 @@ def get_tasks(
     session: SessionDep,
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
-    """Get tasks for DAG."""
+    """Get tasks for Dag."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     lstripped_order_by = order_by.lstrip("-")
     if lstripped_order_by not in _SORTABLE_TASK_FIELDS:

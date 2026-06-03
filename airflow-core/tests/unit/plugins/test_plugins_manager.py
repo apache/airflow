@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import importlib
 import inspect
 import logging
@@ -54,21 +53,6 @@ def _clean_listeners():
     get_listener_manager().clear()
     yield
     get_listener_manager().clear()
-
-
-@pytest.fixture
-def mock_metadata_distribution(mocker):
-    @contextlib.contextmanager
-    def wrapper(*args, **kwargs):
-        if sys.version_info < (3, 12):
-            patch_fq = "importlib_metadata.distributions"
-        else:
-            patch_fq = "importlib.metadata.distributions"
-
-        with mock.patch(patch_fq, *args, **kwargs) as m:
-            yield m
-
-    return wrapper
 
 
 class TestPluginsManager:
@@ -160,7 +144,34 @@ class TestPluginsManager:
         assert "plugin_b" in plugin_names
         assert "plugin_c" in plugin_names
         assert len(plugins) == 3
-        assert not import_errors
+
+    def test_duplicate_plugin_name_is_reported_as_import_error(self):
+        from airflow import plugins_manager
+
+        class PluginA(AirflowPlugin):
+            name = "plugin_a"
+
+        class PluginADuplicateName(AirflowPlugin):
+            name = "plugin_a"
+
+        plugin_a = PluginA()
+        plugin_a_dup = PluginADuplicateName()
+
+        with (
+            mock.patch(
+                "airflow.plugins_manager._load_plugins_from_plugin_directory",
+                return_value=([plugin_a], {}),
+            ),
+            mock.patch(
+                "airflow.plugins_manager._load_entrypoint_plugins",
+                return_value=([plugin_a_dup], {}),
+            ),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], {})),
+        ):
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        assert [p.name for p in plugins] == ["plugin_a"]
+        assert len(import_errors) == 1
 
     def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):

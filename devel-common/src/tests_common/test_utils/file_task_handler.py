@@ -34,9 +34,15 @@ def extract_events(logs: Iterable[StructuredLogMessage], skip_source_info=True) 
     """Helper function to return just the event (a.k.a message) from a list of StructuredLogMessage"""
     logs = iter(logs)
     if skip_source_info:
+        in_source_group = False
 
         def is_source_group(log: StructuredLogMessage) -> bool:
-            return not hasattr(log, "timestamp") or log.event == "::endgroup::" or hasattr(log, "sources")
+            nonlocal in_source_group
+            if not in_source_group and log.event == "::group::Log message source details":
+                in_source_group = True
+            elif in_source_group and log.event == "::endgroup::":
+                in_source_group = False
+            return not hasattr(log, "timestamp") or log.event == "::endgroup::" or in_source_group
 
         logs = itertools.dropwhile(is_source_group, logs)
 

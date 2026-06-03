@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 import attrs
@@ -66,6 +67,30 @@ class Variable:
             return _set_variable(key, value, description, serialize_json=serialize_json)
         except AirflowRuntimeError as e:
             log.exception(e)
+
+    @classmethod
+    def keys(cls, prefix: str | None = None) -> Sequence[str]:
+        """
+        Return Variable keys that start with the given prefix.
+
+        The keys are fetched lazily on first access (iteration, indexing, len, etc.)
+        and cached for subsequent access.
+
+        .. note::
+            Only keys stored in the metadata database are returned — secrets backends
+            are **not** consulted. This asymmetry with :meth:`get` (which does consult
+            secrets backends) is a deliberate design decision: most secrets backends
+            either do not expose a listing API at all, or do so inefficiently and
+            without prefix filtering. See
+            https://github.com/apache/airflow/issues/61166 for context.
+
+        :param prefix: Optional key prefix to filter by. If None, all keys are returned.
+        """
+        import lazy_object_proxy
+
+        from airflow.sdk.execution_time.context import _get_variable_keys
+
+        return lazy_object_proxy.Proxy(lambda: _get_variable_keys(prefix=prefix))
 
     @classmethod
     def delete(cls, key: str) -> None:

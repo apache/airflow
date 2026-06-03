@@ -97,7 +97,6 @@ export const Details = () => {
       )}
       <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
       {taskInstance === undefined ||
-      // eslint-disable-next-line unicorn/no-null
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
         <BlockingDeps
           refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
@@ -151,6 +150,18 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>{translate("duration")}</Table.Cell>
             <Table.Cell>{renderDuration(tryInstance?.duration)}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>{translate("taskInstance.scheduledWhen")}</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.scheduled_when} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>{translate("taskInstance.queuedWhen")}</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.queued_when} />
+            </Table.Cell>
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("startDate")}</Table.Cell>

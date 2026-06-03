@@ -24,7 +24,8 @@ brings together AWS data, analytics, artificial intelligence (AI), and machine l
 It provides a place to build, deploy, execute, and monitor end-to-end workflows from a single interface.
 This helps drive collaboration across teams and facilitate agile development.
 
-Airflow provides operators to orchestrate Notebooks, Querybooks, and Visual ETL jobs within SageMaker Unified Studio Workflows.
+Airflow provides different operators for running artifacts in SageMaker Unified Studio. Read the descriptions
+below to understand which operator is best suited for your use case.
 
 Prerequisite Tasks
 ------------------
@@ -32,22 +33,41 @@ Prerequisite Tasks
 To use these operators, you must do a few things:
 
   * Create a SageMaker Unified Studio domain and project, following the instruction in `AWS documentation <https://docs.aws.amazon.com/sagemaker-unified-studio/latest/userguide/getting-started.html>`__.
-  * Within your project:
-    * Navigate to the "Compute > Workflow environments" tab, and click "Create" to create a new MWAA environment.
-    * Create a Notebook, Querybook, or Visual ETL job and save it to your project.
+  * If the domain is an IdC domain, navigate to the "Compute > Workflow environments" tab, and click "Create" to create a new MWAA environment.
+  * Create a Jupyter notebook, querybook, Visual ETL job, or SageMaker Unified Studio notebook and save it to your project.
 
 Operators
 ---------
 
 .. _howto/operator:SageMakerNotebookOperator:
 
-Create an Amazon SageMaker Unified Studio Workflow
-==================================================
+Run Jupyter notebooks, Querybooks, and Visual ETL jobs
+======================================================
 
-To create an Amazon SageMaker Unified Studio workflow to orchestrate your notebook, querybook, and visual ETL runs you can use
-:class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookOperator`.
+Use :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookOperator`
+to execute Jupyter notebooks, querybooks, and visual ETL jobs. This operator relies on the ``sagemaker_studio``
+Python library to execute these artifacts.
+
+The artifact is identified by its relative file path within the project (e.g. ``test_notebook.ipynb``).
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_unified_studio_notebook]
+    :end-before: [END howto_operator_sagemaker_unified_studio_notebook]
+
+.. _howto/operator:SageMakerUnifiedStudioNotebookOperator:
+
+Run SageMaker Unified Studio notebooks
+===============================================
+
+Use :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook.SageMakerUnifiedStudioNotebookOperator`
+to execute SageMaker Unified Studio notebooks through the DataZone ``StartNotebookRun`` API.
+
+The notebook is identified by its notebook ID (e.g. ``nb-1234567890``), along with the domain ID and project ID
+where the notebook resides.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio_notebook.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_unified_studio_notebook]
@@ -61,6 +81,19 @@ The following example adds domain ID, project ID, and domain name as operator pa
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
     :end-before: [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+
+Notebooks can produce output variables that are automatically pushed to XCom when the run completes.
+Downstream tasks can consume these outputs via Jinja templating in ``notebook_parameters``.
+
+In this example, Notebook A produces outputs (e.g., ``name`` and ``age``). Notebook B receives
+those values as parameters using Jinja templates like
+``{{ task_instance.xcom_pull(task_ids='notebook-a-task', key='name') }}``.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio_notebook.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_unified_studio_notebook_pass_outputs]
+    :end-before: [END howto_operator_sagemaker_unified_studio_notebook_pass_outputs]
 
 Reference
 ---------

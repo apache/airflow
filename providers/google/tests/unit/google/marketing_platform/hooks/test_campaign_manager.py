@@ -42,17 +42,21 @@ class TestGoogleCampaignManagerHook:
             self.hook = GoogleCampaignManagerHook(gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION)
 
     @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.campaign_manager.GoogleCampaignManagerHook.get_client_options"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
         "campaign_manager.GoogleCampaignManagerHook._authorize"
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.campaign_manager.build")
-    def test_gen_conn(self, mock_build, mock_authorize):
+    def test_gen_conn(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "dfareporting",
             API_VERSION,
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 

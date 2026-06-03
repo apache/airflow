@@ -150,10 +150,12 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
     """
     For a set of keys, expand plural bases to include required suffixes for the language.
 
-    When en_key_to_value is provided, only expand a base to all plural forms when at least
-    one of the English values for that base contains {{count}}. Keys without {{count}}
-    (e.g. fixed "1 Error") are not expanded, so locales are not required to have
-    unused forms like error_other when the source only has error_one.
+    When en_key_to_value is provided, expand a plural base if either:
+    - one of the English values for that base contains {{count}}, or
+    - English defines multiple plural forms for that base (for example *_one and *_other).
+
+    This prevents falsely marking locale-specific plural keys as unused when count drives
+    plural selection but is not interpolated in the English string itself.
     """
     console = get_console()
     suffixes = PLURAL_SUFFIXES.get(lang)
@@ -174,7 +176,9 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
         if en_key_to_value is not None:
             en_keys_for_base = [k for k in keys if get_plural_base(k, suffixes) == base]
             any_has_count = any(COUNT_PLACEHOLDER in en_key_to_value.get(k, "") for k in en_keys_for_base)
-            if not any_has_count:
+            has_multiple_en_plural_forms = len(en_keys_for_base) > 1
+
+            if not any_has_count and not has_multiple_en_plural_forms:
                 continue
         for suffix in suffixes:
             expanded.add(base + suffix)

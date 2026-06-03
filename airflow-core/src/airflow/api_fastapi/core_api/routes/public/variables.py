@@ -26,6 +26,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     QueryVariableKeyPatternSearch,
+    QueryVariableKeyPrefixPatternSearch,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -111,11 +112,12 @@ def get_variables(
     readable_variables_filter: ReadableVariablesFilterDep,
     session: SessionDep,
     variable_key_pattern: QueryVariableKeyPatternSearch,
+    variable_key_prefix_pattern: QueryVariableKeyPrefixPatternSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
         statement=select(Variable),
-        filters=[variable_key_pattern, readable_variables_filter],
+        filters=[variable_key_pattern, variable_key_prefix_pattern, readable_variables_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,

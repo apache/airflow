@@ -503,16 +503,164 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
     teams share the same metadata database and common Airflow infrastructure. For absolutely strict security
     requirements, consider separate Airflow deployments.
 
-Architecture
-------------
+.. _multi-team-asset-event-filtering:
 
-The following diagram shows a Multi-Team Airflow deployment with resource isolation between teams.
+Team-Based Asset Event Filtering
+---------------------------------
 
-The components in blue are the shared components and those in green are the team components (note the green shadow box
-indicating more than one team is present in the architecture).
+When Multi-Team mode is enabled, asset events are filtered by team membership before they trigger
+downstream Dag runs. This prevents asset events produced by one team's Dags from unintentionally
+triggering Dag runs for a different team.
 
-.. image:: /img/multi_team_arch_diagram.png
-   :alt: Multi-Team Airflow Architecture showing resource isolation between teams
+Default Behavior
+^^^^^^^^^^^^^^^^
+
+By default, a consuming Dag only receives asset events from producers within the same team or from Dags with no team association, i.e. global Dags.
+
+Cross-Team Opt-In with ``access_control``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To allow specific teams to produce events that trigger consumers on a given asset from another team, use the
+``access_control`` parameter on the ``Asset`` definition with an ``AssetAccessControl`` instance:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    shared_data = Asset(
+        name="shared_data",
+        uri="s3://bucket/shared/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
+    )
+
+With this configuration, asset events from ``team_analytics`` or ``team_ml`` will be accepted by any
+consuming Dag that schedules on ``shared_data``, in addition to events from the consumer's own team.
+
+To block global (teamless) Dag producers from triggering consumers, set ``allow_global=False``:
+
+.. code-block:: python
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+See :ref:`Cross-team asset event filtering with access_control <asset_access_control>` in the Assets
+documentation for usage details and validation rules.
+
+Behavioral Rules
+^^^^^^^^^^^^^^^^
+
+The following table describes the complete filtering logic:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 18 14 13 25
+
+   * - Producer
+     - Consumer
+     - ``producer_teams``
+     - ``allow_global``
+     - Result
+     - Reason
+   * - Team A (DAG)
+     - Team A
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Same team
+   * - Team A (DAG)
+     - Team B
+     - ``[]``
+     - (any)
+     - ❌ Blocked
+     - Different team, no opt-in
+   * - Team A (DAG)
+     - Team B
+     - ``["team_a"]``
+     - (any)
+     - ✅ Allowed
+     - Cross-team opt-in
+   * - (no team, DAG)
+     - Team B
+     - (any)
+     - ``True``
+     - ✅ Allowed
+     - Global producer, allow_global is True
+   * - (no team, DAG)
+     - Team B
+     - (any)
+     - ``False``
+     - ❌ Blocked
+     - Global producer blocked by allow_global=False
+   * - Team A (DAG)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Teamless consumer accepts events from any DAG producer
+   * - (no team, DAG)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Both global
+   * - Team A (API)
+     - Team A
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Same team
+   * - Team A (API)
+     - Team B
+     - ``["team_a"]``
+     - (any)
+     - ✅ Allowed
+     - Cross-team opt-in
+   * - Team A (API)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Teamless consumer accepts events from any source
+   * - (no team, API)
+     - Team B
+     - (any)
+     - (any)
+     - ❌ Blocked
+     - Teamless API user cannot trigger team-bound consumer
+   * - (no team, API)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Both global
+
+Key rules:
+
+- **Same team**: Always allowed.
+- **Global (teamless) DAG producer with** ``allow_global=True``: Triggers all consumers regardless of team.
+- **Global (teamless) DAG producer with** ``allow_global=False``: Blocked from triggering team-bound consumers.
+- **Teamless API user**: Can only trigger teamless consumers. Unlike a teamless DAG — which is
+  deployed by a platform operator and intentionally shared — an API user without a team has no
+  verified team affiliation, so their events are restricted to teamless consumers to
+  prevent unscoped access to team-bound pipelines.
+- **Teamless consumer**: Accepts events from any source (DAG or API), regardless of team.
+- **Cross-team via** ``producer_teams``: Allowed when the producer's team is listed in the asset's ``producer_teams``.
+- **Multi-Team disabled**: All filtering is skipped; existing behavior is preserved.
+
+API-Triggered Events
+^^^^^^^^^^^^^^^^^^^^
+
+When a user creates an asset event via the REST API, the user's team is resolved from the auth manager.
+The same filtering rules apply, with one distinction: a teamless API user can only trigger teamless
+consumers, whereas a teamless DAG producer is treated as global and can trigger any consumer.
 
 Important Considerations
 ------------------------
@@ -535,3 +683,14 @@ Global Uniqueness of Identifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Dag IDs, Variable keys, and Connection IDs must be unique across the entire Airflow deployment**, regardless of which team owns them. This is similar to how S3 bucket names are globally unique across all AWS accounts. You should establish naming conventions within your organization to avoid naming conflicts (e.g. prefix identifiers with the team name)
+
+Architecture
+------------
+
+The following diagram shows a Multi-Team Airflow deployment with resource isolation between teams.
+
+The components in blue are the shared components and those in green are the team components (note the green shadow box
+indicating more than one team is present in the architecture).
+
+.. image:: /img/multi_team_arch_diagram.png
+   :alt: Multi-Team Airflow Architecture showing resource isolation between teams

@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from cachetools import LRUCache, TTLCache
 
 from airflow.api_fastapi.app import purge_cached_app
 from airflow.sdk import BaseOperator
@@ -82,3 +83,30 @@ class TestDagBagSingleton:
         assert resp2.status_code == 200
 
         assert self.dagbag_call_counter["count"] == 1
+
+
+class TestCreateDagBag:
+    """Tests for create_dag_bag() function."""
+
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_use_cache", "expected_dags_type"),
+        [
+            pytest.param(64, 3600, True, TTLCache, id="default_ttl_cache"),
+            pytest.param(0, 3600, False, dict, id="size_zero_unbounded"),
+            pytest.param(64, 0, True, LRUCache, id="ttl_zero_lru_only"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.common.dagbag.conf")
+    def test_create_dag_bag_cache_modes(
+        self, mock_conf, cache_size, cache_ttl, expected_use_cache, expected_dags_type
+    ):
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        mock_conf.getint.side_effect = lambda section, key, fallback: {
+            "dag_cache_size": cache_size,
+            "dag_cache_ttl": cache_ttl,
+        }.get(key, fallback)
+
+        dag_bag = create_dag_bag()
+        assert dag_bag._use_cache is expected_use_cache
+        assert isinstance(dag_bag._dags, expected_dags_type)

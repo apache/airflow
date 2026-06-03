@@ -386,6 +386,8 @@ class DagModel(Base):
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Whether the timetable do partitioning.
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Whether the timetable is periodic (supports backfilling).
+    timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
@@ -522,7 +524,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
+    def get_dagmodel(dag_id: str, *, session: Session = NEW_SESSION) -> DagModel | None:
         return session.get(
             DagModel,
             dag_id,
@@ -530,12 +532,12 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
+    def get_current(cls, dag_id: str, *, session: Session = NEW_SESSION) -> DagModel | None:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
     def get_last_dagrun(
-        self, session: Session = NEW_SESSION, include_manually_triggered: bool = False
+        self, *, session: Session = NEW_SESSION, include_manually_triggered: bool = False
     ) -> DagRun | None:
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
@@ -547,7 +549,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
+    def get_paused_dag_ids(dag_ids: list[str], *, session: Session = NEW_SESSION) -> set[str]:
         """
         Given a list of dag_ids, get a set of Paused Dag Ids.
 
@@ -589,6 +591,7 @@ class DagModel(Base):
         cls,
         bundle_name: str,
         rel_filelocs: Collection[str],
+        *,
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -812,7 +815,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_team_name(dag_id: str, session: Session = NEW_SESSION) -> str | None:
+    def get_team_name(dag_id: str, *, session: Session = NEW_SESSION) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
             select(Team.name)
@@ -825,7 +828,7 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dag_id_to_team_name_mapping(
-        dag_ids: list[str], session: Session = NEW_SESSION
+        dag_ids: list[str], *, session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = (
             select(DagModel.dag_id, Team.name)

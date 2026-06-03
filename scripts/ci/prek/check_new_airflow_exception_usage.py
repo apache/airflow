@@ -59,7 +59,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
-console = Console()
+console = Console(color_system="standard", width=200)
 
 REPO_ROOT = Path(__file__).parents[3]
 

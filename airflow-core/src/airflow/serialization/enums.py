@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from enum import Enum, unique
+from typing import Any
 
 
 # Fields of an encoded object in serialization.
@@ -29,6 +30,31 @@ class Encoding(str, Enum):
 
     TYPE = "__type"
     VAR = "__var"
+
+
+def stringify_encoding_keys(d: Any) -> Any:
+    """
+    Convert BaseSerialization Encoding enum keys to their string values recursively.
+
+    Python 3.10 compatibility: str(Encoding.TYPE) returns "Encoding.TYPE" on 3.10
+    instead of "__type__" (3.10 is still the default CI target). serde.serialize
+    uses str(k) for dict keys, so without this conversion the encrypted blob ends up
+    with "Encoding.TYPE" keys that neither serde._convert nor the BaseSerialization
+    fallback can read back.
+    """
+    if isinstance(d, dict):
+        return {
+            (k.value if isinstance(k, Encoding) else str(k)): stringify_encoding_keys(v) for k, v in d.items()
+        }
+    if isinstance(d, list):
+        return [stringify_encoding_keys(i) for i in d]
+    if isinstance(d, tuple):
+        converted = [stringify_encoding_keys(i) for i in d]
+        # namedtuples require positional args, not a single list argument
+        if hasattr(d, "_fields"):
+            return type(d)(*converted)
+        return tuple(converted)
+    return d
 
 
 # Supported types for encoding. primitives and list are not encoded.

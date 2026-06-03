@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_schema_compare import _LLMSchemaCompareDecoratedOperator
 from airflow.providers.common.ai.operators.llm_schema_compare import (
@@ -82,11 +83,11 @@ class TestLLMSchemaCompareDecoratedOperator:
 
     @pytest.mark.parametrize(
         "return_value",
-        [42, "", "   ", None],
-        ids=["non-string", "empty", "whitespace", "none"],
+        [42, "", "   ", None, b"bytes", bytearray(b"x"), [], ()],
+        ids=["non-string", "empty", "whitespace", "none", "bytes", "bytearray", "empty-list", "empty-tuple"],
     )
     def test_execute_raises_on_invalid_prompt(self, return_value):
-        """TypeError when the callable returns a non-string or blank string."""
+        """TypeError when the callable returns an unsupported prompt shape."""
         op = _LLMSchemaCompareDecoratedOperator(
             task_id="test",
             python_callable=lambda: return_value,
@@ -94,8 +95,34 @@ class TestLLMSchemaCompareDecoratedOperator:
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["test_table"],
         )
-        with pytest.raises(TypeError, match="non-empty string"):
+        with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
+    def test_execute_accepts_sequence_prompt(self, mock_build_ctx, mock_hook_cls):
+        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
+        mock_agent = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        image = ImageUrl(url="https://example.com/x.png")
+        prompt = ["Compare these schemas:", image]
+
+        def my_prompt_fn():
+            return prompt
+
+        op = _LLMSchemaCompareDecoratedOperator(
+            task_id="test",
+            python_callable=my_prompt_fn,
+            llm_conn_id="llm_conn",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["test_table"],
+        )
+        op.execute(context={})
+
+        assert op.prompt == prompt
+        forwarded_prompt = mock_agent.run_sync.call_args[0][0]
+        assert forwarded_prompt == prompt
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")

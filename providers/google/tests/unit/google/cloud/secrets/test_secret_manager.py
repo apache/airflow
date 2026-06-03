@@ -252,3 +252,23 @@ class TestCloudSecretManagerBackend:
 
             assert secrets_manager_backend.get_config(CONFIG_KEY) is None
             mock_get_secret.assert_not_called()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_init_raises_when_project_id_not_determined(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, ""
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        with pytest.raises(ValueError, match="Project ID could not be determined"):
+            CloudSecretManagerBackend()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_init_succeeds_with_explicit_project_id(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, ""
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        backend = CloudSecretManagerBackend(project_id="explicit-project")
+        assert backend.project_id == "explicit-project"

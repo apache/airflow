@@ -121,7 +121,7 @@ with DAG(
         if files := root_path["files"]:
             batch = service.new_batch_http_request()
             for file in files:
-                log.info("Preparing to remove file: {}", file)
+                log.info("Preparing to remove file: %s", file)
                 batch.add(service.files().delete(fileId=file["id"]))
             batch.execute()
             log.info("Selected files removed.")

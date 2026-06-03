@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-06"
+API_VERSION: Final[str] = "2026-06-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -157,6 +157,14 @@ class HITLUser(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class HTTPExceptionResponse(BaseModel):
+    """
+    HTTPException Model used for error response.
+    """
+
+    detail: Annotated[str | dict[str, Any], Field(title="Detail")]
+
+
 class InactiveAssetsResponse(BaseModel):
     """
     Response for inactive assets.
@@ -275,6 +283,8 @@ class TIRetryStatePayload(BaseModel):
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_delay_seconds: Annotated[float | None, Field(title="Retry Delay Seconds")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -351,6 +361,29 @@ class TaskStatesResponse(BaseModel):
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
+class TaskStorePutBody(BaseModel):
+    """
+    Request body for setting a task store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
+
+
+class TaskStoreResponse(BaseModel):
+    """
+    Task store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
 class TerminalStateNonSuccess(str, Enum):
     """
     TaskInstance states that can be reported without extra information.
@@ -371,6 +404,7 @@ class TriggerDAGRunPayload(BaseModel):
         extra="forbid",
     )
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    run_after: Annotated[AwareDatetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
@@ -393,6 +427,18 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
     input: Annotated[Any | None, Field(title="Input")] = None
     ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
+
+
+class VariableKeysResponse(BaseModel):
+    """
+    Variable keys schema for list responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    keys: Annotated[list[str], Field(title="Keys")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariablePostBody(BaseModel):
@@ -536,6 +582,28 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
+class AssetStorePutBody(BaseModel):
+    """
+    Request body for setting an asset store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStoreResponse(BaseModel):
+    """
+    Asset store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
 class HITLDetailRequest(BaseModel):
     """
     Schema for the request part of a Human-in-the-loop detail for a specific task instance.
@@ -647,6 +715,7 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TIRunContext(BaseModel):
@@ -663,3 +732,4 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None

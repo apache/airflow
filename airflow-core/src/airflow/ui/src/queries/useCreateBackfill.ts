@@ -79,11 +79,12 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     mutate({
       requestBody: {
         dag_id: dagId,
-        dag_run_conf: data.requestBody.dag_run_conf ?? {},
+        dag_run_conf: data.requestBody.dag_run_conf,
         from_date: formattedDataIntervalStart,
         max_active_runs: data.requestBody.max_active_runs,
         reprocess_behavior: data.requestBody.reprocess_behavior,
         run_backwards: data.requestBody.run_backwards,
+        run_on_latest_version: data.requestBody.run_on_latest_version,
         to_date: formattedDataIntervalEnd,
       },
     });

@@ -37,7 +37,6 @@ from tenacity import (
 )
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
@@ -136,7 +135,12 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
     def execute_query(
-        self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
+        self,
+        sql: str,
+        statement_count: int,
+        query_tag: str = "",
+        bindings: dict[str, Any] | None = None,
+        timeout: int | None = None,
     ) -> list[str]:
         """
         Run the query in Snowflake using SnowflakeSQL API by making API request.
@@ -151,6 +155,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+        :param timeout: (Optional) Timeout in seconds for statement execution.
+            If not set, the timeout specified by STATEMENT_TIMEOUT_IN_SECONDS is used.
+            To set the timeout to the maximum value (604800 seconds), set timeout to 0.
         """
         self.query_ids = []
         conn_config = self._get_conn_params()
@@ -161,7 +168,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         headers = self.get_headers()
         sql_is_multi_stmt = ";" in sql.strip()
         if not isinstance(bindings, dict) and bindings is not None:
-            raise AirflowException("Bindings should be a dictionary or None.")
+            raise TypeError("Bindings should be a dictionary or None.")
         if bindings and sql_is_multi_stmt:
             self.log.warning(
                 "Bindings are not supported for multi-statement queries. Bindings will be ignored."
@@ -184,6 +191,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             },
         }
 
+        if timeout is not None:
+            data["timeout"] = timeout
+
         _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
@@ -191,7 +201,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif "statementHandle" in json_response:
             self.query_ids.append(json_response["statementHandle"])
         else:
-            raise AirflowException("No statementHandle/statementHandles present in response")
+            raise RuntimeError("No statementHandle/statementHandles present in response")
 
         # Send Hook Level Lineage
         len_query_ids = len(self.query_ids)
@@ -238,7 +248,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if conn_config.get("authenticator") == "programmatic_access_token":
             pat = conn_config.get("password")
             if not pat:
-                raise AirflowException(
+                raise ValueError(
                     "Programmatic Access Token (PAT) authentication requires the connection password "
                     "field to contain the PAT token value."
                 )

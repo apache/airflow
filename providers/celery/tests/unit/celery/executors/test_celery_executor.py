@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -50,7 +51,18 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_9_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
+
+try:
+    # Check whether a module-level function from stats is importable.
+    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401
+
+    stats_reference = "airflow._shared.observability.metrics.stats"
+    _executor_name_tag_key = "executor_class_name"
+except ImportError:
+    stats_reference = "airflow.executors.base_executor.Stats"
+    _executor_name_tag_key = "name"
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -174,19 +186,25 @@ class TestCeleryExecutor:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "CeleryExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "CeleryExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "CeleryExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", _executor_name_tag_key: "CeleryExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -284,6 +302,39 @@ class TestCeleryExecutor:
 
         assert executor.workloads == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
+
+    @pytest.mark.backend("mysql", "postgres")
+    @time_machine.travel("2020-01-01", tick=False)
+    def test_try_adopt_with_and_without_external_executor_id(
+        self, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
+        """TIs with an ID are adopted; TIs without are returned for reset."""
+        start_date = timezone.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_mixed", schedule=None) as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        if AIRFLOW_V_3_0_PLUS:
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti_with_id = create_task_instance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            ti_without_id = create_task_instance(task=task_2, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti_with_id = TaskInstance(task=task_1, run_id=None)
+            ti_without_id = TaskInstance(task=task_2, run_id=None)
+        ti_with_id.external_executor_id = "231"
+        ti_with_id.state = State.QUEUED
+        ti_without_id.external_executor_id = None
+        ti_without_id.state = State.QUEUED
+
+        executor = celery_executor.CeleryExecutor()
+        not_adopted_tis = executor.try_adopt_task_instances([ti_with_id, ti_without_id])
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
+        assert key_1 in executor.running
+        assert executor.workloads == {key_1: AsyncResult("231")}
+        assert not_adopted_tis == [ti_without_id]
 
     @pytest.fixture
     def mock_celery_revoke(self):
@@ -436,6 +487,68 @@ def test_send_workloads_to_celery_hang(register_signals):
         # multiprocessing.
         results = executor._send_workloads_to_celery(workload_tuples_to_send)
         assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+
+
+def _has_external_executor_id_field() -> bool:
+    try:
+        from airflow.executors.workloads.task import TaskInstanceDTO
+
+        return "external_executor_id" in TaskInstanceDTO.model_fields
+    except (ImportError, AttributeError):
+        return False
+
+
+@pytest.mark.skipif(
+    not _has_external_executor_id_field(),
+    reason="TaskInstanceDTO.external_executor_id not available in this airflow-core version",
+)
+def test_send_workload_uses_external_executor_id_as_celery_task_id():
+    """Pre-assigned external_executor_id is passed as task_id to apply_async()."""
+    from airflow.executors.workloads.task import TaskInstanceDTO
+
+    pre_assigned_id = "pre-assigned-uuid-for-celery"
+    ti_dto = TaskInstanceDTO(
+        id="00000000-0000-0000-0000-000000000001",
+        dag_version_id="00000000-0000-0000-0000-000000000002",
+        task_id="test_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=-1,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        external_executor_id=pre_assigned_id,
+    )
+    key = TaskInstanceKey(
+        dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
+    )
+
+    mock_result = mock.Mock(task_id=pre_assigned_id)
+    mock_celery_task = mock.Mock()
+    mock_celery_task.apply_async.return_value = mock_result
+
+    mock_app = mock.Mock()
+    mock_app.tasks = {"execute_workload": mock_celery_task}
+
+    from airflow.executors.workloads import ExecuteTask
+
+    workload = mock.Mock(spec=ExecuteTask)
+    workload.ti = ti_dto
+    workload.model_dump_json.return_value = "{}"
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        return_value=mock_app,
+    ):
+        result_key, _, result = celery_executor_utils.send_workload_to_executor(
+            (key, workload, "default", None)
+        )
+
+    mock_celery_task.apply_async.assert_called_once_with(
+        args=("{}",), queue="default", task_id=pre_assigned_id
+    )
+    assert result.task_id == pre_assigned_id
 
 
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
@@ -772,7 +885,132 @@ def test_celery_tasks_registered_on_import():
         )
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
+@pytest.mark.parametrize(
+    ("callback_data", "expected_queue"),
+    [
+        pytest.param({"path": "tests.callbacks.test_callback", "kwargs": {}}, "default", id="default_queue"),
+        pytest.param(
+            {"path": "tests.callbacks.test_callback", "kwargs": {}, "queue": "callback_queue"},
+            "callback_queue",
+            id="callback_queue",
+        ),
+    ],
+)
+@mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor._send_workloads")
+def test_process_workloads_routes_execute_callback(mock_send_workloads, callback_data, expected_queue):
+    """CeleryExecutor routes callback workloads to Celery with the expected queue."""
+    from airflow.executors import workloads
+    from airflow.executors.workloads.callback import CallbackDTO
+
+    callback_id = "00000000-0000-0000-0000-000000000003"
+    workload = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id=callback_id,
+            fetch_method=workloads.CallbackFetchMethod.IMPORT_PATH,
+            data=callback_data,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="callback.log",
+    )
+
+    executor = celery_executor.CeleryExecutor()
+    executor._process_workloads([workload])
+
+    mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
+@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
+def test_execute_workload_runs_execute_task_before_airflow_3_3():
+    """execute_workload routes serialized ExecuteTask payloads to supervise on Airflow 3.0-3.2."""
+    from airflow.executors import workloads
+
+    workload = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+    ):
+        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+
+    mock_supervise.assert_called_once()
+    assert mock_supervise.call_args.kwargs["ti"].task_id == "test_task"
+    assert str(mock_supervise.call_args.kwargs["dag_rel_path"]) == "test_dag.py"
+    assert mock_supervise.call_args.kwargs["token"] == "test-token"
+    assert mock_supervise.call_args.kwargs["log_path"] == "test.log"
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
+def test_execute_workload_runs_base_executor_workload_on_airflow_3_3_plus():
+    """execute_workload routes serialized ExecuteTask payloads to BaseExecutor on Airflow 3.3+."""
+    from airflow.executors import workloads
+
+    workload = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
+    ):
+        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+
+    mock_run_workload.assert_called_once()
+    decoded_workload = mock_run_workload.call_args.args[0]
+    assert decoded_workload.ti.task_id == "test_task"
+    assert str(decoded_workload.dag_rel_path) == "test_dag.py"
+    assert decoded_workload.token == "test-token"
+    assert decoded_workload.log_path == "test.log"
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_1_9_PLUS, reason="TaskAlreadyRunningError requires Airflow 3.1.9+")
+@pytest.mark.skipif(
+    not hasattr(BaseExecutor, "run_workload"),
+    reason="BaseExecutor.run_workload not available in this Airflow version",
+)
 def test_execute_workload_ignores_already_running_task():
     """Test that execute_workload raises Celery Ignore when task is already running."""
     import importlib
@@ -790,10 +1028,10 @@ def test_execute_workload_ignores_already_running_task():
     mock_app.current_task = mock_current_task
 
     with (
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
         mock.patch.object(celery_executor_utils, "app", mock_app),
     ):
-        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+        mock_run_workload.side_effect = TaskAlreadyRunningError("Task already running")
 
         workload_json = """
         {

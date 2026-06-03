@@ -23,7 +23,6 @@
         "title": "Backfill נוצר"
       }
     },
-    "tooltip": "Backfill דורש לוח זמנים",
     "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",

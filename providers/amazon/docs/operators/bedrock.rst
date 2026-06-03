@@ -339,9 +339,81 @@ the service confirms that the job is in the queue, use TargetState.SCHEDULED.
     :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
     :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
 
+.. _howto/operator:BedrockCreateGuardrailOperator:
+
+Create a Guardrail
+~~~~~~~~~~~~~~~~~~
+
+To create an Amazon Bedrock guardrail, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateGuardrailOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_guardrail]
+    :end-before: [END howto_operator_bedrock_create_guardrail]
+
+.. _howto/operator:BedrockCreateGuardrailVersionOperator:
+
+Create a Guardrail Version
+--------------------------
+
+To create a versioned snapshot of an Amazon Bedrock guardrail, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateGuardrailVersionOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_guardrail_version]
+    :end-before: [END howto_operator_bedrock_create_guardrail_version]
+
+.. _howto/operator:BedrockDeleteGuardrailOperator:
+
+Delete a Guardrail
+------------------
+
+To delete an Amazon Bedrock guardrail, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockDeleteGuardrailOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_delete_guardrail]
+    :end-before: [END howto_operator_bedrock_delete_guardrail]
+
+
+
+.. _howto/operator:BedrockCreateEvaluationJobOperator:
+
+Create an Evaluation Job
+------------------------
+
+To create an Amazon Bedrock model evaluation job, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateEvaluationJobOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_evaluation.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_evaluation_job]
+    :end-before: [END howto_operator_bedrock_create_evaluation_job]
+
 Reference
 ---------
 
 * `AWS boto3 library documentation for Amazon Bedrock <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock.html>`__
 * `AWS boto3 library documentation for Amazon Bedrock Runtime <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html>`__
 * `AWS boto3 library documentation for Amazon Bedrock Agents <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-agent.html>`__
+
+.. _howto/operator:BedrockUpdateGuardrailOperator:
+
+Update a Guardrail
+------------------
+
+To update an Amazon Bedrock guardrail configuration, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockUpdateGuardrailOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_update_guardrail]
+    :end-before: [END howto_operator_bedrock_update_guardrail]

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import Body, HTTPException, Request, status
@@ -35,6 +36,8 @@ if AIRFLOW_V_3_1_8_PLUS:
 else:
     get_cookie_path = lambda: "/"
 
+log = logging.getLogger(__name__)
+
 
 def _get_flask_app():
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
@@ -49,10 +52,18 @@ def _get_flask_app():
             ),
         )
     if not auth_manager.flask_app:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Flask app is not initialized. Check that FabAuthManager started up correctly.",
-        )
+        with auth_manager._flask_app_lock:
+            if not auth_manager.flask_app:
+                try:
+                    from airflow.providers.fab.www.app import create_app
+
+                    auth_manager.flask_app = create_app(enable_plugins=False)
+                except Exception:
+                    log.exception("Failed to lazily initialize Flask app context for FabAuthManager")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to initialize Flask app context. Check logs for details.",
+                    )
     return auth_manager.flask_app
 
 

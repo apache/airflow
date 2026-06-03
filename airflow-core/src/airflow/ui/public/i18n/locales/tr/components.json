@@ -22,7 +22,6 @@
         "title": "Geriye dönük çalıştırma oluşturuldu"
       }
     },
-    "tooltip": "Geriye dönük çalıştırma için bir zamanlama gereklidir",
     "unpause": "Tetiklendiğinde {{dag_display_name}} duraklatmasını kaldır",
     "validation": {
       "datesRequired": "Hem Veri Aralığı Başlangıç Tarihi hem de Bitiş Tarihi sağlanmalıdır.",

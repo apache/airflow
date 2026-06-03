@@ -75,6 +75,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 version=self.api_version,
                 http=http_authorized,
                 cache_discovery=False,
+                client_options=self.get_client_options(),
             )
         return self._conn
 

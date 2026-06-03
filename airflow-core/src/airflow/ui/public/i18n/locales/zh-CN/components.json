@@ -22,7 +22,6 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "tooltip": "回填功能需要 Dag 具有调度",
     "unpause": "触发时取消暂停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",

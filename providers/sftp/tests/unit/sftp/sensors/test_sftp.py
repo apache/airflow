@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import warnings
 from datetime import datetime, timezone as stdlib_timezone
 from unittest import mock
 from unittest.mock import Mock, patch
@@ -25,15 +27,35 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, PokeReturnValue
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
-from airflow.sensors.base import PokeReturnValue
+
+WARNING_CATEGORY: type[Warning]
+try:
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+except ImportError:
+    WARNING_CATEGORY = DeprecationWarning
+else:
+    WARNING_CATEGORY = DeprecatedImportWarning
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="arg-type"
 
 
 class TestSFTPSensor:
+    def test_no_timezone_deprecated_import_warning_on_module_reload(self):
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            import airflow.providers.sftp.sensors.sftp as sftp_sensor_module
+
+            importlib.reload(sftp_sensor_module)
+
+        assert not any(
+            issubclass(warning.category, WARNING_CATEGORY)
+            and "airflow.utils.timezone" in str(warning.message)
+            for warning in captured_warnings
+        )
+
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.isfile.return_value = True

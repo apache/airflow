@@ -920,11 +920,9 @@ class WeaviateHook(BaseHook):
             return []
 
         if isinstance(data, Sequence) and isinstance(data[0], dict):
-            # This is done to narrow the type to list[dict[str, Any].
-            data = pd.json_normalize(cast("list[dict[str, Any]]", data))
+            data = pd.json_normalize([d for d in data if isinstance(d, dict)])
         elif isinstance(data, Sequence) and isinstance(data[0], pd.DataFrame):
-            # This is done to narrow the type to list[pd.DataFrame].
-            data = pd.concat(cast("list[pd.DataFrame]", data), ignore_index=True)
+            data = pd.concat([d for d in data if isinstance(d, pd.DataFrame)], ignore_index=True)
         else:
             data = cast("pd.DataFrame", data)
 

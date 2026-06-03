@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+#############################
 ## Airflow Worker KEDA Scaler
-#################################
+#############################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
 {{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
@@ -32,7 +32,7 @@
   {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
   {{- $_ := set $globals.Values "workers" $workers -}}
   {{- with $globals -}}
-{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
+{{- if and .Values.workers.keda.enabled (contains "CeleryExecutor" .Values.executor) }}
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject

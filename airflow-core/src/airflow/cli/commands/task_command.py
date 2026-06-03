@@ -207,14 +207,14 @@ def _get_ti(
             try:
                 total = task.get_parse_time_mapped_ti_count()
                 if map_index >= total:
-                    raise ValueError(
+                    raise RuntimeError(
                         f"map_index {map_index} is out of range. "
                         f"Task '{task.task_id}' has {total} mapped instance(s) [0..{total - 1}]."
                     )
             except NotFullyPopulated:
                 pass  # Dynamic mapping — cannot validate at parse time
             except NotMapped:
-                raise ValueError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
+                raise RuntimeError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
@@ -358,7 +358,7 @@ def _guess_debugger() -> _SupportedDebugger:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
+def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
     dag_run, _ = fetch_dag_run_from_run_id_or_logical_date_string(
         dag_id=args.dag_id,

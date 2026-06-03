@@ -22,7 +22,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import attrs
+
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -98,7 +102,7 @@ class FixedDatetimeDeadline(BaseDeadlineReference):
 
     @classmethod
     def deserialize_reference(cls, reference_data: dict[str, Any]) -> FixedDatetimeDeadline:
-        from airflow._shared.timezones import timezone
+        from airflow.sdk._shared.timezones import timezone
 
         return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
 
@@ -143,11 +147,13 @@ class DeadlineAlert:
     def __init__(
         self,
         reference: DeadlineReferenceType,
-        interval: timedelta,
+        interval: timedelta | VariableInterval,
         callback: Callback,
+        name: str | None = None,
     ):
         self.reference = reference
         self.interval = interval
+        self.name = name
 
         if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
@@ -340,3 +346,58 @@ def deadline_reference(
         return reference_class
 
     return decorator
+
+
+@attrs.define(frozen=True)
+class VariableInterval:
+    """
+    Interval backed by an Airflow Variable.
+
+    This allows DeadlineAlert intervals to be configured dynamically using
+    Airflow Variables. The variable value is interpreted as seconds and
+    converted into a ``timedelta`` object.
+
+    ------
+    Usage:
+    ------
+
+    .. code-block:: python
+
+    from airflow.sdk import DAG, DeadlineAlert, DeadlineReference, AsyncCallback
+
+    DAG(
+        dag_id="dag_with_variable_interval",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=VariableInterval("deadline_seconds"),
+            callback=AsyncCallback(my_callback),
+        ),
+    )
+
+    ------
+    Notes:
+    ------
+    * Resolution occurs when deadlines are evaluated (during DagRun creation).
+    * Changes to the Variable affect only newly parsed DAGs and future DagRuns.
+    * Existing deadlines are not retroactively updated.
+    """
+
+    key: str
+
+    def resolve(self) -> timedelta:
+        try:
+            value = Variable.get(self.key)
+        except AirflowRuntimeError as e:
+            raise ValueError(f"VariableInterval '{self.key}' not found") from e
+
+        try:
+            seconds = int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
+            ) from e
+
+        if seconds <= 0:
+            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
+
+        return timedelta(seconds=seconds)

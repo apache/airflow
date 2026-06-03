@@ -129,6 +129,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
+_OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
+_HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
+
 
 def _get_registered_priority_weight_strategy(
     importable_string: str,
@@ -251,17 +255,11 @@ def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
 def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
     """Decode a StartTriggerArgs."""
-
-    def deserialize_kwargs(key: str) -> Any:
-        if (val := var[key]) is None:
-            return None
-        return BaseSerialization.deserialize(val)
-
     return StartTriggerArgs(
         trigger_cls=var["trigger_cls"],
-        trigger_kwargs=deserialize_kwargs("trigger_kwargs"),
+        trigger_kwargs=var["trigger_kwargs"],
         next_method=var["next_method"],
-        next_kwargs=deserialize_kwargs("next_kwargs"),
+        next_kwargs=var["next_kwargs"],
         timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
     )
 
@@ -491,7 +489,11 @@ class BaseSerialization:
             )
         elif isinstance(var, list):
             return [cls.serialize(v, strict=strict) for v in var]
-        elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif (
+            var.__class__.__name__ == "V1Pod"
+            and _has_kubernetes(attempt_import=True)
+            and isinstance(var, k8s.V1Pod)
+        ):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
@@ -916,14 +918,16 @@ class _DependencyDetector:
 
         for obj in task.outlets or []:
             if isinstance(obj, (Asset, SerializedAsset)):
-                serialized_asset = ensure_serialized_asset(obj)
+                # The unique key only needs ``name``/``uri``, and asset encode/decode
+                # copies both verbatim, so build the key directly and skip the full
+                # ensure_serialized_asset() encode→decode roundtrip on every outlet.
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
+                        dependency_id=SerializedAssetUniqueKey(name=obj.name, uri=obj.uri).to_str(),
                     )
                 )
             elif isinstance(obj, (AssetAlias, SerializedAssetAlias)):
@@ -962,6 +966,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     _const_fields: ClassVar[set[str] | None] = None
 
+    # Parameters of BaseOperator.__init__ that must not appear in template_fields.
+    # Computed once at class-load time: the signature never changes during a process.
+    _FORBIDDEN_TEMPLATE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        signature(BaseOperator.__init__).parameters
+    ) - {"email"}
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -977,7 +987,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if cls._is_excluded(v, k, op):
                     continue
 
-                if k in [f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")]:
+                if k in _OPERATOR_CALLBACK_FIELDS:
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
@@ -1042,9 +1052,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
-        forbidden_fields = set(signature(BaseOperator.__init__).parameters.keys())
-        # Though allow some of the BaseOperator fields to be templated anyway
-        forbidden_fields.difference_update({"email"})
+        forbidden_fields = cls._FORBIDDEN_TEMPLATE_FIELDS
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
@@ -1329,7 +1337,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         preprocessed = encoded_op.copy()
 
         # Handle callback field renaming for backward compatibility
-        for callback_type in ("execute", "failure", "success", "retry", "skipped"):
+        for callback_type in _CALLBACK_TYPES:
             old_key = f"on_{callback_type}_callback"
             new_key = f"has_{old_key}"
             if old_key in preprocessed:
@@ -1575,9 +1583,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """
         if field_name == "downstream_task_ids":
             return set(value) if value is not None else set()
-        elif field_name in [
-            f"has_on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
-        ]:
+        elif field_name in _HAS_CALLBACK_FIELDS:
             return bool(value)
         elif field_name in {"retry_delay", "execution_timeout", "max_retry_delay"}:
             # Reuse existing timedelta deserialization logic
@@ -1737,9 +1743,7 @@ class DagSerialization(BaseSerialization):
                 default_args_dict = serialized_dag["default_args"][Encoding.VAR]
                 callbacks_to_remove = []
                 for k, v in list(default_args_dict.items()):
-                    if k in [
-                        f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
-                    ]:
+                    if k in _OPERATOR_CALLBACK_FIELDS:
                         if bool(v):
                             default_args_dict[f"has_{k}"] = True
                         callbacks_to_remove.append(k)
@@ -2110,6 +2114,8 @@ class TaskGroupSerialization(BaseSerialization):
             "upstream_task_ids": cls.serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
+        if task_group.doc_md is not None:
+            encoded["doc_md"] = task_group.doc_md
 
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
@@ -2131,6 +2137,7 @@ class TaskGroupSerialization(BaseSerialization):
             key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
@@ -2232,6 +2239,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "jinja_environment_kwargs",
         "relative_fileloc",
         "disable_bundle_versioning",
+        "rerun_with_latest_version",
         "fail_fast",
         "last_loaded",
     }

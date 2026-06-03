@@ -13,8 +13,8 @@ The following technical terms should **remain in English** in Thai translations:
 
 ### Core Technical Terms (คำศัพท์ทางเทคนิค)
 
-- **DAG** (Directed Acyclic Graph) - Keep as "DAG"
-- **DAG Run** - Keep as "DAG Run"
+- **Dag** - Keep as "Dag" (Airflow convention; never write "DAG")
+- **Dag Run** - Keep as "Dag Run"
 - **Task Instance** - Keep as "Task Instance"
 - **XCom** - Keep as "XCom"
 - **Asset** - Keep as "Asset"
@@ -24,7 +24,7 @@ The following technical terms should **remain in English** in Thai translations:
 - **Sensor** - Keep as "Sensor"
 - **Hook** - Keep as "Hook"
 - **Operator** - Keep as "Operator" (โอเปอเรเตอร์) or in English
-- **DAGBag** - Keep as "DAGBag"
+- **DagBag** - Keep as "DagBag"
 
 ### UI Components (ส่วนประกอบของอินเทอร์เฟซ)
 
@@ -123,14 +123,14 @@ In Airflow UI and messages, numerals are typically formatted as:
 Example:
 
 ```text
-งาน DAG รันสำเร็จ (DAG run successful)
+งาน Dag รันสำเร็จ (Dag run successful)
 ```
 
 ## Translation Style Guidelines
 
 ### 1. Technical Terminology
 
-Keep technical terms like DAG, XCom, Operator in English when:
+Keep technical terms like Dag, XCom, Operator in English when:
 
 - They appear in code or configuration examples
 - No clear Thai equivalent exists
@@ -181,8 +181,8 @@ Prefer translation for:
 
 ### 1. "Run" Context
 
-- "Run DAG" → "รัน DAG" or "ดำเนินการ DAG"
-- "DAG run" (noun) → "การรัน DAG" or "DAG Run"
+- "Run Dag" → "รัน Dag" or "ดำเนินการ Dag"
+- "Dag run" (noun) → "การรัน Dag" or "Dag Run"
 - "Run ID" → "รันไอดี" or "Run ID"
 
 ### 2. "Task" Context
@@ -191,11 +191,11 @@ Prefer translation for:
 - "Task instance" → "Task Instance" or "อินสแตนซ์งาน"
 - "Task ID" → "Task ID" or "ไอดีงาน"
 
-### 3. "DAG" Context
+### 3. "Dag" Context
 
-- "DAG run" → "การรัน DAG" or "DAG Run"
-- "DAG ID" → "DAG ID" or "ไอดี DAG"
-- "Sub DAG" → "DAG ย่อย" or "Sub DAG"
+- "Dag run" → "การรัน Dag" or "Dag Run"
+- "Dag ID" → "Dag ID" or "ไอดี Dag"
+- "Sub Dag" → "Dag ย่อย" or "Sub Dag"
 
 ### 4. Configuration
 
@@ -252,14 +252,14 @@ However, these are typically omitted in technical documentation to maintain conc
 "Tree View" → "มุมมองต้นไม้" or "Tree View"
 "Graph View" → "มุมมองกราฟ" or "Graph View"
 "Task Instances" → "Task Instances" or "อินสแตนซ์งาน"
-"DAG Runs" → "DAG Runs" or "การรัน DAG"
+"Dag Runs" → "Dag Runs" or "การรัน Dag"
 ```
 
 ### Message Examples
 
 ```text
 "Task failed" → "งานล้มเหลว"
-"DAG run successful" → "การรัน DAG สำเร็จ"
+"Dag run successful" → "การรัน Dag สำเร็จ"
 "XCom pushed" → "ดัน XCom แล้ว" or "XCom pushed"
 "Connection test failed" → "การทดสอบการเชื่อมต่อล้มเหลว"
 ```

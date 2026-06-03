@@ -131,17 +131,19 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
-        inform_about_self_upgrade()
-        return True
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if res.returncode == 0 and "Modified" in res.stderr:
+            inform_about_self_upgrade()
+            return True
+    except FileNotFoundError:
+        pass
     return False
 
 
@@ -259,6 +261,10 @@ TASK_SDK_SOURCES_PATH = TASK_SDK_ROOT_PATH / "src"
 AIRFLOW_CTL_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl"
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 AIRFLOW_CTL_DIST_PATH = AIRFLOW_CTL_ROOT_PATH / "dist"
+
+MYPY_ROOT_PATH = AIRFLOW_ROOT_PATH / "dev" / "mypy"
+MYPY_SOURCES_PATH = MYPY_ROOT_PATH / "src"
+MYPY_DIST_PATH = MYPY_ROOT_PATH / "dist"
 
 # Same here - do not remove those this is used for past commit retrieval
 PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "src"

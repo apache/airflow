@@ -35,7 +35,6 @@ import { useUiServiceWorker } from "openapi/queries";
 import type { EdgeWorkerState, Worker } from "openapi/requests/types.gen";
 import { Link } from "react-router-dom";
 import { LuExternalLink } from "react-icons/lu";
-import TimeAgo from "react-timeago";
 
 import { BulkWorkerOperations } from "src/components/BulkWorkerOperations";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -45,6 +44,7 @@ import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { ScrollToAnchor, Select } from "src/components/ui";
 import { workerStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
+import { WorkerSysinfoBadge } from "src/components/WorkerSysinfoBadge";
 
 export const WorkerPage = () => {
   const [workerNamePattern, setWorkerNamePattern] = useState("");
@@ -220,10 +220,8 @@ export const WorkerPage = () => {
                 <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
                 <Table.ColumnHeader>State</Table.ColumnHeader>
                 <Table.ColumnHeader>Queues</Table.ColumnHeader>
-                <Table.ColumnHeader>First Online</Table.ColumnHeader>
-                <Table.ColumnHeader>Last Heartbeat</Table.ColumnHeader>
                 <Table.ColumnHeader>Active Jobs</Table.ColumnHeader>
-                <Table.ColumnHeader>System Information</Table.ColumnHeader>
+                <Table.ColumnHeader>System Status</Table.ColumnHeader>
                 <Table.ColumnHeader>Operations</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
@@ -260,12 +258,6 @@ export const WorkerPage = () => {
                     )}
                   </Table.Cell>
                   <Table.Cell>
-                    {worker.first_online ? <TimeAgo date={worker.first_online} live={false} /> : undefined}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} live={false} /> : undefined}
-                  </Table.Cell>
-                  <Table.Cell>
                     {worker.jobs_active !== undefined && worker.jobs_active > 0 ? (
                       <Link relative="path" to={`../jobs?worker=${encodeURIComponent(worker.worker_name)}`}>
                         {worker.jobs_active}
@@ -275,17 +267,7 @@ export const WorkerPage = () => {
                     )}
                   </Table.Cell>
                   <Table.Cell>
-                    {worker.sysinfo ? (
-                      <List.Root>
-                        {Object.entries(worker.sysinfo).map(([key, value]) => (
-                          <List.Item key={key}>
-                            {key}: {value}
-                          </List.Item>
-                        ))}
-                      </List.Root>
-                    ) : (
-                      "N/A"
-                    )}
+                    <WorkerSysinfoBadge sysinfo={worker.sysinfo} first_online={worker.first_online} last_heartbeat={worker.last_heartbeat}/>
                   </Table.Cell>
                   <Table.Cell>
                     <WorkerOperations worker={worker} onOperations={refetch} />

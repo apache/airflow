@@ -21,6 +21,7 @@ from fastapi import APIRouter, Security
 
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
+    asset_store,
     assets,
     connections,
     dag_runs,
@@ -29,6 +30,7 @@ from airflow.api_fastapi.execution_api.routes import (
     hitl,
     task_instances,
     task_reschedules,
+    task_store,
     variables,
     xcoms,
 )
@@ -52,5 +54,7 @@ authenticated_router.include_router(
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
+authenticated_router.include_router(task_store.router, prefix="/store/ti", tags=["Task Store"])
+authenticated_router.include_router(asset_store.router, prefix="/store/asset", tags=["Asset Store"])
 
 execution_api_router.include_router(authenticated_router)

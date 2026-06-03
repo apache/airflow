@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.module_loading import accepts_context
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models import Trigger
 from airflow.models.callback import (
@@ -30,7 +31,6 @@ from airflow.models.callback import (
     DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
-    _accepts_context,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
@@ -112,9 +112,35 @@ class TestCallback:
         assert metric_info["tags"] == {
             "result": "0",
             "path": TEST_ASYNC_CALLBACK.path,
-            "kwargs": {"email": "test@example.com"},
+            "kwargs": '{"email": "test@example.com"}',
             "dag_id": TEST_DAG_ID,
         }
+
+    def test_get_metric_info_dict_values_are_stringified(self):
+        """
+        Regression for ``TypeError: unhashable type: 'dict'`` raised by OpenTelemetry's
+        ``_view_instrument_match`` when callback metric tags contain dict/list values.
+
+        OTel builds its aggregation key as ``frozenset(attributes.items())``; any tag
+        value that isn't hashable (dict, list, set) crashes the triggerer when a
+        callback completes — e.g., deadline async callbacks whose ``result`` is a dict.
+        """
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
+        callback.data["kwargs"] = {"context": {"dag_id": TEST_DAG_ID}, "nested": {"a": 1}}
+
+        # ``result`` is a dict — exactly the case that surfaced in the deadline DAG.
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, {"output": [1, 2], "code": 0})
+
+        # Every tag value must be a primitive (str/int/float/bool/None) so OTel can hash it.
+        for k, v in metric_info["tags"].items():
+            assert isinstance(v, (str, int, float, bool)) or v is None, (
+                f"Tag {k!r}={v!r} is type {type(v).__name__}; must be primitive for OTel."
+            )
+        # ``frozenset(attributes.items())`` must not raise.
+        frozenset(metric_info["tags"].items())
+        # Stringified tag values must be sorted so equivalent kwargs in different
+        # insertion order collapse to one metric series (no needless cardinality split).
+        assert metric_info["tags"]["result"] == '{"code": 0, "output": [1, 2]}'
 
 
 class TestTriggererCallback:
@@ -211,6 +237,20 @@ class TestExecutorCallback:
         callback.queue()
         assert callback.state == CallbackState.QUEUED
 
+    def test_session_get_requires_uuid_not_str(self, session):
+        """Filtering the UUID id column with a plain str breaks on SQLite, so
+        callers must wrap with ``UUID(...)`` before querying."""
+        from uuid import UUID
+
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add(callback)
+        session.commit()
+        # ``id`` is filled by the ``uuid6.uuid7`` default at flush time, so it
+        # is only safe to stringify *after* the commit.
+        callback_id_str = str(callback.id)
+
+        assert session.get(Callback, UUID(callback_id_str)) is not None
+
 
 class TestDagProcessorCallback:
     def test_polymorphic_serde(self, session):
@@ -239,26 +279,26 @@ class TestAcceptsContext:
         def func_with_var_keyword(**kwargs):
             pass
 
-        assert _accepts_context(func_with_var_keyword) is True
+        assert accepts_context(func_with_var_keyword) is True
 
     def test_true_when_context_param_present(self):
         def func_with_context(context, alert_type):
             pass
 
-        assert _accepts_context(func_with_context) is True
+        assert accepts_context(func_with_context) is True
 
     def test_false_when_no_context_or_var_keyword(self):
         def func_without_context(a, b):
             pass
 
-        assert _accepts_context(func_without_context) is False
+        assert accepts_context(func_without_context) is False
 
     def test_false_when_no_params(self):
         def func_no_params():
             pass
 
-        assert _accepts_context(func_no_params) is False
+        assert accepts_context(func_no_params) is False
 
     def test_true_for_uninspectable_callable(self):
-        with patch("airflow.models.callback.inspect.signature", side_effect=ValueError):
-            assert _accepts_context(lambda: None) is True
+        with patch("airflow._shared.module_loading.inspect.signature", side_effect=ValueError):
+            assert accepts_context(lambda: None) is True

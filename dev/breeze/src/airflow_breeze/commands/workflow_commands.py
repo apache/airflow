@@ -28,7 +28,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.github import run_gh_command
 
 WORKFLOW_NAME_MAPS = {
     "publish-docs": "publish-docs-to-s3.yml",
@@ -127,34 +127,46 @@ def workflow_run_publish(
         )
         sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
-        console_print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
         console_print(
-            "\nThis might not be what you want unless your token has "
-            "sufficient permissions to trigger workflows."
-        )
-        console_print(
-            "If you remove GITHUB_TOKEN, workflow_run will use the authentication you already "
-            "set-up with `gh auth login`.\n"
+            "\n[warning]GITHUB_TOKEN is set; Breeze will try your `gh auth login` first and only "
+            "use this token as a fallback. The fallback token must have workflow-trigger scope."
         )
     console_print(
         f"[blue]Validating ref: {ref}[/blue]",
     )
 
     if not skip_tag_validation:
-        tag_result = run_command(
+        tag_result = run_gh_command(
             ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
             capture_output=True,
-            check=False,
         )
 
         stdout = tag_result.stdout.decode("utf-8")
         tag_respo = json.loads(stdout)
 
         if not tag_respo.get("ref"):
-            console_print(
-                f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
+            # Check whether the ref exists as a branch (common case for -docs branches)
+            branch_result = run_gh_command(
+                ["gh", "api", f"repos/apache/airflow/git/refs/heads/{ref}"],
+                capture_output=True,
+                check=False,
             )
-            console_print("\nYou can add --skip-tag-validation to skip this validation.")
+            branch_stdout = branch_result.stdout.decode("utf-8")
+            branch_respo = json.loads(branch_stdout)
+
+            if branch_respo.get("ref"):
+                console_print(
+                    f"[red]Error: Ref {ref} exists as a branch but not as a tag.[/red]",
+                )
+                console_print(
+                    "\nTo publish docs from a branch (e.g. a `providers/YYYY-MM-DD-docs` "
+                    "post-release fix branch), add [bold]--skip-tag-validation[/bold] to your command."
+                )
+            else:
+                console_print(
+                    f"[red]Error: Ref {ref} does not exist as a tag or branch in repo apache/airflow.[/red]",
+                )
+                console_print("\nYou can add --skip-tag-validation to skip this validation.")
             sys.exit(1)
 
     console_print(

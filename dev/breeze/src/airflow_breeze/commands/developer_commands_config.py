@@ -347,6 +347,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--cleanup-build-cache",
             ],
         },
+        {
+            "name": "Project selection",
+            "options": [
+                "--all-projects",
+                "--project-name",
+            ],
+        },
     ],
     "breeze build-docs": [
         {

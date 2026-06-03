@@ -61,7 +61,7 @@ def get_cookie_path() -> str:
 
 
 # Fast API apps mounted under these prefixes are not allowed
-RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
 log = logging.getLogger(__name__)
 

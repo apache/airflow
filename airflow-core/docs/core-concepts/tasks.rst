@@ -165,6 +165,154 @@ If you want to control your task's state from within custom Task/Operator code, 
 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
+.. _concepts:retry-policies:
+
+Retry Policies
+--------------
+
+By default, Airflow retries failed tasks with a fixed count and delay regardless of the error type.
+A **retry policy** lets you configure per-exception retry behaviour as a parameter on any task or operator,
+without modifying task code.
+
+Define a policy with rules that map exception types to actions, then apply it to a task:
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_definition]
+    :end-before: [END retry_policy_definition]
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_on_task]
+    :end-before: [END retry_policy_on_task]
+
+How it works
+~~~~~~~~~~~~
+
+The policy runs in the **task worker process** (never the scheduler) between catching the
+exception and deciding the task's next state. Each policy decision is logged in the task
+logs as ``Retry policy decision action=<action> reason=<reason>``.
+
+When a task fails, the policy evaluates the exception and returns one of three actions:
+
+* **RETRY** -- retry the task, optionally with a custom delay that overrides ``retry_delay``.
+  The retry is still subject to the task's ``retries`` count -- a policy can fail earlier but
+  cannot extend past the configured maximum.
+* **FAIL** -- fail immediately, skipping any remaining retries.
+* **DEFAULT** -- fall through to the standard retry logic (``retries`` count and ``retry_delay``).
+
+Rules are evaluated in order; the first matching rule wins.
+If no rule matches, the policy returns **DEFAULT** (standard retry behaviour).
+
+Exception matching
+~~~~~~~~~~~~~~~~~~
+
+Exception types can be specified as Python classes or dotted import path strings
+(e.g. ``"requests.exceptions.HTTPError"``). String paths are validated at DAG parse
+time -- a path without a dot raises ``ValueError`` immediately, and unresolvable paths
+produce a warning.
+
+By default, rules use ``isinstance`` matching, so a rule for ``OSError`` also matches
+``ConnectionError`` (a subclass). Set ``match_subclasses=False`` for exact type matching:
+
+.. code-block:: python
+
+    RetryRule(exception=OSError, match_subclasses=False)  # only OSError, not subclasses
+
+Composition with existing parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Parameter
+     - Behaviour when ``retry_policy`` is set
+   * - ``retries``
+     - Still the maximum retry count. Policy can fail earlier but not exceed it.
+   * - ``retry_delay`` / ``retry_exponential_backoff`` / ``max_retry_delay``
+     - Used when the policy returns DEFAULT or when ``RetryDecision.retry_delay`` is None.
+   * - ``on_retry_callback``
+     - Fires on all retries, including policy-driven retries.
+   * - ``AirflowFailException``
+     - Always takes precedence. The policy is never consulted for this exception.
+
+Reusable policies
+~~~~~~~~~~~~~~~~~
+
+Define a policy once and share it across DAGs via ``default_args`` or a shared module:
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_reusable]
+    :end-before: [END retry_policy_reusable]
+
+Mapped tasks
+~~~~~~~~~~~~
+
+Policies work with dynamic task mapping via ``.partial()``. The policy applies
+per mapped task instance -- if instance 2 of 10 hits FAIL, the other 9 continue
+independently:
+
+.. code-block:: python
+
+    @task.partial(retry_policy=my_policy).expand(input=[1, 2, 3])
+    def my_mapped_task(input): ...
+
+The policy is set at the task level via ``.partial()``; all mapped instances
+share one policy. Per-index variation is not supported on ``.expand()``, but the
+policy's ``evaluate()`` method receives the exception, ``try_number``, and full
+context, so per-index branching can be done inside the policy if needed.
+
+Custom retry policies
+~~~~~~~~~~~~~~~~~~~~~
+
+For advanced cases, subclass :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy`
+and implement ``evaluate()``. Subclassing is the right choice when you need to inspect
+exception *attributes* (status codes, response headers, payloads) that the declarative
+``ExceptionRetryPolicy`` rules cannot capture. The method receives the exception, try
+number, max tries, and the full Airflow context (``dag_run``, ``params``, etc.):
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    import requests
+
+    from airflow.sdk import RetryDecision, RetryPolicy
+
+
+    class HTTPStatusRetryPolicy(RetryPolicy):
+        """Route retry decisions by HTTP status code, honouring Retry-After on 429s."""
+
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            if isinstance(exception, requests.HTTPError) and exception.response is not None:
+                status = exception.response.status_code
+                if status == 429:  # rate limited -- honour Retry-After header
+                    retry_after = int(exception.response.headers.get("Retry-After", 60))
+                    return RetryDecision.retry(retry_delay=timedelta(seconds=retry_after))
+                if 500 <= status < 600:  # server error -- worth retrying
+                    return RetryDecision.retry()
+                if 400 <= status < 500:  # client error -- not retryable
+                    return RetryDecision.fail(reason=f"HTTP {status}")
+            return RetryDecision.default()
+
+A second pattern uses the run ``context`` to make decisions based on how the
+DAG was triggered:
+
+.. code-block:: python
+
+    from airflow.sdk import RetryDecision, RetryPolicy
+
+
+    class BackfillAwareRetryPolicy(RetryPolicy):
+        """Fail fast during backfills so historical errors surface immediately."""
+
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            if context and context["dag_run"].run_type == "backfill":
+                return RetryDecision.fail(reason="Backfill run -- not retrying")
+            return RetryDecision.default()
+
 .. _concepts:task-instance-heartbeat-timeout:
 
 Task Instance Heartbeat Timeout

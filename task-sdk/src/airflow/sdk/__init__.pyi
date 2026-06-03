@@ -49,6 +49,7 @@ from airflow.sdk.definitions.asset import (
     AssetAny as AssetAny,
     AssetWatcher as AssetWatcher,
 )
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.connection import Connection as Connection
@@ -75,10 +76,18 @@ from airflow.sdk.definitions.partition_mappers.temporal import (
     StartOfWeekMapper,
     StartOfYearMapper,
 )
+from airflow.sdk.definitions.retry_policy import (
+    ExceptionRetryPolicy as ExceptionRetryPolicy,
+    RetryAction as RetryAction,
+    RetryDecision as RetryDecision,
+    RetryPolicy as RetryPolicy,
+    RetryRule as RetryRule,
+)
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetOrTimeSchedule,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -104,6 +113,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -130,6 +140,7 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "ExceptionRetryPolicy",
     "IdentityMapper",
     "Label",
     "Metadata",
@@ -137,9 +148,14 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "PartitionAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
+    "RetryAction",
+    "RetryDecision",
+    "RetryPolicy",
+    "RetryRule",
     "SecretCache",
     "SkipMixin",
     "StartOfDayMapper",

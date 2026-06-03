@@ -379,6 +379,27 @@ How to avoid version inflation
           bash_command="echo {{ var.value.my_variable }}",
       )
 
+How to diagnose version inflation yourself
+""""""""""""""""""""""""""""""""""""""""""
+
+If your Dag version keeps increasing and it is not obvious which constructor argument is to blame, you
+can identify the changing field by inspecting the serialized Dag rows directly.
+
+The most reliable way is to query the ``serialized_dag`` table in the metadata database and compare how
+the serialized payload differs between two consecutive versions of the same Dag. The column that stores
+the serialized Dag holds the structured data that Airflow hashes to decide whether a new version is
+needed, so diffing two rows shows you exactly which field changed between parses.
+
+Once you spot the changing field, trace it back to the place in your Dag file where it is set, and
+replace the dynamic value with a deterministic one — for example, a fixed ``datetime`` literal, a Jinja
+template evaluated at execution time, or an Airflow Variable resolved via template. See
+`How to avoid version inflation`_ for concrete patterns.
+
+If you cannot tie the changing field to anything in your Dag code, and the value appears to come from
+Airflow itself (for example, an internal attribute that should be stable across parses), please report
+it as a bug at https://github.com/apache/airflow/issues. Include both serialized Dag payloads (or the
+relevant diff) and the Airflow version so maintainers can reproduce the issue.
+
 Dag version inflation detection
 """"""""""""""""""""""""""""""""
 
@@ -677,8 +698,28 @@ How to prevent API server memory growth?
 The API server caches serialized Dag objects in memory. Over time, as Dag versions accumulate
 (see :ref:`faq:dag-version-inflation`), this cache grows and can consume several gigabytes of memory.
 
-The recommended solution (available since Airflow 3.2.0) is to use **gunicorn** with **rolling worker
-restarts**. Gunicorn periodically recycles worker processes, releasing all accumulated memory. It also
+There are two complementary approaches:
+
+**1. Bounded DAG caching (available since Airflow 3.3.0)**
+
+The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
+in memory. Configure this in the ``[api]`` section:
+
+.. code-block:: ini
+
+    [api]
+    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+
+The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
+previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
+
+See :ref:`config:api__dag_cache_size` and :ref:`config:api__dag_cache_ttl` for the full
+configuration reference.
+
+**2. Gunicorn with rolling worker restarts (available since Airflow 3.2.0)**
+
+Gunicorn periodically recycles worker processes, releasing all accumulated memory. It also
 uses ``preload`` + ``fork``, so workers share read-only memory pages via copy-on-write, reducing overall
 memory usage by 40-50% compared to uvicorn's multiprocess mode.
 
@@ -699,8 +740,9 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 
 .. note::
 
-    Worker recycling handles memory growth from *any* source, not just the Dag cache. It is the
-    recommended approach for production API server deployments.
+    Worker recycling handles memory growth from *any* source, not just the Dag cache.
+    For production deployments, using both bounded caching and gunicorn worker recycling
+    provides the best results.
 
 
 MySQL and MySQL variant Databases

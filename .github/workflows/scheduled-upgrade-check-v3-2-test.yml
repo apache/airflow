@@ -23,7 +23,8 @@ on:  # yamllint disable-line rule:truthy
     - cron: '0 6 * * 2,4'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 jobs:
   upgrade-v3-2-test:
     name: "[v3-2-test] Upgrade"

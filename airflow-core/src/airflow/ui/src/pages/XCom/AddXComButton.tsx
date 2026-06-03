@@ -35,7 +35,7 @@ const AddXComButton = ({ dagId, mapIndex, runId, taskId }: AddXComButtonProps) =
 
   return (
     <>
-      <Button colorPalette="brand" onClick={onOpen}>
+      <Button onClick={onOpen}>
         <FiPlus /> {translate("xcom.add.title")}
       </Button>
 

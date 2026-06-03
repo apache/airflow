@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -53,12 +53,14 @@ from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
 from airflow.serialization.definitions.assets import SerializedAsset
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -87,8 +89,9 @@ def test_statement_latest_runs_one_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, "
+            "dag_run.data_interval_end, dag_run.run_after, dag_run.partition_key, "
+            "dag_run.partition_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
             "SELECT max(dag_run.logical_date) AS max_logical_date",
@@ -99,11 +102,38 @@ def test_statement_latest_runs_one_dag():
 
 
 @pytest.mark.db_test
-def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
     with dag_maker("fake-dag", schedule=None):
         pass
     dag_maker.sync_dagbag_to_db()
 
+    logical_date = tz.datetime(2025, 1, 1)
+    run_after = tz.datetime(2025, 1, 2)
+
+    dag_maker.create_dagrun(
+        run_id="latest-run",
+        logical_date=logical_date,
+        data_interval=(logical_date, run_after),
+        run_type=DagRunType.SCHEDULED,
+        run_after=run_after,
+        session=session,
+    )
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
+    latest = session.scalar(_get_latest_runs_stmt("fake-dag"))
+    assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == run_after
+    assert latest.partition_key is None
+    assert latest.partition_date is None
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=None):
+        pass
+    dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
         (
             ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
@@ -122,8 +152,14 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
             session=session,
         )
 
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
     latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
     assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == tz.datetime(2025, 1, 1)
+    assert latest.partition_key == "2025-01-02"
     assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
@@ -140,6 +176,51 @@ class TestAssetModelOperation:
         self.clean_db()
         yield
         self.clean_db()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
+        """When a producer bundle (without access_control) is synced after a consumer bundle
+        (with access_control), the stored access control fields must not be wiped out."""
+        from airflow.models.asset import DagScheduleAssetReference
+        from airflow.sdk import AssetAccessControl
+
+        # First sync: consumer bundle sets access_control on the asset.
+        consumer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"], allow_global=False),
+        )
+        with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
+            EmptyOperator(task_id="mytask")
+
+        consumer_dags = {consumer_dag.dag_id: LazyDeserializedDAG.from_dag(consumer_dag)}
+        orm_dags = DagModelOperation(consumer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(consumer_dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == "consumer_dag")
+        )
+        assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
+
+        # Second sync: producer bundle references the same asset WITHOUT access_control.
+        producer_asset = Asset("shared_asset")
+        with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
+            EmptyOperator(task_id="produce", outlets=[producer_asset])
+
+        producer_dags = {producer_dag.dag_id: LazyDeserializedDAG.from_dag(producer_dag)}
+        DagModelOperation(producer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(producer_dags)
+        asset_op.sync_assets(session=session)
+        session.flush()
+
+        # Consumer's access control must still be preserved.
+        session.expire(ref)
+        assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
 
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),
@@ -188,10 +269,6 @@ class TestAssetModelOperation:
         from the DB-stored Trigger row.  A mismatch causes the scheduler to
         recreate trigger rows on every heartbeat.
         """
-        from airflow.models.trigger import Trigger
-        from airflow.serialization.encoders import encode_trigger
-        from airflow.triggers.base import BaseEventTrigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_hash_consistency_asset",
@@ -236,8 +313,6 @@ class TestAssetModelOperation:
         """Calling add_asset_trigger_references twice with the same trigger
         must not create duplicate rows.
         """
-        from airflow.models.trigger import Trigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_idempotent_asset",
@@ -535,6 +610,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    version_data=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                     _prefetched=mock.ANY,
@@ -1101,6 +1177,24 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
+
+    @pytest.mark.parametrize(
+        ("field", "cfg_key", "schema_default"),
+        [
+            ("max_active_runs", "max_active_runs_per_dag", 16),
+            ("max_active_tasks", "max_active_tasks_per_dag", 16),
+            ("max_consecutive_failed_dag_runs", "max_consecutive_failed_dag_runs_per_dag", 0),
+        ],
+    )
+    def test_config_driven_field_equal_to_schema_default_not_overridden_by_conf(
+        self, testing_dag_bundle, session, dag_maker, field, cfg_key, schema_default
+    ):
+        with conf_vars({("core", cfg_key): "1"}):
+            with dag_maker(f"dag_{field}_schema_default", schedule=None, **{field: schema_default}) as dag:
+                ...
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            orm_dag = session.get(DagModel, f"dag_{field}_schema_default")
+            assert getattr(orm_dag, field) == schema_default
 
     def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):

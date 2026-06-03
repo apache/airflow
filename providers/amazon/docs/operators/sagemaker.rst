@@ -390,7 +390,7 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPro
 Branch a DAG based on condition evaluation
 ==========================================
 
-To branch an Airflow DAG based on upstream task outputs you can use
+To branch an Airflow Dag based on upstream task outputs you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerConditionOperator`.
 
 Simple usage with flat parameters (single condition):

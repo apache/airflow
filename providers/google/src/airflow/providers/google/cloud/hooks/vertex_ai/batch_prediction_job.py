@@ -23,7 +23,6 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
@@ -55,15 +54,22 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
         )
         self._batch_prediction_job: BatchPredictionJob | None = None
 
+    def _get_api_endpoint(
+        self,
+        region: str | None = None,
+    ) -> str | None:
+        if region and region != "global" and self.is_default_universe():
+            return f"{region}-aiplatform.googleapis.com:443"
+        return None
+
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Return JobServiceClient object."""
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
-
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     @staticmethod
@@ -525,11 +531,14 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
 
     async def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
         """Return JobServiceAsyncClient object."""
-        endpoint = f"{region}-aiplatform.googleapis.com:443" if region and region != "global" else None
+        sync_hook = await self.get_sync_hook()
+
         return JobServiceAsyncClient(
-            credentials=(await self.get_sync_hook()).get_credentials(),
+            credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=ClientOptions(api_endpoint=endpoint),
+            client_options=sync_hook.get_client_options(
+                api_endpoint_override=sync_hook._get_api_endpoint(region=region)
+            ),
         )
 
     async def get_batch_prediction_job(

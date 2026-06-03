@@ -29,7 +29,6 @@ import { useConfig } from "src/queries/useConfig";
 import { Nav } from "./Nav";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const instanceName = useConfig("instance_name");
   const { i18n } = useTranslation();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
@@ -38,10 +37,6 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
     pluginData?.plugins
       .flatMap((plugin) => plugin.react_apps)
       .filter((reactApp: ReactAppResponse) => reactApp.destination === "base") ?? [];
-
-  if (typeof instanceName === "string") {
-    document.title = instanceName;
-  }
 
   useEffect(() => {
     const html = document.documentElement;
@@ -113,7 +108,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
           flex={1}
           flexDirection="column"
           minH={0}
-          overflowY="auto"
+          overflow="auto"
           p={3}
         >
           {baseReactPlugins.map((plugin) => (

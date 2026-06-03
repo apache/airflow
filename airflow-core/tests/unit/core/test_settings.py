@@ -25,7 +25,11 @@ from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from sqlalchemy.engine import Engine
+from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.pool import NullPool
 
+from airflow import settings
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 
 SETTINGS_FILE_CUSTOM_ENGINE = """
@@ -259,18 +263,70 @@ class TestMetadataEngineHooks:
     def test_configure_async_session_delegates_to_create_async_metadata_engine(
         self, mock_create_async_engine
     ):
-        """_configure_async_session() must call create_async_metadata_engine."""
+        """_configure_async_session() must call create_async_metadata_engine with no pool args for sqlite."""
         from airflow import settings
 
         mock_create_async_engine.return_value = MagicMock()
 
-        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "sqlite+aiosqlite://"):
+        with (
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "sqlite+aiosqlite://"),
+            patch("airflow.settings.conf") as mock_conf,
+        ):
+            # Pool enabled but sqlite -- pool args should be skipped
+            mock_conf.getboolean.return_value = True
             settings._configure_async_session()
 
         mock_create_async_engine.assert_called_once()
         call_kwargs = mock_create_async_engine.call_args
         assert call_kwargs[0][0] == "sqlite+aiosqlite://"
         assert "connect_args" in call_kwargs[1]
+        # sqlite doesn't support pool size args
+        assert call_kwargs[1]["engine_args"] == {}
+
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_configure_async_session_passes_pool_args_for_non_sqlite(self, mock_create_async_engine):
+        """_configure_async_session() must pass pool configuration for non-sqlite backends."""
+        from airflow import settings
+
+        mock_create_async_engine.return_value = MagicMock()
+
+        with (
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+asyncpg://localhost/airflow"),
+            patch("airflow.settings.conf") as mock_conf,
+        ):
+            mock_conf.getint.side_effect = lambda section, key, fallback=None: {
+                "SQL_ALCHEMY_POOL_SIZE": 10,
+                "SQL_ALCHEMY_POOL_RECYCLE": 900,
+                "SQL_ALCHEMY_MAX_OVERFLOW": 5,
+            }.get(key, fallback)
+            mock_conf.getboolean.return_value = True
+
+            settings._configure_async_session()
+
+        engine_args = mock_create_async_engine.call_args[1]["engine_args"]
+        assert engine_args["pool_size"] == 10
+        assert engine_args["pool_recycle"] == 900
+        assert engine_args["pool_pre_ping"] is True
+        assert engine_args["max_overflow"] == 5
+
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_configure_async_session_uses_nullpool_when_pool_disabled(self, mock_create_async_engine):
+        """_configure_async_session() must use NullPool when SQL_ALCHEMY_POOL_ENABLED is False."""
+        from airflow import settings
+
+        mock_create_async_engine.return_value = MagicMock()
+
+        with (
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+asyncpg://localhost/airflow"),
+            patch("airflow.settings.conf") as mock_conf,
+        ):
+            mock_conf.getboolean.return_value = False
+
+            settings._configure_async_session()
+
+        engine_args = mock_create_async_engine.call_args[1]["engine_args"]
+        assert engine_args["poolclass"] is NullPool
+        assert "pool_size" not in engine_args
 
     @patch("airflow.settings.create_async_metadata_engine")
     def test_configure_async_session_skips_when_no_async_conn(self, mock_create_async_engine):
@@ -310,12 +366,18 @@ class TestMetadataEngineHooks:
 
         mock_sa_create_async.return_value = MagicMock()
         connect_args = {"timeout": 30}
+        engine_args = {"pool_size": 5, "pool_recycle": 1800, "pool_pre_ping": True}
 
-        settings.create_async_metadata_engine("sqlite+aiosqlite://", connect_args=connect_args)
+        settings.create_async_metadata_engine(
+            "sqlite+aiosqlite://", connect_args=connect_args, engine_args=engine_args
+        )
 
         mock_sa_create_async.assert_called_once_with(
             "sqlite+aiosqlite://",
             connect_args={"timeout": 30},
+            pool_size=5,
+            pool_recycle=1800,
+            pool_pre_ping=True,
             future=True,
         )
 
@@ -370,3 +432,71 @@ def test_sqlite_relative_path(value, expectation):
     ):
         with expectation:
             settings.configure_orm()
+
+
+class TestDisposeOrm:
+    """Tests for dispose_orm() async engine disposal."""
+
+    def setup_method(self):
+        self._orig = {
+            "engine": settings.engine,
+            "Session": settings.Session,
+            "NonScopedSession": settings.NonScopedSession,
+            "async_engine": settings.async_engine,
+            "AsyncSession": settings.AsyncSession,
+        }
+
+    def teardown_method(self):
+        for attr, val in self._orig.items():
+            setattr(settings, attr, val)
+
+    def test_disposes_async_engine(self):
+        """dispose_orm() must dispose the async engine and clear AsyncSession."""
+        mock_sync_engine = MagicMock(spec=Engine)
+        mock_async_engine = MagicMock(spec=AsyncEngine)
+        mock_async_engine.sync_engine = mock_sync_engine
+
+        settings.engine = None
+        settings.Session = None
+        settings.NonScopedSession = None
+        settings.async_engine = mock_async_engine
+        settings.AsyncSession = MagicMock()
+
+        settings.dispose_orm(do_log=False)
+
+        mock_sync_engine.dispose.assert_called_once()
+        assert settings.async_engine is None
+        assert settings.AsyncSession is None
+
+    def test_disposes_both_sync_and_async(self):
+        """dispose_orm() disposes both engines when both are set."""
+        mock_engine = MagicMock(spec=Engine)
+        mock_sync_engine = MagicMock(spec=Engine)
+        mock_async_engine = MagicMock(spec=AsyncEngine)
+        mock_async_engine.sync_engine = mock_sync_engine
+
+        settings.engine = mock_engine
+        settings.Session = MagicMock()
+        settings.NonScopedSession = MagicMock()
+        settings.async_engine = mock_async_engine
+        settings.AsyncSession = MagicMock()
+
+        with patch("sqlalchemy.orm.session.close_all_sessions"):
+            settings.dispose_orm(do_log=False)
+
+        mock_engine.dispose.assert_called_once()
+        mock_sync_engine.dispose.assert_called_once()
+        assert settings.engine is None
+        assert settings.async_engine is None
+        assert settings.AsyncSession is None
+
+    def test_early_return_when_all_none(self):
+        """dispose_orm() returns early without side effects when nothing is configured."""
+        settings.engine = None
+        settings.Session = None
+        settings.async_engine = None
+
+        with patch("sqlalchemy.orm.session.close_all_sessions") as mock_close:
+            settings.dispose_orm(do_log=False)
+
+        mock_close.assert_not_called()

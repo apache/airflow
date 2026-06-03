@@ -31,6 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     TeamDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 
@@ -119,6 +120,107 @@ class TestSimpleAuthManager:
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
             auth_manager.init()
             assert not os.path.exists(auth_manager.get_generated_password_file())
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "localhost",
+                    "executor": "LocalExecutor",
+                },
+                False,
+                id="all-dev",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "postgresql+psycopg2://airflow@db/airflow",
+                    "api_host": "localhost",
+                    "executor": "LocalExecutor",
+                },
+                True,
+                id="postgres-backend-is-prod-shape",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "mysql://airflow@db/airflow",
+                    "api_host": "localhost",
+                    "executor": "LocalExecutor",
+                },
+                True,
+                id="mysql-backend-is-prod-shape",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "0.0.0.0",
+                    "executor": "LocalExecutor",
+                },
+                True,
+                id="non-local-bind-is-prod-shape",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "127.0.0.1",
+                    "executor": "LocalExecutor",
+                },
+                False,
+                id="loopback-bind-is-dev",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "localhost",
+                    "executor": "CeleryExecutor",
+                },
+                True,
+                id="celery-executor-is-prod-shape",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "localhost",
+                    "executor": "airflow.executors.local_executor.LocalExecutor",
+                },
+                False,
+                id="fully-qualified-local-executor-is-dev",
+            ),
+            pytest.param(
+                {
+                    "sql_conn": "sqlite:////tmp/airflow.db",
+                    "api_host": "  localhost  ",
+                    "executor": "LocalExecutor",
+                },
+                False,
+                id="api-host-is-stripped",
+            ),
+        ],
+    )
+    def test_looks_like_production(self, kwargs, expected):
+        # The function takes each axis as a keyword argument so the test fully
+        # controls the inputs and does not rely on conf state. Any axis left
+        # as None would fall through to conf.get(); we pass all three explicitly.
+        assert SimpleAuthManager._looks_like_production(**kwargs) is expected
+
+    @mock.patch.object(SimpleAuthManager, "_looks_like_production", return_value=True)
+    @mock.patch("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.log")
+    def test_init_warns_when_production_shaped(self, mock_log, mock_check, auth_manager):
+        """SimpleAuthManager.init() emits a loud warning in a production-shaped deployment."""
+        with conf_vars({("core", "simple_auth_manager_users"): "alice:admin"}):
+            auth_manager.init()
+        mock_check.assert_called_once_with()
+        mock_log.warning.assert_called_once()
+
+    @mock.patch.object(SimpleAuthManager, "_looks_like_production", return_value=False)
+    @mock.patch("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.log")
+    def test_init_does_not_warn_for_dev_shape(self, mock_log, mock_check, auth_manager):
+        """No production warning when the deployment shape looks like local dev."""
+        with conf_vars({("core", "simple_auth_manager_users"): "alice:admin"}):
+            auth_manager.init()
+        mock_check.assert_called_once_with()
+        mock_log.warning.assert_not_called()
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
@@ -367,3 +469,20 @@ class TestSimpleAuthManager:
     def test_get_teams(self, auth_manager):
         teams = auth_manager._get_teams()
         assert teams == {"test", "marketing"}
+
+    @conf_vars({("core", "simple_auth_manager_all_admins"): "false"})
+    def test_get_fastapi_middlewares_disabled(self, auth_manager):
+        assert auth_manager.get_fastapi_middlewares() == []
+
+    @conf_vars({("core", "simple_auth_manager_all_admins"): "true"})
+    def test_get_fastapi_middlewares_enabled(self, auth_manager):
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        assert auth_manager.get_fastapi_middlewares() == [(SimpleAllAdminMiddleware, {})]
+
+    def test_generate_password_uses_expected_alphabet_and_length(self):
+        alphabet = set("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789")
+        for _ in range(50):
+            password = SimpleAuthManager._generate_password()
+            assert len(password) == 16
+            assert set(password).issubset(alphabet)

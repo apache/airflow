@@ -20,11 +20,11 @@ import type { ButtonGroupProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
-  const { allGroupIds, openGroupIds, setOpenGroupIds } = useOpenGroups();
+  const { allGroupIds, openGroupIds, setOpenGroupIds } = useGroups();
 
   // Don't show button if the DAG has no task groups
   if (!allGroupIds.length) {

@@ -21,11 +21,12 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow._shared.secrets_masker import redact, should_hide_value_for_key
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
+from airflow.configuration import conf
 
 
 # Response Models
@@ -53,16 +54,16 @@ class ConnectionResponse(BaseModel):
     @field_validator("extra", mode="before")
     @classmethod
     def redact_extra(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
+        if v is None or v == "":
+            return v
         try:
             extra_dict = json.loads(v)
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
             # Do not return un-redacted extra because this could cause sensitive information to be exposed.
-            # This code path should never been hit as ``Connection._validate_extra`` sure that ``extra`` is
-            # always a valid JSON string. We add this safeguard just in case and to make the coupling
+            # This code path should never be hit as ``Connection._validate_extra`` makes sure that ``extra`` is
+            # always a valid JSON string (if truthy). We add this safeguard just in case and to make the coupling
             # explicit.
             raise ValueError(
                 "This code path should never happen as persisted Connections (DB layer) should always enforce `extra` as a JSON string."
@@ -198,6 +199,14 @@ class ConnectionBody(StrictBaseModel):
                 "but encountered non-JSON in `extra` field"
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_team_name(self) -> ConnectionBody:
+        if self.team_name is not None and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            )
+        return self
 
 
 ConnectionBodyPartial = make_partial_model(ConnectionBody)

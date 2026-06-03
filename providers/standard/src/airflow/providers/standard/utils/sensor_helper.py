@@ -38,6 +38,7 @@ def _get_count(
     external_task_group_id,
     external_dag_id,
     states,
+    *,
     session: Session = NEW_SESSION,
 ) -> int:
     """
@@ -144,6 +145,11 @@ def _get_count_by_matched_states(
 ):
     count = 0
     for _, task_states in run_id_task_state_map.items():
-        if all(state in states for state in task_states.values() if state):
+        # Create this list such that len() can be checked in the conditional (to handle empty inner)
+        matched_states: list = [state in states for state in task_states.values()]
+
+        # An empty inner, such as {"r": {}}, results in count NOT being incremented
+        if len(matched_states) > 0 and all(matched_states):
             count += 1
+
     return count

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+from unittest import mock
 
 import pendulum
 import pytest
@@ -303,7 +304,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                6,
+                7,
             ),
             (
                 {
@@ -311,7 +312,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
-                6,
+                7,
             ),
             (
                 {
@@ -336,7 +337,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                6,
+                7,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -375,7 +376,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                13,
+                14,
             ),
         ],
     )
@@ -572,7 +573,7 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        with assert_queries_count(13):
+        with assert_queries_count(14):
             response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
@@ -685,10 +686,53 @@ class TestStructureDataEndpoint:
         response = unauthorized_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={DAG_ID_EXTERNAL_TRIGGER},
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_external_deps_filters_unreadable_dags(self, _, test_client):
+        response = test_client.get(
+            "/structure/structure_data",
+            params={"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert "trigger_dag_run_operator" in node_ids
+        assert not any(DAG_ID in nid for nid in node_ids if nid != "trigger_dag_run_operator")
+        edge_targets = {edge["target_id"] for edge in result["edges"]}
+        assert not any(DAG_ID in tid for tid in edge_targets)
+
     def test_should_return_404(self, test_client):
         response = test_client.get("/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_400_on_malformed_asset_expression(self, test_client):
+        """A TypeError from get_upstream_assets surfaces as a 400 with a clear message.
+
+        The asset_expression ultimately comes from user-authored Dag code (via the Task SDK),
+        so a malformed expression is bad input that ended up persisted -- not a server fault.
+        Without the try/except wrap, the TypeError propagates uncaught and FastAPI returns a
+        generic ``{"detail": "Internal Server Error"}`` 500 body with no context about which
+        Dag triggered it. With the wrap, the response identifies the Dag and version, which
+        is what a caller needs to fix the upstream Dag definition.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.ui.structure.get_upstream_assets",
+            side_effect=TypeError("Unsupported type: dict_keys(['weird-op'])"),
+        ):
+            response = test_client.get(
+                "/structure/structure_data",
+                params={"dag_id": DAG_ID, "external_dependencies": True},
+            )
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert "Malformed asset_expression" in detail
+        assert DAG_ID in detail
+        assert "Unsupported type" in detail
 
     def test_should_return_404_when_dag_version_not_found(self, test_client):
         response = test_client.get(

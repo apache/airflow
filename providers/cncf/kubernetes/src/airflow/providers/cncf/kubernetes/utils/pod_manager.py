@@ -21,7 +21,9 @@ from __future__ import annotations
 import asyncio
 import enum
 import json
+import logging
 import math
+import re
 import time
 from collections.abc import Callable, Generator, Iterable
 from contextlib import closing
@@ -73,6 +75,33 @@ Sentinel for no xcom result.
 
 :meta private:
 """
+
+_POD_LOG_LEVEL_PATTERN = re.compile(
+    r"^\s*(?:\[)?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)(?:\])?\s*[:\-]?\s*",
+    re.IGNORECASE,
+)
+_POD_LOG_LEVEL_MAP: dict[str, int] = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+    "FATAL": logging.CRITICAL,
+}
+
+
+def _parse_log_level(message: str) -> int:
+    """
+    Detect the Python logging level from a pod log line's prefix.
+
+    Recognises common formats: ``ERROR:``, ``[ERROR]``, ``WARNING -``, etc.
+    Returns ``logging.INFO`` when no known prefix is found (backwards-compatible).
+    """
+    match = _POD_LOG_LEVEL_PATTERN.match(message)
+    if match:
+        return _POD_LOG_LEVEL_MAP.get(match.group(1).upper(), logging.INFO)
+    return logging.INFO
 
 
 class XComRetrievalError(AirflowException):
@@ -135,7 +164,7 @@ async def await_pod_start(
     :param check_interval: Interval (in seconds) between status checks.
     :param is_async: Set to True if called in an async context; otherwise, False.
     """
-    pod_manager.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+    pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)
@@ -145,7 +174,7 @@ async def await_pod_start(
         else:
             remote_pod = pod_manager.read_pod(pod)
         pod_status = remote_pod.status
-        if pod_status.phase != PodPhase.PENDING:
+        if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
             pod_manager.stop_watching_events = True
             pod_manager.log.info("::endgroup::")
             break
@@ -203,6 +232,18 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
         "temporarily unavailable",
         "timeout",
         "account limit",
+        # Upstream registry/auth outages (e.g. Docker Hub auth returning 5xx).
+        # kubelet will retry automatically; the caller's startup_timeout still
+        # bounds the total wait. These match both the underlying ErrImagePull
+        # message and the ImagePullBackOff message on kubelet >= 1.32, which
+        # appends the previous pull error to "Back-off pulling image ...".
+        # On older kubelets the bare ImagePullBackOff message carries no
+        # detail, so we fall back to the existing fail-fast path — matching
+        # "back-off pulling" unconditionally would cause a 120s wait for a
+        # genuinely missing image instead of failing fast.
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
     ]
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
@@ -402,6 +443,8 @@ class PodManager(LoggingMixin):
         seen_events: set[str] = set()
         while not self.stop_watching_events:
             events = self.read_pod_events(pod, resource_version)
+            if events.metadata and events.metadata.resource_version:
+                resource_version = events.metadata.resource_version
             for event in events.items:
                 log_pod_event(self, event, seen_events)
                 resource_version = event.metadata.resource_version
@@ -436,18 +479,18 @@ class PodManager(LoggingMixin):
         container_name_log_prefix_enabled: bool,
         log_formatter: Callable[[str, str], str] | None,
     ) -> None:
-        """Log a message with appropriate formatting."""
+        """Log a message at the level detected from its prefix, with appropriate formatting."""
         if is_log_group_marker(message):
             print(message)
         else:
+            level = _parse_log_level(message)
             if log_formatter:
                 formatted_message = log_formatter(container_name, message)
-                self.log.info("%s", formatted_message)
             else:
-                log_message = (
+                formatted_message = (
                     f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
                 )
-                self.log.info("%s", log_message)
+            self.log.log(level, formatted_message)
 
     def fetch_container_logs(
         self,
@@ -497,8 +540,12 @@ class PodManager(LoggingMixin):
                 since_seconds = None
                 if since_time:
                     try:
+                        if isinstance(
+                            since_time, str
+                        ):  # against interface spec but accept string as safeguard
+                            since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
                         since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
-                    except TypeError:
+                    except (TypeError, ValueError):
                         self.log.warning(
                             "Error calculating since_seconds with since_time %s. Using None instead.",
                             since_time,
@@ -519,6 +566,15 @@ class PodManager(LoggingMixin):
                         line = raw_line.decode("utf-8", errors="backslashreplace")
                         line_timestamp, message = parse_log_line(line)
                         if line_timestamp:  # detect new log line
+                            if not message:
+                                # Empty container write: advance the resume
+                                # marker but do not emit a noisy ``[base] ``
+                                # row or break the previous buffered message
+                                # with a stray continuation (#36571).
+                                self.container_log_times[
+                                    (pod.metadata.namespace, pod.metadata.name, container_name)
+                                ] = line_timestamp
+                                continue
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -741,7 +797,11 @@ class PodManager(LoggingMixin):
             time.sleep(polling_time)
 
     def await_pod_completion(
-        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+        self,
+        pod: V1Pod,
+        istio_enabled: bool = False,
+        container_name: str = "base",
+        do_xcom_push: bool = False,
     ) -> V1Pod:
         """
         Monitor a pod and return the final state.
@@ -749,13 +809,21 @@ class PodManager(LoggingMixin):
         :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod
-        :return: tuple[State, str | None]
+        :param do_xcom_push: whether to push XComs
+        :return: V1Pod
         """
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            if istio_enabled and container_is_completed(remote_pod, container_name):
+            if (istio_enabled or do_xcom_push) and container_is_completed(remote_pod, container_name):
+                self.log.info(
+                    "Container '%s' completed but pod %s still has phase %s "
+                    "(likely due to a sidecar container). Skipping waiting for pod completion.",
+                    container_name,
+                    pod.metadata.name,
+                    remote_pod.status.phase,
+                )
                 break
             # abort waiting if defined issues are detected
             if detect_pod_terminate_early_issues(remote_pod):
@@ -1049,12 +1117,17 @@ def parse_log_line(line: str) -> tuple[DateTime | None, str]:
     :param line: k8s log line
     :return: timestamp and log message
     """
-    timestamp, sep, message = line.strip().partition(" ")
-    if not sep:
-        return None, line
+    # Strip only the trailing newline so an empty container write (which
+    # kubelet streams back as "<rfc3339-ts> \n" under ``timestamps=True``)
+    # keeps the separator space and is recognised as a real log line, not a
+    # continuation of the previous one (#36571). When kubelet emits "<ts>\n"
+    # with no trailing space, ``partition`` returns the whole line as
+    # ``timestamp`` and ``message`` as ``""`` -- the parse below handles both.
+    stripped = line.rstrip("\n")
+    timestamp, _, message = stripped.partition(" ")
     try:
         last_log_time = cast("DateTime", pendulum.parse(timestamp))
-    except ParserError:
+    except (ParserError, ValueError):
         return None, line
     return last_log_time, message
 
@@ -1161,6 +1234,11 @@ class AsyncPodManager(LoggingMixin):
                 if line_timestamp and line_timestamp.replace(microsecond=0) == now_seconds:
                     break
                 if line_timestamp:  # detect new log line
+                    if not message:
+                        # Empty container write -- drop it instead of letting
+                        # it overwrite the buffered message with "" or be
+                        # emitted as a noisy ``[base] `` row (#36571).
+                        continue
                     if message_to_log is None:  # first line in the log
                         message_to_log = message
                     else:  # previous log line is complete
@@ -1168,7 +1246,8 @@ class AsyncPodManager(LoggingMixin):
                             if is_log_group_marker(message_to_log):
                                 print(message_to_log)
                             else:
-                                self.log.info("[%s] %s", container_name, message_to_log)
+                                level = _parse_log_level(message_to_log)
+                                self.log.log(level, "[%s] %s", container_name, message_to_log)
                         message_to_log = message
                 elif message_to_log:  # continuation of the previous log line
                     message_to_log = f"{message_to_log}\n{message}"
@@ -1178,5 +1257,6 @@ class AsyncPodManager(LoggingMixin):
                 if is_log_group_marker(message_to_log):
                     print(message_to_log)
                 else:
-                    self.log.info("[%s] %s", container_name, message_to_log)
+                    level = _parse_log_level(message_to_log)
+                    self.log.log(level, "[%s] %s", container_name, message_to_log)
         return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.

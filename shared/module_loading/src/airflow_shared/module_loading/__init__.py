@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 import pkgutil
 import sys
@@ -41,6 +42,33 @@ EPnD = tuple[metadata.EntryPoint, metadata.Distribution]
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+
+def accepts_context(callback: Callable) -> bool:
+    """Check if callback accepts a 'context' parameter or **kwargs."""
+    try:
+        sig = inspect.signature(callback)
+    except (ValueError, TypeError):
+        return True
+    params = sig.parameters
+    return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def accepts_keyword_args(func: Callable) -> bool:
+    """Check if a callable accepts any keyword arguments (named params or **kwargs)."""
+    try:
+        sig = inspect.signature(func)
+    except (ValueError, TypeError):
+        return True
+    return any(
+        p.kind
+        in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_KEYWORD,
+        )
+        for p in sig.parameters.values()
+    )
 
 
 def import_string(dotted_path: str):

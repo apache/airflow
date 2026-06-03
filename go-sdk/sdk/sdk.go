@@ -28,6 +28,15 @@ const (
 	ConnectionEnvPrefix = "AIRFLOW_CONN_"
 )
 
+// VariableClient reads Airflow Variables.
+//
+// Go has no function overloading, so the "give me the raw string" and
+// "give me a decoded struct" cases are split into two methods rather
+// than one polymorphic call: GetVariable returns the raw string,
+// UnmarshalJSONVariable decodes a JSON-encoded variable into a
+// caller-supplied pointer. This mirrors the std-lib split between
+// os.LookupEnv and json.Unmarshal — each method has one job, and the
+// caller picks based on how the variable was stored.
 type VariableClient interface {
 	// GetVariable returns the value of an Airflow Variable.
 	//
@@ -43,6 +52,13 @@ type VariableClient interface {
 	//				// Other errors here, such as http network timeouts etc.
 	//		}
 	GetVariable(ctx context.Context, key string) (string, error)
+
+	// UnmarshalJSONVariable fetches a variable and unmarshals its value into
+	// pointer via json.Unmarshal. Use this when the variable was stored as a
+	// JSON object, array, or number; for plain string variables call
+	// GetVariable directly.
+	//
+	// pointer must be a non-nil pointer, as required by encoding/json.
 	UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error
 }
 

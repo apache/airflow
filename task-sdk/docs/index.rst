@@ -88,9 +88,14 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.Context`
 - :class:`airflow.sdk.DAG`
 - :class:`airflow.sdk.EdgeModifier`
+- :class:`airflow.sdk.ExceptionRetryPolicy`
 - :class:`airflow.sdk.Label`
 - :class:`airflow.sdk.ObjectStoragePath`
 - :class:`airflow.sdk.Param`
+- :class:`airflow.sdk.RetryAction`
+- :class:`airflow.sdk.RetryDecision`
+- :class:`airflow.sdk.RetryPolicy`
+- :class:`airflow.sdk.RetryRule`
 - :class:`airflow.sdk.TaskGroup`
 - :class:`airflow.sdk.TaskInstanceState`
 - :class:`airflow.sdk.DagRunState`
@@ -170,3 +175,4 @@ For the full public API reference, see the :doc:`api` page.
   deferred-vs-async-operators
   api
   concepts
+  executable-bundle-spec

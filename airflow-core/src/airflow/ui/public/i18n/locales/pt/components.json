@@ -24,7 +24,6 @@
         "title": "Backfill gerado"
       }
     },
-    "tooltip": "Backfill requer um agendamento",
     "unpause": "Despausar {{dag_display_name}} ao acionar",
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
