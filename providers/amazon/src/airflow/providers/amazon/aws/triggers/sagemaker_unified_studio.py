@@ -58,7 +58,8 @@ class SageMakerNotebookJobTrigger(BaseTrigger):
             {
                 "execution_id": self.execution_id,
                 "execution_name": self.execution_name,
-                "poll_interval": self.poll_interval,
+                "waiter_delay": self.waiter_delay,
+                "waiter_max_attempts": self.waiter_max_attempts,
             },
         )
 

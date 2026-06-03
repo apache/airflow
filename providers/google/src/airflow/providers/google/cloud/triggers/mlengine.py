@@ -87,6 +87,8 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
                 "training_python_module": self.training_python_module,
                 "training_args": self.training_args,
                 "labels": self.labels,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
