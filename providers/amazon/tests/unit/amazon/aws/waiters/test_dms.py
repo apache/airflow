@@ -144,12 +144,13 @@ class TestCustomDmsWaiters:
             ]
         )
 
-    def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks):
+    @pytest.mark.parametrize("status", ["stopped", "ready", "failed"])
+    def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks, status):
         mock_describe_replication_tasks.return_value = {
             "ReplicationTasks": [
                 {
                     "ReplicationTaskArn": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                    "Status": "stopped",
+                    "Status": status,
                 }
             ]
         }
