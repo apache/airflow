@@ -164,6 +164,28 @@ class TestRetryWithDifferentJobStatuses:
         assert op.polled_ids == ["job-002"]
 
 
+class TestNoneExternalId:
+    def test_none_external_id_is_not_stored(self):
+        """submit_job() returning None must not call task_state.set()."""
+
+        class NoneIdOp(ConcreteResumableOperator):
+            def submit_job(self, context) -> JsonValue:
+                return None
+
+            def poll_until_complete(self, external_id, context) -> None:
+                pass
+
+            def get_job_result(self, external_id, context) -> str:
+                return "done"
+
+        op = NoneIdOp(task_id="test_task")
+        task_state = FakeTaskState()
+
+        op.execute_resumable(make_context(task_state))
+
+        assert task_state._store == {}
+
+
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):

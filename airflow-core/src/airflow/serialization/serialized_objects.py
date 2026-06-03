@@ -918,14 +918,16 @@ class _DependencyDetector:
 
         for obj in task.outlets or []:
             if isinstance(obj, (Asset, SerializedAsset)):
-                serialized_asset = ensure_serialized_asset(obj)
+                # The unique key only needs ``name``/``uri``, and asset encode/decode
+                # copies both verbatim, so build the key directly and skip the full
+                # ensure_serialized_asset() encode→decode roundtrip on every outlet.
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
+                        dependency_id=SerializedAssetUniqueKey(name=obj.name, uri=obj.uri).to_str(),
                     )
                 )
             elif isinstance(obj, (AssetAlias, SerializedAssetAlias)):

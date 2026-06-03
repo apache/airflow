@@ -47,6 +47,56 @@ name added to ``[core] allowed_deserialization_classes`` -- the consumer DAG's
 worker only loads its own DAG. On Airflow versions whose worker does not register
 declared classes, the operators dump to ``dict`` instead.
 
+0.4.0
+.....
+
+.. note::
+    This release changes the return type of ``LLMOperator``, ``LLMAgentOperator`` and
+    ``LLMFileAnalysisOperator``: structured output is now returned through XCom as Pydantic
+    model instances instead of plain ``dict`` objects. Downstream tasks that consume these
+    XCom values must be updated accordingly. As this provider is still pre-1.0, the breaking
+    change ships in a minor release.
+
+Breaking changes
+~~~~~~~~~~~~~~~~~~
+
+* ``Return Pydantic model instances through XCom for structured output (#67644)``
+
+Features
+~~~~~~~~
+
+* ``Add 'OpenTelemetry' tracing for 'common.ai' Pydantic AI agents (#67792)``
+* ``Add a bridge to expose 'common.ai' toolsets as LangChain tools (#67791)``
+* ``Add Agent Skills support to the Common AI provider (#67786)``
+* ``Accept Sequence[UserContent] in common.ai TaskFlow decorators (#67389)``
+* ``Add LlamaIndex operators to common.ai provider (#67121)``
+* ``Add 'DocumentLoaderOperator' to 'common.ai' provider (#67120)``
+* ``Add 'Langchain' hook to 'common-ai' provider (#67192)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Register operator-declared XCom classes from a worker-side DAG walk (#67875)``
+* ``common-ai: Honour serialize_output=True on LLMFileAnalysisOperator (#67858)``
+
+Misc
+~~~~
+
+* ``Bump common.ai floor to pydantic-ai-slim>=1.71.0 and document capabilities passthrough (#67444)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add SEC 10-K analysis example using LangChain for Common.ai provider (#67727)``
+   * ``Add SEC 10-K financial analysis example DAG using LlamaIndex for Common.ai provider (#67671)``
+   * ``Add AIP progress tracker example DAG for common.ai provider (#67660)``
+   * ``[main] CI: Upgrade important CI environment (#67593)``
+   * ``[main] CI: Upgrade important CI environment (#67313)``
+   * ``Prevent durable storage tests from leaking hook lineage (#67252)``
+   * ``Fix LangChain hook tests failing when langchain is not installed (#67237)``
+
 0.3.0
 .....
 

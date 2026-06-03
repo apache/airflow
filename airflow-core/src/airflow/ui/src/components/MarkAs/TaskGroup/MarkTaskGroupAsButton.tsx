@@ -108,14 +108,12 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
         </Menu.Content>
       </Menu.Root>
 
-      {open ? (
-        <MarkTaskGroupAsDialog
-          groupTaskInstance={groupTaskInstance}
-          onClose={onClose}
-          open={open}
-          state={state}
-        />
-      ) : undefined}
+      <MarkTaskGroupAsDialog
+        groupTaskInstance={groupTaskInstance}
+        onClose={onClose}
+        open={open}
+        state={state}
+      />
     </Box>
   );
 };
