@@ -509,7 +509,7 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
 Team-scoped Triggerer
 ---------------------
 
-When Multi-Team mode is enabled, the triggerer can be scoped to a specific team using the ``--team-name`` CLI argument. A team-scoped triggerer only processes deferred tasks (triggers) belonging to that team's Dags. This allows teams to run isolated triggerer instances with independent capacity and failure domains.
+When Multi-Team mode is enabled, a triggerer should be scoped to each specific team using the ``--team-name`` CLI argument. A team-scoped triggerer processes deferred tasks (triggers) belonging to that team's Dags. This allows teams to run isolated triggerer instances with independent capacity and failure domains.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -543,21 +543,9 @@ Team filtering and queue filtering are orthogonal — they combine as AND condit
 
 .. note::
 
-    If you use both ``--team-name`` and ``--queues``, ensure that each combination of team and queue has at least one triggerer running, or triggers matching that combination will remain unassigned until one starts.
-
-Example Deployment
-^^^^^^^^^^^^^^^^^^
-
-A deployment with two teams and a shared set of Dags with no team:
-
-.. code-block:: bash
-
-    # Team-scoped triggerers
-    airflow triggerer --team-name team_a
-    airflow triggerer --team-name team_b
-
-    # Global triggerer for Dags without a team
-    airflow triggerer
+    Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
+    remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
+    combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
 
 .. _multi-team-asset-event-filtering:
 
