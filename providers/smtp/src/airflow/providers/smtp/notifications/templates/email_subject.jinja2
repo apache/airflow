@@ -17,7 +17,7 @@
  under the License.
 #}
 {% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+[Airflow] {{ ti.dag_id }}.{{ ti.task_id }} {{ ti.state }} - Run {{ ti.run_id }}
 {% elif slas is defined %}
 SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
 {% endif %}
