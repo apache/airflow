@@ -40,11 +40,15 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.hooks.base import BaseToolset
+
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
     from langchain_core.tools import StructuredTool
     from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+
+    from airflow.providers.common.ai.hooks.base import ToolSpec
 
 
 def _run_coro_sync(coro: Coroutine[Any, Any, Any]) -> Any:
@@ -66,7 +70,7 @@ def _run_coro_sync(coro: Coroutine[Any, Any, Any]) -> Any:
 
 
 def airflow_toolset_to_langchain_tools(
-    toolset: AbstractToolset[Any],
+    toolset: AbstractToolset[Any] | BaseToolset,
     *,
     deps: Any = None,
 ) -> list[StructuredTool]:
@@ -119,6 +123,9 @@ def airflow_toolset_to_langchain_tools(
 
         raise AirflowOptionalProviderFeatureException(e)
 
+    if isinstance(toolset, BaseToolset):
+        return [_build_structured_tool_from_spec(spec, StructuredTool) for spec in toolset.as_tools()]
+
     # An inert placeholder context. The curated common.ai toolsets ignore it;
     # TestModel satisfies RunContext's required `model` field without reaching a
     # real LLM (the bridge never runs the model, only the tools).
@@ -169,4 +176,31 @@ def _build_structured_tool(
         name=name,
         description=tool_def.description or name,
         args_schema=tool_def.parameters_json_schema,
+    )
+
+
+def _build_structured_tool_from_spec(
+    spec: ToolSpec,
+    structured_tool_cls: type[StructuredTool],
+) -> StructuredTool:
+    """Build a single LangChain ``StructuredTool`` from an Airflow ``ToolSpec``."""
+
+    def _sync_call(**kwargs: Any) -> Any:
+        try:
+            return spec.fn(**kwargs)
+        except ModelRetry as e:
+            return str(e)
+
+    async def _async_call(**kwargs: Any) -> Any:
+        try:
+            return spec.fn(**kwargs)
+        except ModelRetry as e:
+            return str(e)
+
+    return structured_tool_cls.from_function(
+        func=_sync_call,
+        coroutine=_async_call,
+        name=spec.name,
+        description=spec.description or spec.name,
+        args_schema=spec.parameters,
     )

@@ -298,11 +298,13 @@ class PydanticAIHook(DurableAgentMixin, BaseAIHook[PydanticAgentHandle]):
                     [type(toolset).__name__ for toolset in processed],
                 )
 
+        agent_kwargs: dict[str, Any] = {"instructions": request.instructions, **extra_kwargs}
+        if request.output_type is not None:
+            agent_kwargs["output_type"] = request.output_type
+
         agent = Agent(
             self.get_model(),
-            output_type=request.output_type,
-            instructions=request.instructions,
-            **extra_kwargs,
+            **agent_kwargs,
         )
         if "instrument" not in extra_kwargs:
             # Set the public ``agent.instrument`` property rather than the
