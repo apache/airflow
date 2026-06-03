@@ -10,11 +10,11 @@ refreshes symlinks, and reconciles overrides.
 
 Two trigger paths land here:
 
-1. **User-initiated** — explicit `/setup-steward upgrade`,
+1. **User-initiated** — explicit `/magpie-setup upgrade`,
    e.g. after a colleague bumped `<committed-lock>` to a
    new framework version and the user wants to align.
 2. **Drift-triggered from a framework skill** — any
-   framework skill (or `/setup-steward verify`) detected
+   framework skill (or `/magpie-setup verify`) detected
    drift on its pre-flight check and the user accepted the
    proposal to upgrade.
 
@@ -41,7 +41,7 @@ Both paths run the same flow.
    `git rev-parse --git-common-dir`. If different, stop with:
 
    > *"`upgrade` runs in the main checkout, not a worktree.
-   > From the main: `cd <main-path> && /setup-steward upgrade`.
+   > From the main: `cd <main-path> && /magpie-setup upgrade`.
    > Every worktree automatically picks up the refreshed
    > snapshot once the main upgrade lands, because each
    > worktree's `<snapshot-dir>` is a symlink to the main's
@@ -51,11 +51,35 @@ Both paths run the same flow.
    `$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd)")` —
    surface it explicitly so the operator can `cd` there.
 2. Read `<committed-lock>`. If missing, the repo isn't
-   adopted — suggest `/setup-steward adopt` and stop.
+   adopted — suggest `/magpie-setup adopt` and stop.
 3. Read `<local-lock>`. If missing (gitignored, fresh
    clone), the local install hasn't been initialised yet —
    route as a recover-snapshot install per the committed
    lock, not as an upgrade. Continue at Step 3.
+
+## Step 0a — Pre-Magpie leftovers safety check
+
+A repo that adopted the framework before it was renamed from
+**apache-steward** to **Apache Magpie** migrates via the
+one-shot transition shim at `.claude/skills/setup-steward/`
+(a frozen `/setup-steward upgrade` lands there automatically;
+see that skill's [`upgrade.md`](../../.claude/skills/setup-steward/upgrade.md)).
+A fully-migrated repo never reaches *this* file with legacy
+artefacts present.
+
+If you nonetheless detect **any** legacy artefact here —
+`.apache-steward.lock`, `.apache-steward/`,
+`.apache-steward-overrides/`, a committed
+`<adopter-skills-dir>/setup-steward/`, or a framework symlink
+**without** the `magpie-` prefix — a prior migration did not
+finish. Do **not** continue the normal upgrade against the
+half-migrated state. Run the transition migration to
+completion first (follow
+[`.claude/skills/setup-steward/upgrade.md`](../../.claude/skills/setup-steward/upgrade.md),
+which is idempotent and safe to re-run), then resume this
+upgrade. `~/.config/apache-steward/` alone (per-user, no
+in-repo artefacts) just needs the dir + sandbox-allowlist
+move from that file's Step 7.
 
 ## Step 1 — Compute drift
 
@@ -88,10 +112,10 @@ For each kind of drift, present:
   grouped by skill family. Call out any change to a skill
   the adopter has an override for (the override will need
   reconciliation in Step 5).
-- **`setup-steward` skill changed in the framework** —
+- **`setup` skill changed in the framework** —
   surface as a separate note. The adopter's *committed*
-  copy of `setup-steward` will be auto-overwritten from the
-  new snapshot in [Step 4b](#step-4b--overwrite-the-committed-setup-steward-from-the-new-snapshot--reload-in-flight)
+  copy of `setup` will be auto-overwritten from the
+  new snapshot in [Step 4b](#step-4b--overwrite-the-committed-setup-from-the-new-snapshot--reload-in-flight)
   and then the skill **reloads in-flight** before the rest
   of the upgrade runs, so the bootstrap stays in sync with
   the framework version the project just pinned and the
@@ -103,7 +127,7 @@ installing.
 ## Step 3 — Delete the old snapshot
 
 ```bash
-rm -rf .apache-steward
+rm -rf .apache-magpie
 ```
 
 The snapshot is gitignored — destroying it loses no
@@ -115,14 +139,14 @@ committed work. Do this **before** the new install to avoid
 Per `<committed-lock>.method`:
 
 - **`git-branch`** — `git clone --depth=1 --branch
-  <committed.ref> <committed.url> .apache-steward`. If
+  <committed.ref> <committed.url> .apache-magpie`. If
   `from:<git-ref>` was passed, use that branch instead of
   the committed one (this run only).
 - **`git-tag`** — `git clone --depth=1 --branch
-  <committed.ref> <committed.url> .apache-steward`. If
+  <committed.ref> <committed.url> .apache-magpie`. If
   `from:<git-ref>` overrides, use it.
 - **`svn-zip`** — `curl` the zip + verify `sha512` +
-  `unzip` to `.apache-steward/`. The verification step is
+  `unzip` to `.apache-magpie/`. The verification step is
   **mandatory**; mismatched SHA-512 stops the upgrade and
   surfaces the discrepancy.
 
@@ -132,11 +156,11 @@ new `<local-lock>`:
 - `source_method`, `source_url`, `source_ref` — from
   whatever method was used in this run (committed lock or
   `from:` override).
-- `fetched_commit` — `git -C .apache-steward rev-parse
+- `fetched_commit` — `git -C .apache-magpie rev-parse
   HEAD` for git methods; the version for svn-zip.
 - `fetched_at` — current ISO-8601 timestamp.
 
-## Step 4b — Overwrite the committed `setup-steward` from the new snapshot + reload in-flight
+## Step 4b — Overwrite the committed `setup` from the new snapshot + reload in-flight
 
 This step **must run before Steps 5+** so the remainder of
 this upgrade executes against the framework version the
@@ -145,9 +169,9 @@ bootstrap logic. It implements
 [`SKILL.md` Golden rule 9](SKILL.md#golden-rules).
 
 1. Compute the diff between the adopter-side
-   `<adopter-skills-dir>/setup-steward/` (committed copy)
+   `<adopter-skills-dir>/magpie-setup/` (committed copy)
    and the snapshot's
-   `.apache-steward/.claude/skills/setup-steward/`.
+   `.apache-magpie/skills/setup/`.
 2. **If the adopter has local modifications** to their
    committed copy beyond what the snapshot ships — surface
    the diff and stop. Do **not** silently overwrite local
@@ -156,38 +180,38 @@ bootstrap logic. It implements
    against `apache/airflow-steward` first, or (c) defers
    the bootstrap-skill update to a later upgrade run.
 3. **If there are no local modifications** (or the user
-   confirmed in 2), copy the snapshot's `setup-steward`
+   confirmed in 2), copy the snapshot's `setup`
    over the committed copy:
 
    ```bash
    # For the flat layout (Pattern A):
-   rm -rf .claude/skills/setup-steward
-   cp -r .apache-steward/.claude/skills/setup-steward \
-         .claude/skills/setup-steward
+   rm -rf .claude/skills/magpie-setup
+   cp -r .apache-magpie/skills/setup \
+         .claude/skills/magpie-setup
 
    # For the double-symlinked layout (Pattern B):
-   rm -rf .github/skills/setup-steward
-   cp -r .apache-steward/.claude/skills/setup-steward \
-         .github/skills/setup-steward
-   # The .claude/skills/setup-steward per-skill symlink does
-   # not need touching — it points at .github/skills/setup-steward
+   rm -rf .github/skills/magpie-setup
+   cp -r .apache-magpie/skills/setup \
+         .github/skills/magpie-setup
+   # The .claude/skills/magpie-setup per-skill symlink does
+   # not need touching — it points at .github/skills/magpie-setup
    # which is now the new content.
 
    # For the single directory-symlink layout (Pattern D),
    # write to the *canonical* side only. With D.1
    # (canonical = .github/skills/):
-   rm -rf .github/skills/setup-steward
-   cp -r .apache-steward/.claude/skills/setup-steward \
-         .github/skills/setup-steward
+   rm -rf .github/skills/magpie-setup
+   cp -r .apache-magpie/skills/setup \
+         .github/skills/magpie-setup
    # With D.2 (canonical = .claude/skills/), write to
-   # .claude/skills/setup-steward instead. Either way: the
+   # .claude/skills/magpie-setup instead. Either way: the
    # symlinked side resolves to the refreshed content
    # automatically — nothing to touch there.
    ```
 
 4. **Reload in-flight.** Immediately after the copy lands —
    before doing anything else in this run — re-read the
-   updated `<adopter-skills-dir>/setup-steward/SKILL.md`,
+   updated `<adopter-skills-dir>/magpie-setup/SKILL.md`,
    the just-overwritten `upgrade.md` (this file), and any
    helper file you have already opened in this run
    (`conventions.md`, `overrides.md`, `verify.md`). Resume
@@ -199,17 +223,17 @@ bootstrap logic. It implements
    in `git status`** at the adopter's committed-skill path.
    The user reviews the diff and commits it as part of the
    upgrade PR; on merge, every other contributor's next
-   `/setup-steward` run loads the matching version.
+   `/magpie-setup` run loads the matching version.
 
 The adopter shouldn't modify the bootstrap copy locally —
 the framework's hard rule is *"local mods go in
-`.apache-steward-overrides/`, framework changes go via PR
+`.apache-magpie-overrides/`, framework changes go via PR
 to `apache/airflow-steward`"*. But if they did, step (2)
 catches it before the overwrite would erase their work.
 
 ## Step 5 — Reconcile overrides
 
-For each file in `<repo-root>/.apache-steward-overrides/`:
+For each file in `<repo-root>/.apache-magpie-overrides/`:
 
 1. **Target skill check** — does the named framework skill
    exist in the new snapshot? If not (skill renamed or
@@ -257,12 +281,12 @@ for this upgrade as:
   the lock, never user-configurable, per
   [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):
   - every `setup-*` skill in the new snapshot *except*
-    `setup-steward` itself, and
-  - every `list-steward-*` skill in the new snapshot.
+    `setup` itself, and
+  - every `list-*` skill in the new snapshot.
 
 Compute the always-on set fresh from the snapshot contents
 on disk — it expands automatically when the framework adds
-a new `setup-*` or `list-steward-*` skill in a release, and
+a new `setup-*` or `list-*` skill in a release, and
 contracts on a rename / removal without code changes here.
 
 Before creating symlinks for a newly-introduced opt-in
@@ -299,7 +323,7 @@ Run two passes:
 1. **Ensure every family-member skill is linked.** For each
    framework skill in the new snapshot that belongs to the
    effective family set, check
-   `<adopter-skills-dir>/<skill>`:
+   `<adopter-skills-dir>/magpie-<skill>`:
    - If the symlink exists and points at the matching
      snapshot path, leave it alone.
    - If it's missing, create it.
@@ -326,14 +350,14 @@ Run two passes:
 Per-pattern symlink layers to refresh:
 
 - **Pattern A (flat)** — refresh the single layer at
-  `.claude/skills/<n>`.
+  `.claude/skills/magpie-<n>`.
 - **Pattern B (double-symlinked)** — refresh both layers
-  (inner at `.github/skills/<n>`, outer at
-  `.claude/skills/<n>` → inner).
+  (inner at `.github/skills/magpie-<n>`, outer at
+  `.claude/skills/magpie-<n>` → inner).
 - **Pattern D (single directory symlink)** — refresh only
   the *canonical-side* layer at
-  `<canonical>/skills/<n>` (D.1 → `.github/skills/<n>`;
-  D.2 → `.claude/skills/<n>`). The symlinked-side path
+  `<canonical-side>/magpie-<n>` (D.1 → `.github/skills/magpie-<n>`;
+  D.2 → `.claude/skills/magpie-<n>`). The symlinked-side path
   resolves through the directory symlink and needs no
   per-skill plumbing.
 
@@ -348,7 +372,7 @@ rather than pulls in via symlink. Examples:
 - Any future hook or local config the framework adds.
 
 These can drift independently of the snapshot — an
-adopter who never re-runs `/setup-steward` after a
+adopter who never re-runs `/magpie-setup` after a
 framework upgrade keeps the old hook content even after the
 snapshot updates. This step closes that gap.
 
@@ -357,7 +381,7 @@ For each hook / local config file the framework declares as
 
 1. Compute the snapshot's *expected* content for that file
    (the framework ships the expected content under
-   `.apache-steward/.claude/skills/setup-steward/` or a
+   `.apache-magpie/skills/setup/` or a
    sibling location — locate the canonical source for each
    file).
 2. Compare against the local copy.
@@ -402,9 +426,9 @@ Procedure:
    Filter to the linked worktrees only — skip the main
    checkout (already handled above) and any bare worktrees.
 2. For each linked worktree, invoke
-   `/setup-steward worktree-init` with that worktree's
+   `/magpie-setup worktree-init` with that worktree's
    working directory as the `cwd`. The sub-action picks up
-   the family set from `<main>/.apache-steward.lock` (the
+   the family set from `<main>/.apache-magpie.lock` (the
    committed lock the worktree shares via git) plus the
    always-on families per
    [`SKILL.md` Golden rule 8](SKILL.md#golden-rules), and
@@ -418,7 +442,7 @@ Procedure:
 **Failure handling per worktree:**
 
 - If a worktree is on a branch that does not carry the
-  adopter's committed `setup-steward` skill (e.g. a feature
+  adopter's committed `setup` skill (e.g. a feature
   branch from before adoption landed), the worktree-init
   invocation refuses with "main checkout not adopted from
   this branch's perspective". Surface as a ⚠ row in the
@@ -527,6 +551,50 @@ operator's read of the upgrade summary is the real signal.
 If every template scans clean, surface the section as
 `✓ all framework templates look generic`.
 
+## Step 6e — Refresh comdev MCP checkouts (ASF projects)
+
+**Run this step only for ASF projects** — detect ASF the same way
+as [`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects):
+`<project-config>/project.md` declares `project_metadata.mandatory:
+true` or `ponymail` `mandatory: yes`. Skip otherwise.
+
+The [PonyMail](../../tools/ponymail/tool.md) and
+[Apache Projects](../../tools/apache-projects/tool.md) MCP
+servers are installed from a local `apache/comdev` checkout and are
+**tracked at `main`, not pinned** (no tagged releases — contrast
+the cooldown-pinned system tools in the secure-setup update flow).
+An ASF adopter running `/magpie-setup upgrade` should refresh that
+checkout in the same pass, so it does not silently rot between
+framework upgrades.
+
+For each of `ponymail` / `apache-projects` registered in the
+user/project `mcpServers` config, resolve the checkout root from
+its `args` path (`<comdev>/mcp/<server>/index.js`), then — **surface
+only, never auto-pull** (same contract as Step 6b):
+
+1. Confirm `origin` is an `apache/comdev` URL and the checkout is on
+   `main` (`git -C <root> rev-parse --abbrev-ref HEAD`). Flag a
+   detached HEAD / feature branch; remediation
+   `git -C <root> checkout main`.
+2. `git -C <root> fetch origin main` and report the behind-count
+   (`git -C <root> rev-list --count HEAD..origin/main`). When
+   behind, print — do not run:
+
+   ```bash
+   git -C <root> pull --ff-only
+   ( cd <root>/mcp/<server> && npm install )
+   ```
+
+   with the `github.com/apache/comdev/compare/<sha>...main` link.
+
+This is the adoption-flow mirror of
+[`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)'s
+comdev-MCP check — it exists here so the prereq rides along with the
+upgrade an ASF adopter actually runs. If a registered MCP is
+missing entirely, point the operator at
+[`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects)
+to (re-)install it.
+
 ## Step 7 — Update `<local-lock>`
 
 Write the new local lock with the values captured in Step
@@ -553,15 +621,15 @@ Drift remediated:
   Method:    <method>
   Project:   <committed.ref>      (committed)
   Local:     <local.fetched-commit-or-version>  → <new>
-  Snapshot:  refreshed at .apache-steward/
+  Snapshot:  refreshed at .apache-magpie/
 
-setup-steward (bootstrap):
+setup (bootstrap):
   ✓ in sync   OR   ↻ overwritten from snapshot (reloaded in-flight)
 
 Symlinks (main checkout):
   Opt-in families:     <security>, <pr-management>, <issue>   (from lock)
   Newly added opt-in:  <issue>   (introduced since lock was written; lock updated)
-  Always-on families:  setup-*, list-steward-*       (per Golden rule 8)
+  Always-on families:  setup-*, list-*       (per Golden rule 8)
   ✓ <list of unchanged symlinks>
   + <list of newly-created symlinks (skill present in the
      effective family set but missing from <adopter-skills-dir>)>
@@ -582,7 +650,7 @@ Hooks + local config:
 Worktrees (worktree-init was run on each, idempotently):
   ✓ <worktree-path>   (snapshot symlink + family symlinks aligned)
   ↻ <worktree-path>   (refreshed by worktree-init)
-  ⚠ <worktree-path>   (skipped — branch missing adopter's setup-steward)
+  ⚠ <worktree-path>   (skipped — branch missing adopter's setup)
   - <none>            (when this repo has no linked worktrees)
 
 Sandbox allowlist (sandbox-add-project-root.sh --all-worktrees):
@@ -605,13 +673,13 @@ Recommended follow-ups:
   - Run /setup-isolated-setup-update if the secure-setup blast
     radius (settings.json, agent-isolation/, pinned-versions.toml)
     appears in the diff.
-  - Open .apache-steward-overrides/<name>.md for any ⚠ entry above.
+  - Open .apache-magpie-overrides/<name>.md for any ⚠ entry above.
 ```
 
 ## Failure modes
 
 - **`<committed-lock>` missing** → repo not adopted; suggest
-  `/setup-steward adopt`.
+  `/magpie-setup adopt`.
 - **Network failure** → stop, surface error, user retries.
   The skill never leaves a half-deleted snapshot — Step 3's
   `rm -rf` runs only after Step 2's user confirmation.

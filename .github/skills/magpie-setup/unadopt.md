@@ -8,10 +8,10 @@ artefacts the adopt flow installed — gitignored snapshot,
 committed lock, gitignored local lock, framework-skill
 symlinks, `.gitignore` entries, post-checkout hook, the
 adoption sections in `README.md` / `AGENTS.md` /
-`CONTRIBUTING.md`, and the committed `setup-steward` skill
+`CONTRIBUTING.md`, and the committed `setup` skill
 itself.
 
-By default the adopter-authored `.apache-steward-overrides/`
+By default the adopter-authored `.apache-magpie-overrides/`
 directory is **preserved** — it contains hand-written
 customisation that is not the framework's to delete. Pass
 `--purge-overrides` to remove it too.
@@ -29,7 +29,7 @@ explicit confirmation before any write.
   is being cleaned up before merge.
 
 If the goal is to **change install method or version**, use
-[`/setup-steward upgrade`](upgrade.md) instead — that path
+[`/magpie-setup upgrade`](upgrade.md) instead — that path
 preserves overrides and re-uses the existing wiring.
 
 If the goal is to **temporarily detach for debugging** (e.g.
@@ -39,7 +39,7 @@ relevant override file rather than unadopting.
 ## Inputs
 
 - `--purge-overrides` — also `git rm -r` the
-  `.apache-steward-overrides/` directory. Default: preserve.
+  `.apache-magpie-overrides/` directory. Default: preserve.
   Surfaces uncommitted edits on any override file before
   removal — the user confirms once more if any are present.
 - `dry-run` — print the removal plan and stop. No writes, no
@@ -57,18 +57,18 @@ relevant override file rather than unadopting.
    > Unadoption removes the shared snapshot every worktree
    > points at; running from a worktree would leave the main
    > and other worktrees in a half-removed state. From the
-   > main: `cd <main-path> && /setup-steward unadopt`. To
+   > main: `cd <main-path> && /magpie-setup unadopt`. To
    > undo just this worktree's symlink without touching the
-   > main, `rm <worktree>/.apache-steward` manually."*
+   > main, `rm <worktree>/.apache-magpie` manually."*
 
 3. Confirm we are **not** in `apache/airflow-steward` itself
    (`git remote get-url origin`); refuse if it resolves to the
    framework — the framework is not "adopted into" itself.
-4. Confirm `<committed-lock>` (`.apache-steward.lock`) is
+4. Confirm `<committed-lock>` (`.apache-magpie.lock`) is
    present. If missing, the repo is not adopted — surface and
    stop. (If only the snapshot is present without a committed
    lock, the adopter ran the install recipe but never
-   completed `/setup-steward adopt`; treat that as not-yet-
+   completed `/magpie-setup adopt`; treat that as not-yet-
    adopted and stop with the same message.)
 5. Detect the adopter's skills-dir convention per
    [`conventions.md`](conventions.md). Pin the result as
@@ -88,20 +88,20 @@ every artefact).
 | Local lock | `<local-lock>` | exists |
 | Committed lock | `<committed-lock>` | exists |
 | `.gitignore` entries | `<repo-root>/.gitignore` | which of the entries from [`adopt.md` Step 7](adopt.md) are present |
-| Framework-skill symlinks | `<adopter-skills-dir>/` — both layers under Pattern B; canonical side only under Pattern D (D.1: `.github/skills/`; D.2: `.claude/skills/`); single layer under Pattern A | each symlink whose target resolves into `<snapshot-dir>/.claude/skills/` |
+| Framework-skill symlinks | `<adopter-skills-dir>/` — both layers under Pattern B; canonical side only under Pattern D (D.1: `.github/skills/`; D.2: `.claude/skills/`); single layer under Pattern A | each symlink whose target resolves into `<snapshot-dir>/skills/` |
 | Post-checkout hook | `<repo-root>/.git/hooks/post-checkout` | exists + invokes `~/.claude/scripts/sandbox-add-project-root.sh` |
 | Doc section: `README.md` | `<repo-root>/README.md` | contains the `## Agent-assisted contribution (apache-steward)` heading |
 | Doc section: `AGENTS.md` | `<repo-root>/AGENTS.md` | contains the `## apache-steward framework` heading |
 | Doc section: `CONTRIBUTING.md` | `<repo-root>/CONTRIBUTING.md` | contains the adoption section (fallback layout) |
-| Overrides directory | `<repo-root>/.apache-steward-overrides/` | exists; count framework-scaffold files vs adopter-authored |
-| `setup-steward` skill itself | `<adopter-skills-dir>/setup-steward/` | exists (this is the only committed framework skill) |
+| Overrides directory | `<repo-root>/.apache-magpie-overrides/` | exists; count framework-scaffold files vs adopter-authored |
+| `setup` skill itself | `<adopter-skills-dir>/magpie-setup/` | exists (this is the only committed framework skill) |
 
 For the overrides directory: distinguish the
 **framework-scaffold** files (`README.md`, `user.md` from
 [`adopt.md` Step 9 / 9b](adopt.md)) from
 **adopter-authored** files (e.g. `pr-management-triage.md`,
 any `user.md` filled in beyond the scaffold). Also check
-`git status -- .apache-steward-overrides/` for **uncommitted
+`git status -- .apache-magpie-overrides/` for **uncommitted
 edits** — those are surfaced separately in Step 2.
 
 ## Step 2 — Surface the removal plan
@@ -113,9 +113,9 @@ the blast radius at a glance:
 The following will be REMOVED:
 
   Gitignored (no commit needed):
-    .apache-steward/                      (snapshot, ~N MB)
-    .apache-steward.local.lock
-    <adopter-skills-dir>/<symlink-1>     → .apache-steward/.claude/skills/<skill-1>/
+    .apache-magpie/                      (snapshot, ~N MB)
+    .apache-magpie.local.lock
+    <adopter-skills-dir>/<symlink-1>     → .apache-magpie/skills/<skill-1>/
     <adopter-skills-dir>/<symlink-2>     → ...
     .github/skills/<symlink-1>           (Pattern B only — second physical layer)
     .git/hooks/post-checkout              (if it contains the steward recipe)
@@ -125,19 +125,19 @@ The following will be REMOVED:
     #             (D.1: .github/skills/;  D.2: .claude/skills/)
 
   Committed (will show in `git status`):
-    .apache-steward.lock                  (the project's pin)
+    .apache-magpie.lock                  (the project's pin)
     .gitignore                            (the entries listed in adopt.md Step 7)
     README.md                             (the `## Agent-assisted contribution (apache-steward)` section)
     AGENTS.md                             (the `## apache-steward framework` section, if present)
-    <adopter-skills-dir>/setup-steward/   (this skill itself — self-destructive)
+    <adopter-skills-dir>/magpie-setup/   (this skill itself — self-destructive)
 
 The following will be PRESERVED:
 
-    .apache-steward-overrides/           (M file(s); pass `--purge-overrides` to remove)
-    ~/.config/apache-steward/user.md     (per-user; shared with other adopters on this machine — remove manually if this was your last adoption)
+    .apache-magpie-overrides/           (M file(s); pass `--purge-overrides` to remove)
+    ~/.config/apache-magpie/user.md     (per-user; shared with other adopters on this machine — remove manually if this was your last adoption)
 ```
 
-Surface the `~/.config/apache-steward/user.md` line only if that
+Surface the `~/.config/apache-magpie/user.md` line only if that
 file is actually present on disk. If it is absent (or the
 operator drove `user.md` resolution via
 `$APACHE_STEWARD_USER_CONFIG` / the legacy per-project location),
@@ -148,15 +148,15 @@ adopter project on the operator's machine and unadopting from
 apache-steward elsewhere.
 
 If `--purge-overrides` was passed, move
-`.apache-steward-overrides/` into the *removed* section and
+`.apache-magpie-overrides/` into the *removed* section and
 list its files explicitly so the adopter sees what custom
 content is about to go.
 
-If `git status -- .apache-steward-overrides/` showed
+If `git status -- .apache-magpie-overrides/` showed
 uncommitted edits, prepend a **warning** above the table:
 
 ```text
-⚠ Uncommitted edits in .apache-steward-overrides/:
+⚠ Uncommitted edits in .apache-magpie-overrides/:
     <list of files>
 
   --purge-overrides would delete these along with the directory.
@@ -195,11 +195,11 @@ pointing at a deleted snapshot.
    inventory, `rm` the symlink. Per-pattern:
 
    - **Pattern A** — one layer; just remove
-     `.claude/skills/<n>`.
+     `.claude/skills/magpie-<n>`.
    - **Pattern B** — two layers; remove both
-     `.claude/skills/<n>` and `.github/skills/<n>`.
+     `.claude/skills/magpie-<n>` and `.github/skills/magpie-<n>`.
    - **Pattern D** — one layer at the canonical side
-     (D.1: `.github/skills/<n>`; D.2: `.claude/skills/<n>`).
+     (D.1: `.github/skills/magpie-<n>`; D.2: `.claude/skills/magpie-<n>`).
      The directory symlink itself (`.claude/skills` or
      `.github/skills`) is **adopter-owned** and **not
      removed by unadopt** — it predates framework adoption
@@ -215,7 +215,7 @@ pointing at a deleted snapshot.
    for the exact text). If the hook contains additional adopter
    logic, surface that, leave the hook in place, and tell the
    user which line to delete by hand. Hooks that still contain
-   the obsolete `/setup-steward verify --auto-fix-symlinks` line
+   the obsolete `/magpie-setup verify --auto-fix-symlinks` line
    (a Claude Code slash command that does not work from a shell
    hook — removed in a later framework release) should be
    replaced with the current Step 10 template.
@@ -237,14 +237,14 @@ pointing at a deleted snapshot.
    doc set, not per file.
 7. **Committed lock.** `git rm <committed-lock>`.
 8. **Overrides directory** *(only if `--purge-overrides`)*.
-   `git rm -r .apache-steward-overrides/`.
-9. **`setup-steward` skill itself.**
-   `git rm -r <adopter-skills-dir>/setup-steward/`. After
+   `git rm -r .apache-magpie-overrides/`.
+9. **`setup` skill itself.**
+   `git rm -r <adopter-skills-dir>/magpie-setup/`. After
    this step the running skill has deleted its own committed
-   source. Future invocations of `/setup-steward` will
+   source. Future invocations of `/magpie-setup` will
    resolve to nothing — the adopter has to re-run the
    install recipe in
-   [`docs/setup/install-recipes.md`](../../../docs/setup/install-recipes.md)
+   [`docs/setup/install-recipes.md`](../../docs/setup/install-recipes.md)
    to re-adopt.
 
 Each step is independently surfaced as it runs (one
@@ -262,11 +262,11 @@ After the deletions, verify the post-state:
   would surface here).
 - `.gitignore` no longer contains the steward entries.
 - The doc sections are gone from the affected files.
-- `<adopter-skills-dir>/setup-steward/` does not exist.
-- If `--purge-overrides`: `.apache-steward-overrides/` does
+- `<adopter-skills-dir>/magpie-setup/` does not exist.
+- If `--purge-overrides`: `.apache-magpie-overrides/` does
   not exist.
 - If *not* `--purge-overrides`:
-  `.apache-steward-overrides/` does exist (unchanged).
+  `.apache-magpie-overrides/` does exist (unchanged).
 
 Any ✗ here is a bug — surface it and stop.
 
@@ -275,26 +275,26 @@ Any ✗ here is a bug — surface it and stop.
 A summary of what was removed + what remains:
 
 ```text
-✓ Snapshot removed:        .apache-steward/
-✓ Locks removed:           .apache-steward.lock, .apache-steward.local.lock
+✓ Snapshot removed:        .apache-magpie/
+✓ Locks removed:           .apache-magpie.lock, .apache-magpie.local.lock
 ✓ Symlinks removed:        <count> (per-pattern — A: under .claude/skills/; B: under both .claude/skills/ AND .github/skills/; D: under the canonical side only)
 ✓ Post-checkout hook:      removed (or: preserved — contained extra adopter logic)
 ✓ Doc sections removed:    README.md[, AGENTS.md][, CONTRIBUTING.md]
 ✓ .gitignore cleaned:      <N> entries removed
-✓ setup-steward skill:     removed (this skill self-destructed)
+✓ setup skill:     removed (this skill self-destructed)
 
 Preserved:
-  .apache-steward-overrides/   (M files; pass `--purge-overrides` to remove)
-  ~/.config/apache-steward/user.md   (per-user; shared with other adopters on this machine — remove manually if this was your last adoption)
+  .apache-magpie-overrides/   (M files; pass `--purge-overrides` to remove)
+  ~/.config/apache-magpie/user.md   (per-user; shared with other adopters on this machine — remove manually if this was your last adoption)
   .claude/skills (or .github/skills)   (Pattern D directory symlink — adopter-owned, predates framework adoption)
   <list of any non-steward-owned content the plan flagged>
 
 Staged for commit (you'll see in `git status`):
-  D  .apache-steward.lock
+  D  .apache-magpie.lock
   M  .gitignore
   M  README.md
   M  AGENTS.md             (if section was present)
-  D  <adopter-skills-dir>/setup-steward/...
+  D  <adopter-skills-dir>/magpie-setup/...
 
 To re-adopt later: follow docs/setup/install-recipes.md in the
 framework repo at https://github.com/apache/airflow-steward.
@@ -313,7 +313,7 @@ need a human re-read.
   adopt template, and content at any of the doc-section
   paths that isn't bounded by the adoption heading — all
   preserved + flagged.
-- **Never silently delete `.apache-steward-overrides/`.**
+- **Never silently delete `.apache-magpie-overrides/`.**
   The default is preserve. `--purge-overrides` is opt-in and
   requires an additional confirmation if uncommitted edits
   are present.
@@ -324,13 +324,13 @@ need a human re-read.
   [Hard rules in `SKILL.md`](SKILL.md#golden-rules)).
 - **Removal order is fixed.** Symlinks before snapshot,
   doc-section patches before `.gitignore` edit, committed
-  lock before the `setup-steward` skill itself. The order
+  lock before the `setup` skill itself. The order
   guarantees no intermediate state has a dangling reference.
 
 ## Failure modes
 
 - **`<committed-lock>` missing** → repo not adopted. Stop
-  with a pointer at `/setup-steward adopt`.
+  with a pointer at `/magpie-setup adopt`.
 - **`<snapshot-dir>/` contains committed content**
   (anti-pattern: adopter put real files inside the
   gitignored snapshot path before adoption) → surface, do
@@ -342,7 +342,7 @@ need a human re-read.
 - **Post-checkout hook has extra logic** → preserved; the
   unadopt flow names the line to remove by hand.
 - **`.gitignore` entry overlaps adopter rules** (e.g. the
-  adopter also has `/.apache-steward/foo` for unrelated
+  adopter also has `/.apache-magpie/foo` for unrelated
   reasons) → only the exact adopt-template lines are
   removed; adopter rules stay.
 - **Adopter ran `unadopt` then realised they wanted to keep
@@ -351,8 +351,8 @@ need a human re-read.
   confirmed past the uncommitted-edits warning, the only
   recourse is `git restore` from a pre-unadopt commit. The
   flow makes this expensive on purpose.
-- **`setup-steward` skill resolution fails after self-
+- **`setup` skill resolution fails after self-
   removal** → expected. Re-adoption goes via the install
   recipe in
-  [`docs/setup/install-recipes.md`](../../../docs/setup/install-recipes.md),
+  [`docs/setup/install-recipes.md`](../../docs/setup/install-recipes.md),
   not via the now-deleted skill.
