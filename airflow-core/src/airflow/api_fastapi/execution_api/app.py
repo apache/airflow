@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import attrs
+import jwt as pyjwt
 import svcs
 from cadwyn import (
     Cadwyn,
@@ -131,6 +132,12 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 
 class JWTReissueMiddleware(BaseHTTPMiddleware):
+    # Grace period (in seconds) for refreshing tokens that have just expired.
+    # This handles the race condition where a token expires between the security
+    # middleware's auth check and this middleware's reissue validation.
+    # The signature and all other claims are still fully verified.
+    REISSUE_GRACE_LEEWAY: int = 60
+
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
@@ -141,7 +148,18 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
             try:
                 async with svcs.Container(request.app.state.svcs_registry) as services:
                     validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                    try:
+                        claims = await validator.avalidated_claims(token, {})
+                    except pyjwt.ExpiredSignatureError:
+                        # Token may have expired between the auth check and here
+                        # (e.g. token lifetime boundary crossed during request
+                        # processing). Re-validate with a short grace period so
+                        # the client receives a fresh replacement token and can
+                        # retry automatically. The signature and all other
+                        # claims are still fully verified.
+                        claims = await validator.avalidated_claims(
+                            token, {}, extra_leeway=self.REISSUE_GRACE_LEEWAY
+                        )
 
                     # Workload tokens are long-lived and meant to survive queue
                     # wait times so avoid refreshing them. If avalidated_claims

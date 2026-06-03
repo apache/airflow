@@ -311,12 +311,12 @@ class JWTValidator:
         return await self.jwks.get_key(kid)
 
     def validated_claims(
-        self, unvalidated: str, required_claims: dict[str, Any] | None = None
+        self, unvalidated: str, required_claims: dict[str, Any] | None = None, *, extra_leeway: float = 0
     ) -> dict[str, Any]:
-        return async_to_sync(self.avalidated_claims)(unvalidated, required_claims)
+        return async_to_sync(self.avalidated_claims)(unvalidated, required_claims, extra_leeway=extra_leeway)
 
     async def avalidated_claims(
-        self, unvalidated: str, required_claims: dict[str, Any] | None = None
+        self, unvalidated: str, required_claims: dict[str, Any] | None = None, *, extra_leeway: float = 0
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
         try:
@@ -338,7 +338,7 @@ class JWTValidator:
             issuer=self.issuer,
             options={"require": list(self.required_claims)},
             algorithms=algorithms,
-            leeway=self.leeway,
+            leeway=self.leeway + extra_leeway,
         )
 
         # Validate additional claims if provided
