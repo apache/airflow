@@ -70,19 +70,17 @@ class TestTriggererCommand:
         )
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
-    @mock.patch("airflow.cli.commands.triggerer_command.run_job")
     @mock.patch("airflow.cli.commands.triggerer_command.Process")
-    def test_trigger_run_serve_logs(self, mock_process, mock_run_job, mock_trigger_job_runner):
+    def test_trigger_run_serve_logs(self, mock_process, mock_trigger_job_runner):
         """Ensure that trigger runner and server log functions execute as intended"""
         triggerer_command.triggerer_run(
             skip_serve_logs=False, capacity=1, triggerer_heartrate=10.3, queues=None
         )
 
         mock_process.assert_called_once()
-        mock_run_job.assert_called_once_with(
-            job=mock_trigger_job_runner.return_value.job,
-            execute_callable=mock_trigger_job_runner.return_value._execute,
-        )
+        # AIP-92: the triggerer runs the job runner directly (no run_job, so no metadata-DB Job
+        # is written at startup); its liveness Job is registered over the Execution API instead.
+        mock_trigger_job_runner.return_value._execute.assert_called_once_with()
 
     @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_triggerer_with_dev_flag(self, mock_reloader):

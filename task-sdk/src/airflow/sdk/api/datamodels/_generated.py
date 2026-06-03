@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-30"
+API_VERSION: Final[str] = "2026-07-14"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -215,6 +215,26 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+
+
+class JobRegisterBody(BaseModel):
+    """
+    Body for registering a new ``Job`` row (e.g. a DB-free triggerer claiming an identity).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    job_type: Annotated[str, Field(title="Job Type")]
+    hostname: Annotated[str, Field(title="Hostname")]
+
+
+class JobRegisterResponse(BaseModel):
+    """
+    Response carrying the id of the freshly registered ``Job`` row.
+    """
+
+    job_id: Annotated[int, Field(title="Job Id")]
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -440,6 +460,70 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+
+
+class TriggerEventBody(BaseModel):
+    """
+    Body for submitting a trigger event payload.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    payload: JsonValue | None = None
+
+
+class TriggerFailureBody(BaseModel):
+    """
+    Body for submitting a trigger failure.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    error: Annotated[list[str] | None, Field(title="Error")] = None
+
+
+class TriggerIdsResponse(BaseModel):
+    """
+    Response listing the trigger IDs currently assigned to a triggerer.
+    """
+
+    trigger_ids: Annotated[list[int], Field(title="Trigger Ids")]
+
+
+class TriggerLoadBody(BaseModel):
+    """
+    Body for requesting triggers to be assigned to and loaded for a triggerer.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    triggerer_id: Annotated[int, Field(title="Triggerer Id")]
+    capacity: Annotated[int, Field(title="Capacity")]
+    health_check_threshold: Annotated[float, Field(title="Health Check Threshold")]
+    queues: Annotated[list[str] | None, Field(title="Queues")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
+
+
+class TriggerWorkloadsBody(BaseModel):
+    """
+    Body for requesting runnable workloads for a set of trigger IDs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trigger_ids: Annotated[list[int], Field(title="Trigger Ids")]
+
+
+class TriggerWorkloadsResponse(BaseModel):
+    """
+    Response carrying serialized ``RunTrigger`` workloads.
+    """
+
+    workloads: Annotated[list[dict[str, Any]], Field(title="Workloads")]
 
 
 class UpdateHITLDetailPayload(BaseModel):

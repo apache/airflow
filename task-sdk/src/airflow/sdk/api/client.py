@@ -181,8 +181,10 @@ _log_retry_warning = before_log(log, logging.WARNING)
 __all__ = [
     "Client",
     "ConnectionOperations",
+    "JobOperations",
     "ServerResponseError",
     "TaskInstanceOperations",
+    "TriggerOperations",
     "get_hostname",
     "getuser",
 ]
@@ -1075,6 +1077,89 @@ class ConnectionTestOperations:
         self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 
+class TriggerOperations:
+    """Operations the (DB-free) triggerer uses to orchestrate triggers over the Execution API."""
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def load(
+        self,
+        *,
+        triggerer_id: int,
+        capacity: int,
+        health_check_threshold: float,
+        queues: list[str] | None = None,
+        team_name: str | None = None,
+    ) -> list[int]:
+        """Assign unassigned triggers to this triggerer and return its assigned trigger IDs."""
+        body: dict[str, Any] = {
+            "triggerer_id": triggerer_id,
+            "capacity": capacity,
+            "health_check_threshold": health_check_threshold,
+            "queues": queues,
+            "team_name": team_name,
+        }
+        resp = self.client.post("triggers/load", json=body)
+        return resp.json()["trigger_ids"]
+
+    def workloads(self, trigger_ids: list[int]) -> list[dict[str, Any]]:
+        """
+        Fetch the runnable trigger workloads (raw RunTrigger dicts) for the given trigger IDs.
+
+        Returns the workloads as plain dicts; the caller (in airflow-core) validates them into
+        ``RunTrigger`` objects. The task SDK must not import the core ``RunTrigger`` type.
+        """
+        resp = self.client.post("triggers/workloads", json={"trigger_ids": trigger_ids})
+        return resp.json()["workloads"]
+
+    def submit_event(self, trigger_id: int, payload: JsonValue) -> None:
+        """
+        Submit an event for a trigger, resuming any deferred task instances waiting on it.
+
+        ``payload`` must be an ``airflow.sdk.serde.serialize(...)`` output, not arbitrary JSON.
+        The server stores it **without deserializing** -- it is spliced straight into the task
+        instance's ``next_kwargs`` and deserialized by the worker on resume, so the trusted
+        api-server never reconstructs this worker-supplied object.
+        """
+        self.client.post(f"triggers/{trigger_id}/event", json={"payload": payload})
+
+    def submit_failure(self, trigger_id: int, error: list[str] | None) -> None:
+        """Submit a failure for a trigger, re-scheduling dependent task instances to fail."""
+        # ``error`` is the traceback lines (traceback.format_exception output). Send the list
+        # unchanged so the worker's "\n".join(traceback) renders it line-by-line rather than
+        # one character per line.
+        self.client.post(f"triggers/{trigger_id}/failure", json={"error": error})
+
+    def cleanup(self) -> None:
+        """Delete triggers that no longer have any task, asset, or callback depending on them."""
+        self.client.post("triggers/cleanup")
+
+
+class JobOperations:
+    """Operations to register and heartbeat a ``Job`` row over the Execution API."""
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def register(self, job_type: str, hostname: str) -> int:
+        """Register a new ``Job`` row and return its id."""
+        resp = self.client.post("jobs", json={"job_type": job_type, "hostname": hostname})
+        return resp.json()["job_id"]
+
+    def heartbeat(self, job_id: int) -> None:
+        """Record a fresh heartbeat for the given ``Job`` so it stays alive."""
+        self.client.post(f"jobs/{job_id}/heartbeat")
+
+    def complete(self, job_id: int) -> None:
+        """Mark the given ``Job`` finished by stamping its end date."""
+        self.client.post(f"jobs/{job_id}/complete")
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1287,6 +1372,18 @@ class Client(httpx.Client):
     def dags(self) -> DagsOperations:
         """Operations related to DAGs."""
         return DagsOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def triggers(self) -> TriggerOperations:
+        """Operations related to triggerer orchestration (AIP-92)."""
+        return TriggerOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def jobs(self) -> JobOperations:
+        """Operations related to Job registration/heartbeat (AIP-92)."""
+        return JobOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

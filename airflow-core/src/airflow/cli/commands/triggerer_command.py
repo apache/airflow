@@ -26,7 +26,7 @@ from multiprocessing import Process
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.jobs.job import Job, run_job
+from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
@@ -59,13 +59,17 @@ def triggerer_run(
     team_name: str | None = None,
 ):
     with _serve_logs(skip_serve_logs):
+        # AIP-92: the triggerer holds no metadata-DB connection. Its supervisor registers and
+        # heartbeats a liveness Job through the Execution API, so run the job runner directly
+        # instead of through run_job, whose prepare_for_execution would write a Job row to the
+        # database. The in-memory Job below is never persisted; it only carries the job type.
         triggerer_job_runner = TriggererJobRunner(
             job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues, team_name=team_name
         )
-        run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
+        triggerer_job_runner._execute()
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def triggerer(args):
     """Start Airflow Triggerer."""

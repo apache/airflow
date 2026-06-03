@@ -1,0 +1,21 @@
+Triggerer no longer requires metadata-database access
+
+The triggerer now performs all of its work through the Execution API instead of connecting
+to the metadata database directly. It claims triggers, fetches their workloads, reports fired
+events and failures, cleans up orphaned triggers, and registers and heartbeats its liveness
+through the api-server, the same way task workers already communicate with it.
+
+Operationally:
+
+- The triggerer process no longer opens a metadata-database connection, so database
+  credentials can be dropped from triggerer-only deployments.
+- The api-server's Execution API must be reachable from the triggerer, and the triggerer
+  must be able to mint a token with the configured JWT signing key. Triggers that fetch
+  connections, variables, or XComs already relied on this path (served in-process before);
+  it is now a remote call.
+
+No Dag or trigger code changes are required.
+
+* Migration rules needed
+
+  * None
