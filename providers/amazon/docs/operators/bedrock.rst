@@ -74,6 +74,72 @@ To invoke a Claude Sonnet model using the Messages API you would use:
     :start-after: [START howto_operator_invoke_claude_model]
     :end-before: [END howto_operator_invoke_claude_model]
 
+.. _howto/operator:BedrockCreateAgentRuntimeOperator:
+
+Create an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To create an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
+
+AgentCore Runtime creation is asynchronous. The operator can wait until the runtime reaches
+``READY`` either synchronously or in deferrable mode.
+
+.. code-block:: python
+
+    create_agent_runtime = BedrockCreateAgentRuntimeOperator(
+        task_id="create_agent_runtime",
+        agent_runtime_name="example-runtime",
+        agent_runtime_artifact={
+            "containerConfiguration": {
+                "containerUri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/agent-runtime:latest",
+            },
+        },
+        role_arn="arn:aws:iam::123456789012:role/agent-runtime-role",
+        network_configuration={"networkMode": "PUBLIC"},
+        deferrable=True,
+    )
+
+.. _howto/operator:BedrockInvokeAgentRuntimeOperator:
+
+Invoke an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To invoke an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockInvokeAgentRuntimeOperator`.
+
+The operator waits for the runtime invocation response and returns the response body along with
+runtime response metadata such as the runtime session ID when present.
+For long-running AgentCore Runtime invocations, configure the botocore client ``read_timeout``
+through ``botocore_config``.
+
+.. code-block:: python
+
+    invoke_agent_runtime = BedrockInvokeAgentRuntimeOperator(
+        task_id="invoke_agent_runtime",
+        agent_runtime_arn=create_agent_runtime.output,
+        payload={"prompt": "Summarize this payload"},
+        botocore_config={"read_timeout": 900},
+    )
+
+.. _howto/operator:BedrockDeleteAgentRuntimeOperator:
+
+Delete an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To delete an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockDeleteAgentRuntimeOperator`.
+
+The operator accepts the runtime ID, which can be extracted from the ARN returned by
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
+
+.. code-block:: python
+
+    delete_agent_runtime = BedrockDeleteAgentRuntimeOperator(
+        task_id="delete_agent_runtime",
+        agent_runtime_id="{{ task_instance.xcom_pull('create_agent_runtime').split('/')[-1] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
 .. _howto/operator:BedrockCustomizeModelOperator:
 

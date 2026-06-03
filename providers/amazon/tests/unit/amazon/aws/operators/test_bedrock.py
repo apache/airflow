@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Generator
+from io import BytesIO
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,9 +27,16 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentCoreHook,
+    BedrockAgentHook,
+    BedrockHook,
+    BedrockRuntimeHook,
+)
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockBatchInferenceOperator,
+    BedrockCreateAgentRuntimeOperator,
     BedrockCreateDataSourceOperator,
     BedrockCreateEvaluationJobOperator,
     BedrockCreateGuardrailOperator,
@@ -36,8 +44,10 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
+    BedrockDeleteAgentRuntimeOperator,
     BedrockDeleteGuardrailOperator,
     BedrockIngestDataOperator,
+    BedrockInvokeAgentRuntimeOperator,
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
     BedrockUpdateGuardrailOperator,
@@ -82,6 +92,185 @@ class TestBedrockInvokeModelOperator:
         response = operator.execute({})
 
         assert response["generation"] == self.GENERATED_RESPONSE
+
+
+class TestBedrockCreateAgentRuntimeOperator:
+    AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test"
+    AGENT_RUNTIME_ID = "runtime_id"
+    AGENT_RUNTIME_VERSION = "1"
+
+    def setup_method(self):
+        self.operator = BedrockCreateAgentRuntimeOperator(
+            task_id="create_agent_runtime",
+            agent_runtime_name="test-runtime",
+            agent_runtime_artifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            role_arn="role_arn",
+            network_configuration={"networkMode": "PUBLIC"},
+            create_agent_runtime_kwargs={"description": "test runtime"},
+        )
+        self.operator.defer = mock.MagicMock()
+
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer_takes_precedence"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
+    @mock.patch.object(BedrockAgentCoreControlHook, "create_agent_runtime")
+    def test_create_agent_runtime_wait_combinations(
+        self,
+        mock_create_agent_runtime,
+        mock_get_waiter,
+        wait_for_completion,
+        deferrable,
+    ):
+        mock_create_agent_runtime.return_value = {
+            "agentRuntimeArn": self.AGENT_RUNTIME_ARN,
+            "agentRuntimeId": self.AGENT_RUNTIME_ID,
+            "agentRuntimeVersion": self.AGENT_RUNTIME_VERSION,
+            "status": "CREATING",
+        }
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.AGENT_RUNTIME_ARN
+        mock_create_agent_runtime.assert_called_once_with(
+            agent_runtime_name="test-runtime",
+            agent_runtime_artifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            role_arn="role_arn",
+            network_configuration={"networkMode": "PUBLIC"},
+            create_agent_runtime_kwargs={"description": "test runtime"},
+        )
+        assert self.operator.defer.call_count == deferrable
+
+        if wait_for_completion and not deferrable:
+            mock_get_waiter.assert_called_once_with("agent_runtime_ready")
+            mock_get_waiter.return_value.wait.assert_called_once_with(
+                agentRuntimeId=self.AGENT_RUNTIME_ID,
+                agentRuntimeVersion=self.AGENT_RUNTIME_VERSION,
+                WaiterConfig={"Delay": 60, "MaxAttempts": 20},
+            )
+        else:
+            mock_get_waiter.assert_not_called()
+
+    def test_execute_complete_success(self):
+        result = self.operator.execute_complete(
+            {},
+            {"status": "success", "agent_runtime_arn": self.AGENT_RUNTIME_ARN},
+        )
+
+        assert result == self.AGENT_RUNTIME_ARN
+
+    def test_execute_complete_error(self):
+        with pytest.raises(RuntimeError):
+            self.operator.execute_complete(
+                {},
+                {"status": "error", "message": "failed", "agent_runtime_arn": self.AGENT_RUNTIME_ARN},
+            )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockInvokeAgentRuntimeOperator:
+    AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test"
+
+    @mock.patch.object(BedrockAgentCoreHook, "invoke_agent_runtime")
+    def test_invoke_agent_runtime_json_response(self, mock_invoke_agent_runtime):
+        mock_invoke_agent_runtime.return_value = {
+            "runtimeSessionId": "session_id",
+            "contentType": "application/json",
+            "statusCode": 200,
+            "response": BytesIO(b'{"answer": "hello"}'),
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload={"prompt": "hello"},
+            invoke_agent_runtime_kwargs={"runtimeSessionId": "session_id"},
+        )
+
+        response = operator.execute({})
+
+        assert response == {
+            "runtimeSessionId": "session_id",
+            "contentType": "application/json",
+            "statusCode": 200,
+            "response": {"answer": "hello"},
+        }
+        mock_invoke_agent_runtime.assert_called_once_with(
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload=b'{"prompt": "hello"}',
+            content_type="application/json",
+            accept="application/json",
+            invoke_agent_runtime_kwargs={"runtimeSessionId": "session_id"},
+        )
+
+    @mock.patch.object(BedrockAgentCoreHook, "invoke_agent_runtime")
+    def test_invoke_agent_runtime_text_response(self, mock_invoke_agent_runtime):
+        mock_invoke_agent_runtime.return_value = {
+            "contentType": "text/plain",
+            "statusCode": 200,
+            "response": BytesIO(b"hello"),
+        }
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload="hello",
+            content_type="text/plain",
+            accept="text/plain",
+        )
+
+        response = operator.execute({})
+
+        assert response["response"] == "hello"
+        mock_invoke_agent_runtime.assert_called_once_with(
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload=b"hello",
+            content_type="text/plain",
+            accept="text/plain",
+            invoke_agent_runtime_kwargs={},
+        )
+
+    def test_template_fields(self):
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload={"prompt": "hello"},
+        )
+
+        validate_template_fields(operator)
+
+
+class TestBedrockDeleteAgentRuntimeOperator:
+    AGENT_RUNTIME_ID = "runtime_id"
+
+    @mock.patch.object(BedrockAgentCoreControlHook, "delete_agent_runtime")
+    def test_delete_agent_runtime(self, mock_delete):
+        mock_delete.return_value = {}
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+        )
+
+        operator.execute({})
+
+        mock_delete.assert_called_once_with(agent_runtime_id=self.AGENT_RUNTIME_ID)
+
+    def test_template_fields(self):
+        validate_template_fields(
+            BedrockDeleteAgentRuntimeOperator(
+                task_id="delete_agent_runtime",
+                agent_runtime_id=self.AGENT_RUNTIME_ID,
+            )
+        )
 
 
 class TestBedrockCustomizeModelOperator:
