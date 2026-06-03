@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Body, Depends, status
 from sqlalchemy import select, update
@@ -28,6 +28,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -36,10 +37,20 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 from airflow.utils.state import TaskInstanceState
 
+if TYPE_CHECKING:
+    from airflow.providers.edge3.models.types import ExecuteTypeBody
+
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 
-def parse_command(command: str) -> ExecuteTask:
+def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+
+        if dag_id == EXECUTE_CALLBACK_TAG and run_id.startswith(EXECUTE_CALLBACK_TAG):
+            return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
+
     return ExecuteTask.model_validate_json(command)
 
 
@@ -94,7 +105,7 @@ def fetch(
         run_id=job.run_id,
         map_index=job.map_index,
         try_number=job.try_number,
-        command=parse_command(job.command),
+        command=parse_command(job.command, job.dag_id, job.run_id),
         concurrency_slots=job.concurrency_slots,
     )
 

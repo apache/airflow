@@ -502,6 +502,7 @@ doesn
 doesnt
 dom
 Dont
+dotfiles
 DownloadReportV
 downscaling
 downstreams
@@ -554,6 +555,7 @@ enableAutoScale
 enablement
 encodable
 encryptor
+endian
 enqueue
 enqueued
 Entra
@@ -725,6 +727,7 @@ googleapis
 GoogleDisplayVideo
 gpu
 gpus
+Gradle
 Grafana
 graphviz
 Groq
@@ -1066,6 +1069,7 @@ msfabric
 msg
 msgraph
 mssql
+mtime
 mTLS
 multi-cloud
 multimodal
@@ -1629,6 +1633,7 @@ summarization
 superclass
 sur
 svg
+swappable
 symlink
 symlinks
 synthesises

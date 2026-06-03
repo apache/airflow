@@ -33,10 +33,6 @@ export class DagCalendarTab extends BasePage {
     return this.page.getByTestId("calendar-cell");
   }
 
-  public get tooltip(): Locator {
-    return this.page.getByTestId("calendar-tooltip");
-  }
-
   public constructor(page: Page) {
     super(page);
 
@@ -92,22 +88,18 @@ export class DagCalendarTab extends BasePage {
     const count = await this.activeCells.count();
     const states: Array<string> = [];
 
+    // Read run states from the cell's `data-states` attribute rather than hovering to
+    // read the tooltip. The tooltip (BasicTooltip) opens on a `mouseenter` after a
+    // 500ms delay and renders through a portal; synthetic pointer events do not open
+    // it reliably in headless Firefox, which made these tests flaky. `data-states` is
+    // populated with the same view-mode-aware logic the tooltip uses (see
+    // CalendarCell), so the assertions are unchanged and now backend-independent.
     for (let i = 0; i < count; i++) {
-      const cell = this.activeCells.nth(i);
+      const raw = (await this.activeCells.nth(i).getAttribute("data-states")) ?? "";
 
-      // Firefox sometimes fails to trigger tooltips on hover.
-      // Retry the hover + tooltip visibility check to handle this.
-      let text = "";
-
-      await expect(async () => {
-        await cell.hover({ force: true });
-        await expect(this.tooltip).toBeVisible({ timeout: 3000 });
-        text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
-      }).toPass({ intervals: [1000], timeout: 20_000 });
-
-      if (text.includes("success")) states.push("success");
-      if (text.includes("failed")) states.push("failed");
-      if (text.includes("running")) states.push("running");
+      for (const state of raw.split(" ").filter(Boolean)) {
+        states.push(state);
+      }
     }
 
     return states;

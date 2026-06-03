@@ -23,6 +23,7 @@ import copy
 import logging
 import os
 import shutil
+import sys
 import warnings
 from collections.abc import Collection
 from datetime import datetime
@@ -63,6 +64,11 @@ if TYPE_CHECKING:
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
+
+# Dedicated logger for handler-internal failures (Cloud Logging unavailable, gRPC errors).
+# Routed to the same ``airflow.providers.google.cloud.log.stackdriver_task_handler`` namespace
+# so operators see these alongside the rest of the handler's logs.
+_logger = logging.getLogger(__name__)
 
 _DEFAULT_SCOPESS = frozenset(
     ["https://www.googleapis.com/auth/logging.read", "https://www.googleapis.com/auth/logging.write"]
@@ -422,7 +428,19 @@ class StackdriverTaskHandler(logging.Handler):
         next_page_token = metadata.get("next_page_token", None)
         all_pages = "download_logs" in metadata and metadata["download_logs"]
 
-        messages, end_of_log, next_page_token = self.io.read_logs(log_filter, next_page_token, all_pages)
+        try:
+            messages, end_of_log, next_page_token = self.io.read_logs(log_filter, next_page_token, all_pages)
+        except Exception:
+            # Cloud Logging unavailable / IAM glitch / gRPC error. Without a guard, the
+            # exception used to propagate up as HTTP 500 from the log viewer. Degrade
+            # gracefully instead: surface a short user-facing message, mark the read
+            # complete (no spinning retry), and log the full traceback to the handler's
+            # own logger for the operator.
+            _logger.exception("Failed to read logs from Cloud Logging for filter %s", log_filter)
+            return (
+                [((self.task_instance_hostname, "Cloud Logging is currently unavailable."),)],
+                [{"end_of_log": True}],
+            )
 
         new_metadata: dict[str, str | bool] = {"end_of_log": end_of_log}
 
@@ -483,4 +501,15 @@ class StackdriverTaskHandler(logging.Handler):
         return url
 
     def close(self) -> None:
-        self.io.transport.flush()
+        # ``flush()`` is best-effort during shutdown — if Cloud Logging is unavailable or
+        # the transport raises, that's not a reason to break the rest of the handler's
+        # shutdown chain (and the stdlib logging machinery does not handle exceptions
+        # from ``Handler.close()`` gracefully). Print to stderr as last resort since
+        # logging itself may be shutting down.
+        try:
+            self.io.transport.flush()
+        except Exception as exc:
+            print(
+                f"StackdriverTaskHandler.close: transport flush failed: {type(exc).__name__}: {exc}",
+                file=sys.stderr,
+            )

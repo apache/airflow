@@ -40,8 +40,23 @@ Features
 * ``Add disabled_for_operators, auto_lineage_enabled, and request_timeout config options``
 * ``Add example DAG demonstrating auto, manual, disabled, and operator-excluded lineage modes``
 
+
+0.1.4
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+Doc-only
+~~~~~~~~
+
+* ``Cleanup integration names for consistency (#66287)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+
 
 0.1.3
 .....
