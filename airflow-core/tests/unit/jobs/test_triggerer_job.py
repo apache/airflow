@@ -2298,3 +2298,46 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 
     assert decoder._reader_task is not None
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
+
+
+class TestBuildContextFromDagRunData:
+    """Tests for TriggerRunner._build_context_from_dag_run_data (triggerer callback context)."""
+
+    _BASE_DAG_RUN_DATA = {
+        "dag_id": "example_dag",
+        "run_id": "manual__2024-01-01",
+        "logical_date": "2024-01-01T00:00:00+00:00",
+        "data_interval_start": None,
+        "data_interval_end": None,
+        "run_after": "2024-01-01T00:00:00+00:00",
+        "start_date": "2024-01-01T00:01:00+00:00",
+        "end_date": None,
+        "run_type": "manual",
+        "state": "running",
+        "conf": {},
+        "consumed_asset_events": [],
+        "partition_key": None,
+    }
+
+    def test_injects_deadline_info_into_context(self):
+        """The _deadline key in dag_run_data is surfaced as context['deadline']."""
+        dag_run_data = {
+            **self._BASE_DAG_RUN_DATA,
+            "_deadline": {"id": "abc-123", "deadline_time": "2024-01-01T01:00:00+00:00"},
+        }
+
+        context = TriggerRunner._build_context_from_dag_run_data(dag_run_data)
+
+        assert "deadline" in context
+        assert context["deadline"]["id"] == "abc-123"
+        assert context["deadline"]["deadline_time"] == "2024-01-01T01:00:00+00:00"
+
+    def test_no_deadline_when_key_absent(self):
+        """Without _deadline key, context has no 'deadline' entry."""
+        dag_run_data = dict(self._BASE_DAG_RUN_DATA)
+
+        context = TriggerRunner._build_context_from_dag_run_data(dag_run_data)
+
+        assert "deadline" not in context
+        # Standard context fields should still be present
+        assert context["dag_run"].dag_id == "example_dag"
