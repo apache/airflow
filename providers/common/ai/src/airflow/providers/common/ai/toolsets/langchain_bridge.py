@@ -187,12 +187,16 @@ def _build_structured_tool_from_spec(
 
     def _sync_call(**kwargs: Any) -> Any:
         try:
+            if asyncio.iscoroutinefunction(spec.fn):
+                return _run_coro_sync(spec.fn(**kwargs))
             return spec.fn(**kwargs)
         except ModelRetry as e:
             return str(e)
 
     async def _async_call(**kwargs: Any) -> Any:
         try:
+            if asyncio.iscoroutinefunction(spec.fn):
+                return await spec.fn(**kwargs)
             return spec.fn(**kwargs)
         except ModelRetry as e:
             return str(e)
