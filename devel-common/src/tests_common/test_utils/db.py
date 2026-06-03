@@ -380,7 +380,7 @@ def clear_db_callbacks():
 @_retry_db
 def set_default_pool_slots(slots):
     with create_session() as session:
-        default_pool = Pool.get_default_pool(session)
+        default_pool = Pool.get_default_pool(session=session)
         default_pool.slots = slots
 
 

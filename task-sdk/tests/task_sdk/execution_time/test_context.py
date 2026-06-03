@@ -1213,6 +1213,12 @@ class TestTaskStoreAccessor:
             SetTaskStore(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
 
+    def test_set_raises_on_negative_retention_days(self, mock_supervisor_comms):
+        """set() raises ValueError when default_retention_days is negative."""
+        with conf_vars({("state_store", "default_retention_days"): "-1"}):
+            with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
+                TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
