@@ -20,16 +20,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.sdk import timezone
 from airflow.sdk.api import client as sdk_client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.api.datamodels._generated import AssetEventsResponse, AssetStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
     ErrorResponse,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     SetAssetStateStoreByName,
@@ -40,6 +44,8 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_uri,
     handle_delete_asset_state_store_by_name,
     handle_delete_asset_state_store_by_uri,
+    handle_get_asset_event_by_asset,
+    handle_get_asset_event_by_asset_alias,
     handle_get_asset_state_store_by_name,
     handle_get_asset_state_store_by_uri,
     handle_set_asset_state_store_by_name,
@@ -98,6 +104,58 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
 
     assert result is err
     assert dump_opts == {}
+
+
+def test_get_asset_event_by_asset_delegates_and_wraps(client):
+    client.asset_events.get.return_value = AssetEventsResponse(asset_events=[])
+
+    result, dump_opts = handle_get_asset_event_by_asset(
+        client,
+        GetAssetEventByAsset(
+            name="orders",
+            uri="s3://warehouse/orders",
+            partition_key="2024-01-01",
+            after=timezone.datetime(2024, 1, 1),
+            limit=1,
+            ascending=False,
+        ),
+    )
+
+    client.asset_events.get.assert_called_once_with(
+        uri="s3://warehouse/orders",
+        name="orders",
+        after=timezone.datetime(2024, 1, 1),
+        before=None,
+        ascending=False,
+        limit=1,
+        partition_key="2024-01-01",
+        partition_key_regexp_pattern=None,
+        extra=None,
+    )
+    assert isinstance(result, AssetEventsResult)
+    assert dump_opts == {"exclude_unset": True}
+
+
+def test_get_asset_event_by_asset_alias_delegates_and_wraps(client):
+    client.asset_events.get.return_value = AssetEventsResponse(asset_events=[])
+
+    result, dump_opts = handle_get_asset_event_by_asset_alias(
+        client,
+        GetAssetEventByAssetAlias(alias_name="orders_alias", partition_key="2024-01-01"),
+    )
+
+    client.asset_events.get.assert_called_once_with(
+        alias_name="orders_alias",
+        after=None,
+        before=None,
+        ascending=True,
+        limit=None,
+        partition_key="2024-01-01",
+        partition_key_regexp_pattern=None,
+        extra=None,
+    )
+    assert isinstance(result, AssetEventsResult)
+    assert dump_opts == {"exclude_unset": True}
 
 
 @pytest.mark.parametrize(
