@@ -1899,6 +1899,11 @@ class TestDagFileProcessorManager:
                 manager.run()
             purge_mock.assert_called()
 
+    # min_file_process_interval=0 makes each file unconditionally eligible for re-parsing, so the
+    # three successive runs below don't hinge on the file's mtime exceeding its last-parsed time
+    # (a filesystem-granularity race that, under load, left a run waiting out the default 30s
+    # interval and blew the per-test timeout).
+    @conf_vars({("dag_processor", "min_file_process_interval"): "0"})
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
         key = "dag_processing.total_parse_time"
@@ -1925,7 +1930,6 @@ class TestDagFileProcessorManager:
                 assert len(gauge_values[key]) == 1
                 assert gauge_values[key][0] >= 1e-4
 
-                dag_path.touch()  # make the loop run faster
                 gauge_values.clear()
 
     def _make_refresh_bundle(self, *, supports_versioning=False, current_version=None):
