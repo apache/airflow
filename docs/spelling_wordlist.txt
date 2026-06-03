@@ -247,6 +247,7 @@ cleartext
 cli
 ClickHouse
 clickhouse
+clickhousedb
 ClientSecretCredential
 cloudant
 CloudantV

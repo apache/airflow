@@ -53,7 +53,7 @@ Set the ``conn_id`` argument to the ID of a
 
 An example usage of the SQLExecuteQueryOperator to connect to ClickHouse:
 
-.. exampleinclude:: /../../clickhouse/tests/system/clickhouse/example_clickhouse.py
+.. exampleinclude:: /../../clickhousedb/tests/system/clickhouse/example_clickhouse.py
     :language: python
     :start-after: [START howto_operator_clickhouse]
     :end-before: [END howto_operator_clickhouse]
@@ -64,7 +64,7 @@ Querying Data
 
 Use a ``handler`` to return query results:
 
-.. exampleinclude:: /../../clickhouse/tests/system/clickhouse/example_clickhouse.py
+.. exampleinclude:: /../../clickhousedb/tests/system/clickhouse/example_clickhouse.py
     :language: python
     :start-after: [START howto_operator_clickhouse_query]
     :end-before: [END howto_operator_clickhouse_query]
