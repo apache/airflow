@@ -55,7 +55,8 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
     """
     Resolve the expires_at value from the request body.
 
-    - ``"default"``: apply configured default_retention_days
+    - ``"default"``: apply configured ``[state_store] default_retention_days``.
+      ``0`` means never expire. Negative values raise HTTP 400.
     - ``None``: never expire
     - datetime: use as-is
     """
