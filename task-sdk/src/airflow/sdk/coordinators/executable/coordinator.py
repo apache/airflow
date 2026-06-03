@@ -31,7 +31,7 @@ import attrs
 import structlog
 import yaml
 
-from airflow.sdk.coordinators.socket.coordinator import SocketCoordinator
+from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
@@ -363,7 +363,7 @@ def _convert_executables_root(
 
 
 @attrs.define(kw_only=True)
-class ExecutableCoordinator(SocketCoordinator):
+class ExecutableCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a native executable subprocess for task execution.
 
