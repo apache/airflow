@@ -387,6 +387,39 @@ class TestGetImportErrors:
             import_error["filename"] for import_error in response_json["import_errors"]
         ] == expected_filenames
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_total_entries_counts_distinct_import_errors_when_file_maps_to_multiple_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        permitted_dag_model_all,
+        session,
+    ):
+        session.add(
+            DagModel(
+                fileloc=FILENAME1,
+                relative_fileloc=FILENAME1,
+                dag_id="dag_id1_colocated",
+                is_paused=False,
+                bundle_name=BUNDLE_NAME,
+            )
+        )
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager,
+            permitted_dag_model_all | {"dag_id1_colocated"},
+        )
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors")
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 3
+        assert len(response_json["import_errors"]) == 3
+        assert [entry["filename"] for entry in response_json["import_errors"]].count(FILENAME1) == 1
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401

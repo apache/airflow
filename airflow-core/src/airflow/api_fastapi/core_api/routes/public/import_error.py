@@ -31,6 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
+    apply_filters_to_select,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -53,6 +54,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
+from airflow.utils.db import get_query_count
 
 REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
@@ -208,14 +210,21 @@ def get_import_errors(
         .order_by(ParseImportError.id)
     )
 
+    count_statement = apply_filters_to_select(
+        statement=import_errors_stmt.with_only_columns(ParseImportError.id).distinct(),
+        filters=[filename_pattern, filename_prefix_pattern],
+    )
+    total_entries = get_query_count(count_statement, session=session)
+
     # Paginate the import errors query
-    import_errors_select, total_entries = paginated_select(
+    import_errors_select, _ = paginated_select(
         statement=import_errors_stmt,
         filters=[filename_pattern, filename_prefix_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
+        return_total_entries=False,
     )
     import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
         session.execute(import_errors_select), itemgetter(0)
