@@ -408,7 +408,8 @@ class TestPydanticAIHookCreateAgent:
 
         assert run_result.usage is not None
         assert run_result.usage.tool_calls == 3
-        assert calls == ["bound", "prod", "callable"]
+        # TestModel is not a real model and does not guarantee tool call order.
+        assert sorted(calls) == ["bound", "callable", "prod"]
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
