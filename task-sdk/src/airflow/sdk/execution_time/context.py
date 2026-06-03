@@ -1012,6 +1012,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _partition_key: str | None
     _asset_name: str | None
     _asset_uri: str | None
     _alias_name: str | None
@@ -1026,6 +1027,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._partition_key = None
 
     def after(self, after: str) -> Self:
         self._after = after
@@ -1047,6 +1049,11 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def partition_key(self, partition_key: str | None) -> Self:
+        self._partition_key = partition_key
+        self._reset_cache()
+        return self
+
     @functools.cached_property
     def _asset_events(self) -> list[AssetEventResult]:
         from airflow.sdk.execution_time.comms import (
@@ -1062,6 +1069,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "partition_key": self._partition_key,
         }
 
         msg: ToSupervisor

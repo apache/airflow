@@ -55,6 +55,33 @@ def test_asset_events(session):
 
 
 @pytest.fixture
+def test_partitioned_asset_events(session, test_asset):
+    def make_timestamp(day):
+        return datetime(2021, 1, day, tzinfo=timezone.utc)
+
+    common = {
+        "asset_id": test_asset.id,
+        "extra": {"foo": "bar"},
+        "source_dag_id": "foo",
+        "source_task_id": "bar",
+        "source_run_id": "custom",
+        "source_map_index": -1,
+    }
+
+    events = [
+        AssetEvent(id=101, timestamp=make_timestamp(1), partition_key="2021-01-01", **common),
+        AssetEvent(id=102, timestamp=make_timestamp(2), partition_key="2021-01-02", **common),
+    ]
+    session.add_all(events)
+    session.commit()
+    yield events
+
+    for event in events:
+        session.delete(event)
+    session.commit()
+
+
+@pytest.fixture
 def test_asset(session):
     asset = AssetModel(
         id=1,
@@ -80,6 +107,20 @@ def test_asset(session):
 def test_asset_alias(session, test_asset_events, test_asset):
     alias = AssetAliasModel(id=1, name="test_alias")
     alias.asset_events = test_asset_events
+    alias.assets.append(test_asset)
+    session.add(alias)
+    session.commit()
+
+    yield alias
+
+    session.delete(alias)
+    session.commit()
+
+
+@pytest.fixture
+def test_partitioned_asset_alias(session, test_partitioned_asset_events, test_asset):
+    alias = AssetAliasModel(name="partitioned_alias")
+    alias.asset_events = test_partitioned_asset_events
     alias.assets.append(test_asset)
     session.add(alias)
     session.commit()
@@ -457,6 +498,40 @@ class TestGetAssetEventByAsset:
             ]
         }
 
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    def test_get_by_asset_with_partition_key_filter(self, uri, name, client, test_partitioned_asset_events):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "partition_key": "2021-01-02"},
+        )
+        assert response.status_code == 200
+        assert response.json()["asset_events"] == [
+            {
+                "id": test_partitioned_asset_events[1].id,
+                "extra": {"foo": "bar"},
+                "source_task_id": "bar",
+                "source_dag_id": "foo",
+                "source_run_id": "custom",
+                "source_map_index": -1,
+                "asset": {
+                    "extra": {"foo": "bar"},
+                    "group": "asset",
+                    "name": "test_get_asset_by_name",
+                    "uri": "s3://bucket/key",
+                },
+                "created_dagruns": [],
+                "timestamp": "2021-01-02T00:00:00Z",
+                "partition_key": "2021-01-02",
+            },
+        ]
+
 
 class TestGetAssetEventByAssetAlias:
     @pytest.mark.usefixtures("test_asset_alias")
@@ -521,3 +596,32 @@ class TestGetAssetEventByAssetAlias:
                 },
             ]
         }
+
+    def test_get_by_asset_alias_with_partition_key_filter(
+        self, client, test_partitioned_asset_alias, test_partitioned_asset_events
+    ):
+        response = client.get(
+            "/execution/asset-events/by-asset-alias",
+            params={"name": "partitioned_alias", "partition_key": "2021-01-02"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["asset_events"] == [
+            {
+                "id": test_partitioned_asset_events[1].id,
+                "extra": {"foo": "bar"},
+                "source_task_id": "bar",
+                "source_dag_id": "foo",
+                "source_run_id": "custom",
+                "source_map_index": -1,
+                "asset": {
+                    "extra": {"foo": "bar"},
+                    "group": "asset",
+                    "name": "test_get_asset_by_name",
+                    "uri": "s3://bucket/key",
+                },
+                "created_dagruns": [],
+                "timestamp": "2021-01-02T00:00:00Z",
+                "partition_key": "2021-01-02",
+            },
+        ]
