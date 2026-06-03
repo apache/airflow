@@ -100,6 +100,9 @@ func getFnName(fn reflect.Value) string {
 }
 
 func (r *registry) AddDag(dagId string) Dag {
+	r.Lock()
+	defer r.Unlock()
+
 	if _, exists := r.taskFuncMap[dagId]; exists {
 		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
 	}
