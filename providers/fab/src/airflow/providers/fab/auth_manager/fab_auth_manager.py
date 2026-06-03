@@ -169,9 +169,7 @@ if AIRFLOW_V_3_1_PLUS:
     _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
 if hasattr(MenuItem, "DEADLINES"):
-    from airflow.providers.fab.www.security.permissions import RESOURCE_DEADLINE
-
-    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DEADLINE
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
 
 class FabAuthManager(BaseAuthManager[User]):

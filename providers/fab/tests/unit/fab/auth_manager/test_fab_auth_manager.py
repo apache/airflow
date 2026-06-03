@@ -65,7 +65,6 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
-    RESOURCE_DEADLINE,
     RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -834,7 +833,7 @@ class TestFabAuthManager:
             ),
             (
                 [MenuItem.DEADLINES],
-                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DEADLINE)],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
                 [MenuItem.DEADLINES],
             ),
             (
