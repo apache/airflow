@@ -430,7 +430,7 @@ def inject_openlineage_properties_into_databricks_job(
     job = copy.deepcopy(job)
     new_clusters = _extract_new_clusters_from_databricks_job(job)
     if not new_clusters:
-        log.warning(
+        log.debug(
             "Could not find a Databricks `new_cluster` definition for automatic OpenLineage "
             "properties injection. No action will be performed."
         )
