@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
+from contextlib import contextmanager
 from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -35,6 +36,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     func,
+    inspect as sa_inspect,
     select,
     update,
 )
@@ -70,12 +72,14 @@ from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import prohibit_commit
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
@@ -1607,6 +1611,139 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
             .order_by(TI.map_index)
         ).all()
         assert indices == [0, 1, 2, 3]
+
+
+def _make_mapped_dag_for_expansion(dag_maker, session, *, dag_id, conf=None):
+    """Build a DAG whose mapped task expands from an upstream task's output and create its DagRun.
+
+    Returns (dag, mapped, dr). Expansion is not performed here -- callers drive it explicitly
+    via expand_mapped_task so they can wrap it in a prohibit_commit guard, mirroring how the
+    scheduler expands mapped tasks inside _schedule_all_dag_runs.
+    """
+    with dag_maker(dag_id=dag_id, session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun(conf=conf or {})
+    return dag, mapped, dr
+
+
+@contextmanager
+def _registered_mutation_hook(hook):
+    """Register hook as the real task_instance_mutation_hook on the policy plugin manager.
+
+    Patching at the plugin-manager level (rather than airflow.settings) ensures both call sites
+    see it: TaskMap.expand_mapped_task resolves the wrapper lazily, while refresh_from_task
+    holds a module-level reference bound at import time.
+    """
+    with mock.patch.object(
+        get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+    ) as mock_hook:
+        mock_hook.side_effect = hook
+        yield mock_hook
+
+
+def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_maker, session):
+    """A mutation hook that opens a nested committing session crashes mapped expansion under the guard.
+
+    This pins the exact scheduler crash path: during mapped-task expansion (TaskMap.expand_mapped_task)
+    the hook is invoked while the outer session is wrapped in prohibit_commit. A hook that calls the
+    @provide_session-decorated TaskInstance.get_dagrun() with no session argument reuses the
+    guarded scoped session; the create_session() context manager then commits on exit, tripping the
+    before_commit guard with RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!").
+    """
+
+    def naive_hook(task_instance):
+        # Reads DagRun.conf the unsafe way -- opens a fresh @provide_session session that commits on exit.
+        task_instance.get_dagrun()
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_committing_session"
+    )
+
+    with _registered_mutation_hook(naive_hook):
+        with prohibit_commit(session):
+            # The guard fires inside expand_mapped_task when the hook's nested create_session()
+            # commits on exit -- expansion never completes, so there is nothing to guard.commit().
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+
+
+def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commit(dag_maker, session):
+    """A session-reusing mutation hook survives mapped expansion under the guard and routes every TI.
+
+    Positive counterpart to the crash test. During expansion the hook is invoked both on transient,
+    session-less TaskInstance objects and (after session.merge) on instances attached to the
+    guarded outer session. A safe hook reads DagRun.conf only through the attached session -- a
+    plain SELECT that reuses the outer transaction, never opening a committing create_session()
+    -- so the prohibit_commit guard never fires. The routed queue is then asserted to persist on
+    every expanded mapped TI, closing the gap where existing tests only check that the hook was called.
+
+    Note: task_instance.dag_run is not usable here -- a freshly-built mapped TI has dag_run
+    marked "loaded as None" (see TaskInstance.get_dagrun), so the relationship never lazy-loads.
+    Resolving via the attached session is the discipline a real conf-routing hook must follow.
+    """
+
+    def safe_hook(task_instance):
+        attached_session = sa_inspect(task_instance).session
+        if attached_session is None:
+            # Transient instance (pre-merge); it will be re-invoked once attached. Nothing safe to do.
+            return
+        dag_run = attached_session.scalar(
+            select(DagRun).where(DagRun.dag_id == task_instance.dag_id, DagRun.run_id == task_instance.run_id)
+        )
+        if dag_run is not None and dag_run.conf.get("route") == "high":
+            task_instance.queue = "high_queue"
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_safe_routing", conf={"route": "high"}
+    )
+
+    with _registered_mutation_hook(safe_hook):
+        with prohibit_commit(session) as guard:
+            expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+            guard.commit()
+
+    queues = session.scalars(
+        select(TI.queue)
+        .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert queues == ["high_queue", "high_queue", "high_queue"]
+
+
+def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion(dag_maker, session):
+    """A mutation hook may be invoked more than once per TI during expansion; the result must be stable.
+
+    TaskMap.expand_mapped_task invokes the hook on the transient TI and again via refresh_from_task
+    after session.merge, so a given mapped index is mutated multiple times. This asserts both that the
+    re-invocation really happens (at least one index sees >1 call) and that a deterministic hook -- one that
+    sets queue as a pure function of TI identity -- yields the same persisted value regardless of how
+    many times it ran.
+    """
+    call_counts: dict[int, int] = defaultdict(int)
+
+    def deterministic_hook(task_instance):
+        call_counts[task_instance.map_index] += 1
+        task_instance.queue = f"q_{task_instance.map_index}"
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_deterministic"
+    )
+
+    with _registered_mutation_hook(deterministic_hook):
+        with prohibit_commit(session) as guard:
+            expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+            guard.commit()
+
+    # Re-invocation is real: at least one mapped index was mutated more than once.
+    assert max(call_counts.values()) > 1
+    # Despite repeated invocation, the deterministic hook leaves each TI with a stable, identity-derived queue.
+    rows = session.execute(
+        select(TI.map_index, TI.queue)
+        .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert rows == [(0, "q_0"), (1, "q_1"), (2, "q_2")]
 
 
 def test_verify_integrity_handles_stale_data_error(dag_maker, session):
