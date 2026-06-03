@@ -54,7 +54,7 @@ class TestDagWarning:
         session.add_all(dag_warnings)
         session.commit()
 
-        DagWarning.purge_inactive_dag_warnings(session)
+        DagWarning.purge_inactive_dag_warnings(session=session)
 
         remaining_dag_warnings = session.scalars(select(DagWarning)).all()
         assert len(remaining_dag_warnings) == 1
@@ -70,7 +70,7 @@ class TestDagWarning:
 
         self.session_mock.execute.side_effect = [OperationalError(None, None, "database timeout"), None]
 
-        DagWarning.purge_inactive_dag_warnings(self.session_mock)
+        DagWarning.purge_inactive_dag_warnings(session=self.session_mock)
 
         # Assert that the delete method was called twice
         assert delete_mock.call_count == 2

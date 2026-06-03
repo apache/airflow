@@ -381,29 +381,27 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
-export const $AssetStateBody = {
+export const $AssetStoreBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['value'],
-    title: 'AssetStateBody',
-    description: 'Request body for setting an asset state value.'
+    title: 'AssetStoreBody',
+    description: 'Request body for setting an asset store value.'
 } as const;
 
-export const $AssetStateCollectionResponse = {
+export const $AssetStoreCollectionResponse = {
     properties: {
-        asset_states: {
+        asset_store: {
             items: {
-                '$ref': '#/components/schemas/AssetStateResponse'
+                '$ref': '#/components/schemas/AssetStoreResponse'
             },
             type: 'array',
-            title: 'Asset States'
+            title: 'Asset Store'
         },
         total_entries: {
             type: 'integer',
@@ -411,20 +409,19 @@ export const $AssetStateCollectionResponse = {
         }
     },
     type: 'object',
-    required: ['asset_states', 'total_entries'],
-    title: 'AssetStateCollectionResponse',
-    description: 'All asset state entries for an asset.'
+    required: ['asset_store', 'total_entries'],
+    title: 'AssetStoreCollectionResponse',
+    description: 'All asset store entries for an asset.'
 } as const;
 
-export const $AssetStateResponse = {
+export const $AssetStoreResponse = {
     properties: {
         key: {
             type: 'string',
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -434,8 +431,8 @@ export const $AssetStateResponse = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at'],
-    title: 'AssetStateResponse',
-    description: 'A single asset state key/value pair with metadata.'
+    title: 'AssetStoreResponse',
+    description: 'A single asset store key/value pair with metadata.'
 } as const;
 
 export const $AssetWatcherResponse = {
@@ -972,6 +969,64 @@ export const $BulkDAGRunBody = {
     required: ['dag_run_id'],
     title: 'BulkDAGRunBody',
     description: 'Request body for bulk delete operations on Dag Runs.'
+} as const;
+
+export const $BulkDAGRunClearBody = {
+    properties: {
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            default: true
+        },
+        only_failed: {
+            type: 'boolean',
+            title: 'Only Failed',
+            default: false
+        },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest Dag version without clearing existing tasks.',
+            default: false
+        },
+        run_on_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGRunBody'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Dag Runs'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_runs'],
+    title: 'BulkDAGRunClearBody',
+    description: 'Request body for the bulk clear Dag Runs endpoint.'
 } as const;
 
 export const $BulkDeleteAction_BulkDAGRunBody_ = {
@@ -2777,7 +2832,19 @@ export const $DAGRunClearBody = {
                 }
             ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -4125,6 +4192,18 @@ export const $ExternalViewResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         href: {
             type: 'string',
@@ -5494,6 +5573,18 @@ export const $ReactAppResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         bundle_url: {
             type: 'string',
@@ -6979,29 +7070,50 @@ export const $TaskResponse = {
     description: 'Task serializer for responses.'
 } as const;
 
-export const $TaskStateBody = {
+export const $TaskStoreBody = {
     properties: {
         value: {
-            type: 'string',
-            maxLength: 65535,
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    const: 'default'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            default: 'default'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['value'],
-    title: 'TaskStateBody',
-    description: 'Request body for setting a task state value.'
+    title: 'TaskStoreBody',
+    description: `Request body for setting a task store value.
+
+\`\`expires_at\`\` controls expiry:
+
+- \`\`"default"\`\`: apply the configured \`\`[state_store] default_retention_days\`\`.
+- \`\`null\`\`: never expire.
+- aware datetime: expire at that time.`
 } as const;
 
-export const $TaskStateCollectionResponse = {
+export const $TaskStoreCollectionResponse = {
     properties: {
-        task_states: {
+        task_store: {
             items: {
-                '$ref': '#/components/schemas/TaskStateResponse'
+                '$ref': '#/components/schemas/TaskStoreResponse'
             },
             type: 'array',
-            title: 'Task States'
+            title: 'Task Store'
         },
         total_entries: {
             type: 'integer',
@@ -7009,20 +7121,32 @@ export const $TaskStateCollectionResponse = {
         }
     },
     type: 'object',
-    required: ['task_states', 'total_entries'],
-    title: 'TaskStateCollectionResponse',
-    description: 'All task state entries for a task instance.'
+    required: ['task_store', 'total_entries'],
+    title: 'TaskStoreCollectionResponse',
+    description: 'All task store entries for a task instance.'
 } as const;
 
-export const $TaskStateResponse = {
+export const $TaskStorePatchBody = {
+    properties: {
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStorePatchBody',
+    description: 'Request body for patching only the value of an existing task store key.'
+} as const;
+
+export const $TaskStoreResponse = {
     properties: {
         key: {
             type: 'string',
             title: 'Key'
         },
         value: {
-            type: 'string',
-            title: 'Value'
+            '$ref': '#/components/schemas/JsonValue'
         },
         updated_at: {
             type: 'string',
@@ -7044,8 +7168,8 @@ export const $TaskStateResponse = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at', 'expires_at'],
-    title: 'TaskStateResponse',
-    description: 'A single task state key/value pair with metadata.'
+    title: 'TaskStoreResponse',
+    description: 'A single task store key/value pair with metadata.'
 } as const;
 
 export const $TimeDelta = {
@@ -7383,7 +7507,14 @@ export const $VariableResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Value'
         },
         description: {
@@ -7414,7 +7545,7 @@ export const $VariableResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
+    required: ['key', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -8898,6 +9029,17 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Setup Teardown Type'
+        },
+        doc_md: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Doc Md'
         }
     },
     type: 'object',

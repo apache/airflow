@@ -50,7 +50,10 @@ import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
-const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+// Matches the identifier the bulk task-instance endpoint echoes back in its
+// ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
+const getRowKey = (ti: TaskInstanceResponse) =>
+  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -369,7 +372,7 @@ export const TaskInstances = () => {
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
-  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.task_instances,
       getKey: getRowKey,
@@ -414,11 +417,11 @@ export const TaskInstances = () => {
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkMarkTaskInstancesAsButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkDeleteTaskInstancesButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <ActionBar.CloseTrigger onClick={clearSelections} />

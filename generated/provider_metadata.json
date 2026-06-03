@@ -159,6 +159,10 @@
         "5.4.2": {
             "associated_airflow_version": "3.2.1",
             "date_released": "2026-05-11T15:47:10Z"
+        },
+        "5.5.0": {
+            "associated_airflow_version": "3.2.1",
+            "date_released": "2026-05-27T12:45:31Z"
         }
     },
     "akeyless": {
@@ -5629,6 +5633,10 @@
         "4.8.2": {
             "associated_airflow_version": "3.2.1",
             "date_released": "2026-05-11T15:47:10Z"
+        },
+        "4.9.0": {
+            "associated_airflow_version": "3.2.1",
+            "date_released": "2026-05-27T12:45:31Z"
         }
     },
     "dingding": {

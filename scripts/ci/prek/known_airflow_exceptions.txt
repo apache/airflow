@@ -145,7 +145,7 @@ providers/apache/livy/src/airflow/providers/apache/livy/operators/livy.py::3
 providers/apache/pig/src/airflow/providers/apache/pig/hooks/pig.py::1
 providers/apache/pinot/src/airflow/providers/apache/pinot/hooks/pinot.py::1
 providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_sql.py::2
-providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_submit.py::11
+providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_submit.py::10
 providers/arangodb/src/airflow/providers/arangodb/hooks/arangodb.py::9
 providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py::1
 providers/atlassian/jira/src/airflow/providers/atlassian/jira/hooks/jira.py::1
@@ -352,7 +352,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_facto
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_lake.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/msgraph.py::3
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/wasb.py::2
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::10
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::9
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/container_instances.py::10
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1

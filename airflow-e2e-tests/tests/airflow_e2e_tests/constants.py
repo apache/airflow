@@ -50,6 +50,13 @@ XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
 KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 
+# Java SDK E2E test paths
+JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
+JAVA_SDK_DAGS_PATH = JAVA_SDK_ROOT_PATH / "dags"
+JAVA_SDK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "example" / "build" / "install" / "example" / "lib"
+JAVA_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "java.yml"
+JAVA_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "Dockerfile.java"
+
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)
 # provider rather than the published one from PyPI.

@@ -38,6 +38,13 @@ from airflow_breeze.commands.ci_commands import (
 )
 
 
+def _label(name: str) -> MagicMock:
+    """Build a mock that quacks like a PyGithub ``Label`` for ``issue.labels``."""
+    m = MagicMock()
+    m.name = name
+    return m
+
+
 class TestParseVersionFromBranch:
     """Test cases for _parse_version_from_branch."""
 
@@ -420,6 +427,8 @@ class TestSetMilestoneCommand:
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
+        # Fresh-issue labels match the workflow snapshot — no race, no re-evaluation.
+        mock_issue.labels = [_label(name) for name in pr_labels]
         mock_milestone = MagicMock()
         mock_milestone.title = milestone_title
         mock_milestone.number = 42
@@ -530,6 +539,8 @@ If this milestone is not correct, please update it to the appropriate milestone.
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_issue.milestone = None
+        # Fresh-issue labels match the workflow snapshot — no race, no re-evaluation.
+        mock_issue.labels = [_label(name) for name in pr_labels]
         captured_comments: list[str] = []
         mock_issue.create_comment.side_effect = lambda c: captured_comments.append(c)
 
@@ -571,3 +582,139 @@ However, **no open milestone was found** matching: {expected_search_criteria}
 """
         assert captured_comments[0] == expected_comment
         assert "No open milestone found" in result.output
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_backport_label_removed_after_snapshot_should_skip(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """If a backport label is removed between the workflow snapshot and the action,
+        the action must re-read labels from the issue and honour the current state —
+        skip milestone-set when the only signal that triggered it (the backport label)
+        is gone. Regression test for PR #67301 race.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        mock_issue.labels = [_label("kind:documentation")]
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "67301",
+                "--pr-title",
+                "fix: typo",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-2-test", "kind:documentation"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "shahar1",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        # Snapshot still has the backport label, but the fresh issue.labels does not.
+        # The action must re-read, notice the change, and skip the milestone-set.
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        assert "Labels changed since workflow snapshot" in result.output
+        assert "No milestone to set after re-evaluation" in result.output
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_backport_label_changed_after_snapshot_should_use_current(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """If the backport label is replaced with a different version between
+        snapshot and action (e.g. someone fixes the version target), the action
+        must re-determine the version using the current label, not the stale one.
+        """
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        # Fresh state: now targets v3-2-test, not v3-1-test.
+        mock_issue.labels = [_label("backport-to-v3-2-test"), _label("kind:bug")]
+        mock_milestone = MagicMock()
+        mock_milestone.title = "Airflow 3.2.3"
+        mock_milestone.number = 140
+        mock_get_client.return_value = mock_gh
+        mock_repo.get_milestones.return_value = [mock_milestone]
+
+        captured_comments: list[str] = []
+        mock_issue.create_comment.side_effect = lambda c: captured_comments.append(c)
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "12345",
+                "--pr-title",
+                "Fix: scheduler issue",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-1-test", "kind:bug"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "testuser",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_called_once_with(milestone=mock_milestone)
+        assert "Labels changed since workflow snapshot" in result.output
+        assert "Determination changed after re-read" in result.output
+        assert "Airflow 3.2.3" in captured_comments[0]
+        assert "backport label targeting v3-2-test" in captured_comments[0]
+        assert result.exit_code == 0
+
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_skip_label_added_after_snapshot_should_skip(
+        self, mock_get_client, cli_runner, mock_github_setup
+    ):
+        """A skip label added after the snapshot must also halt the action."""
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
+        # Snapshot had no skip label; fresh state added area:CI.
+        mock_issue.labels = [_label("backport-to-v3-1-test"), _label("area:CI")]
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "12345",
+                "--pr-title",
+                "CI tweak",
+                "--pr-labels",
+                json.dumps(["backport-to-v3-1-test"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "testuser",
+                "--github-token",
+                "fake-token",
+                "--github-repository",
+                "apache/airflow",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        assert "Skipping milestone tagging" in result.output
+        assert "area:CI" in result.output
+        assert result.exit_code == 0

@@ -267,7 +267,9 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Group",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskGroup_one": "Task Group",
   "taskGroup_other": "Task Groups",
   "taskId": "Task ID",

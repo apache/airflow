@@ -110,7 +110,11 @@ func (c Connection) GetURI() *url.URL {
 	return uri
 }
 
-func connFromAPIResponse(resp *api.ConnectionResponse) (Connection, error) {
+// ConnFromAPIResponse converts an Execution-API ConnectionResponse into the
+// SDK's Connection type. It is exported so other internal SDK packages (for
+// example, the coordinator-mode runtime in bundlev1server/impl/coord) can
+// reuse the same conversion.
+func ConnFromAPIResponse(resp *api.ConnectionResponse) (Connection, error) {
 	var err error
 	conn := Connection{
 		ID:       resp.ConnId,

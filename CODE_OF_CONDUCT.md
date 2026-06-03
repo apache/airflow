@@ -22,3 +22,9 @@
 The Apache Airflow project follows the [Apache Software Foundation code of conduct](https://www.apache.org/foundation/policies/conduct.html).
 
 If you observe behavior that violates those rules please follow the [ASF reporting guidelines](https://www.apache.org/foundation/policies/conduct#reporting-guidelines).
+
+For how the Airflow community responds to repeated Code of Conduct
+breaches, spamming, or other sustained disruptive behaviour — and how
+affected contributors can appeal a decision via
+`private@airflow.apache.org` — see the
+[Community escalation process](COMMUNITY_ESCALATION.md).

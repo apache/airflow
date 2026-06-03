@@ -53,17 +53,17 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
-from airflow.state import get_state_backend
+from airflow.state.metastore import _get_db_backend
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
 
 
-def _clear_task_state_on_success(tis: Sequence[TI], session: Session) -> None:
-    """Clear task state rows for each TI if clear_on_success is enabled."""
+def _clear_task_store_on_success(tis: Sequence[TI], session: Session) -> None:
+    """Clear task store rows for each TI if clear_on_success is enabled."""
     if not conf.getboolean("state_store", "clear_on_success", fallback=False):
         return
-    backend = get_state_backend()
+    backend = _get_db_backend()
     for ti in tis:
         scope = TaskScope(
             dag_id=ti.dag_id,
@@ -265,7 +265,7 @@ def _patch_task_instance_state(
         )
 
     if data["new_state"] == TaskInstanceState.SUCCESS:
-        _clear_task_state_on_success(updated_tis, session)
+        _clear_task_store_on_success(updated_tis, session)
 
     _emit_state_listener_hooks(updated_tis, data["new_state"])
 
@@ -300,7 +300,7 @@ def _patch_task_group_state(
         )
 
     if data["new_state"] == TaskInstanceState.SUCCESS:
-        _clear_task_state_on_success(updated_tis, session)
+        _clear_task_store_on_success(updated_tis, session)
 
     _emit_state_listener_hooks(updated_tis, data["new_state"])
 
@@ -611,7 +611,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         try:
             # Handle deletion of specific (dag_id, dag_run_id, task_id, map_index) tuples
             if delete_specific_map_index_task_keys:
-                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                task_instances_map, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
                     delete_specific_map_index_task_keys
                 )
                 not_found_task_ids = [
@@ -625,23 +625,10 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                         detail=f"The task instances with these identifiers: {not_found_task_ids} were not found",
                     )
 
-                for dag_id, run_id, task_id, map_index in matched_task_keys:
-                    ti = (
-                        self.session.execute(
-                            select(TI).where(
-                                TI.dag_id == dag_id,
-                                TI.run_id == run_id,
-                                TI.task_id == task_id,
-                                TI.map_index == map_index,
-                            )
-                        )
-                        .scalars()
-                        .one_or_none()
-                    )
-
-                    if ti:
-                        self.session.delete(ti)
-                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
+                for task_key in matched_task_keys:
+                    dag_id, run_id, task_id, map_index = task_key
+                    self.session.delete(task_instances_map[task_key])
+                    results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
 
             # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
             if delete_all_map_index_task_keys:
