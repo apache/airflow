@@ -1,3 +1,6 @@
+ <!-- SPDX-License-Identifier: Apache-2.0
+      https://www.apache.org/licenses/LICENSE-2.0 -->
+
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -19,14 +22,14 @@ between automatically:
   that pin, writes only the `<local-lock>`, refreshes
   symlinks. Skips the doc-update + interactive-prompt flow.
 
-> **Note on the bootstrap recipe.** `setup-steward` is **the
+> **Note on the bootstrap recipe.** `setup` is **the
 > only framework artefact an adopter commits**. Getting it
 > *into* a fresh adopter repo is the chicken-and-egg the
-> [install-recipes](../../../docs/setup/install-recipes.md)
+> [install-recipes](../../docs/setup/install-recipes.md)
 > doc resolves: copy-pasteable shell recipes per install
-> method that fetch the snapshot + place the `setup-steward`
+> method that fetch the snapshot + place the `setup`
 > skill content + add `.gitignore` entries. Once that
-> recipe runs and `setup-steward` is on disk, the agent
+> recipe runs and `setup` is on disk, the agent
 > follows this file to finish adoption.
 
 ## Inputs
@@ -39,7 +42,7 @@ between automatically:
   families to symlink (default: prompt). Valid values:
   `security`, `pr-management`, `issue`. The flag does **not**
   accept the always-on families (`setup-*` minus
-  `setup-steward` itself, and `list-steward-*`); per
+  `setup` itself, and `list-*`); per
   [`SKILL.md` Golden rule 8](SKILL.md#golden-rules) those
   are wired up unconditionally on every adopt run and the
   user is never asked about them.
@@ -55,9 +58,9 @@ between automatically:
    stop with:
 
    > *"`adopt` runs in the main checkout, not a worktree. From
-   > the main: `cd <main-path> && /setup-steward`. To wire this
+   > the main: `cd <main-path> && /magpie-setup`. To wire this
    > worktree up after adoption lands in the main, use
-   > `/setup-steward worktree-init`."*
+   > `/magpie-setup worktree-init`."*
 
    The main's path is
    `$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd)")` —
@@ -108,9 +111,9 @@ between automatically:
 ## Step 1 — Detect adoption shape
 
 ```text
-if .apache-steward.lock exists:
+if .apache-magpie.lock exists:
     → SUBSEQUENT adoption
-elif .apache-steward/ exists (snapshot only):
+elif .apache-magpie/ exists (snapshot only):
     → manual recipe was run; finish bootstrap (write committed
       lock from the recipe's choices, then continue as FRESH
       from Step 5)
@@ -139,7 +142,7 @@ its pre-release phase. Free-form chat is the fallback when
 the harness has no structured-Q&A tool.
 
 The verbatim shell that fetches per each method is in
-[`docs/setup/install-recipes.md`](../../../docs/setup/install-recipes.md).
+[`docs/setup/install-recipes.md`](../../docs/setup/install-recipes.md).
 The skill at this point can either:
 
 - Tell the user "your manual recipe already ran — please
@@ -158,33 +161,33 @@ Per the chosen method (FRESH) or per the committed lock
 (SUBSEQUENT):
 
 - **`git-branch`**: `git clone --depth=1 --branch <ref> <url>
-  .apache-steward`
+  .apache-magpie`
 - **`git-tag`**: `git clone --depth=1 --branch <tag> <url>
-  .apache-steward`. After clone, capture the resolved commit
+  .apache-magpie`. After clone, capture the resolved commit
   SHA for `<committed-lock>` (FRESH only).
 - **`svn-zip`**: `curl` the zip + `.sha512` + `.asc`,
-  verify, `unzip` to `.apache-steward/`. Re-fetch
+  verify, `unzip` to `.apache-magpie/`. Re-fetch
   verification details into `<committed-lock>` (FRESH only).
 
 If `<snapshot-dir>/` already exists with content, skip the
 fetch — the recipe ran first and left the snapshot in place.
 
 After the fetch (or skip), confirm
-`<snapshot-dir>/.claude/skills/` lists the framework skills
+`<snapshot-dir>/skills/` lists the framework skills
 (`pr-management-*`, `security-*`, `issue-*`, `setup-*`,
-`list-steward-*`). If not, the fetch produced an unexpected
+`list-*`). If not, the fetch produced an unexpected
 layout — surface and stop.
 
-## Step 3b — Reconcile the committed `setup-steward` with the new snapshot + reload in-flight
+## Step 3b — Reconcile the committed `setup` with the new snapshot + reload in-flight
 
 Per [`SKILL.md` Golden rule 9](SKILL.md#golden-rules), the
-adopter-side committed `setup-steward` skill must match the
+adopter-side committed `setup` skill must match the
 snapshot's version before the rest of this run executes —
 otherwise we finish adoption against the *old* bootstrap
 logic for a *new* framework version.
 
-1. Diff `<adopter-skills-dir>/setup-steward/` against
-   `.apache-steward/.claude/skills/setup-steward/`.
+1. Diff `<adopter-skills-dir>/magpie-setup/` against
+   `.apache-magpie/skills/setup/`.
 2. If they match — skip the rest of this step.
 3. If they differ and the adopter has **no** local
    modifications beyond what the snapshot ships — overwrite
@@ -192,12 +195,12 @@ logic for a *new* framework version.
 
    ```bash
    # Flat layout:
-   rm -rf <adopter-skills-dir>/setup-steward
-   cp -r .apache-steward/.claude/skills/setup-steward \
-         <adopter-skills-dir>/setup-steward
+   rm -rf <adopter-skills-dir>/magpie-setup
+   cp -r .apache-magpie/skills/setup \
+         <adopter-skills-dir>/magpie-setup
 
    # Double-symlinked layout: copy into .github/skills/ —
-   # the .claude/skills/setup-steward symlink already
+   # the .claude/skills/magpie-setup symlink already
    # points at it.
    ```
 
@@ -209,26 +212,26 @@ logic for a *new* framework version.
    continues against the in-flight (older) version with a
    warning.
 5. **Reload in-flight.** Immediately after the copy lands,
-   re-read `<adopter-skills-dir>/setup-steward/SKILL.md`
-   and `<adopter-skills-dir>/setup-steward/adopt.md` (the
+   re-read `<adopter-skills-dir>/magpie-setup/SKILL.md`
+   and `<adopter-skills-dir>/magpie-setup/adopt.md` (the
    current sub-action file), plus any helper file already
    open in this run (`conventions.md`, `overrides.md`),
    before continuing to Step 4. The remaining steps run
    against the just-loaded content.
 
 For a FRESH adoption where the bootstrap recipe placed the
-matching `setup-steward` content on disk before this skill
+matching `setup` content on disk before this skill
 was invoked, the diff in (1) is empty and this step is a
 no-op. For a SUBSEQUENT adoption against an old committed
 copy, the overwrite + reload is the common case.
 
 ## Step 4 — Write `<committed-lock>` (FRESH only)
 
-Create `<repo-root>/.apache-steward.lock`:
+Create `<repo-root>/.apache-magpie.lock`:
 
 ```text
-# .apache-steward.lock — committed; the project's pin.
-# Edited only by /setup-steward; do not modify by hand.
+# .apache-magpie.lock — committed; the project's pin.
+# Edited only by /magpie-setup; do not modify by hand.
 
 method: <method>
 url:    <url>
@@ -309,14 +312,14 @@ The framework's family set splits into two tiers:
 **Always-on (no prompt; per
 [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):**
 
-- **`setup-*`** *(minus `setup-steward` itself)* — every
+- **`setup-*`** *(minus `setup` itself)* — every
   `setup-*` skill in the snapshot. Today:
   `setup-isolated-setup-install`,
   `setup-isolated-setup-update`,
   `setup-isolated-setup-verify`, `setup-override-upstream`,
   `setup-shared-config-sync`.
-- **`list-steward-*`** — every `list-steward-*` skill in
-  the snapshot. Today: `list-steward-skills`.
+- **`list-*`** — every `list-*` skill in
+  the snapshot. Today: `list-skills`.
 
 These are wired up unconditionally; the user is **not**
 asked about them and they cannot be opted out via the
@@ -343,7 +346,7 @@ for the opt-in set. Otherwise prompt the user with:
   Maintainer-only; for projects with a general-issue tracker
   (JIRA, GitHub Issues, Bugzilla, GitLab Issues) that is
   *not* the security tracker. See
-  [`docs/issue-management/README.md`](../../../docs/issue-management/README.md).
+  [`docs/issue-management/README.md`](../../docs/issue-management/README.md).
 
 **Prefer structured Q&A.** When the agent harness offers a
 structured-question tool, use a *multi-select* prompt for
@@ -360,7 +363,7 @@ to selecting all three for an adopter that is a maintainer-
 driven repo, or to no pre-selection otherwise. Free-form
 chat is the fallback.
 
-Do **not** offer `setup-*` or `list-steward-*` as
+Do **not** offer `setup-*` or `list-*` as
 selectable options in the prompt — they are wired up
 silently regardless of what the user picks here.
 
@@ -370,7 +373,7 @@ Always written, both FRESH and SUBSEQUENT. Records what
 this machine fetched.
 
 ```text
-# .apache-steward.local.lock — gitignored; per-machine.
+# .apache-magpie.local.lock — gitignored; per-machine.
 
 source_method:    <method>
 source_url:       <url>
@@ -387,64 +390,45 @@ idempotent — re-add them if they're missing.
 **Base entries — always needed**:
 
 ```text
-/.apache-steward/
-/.apache-steward.local.lock
+/.apache-magpie/
+/.apache-magpie.local.lock
 /.claude/settings.local.json
 ```
 
 **Symlink-pattern entries — vary by adopter
 [skills-dir convention](conventions.md)**:
 
-- **Pattern A (flat)** — only the `.claude/skills/...` lines:
+  Every framework skill is symlinked under the `magpie-`
+  prefix (see [`SKILL.md` Golden rule 6](SKILL.md#golden-rules)),
+  so a single `magpie-*` glob covers them all — no per-family
+  lines.
+
+- **Pattern A (flat)** — only the `.claude/skills/...` line:
 
   ```text
-  /.claude/skills/security-*
-  /.claude/skills/pr-management-*
-  /.claude/skills/issue-*
-  /.claude/skills/setup-isolated-setup-*
-  /.claude/skills/setup-override-upstream
-  /.claude/skills/setup-shared-config-sync
-  /.claude/skills/list-steward-*
+  /.claude/skills/magpie-*
   ```
 
 - **Pattern B (double-symlinked)** — both `.claude/skills/...`
   AND `.github/skills/...` lines, because each framework skill
-  has two physical symlinks (outer at `.claude/skills/<n>`,
-  inner at `.github/skills/<n>`):
+  has two physical symlinks (outer at `.claude/skills/magpie-<n>`,
+  inner at `.github/skills/magpie-<n>`):
 
   ```text
-  /.claude/skills/security-*
-  /.claude/skills/pr-management-*
-  /.claude/skills/issue-*
-  /.claude/skills/setup-isolated-setup-*
-  /.claude/skills/setup-override-upstream
-  /.claude/skills/setup-shared-config-sync
-  /.claude/skills/list-steward-*
-  /.github/skills/security-*
-  /.github/skills/pr-management-*
-  /.github/skills/issue-*
-  /.github/skills/setup-isolated-setup-*
-  /.github/skills/setup-override-upstream
-  /.github/skills/setup-shared-config-sync
-  /.github/skills/list-steward-*
+  /.claude/skills/magpie-*
+  /.github/skills/magpie-*
   ```
 
 - **Pattern D (single directory symlink)** — only the
-  *canonical-side* `.../skills/...` lines. With D.1
+  *canonical-side* `.../skills/...` line. With D.1
   (canonical = `.github/skills/`):
 
   ```text
-  /.github/skills/security-*
-  /.github/skills/pr-management-*
-  /.github/skills/issue-*
-  /.github/skills/setup-isolated-setup-*
-  /.github/skills/setup-override-upstream
-  /.github/skills/setup-shared-config-sync
-  /.github/skills/list-steward-*
+  /.github/skills/magpie-*
   ```
 
-  With D.2 (canonical = `.claude/skills/`), mirror the same
-  list under `.claude/skills/` instead. Pattern D does not
+  With D.2 (canonical = `.claude/skills/`), use
+  `/.claude/skills/magpie-*` instead. Pattern D does not
   need ignore lines on the *symlinked* side because that side
   is itself a single tracked symlink — git does not descend
   into it, so the symlinked-side paths match no tracked file.
@@ -452,13 +436,14 @@ idempotent — re-add them if they're missing.
 - **Pattern C (none yet)** — same as the pattern the user
   picks during adopt (defaults to A).
 
-The `setup-override-upstream`, `setup-shared-config-sync`,
-`setup-isolated-setup-*`, and `list-steward-*` entries are
-the always-on families per
-[`SKILL.md` Golden rule 8](SKILL.md#golden-rules); they are
-gitignored on every adopter regardless of the opt-in
-family pick. `setup-steward` itself is **not** gitignored —
-it is the one committed framework skill.
+The `magpie-*` glob covers both the opt-in families and the
+always-on families (`magpie-setup-*` and the `magpie-list-*`
+discovery family) per
+[`SKILL.md` Golden rule 8](SKILL.md#golden-rules); every
+symlinked framework skill is gitignored on every adopter
+regardless of the opt-in family pick. The committed
+`magpie-setup` skill is **not** gitignored — it is the one
+copied framework skill.
 
 `.claude/settings.local.json` is the project-local
 per-machine settings file that
@@ -470,11 +455,11 @@ adopt flow checks for the line and adds it if missing.
 
 ## Step 8 — Wire up the framework-skill symlinks
 
-The skill walks `<snapshot-dir>/.claude/skills/` and creates
+The skill walks `<snapshot-dir>/skills/` and creates
 a gitignored symlink for every framework skill the adopter
-should have callable, at `<adopter-skills-dir>/<skill>` →
+should have callable, at `<adopter-skills-dir>/magpie-<skill>` →
 relative path into
-`<snapshot-dir>/.claude/skills/<skill>/`.
+`<snapshot-dir>/skills/<skill>/`.
 
 The set of skills to link is the **union** of:
 
@@ -484,8 +469,8 @@ The set of skills to link is the **union** of:
    the snapshot whose name starts with that family's prefix.
 2. **The always-on families** (no user input — per
    [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):
-   every `setup-*` skill *except* `setup-steward` itself,
-   and every `list-steward-*` skill.
+   every `setup-*` skill *except* `setup` itself,
+   and every `list-*` skill.
 
 The always-on set is added on every run, even when the user
 picked no opt-in families, even when `skill-families:` was
@@ -497,15 +482,19 @@ contents on disk — do not hard-code skill names.
 Per-pattern symlink wiring (see
 [`conventions.md`](conventions.md)):
 
+Every symlink is named `magpie-<n>` (the `magpie-` prefix
+namespaces framework skills); its target keeps the snapshot's
+clean source name `skills/<n>/`.
+
 - **Pattern A (flat)** — one symlink per skill at
-  `.claude/skills/<n>` → snapshot. Gitignored.
+  `.claude/skills/magpie-<n>` → snapshot. Gitignored.
 - **Pattern B (double-symlinked)** — two symlinks per skill:
-  the inner one in `.github/skills/<n>` → snapshot, the outer
-  `.claude/skills/<n>` → `../../.github/skills/<n>/`. Both
-  gitignored.
+  the inner one in `.github/skills/magpie-<n>` → snapshot, the
+  outer `.claude/skills/magpie-<n>` →
+  `../../.github/skills/magpie-<n>/`. Both gitignored.
 - **Pattern D (single directory symlink)** — one symlink per
-  skill at the *canonical-side* `<canonical>/skills/<n>` →
-  snapshot. **Skip the symlinked side entirely** — one of
+  skill at the *canonical-side* `<canonical>/skills/magpie-<n>`
+  → snapshot. **Skip the symlinked side entirely** — one of
   `.claude/skills` / `.github/skills` is itself a directory
   symlink into the other, so the symlinked-side path is
   automatically resolved. With D.1 the canonical side is
@@ -514,10 +503,11 @@ Per-pattern symlink wiring (see
 - **Pattern C (none yet)** — same as A.
 
 **Never overwrite an existing committed skill** of the same
-name. Surface conflicts and stop. `setup-steward` itself is
-the one committed skill — the symlink wiring step skips it
-by name; the committed copy is reconciled in
-[Step 3b](#step-3b--reconcile-the-committed-setup-steward-with-the-new-snapshot--reload-in-flight),
+name. Surface conflicts and stop. The bootstrap `setup` skill
+is the one committed skill (as `magpie-setup`) — the symlink
+wiring step skips it by name; the committed copy is reconciled
+in
+[Step 3b](#step-3b--reconcile-the-committed-setup-with-the-new-snapshot--reload-in-flight),
 not here.
 
 Show the symlinks the skill is about to create, grouped by
@@ -526,9 +516,9 @@ confirm, then create them. Always-on entries are surfaced
 read-only — the prompt is "confirm this list" not "edit this
 list".
 
-## Step 9 — Scaffold `.apache-steward-overrides/` (FRESH only)
+## Step 9 — Scaffold `.apache-magpie-overrides/` (FRESH only)
 
-Create `<repo-root>/.apache-steward-overrides/` (directory)
+Create `<repo-root>/.apache-magpie-overrides/` (directory)
 with a small `README.md` inside:
 
 ```markdown
@@ -546,7 +536,7 @@ before executing default behaviour. See
 in the framework for the full contract.
 
 **Hard rule**: never modify the snapshot under
-`<repo-root>/.apache-steward/`. Local mods go here.
+`<repo-root>/.apache-magpie/`. Local mods go here.
 Framework changes go via PR to `apache/airflow-steward`.
 ```
 
@@ -561,20 +551,20 @@ status, local clone paths, optional tool backends). If the file
 is missing, the skills fall back to interactive prompting and
 offer to save the answer back into this file.
 
-**Recommended location: `~/.config/apache-steward/user.md`** — the
+**Recommended location: `~/.config/apache-magpie/user.md`** — the
 OS-conventional per-user config dir. One file, shared across every
 worktree of every adopter project on the operator's machine, so
 identity-and-tool-picks stay coherent without symlinks or
 per-worktree bootstrap.
 
-**Fallback location: `<repo-root>/.apache-steward-overrides/user.md`** —
+**Fallback location: `<repo-root>/.apache-magpie-overrides/user.md`** —
 the legacy per-project location. Adopters with an existing
 project-local `user.md` keep working without action; new adopters
 should prefer the per-user location above.
 
 The full resolution order (env override → per-user → per-project)
 is documented in [`AGENTS.md` → *Per-project and per-user
-configuration* → *`user.md` resolution order*](../../../AGENTS.md#usermd-resolution-order).
+configuration* → *`user.md` resolution order*](../../AGENTS.md#usermd-resolution-order).
 
 Use this project-agnostic template:
 
@@ -615,23 +605,38 @@ setup; the skills skip any block that is missing or marked `TODO`.
   and authenticated, the security skills use PonyMail as the primary
   read backend for mailing-list archive queries; Gmail remains the
   fallback for just-arrived inbound mail and the only backend for
-  draft composition.
+  draft composition. **ASF projects:** PonyMail is a mandatory
+  prerequisite (the manifest declares it `mandatory: yes`), so set
+  this to `true` and complete the install in Step 9c — the
+  mail-reading skills refuse to run when it is unavailable or
+  unauthenticated.
 - `private_lists: []` — list of private mailing-list addresses that
   PonyMail should query (e.g. `["security@<project>.apache.org"]`).
   Only used when `enabled: true`.
+
+### `apache-projects`
+
+- `enabled: false` — set to `true` if you have registered the
+  Apache Projects MCP in your Claude Code `mcpServers` block. When
+  enabled, `contributor-nomination` and the roster-resolution paths
+  in the security skills read ASF rosters / people / releases
+  through it (read-only, no auth). **ASF projects:** this is a
+  mandatory prerequisite (the manifest declares
+  `project_metadata.mandatory: true`), so set this to `true` and
+  complete the install in Step 9c.
 ```
 
 **Where to write the file.** Default to
-`~/.config/apache-steward/user.md` for new adopters (the per-user
+`~/.config/apache-magpie/user.md` for new adopters (the per-user
 canonical location — shared across every worktree and every
 adopter project on the operator's machine). If the operator
-already has `<repo-root>/.apache-steward-overrides/user.md` from a
+already has `<repo-root>/.apache-magpie-overrides/user.md` from a
 previous setup, leave it alone — skills resolve the per-project
 file as a fallback, no migration needed. If both exist, the
 per-user file wins; surface the conflict to the operator so they
 can pick one and delete the other.
 
-Create the parent directory with `mkdir -p ~/.config/apache-steward/`
+Create the parent directory with `mkdir -p ~/.config/apache-magpie/`
 before writing, then write the file at mode `0600` (the directory at
 `0700`) since it holds personal preferences and — eventually —
 identity that the operator may not want world-readable.
@@ -681,11 +686,15 @@ canonical batch is:
    leave the relevant TODO in place. "Auto-detected
    `upstream_clone=<path>`, `upstream_fork_remote=<remote>` — use
    as detected, or customise?"
-3. **`tools.ponymail.enabled`** — *single-select, default `No`*.
-   "Enable PonyMail MCP as the primary mailing-list-archive
-   backend? (Gmail remains the fallback.)" Most adopters answer
-   `No` because they have not registered the PonyMail MCP in
-   their Claude Code `mcpServers` block.
+3. **`tools.ponymail.enabled`** — *single-select*. "Enable
+   PonyMail MCP as the primary mailing-list-archive backend?
+   (Gmail remains the fallback.)" **Default depends on the
+   manifest:** when `<project-config>/project.md → Mail sources`
+   declares `ponymail` with `mandatory: yes` (the ASF default),
+   default `Yes` and note that it is **required** for this
+   project, not optional — Step 9c walks the install. When
+   `mandatory: no`, default `No` (most non-ASF adopters have not
+   registered the MCP).
 
 If the user picks `Yes` for Ponymail in (3), follow up with **one
 more** question — do not ask it upfront:
@@ -693,6 +702,13 @@ more** question — do not ask it upfront:
 4. **`tools.ponymail.private_lists`** — *free-text*. "List the
    private mailing-list addresses PonyMail should query (one per
    line, e.g. `security@<adopter>.apache.org`)."
+
+5. **`tools.apache-projects.enabled`** — *single-select*. "Enable
+   the Apache Projects metadata MCP (read-only ASF rosters /
+   people / releases)?" **Default `Yes` for ASF projects** (the
+   manifest declares `project_metadata.mandatory: true`); default
+   `No` otherwise. Step 9c walks the install — the same `comdev`
+   checkout serves both MCP servers.
 
 Free-form chat is the fallback when the harness has no
 structured-Q&A tool. In that case still respect the order above
@@ -705,6 +721,76 @@ After the answers come back, write the file to disk with the
 collected values substituted in (leaving any unanswered field as
 `TODO` so the per-skill prompts can still pick it up later) and
 `git add` it.
+
+## Step 9c — comdev MCP prerequisites (ASF projects)
+
+**Run this step only for ASF projects.** Detect ASF by reading
+`<project-config>/project.md`: the project is ASF when
+`project_metadata.kind: apache-projects-mcp` with
+`mandatory: true` **or** `Mail sources` declares `ponymail` with
+`mandatory: yes` (both are the `_template` ASF defaults). A
+present `.asf.yaml` at the repo root corroborates. When neither
+mandatory flag is set (a non-ASF adopter that overrode them), skip
+this step — the two MCP servers are optional and the operator
+wires them up only if they answered `Yes` in Step 9b.
+
+For ASF projects the
+[PonyMail](../../tools/ponymail/tool.md) and
+[Apache Projects](../../tools/apache-projects/tool.md) MCP
+servers are **mandatory pre-flight prerequisites**, and — unlike
+the pinned system tools — they are installed from the **latest
+`main`** of `apache/comdev` (the servers ship as in-repo source
+with no tagged releases; see
+[`tools/ponymail/tool.md` → Keeping the checkout current](../../tools/ponymail/tool.md#keeping-the-checkout-current)).
+A single `comdev` checkout serves both.
+
+This step **guides and verifies — it never auto-runs `git clone`,
+`npm install`, or edits the user's `mcpServers` block** (same
+hands-off contract as the secure-setup install). Walk the operator
+through it:
+
+1. **Check what is already registered.** Inspect the session's
+   tool list for `mcp__ponymail__*` and `mcp__apache-projects__*`.
+   Both present → confirm the checkout health (jump to 3). Either
+   missing → continue.
+2. **Surface the install commands** (do not run them):
+
+   ```bash
+   git clone https://github.com/apache/comdev.git
+   cd comdev && git checkout main          # track main, not a tag
+   ( cd mcp/ponymail-mcp        && npm install )
+   ( cd mcp/apache-projects-mcp && npm install )
+   ```
+
+   then the two `mcpServers` registrations (user scope shown):
+
+   ```bash
+   claude mcp add ponymail        node /abs/path/to/comdev/mcp/ponymail-mcp/index.js        -s user
+   claude mcp add apache-projects node /abs/path/to/comdev/mcp/apache-projects-mcp/index.js -s user
+   ```
+
+   PonyMail additionally needs the one-time ASF LDAP login
+   (`mcp__ponymail__login()`) — for ASF projects an **authenticated**
+   session is required, not just a registered server. Apache
+   Projects needs no auth.
+3. **Confirm the checkout tracks `main` and is current.** Once
+   registered, the freshness of the checkout is owned by the
+   secure-setup flow:
+   [`setup-isolated-setup-verify`](../setup-isolated-setup-verify/SKILL.md)
+   asserts it is on `main` and not behind `origin/main`, and
+   [`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)
+   runs the live `git fetch` + prints the `git pull --ff-only`.
+   `/magpie-setup verify` (check 8e) and `/magpie-setup upgrade`
+   (Step 6e) re-surface the same prereq so an ASF adopter does not
+   have to remember to run the isolated-setup skills separately.
+4. **Reflect the outcome** in the Step 9b `user.md` `tools` blocks
+   (`ponymail.enabled` / `apache-projects.enabled`) and the
+   recommended permission allow-list (the `mcp__apache-projects__*`
+   read tools — see [`verify.md`](verify.md) check 8d).
+
+Add `mcp__apache-projects__*` to the per-family permission
+allow-list recommendation exactly as the `mcp__ponymail__*` tools
+are handled — both are read-only and scoped.
 
 ## Step 10 — Worktree-aware post-checkout hook (FRESH only)
 
@@ -723,7 +809,7 @@ the user before writing:
 
 ```bash
 #!/usr/bin/env bash
-# apache-steward post-checkout hook (installed by /setup-steward adopt).
+# apache-steward post-checkout hook (installed by /magpie-setup adopt).
 # Add the current worktree's working dir to the worktree's own
 # .claude/settings.local.json sandbox allowlists (per issue #197).
 # Chains into the helper if installed by /setup-isolated-setup-install;
@@ -746,16 +832,16 @@ the next `post-checkout` fires the helper automatically.
 
 **Why no framework-skill symlink reconciliation here.** Earlier
 template versions of this hook also called
-`/setup-steward verify --auto-fix-symlinks` to recreate
+`/magpie-setup verify --auto-fix-symlinks` to recreate
 gitignored symlinks after a checkout. That line printed a spurious
 `No such file or directory` error on every `git checkout` because
-`/setup-steward` is a **Claude Code slash command**, not a shell
+`/magpie-setup` is a **Claude Code slash command**, not a shell
 command, and the hook fires in the operator's shell where there is
 no slash-command dispatcher. The line has been removed.
 Symlink-drift reconciliation now happens **lazily** — the next
 time the operator opens Claude Code in the worktree, the framework
 skills' pre-flight drift check surfaces any missing symlinks and
-`/setup-steward verify` (or any skill that needs the symlink)
+`/magpie-setup verify` (or any skill that needs the symlink)
 prompts for the fix. Adopters whose existing hooks still contain
 the broken line should remove it; the
 [`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)
@@ -791,27 +877,27 @@ framework before they hit a "skill not found" error:
    Code.
 
    The framework is **not** vendored — it lives as a
-   gitignored snapshot under `.apache-steward/`, fetched on
+   gitignored snapshot under `.apache-magpie/`, fetched on
    demand from the version pinned in the committed
-   [`.apache-steward.lock`](.apache-steward.lock). The only
+   [`.apache-magpie.lock`](.apache-magpie.lock). The only
    framework artefact committed to this repo is the
-   `setup-steward` skill at
-   [`.github/skills/setup-steward/`](.github/skills/setup-steward/);
+   `setup` skill at
+   [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
    everything else is a gitignored symlink the setup skill
    wires up.
 
    A fresh clone needs the snapshot populated before any
    framework skill is invocable. In your agent harness, run:
 
-       /setup-steward
+       /magpie-setup
 
-   (or follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+   (or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
    to fetch the snapshot per the committed lock, scaffold the
    gitignored symlinks, and install the post-checkout hook
    that re-creates them on each worktree checkout.
 
    Adopter-specific modifications to framework workflows live
-   in [`.apache-steward-overrides/`](.apache-steward-overrides/)
+   in [`.apache-magpie-overrides/`](.apache-magpie-overrides/)
    (committed) — never edit the snapshot directly. Framework
    changes go via PR to
    [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
@@ -841,20 +927,20 @@ framework before they hit a "skill not found" error:
    [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
    framework via the snapshot mechanism. The framework
    provides the `pr-management-*` skills; they are gitignored
-   symlinks into the `.apache-steward/` snapshot directory.
+   symlinks into the `.apache-magpie/` snapshot directory.
 
    A fresh clone needs the snapshot populated before any
-   framework skill is invocable. Run `/setup-steward` (or
-   follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+   framework skill is invocable. Run `/magpie-setup` (or
+   follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
    to fetch it per the committed
-   [`.apache-steward.lock`](.apache-steward.lock). The
+   [`.apache-magpie.lock`](.apache-magpie.lock). The
    contributor-facing summary of the adoption + setup flow
    lives in the
    [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
 
    Adopter-specific modifications to framework-skill
    workflows live in
-   [`.apache-steward-overrides/`](.apache-steward-overrides/)
+   [`.apache-magpie-overrides/`](.apache-magpie-overrides/)
    — never edit the snapshot directly. Framework changes go
    via PR to
    [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
@@ -895,8 +981,8 @@ Four passes, in this order:
    surfacing the diff and asking for confirmation when the
    local copy looks hand-edited). This is the "sync local
    versions with the framework's latest" pass and runs
-   *every* time `/setup-steward` runs in either FRESH or
-   SUBSEQUENT adoption — it is the same pass `/setup-steward
+   *every* time `/magpie-setup` runs in either FRESH or
+   SUBSEQUENT adoption — it is the same pass `/magpie-setup
    upgrade` runs after a snapshot refresh.
 
 2. **Propagate to every worktree (run `worktree-init`
@@ -920,9 +1006,9 @@ Four passes, in this order:
    - If the list is empty, this pass is a no-op; record
      "no linked worktrees" in the recap and continue.
    - For each linked worktree, invoke
-     `/setup-steward worktree-init` with that worktree's
+     `/magpie-setup worktree-init` with that worktree's
      working directory as the `cwd`. The sub-action picks up
-     the family set from `<main>/.apache-steward.lock` plus
+     the family set from `<main>/.apache-magpie.lock` plus
      the always-on families per
      [`SKILL.md` Golden rule 8](SKILL.md#golden-rules), and
      reconciles both the snapshot symlink and the
@@ -934,7 +1020,7 @@ Four passes, in this order:
    Do **not** abort adopt because one worktree failed — the
    main is already adopted, and the failing worktree is
    recorded in the summary for later resolution (typically:
-   the user `cd`s there and re-runs `/setup-steward
+   the user `cd`s there and re-runs `/magpie-setup
    worktree-init` after merging the adoption commit
    forward).
 
@@ -948,7 +1034,7 @@ Four passes, in this order:
    target file is in Claude Code's built-in sandbox
    `denyWithinAllow` set, so the Bash write is blocked without
    it — see
-   [`docs/setup/secure-agent-setup.md` → *Security rationale*](../../../docs/setup/secure-agent-setup.md#security-rationale--why-project-local-is-safe-to-write-to)):
+   [`docs/setup/secure-agent-setup.md` → *Security rationale*](../../docs/setup/secure-agent-setup.md#security-rationale--why-project-local-is-safe-to-write-to)):
 
    ```bash
    ~/.claude/scripts/sandbox-add-project-root.sh --all-worktrees
@@ -1012,27 +1098,24 @@ A summary of what was written:
 ```text
 ✓ Method:   <method>
 ✓ Source:   <url>@<ref>
-✓ Snapshot: .apache-steward/ (commit <SHA>)
-✓ Locks:    .apache-steward.lock (committed) + .apache-steward.local.lock (gitignored)
+✓ Snapshot: .apache-magpie/ (commit <SHA>)
+✓ Locks:    .apache-magpie.lock (committed) + .apache-magpie.local.lock (gitignored)
 ✓ Symlinks: <list of created symlinks>
-✓ Overrides scaffold: .apache-steward-overrides/ (committed)
+✓ Overrides scaffold: .apache-magpie-overrides/ (committed)
 ✓ post-checkout hook installed
 ✓ <repo>/README.md updated with adoption note
 
 Committed (you'll see in `git status`):
   .gitignore
-  .apache-steward.lock
-  .apache-steward-overrides/README.md
-  <adopter-skills-dir>/setup-steward/   (this skill itself)
+  .apache-magpie.lock
+  .apache-magpie-overrides/README.md
+  <adopter-skills-dir>/magpie-setup/   (this skill itself)
   README.md (or CONTRIBUTING.md)
 
 Gitignored (do NOT commit):
-  .apache-steward/
-  .apache-steward.local.lock
-  <adopter-skills-dir>/{security,pr-management}-*            # opt-in families
-  <adopter-skills-dir>/setup-isolated-setup-*                # always-on
-  <adopter-skills-dir>/{setup-override-upstream,setup-shared-config-sync}  # always-on
-  <adopter-skills-dir>/list-steward-*                        # always-on
+  .apache-magpie/
+  .apache-magpie.local.lock
+  <adopter-skills-dir>/magpie-*   (except magpie-setup, committed above)  # every framework skill: opt-in + always-on families
   # Pattern A:  <adopter-skills-dir> = .claude/skills/
   # Pattern B:  <adopter-skills-dir> = both .claude/skills/ AND .github/skills/
   # Pattern D:  <adopter-skills-dir> = .github/skills/ only
@@ -1043,9 +1126,9 @@ a PR.
 
 ## Failure modes
 
-- **Existing `<repo-root>/.apache-steward/` and
+- **Existing `<repo-root>/.apache-magpie/` and
   `<committed-lock>` are out of sync** → drift; suggest
-  `/setup-steward upgrade`.
+  `/magpie-setup upgrade`.
 - **Existing committed skill conflicts with a framework
   skill symlink** → stop, name the conflict, let the user
   resolve.
