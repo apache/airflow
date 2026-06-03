@@ -1421,11 +1421,13 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.update_task_state_if_needed()
-
-        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
-        # upload the remote logs
-        self._upload_logs()
+        try:
+            self.update_task_state_if_needed()
+        finally:
+            # Now at the last possible moment, when all logs and comms with the subprocess has finished,
+            # lets upload the remote logs. Run this in a `finally` so the logs are uploaded even if the
+            # state update above raised — a failed state update is exactly when the logs matter most.
+            self._upload_logs()
 
         return self._exit_code
 
