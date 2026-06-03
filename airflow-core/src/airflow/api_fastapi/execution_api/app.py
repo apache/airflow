@@ -141,6 +141,8 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
             try:
                 async with svcs.Container(request.app.state.svcs_registry) as services:
                     validated_token = await _jwt_bearer(request, services)
+                    if validated_token is None:
+                        return response
                     claims = validated_token.claims.model_dump()
                     claims["sub"] = str(validated_token.id)
 
