@@ -126,14 +126,19 @@ class ResumableJobMixin:
 
         external_id = self.submit_job(context)
 
-        if task_store is not None:
+        if task_store is not None and external_id is not None:
             task_store.set(self.external_id_key, external_id)
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
 
     def submit_job(self, context: Context) -> JsonValue:
-        """Submit the job to the external system. Return its external ID."""
+        """
+        Submit the job to the external system. Return its external ID.
+
+        The returned ID must not be ``None``, a ``None`` return is treated as
+        "no ID available" and the ID will not be persisted to task state.
+        """
         raise NotImplementedError
 
     def get_job_status(self, external_id: JsonValue) -> str:
