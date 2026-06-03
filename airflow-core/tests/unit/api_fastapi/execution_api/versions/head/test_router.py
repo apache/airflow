@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
+from jwt.exceptions import ExpiredSignatureError
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
@@ -67,3 +68,59 @@ def test_expiring_token_is_reissued(
         assert "Refreshed-API-Token" in response.headers
     else:
         assert "Refreshed-API-Token" not in response.headers
+
+
+@pytest.mark.db_test
+def test_expired_token_is_reissued(client, exec_app: FastAPI, time_machine):
+    """
+    Expired execution tokens should still receive a Refreshed-API-Token header
+    so the client can update its token and retry the request.
+
+    Regression test for https://github.com/apache/airflow/issues/67939.
+    """
+    moment = 1743451846
+    validity = 600
+    sub = "edb09971-4e0e-4221-ad3f-800852d38085"
+
+    auth = AsyncMock(spec=JWTValidator)
+    # The token is already past its expiry so avalidated_claims raises.
+    auth.avalidated_claims.side_effect = ExpiredSignatureError("Signature has expired")
+    # avalidated_claims_ignoring_expiry succeeds and returns the original claims.
+    auth.avalidated_claims_ignoring_expiry.return_value = {
+        "sub": sub,
+        "iat": moment,
+        "exp": moment + validity,
+        "scope": "execution",
+    }
+
+    time_machine.move_to(moment + validity + 5, tick=False)
+
+    lifespan.registry.register_value(JWTValidator, auth)
+
+    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    assert "Refreshed-API-Token" in response.headers
+
+
+@pytest.mark.db_test
+def test_expired_workload_token_is_not_reissued(client, exec_app: FastAPI, time_machine):
+    """Workload tokens must not be refreshed by the reissue middleware, even after expiry."""
+    moment = 1743451846
+    validity = 600
+
+    auth = AsyncMock(spec=JWTValidator)
+    auth.avalidated_claims.side_effect = ExpiredSignatureError("Signature has expired")
+    auth.avalidated_claims_ignoring_expiry.return_value = {
+        "sub": "some-workload-id",
+        "iat": moment,
+        "exp": moment + validity,
+        "scope": "workload",
+    }
+
+    time_machine.move_to(moment + validity + 5, tick=False)
+
+    lifespan.registry.register_value(JWTValidator, auth)
+
+    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    assert "Refreshed-API-Token" not in response.headers

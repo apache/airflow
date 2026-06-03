@@ -351,6 +351,36 @@ class JWTValidator:
 
         return claims
 
+    async def avalidated_claims_ignoring_expiry(self, unvalidated: str) -> dict[str, Any]:
+        """
+        Decode the JWT token with signature verification but without checking expiry.
+
+        Used only in the reissue middleware to recover claims from a token that just
+        expired, so a fresh replacement can be issued. All other validations (signature,
+        audience, issuer) are still enforced.
+        """
+        try:
+            key = await self._get_validation_key(unvalidated)
+        except KeyError:
+            raise jwt.InvalidTokenError("Kid did not match any validation keys")
+        algorithms = self.algorithm
+        validation_key: str | jwt.PyJWK | Any = key
+        if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
+            if not key.algorithm_name:
+                raise jwt.InvalidTokenError("Missing algorithm in JWK")
+            algorithms = [key.algorithm_name]
+            validation_key = key.key
+
+        return jwt.decode(
+            unvalidated,
+            validation_key,
+            audience=self.audience,
+            issuer=self.issuer,
+            options={"require": list(self.required_claims), "verify_exp": False},
+            algorithms=algorithms,
+            leeway=self.leeway,
+        )
+
     def revoke_token(self, token: str) -> None:
         """Validate the token, extract jti and exp, and revoke it in the database."""
         try:

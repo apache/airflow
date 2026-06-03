@@ -24,6 +24,8 @@ from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
+from jwt.exceptions import ExpiredSignatureError
+
 import attrs
 import svcs
 from cadwyn import (
@@ -141,7 +143,23 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
             try:
                 async with svcs.Container(request.app.state.svcs_registry) as services:
                     validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                    try:
+                        claims = await validator.avalidated_claims(token, {})
+                    except ExpiredSignatureError:
+                        # The token just expired. Re-decode it with signature verification
+                        # but without the expiry check to recover the claims and issue a
+                        # fresh replacement. The 403 from the security middleware is still
+                        # returned; the client can retry with the new token from the
+                        # Refreshed-API-Token header. Workload tokens are excluded because
+                        # they are long-lived queue credentials and must not be refreshed here.
+                        expired_claims = await validator.avalidated_claims_ignoring_expiry(token)
+                        if expired_claims.get("scope") == "workload":
+                            return response
+                        generator: JWTGenerator = await services.aget(JWTGenerator)
+                        refreshed_token = generator.generate(expired_claims)
+                        if refreshed_token:
+                            response.headers["Refreshed-API-Token"] = refreshed_token
+                        return response
 
                     # Workload tokens are long-lived and meant to survive queue
                     # wait times so avoid refreshing them. If avalidated_claims
@@ -154,7 +172,7 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                     refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
                     valid_left = int(claims.get("exp", 0)) - now
                     if valid_left <= refresh_when_less_than:
-                        generator: JWTGenerator = await services.aget(JWTGenerator)
+                        generator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:
                 # Do not block the response if refreshing fails; log a warning for visibility
