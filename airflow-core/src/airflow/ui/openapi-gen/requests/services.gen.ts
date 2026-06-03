@@ -4830,23 +4830,28 @@ export class DeadlinesService {
             }
         });
     }
-
+    
     /**
      * Get Callback Logs
-     * Get logs for a deadline callback execution.
+     * Get execution logs for a callback associated with a deadline.
+     *
+     * Returns the logs produced during callback execution. These logs are uploaded
+     * to remote storage (or written locally) by the callback supervisor after execution.
      * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
      * @param data.callbackId
-     * @param data.tryNumber
      * @returns TaskInstancesLogResponse Successful Response
      * @throws ApiError
      */
     public static getCallbackLogs(data: GetCallbackLogsData): CancelablePromise<GetCallbackLogsResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/ui/deadlines/callbacks/{callback_id}/logs/{try_number}',
+            url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs',
             path: {
-                callback_id: data.callbackId,
-                try_number: data.tryNumber
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                callback_id: data.callbackId
             },
             errors: {
                 404: 'Not Found',
@@ -4854,7 +4859,7 @@ export class DeadlinesService {
             }
         });
     }
-
+    
 }
 
 export class StructureService {
