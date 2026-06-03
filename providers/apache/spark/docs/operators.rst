@@ -247,3 +247,7 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
   read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
 * This path bypasses ``ResumableJobMixin``, so Airflow retries submit a fresh driver instead of
   reconnecting to an existing one. Set ``execution_timeout`` to bound wall-clock time.
+* Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
+  containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
+  advance to ``Succeeded`` until all sidecars exit. In that case the poll loop will wait
+  indefinitely — set ``execution_timeout`` as a hard bound.

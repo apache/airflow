@@ -270,6 +270,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._spark_exit_code: int | None = None
         self._env: dict[str, Any] | None = None
         self._post_submit_commands: list[str] = list(post_submit_commands) if post_submit_commands else []
+        self._post_submit_commands_done: bool = False
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
@@ -625,7 +626,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Called after the Spark job finishes (success or on_kill). Typical use case
         is killing sidecars like Istio that don't shut down automatically.
         Failures are logged as warnings and never raise.
+        Guaranteed to run at most once per hook instance even if called from both
+        the poll-loop finally and on_kill (e.g. after a SIGTERM).
         """
+        if self._post_submit_commands_done:
+            return
+        self._post_submit_commands_done = True
         for cmd in self._post_submit_commands:
             self.log.debug("Running post-submit command: %s", cmd)
             try:
@@ -868,9 +874,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         namespace = self._connection["namespace"]
         app_id = self._kubernetes_application_id or pod_name
 
-        if not pod_name:
-            raise ValueError("K8s driver pod name not set; cannot poll status.")
-
         client = kube_client.get_kube_client()
         poll_interval = max(self._status_poll_interval, 20)
         if poll_interval != self._status_poll_interval:
@@ -888,11 +891,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         pending_warn_threshold = 10
 
         try:
+            if not pod_name:
+                raise ValueError("K8s driver pod name not set; cannot poll status.")
             while True:
                 try:
                     pod = client.read_namespaced_pod(pod_name, namespace)
                     consecutive_api_errors = 0
                 except kube_client.ApiException as e:
+                    if e.status == 404:
+                        self.log.info(
+                            "Driver pod %s not found (404); pod was likely deleted by on_kill. Exiting poll loop.",
+                            pod_name,
+                        )
+                        return
                     consecutive_api_errors += 1
                     self.log.warning(
                         "ApiException polling pod %s (%d/%d): %s",
@@ -943,11 +954,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 else:
                     consecutive_unknown = 0
                 time.sleep(poll_interval)
-            try:
-                client.delete_namespaced_pod(pod_name, namespace)
-                self.log.info("Deleted driver pod %s", pod_name)
-            except kube_client.ApiException:
-                self.log.warning("Could not delete driver pod %s after completion", pod_name)
+            self._delete_driver_pod()
         finally:
             self._run_post_submit_commands()
 

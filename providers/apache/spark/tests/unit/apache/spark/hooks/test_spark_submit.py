@@ -1465,7 +1465,7 @@ class TestSparkSubmitHook:
         with patch.object(hook, "_run_post_submit_commands"):
             hook._poll_k8s_driver_via_api()
 
-        mock_client.delete_namespaced_pod.assert_called_once_with("spark-app-abc-driver", "mynamespace")
+        assert mock_client.delete_namespaced_pod.call_args.args[:2] == ("spark-app-abc-driver", "mynamespace")
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_raises_on_failed(self, mock_get_client):
@@ -1542,3 +1542,28 @@ class TestSparkSubmitHook:
             hook._poll_k8s_driver_via_api()
 
         assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_exits_cleanly_on_404(self, mock_get_client):
+        """404 from read_namespaced_pod means pod was deleted by on_kill — should return cleanly, not raise."""
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        mock_client.read_namespaced_pod.side_effect = kube_client.ApiException(status=404, reason="Not Found")
+
+        hook._poll_k8s_driver_via_api()
+
+        mock_client.delete_namespaced_pod.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.run")
+    def test_run_post_submit_commands_runs_only_once(self, mock_run):
+        """Calling _run_post_submit_commands twice must execute commands exactly once."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", post_submit_commands=["echo done"])
+
+        hook._run_post_submit_commands()
+        hook._run_post_submit_commands()
+
+        mock_run.assert_called_once()
