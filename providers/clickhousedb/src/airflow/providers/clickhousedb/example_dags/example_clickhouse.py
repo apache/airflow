@@ -21,6 +21,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 CLICKHOUSE_CONN_ID = "clickhouse_default"
@@ -61,7 +62,7 @@ with DAG(
     read_rows = SQLExecuteQueryOperator(
         task_id="read_rows",
         sql=f"SELECT id, name FROM {CLICKHOUSE_TABLE} ORDER BY id",
-        handler=list,
+        handler=fetch_all_handler,
     )
     # [END howto_operator_clickhouse_query]
 
