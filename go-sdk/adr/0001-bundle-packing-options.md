@@ -27,12 +27,12 @@ Accepted as the option register. The packer-mechanism decision is
 recorded in [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md):
 Option H (Go 1.24 `tool` directive) for delivery, paired with Option A
 (standalone `airflow-go-pack` binary) and Option D (standardised
-`--bundle-metadata` introspection contract — the single metadata flag
+`--airflow-metadata` introspection contract — the single metadata flag
 that prints the bundle's `airflow-metadata.yaml` spec as JSON, which
 `airflow-go-pack` reads to populate the manifest). The shipped runtime
 ([`bundlev1server.Serve`](../bundle/bundlev1/bundlev1server/server.go))
 routes through a `decideMode` switch with three modes —
-`--bundle-metadata`, `--comm`/`--logs` (coordinator mode), and the
+`--airflow-metadata`, `--comm`/`--logs` (coordinator mode), and the
 default go-plugin path.
 
 The container-format assumption running through this ADR — that the
@@ -69,7 +69,7 @@ Bundle authors today produce the executable with a plain `go build`
 no SDK-provided way to produce the conforming ZIP, so each author would need
 to hand-roll one.
 
-The bundle binary already exposes a `--bundle-metadata` flag (defined in
+The bundle binary already exposes a `--airflow-metadata` flag (defined in
 [`bundle/bundlev1/bundlev1server/server.go`](../bundle/bundlev1/bundlev1server/server.go))
 that prints the `BundleInfo{Name, Version}` returned by the author's
 `BundleProvider.GetBundleVersion()`. It does **not** currently invoke
@@ -111,7 +111,7 @@ airflow-go-pack \
 ```
 
 Manifest population: the packer execs the supplied executable with
-`--bundle-metadata` and reads the JSON from stdout to fill `sdk`
+`--airflow-metadata` and reads the JSON from stdout to fill `sdk`
 (`language`, `version`, `supervisor_schema_version`) and to enumerate
 `dags`. Source language is hard-coded to `go`; SDK version is read from the
 build info embedded in the binary or from a build-time `-ldflags` value.
@@ -167,7 +167,7 @@ the archive, it exits.
 
 Same shape as Option A or B, but standardise the introspection contract:
 the SDK guarantees that every bundle binary supports a single
-`--bundle-metadata` flag which prints a JSON blob containing
+`--airflow-metadata` flag which prints a JSON blob containing
 `sdk.language`, `sdk.version`, `sdk.supervisor_schema_version`, and the
 full `dags` mapping. The packer's only job is to combine that JSON, the
 source file path the user passes in, and the binary itself into a bundle.
@@ -177,7 +177,7 @@ in the SDK protocol, rather than an independent option, but is worth
 calling out because the shape of the introspection flag is itself a
 decision (single flag vs. several; JSON vs. YAML; pretty vs. compact).
 The SDK settles that sub-decision in favour of a *single*
-`--bundle-metadata` flag.
+`--airflow-metadata` flag.
 
 - **Pros:** decouples "how do we enumerate dags" from "how do we ZIP";
   any future packer (third-party CI plugin, IDE, etc.) can rely on the
@@ -187,7 +187,7 @@ The SDK settles that sub-decision in favour of a *single*
   requires a host-runnable binary, so cross-compile targets (and
   `--executable` paths that hand the packer a pre-built cross-target
   binary) force the packer to produce a host-arch sidecar purely to
-  run `--bundle-metadata`. See [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md)
+  run `--airflow-metadata`. See [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md)
   for the pipeline.
 
 ### Option E: Static AST scan, no introspection
@@ -302,7 +302,7 @@ Recorded in [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md).
 Summary: deliver the packer via the Go 1.24 `tool` directive (Option H);
 implement it as a standalone binary at `cmd/airflow-go-pack` (Option A);
 populate the manifest by execing the bundle binary with the standardised
-`--bundle-metadata` introspection flag (Option D).
+`--airflow-metadata` introspection flag (Option D).
 
 ## Consequences
 

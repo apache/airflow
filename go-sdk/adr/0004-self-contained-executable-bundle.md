@@ -46,7 +46,7 @@ That layout has three properties we want to preserve:
    `dag_id` / `task_id` and the SDK language/version from a bundle on
    disk without running the binary. ADR 0002 already enforces this —
    `airflow-go-pack` runs the binary once at build time, captures its
-   `--bundle-metadata` output into the manifest, and the scanner reads
+   `--airflow-metadata` output into the manifest, and the scanner reads
    the manifest at deploy time.
 2. **Source available for the UI.** The Airflow UI's source-view
    panel needs to render the DAG file. The current spec ships it as a
@@ -191,7 +191,7 @@ step:
 1. Resolve target package, locate the file with `func main()`. (No
    change.)
 2. Run `go build [forwarded flags] -o <out> <pkg>`. (No change.)
-3. Exec the freshly built binary with `--bundle-metadata` to obtain
+3. Exec the freshly built binary with `--airflow-metadata` to obtain
    the manifest. (No change.)
 4. **New:** read the source file's bytes; serialise the manifest to
    YAML; compute `binary_sha256 = SHA-256(<out>)` over the entire

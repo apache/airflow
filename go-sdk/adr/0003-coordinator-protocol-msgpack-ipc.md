@@ -131,7 +131,7 @@ default when no flag selects another mode.
 
 | #  | Trigger                                                | Mode            | Behaviour |
 |----|--------------------------------------------------------|-----------------|-----------|
-| 1  | `--bundle-metadata`                                    | metadata-dump   | The single introspection flag (ADR 0001 / ADR 0002, `server.go`). Prints the bundle's `airflow-metadata.yaml` spec as JSON and exits; this is the flag `airflow-go-pack` execs to populate the manifest. |
+| 1  | `--airflow-metadata`                                    | metadata-dump   | The single introspection flag (ADR 0001 / ADR 0002, `server.go`). Prints the bundle's `airflow-metadata.yaml` spec as JSON and exits; this is the flag `airflow-go-pack` execs to populate the manifest. |
 | 2  | `--comm=<host:port> --logs=<host:port>`                | **coordinator** | New. Speaks the msgpack-over-IPC coordinator protocol. Both flags are required. |
 | 3  | exactly one of `--comm` / `--logs`                     | error           | Partial coordinator selection is a hard error (`ErrCoordinatorFlagsIncomplete`), returned to `main` so the caller exits non-zero with usage rather than silently falling back to go-plugin. |
 | 4  | none of the above (default)                            | go-plugin       | Existing behaviour. Falls through to `plugin.Serve`, which performs the `AIRFLOW_BUNDLE_MAGIC_COOKIE` handshake and serves `DagBundle` gRPC to the Edge Worker. Running the binary by hand outside an Edge Worker fails the handshake with a diagnostic. |
@@ -275,7 +275,7 @@ fixtures keep the encoders honest.
 
 ### go-plugin mode: unchanged
 
-When neither `--bundle-metadata` nor `--comm`/`--logs` is set, `Serve`
+When neither `--airflow-metadata` nor `--comm`/`--logs` is set, `Serve`
 falls through to the existing call site:
 
 ```go
@@ -291,7 +291,7 @@ the same way it does today, so an Edge Worker that execs the binary
 gets exactly the same protocol it gets today. The `DagBundle` gRPC
 service, the registry cache, and the worker injection in
 [`impl/plugin.go:178`](../bundle/bundlev1/bundlev1server/impl/plugin.go)
-are untouched. (`--bundle-metadata` itself is extended to emit the full
+are untouched. (`--airflow-metadata` itself is extended to emit the full
 bundle spec per ADR 0002, but the go-plugin path does not depend on its
 output.)
 
@@ -317,7 +317,7 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 
     switch decideMode() {
     case modeMetadataDump:
-        return dumpBundleMetadata(bundle)        // --bundle-metadata: full spec JSON (ADR 0002)
+        return dumpBundleMetadata(bundle)        // --airflow-metadata: full spec JSON (ADR 0002)
     case modeCoordinator:
         return coord.Serve(bundle, *commAddr, *logsAddr)   // NEW
     case modePlugin:
@@ -361,7 +361,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
   reconfigured. The protocol selector keys off CLI flags and the
   go-plugin magic-cookie env var, both of which the Edge Worker
   already sets.
-- `--bundle-metadata` remains the only introspection flag; extending it
+- `--airflow-metadata` remains the only introspection flag; extending it
   to emit the full bundle spec (ADR 0002) is additive and does not affect
   the go-plugin path. Adding a binary with this ADR's changes into an
   older Edge Worker deployment is safe; adding an older binary into an
