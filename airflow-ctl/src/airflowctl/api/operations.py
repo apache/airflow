@@ -931,8 +931,8 @@ class PluginsOperations(BaseOperations):
             raise e
 
 
-class TaskInstanceOperations(BaseOperations):
-    """Task instance operations."""
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
 
     def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse:
         """Get a task instance."""
