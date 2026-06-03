@@ -27,6 +27,14 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 )
 
+// Per-DAG defaults that Python resolves from [core] config when the DAG does
+// not override them. The serializer always emits these fields (they have no
+// JSON-schema default to omit against), so we fall back to the same values.
+const (
+	defaultMaxActiveTasksPerDag = 16 // [core] max_active_tasks_per_dag
+	defaultMaxActiveRunsPerDag  = 16 // [core] max_active_runs_per_dag
+)
+
 // serializeValue recursively serializes a value with Airflow's type/var encoding.
 // This matches Python's BaseSerialization.serialize() output:
 //   - primitives (string, bool, int, float) pass through unchanged
@@ -130,6 +138,17 @@ func unwrapTypeEncoding(value any) any {
 }
 
 // serializeTimetable converts a schedule string to the Airflow timetable format.
+//
+// TODO: respect [scheduler] create_cron_data_intervals (and, once timedelta
+// schedules are supported, create_delta_data_intervals). Python's
+// _create_timetable selects CronDataIntervalTimetable when
+// create_cron_data_intervals is True and CronTriggerTimetable when False; we
+// hardcode CronTriggerTimetable, which matches only the default (False). The
+// Go bundle binary cannot read airflow.cfg, so the supervisor (Python
+// ExecutableCoordinator) must send these scheduler flags to the lang-SDK over
+// the coordinator protocol (e.g. on DagFileParseRequest) before we can honor
+// non-default deployments. Until that channel exists this stays default-only.
+// Tracked at https://github.com/apache/airflow/issues/67938
 func serializeTimetable(schedule *string) map[string]any {
 	if schedule == nil {
 		return map[string]any{
@@ -178,6 +197,10 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 		"task_type":    typeName,
 		"_task_module": pkgPath,
 		"language":     "go",
+		// Python's operator serializer always emits template_fields (its
+		// list value never matches the tuple default it is compared against),
+		// so it is unconditional here too. Go tasks have no template fields.
+		"template_fields": []any{},
 	}
 	applyTaskSpec(data, info.Spec)
 	if len(info.Downstream) > 0 {
@@ -274,8 +297,12 @@ func applyTaskSpec(data map[string]any, s bundlev1.TaskSpec) {
 	}
 }
 
-// applyDagSpec writes optional DAG-level fields onto data, omitting any
-// field equal to its schema default. See applyTaskSpec for the convention.
+// applyDagSpec writes DAG-level fields onto data. Fields with a JSON-schema
+// default (description, dates, tags, fail_fast, …) are omitted when unset, as
+// in applyTaskSpec. Fields with no schema default (catchup,
+// disable_bundle_versioning, max_active_tasks, max_active_runs,
+// max_consecutive_failed_dag_runs) are always emitted, because Python's
+// serializer never omits them.
 func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
 	if s.Description != "" {
 		data["description"] = s.Description
@@ -287,8 +314,13 @@ func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
 		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
 	}
 	if len(s.Tags) > 0 {
-		tags := make([]any, len(s.Tags))
-		for i, t := range s.Tags {
+		// Python stores tags in a set and serializes them sorted (for stable
+		// dag_hash); mirror that here regardless of registration order.
+		sorted := make([]string, len(s.Tags))
+		copy(sorted, s.Tags)
+		sort.Strings(sorted)
+		tags := make([]any, len(sorted))
+		for i, t := range sorted {
 			tags[i] = t
 		}
 		data["tags"] = tags
@@ -299,29 +331,35 @@ func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
 	if s.DocMD != "" {
 		data["doc_md"] = s.DocMD
 	}
-	if s.MaxActiveTasks != 0 && s.MaxActiveTasks != 16 {
-		data["max_active_tasks"] = s.MaxActiveTasks
+	// max_active_tasks / max_active_runs / max_consecutive_failed_dag_runs and
+	// the catchup / disable_bundle_versioning booleans have no schema default,
+	// so Python's serializer never omits them — it always writes the resolved
+	// value (the per-DAG default falls back to the matching [core] config).
+	// Emit them unconditionally to match, using the config defaults for unset
+	// (zero) fields.
+	maxActiveTasks := s.MaxActiveTasks
+	if maxActiveTasks == 0 {
+		maxActiveTasks = defaultMaxActiveTasksPerDag
 	}
-	if s.MaxActiveRuns != 0 && s.MaxActiveRuns != 16 {
-		data["max_active_runs"] = s.MaxActiveRuns
+	data["max_active_tasks"] = maxActiveTasks
+	maxActiveRuns := s.MaxActiveRuns
+	if maxActiveRuns == 0 {
+		maxActiveRuns = defaultMaxActiveRunsPerDag
 	}
-	if s.MaxConsecutiveFailedDagRuns != 0 {
-		data["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
-	}
+	data["max_active_runs"] = maxActiveRuns
+	data["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
+	data["catchup"] = s.Catchup
+	data["disable_bundle_versioning"] = s.DisableBundleVersioning
 	if s.DagrunTimeout != 0 {
 		data["dagrun_timeout"] = unwrapTypeEncoding(serializeValue(s.DagrunTimeout))
 	}
-	if s.Catchup {
-		data["catchup"] = true
-	}
+	// fail_fast and render_template_as_native_obj both have schema default
+	// false, so Python omits them when false; keep that behavior.
 	if s.FailFast {
 		data["fail_fast"] = true
 	}
 	if s.RenderTemplateAsNativeObj {
 		data["render_template_as_native_obj"] = true
-	}
-	if s.DisableBundleVersioning {
-		data["disable_bundle_versioning"] = true
 	}
 	if s.IsPausedUponCreation != nil {
 		data["is_paused_upon_creation"] = *s.IsPausedUponCreation
@@ -371,9 +409,8 @@ func serializeParams(params map[string]any) []any {
 }
 
 // SerializeDag converts a bundlev1.DagInfo to Airflow DagSerialization v3
-// format. Required fields are always present; optional fields from
-// info.Spec are emitted only when they differ from their schema default
-// (see applyDagSpec).
+// format. Required fields are always present; spec-driven fields are emitted
+// per the rules in applyDagSpec (some always, some only when set).
 func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[string]any {
 	taskIDs := make([]string, len(info.Tasks))
 	tasks := make([]any, len(info.Tasks))
