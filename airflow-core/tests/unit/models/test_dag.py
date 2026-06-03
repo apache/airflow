@@ -2750,7 +2750,7 @@ class TestDagModel:
 
         scheduler_dag = sync_dag_to_db(dag)
         assert scheduler_dag._processor_dags_folder == settings.DAGS_FOLDER
-        sdm = SerializedDagModel.get(dag.dag_id, session)
+        sdm = SerializedDagModel.get(dag.dag_id, session=session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag

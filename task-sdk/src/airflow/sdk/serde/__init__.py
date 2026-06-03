@@ -130,9 +130,11 @@ def iter_pydantic_models(annotation: Any) -> Iterator[type]:
 
     Handles a bare model class, ``Optional`` / ``Union`` of models, and
     parameterized containers such as ``list[MyModel]`` -- the shapes accepted as
-    an operator ``output_type``. The agent (or operator) may emit an instance of
-    any model reachable from the annotation, so each must be registered for XCom
-    deserialization, not just the top-level type.
+    an operator ``output_type`` -- and recurses into a model's own fields so
+    models nested inside it (e.g. ``SubQuestion`` reachable via
+    ``DecomposedQuestion.sub_questions``) are yielded too. A task may push a
+    nested model on to XCom by itself, so each reachable model must be registered
+    for deserialization, not just the top-level type.
     """
     seen: set[Any] = set()
     stack: list[Any] = [annotation]
@@ -151,6 +153,13 @@ def iter_pydantic_models(annotation: Any) -> Iterator[type]:
             seen.add(tp)
             if is_pydantic_model(tp):
                 yield tp
+                # A model's fields may reference further models; walk them so a
+                # value nested inside the declared type is deserializable too.
+                # ``seen`` makes self-referential models terminate. ``getattr``
+                # because ``is_pydantic_model`` guarantees ``model_fields`` exists
+                # but does not narrow ``tp`` (typed ``type``) for the type checker.
+                for field in getattr(tp, "model_fields", {}).values():
+                    stack.append(field.annotation)
 
 
 def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
