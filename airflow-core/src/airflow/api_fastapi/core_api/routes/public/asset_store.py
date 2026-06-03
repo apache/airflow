@@ -36,8 +36,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.models.asset import AssetModel
 from airflow.models.asset_store import AssetStoreModel
-from airflow.state import get_state_backend
-from airflow.state.metastore import MetastoreStoreBackend
+from airflow.state.metastore import _get_db_backend
 
 asset_store_router = AirflowRouter(
     tags=["Asset Store"],
@@ -173,14 +172,13 @@ def set_asset_store(
     session: SessionDep,
 ) -> None:
     """Set an asset store value. Creates or overwrites the key."""
-    backend = get_state_backend()
-    scope = AssetScope(asset_id=asset_id)
-    if isinstance(backend, MetastoreStoreBackend):
-        backend.set_asset_store(
-            scope, key, json.dumps(body.value), kind=AssetStoreWriterKind.API, session=session
-        )
-    else:
-        backend.set(scope, key, json.dumps(body.value), session=session)
+    _get_db_backend().set_asset_store(
+        AssetScope(asset_id=asset_id),
+        key,
+        json.dumps(body.value),
+        kind=AssetStoreWriterKind.API,
+        session=session,
+    )
 
 
 @asset_store_router.delete(
@@ -195,7 +193,7 @@ def delete_asset_store(
     session: SessionDep,
 ) -> None:
     """Delete a single asset store key. No-op if the key does not exist."""
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    _get_db_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @asset_store_router.delete(
@@ -209,4 +207,4 @@ def clear_asset_store(
     session: SessionDep,
 ) -> None:
     """Delete all store keys for an asset."""
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    _get_db_backend().clear(AssetScope(asset_id=asset_id), session=session)
