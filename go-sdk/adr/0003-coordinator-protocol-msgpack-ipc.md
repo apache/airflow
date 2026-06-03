@@ -56,9 +56,9 @@ local-process only.
 Meanwhile, the Python side of Airflow has standardised on a different
 wire protocol for non-Python language runtimes — the *coordinator
 protocol* — pioneered by the Java SDK and described in
-[java-sdk ADR 0002](../../java-sdk/adr/0002-dag-parsing.md)
+[java-sdk ADR 0004](../../java-sdk/adr/0004-dag-parsing.md)
 and
-[java-sdk ADR 0003](../../java-sdk/adr/0003-workload-execution.md).
+[java-sdk ADR 0002](../../java-sdk/adr/0002-workload-execution.md).
 Its shape is:
 
 - The runtime is launched with `--comm=<host:port>` and
@@ -153,7 +153,7 @@ When `Serve` enters coordinator mode it:
 2. **Connects out** to the comm address, then to the logs address. Both
    are TCP. We dial; we do not listen. The launcher already has both
    listeners up before exec'ing the binary
-   ([java-sdk ADR 0002, "What the Base Class Handles Automatically"](../../java-sdk/adr/0002-dag-parsing.md#what-the-base-class-handles-automatically)).
+   ([java-sdk ADR 0004, "What the Base Class Handles Automatically"](../../java-sdk/adr/0004-dag-parsing.md#what-the-base-class-handles-automatically)).
 
 3. **Routes structured logs to the logs socket.** A new
    `slog.Handler` writes JSON-line records (one record per line, UTF-8,
@@ -165,7 +165,7 @@ When `Serve` enters coordinator mode it:
 
 4. **Reads the first comm frame and dispatches by message type.** The
    first frame's body has a `type` field per the Java SDK's encoding
-   ([java-sdk ADR 0003, "Task SDK Protocol Messages"](../../java-sdk/adr/0003-workload-execution.md#task-sdk-protocol-messages)).
+   ([java-sdk ADR 0002, "Task SDK Protocol Messages"](../../java-sdk/adr/0002-workload-execution.md#task-sdk-protocol-messages)).
    Two values are valid here:
 
    - `DagFileParseRequest` → DAG-parsing one-shot.
@@ -189,7 +189,7 @@ Supervisor                          Bundle binary (Go)
     │                                       ├── serialise(reg) →
     │                                       │   DagFileParsingResult
     │                                       │   in DagSerialization v3 JSON
-    │                                       │   (see java-sdk ADR-0002)
+    │                                       │   (see java-sdk ADR-0004)
     │                                       │
     │◄────────────────[4B len][msgpack: ────┤
     │       id, {type: "DagFileParsingResult",
@@ -203,7 +203,7 @@ The serialised DAG payload must match Python's `SerializedDAG.serialize_dag`
 output **exactly**, including the `__type` / `__var` wrapping rules,
 unwrapping of "non-decorated" fields (`start_date`, `end_date`, `tags`),
 and the timetable encoding listed in
-[java-sdk ADR 0002, "DagFileParsingResult Format"](../../java-sdk/adr/0002-dag-parsing.md#dagfileparsingresult-format).
+[java-sdk ADR 0004, "DagFileParsingResult Format"](../../java-sdk/adr/0004-dag-parsing.md#dagfileparsingresult-format).
 The Go SDK gains a `serde` package that performs this encoding from
 `bundlev1.Bundle` / `bundlev1.Task`, validated against
 `validation/serialization/test_dags.yaml` (the same fixture set the Java
@@ -262,14 +262,14 @@ Both implement the same `sdk.Client` / `sdk.VariableClient` interfaces,
 so user task code is identical between the two modes.
 
 The `(panic recovered → "failed")` step in the diagram is
-`pkg/worker.Worker.runTask`'s existing `defer recover()` block
+`pkg/worker.Worker.ExecuteTaskWorkload`'s existing `defer recover()` block
 (`runner.go:295-311`), which logs the panic and calls
 `reportStateFailed`. Because both modes reuse the same `Worker`,
 this behaviour is identical in go-plugin mode and coordinator mode;
 it is not a coordinator-only invention.
 
 Frame correlation, error envelopes, and request `id` numbering follow
-java-sdk ADR 0003 verbatim. Re-implementing rather than reusing those
+java-sdk ADR 0002 verbatim. Re-implementing rather than reusing those
 is a deliberate cost of having a separate Go runtime; the validation
 fixtures keep the encoders honest.
 
