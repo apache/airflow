@@ -26,6 +26,7 @@ import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
+import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TIRunContext
@@ -62,6 +63,16 @@ class TaskTest {
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should return retry when task throws and should_retry is true")
+  fun shouldReturnRetryWhenTaskThrowsAndShouldRetryIsTrue() {
+    val details = startupDetails(taskId = "failing")
+    details.tiContext?.shouldRetry = true
+    val result = runTask(bundleWith("failing", FailingTask::class.java), details, noOpClient())
+
+    Assertions.assertInstanceOf(RetryTask::class.java, result)
   }
 
   private fun bundleWith(
