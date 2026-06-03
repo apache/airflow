@@ -75,6 +75,7 @@ def get_provider_info():
                     "airflow.providers.standard.sensors.python",
                     "airflow.providers.standard.sensors.filesystem",
                     "airflow.providers.standard.sensors.external_task",
+                    "airflow.providers.standard.sensors.asset",
                 ],
             }
         ],
@@ -96,6 +97,7 @@ def get_provider_info():
                     "airflow.providers.standard.triggers.file",
                     "airflow.providers.standard.triggers.temporal",
                     "airflow.providers.standard.triggers.hitl",
+                    "airflow.providers.standard.triggers.asset",
                 ],
             }
         ],
