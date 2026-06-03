@@ -24,6 +24,21 @@ import (
 
 // Inbound messages (Supervisor -> Runtime).
 
+// DagFileParseRequest is sent by the supervisor to request DAG parsing.
+type DagFileParseRequest struct {
+	File       string
+	BundlePath string
+}
+
+func decodeDagFileParseRequest(m map[string]any) (*DagFileParseRequest, error) {
+	file, err := mapString(m, "file")
+	if err != nil {
+		return nil, err
+	}
+	bundlePath := mapStringOr(m, "bundle_path", "")
+	return &DagFileParseRequest{File: file, BundlePath: bundlePath}, nil
+}
+
 // TaskInstanceInfo holds task instance details from StartupDetails.
 type TaskInstanceInfo struct {
 	ID             string
@@ -382,6 +397,8 @@ func decodeIncomingBody(m map[string]any) (any, error) {
 	}
 	typ, _ := m["type"].(string)
 	switch typ {
+	case "DagFileParseRequest":
+		return decodeDagFileParseRequest(m)
 	case "StartupDetails":
 		return decodeStartupDetails(m)
 	case "ConnectionResult":
