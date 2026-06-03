@@ -56,6 +56,13 @@ Internal use only.
 :meta private:
 """
 
+_TRIGGER_ID_CLEANUP_BATCH_SIZE = 1000
+"""Max rows per batch when ``Trigger.clean_unused`` clears stale ``trigger_id`` values.
+
+Bounding the batch size keeps the row-lock range narrow so the triggerer's cleanup
+does not deadlock against the scheduler's ``check_trigger_timeouts`` (issue #65818).
+"""
+
 log = logging.getLogger(__name__)
 
 
@@ -238,16 +245,36 @@ class Trigger(Base):
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop the triggers not referenced by anyone.
         """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        for attempt in run_with_db_retries():
-            with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+        # Clear trigger_id on non-deferred task instances in batches, locking by primary key
+        # with SKIP LOCKED so we don't deadlock against the scheduler's check_trigger_timeouts()
+        # which writes the same column from a different index path.
+        # Tracked: https://github.com/apache/airflow/issues/65818
+        while True:
+            for attempt in run_with_db_retries():
+                with attempt:
+                    candidates = (
+                        select(TaskInstance.id)
+                        .where(
+                            TaskInstance.state != TaskInstanceState.DEFERRED,
+                            TaskInstance.trigger_id.is_not(None),
+                        )
+                        .order_by(TaskInstance.id)
+                        .limit(_TRIGGER_ID_CLEANUP_BATCH_SIZE)
                     )
-                    .values(trigger_id=None)
-                )
+                    ti_ids = list(
+                        session.scalars(
+                            with_row_locks(candidates, session, skip_locked=True, of=TaskInstance)
+                        ).all()
+                    )
+                    if ti_ids:
+                        session.execute(
+                            update(TaskInstance)
+                            .where(TaskInstance.id.in_(ti_ids))
+                            .values(trigger_id=None)
+                            .execution_options(synchronize_session=False)
+                        )
+            if len(ti_ids) < _TRIGGER_ID_CLEANUP_BATCH_SIZE:
+                break
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = (

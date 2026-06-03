@@ -175,6 +175,40 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
 
+def test_clean_unused_clears_trigger_id_in_batches(session, dag_maker, monkeypatch):
+    """
+    Tests that ``Trigger.clean_unused`` clears ``trigger_id`` on every eligible task instance
+    even when more rows match the predicate than fit in a single batch.
+
+    The batched, primary-key-ordered + SKIP LOCKED implementation is what avoids deadlocks
+    against ``SchedulerJobRunner.check_trigger_timeouts`` (issue #65818).
+    """
+    import airflow.models.trigger as trigger_module
+
+    monkeypatch.setattr(trigger_module, "_TRIGGER_ID_CLEANUP_BATCH_SIZE", 2)
+
+    triggers = [Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{i}", kwargs={}) for i in range(5)]
+    session.add_all(triggers)
+    session.flush()
+
+    with dag_maker(session=session, dag_id="test_clean_unused_batched"):
+        for i in range(5):
+            EmptyOperator(task_id=f"fake{i}")
+
+    dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    for i in range(5):
+        tis[f"fake{i}"].state = State.SUCCESS
+        tis[f"fake{i}"].trigger_id = triggers[i].id
+    session.flush()
+
+    Trigger.clean_unused(session=session)
+
+    for i in range(5):
+        session.refresh(tis[f"fake{i}"])
+        assert tis[f"fake{i}"].trigger_id is None, f"trigger_id should be cleared on fake{i}"
+
+
 @patch.object(TriggererCallback, "handle_event")
 def test_submit_event(mock_callback_handle_event, session, create_task_instance):
     """

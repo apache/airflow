@@ -7300,6 +7300,50 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_timeout_triggers_processes_more_than_one_batch(self, dag_maker, monkeypatch):
+        """
+        Tests that ``check_trigger_timeouts`` flips every timed-out deferred TI even when
+        more rows match than fit in a single batch. The batched, primary-key-ordered +
+        SKIP LOCKED implementation is what avoids deadlocks against
+        ``Trigger.clean_unused`` (issue #65818).
+        """
+        import airflow.jobs.scheduler_job_runner as scheduler_module
+
+        monkeypatch.setattr(scheduler_module, "_TRIGGER_TIMEOUT_BATCH_SIZE", 2)
+
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_batched",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=5,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        tis = []
+        past = timezone.utcnow() - datetime.timedelta(seconds=60)
+        for i in range(5):
+            dr = dag_maker.create_dagrun(
+                run_id=f"batched_{i}",
+                logical_date=DEFAULT_DATE + datetime.timedelta(seconds=i),
+            )
+            ti = dr.get_task_instance("dummy1", session)
+            ti.state = State.DEFERRED
+            ti.trigger_timeout = past
+            tis.append(ti)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        for ti in tis:
+            session.refresh(ti)
+            assert ti.state == State.SCHEDULED
+            assert ti.next_method == "__fail__"
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
