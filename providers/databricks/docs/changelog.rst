@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+7.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Fail fast for non-serializable retry_args in deferrable operators and triggers (#64960)``
+* ``Forward Airflow Dag params to Databricks job parameters in CreateJobs/SubmitRun/RunNow (#66613)``
+* ``Add session-level query tags to Databricks SQL operators (#66895)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Lock in Databricks workflow depends_on parent-key behavior (#66681)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 7.15.0
 ......
 

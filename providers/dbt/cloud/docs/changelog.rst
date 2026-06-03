@@ -28,6 +28,18 @@
 Changelog
 ---------
 
+4.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dbt Cloud trigger timeout deadline clock (#67626)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 4.9.0
 .....
 

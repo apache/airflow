@@ -2874,7 +2874,7 @@ packages = []
 
 [[package]]
 name = "apache-airflow-providers-airbyte"
-version = "5.5.0"
+version = "5.5.1"
 source = { editable = "providers/airbyte" }
 dependencies = [
     { name = "airbyte-api" },
@@ -2913,7 +2913,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-akeyless"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "providers/akeyless" }
 dependencies = [
     { name = "akeyless" },
@@ -3001,7 +3001,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.29.0"
+version = "9.30.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3205,7 +3205,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-cassandra"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/apache/cassandra" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3244,7 +3244,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-drill"
-version = "3.3.2"
+version = "3.3.3"
 source = { editable = "providers/apache/drill" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3335,7 +3335,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-flink"
-version = "1.8.4"
+version = "1.8.5"
 source = { editable = "providers/apache/flink" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3526,7 +3526,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-iceberg"
-version = "2.0.2"
+version = "2.0.3"
 source = { editable = "providers/apache/iceberg" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3565,7 +3565,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-impala"
-version = "1.9.2"
+version = "1.9.3"
 source = { editable = "providers/apache/impala" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3679,7 +3679,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-kylin"
-version = "3.10.4"
+version = "3.10.5"
 source = { editable = "providers/apache/kylin" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3759,7 +3759,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-pig"
-version = "4.8.4"
+version = "4.8.5"
 source = { editable = "providers/apache/pig" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3794,7 +3794,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-pinot"
-version = "4.10.2"
+version = "4.10.3"
 source = { editable = "providers/apache/pinot" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3836,7 +3836,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-spark"
-version = "6.0.2"
+version = "6.1.0"
 source = { editable = "providers/apache/spark" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3900,7 +3900,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-tinkerpop"
-version = "1.1.3"
+version = "1.1.4"
 source = { editable = "providers/apache/tinkerpop" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3937,7 +3937,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apprise"
-version = "2.3.3"
+version = "2.3.4"
 source = { editable = "providers/apprise" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3974,7 +3974,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-arangodb"
-version = "2.9.4"
+version = "2.9.5"
 source = { editable = "providers/arangodb" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4011,7 +4011,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-asana"
-version = "2.11.3"
+version = "2.11.4"
 source = { editable = "providers/asana" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4048,7 +4048,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-atlassian-jira"
-version = "3.3.3"
+version = "3.3.4"
 source = { editable = "providers/atlassian/jira" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4137,7 +4137,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cloudant"
-version = "4.3.4"
+version = "4.3.5"
 source = { editable = "providers/cloudant" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4174,7 +4174,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.17.1"
+version = "10.18.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -4222,7 +4222,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cohere"
-version = "1.6.5"
+version = "1.6.6"
 source = { editable = "providers/cohere" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4262,7 +4262,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-ai"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "providers/common/ai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4442,7 +4442,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-io"
-version = "1.7.2"
+version = "1.7.3"
 source = { editable = "providers/common/io" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4486,7 +4486,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-messaging"
-version = "2.0.3"
+version = "2.0.4"
 source = { editable = "providers/common/messaging" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4532,7 +4532,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "2.0.0"
+version = "2.0.1"
 source = { editable = "providers/common/sql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4633,7 +4633,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-databricks"
-version = "7.15.0"
+version = "7.16.0"
 source = { editable = "providers/databricks" }
 dependencies = [
     { name = "aiohttp" },
@@ -4738,7 +4738,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-datadog"
-version = "3.10.4"
+version = "3.10.5"
 source = { editable = "providers/datadog" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4775,7 +4775,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.9.0"
+version = "4.9.1"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -4830,7 +4830,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dingding"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/dingding" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4908,7 +4908,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-docker"
-version = "4.5.6"
+version = "4.5.7"
 source = { editable = "providers/docker" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4947,7 +4947,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-edge3"
-version = "3.7.0"
+version = "3.8.0"
 source = { editable = "providers/edge3" }
 dependencies = [
     { name = "aiofiles" },
@@ -4990,13 +4990,18 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-elasticsearch"
-version = "6.5.4"
+version = "6.6.0"
 source = { editable = "providers/elasticsearch" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "elasticsearch" },
+]
+
+[package.optional-dependencies]
+polars = [
+    { name = "polars" },
 ]
 
 [package.dev-dependencies]
@@ -5017,7 +5022,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "elasticsearch", specifier = ">=8.10,<10" },
+    { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
 ]
+provides-extras = ["polars"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5032,7 +5039,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-exasol"
-version = "4.10.2"
+version = "4.10.3"
 source = { editable = "providers/exasol" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5086,7 +5093,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.6.4"
+version = "3.6.5"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5171,7 +5178,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-facebook"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/facebook" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5289,7 +5296,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-github"
-version = "2.11.2"
+version = "2.11.3"
 source = { editable = "providers/github" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5326,7 +5333,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-google"
-version = "22.0.0"
+version = "22.1.0"
 source = { editable = "providers/google" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5625,7 +5632,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-grpc"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/grpc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5666,7 +5673,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-hashicorp"
-version = "4.6.0"
+version = "4.7.0"
 source = { editable = "providers/hashicorp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5716,7 +5723,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-http"
-version = "6.0.2"
+version = "6.0.3"
 source = { editable = "providers/http" }
 dependencies = [
     { name = "aiohttp" },
@@ -5887,7 +5894,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-informatica"
-version = "0.1.3"
+version = "0.1.4"
 source = { editable = "providers/informatica" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5935,7 +5942,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-jdbc"
-version = "5.4.4"
+version = "5.5.0"
 source = { editable = "providers/jdbc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5995,7 +6002,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-jenkins"
-version = "4.2.5"
+version = "4.2.6"
 source = { editable = "providers/jenkins" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6032,7 +6039,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.7.2"
+version = "0.7.3"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6069,7 +6076,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.3.0"
+version = "13.4.0"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -6193,7 +6200,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-mssql"
-version = "4.6.0"
+version = "4.6.1"
 source = { editable = "providers/microsoft/mssql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6246,7 +6253,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-psrp"
-version = "3.2.5"
+version = "3.2.6"
 source = { editable = "providers/microsoft/psrp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6283,7 +6290,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-winrm"
-version = "3.14.2"
+version = "3.14.3"
 source = { editable = "providers/microsoft/winrm" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6363,7 +6370,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-mysql"
-version = "6.6.0"
+version = "6.6.1"
 source = { editable = "providers/mysql" }
 dependencies = [
     { name = "aiomysql" },
@@ -6444,7 +6451,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-neo4j"
-version = "3.11.5"
+version = "3.11.6"
 source = { editable = "providers/neo4j" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6481,7 +6488,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-odbc"
-version = "4.12.2"
+version = "4.12.3"
 source = { editable = "providers/odbc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6523,7 +6530,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openai"
-version = "1.7.4"
+version = "1.7.5"
 source = { editable = "providers/openai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6560,7 +6567,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openfaas"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/openfaas" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6595,7 +6602,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openlineage"
-version = "2.17.0"
+version = "2.18.0"
 source = { editable = "providers/openlineage" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6656,7 +6663,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-opensearch"
-version = "1.9.2"
+version = "1.9.3"
 source = { editable = "providers/opensearch" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6693,7 +6700,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-opsgenie"
-version = "5.10.3"
+version = "5.10.4"
 source = { editable = "providers/opsgenie" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6730,7 +6737,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-oracle"
-version = "4.6.0"
+version = "4.6.1"
 source = { editable = "providers/oracle" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6796,7 +6803,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-pagerduty"
-version = "5.2.5"
+version = "5.2.6"
 source = { editable = "providers/pagerduty" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6837,7 +6844,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-papermill"
-version = "3.13.0"
+version = "3.13.1"
 source = { editable = "providers/papermill" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6884,7 +6891,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-pgvector"
-version = "1.7.1"
+version = "1.7.2"
 source = { editable = "providers/pgvector" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6969,7 +6976,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-postgres"
-version = "6.7.0"
+version = "6.7.1"
 source = { editable = "providers/postgres" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7123,7 +7130,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-qdrant"
-version = "1.5.5"
+version = "1.5.6"
 source = { editable = "providers/qdrant" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7160,7 +7167,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-redis"
-version = "4.4.4"
+version = "4.4.5"
 source = { editable = "providers/redis" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7206,7 +7213,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-salesforce"
-version = "5.14.0"
+version = "5.14.1"
 source = { editable = "providers/salesforce" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7247,7 +7254,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-samba"
-version = "4.12.5"
+version = "4.12.6"
 source = { editable = "providers/samba" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7293,7 +7300,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-segment"
-version = "3.9.4"
+version = "3.9.5"
 source = { editable = "providers/segment" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7330,7 +7337,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sendgrid"
-version = "4.2.3"
+version = "4.2.4"
 source = { editable = "providers/sendgrid" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7367,7 +7374,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sftp"
-version = "5.8.0"
+version = "5.8.1"
 source = { editable = "providers/sftp" }
 dependencies = [
     { name = "aiofiles" },
@@ -7426,7 +7433,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-singularity"
-version = "3.9.3"
+version = "3.9.4"
 source = { editable = "providers/singularity" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7463,7 +7470,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-slack"
-version = "9.10.0"
+version = "9.10.1"
 source = { editable = "providers/slack" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7622,7 +7629,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sqlite"
-version = "4.3.2"
+version = "4.3.3"
 source = { editable = "providers/sqlite" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7697,7 +7704,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-standard"
-version = "1.13.1"
+version = "1.14.0"
 source = { editable = "providers/standard" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7743,7 +7750,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-tableau"
-version = "5.4.1"
+version = "5.5.0"
 source = { editable = "providers/tableau" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7780,7 +7787,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-telegram"
-version = "4.9.4"
+version = "4.9.5"
 source = { editable = "providers/telegram" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8003,7 +8010,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-vespa"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "providers/vespa" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8129,7 +8136,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ydb"
-version = "2.5.2"
+version = "2.5.3"
 source = { editable = "providers/ydb" }
 dependencies = [
     { name = "apache-airflow" },
