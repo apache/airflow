@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-03T14:35:47.928728
+# This constraints file was automatically generated on 2026-06-03T21:55:27.291324
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -108,6 +108,7 @@ apache-airflow-providers-common-compat==1.15.0
 apache-airflow-providers-discord==3.12.3
 apache-airflow-providers-ftp==3.15.0
 apache-airflow-providers-git==0.4.0
+apache-airflow-providers-google==22.0.0
 apache-airflow-providers-imap==3.11.3
 apache-airflow-providers-influxdb==2.11.0
 apache-airflow-providers-mongo==5.4.0
@@ -583,7 +584,7 @@ svcs==25.1.0
 tableauserverclient==0.40
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.59
+teradatasql==20.0.0.60
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
@@ -600,7 +601,7 @@ tornado==6.5.6
 tqdm==4.67.3
 traitlets==5.15.0
 trino==0.337.0
-typer==0.26.3
+typer==0.26.4
 types-protobuf==7.34.1.20260518
 types-pytz==2026.2.0.20260518
 types-requests==2.33.0.20260518
