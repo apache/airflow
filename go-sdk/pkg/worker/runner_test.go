@@ -232,7 +232,7 @@ func (s *WorkerSuite) TestTaskHeartbeatConflictStopsTask() {
 			case <-time.After(2 * time.Second):
 				return fmt.Errorf("task context was not cancelled")
 			}
-		})
+		}, bundlev1.TaskSpec{}, nil)
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)

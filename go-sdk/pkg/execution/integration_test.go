@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
@@ -85,6 +86,64 @@ func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle
 
 // --- Tests ---
 
+func TestDagParsing(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		d := r.AddDag("test_dag")
+		d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+	})
+
+	req := &genmodels.DagFileParseRequest{
+		File:       "/bundles/test/main.go",
+		BundlePath: "/bundles/test",
+	}
+
+	result := ParseDags(bundle, req)
+
+	assert.Equal(t, "DagFileParsingResult", result["type"])
+	assert.Equal(t, "/bundles/test/main.go", result["fileloc"])
+
+	serializedDags, ok := result["serialized_dags"].([]any)
+	require.True(t, ok)
+	require.Len(t, serializedDags, 1)
+
+	dagEntry := serializedDags[0].(map[string]any)
+	data := dagEntry["data"].(map[string]any)
+	assert.Equal(t, 3, data["__version"])
+
+	dagMap := data["dag"].(map[string]any)
+	assert.Equal(t, "test_dag", dagMap["dag_id"])
+
+	tt := dagMap["timetable"].(map[string]any)
+	assert.Equal(t, "airflow.timetables.simple.NullTimetable", tt["__type"])
+
+	tasks := dagMap["tasks"].([]any)
+	require.Len(t, tasks, 1)
+	taskMap := tasks[0].(map[string]any)
+	assert.Equal(t, "operator", taskMap["__type"])
+	taskData := taskMap["__var"].(map[string]any)
+	assert.Equal(t, "simpleTask", taskData["task_id"])
+	assert.Equal(t, "go", taskData["language"])
+}
+
+func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("dag2").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
+	})
+
+	req := &genmodels.DagFileParseRequest{File: "/bundle/main.go", BundlePath: "/bundle"}
+	result := ParseDags(bundle, req)
+
+	serializedDags := result["serialized_dags"].([]any)
+	require.Len(t, serializedDags, 2)
+
+	dag1Data := serializedDags[0].(map[string]any)["data"].(map[string]any)["dag"].(map[string]any)
+	assert.Equal(t, "dag1", dag1Data["dag_id"])
+
+	dag2Data := serializedDags[1].(map[string]any)["data"].(map[string]any)["dag"].(map[string]any)
+	assert.Equal(t, "dag2", dag2Data["dag_id"])
+}
+
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
@@ -133,7 +192,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 
 func TestTaskRunnerRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask)
+		r.AddDag("test_dag").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -205,7 +264,7 @@ func TestTaskRunnerPanic(t *testing.T) {
 
 func TestTaskRunnerPanicRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask)
+		r.AddDag("test_dag").AddTask(panicTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -233,7 +292,7 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(ctx context.Context) error { return ctx.Err() })
+			func(ctx context.Context) error { return ctx.Err() }, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -270,7 +329,7 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -330,7 +389,7 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -406,6 +465,59 @@ func startSupervisor(
 	return commLn.Addr().String(), logsLn.Addr().String(), commCh, logsCh, cleanup
 }
 
+func TestServeDagFileParseEndToEnd(t *testing.T) {
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	provider := &fakeProvider{
+		register: func(r bundlev1.Registry) error {
+			d := r.AddDag("simple_dag")
+			d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+			return nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	require.NotNil(t, commConn)
+	defer commConn.Close()
+	logsConn := <-logsCh
+	require.NotNil(t, logsConn)
+	defer logsConn.Close()
+
+	// Send DagFileParseRequest as a request frame.
+	payload, err := encodeRequest(0, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundle/main.go",
+		"bundle_path": "/bundle",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err := readFrame(commConn)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), frame.ID)
+	require.True(t, isNilRaw(frame.Err))
+	assert.Equal(t, "DagFileParsingResult", peekBodyType(frame.Body))
+
+	var body map[string]any
+	require.NoError(t, msgpack.Unmarshal(frame.Body, &body))
+
+	dags := body["serialized_dags"].([]any)
+	require.Len(t, dags, 1)
+	dag := dags[0].(map[string]any)["data"].(map[string]any)["dag"].(map[string]any)
+	assert.Equal(t, "simple_dag", dag["dag_id"])
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after parse result")
+	}
+}
+
 func TestServeStartupDetailsEndToEnd(t *testing.T) {
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	defer cleanup()
@@ -478,7 +590,7 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 					}
 					gotVar = v
 					return "xval", nil
-				})
+				}, bundlev1.TaskSpec{}, nil)
 			return nil
 		},
 	}

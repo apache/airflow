@@ -57,7 +57,7 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 
 	// Tasks defined in other packages register through the same dagbag.
 	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
+	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently, v1.TaskSpec{}, nil)
 
 	return nil
 }

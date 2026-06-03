@@ -19,13 +19,14 @@ package execution
 
 import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // ParseDags processes a DagFileParseRequest by serialising every dag
 // registered on bundle to DagSerialization v3 and returning the result as a
 // DagFileParsingResult body. bundle is the materialised registry produced by
 // running BundleProvider.RegisterDags.
-func ParseDags(bundle bundlev1.Bundle, req *DagFileParseRequest) map[string]any {
+func ParseDags(bundle bundlev1.Bundle, req *genmodels.DagFileParseRequest) map[string]any {
 	fileloc := req.File
 	bundlePath := req.BundlePath
 	relativeFileloc := computeRelativeFileloc(fileloc, bundlePath)
