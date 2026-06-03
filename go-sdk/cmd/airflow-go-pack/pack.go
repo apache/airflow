@@ -108,6 +108,19 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return fmt.Errorf("source file %s: %w", sourcePath, err)
 	}
 
+	output := opts.output
+	if output == "" {
+		defaultPath, err := defaultOutputPath(sourcePath)
+		if err != nil {
+			return fmt.Errorf("determining default output path: %w", err)
+		}
+		output = defaultPath
+	}
+
+	if err := rejectOutputAlias(output, execPath, sourcePath); err != nil {
+		return err
+	}
+
 	meta, err := readAirflowMetadata(introspectPath)
 	if err != nil {
 		// In --executable mode the introspection binary is the user's
@@ -170,21 +183,11 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return fmt.Errorf("reading source file: %w", err)
 	}
 
-	output := opts.output
-	if output == "" {
-		output, err = defaultOutputPath(sourcePath)
-		if err != nil {
-			return fmt.Errorf("determining default output path: %w", err)
-		}
-	}
-
-	// Copy the executable to the output path before appending so we never
-	// mutate the build artefact in the temp dir or the user-supplied
-	// --executable file.
-	if err := copyFile(execPath, output, 0o755); err != nil {
-		return fmt.Errorf("writing %s: %w", output, err)
-	}
-	if err := bundlefooter.Append(output, sourceBytes, manifest); err != nil {
+	// Assemble the bundle through a temp file and atomically move it into
+	// place: we never mutate the build artefact or the user-supplied
+	// --executable, and a failed pack never leaves a truncated or half-written
+	// file at output.
+	if err := writeBundle(execPath, output, sourceBytes, manifest); err != nil {
 		return err
 	}
 
@@ -454,6 +457,100 @@ func scalar(value string) *yaml.Node {
 
 func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
+}
+
+// rejectOutputAlias fails if output resolves to the same file as the
+// executable or the source. Packing copies the executable to output with
+// O_TRUNC, so an aliased output would be truncated before it is read,
+// destroying the input.
+func rejectOutputAlias(output, execPath, sourcePath string) error {
+	for _, in := range []struct {
+		path string
+		kind string
+	}{
+		{execPath, "executable"},
+		{sourcePath, "source"},
+	} {
+		alias, err := sameFile(output, in.path)
+		if err != nil {
+			return fmt.Errorf("resolving output path %s: %w", output, err)
+		}
+		if alias {
+			return fmt.Errorf(
+				"output path %s is the same file as the %s %s; pass --output to write the bundle elsewhere",
+				output,
+				in.kind,
+				in.path,
+			)
+		}
+	}
+	return nil
+}
+
+// sameFile reports whether a and b refer to the same file. It first compares
+// cleaned absolute paths (catching e.g. "./bundle" vs "bundle" before either
+// exists) and then, when both paths exist, falls back to os.SameFile to catch
+// links that share an inode.
+func sameFile(a, b string) (bool, error) {
+	absA, err := filepath.Abs(a)
+	if err != nil {
+		return false, err
+	}
+	absB, err := filepath.Abs(b)
+	if err != nil {
+		return false, err
+	}
+	if absA == absB {
+		return true, nil
+	}
+	fiA, err := os.Stat(absA)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	fiB, err := os.Stat(absB)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return os.SameFile(fiA, fiB), nil
+}
+
+// writeBundle assembles the bundle at output by copying the executable to a
+// temporary file in output's directory, appending the source+manifest footer
+// to that copy, then atomically renaming it into place. Writing through a
+// temp file keeps a failed pack from leaving a truncated or half-written
+// artefact at output, and guarantees the file being copied is never the same
+// open file as the destination.
+func writeBundle(execPath, output string, source, metadata []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(output), ".airflow-go-pack-*")
+	if err != nil {
+		return fmt.Errorf("creating temp file for %s: %w", output, err)
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := copyFile(execPath, tmpPath, 0o755); err != nil {
+		return fmt.Errorf("writing %s: %w", output, err)
+	}
+	if err := bundlefooter.Append(tmpPath, source, metadata); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, output); err != nil {
+		return fmt.Errorf("finalising %s: %w", output, err)
+	}
+	committed = true
+	return nil
 }
 
 // copyFile copies src to dst, truncating dst if it already exists.

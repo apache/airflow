@@ -19,6 +19,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -142,4 +143,98 @@ func TestRootArgs_RejectsExtraPositionalBeforeDash(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "accepts at most 1 arg")
+}
+
+func TestSameFile(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a")
+	b := filepath.Join(dir, "b")
+	require.NoError(t, os.WriteFile(a, []byte("a"), 0o644))
+	require.NoError(t, os.WriteFile(b, []byte("b"), 0o644))
+
+	// Distinct existing files do not alias.
+	same, err := sameFile(a, b)
+	require.NoError(t, err)
+	assert.False(t, same)
+
+	// Two spellings of the same path alias even though only one exists on
+	// disk under the literal string ("./a" vs "a" relative to the same dir).
+	same, err = sameFile(filepath.Join(dir, "x"), filepath.Join(dir, ".", "x"))
+	require.NoError(t, err)
+	assert.True(t, same, "cleaned-abs equality should treat ./x and x as the same file")
+
+	// A non-existent output never aliases an existing input by inode.
+	same, err = sameFile(filepath.Join(dir, "does-not-exist"), a)
+	require.NoError(t, err)
+	assert.False(t, same)
+
+	// A symlink that points at the input shares its inode.
+	link := filepath.Join(dir, "link-to-a")
+	if err := os.Symlink(a, link); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+	same, err = sameFile(link, a)
+	require.NoError(t, err)
+	assert.True(t, same, "a symlink to the file should alias it")
+}
+
+// TestRunPack_RejectsOutputAliasingExecutable is the regression test for the
+// truncation bug: when --output resolves to the same file as --executable,
+// runPack must refuse before copyFile truncates the input. We assert both the
+// error and that the executable's bytes survive untouched.
+func TestRunPack_RejectsOutputAliasingExecutable(t *testing.T) {
+	dir := t.TempDir()
+	exec := filepath.Join(dir, "bundle")
+	source := filepath.Join(dir, "main.go")
+	original := []byte("prebuilt-binary-bytes")
+	require.NoError(t, os.WriteFile(exec, original, 0o755))
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+
+	err := runPack(io.Discard, io.Discard, &packOptions{
+		executable: exec,
+		source:     source,
+		output:     exec,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same file as the executable")
+
+	// The guard must fire before any write: the executable is intact.
+	got, readErr := os.ReadFile(exec)
+	require.NoError(t, readErr)
+	assert.Equal(t, original, got, "executable must not be truncated when output aliases it")
+}
+
+// TestRunPack_RejectsDefaultOutputAliasingExecutable covers the no-explicit
+// --output path the reviewer flagged: packing "./bundle" from a package
+// directory named "bundle" derives a default output that collides with the
+// pre-built binary.
+func TestRunPack_RejectsDefaultOutputAliasingExecutable(t *testing.T) {
+	parent := t.TempDir()
+	pkgDir := filepath.Join(parent, "bundle")
+	require.NoError(t, os.Mkdir(pkgDir, 0o755))
+	exec := filepath.Join(pkgDir, "bundle")
+	source := filepath.Join(pkgDir, "main.go")
+	original := []byte("prebuilt-binary-bytes")
+	require.NoError(t, os.WriteFile(exec, original, 0o755))
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+
+	// defaultOutputPath derives the bundle name from the package dir base
+	// ("bundle") relative to cwd, so run from pkgDir to reproduce the collision.
+	t.Chdir(pkgDir)
+
+	err := runPack(io.Discard, io.Discard, &packOptions{
+		executable: "./bundle",
+		source:     "main.go",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same file as the executable")
+
+	got, readErr := os.ReadFile(exec)
+	require.NoError(t, readErr)
+	assert.Equal(
+		t,
+		original,
+		got,
+		"executable must not be truncated by the default output collision",
+	)
 }
