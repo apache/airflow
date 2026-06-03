@@ -1962,7 +1962,6 @@ class TestPluginsOperations:
         assert response == self.plugin_import_error_collection_response
 
 
-
 class TestTaskInstanceOperations:
     """Test suite for Task Instance operations."""
 

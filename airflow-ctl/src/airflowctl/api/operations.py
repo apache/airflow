@@ -931,7 +931,6 @@ class PluginsOperations(BaseOperations):
             raise e
 
 
-
 class TaskInstanceOperations(BaseOperations):
     """Task instance operations."""
 

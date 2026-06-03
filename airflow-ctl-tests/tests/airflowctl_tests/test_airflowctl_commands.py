@@ -95,16 +95,16 @@ TEST_COMMANDS = [
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # Task Instance commands
-    'taskinstance list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
-    'taskinstance get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
-    "taskinstance clear --dag-id=example_bash_operator --dry-run",
-    'taskinstance update --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --new-state=success',
+    'taskinstance list example_bash_operator "manual__{date_param}"',
+    'taskinstance get example_bash_operator "manual__{date_param}" runme_0',
+    "taskinstance clear example_bash_operator --dry-run",
+    'taskinstance update example_bash_operator "manual__{date_param}" runme_0 --new-state=success',
     # XCom commands - need a DAG run with completed tasks
-    'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
-    'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
-    'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
-    'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"updated": "value"}}\'',
-    'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
+    'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
+    'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
+    'xcom list example_bash_operator "manual__{date_param}" runme_0',
+    'xcom edit example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"updated": "value"}}\'',
+    'xcom delete example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
     # Jobs commands
     "jobs list",
     # Pools commands
