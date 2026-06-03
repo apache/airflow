@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from airflow.sdk.definitions.operator_resources import Resources
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestResources:
     def test_resource_eq(self):
@@ -41,3 +43,39 @@ class TestResources:
             "disk": {"name": "Disk", "qty": 1024, "units_str": "MB"},
             "gpus": {"name": "GPU", "qty": 1, "units_str": "gpu(s)"},
         }
+
+    def test_defaults_read_from_conf_at_instantiation(self):
+        """When fields are omitted, ``Resources`` should read defaults from the ``operators``
+        section at instantiation time (not at module import time).
+        """
+        with conf_vars(
+            {
+                ("operators", "default_cpus"): "7",
+                ("operators", "default_ram"): "5120",
+                ("operators", "default_disk"): "8192",
+                ("operators", "default_gpus"): "3",
+            }
+        ):
+            r = Resources()
+            assert r.cpus.qty == 7
+            assert r.ram.qty == 5120
+            assert r.disk.qty == 8192
+            assert r.gpus.qty == 3
+
+    def test_falsy_zero_values_are_preserved(self):
+        """Explicit ``0`` for a resource must not be replaced by the config default —
+        only ``None`` (the sentinel for "not supplied") should fall back to config.
+        """
+        with conf_vars(
+            {
+                ("operators", "default_cpus"): "4",
+                ("operators", "default_ram"): "2048",
+                ("operators", "default_disk"): "1024",
+                ("operators", "default_gpus"): "2",
+            }
+        ):
+            r = Resources(cpus=0, ram=0, disk=0, gpus=0)
+            assert r.cpus.qty == 0
+            assert r.ram.qty == 0
+            assert r.disk.qty == 0
+            assert r.gpus.qty == 0

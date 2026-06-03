@@ -64,6 +64,11 @@
     "dagVersions": "גרסאות Dag",
     "dataIntervalEnd": "סיום מקטע נתונים",
     "dataIntervalStart": "תחילת מקטע נתונים",
+    "durationStats": {
+      "mean": "ממוצע",
+      "mode": "שכיח"
+    },
+    "expectedDuration": "משך זמן צפוי",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
     "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",
@@ -245,7 +250,6 @@
   "task_one": "משימה",
   "task_other": "משימות",
   "task_two": "משימות",
-  "taskGroup": "קבוצת משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
     "dagVersion": "גרסת Dag",

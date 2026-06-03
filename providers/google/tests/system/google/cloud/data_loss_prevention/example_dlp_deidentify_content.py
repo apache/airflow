@@ -139,8 +139,7 @@ with DAG(
     deidentify_content_with_template = CloudDLPDeidentifyContentOperator(
         project_id=PROJECT_ID,
         item=ITEM,
-        # verbose form: "{{ task_instance.xcom_pull('create_template')['name'] }}"
-        deidentify_template_name=create_template.output["name"],
+        deidentify_template_name="{{ task_instance.xcom_pull('create_template')['name'] }}",
         inspect_config=INSPECT_CONFIG,
         task_id="deidentify_content_with_template",
     )

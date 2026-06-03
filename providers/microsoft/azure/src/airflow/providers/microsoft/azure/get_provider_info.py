@@ -285,8 +285,16 @@ def get_provider_info():
         ],
         "triggers": [
             {
+                "integration-name": "Microsoft Azure Batch",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.batch"],
+            },
+            {
                 "integration-name": "Microsoft Azure Compute",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.compute"],
+            },
+            {
+                "integration-name": "Microsoft Azure Container Instances",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.container_instance"],
             },
             {
                 "integration-name": "Microsoft Azure Data Factory",

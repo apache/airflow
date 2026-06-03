@@ -27,7 +27,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
@@ -339,7 +339,7 @@ class TestSnowflakeSqlApiOperator:
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=None)
 
     @pytest.mark.parametrize(
@@ -373,7 +373,7 @@ class TestSnowflakeSqlApiOperator:
         )
 
     def test_snowflake_sql_api_execute_complete_failure(self):
-        """Test SnowflakeSqlApiOperator raise AirflowException of error event"""
+        """Test SnowflakeSqlApiOperator raise RuntimeError of error event"""
 
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
@@ -382,7 +382,7 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute_complete(
                 context=None,
                 event={"status": "error", "message": "Test failure message", "type": "FAILED_WITH_ERROR"},
@@ -469,7 +469,7 @@ class TestSnowflakeSqlApiOperator:
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}]
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(create_context(operator))
         assert not mock_defer.called
 
@@ -551,7 +551,7 @@ class TestSnowflakeSqlApiOperator:
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
         """
-        Tests that the execute method raises AirflowException if any query fails during polling
+        Tests that the execute method raises RuntimeError if any query fails during polling
         when ``deferrable=False``
         """
         operator = SnowflakeSqlApiOperator(
@@ -572,7 +572,7 @@ class TestSnowflakeSqlApiOperator:
             {"status": "error"},
         ]
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
 

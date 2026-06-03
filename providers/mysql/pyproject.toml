@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-mysql"
-version = "6.5.3"
+version = "6.6.1"
 description = "Provider package apache-airflow-providers-mysql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -68,7 +68,12 @@ dependencies = [
     'mysqlclient>=2.2.5; sys_platform != "darwin"',
     'mysql-connector-python>=9.1.0; python_version < "3.12"',
     'mysql-connector-python>=9.1.0, !=9.7.0; python_version >= "3.12"',
+    # pymysql 1.2.0 changed ping() to require reconnect as a positional arg;
+    # SQLAlchemy's AsyncAdapt_aiomysql_connection.ping has no default for it — cap
+    # until the SQLAlchemy fix is released. Tracked upstream at
+    # https://github.com/sqlalchemy/sqlalchemy/issues/13306
     "aiomysql>=0.2.0",
+    "pymysql>=1.0.3,<1.2",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -134,8 +139,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.6.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.6.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

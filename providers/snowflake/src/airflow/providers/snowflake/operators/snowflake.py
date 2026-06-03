@@ -23,7 +23,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -352,6 +352,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+    :param timeout: (Optional) Timeout in seconds for statement execution.
+            If not set, the timeout specified by STATEMENT_TIMEOUT_IN_SECONDS is used.
+            To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
@@ -379,6 +382,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
+        timeout: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         snowflake_api_retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -389,6 +393,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
+        self.timeout = timeout
         self.execute_async = False
         self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
@@ -425,9 +430,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         """
         self.log.info("Executing: %s", self.sql)
         self.query_ids = self._hook.execute_query(
-            self.sql,
-            statement_count=self.statement_count,
-            bindings=self.bindings,
+            self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
         self.log.info("List of query ids %s", self.query_ids)
 
@@ -443,7 +446,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             if statement_status.get("status") == "success":
                 succeeded_query_ids.append(query_id)
             else:
-                raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
+                raise RuntimeError(f"{statement_status.get('status')}: {statement_status.get('message')}")
 
         if len(self.query_ids) == len(succeeded_query_ids):
             self.log.info("%s completed successfully.", self.task_id)
@@ -465,7 +468,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             while True:
                 statement_status = self.poll_on_queries()
                 if statement_status["error"]:
-                    raise AirflowException(statement_status["error"])
+                    raise RuntimeError(str(statement_status["error"]))
                 if not statement_status["running"]:
                     break
 
@@ -509,7 +512,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         if event:
             if "status" in event and event["status"] == "error":
                 msg = f"{event['status']}: {event['message']}"
-                raise AirflowException(msg)
+                raise RuntimeError(msg)
             if "status" in event and event["status"] == "success":
                 self.query_ids = cast("list[str]", event["statement_query_ids"])
                 self._hook.check_query_output(self.query_ids)

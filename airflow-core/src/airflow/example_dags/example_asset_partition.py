@@ -25,6 +25,7 @@ from airflow.sdk import (
     Asset,
     CronPartitionTimetable,
     IdentityMapper,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
     StartOfDayMapper,
@@ -41,7 +42,7 @@ combined_player_stats = Asset(uri="file://curated/player-stats/combined.csv", na
 with DAG(
     dag_id="ingest_team_a_player_stats",
     schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
-    tags=["player-stats", "ingestion"],
+    tags=["example", "player-stats", "ingestion"],
 ):
     """Produce hourly partitioned stats for Team A."""
 
@@ -80,7 +81,7 @@ with DAG(
         default_partition_mapper=StartOfHourMapper(),
     ),
     catchup=False,
-    tags=["player-stats", "cleanup"],
+    tags=["example", "player-stats", "cleanup"],
 ):
     """
     Combine hourly partitions from Team A, B and C into a single curated dataset.
@@ -127,7 +128,7 @@ with DAG(
         },
     ),
     catchup=False,
-    tags=["player-stats", "odds"],
+    tags=["example", "player-stats", "odds"],
 ):
     """
     Demonstrate a partition mapper mismatch scenario.
@@ -148,7 +149,7 @@ regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_
 with DAG(
     dag_id="ingest_regional_sales",
     schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
-    tags=["sales", "ingestion"],
+    tags=["example", "sales", "ingestion"],
 ):
     """Produce hourly regional sales data with composite partition keys."""
 
@@ -167,7 +168,7 @@ with DAG(
         default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
     ),
     catchup=False,
-    tags=["sales", "aggregation"],
+    tags=["example", "sales", "aggregation"],
 ):
     """
     Aggregate regional sales using ProductMapper.
@@ -193,7 +194,7 @@ region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name=
 with DAG(
     dag_id="ingest_region_stats",
     schedule=None,
-    tags=["player-stats", "regional"],
+    tags=["example", "player-stats", "regional"],
 ):
     """
     Ingest player statistics per region.
@@ -225,3 +226,55 @@ def regional_stats_breakdown():
     keys belong to a fixed set of allowed values (``us``, ``eu``, ``apac``) rather than time-based partitions.
     """
     pass
+
+
+@asset(
+    uri="file://incoming/player-stats/live-region.csv",
+    schedule=PartitionAtRuntime(),
+    tags=["player-stats", "runtime"],
+)
+def live_region_player_stats(self, outlet_events):
+    """
+    Produce a single region partition whose key is decided at runtime.
+
+    This asset demonstrates PartitionAtRuntime, which records the partition key on the
+    emitted event with ``add_partitions`` while the task runs rather than from a timetable.
+    """
+    outlet_events[self].add_partitions("us")
+
+
+with DAG(
+    dag_id="summarize_live_region_stats",
+    schedule=PartitionedAssetTimetable(assets=Asset.ref(name="live_region_player_stats")),
+    catchup=False,
+    tags=["example", "player-stats", "runtime"],
+):
+    """
+    Summarize the live region statistics for each runtime-emitted partition.
+
+    Triggered once per partition key recorded upstream at runtime.
+    """
+
+    @task
+    def summarize_live_region(dag_run=None):
+        """Summarize stats for the matched runtime partition."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    summarize_live_region()
+
+
+@asset(
+    uri="file://incoming/player-stats/multi-region.csv",
+    schedule=PartitionAtRuntime(),
+    tags=["player-stats", "runtime"],
+)
+def multi_region_player_stats(self, outlet_events):
+    """
+    Produce several region partitions from a single run.
+
+    This asset demonstrates runtime fan-out, where each key emits its own asset event
+    and duplicate keys collapse to a single event.
+    """
+    outlet_events[self].add_partitions(["us", "eu", "apac"])

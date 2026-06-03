@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack, Link } from "@chakra-ui/react";
+import { Box, Text, HStack } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
 import { PiRectangleDashed } from "react-icons/pi";
-import { Link as RouterLink } from "react-router-dom";
+
+import { RouterLink } from "src/components/ui";
 
 import Time from "../Time";
 import type { AssetSummary, NextRunEvent } from "./types";
@@ -47,9 +48,9 @@ export const AssetNode = ({
       {"alias" in asset ? (
         <Text fontSize="sm">{asset.alias.name}</Text>
       ) : (
-        <Link asChild color="fg.info" display="block" py={2}>
-          <RouterLink to={`/assets/${asset.asset.id}`}>{asset.asset.name}</RouterLink>
-        </Link>
+        <RouterLink display="block" py={2} to={`/assets/${asset.asset.id}`}>
+          {asset.asset.name}
+        </RouterLink>
       )}
     </HStack>
     {event?.lastUpdate === undefined ? undefined : (

@@ -1026,6 +1026,7 @@ class TestWorker:
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
         assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
+        assert "socket.gethostname()" in livenessprobe_cmd[-1]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -2981,6 +2982,24 @@ class TestWorkerKubernetesServiceAccount:
         )
 
         assert len(docs) == 1
+
+    def test_should_not_create_legacy_service_account_when_k8s_service_account_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "kubernetes": {
+                        "serviceAccount": {
+                            "create": False,
+                            "name": "airflow",
+                        }
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
 
     @pytest.mark.parametrize(
         "executor",

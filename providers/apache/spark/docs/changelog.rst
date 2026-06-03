@@ -29,6 +29,38 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ResumableJobMixin' with 'SparkSubmitOperator' as a case study for surviving worker failures (standalone) (#67118)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+* ``Document REST scheme and port connection fields for Spark (#67682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename task_state/asset_state to task_store/asset_store across the codebase (#67833)``
+
+
+6.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SparkPipelinesHook for Spark Connect (sc://) connections (#66498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 6.0.1
 .....
 

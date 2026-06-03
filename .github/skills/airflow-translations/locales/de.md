@@ -74,6 +74,7 @@ that **must be used consistently**:
 | Dag Processor         | Dag Prozessor                         |                                                |
 | Heartbeat             | Lebenszeichen                         | e.g., "Letztes Lebenszeichen"                  |
 | Upstream / Downstream | Vorgelagert / Nachgelagert            |                                                |
+| Deadline              | Frist                                 |                                                |
 
 ## 3. Task/Run States
 

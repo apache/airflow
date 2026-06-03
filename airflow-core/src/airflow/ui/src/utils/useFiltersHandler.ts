@@ -83,6 +83,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
+  | SearchParamsKeys.RENDERED_MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE

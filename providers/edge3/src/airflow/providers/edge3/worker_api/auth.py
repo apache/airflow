@@ -32,7 +32,6 @@ from jwt import (
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.providers.common.compat.sdk import conf
-from airflow.providers.edge3.worker_api.datamodels import JsonRpcRequestBase  # noqa: TCH001
 
 log = logging.getLogger(__name__)
 
@@ -91,13 +90,6 @@ def jwt_token_authorization(method: str, authorization: str):
         )
     except Exception:
         _forbidden_response("Unable to authenticate API via token.")
-
-
-def jwt_token_authorization_rpc(
-    body: JsonRpcRequestBase, authorization: str = Header(description="JWT Authorization Token")
-):
-    """Check if the JWT token is correct for JSON PRC requests."""
-    jwt_token_authorization(body.method, authorization)
 
 
 def jwt_token_authorization_rest(

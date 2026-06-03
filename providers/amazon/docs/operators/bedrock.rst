@@ -382,6 +382,21 @@ To delete an Amazon Bedrock guardrail, use
     :end-before: [END howto_operator_bedrock_delete_guardrail]
 
 
+
+.. _howto/operator:BedrockCreateEvaluationJobOperator:
+
+Create an Evaluation Job
+------------------------
+
+To create an Amazon Bedrock model evaluation job, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateEvaluationJobOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_evaluation.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_evaluation_job]
+    :end-before: [END howto_operator_bedrock_create_evaluation_job]
+
 Reference
 ---------
 

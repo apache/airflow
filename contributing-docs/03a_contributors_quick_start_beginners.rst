@@ -26,7 +26,7 @@ Your First Airflow Pull Request — 15-Minute Guide
 Purpose
 -------
 This page walks **new contributors** through opening their first
-Apache Airflow pull request (PR) in about five minutes.  We present *one*
+Apache Airflow pull request (PR) in about 15 minutes.  We present *one*
 local option (Breeze) and *one* fully-hosted option (GitHub Codespaces).
 Everything else lives in the advanced guides.
 
@@ -198,6 +198,14 @@ Review & Merge
 --------------
 Respond to reviewer comments, push updates (same commands as above).  Once
 CI is green and reviews are ✅, a committer will merge.  🎉
+
+Example Dag Review Checklist
+----------------------------
+
+To help maintain consistency and quality across example Dags,
+please refer to the example Dag review checklist:
+
+:doc:`28_example_dag_review_checklist`
 
 Next Steps
 ----------

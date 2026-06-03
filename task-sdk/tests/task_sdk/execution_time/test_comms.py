@@ -32,6 +32,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     StartupDetails,
     VariableResult,
+    _RequestFrame,
     _ResponseFrame,
 )
 
@@ -86,6 +87,9 @@ class TestCommsDecoder:
                 "run_id": "b",
                 "dag_id": "c",
                 "dag_version_id": uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                "pool_slots": 1,
+                "queue": "default",
+                "priority_weight": 1,
             },
             "ti_context": {
                 "dag_run": {
@@ -162,10 +166,8 @@ class TestCommsDecoder:
         num_threads = 5
         results = [None] * num_threads
         errors = [None] * num_threads
-        request_sent = [threading.Event() for _ in range(num_threads)]
 
         def send_and_store(idx):
-            request_sent[idx].set()  # Signal that this thread is about to send
             try:
                 msg = VariableResult(key=f"key{idx}", value=f"value{idx}", type="VariableResult")
                 results[idx] = decoder.send(msg)
@@ -176,12 +178,25 @@ class TestCommsDecoder:
         for t in threads:
             t.start()
 
-        # For each thread, wait until it signals it's ready, then send the response
-        for idx in range(num_threads):
-            request_sent[idx].wait()
-            resp = {"type": "VariableResult", "key": f"key{idx}", "value": f"value{idx}"}
-            frame = _ResponseFrame(idx, resp, None)
-            data = msgspec.msgpack.encode(frame)
+        def _recv_exactly(sock, n):
+            buffer = bytearray()
+            while len(buffer) < n:
+                chunk = sock.recv(n - len(buffer))
+                if not chunk:
+                    raise EOFError("socket closed before a full frame was received")
+                buffer.extend(chunk)
+            return bytes(buffer)
+
+        # The order in which the concurrent ``send`` calls reach the socket is not
+        # deterministic, so the parent must not assume requests arrive in thread-index
+        # order. Read each request as it arrives and echo a response built from that
+        # request's own body, so every thread reliably gets the response to its own
+        # message regardless of thread scheduling.
+        for _ in range(num_threads):
+            length = int.from_bytes(_recv_exactly(w, 4), byteorder="big")
+            request = msgspec.msgpack.decode(_recv_exactly(w, length), type=_RequestFrame)
+            resp = {"type": "VariableResult", "key": request.body["key"], "value": request.body["value"]}
+            data = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
             w.sendall(len(data).to_bytes(4, byteorder="big") + data)
 
         for t in threads:

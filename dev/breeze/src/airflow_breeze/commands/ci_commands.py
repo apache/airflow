@@ -58,6 +58,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -778,16 +779,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    # Resolve GitHub token: prefer --github-token / GITHUB_TOKEN env var, fall back to gh CLI
-    if not github_token:
-        gh_token_result = run_command(
-            ["gh", "auth", "token"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
-            github_token = gh_token_result.stdout.strip()
+    github_token = retrieve_github_token(github_token)
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -797,7 +789,7 @@ def upgrade(
         console_print("[success]GitHub token set in environment.[/]")
     else:
         console_print(
-            "[warning]Could not retrieve GitHub token from --github-token or gh CLI. "
+            "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
             "Commands may fail if they require authentication.[/]"
         )
 
@@ -1292,6 +1284,40 @@ def set_milestone(
     except Exception as e:
         console_print(f"[error]Failed to check existing milestone: {e}[/]")
         return
+
+    # Re-read labels from the freshly-fetched issue to close the race between
+    # the workflow's initial label snapshot (taken by the get-pr-info job a
+    # couple of minutes ago) and the actual milestone-set step. Maintainers
+    # sometimes add and remove a backport label inside that window; honour
+    # the latest state, not the stale snapshot.
+    try:
+        current_labels = [label.name for label in issue.labels]
+    except Exception as e:
+        console_print(f"[warning]Could not re-read PR labels; falling back to snapshot decision: {e}[/]")
+        current_labels = labels
+
+    if set(current_labels) != set(labels):
+        console_print("[info]Labels changed since workflow snapshot; re-evaluating.[/]")
+        console_print(f"[info]Snapshot labels: {sorted(labels)}[/]")
+        console_print(f"[info]Current labels:  {sorted(current_labels)}[/]")
+
+        if _should_skip_milestone_tagging(current_labels):
+            console_print(
+                f"[info]Skipping milestone tagging - PR now has skip label(s): "
+                f"{set(current_labels) & MILESTONE_SKIP_LABELS}[/]"
+            )
+            return
+
+        new_version, new_reason = _determine_milestone_version(current_labels, pr_title, base_branch)
+        if (new_version, new_reason) != (version, reason):
+            console_print(
+                f"[info]Determination changed after re-read: was ({version}, {reason!r}); "
+                f"now ({new_version}, {new_reason!r}). Using current labels.[/]"
+            )
+            version, reason = new_version, new_reason
+            if version is None:
+                console_print(f"[info]No milestone to set after re-evaluation: {reason}[/]")
+                return
 
     major, minor = version
     milestone_prefix = _get_milestone_prefix(major, minor)

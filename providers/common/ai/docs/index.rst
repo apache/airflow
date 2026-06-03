@@ -36,10 +36,12 @@
 
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
-    Hooks <hooks/pydantic_ai>
+    Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
+    Retry Policies <retry_policies>
     HITL Review <hitl_review>
+    Observability <observability>
 
 .. toctree::
     :hidden:
@@ -81,7 +83,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.2.0
+Release: 0.4.0
 
 Provider package
 ----------------
@@ -107,7 +109,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.14.1``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=1.34.0``
+``pydantic-ai-slim``                        ``>=1.71.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -128,6 +130,7 @@ Dependent package                                                               
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                      ``git``
 `apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_            ``standard``
 ==================================================================================================================  =================
 
@@ -137,5 +140,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.4.0-py3-none-any.whl.sha512>`__)

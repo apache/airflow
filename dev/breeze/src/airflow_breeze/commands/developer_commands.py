@@ -895,7 +895,7 @@ def build_docs(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         mount_sources=MOUNT_ALL,
     )
-    result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
+    result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
     fix_ownership_using_docker()
     if result.returncode == 0:
         console_print(
@@ -1095,7 +1095,7 @@ def autogenerate(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     )
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
-    execute_command_in_shell(shell_params, project_name="db", command=cmd)
+    execute_command_in_shell(shell_params, project_name="breeze-db", command=cmd)
     fix_ownership_using_docker()
 
 
@@ -1231,7 +1231,7 @@ def run(
     from airflow_breeze.utils.platforms import get_normalized_platform
 
     # Generate a unique project name to avoid conflicts with other running instances
-    unique_project_name = f"{project_name}-run-{uuid.uuid4().hex[:8]}"
+    unique_project_name = f"breeze-{project_name}-run-{uuid.uuid4().hex[:8]}"
 
     # Build the full command string with proper escaping
     import shlex

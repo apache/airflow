@@ -39,6 +39,7 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
+    from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
@@ -99,7 +100,10 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     def __register_plugins(plugin_instances: list[AirflowPlugin], errors: dict[str, str]) -> None:
         for plugin_instance in plugin_instances:
             if plugin_instance.name in loaded_plugins:
-                log.warning("Plugin %r already registered, skipping", plugin_instance.name)
+                message = f"Plugin {plugin_instance.name!r} already registered, skipping"
+                log.warning(message)
+                name = str(plugin_instance.source) if plugin_instance.source else plugin_instance.name or ""
+                import_errors[name] = message
                 continue
 
             loaded_plugins.add(plugin_instance.name)
@@ -280,6 +284,18 @@ def get_partition_mapper_plugins() -> dict[str, type[PartitionMapper]]:
         qualname(partition_mapper_cls): partition_mapper_cls
         for plugin in _get_plugins()[0]
         for partition_mapper_cls in plugin.partition_mappers
+    }
+
+
+@cache
+def get_deadline_references_plugins() -> dict[str, type[DeadlineReferenceType]]:
+    """Collect and get deadline reference classes registered by plugins."""
+    log.debug("Initialize extra deadline reference plugins")
+
+    return {
+        qualname(deadline_ref_cls): deadline_ref_cls
+        for plugin in _get_plugins()[0]
+        for deadline_ref_cls in plugin.deadline_references
     }
 
 

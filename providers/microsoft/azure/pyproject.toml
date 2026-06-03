@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.2.0"
+version = "13.4.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -79,9 +79,8 @@ dependencies = [
     "azure-synapse-spark>=0.2.0",
     "azure-synapse-artifacts>=0.17.0",
     "azure-storage-file-datalake>=12.9.1",
-    # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
     # azure-kusto-data 5.0.0 pins requests to a specific version which makes resolving dependencies harder
-    "azure-kusto-data>=4.1.0,!=4.6.0,!=5.0.0",
+    "azure-kusto-data>=4.1.0,!=5.0.0",
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-compute>=33.0.0",
@@ -156,8 +155,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.2.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.2.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.4.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.4.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

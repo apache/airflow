@@ -49,6 +49,7 @@ from airflow.sdk.definitions.asset import (
     AssetAny as AssetAny,
     AssetWatcher as AssetWatcher,
 )
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.connection import Connection as Connection
@@ -86,6 +87,7 @@ from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetOrTimeSchedule,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -111,6 +113,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -145,6 +148,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "PartitionAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",

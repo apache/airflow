@@ -381,6 +381,60 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
+export const $AssetStoreBody = {
+    properties: {
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'AssetStoreBody',
+    description: 'Request body for setting an asset store value.'
+} as const;
+
+export const $AssetStoreCollectionResponse = {
+    properties: {
+        asset_store: {
+            items: {
+                '$ref': '#/components/schemas/AssetStoreResponse'
+            },
+            type: 'array',
+            title: 'Asset Store'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['asset_store', 'total_entries'],
+    title: 'AssetStoreCollectionResponse',
+    description: 'All asset store entries for an asset.'
+} as const;
+
+export const $AssetStoreResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at'],
+    title: 'AssetStoreResponse',
+    description: 'A single asset store key/value pair with metadata.'
+} as const;
+
 export const $AssetWatcherResponse = {
     properties: {
         name: {
@@ -466,9 +520,16 @@ export const $BackfillPostBody = {
             default: 10
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            default: true
+            description: 'Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).'
         }
     },
     additionalProperties: false,
@@ -620,6 +681,32 @@ The response includes a list of successful keys and any errors encountered durin
 This structure helps users understand which key actions succeeded and which failed.`
 } as const;
 
+export const $BulkBody_BulkDAGRunBody_ = {
+    properties: {
+        actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/BulkCreateAction_BulkDAGRunBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkUpdateAction_BulkDAGRunBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteAction_BulkDAGRunBody_'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Actions'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['actions'],
+    title: 'BulkBody[BulkDAGRunBody]'
+} as const;
+
 export const $BulkBody_BulkTaskInstanceBody_ = {
     properties: {
         actions: {
@@ -722,6 +809,33 @@ export const $BulkBody_VariableBody_ = {
     type: 'object',
     required: ['actions'],
     title: 'BulkBody[VariableBody]'
+} as const;
+
+export const $BulkCreateAction_BulkDAGRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'create',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGRunBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be created.'
+        },
+        action_on_existence: {
+            '$ref': '#/components/schemas/BulkActionOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkCreateAction[BulkDAGRunBody]'
 } as const;
 
 export const $BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -830,6 +944,123 @@ export const $BulkCreateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkCreateAction[VariableBody]'
+} as const;
+
+export const $BulkDAGRunBody = {
+    properties: {
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_run_id'],
+    title: 'BulkDAGRunBody',
+    description: 'Request body for bulk delete operations on Dag Runs.'
+} as const;
+
+export const $BulkDAGRunClearBody = {
+    properties: {
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            default: true
+        },
+        only_failed: {
+            type: 'boolean',
+            title: 'Only Failed',
+            default: false
+        },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest Dag version without clearing existing tasks.',
+            default: false
+        },
+        run_on_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGRunBody'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Dag Runs'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_runs'],
+    title: 'BulkDAGRunClearBody',
+    description: 'Request body for the bulk clear Dag Runs endpoint.'
+} as const;
+
+export const $BulkDeleteAction_BulkDAGRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDAGRunBody'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entity id/key or entity objects to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteAction[BulkDAGRunBody]'
 } as const;
 
 export const $BulkDeleteAction_BulkTaskInstanceBody_ = {
@@ -1100,6 +1331,48 @@ export const $BulkTaskInstanceBody = {
     required: ['task_id'],
     title: 'BulkTaskInstanceBody',
     description: 'Request body for bulk update, and delete task instances.'
+} as const;
+
+export const $BulkUpdateAction_BulkDAGRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'update',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGRunBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkUpdateAction[BulkDAGRunBody]'
 } as const;
 
 export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
@@ -1407,10 +1680,16 @@ export const $ClearTaskInstancesBody = {
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
         },
         prevent_running_task: {
             type: 'boolean',
@@ -2183,6 +2462,17 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Default Args'
         },
+        rerun_with_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Rerun With Latest Version'
+        },
         owner_links: {
             anyOf: [
                 {
@@ -2533,10 +2823,28 @@ export const $DAGRunClearBody = {
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -2609,7 +2917,7 @@ export const $DAGRunPatchBody = {
         state: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/DAGRunPatchStates'
+                    '$ref': '#/components/schemas/DagRunMutableStates'
                 },
                 {
                     type: 'null'
@@ -2633,13 +2941,6 @@ export const $DAGRunPatchBody = {
     type: 'object',
     title: 'DAGRunPatchBody',
     description: 'Dag Run Serializer for PATCH requests.'
-} as const;
-
-export const $DAGRunPatchStates = {
-    type: 'string',
-    enum: ['queued', 'success', 'failed'],
-    title: 'DAGRunPatchStates',
-    description: 'Enum for Dag Run states when updating a Dag Run.'
 } as const;
 
 export const $DAGRunResponse = {
@@ -3401,6 +3702,13 @@ export const $DagRunAssetReference = {
     description: 'DagRun serializer for asset responses.'
 } as const;
 
+export const $DagRunMutableStates = {
+    type: 'string',
+    enum: ['queued', 'success', 'failed'],
+    title: 'DagRunMutableStates',
+    description: 'Dag Run states from which the run may be mutated (patched, deleted).'
+} as const;
+
 export const $DagRunState = {
     type: 'string',
     enum: ['queued', 'running', 'success', 'failed'],
@@ -3884,6 +4192,18 @@ export const $ExternalViewResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         href: {
             type: 'string',
@@ -5253,6 +5573,18 @@ export const $ReactAppResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         bundle_url: {
             type: 'string',
@@ -6738,6 +7070,108 @@ export const $TaskResponse = {
     description: 'Task serializer for responses.'
 } as const;
 
+export const $TaskStoreBody = {
+    properties: {
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    const: 'default'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            default: 'default'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStoreBody',
+    description: `Request body for setting a task store value.
+
+\`\`expires_at\`\` controls expiry:
+
+- \`\`"default"\`\`: apply the configured \`\`[state_store] default_retention_days\`\`.
+- \`\`null\`\`: never expire.
+- aware datetime: expire at that time.`
+} as const;
+
+export const $TaskStoreCollectionResponse = {
+    properties: {
+        task_store: {
+            items: {
+                '$ref': '#/components/schemas/TaskStoreResponse'
+            },
+            type: 'array',
+            title: 'Task Store'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_store', 'total_entries'],
+    title: 'TaskStoreCollectionResponse',
+    description: 'All task store entries for a task instance.'
+} as const;
+
+export const $TaskStorePatchBody = {
+    properties: {
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStorePatchBody',
+    description: 'Request body for patching only the value of an existing task store key.'
+} as const;
+
+export const $TaskStoreResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at', 'expires_at'],
+    title: 'TaskStoreResponse',
+    description: 'A single task store key/value pair with metadata.'
+} as const;
+
 export const $TimeDelta = {
     properties: {
         __type: {
@@ -7073,7 +7507,14 @@ export const $VariableResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Value'
         },
         description: {
@@ -7104,7 +7545,7 @@ export const $VariableResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
+    required: ['key', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -7575,6 +8016,17 @@ export const $ConfigResponse = {
         multi_team: {
             type: 'boolean',
             title: 'Multi Team'
+        },
+        rerun_with_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Rerun With Latest Version'
         }
     },
     type: 'object',
@@ -8097,6 +8549,25 @@ export const $DAGWithLatestDagRunsResponse = {
     description: 'DAG with latest dag runs response serializer.'
 } as const;
 
+export const $DagRunStatsResponse = {
+    properties: {
+        duration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DurationStats'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['duration'],
+    title: 'DagRunStatsResponse',
+    description: 'DAG Run statistics serializer for responses.'
+} as const;
+
 export const $DashboardDagStatsResponse = {
     properties: {
         active_dag_count: {
@@ -8258,6 +8729,46 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
+} as const;
+
+export const $DurationStats = {
+    properties: {
+        mean: {
+            type: 'number',
+            title: 'Mean'
+        },
+        mode: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Mode'
+        },
+        p50: {
+            type: 'number',
+            title: 'P50'
+        },
+        p90: {
+            type: 'number',
+            title: 'P90'
+        },
+        p95: {
+            type: 'number',
+            title: 'P95'
+        },
+        p99: {
+            type: 'number',
+            title: 'P99'
+        }
+    },
+    type: 'object',
+    required: ['mean', 'mode', 'p50', 'p90', 'p95', 'p99'],
+    title: 'DurationStats',
+    description: 'Duration statistics for a DAG across historical runs.'
 } as const;
 
 export const $EdgeResponse = {
@@ -8518,6 +9029,17 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Setup Teardown Type'
+        },
+        doc_md: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Doc Md'
         }
     },
     type: 'object',

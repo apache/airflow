@@ -66,7 +66,6 @@ const getColumns = ({
         <Checkbox
           borderWidth={1}
           checked={selectedRows.get(row.original.key)}
-          colorPalette="brand"
           onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
         />
       ),
@@ -76,7 +75,6 @@ const getColumns = ({
         <Checkbox
           borderWidth={1}
           checked={allRowsSelected}
-          colorPalette="brand"
           onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
         />
       ),
@@ -94,9 +92,9 @@ const getColumns = ({
       cell: ({ row }) => (
         <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
           <TrimText
-            charLimit={open ? row.original.value.length : undefined}
+            charLimit={open ? (row.original.value?.length ?? 0) : undefined}
             showTooltip
-            text={row.original.value}
+            text={row.original.value ?? null}
           />
         </Box>
       ),

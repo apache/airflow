@@ -1,0 +1,6 @@
+# .apache-steward.lock — committed; the project's pin.
+# Edited only by /setup-steward; do not modify by hand.
+
+method: git-branch
+url:    https://github.com/apache/airflow-steward.git
+ref:    main

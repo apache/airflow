@@ -109,14 +109,14 @@ class ConfiguredSentry(NoopSentry):
     def add_tagging(self, dag_run: DagRunProtocol, task_instance: RuntimeTaskInstanceProtocol) -> None:
         """Add tagging for a task_instance."""
         task = task_instance.task
-        with sentry_sdk.configure_scope() as scope:
-            for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
-                attribute = getattr(task_instance, tag_name)
-                scope.set_tag(tag_name, attribute)
-            for tag_name in self.SCOPE_DAG_RUN_TAGS:
-                attribute = getattr(dag_run, tag_name)
-                scope.set_tag(tag_name, attribute)
-            scope.set_tag("operator", task.__class__.__name__)
+        scope = sentry_sdk.get_current_scope()
+        for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
+            attribute = getattr(task_instance, tag_name)
+            scope.set_tag(tag_name, attribute)
+        for tag_name in self.SCOPE_DAG_RUN_TAGS:
+            attribute = getattr(dag_run, tag_name)
+            scope.set_tag(tag_name, attribute)
+        scope.set_tag("operator", task.__class__.__name__)
 
     def add_breadcrumbs(self, task_instance: RuntimeTaskInstanceProtocol) -> None:
         """Add breadcrumbs inside of a task_instance."""
@@ -140,7 +140,7 @@ class ConfiguredSentry(NoopSentry):
         @functools.wraps(run)
         def wrapped_run(ti: RuntimeTaskInstance, context: Context, log: Logger) -> RunReturn:
             self.prepare_to_enrich_errors(ti.sentry_integration)
-            with sentry_sdk.push_scope():
+            with sentry_sdk.new_scope():
                 try:
                     self.add_tagging(context["dag_run"], ti)
                     self.add_breadcrumbs(ti)

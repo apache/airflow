@@ -22,6 +22,7 @@ import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
@@ -143,7 +144,7 @@ class SerializedParamsDict(collections.abc.Mapping[str, Any]):
             try:
                 return v.resolve(raises=True)
             except Exception as e:
-                raise ValueError(f"Invalid input for param {k}: {e}") from None
+                raise ParamValidationError(f"Invalid input for param {k}: {e}") from None
 
         return {k: _validate_one(k, v) for k, v in self.__dict.items()}
 

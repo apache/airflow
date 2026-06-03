@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Corps",
+    "createdAt": "Créé le",
     "response": {
       "all": "Tous",
       "pending": "En attente",
@@ -14,11 +16,13 @@
   "requiredActionCount_other": "Actions requises ({{count}})",
   "requiredActionState": "État de l'action requise",
   "response": {
+    "created": "Réponse créée le ",
     "error": "Échec de la réponse",
     "optionsDescription": "Choisissez vos options pour cette instance de tâche",
     "optionsLabel": "Options",
     "received": "Réponse reçue à ",
     "respond": "Répondre",
+    "responded_by_user_name": "Répondu par (nom d'utilisateur)",
     "success": "Réponse pour {{taskId}} réussie",
     "title": "Instance de tâche humaine - {{taskId}}"
   },

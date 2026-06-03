@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -38,7 +40,16 @@ from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
-CallbackKey = str  # Callback keys are str(UUID)
+
+@dataclass(frozen=True, slots=True)
+class CallbackKey:
+    """Distinct key type for callbacks, preventing any bare string from passing isinstance checks."""
+
+    id: str
+
+    def __str__(self) -> str:
+        return self.id
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -150,6 +161,19 @@ class Callback(Base, BaseWorkload):
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
             tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+
+        # Metric backends (statsd, OpenTelemetry) require tag values to be primitives.
+        # OTel's aggregation key is built via ``frozenset(attributes.items())``, which
+        # raises ``TypeError: unhashable type: 'dict'`` if a value is a dict/list. The
+        # callback's ``result`` (passed in from a user callback) and ``kwargs`` are both
+        # frequently dicts, so coerce any non-primitive tag value to a JSON string before
+        # returning. Using ``default=str`` so values like ``datetime`` fall back cleanly.
+        tags = {
+            k: v
+            if isinstance(v, (str, int, float, bool)) or v is None
+            else json.dumps(v, default=str, sort_keys=True)
+            for k, v in tags.items()
+        }
 
         prefix = self.data.get("prefix", "")
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"

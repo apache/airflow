@@ -629,7 +629,7 @@ class TestGetHITLDetailsEndpoint:
                     "multiple": False,
                     "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
                     "assigned_users": [],
-                    "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT),
                     "responded_by_user": None,
                     "responded_at": None,
                     "chosen_options": None,

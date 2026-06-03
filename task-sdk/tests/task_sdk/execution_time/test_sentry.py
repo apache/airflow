@@ -121,7 +121,7 @@ class TestSentryHook:
         sentry_sdk = types.ModuleType("sentry_sdk")
         sentry_sdk.init = mock.MagicMock()
         sentry_sdk.integrations = mock.Mock(logging=sentry_sdk_integrations_logging)
-        sentry_sdk.configure_scope = mock.MagicMock()
+        sentry_sdk.get_current_scope = mock.MagicMock()
         sentry_sdk.add_breadcrumb = mock.MagicMock()
 
         sys.modules["sentry_sdk"] = sentry_sdk
@@ -135,7 +135,7 @@ class TestSentryHook:
         yield
         mock_sentry_sdk.integrations.logging.ignore_logger.reset_mock()
         mock_sentry_sdk.init.reset_mock()
-        mock_sentry_sdk.configure_scope.reset_mock()
+        mock_sentry_sdk.get_current_scope.reset_mock()
         mock_sentry_sdk.add_breadcrumb.reset_mock()
 
     @pytest.fixture
@@ -215,17 +215,15 @@ class TestSentryHook:
         Test adding tags.
         """
         sentry.add_tagging(dag_run=dag_run, task_instance=task_instance)
-        assert mock_sentry_sdk.configure_scope.mock_calls == [
+        assert mock_sentry_sdk.get_current_scope.mock_calls == [
             mock.call.__call__(),
-            mock.call.__call__().__enter__(),
-            mock.call.__call__().__enter__().set_tag("task_id", TASK_ID),
-            mock.call.__call__().__enter__().set_tag("dag_id", DAG_ID),
-            mock.call.__call__().__enter__().set_tag("try_number", TRY_NUMBER),
-            mock.call.__call__().__enter__().set_tag("data_interval_start", DATA_INTERVAL[0]),
-            mock.call.__call__().__enter__().set_tag("data_interval_end", DATA_INTERVAL[1]),
-            mock.call.__call__().__enter__().set_tag("logical_date", LOGICAL_DATE),
-            mock.call.__call__().__enter__().set_tag("operator", OPERATOR),
-            mock.call.__call__().__exit__(None, None, None),
+            mock.call.__call__().set_tag("task_id", TASK_ID),
+            mock.call.__call__().set_tag("dag_id", DAG_ID),
+            mock.call.__call__().set_tag("try_number", TRY_NUMBER),
+            mock.call.__call__().set_tag("data_interval_start", DATA_INTERVAL[0]),
+            mock.call.__call__().set_tag("data_interval_end", DATA_INTERVAL[1]),
+            mock.call.__call__().set_tag("logical_date", LOGICAL_DATE),
+            mock.call.__call__().set_tag("operator", OPERATOR),
         ]
 
     def test_add_breadcrumbs(self, mock_supervisor_comms, mock_sentry_sdk, sentry, task_instance):

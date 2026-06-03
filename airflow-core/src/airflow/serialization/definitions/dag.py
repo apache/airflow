@@ -41,6 +41,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -103,6 +104,7 @@ class SerializedDAG:
     allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
+    rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -152,6 +154,7 @@ class SerializedDAG:
                 "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
+                "rerun_with_latest_version",
                 "doc_md",
                 "edge_info",
                 "end_date",
@@ -180,6 +183,7 @@ class SerializedDAG:
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -479,7 +483,7 @@ class SerializedDAG:
             )
 
     @provide_session
-    def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
+    def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         from airflow.models.taskinstance import TaskInstance
 
@@ -651,10 +655,15 @@ class SerializedDAG:
                 }
             )
 
+            interval = deserialized_deadline_alert.interval
+
+            if isinstance(interval, VariableInterval):
+                interval = interval.resolve()
+
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
-                    interval=deserialized_deadline_alert.interval,
+                    interval=interval,
                     # TODO : Pretty sure we can drop these last two; verify after testing is complete
                     dag_id=self.dag_id,
                     run_id=orm_dagrun.run_id,

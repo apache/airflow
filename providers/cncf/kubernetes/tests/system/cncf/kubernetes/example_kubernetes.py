@@ -149,7 +149,7 @@ with DAG(
     # [START howto_operator_k8s_write_xcom]
     write_xcom = KubernetesPodOperator(
         namespace="default",
-        image="alpine:3.23",
+        image="alpine:3.23.4",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,

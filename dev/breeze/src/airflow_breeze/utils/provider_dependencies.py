@@ -39,7 +39,12 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions, get_tag_date
+from airflow_breeze.utils.github import (
+    download_constraints_file,
+    get_active_airflow_versions,
+    get_tag_date,
+    retrieve_github_token,
+)
 from airflow_breeze.utils.packages import get_provider_distributions_metadata
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
@@ -48,7 +53,6 @@ from airflow_breeze.utils.path_utils import (
     PROVIDER_DEPENDENCIES_JSON_HASH_PATH,
     PROVIDER_DEPENDENCIES_JSON_PATH,
 )
-from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
 _regenerate_provider_deps_lock = Lock()
@@ -248,12 +252,9 @@ def get_all_constraint_files_and_airflow_releases(
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     if not CONSTRAINTS_CACHE_PATH.exists():
         if not github_token:
-            gh_auth_command = run_command(
-                ["gh", "auth", "token"], check=False, capture_output=True, text=True
-            )
-            if gh_auth_command.returncode == 0:
-                console_print("\n[info]Retrieved GitHub token from gh auth token command[/]\n")
-                github_token = gh_auth_command.stdout.strip()
+            github_token = retrieve_github_token()
+            if github_token:
+                console_print("\n[info]Resolved GitHub token for constraints refresh[/]\n")
             else:
                 console_print(
                     "[error]You need to provide GITHUB_TOKEN to generate providers metadata.[/]\n\n"

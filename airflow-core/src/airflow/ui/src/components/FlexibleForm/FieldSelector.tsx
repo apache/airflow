@@ -25,6 +25,7 @@ import { FieldBool } from "./FieldBool";
 import { FieldDateTime } from "./FieldDateTime";
 import { FieldDropdown } from "./FieldDropdown";
 import { FieldMultiSelect } from "./FieldMultiSelect";
+import { FieldMultiType } from "./FieldMultiType";
 import { FieldMultilineText } from "./FieldMultilineText";
 import { FieldNumber } from "./FieldNumber";
 import { FieldObject } from "./FieldObject";
@@ -88,6 +89,12 @@ const isFieldObject = (fieldType: string) => fieldType === "object";
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
 
+const isFieldMultiType = (fieldSchema: ParamSchema) =>
+  Array.isArray(fieldSchema.type) &&
+  fieldSchema.type.filter((type) => type !== "null").length > 1 &&
+  !Array.isArray(fieldSchema.enum) &&
+  !Array.isArray(fieldSchema.examples);
+
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "time";
 
@@ -104,6 +111,12 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     ...initialParam,
     value: currentParam?.value ?? initialParam.value,
   };
+
+  // Check for multiple non-null types before inferring a single type —
+  // inferType picks only the first, discarding the others.
+  if (isFieldMultiType(param.schema)) {
+    return <FieldMultiType name={name} namespace={namespace} onUpdate={onUpdate} />;
+  }
 
   const fieldType = inferType(param);
 

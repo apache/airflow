@@ -427,7 +427,7 @@ class TestLocalExecutorCallbackSupport:
         executor.start()
 
         try:
-            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor.queued_callbacks[callback_workload.key] = callback_workload
             executor._process_workloads([callback_workload])
             assert len(executor.queued_callbacks) == 0
             # We can't easily verify worker execution without running the worker,

@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
 
 
 class DummyOperator(BaseOperator):
@@ -138,3 +138,97 @@ def test_render_template_fields_empty_when_no_trigger_kwargs(create_task_instanc
     # Rendering with empty template_fields is a no-op
     trigger.render_template_fields(context={"name": "world"})
     assert trigger.name == "Hello {{ name }}"
+
+
+class _PlainEventTrigger(BaseEventTrigger):
+    """A BaseEventTrigger that does not opt into shared streams."""
+
+    def __init__(self, name: str = "plain"):
+        super().__init__()
+        self.name = name
+
+    def serialize(self):
+        return (f"{type(self).__module__}.{type(self).__qualname__}", {"name": self.name})
+
+    async def run(self):
+        yield TriggerEvent({"name": self.name})
+
+
+class _SharedQueueTrigger(BaseEventTrigger):
+    """A BaseEventTrigger that opts into shared streams."""
+
+    def __init__(self, queue_url: str, region: str | None = None):
+        super().__init__()
+        self.queue_url = queue_url
+        self.region = region
+
+    def serialize(self):
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {"queue_url": self.queue_url, "region": self.region},
+        )
+
+    def shared_stream_key(self):
+        return ("shared-queue", self.queue_url)
+
+    @classmethod
+    async def open_shared_stream(cls, kwargs):
+        for region in ("us", "eu", "us"):
+            yield {"queue_url": kwargs["queue_url"], "region": region}
+
+    async def filter_shared_stream(self, shared_stream):
+        async for raw in shared_stream:
+            if self.region is None or raw["region"] == self.region:
+                yield TriggerEvent(raw)
+
+    async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+        yield TriggerEvent({})
+
+
+def test_base_event_trigger_defaults_no_sharing():
+    trigger = _PlainEventTrigger()
+    assert trigger.shared_stream_key() is None
+
+
+async def _drain_async_iter(it):
+    async for _ in it:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_base_event_trigger_default_open_shared_stream_raises():
+    with pytest.raises(NotImplementedError, match="open_shared_stream"):
+        await _drain_async_iter(_PlainEventTrigger.open_shared_stream({}))
+
+
+@pytest.mark.asyncio
+async def test_base_event_trigger_default_filter_shared_stream_raises():
+    trigger = _PlainEventTrigger()
+
+    async def empty_stream():
+        if False:
+            yield  # pragma: no cover
+
+    with pytest.raises(NotImplementedError, match="filter_shared_stream"):
+        await _drain_async_iter(trigger.filter_shared_stream(empty_stream()))
+
+
+def test_subclass_can_declare_shared_stream_key():
+    a = _SharedQueueTrigger(queue_url="https://q", region="us")
+    b = _SharedQueueTrigger(queue_url="https://q", region="eu")
+    c = _SharedQueueTrigger(queue_url="https://other", region="us")
+
+    assert a.shared_stream_key() == b.shared_stream_key()
+    assert a.shared_stream_key() != c.shared_stream_key()
+
+
+@pytest.mark.asyncio
+async def test_subclass_filter_shared_stream_applies_per_instance_match():
+    us = _SharedQueueTrigger(queue_url="https://q", region="us")
+
+    async def stream():
+        for region in ("us", "eu", "us"):
+            yield {"queue_url": "https://q", "region": region}
+
+    payloads = [event.payload async for event in us.filter_shared_stream(stream())]
+    assert [p["region"] for p in payloads] == ["us", "us"]

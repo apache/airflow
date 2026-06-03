@@ -28,7 +28,7 @@ import {
 } from "openapi/queries";
 import { createErrorToaster } from "src/utils";
 
-import { gridQueryKeys } from "./gridViewQueryKeys";
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
@@ -65,6 +65,7 @@ export const usePatchTaskInstance = ({
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
+      ...tiPerAttemptQueryKeys,
     ];
 
     if (mapIndex !== undefined) {
