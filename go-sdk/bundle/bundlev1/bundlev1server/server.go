@@ -18,9 +18,7 @@
 package bundlev1server
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -45,12 +43,18 @@ var ErrCoordinatorFlagsIncomplete = errors.New(
 )
 
 // CLI Flags.
-// The --bundle-metadata flag is used for showing the embedded bundle info in airflow-metadata.yaml spec format.
-// The --comm and --logs select the coordinator-mode protocol
-// All three are read by Serve to choose a server mode below.
+// The --airflow-metadata flag prints the bundle's airflow-metadata manifest as
+// JSON (per the executable bundle spec) and exits; airflow-go-pack consumes it
+// at build time to populate the bundle's embedded airflow-metadata.yaml. The
+// --comm and --logs flags select the coordinator-mode protocol. All are read by
+// Serve to choose a server mode below.
 var (
-	versionInfo = flag.Bool("bundle-metadata", false, "show the embedded bundle info")
-	commAddr    = flag.String(
+	printMetadata = flag.Bool(
+		"airflow-metadata",
+		false,
+		"print the bundle's airflow-metadata manifest as JSON and exit",
+	)
+	commAddr = flag.String(
 		"comm",
 		"",
 		"host:port of the supervisor's coordinator comm channel (selects coordinator mode)",
@@ -83,7 +87,7 @@ type serveMode int
 
 const (
 	modePlugin                serveMode = iota // go-plugin gRPC (existing Edge Worker path)
-	modeMetadataDump                           // --bundle-metadata: print BundleInfo JSON
+	modeAirflowMetadata                        // --airflow-metadata: print the manifest JSON (ADR 0002/0004)
 	modeCoordinator                            // --comm/--logs: msgpack-over-IPC (ADR 0003)
 	modeCoordinatorUsageError                  // misuse: print usage and exit non-zero
 )
@@ -115,8 +119,8 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 	}
 
 	switch decideMode() {
-	case modeMetadataDump:
-		return dumpBundleMetadata(bundle)
+	case modeAirflowMetadata:
+		return execution.DumpAirflowMetadata(bundle)
 	case modeCoordinator:
 		// In coordinator mode the supervisor reads the logs channel for
 		// structured records, so configuring the hclog/stderr default
@@ -133,8 +137,8 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 }
 
 func decideMode() serveMode {
-	if *versionInfo {
-		return modeMetadataDump
+	if *printMetadata {
+		return modeAirflowMetadata
 	}
 	commSet := *commAddr != ""
 	logsSet := *logsAddr != ""
@@ -146,16 +150,6 @@ func decideMode() serveMode {
 		return modeCoordinatorUsageError
 	}
 	return modePlugin
-}
-
-func dumpBundleMetadata(bundle bundlev1.BundleProvider) error {
-	meta := bundle.GetBundleVersion()
-	data, err := json.MarshalIndent(meta, "", "    ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
 }
 
 func installPluginLogger() {
