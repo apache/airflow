@@ -22,6 +22,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
@@ -162,6 +163,7 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
+    session.commit()
     return b
 
 
@@ -219,7 +221,12 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
     ),
     dependencies=[
         Depends(action_logging()),
@@ -252,6 +259,14 @@ def create_backfill(
             run_on_latest_version=resolved_run_on_latest,
         )
         return BackfillResponse.model_validate(backfill_obj)
+    except OperationalError as e:
+        if "database is locked" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database is locked. Backfill creation is not supported on SQLite "
+                "under concurrent access. Please use PostgreSQL or MySQL.",
+            )
+        raise
 
     except AlreadyRunningBackfill:
         raise HTTPException(
@@ -282,7 +297,12 @@ def create_backfill(
 
 @backfills_router.post(
     path="/dry_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
+    ),
     dependencies=[
         Depends(requires_access_backfill(method="POST")),
     ],
@@ -295,24 +315,35 @@ def create_backfill_dry_run(
     to_date = timezone.coerce_datetime(body.to_date)
 
     try:
-        backfills_dry_run = _do_dry_run(
-            dag_id=body.dag_id,
-            from_date=from_date,
-            to_date=to_date,
-            reverse=body.run_backwards,
-            reprocess_behavior=body.reprocess_behavior,
-            dag_run_conf=body.dag_run_conf,
-            session=session,
-        )
+        try:
+            backfills_dry_run = _do_dry_run(
+                dag_id=body.dag_id,
+                from_date=from_date,
+                to_date=to_date,
+                reverse=body.run_backwards,
+                reprocess_behavior=body.reprocess_behavior,
+                dag_run_conf=body.dag_run_conf,
+                session=session,
+            )
+        except OperationalError as e:
+            if "database is locked" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Database is locked. Backfill dry-run is not supported on SQLite "
+                    "under concurrent access. Please use PostgreSQL or MySQL.",
+                )
+            raise
+
         backfills = [
             DryRunBackfillResponse(
-                logical_date=d.logical_date, partition_key=d.partition_key, partition_date=d.partition_date
+                logical_date=d.logical_date,
+                partition_key=d.partition_key,
+                partition_date=d.partition_date,
             )
             for d in backfills_dry_run
         ]
 
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills))
-
     except DagNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

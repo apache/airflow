@@ -434,6 +434,9 @@ def with_row_locks(
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
+    # SQLite does not support FOR UPDATE; skip row-level locking.
+    if dialect_name == "sqlite":
+        return query
     if dialect_name == "mysql" and not getattr(
         session.bind.dialect if session.bind else None, "supports_for_update_of", False
     ):
@@ -573,6 +576,10 @@ def is_lock_not_available_error(error: OperationalError):
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
     # importing it. This doesn't
     if db_err_code in ("55P03", 1205, 3572):
+        return True
+    # SQLite: `database is locked` (SQLITE_BUSY) — check the error text since
+    # sqlite3.OperationalError.args[0] is a human-readable string, not a numeric code
+    if error.orig and "database is locked" in str(error.orig).lower():
         return True
     return False
 

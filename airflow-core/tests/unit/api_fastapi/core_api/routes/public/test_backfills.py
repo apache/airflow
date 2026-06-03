@@ -23,6 +23,7 @@ from unittest import mock
 import pendulum
 import pytest
 from sqlalchemy import and_, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
@@ -351,6 +352,67 @@ class TestCreateBackfill(TestBackfillEndpoint):
                     response.json().get("detail")
                     == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
+
+    def test_create_backfill_database_locked(self, session, dag_maker, test_client):
+        """Regression test for issue #66726: SQLite 'database is locked' returns 503."""
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.scalars(select(DagModel)).all()
+        session.commit()
+
+        from_date = pendulum.parse("2024-01-01")
+        to_date = pendulum.parse("2024-02-01")
+
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(from_date),
+            "to_date": to_iso(to_date),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.backfills._create_backfill",
+            side_effect=OperationalError("statement", "params", "database is locked"),
+        ):
+            response = test_client.post("/backfills", json=data)
+
+        # OperationalError with "database is locked" should return 503
+        assert response.status_code == 503
+        assert "database is locked" in response.json()["detail"].lower()
+
+    class TestCreateBackfillDryRun:
+        """Tests for the create_backfill dry_run endpoint."""
+
+        def test_create_backfill_dry_run_database_locked(self, session, dag_maker, test_client):
+            """SQLite 'database is locked' during dry-run returns 503."""
+            with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+                EmptyOperator(task_id="mytask")
+            session.scalars(select(DagModel)).all()
+            session.commit()
+
+            from_date = pendulum.parse("2024-01-01")
+            to_date = pendulum.parse("2024-02-01")
+
+            data = {
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(from_date),
+                "to_date": to_iso(to_date),
+                "max_active_runs": 5,
+                "run_backwards": False,
+                "dag_run_conf": {},
+            }
+
+            with mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.backfills._do_dry_run",
+                side_effect=OperationalError("statement", "params", "database is locked"),
+            ):
+                response = test_client.post("/backfills/dry_run", json=data)
+
+            # OperationalError with "database is locked" should return 503
+            assert response.status_code == 503
+            assert "database is locked" in response.json()["detail"].lower()
 
     @pytest.mark.parametrize(
         "run_backwards",

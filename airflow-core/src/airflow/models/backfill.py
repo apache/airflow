@@ -612,7 +612,15 @@ def _create_backfill(
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
 
-        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
+        # Lock the DagModel row (FOR UPDATE on PG/MySQL) to serialize concurrent
+        # backfill creation for the same dag_id. This prevents two requests from
+        # both passing the num_active check before either commits.
+        dag_model = session.scalar(
+            with_row_locks(
+                query=select(DagModel).where(DagModel.dag_id == dag_id).limit(1),
+                session=session,
+            )
+        )
         if dag_model:
             if (
                 dag_model.allowed_run_types is not None
@@ -653,7 +661,10 @@ def _create_backfill(
             triggering_user_name=triggering_user_name,
         )
         session.add(br)
-        session.commit()
+        # Flush to populate br.id (backfill_dag_run.backfill_id needs it) without
+        # committing early. The outer create_session() context will commit everything
+        # atomically, preventing orphaned backfills if dag run creation fails.
+        session.flush()
 
         session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
