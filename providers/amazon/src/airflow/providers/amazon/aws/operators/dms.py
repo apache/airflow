@@ -262,13 +262,16 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
                         aws_conn_id=self.aws_conn_id,
                     ),
                     method_name="execute_complete",
+                    kwargs={"result": result},
                 )
             else:
                 self._wait_for_modification_completion()
 
         return result
 
-    def execute_complete(self, context: Context, event: dict | None = None) -> dict:
+    def execute_complete(
+        self, context: Context, event: dict | None = None, result: dict | None = None
+    ) -> dict:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
             raise RuntimeError(f"Error waiting for DMS task modification to complete: {validated_event}")
@@ -277,7 +280,7 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
             "DMS replication task(%s) modification complete.",
             replication_task_arn,
         )
-        return {"ReplicationTaskArn": replication_task_arn}
+        return result or {}
 
 
 class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):

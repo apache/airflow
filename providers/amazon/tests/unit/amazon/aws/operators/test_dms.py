@@ -279,7 +279,7 @@ class TestDmsModifyTaskOperator:
 
         assert isinstance(exc_info.value.trigger, DmsTaskModifyCompleteTrigger)
         assert exc_info.value.method_name == "execute_complete"
-        assert exc_info.value.kwargs is None
+        assert exc_info.value.kwargs == {"result": expected}
 
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
     @mock.patch.object(DmsHook, "get_conn")
@@ -404,9 +404,19 @@ class TestDmsModifyTaskOperator:
             task_id="modify_task",
             replication_task_arn=self.TASK_ARN,
         )
+        task_details = {"ReplicationTaskArn": self.TASK_ARN, "Status": "stopped"}
+        success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
+        result = op.execute_complete({}, success_event, result=task_details)
+        assert result == task_details
+
+    def test_execute_complete_success_no_result(self):
+        op = DmsModifyTaskOperator(
+            task_id="modify_task",
+            replication_task_arn=self.TASK_ARN,
+        )
         success_event = {"status": "success", "replication_task_arn": self.TASK_ARN}
         result = op.execute_complete({}, success_event)
-        assert result == {"ReplicationTaskArn": self.TASK_ARN}
+        assert result == {}
 
     def test_execute_complete_error(self):
         op = DmsModifyTaskOperator(
