@@ -59,27 +59,30 @@ Both paths run the same flow.
 
 ## Step 0a — Pre-Magpie leftovers safety check
 
-A repo that adopted the framework before it was renamed from
-**apache-steward** to **Apache Magpie** migrates via the
-one-shot transition shim at `.claude/skills/setup-steward/`
-(a frozen `/setup-steward upgrade` lands there automatically;
-see that skill's [`upgrade.md`](../../.claude/skills/setup-steward/upgrade.md)).
-A fully-migrated repo never reaches *this* file with legacy
-artefacts present.
+The framework was once named **apache-steward** before it was
+renamed to **Apache Magpie**. The framework **no longer ships an
+automated pre-Magpie migration** — a repo still on the old layout
+must be migrated by hand.
 
-If you nonetheless detect **any** legacy artefact here —
+If you detect **any** legacy artefact here —
 `.apache-steward.lock`, `.apache-steward/`,
 `.apache-steward-overrides/`, a committed
 `<adopter-skills-dir>/setup-steward/`, or a framework symlink
-**without** the `magpie-` prefix — a prior migration did not
-finish. Do **not** continue the normal upgrade against the
-half-migrated state. Run the transition migration to
-completion first (follow
-[`.claude/skills/setup-steward/upgrade.md`](../../.claude/skills/setup-steward/upgrade.md),
-which is idempotent and safe to re-run), then resume this
-upgrade. `~/.config/apache-steward/` alone (per-user, no
-in-repo artefacts) just needs the dir + sandbox-allowlist
-move from that file's Step 7.
+**without** the `magpie-` prefix — do **not** continue the normal
+upgrade against the half-migrated state. Stop and surface the
+manual remediation:
+
+1. Remove the legacy in-repo artefacts (`.apache-steward*`, any
+   un-prefixed framework symlinks, a committed `setup-steward`
+   skill).
+2. Re-adopt from scratch with `/magpie-setup` so the current
+   `.apache-magpie*` layout and `magpie-`-prefixed symlinks are
+   written fresh.
+3. Move `~/.config/apache-steward/` (per-user) to
+   `~/.config/apache-magpie/` and update any sandbox-allowlist
+   entry that referenced the old path.
+
+Then resume this upgrade against the clean Magpie layout.
 
 ## Step 1 — Compute drift
 
