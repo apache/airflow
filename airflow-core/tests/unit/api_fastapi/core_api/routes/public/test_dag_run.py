@@ -3060,7 +3060,60 @@ class TestBulkDagRuns:
         assert len(body["create"]["errors"]) == 1
         assert body["create"]["errors"][0]["status_code"] == 405
 
-    def test_bulk_update_not_supported(self, test_client):
+    def test_bulk_update_marks_state(self, test_client, session):
+        """Bulk update marks the selected Dag Runs to the requested state in a single call."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN1_ID, "state": "failed"},
+                            {"dag_run_id": DAG1_RUN2_ID, "state": "failed"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        )
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        for run_id in (DAG1_RUN1_ID, DAG1_RUN2_ID):
+            dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == run_id))
+            assert dag_run.state == DagRunState.FAILED
+
+    def test_bulk_update_across_dags_with_wildcard(self, test_client, session):
+        """``~`` URL with per-entity dag_id marks runs across Dags in one call."""
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID, "state": "success"},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID, "state": "success"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG2_ID}.{DAG2_RUN1_ID}"]
+        )
+        session.expire_all()
+        for run_id in (DAG1_RUN1_ID, DAG2_RUN1_ID):
+            assert session.scalar(select(DagRun).where(DagRun.run_id == run_id)).state == DagRunState.SUCCESS
+
+    def test_bulk_update_requires_state(self, test_client):
+        """An entity without a target state is reported as a 400 error rather than silently skipped."""
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={
@@ -3076,7 +3129,29 @@ class TestBulkDagRuns:
         body = response.json()
         assert body["update"]["success"] == []
         assert len(body["update"]["errors"]) == 1
-        assert body["update"]["errors"][0]["status_code"] == 405
+        assert body["update"]["errors"][0]["status_code"] == 400
+
+    def test_bulk_update_not_found_fails(self, test_client, session):
+        """When FAIL semantics, a missing run is reported and matched runs still get updated."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN1_ID, "state": "failed"},
+                            {"dag_run_id": "non_existent_run", "state": "failed"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert len(body["update"]["errors"]) == 1
+        assert body["update"]["errors"][0]["status_code"] == 404
 
     def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
         """A 403 at the route level if any entity references a Dag the user can't access."""

@@ -29,8 +29,13 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
@@ -43,6 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService, resolve_run_on_latest_version
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -209,9 +215,13 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         session: Session,
         request: BulkBody[BulkDAGRunBody],
         dag_id: str,
+        dag_bag: DagBagDep,
+        user: BaseUser,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
+        self.dag_bag = dag_bag
+        self.user = user
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkDAGRunBody], results: BulkActionResponse
@@ -226,12 +236,94 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
-        results.errors.append(
-            {
-                "error": "Dag Runs bulk update is not supported yet. Use the patch Dag Run endpoint per run instead.",
-                "status_code": status.HTTP_405_METHOD_NOT_ALLOWED,
-            }
-        )
+        """Bulk update Dag Runs (e.g. mark as success/failed/queued)."""
+        entities_by_key: dict[tuple[str, str], BulkDAGRunBody] = {}
+
+        for entity in action.entities:
+            if isinstance(entity, str):
+                results.errors.append(
+                    {
+                        "error": (
+                            "Bulk update requires a BulkDAGRunBody object carrying the target state,"
+                            f" not a string for dag_run_id: {entity}"
+                        ),
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            dag_id = entity.dag_id or self.dag_id
+            dag_run_id = entity.dag_run_id
+
+            if dag_id == "~" or dag_run_id == "~":
+                results.errors.append(
+                    {
+                        "error": (
+                            "When using wildcard in path, dag_id must be specified in request body for"
+                            f" dag_run_id: {entity.dag_run_id}"
+                        ),
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            if entity.state is None:
+                results.errors.append(
+                    {
+                        "error": f"A target state is required to update dag_run_id: {dag_run_id}",
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            entities_by_key[(dag_id, dag_run_id)] = entity
+
+        if not entities_by_key:
+            return
+
+        dag_runs = self.session.scalars(
+            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(entities_by_key.keys())))
+        ).all()
+        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
+        not_found = entities_by_key.keys() - dag_run_map.keys()
+
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+            for dag_id, run_id in sorted(not_found):
+                results.errors.append(
+                    {
+                        "error": (f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found"),
+                        "status_code": status.HTTP_404_NOT_FOUND,
+                    }
+                )
+
+        for (dag_id, run_id), dag_run in dag_run_map.items():
+            entity = entities_by_key[(dag_id, run_id)]
+            dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
+
+            if entity.state == DagRunMutableStates.SUCCESS:
+                set_dag_run_state_to_success(dag=dag, run_id=run_id, commit=True, session=self.session)
+                try:
+                    get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+                except Exception:
+                    log.exception("error calling listener")
+            elif entity.state == DagRunMutableStates.QUEUED:
+                set_dag_run_state_to_queued(dag=dag, run_id=run_id, commit=True, session=self.session)
+            elif entity.state == DagRunMutableStates.FAILED:
+                set_dag_run_state_to_failed(dag=dag, run_id=run_id, commit=True, session=self.session)
+                try:
+                    get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+                except Exception:
+                    log.exception("error calling listener")
+
+            if entity.note is not None:
+                updated_dag_run = self.session.get(DagRun, dag_run.id)
+                if updated_dag_run and updated_dag_run.dag_run_note is None:
+                    updated_dag_run.note = (entity.note, self.user.get_id())
+                elif updated_dag_run:
+                    updated_dag_run.dag_run_note.content = entity.note
+                    updated_dag_run.dag_run_note.user_id = self.user.get_id()
+
+            results.success.append(f"{dag_id}.{run_id}")
 
     def handle_bulk_delete(
         self, action: BulkDeleteAction[BulkDAGRunBody], results: BulkActionResponse
