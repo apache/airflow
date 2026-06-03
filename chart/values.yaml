@@ -371,10 +371,10 @@ env: []
 # - name: ""
 #   value: ""
 
-# Volumes for all Airflow containers
+# Volumes for all Airflow containers (templated)
 volumes: []
 
-# VolumeMounts for all Airflow containers
+# VolumeMounts for all Airflow containers (templated)
 volumeMounts: []
 
 # Secrets for all Airflow containers
@@ -3351,7 +3351,7 @@ pgbouncer:
   # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
-  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined
+  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined (templated)
   configSecretName: ~
   # Secret example:
   #  apiVersion: v1
