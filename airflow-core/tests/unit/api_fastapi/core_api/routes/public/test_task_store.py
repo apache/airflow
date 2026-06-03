@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -433,3 +434,27 @@ class TestClearTaskState(TestTaskStateEndpoint):
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(BASE_URL).status_code == 401
+
+
+class TestRoutesNeverCallCustomBackend(TestTaskStateEndpoint):
+    """Tests to validate that core API routes must use MetastoreStateBackend directly."""
+
+    @pytest.mark.parametrize(
+        ("method", "path", "kwargs"),
+        [
+            ("get", BASE_URL, {}),
+            ("get", f"{BASE_URL}/job_id", {}),
+            ("put", f"{BASE_URL}/job_id", {"json": {"value": "v2"}}),
+            ("patch", f"{BASE_URL}/job_id", {"json": {"value": "v3"}}),
+            ("delete", f"{BASE_URL}/job_id", {}),
+            ("delete", BASE_URL, {}),
+        ],
+    )
+    def test_route_never_calls_get_state_backend(self, test_client, method, path, kwargs):
+        _create_task_state(self._session, "job_id", "v1", self.dag_run)
+        self._session.commit()
+
+        with patch("airflow.state.get_state_backend") as mock_get_backend:
+            getattr(test_client, method)(path, **kwargs)
+
+        mock_get_backend.assert_not_called()
