@@ -1,6 +1,3 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
-
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -403,10 +400,11 @@ idempotent — re-add them if they're missing.
   so a single `magpie-*` glob covers them all — no per-family
   lines.
 
-- **Pattern A (flat)** — only the `.claude/skills/...` line:
+- **Pattern A (flat)** — only the `.claude/skills/...` lines:
 
   ```text
   /.claude/skills/magpie-*
+  !/.claude/skills/magpie-setup
   ```
 
 - **Pattern B (double-symlinked)** — both `.claude/skills/...`
@@ -416,7 +414,9 @@ idempotent — re-add them if they're missing.
 
   ```text
   /.claude/skills/magpie-*
+  !/.claude/skills/magpie-setup
   /.github/skills/magpie-*
+  !/.github/skills/magpie-setup
   ```
 
 - **Pattern D (single directory symlink)** — only the
@@ -425,10 +425,12 @@ idempotent — re-add them if they're missing.
 
   ```text
   /.github/skills/magpie-*
+  !/.github/skills/magpie-setup
   ```
 
   With D.2 (canonical = `.claude/skills/`), use
-  `/.claude/skills/magpie-*` instead. Pattern D does not
+  `/.claude/skills/magpie-*` (plus `!/.claude/skills/magpie-setup`)
+  instead. Pattern D does not
   need ignore lines on the *symlinked* side because that side
   is itself a single tracked symlink — git does not descend
   into it, so the symlinked-side paths match no tracked file.
@@ -442,8 +444,12 @@ discovery family) per
 [`SKILL.md` Golden rule 8](SKILL.md#golden-rules); every
 symlinked framework skill is gitignored on every adopter
 regardless of the opt-in family pick. The committed
-`magpie-setup` skill is **not** gitignored — it is the one
-copied framework skill.
+`magpie-setup` skill is kept tracked by the
+`!/.../magpie-setup` negation line in each block above —
+without it the `magpie-*` glob would ignore the bootstrap and
+a plain `git add` would silently skip it, leaving fresh clones
+with no committed framework skill. It is the one copied
+framework skill.
 
 `.claude/settings.local.json` is the project-local
 per-machine settings file that
