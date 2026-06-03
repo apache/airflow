@@ -49,13 +49,13 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==========================================  ==================
-PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``clickhouse-connect``                      ``>=0.7.0``
-==========================================  ==================
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.11.0``
+``apache-airflow-providers-common-sql``  ``>=1.32.0``
+``clickhouse-connect``                   ``>=0.7.0``
+=======================================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.0/changelog.html>`_.

@@ -82,7 +82,7 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This package is for the ``clickhouse`` provider.
+This package is for the ``clickhousedb`` provider.
 All classes for this package are included in the ``airflow.providers.clickhousedb`` python package.
 
 Installation

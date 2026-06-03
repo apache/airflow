@@ -170,7 +170,7 @@ apache-airflow = "airflow.__main__:main"
 "celery" = [
     "apache-airflow-providers-celery>=3.8.3"
 ]
-"clickhouse" = [
+"clickhousedb" = [
     "apache-airflow-providers-clickhousedb>=1.0.0"
 ]
 "cloudant" = [
