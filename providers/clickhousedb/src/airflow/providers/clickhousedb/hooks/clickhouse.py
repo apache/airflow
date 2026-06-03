@@ -250,7 +250,7 @@ class ClickHouseHook(DbApiHook):
         )
 
         for key in _OPTIONAL_CLIENT_KWARGS:
-            if key in extra:
+            if key in extra and extra[key] is not None:
                 kwargs[key] = extra[key]
 
         # Always embed Airflow + provider version; user's 'client_name' extra is appended to the User-Agent header.

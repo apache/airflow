@@ -488,6 +488,23 @@ class TestClickHouseHookClientKwargs:
 
         assert "settings" not in kwargs
 
+    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
+    def test_optional_keys_with_null_values_not_forwarded(self, mock_get_connection):
+        """Optional kwargs set to null/None in extra must not be forwarded to the driver."""
+        conn = Connection(
+            conn_id="ch_null_extras",
+            conn_type="clickhouse",
+            host="host",
+            extra=json.dumps({"send_receive_timeout": None, "connect_timeout": None, "compress": None}),
+        )
+        mock_get_connection.return_value = conn
+        hook = ClickHouseHook(clickhouse_conn_id="ch_null_extras")
+        kwargs = hook._get_client_kwargs()
+
+        assert "send_receive_timeout" not in kwargs
+        assert "connect_timeout" not in kwargs
+        assert "compress" not in kwargs
+
 
 # ---------------------------------------------------------------------------
 # Tests: client_kwargs from connection extra
