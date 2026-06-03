@@ -302,12 +302,15 @@ class MetastoreStoreBackend(BaseStoreBackend):
             last_updated_by_map_index=map_index,
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
+        update_fields = dict(value=value, updated_at=now)
+        if kind is not None:
+            update_fields.update(writer_info)
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now, **writer_info),
+            update_fields,
         )
         session.execute(stmt)
 
@@ -507,13 +510,16 @@ class MetastoreStoreBackend(BaseStoreBackend):
             last_updated_by_map_index=map_index,
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
+        update_fields = dict(value=value, updated_at=now)
+        if kind is not None:
+            update_fields.update(writer_info)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
             AssetStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now, **writer_info),
+            update_fields,
         )
         await session.execute(stmt)
 

@@ -22,7 +22,6 @@ from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, Stri
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
-from airflow._shared.state import AssetStoreWriterKind
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -63,9 +62,3 @@ class AssetStoreModel(Base):
             ondelete="CASCADE",
         ),
     )
-
-    @property
-    def last_updated_by_kind_enum(self) -> AssetStoreWriterKind | None:
-        if self.last_updated_by_kind is None:
-            return None
-        return AssetStoreWriterKind(self.last_updated_by_kind)

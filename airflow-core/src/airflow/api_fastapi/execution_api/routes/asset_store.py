@@ -63,8 +63,8 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
     ).one_or_none()
     if row is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"reason": "ti_not_found", "message": f"Task instance {token.id!r} not found"},
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"Task instance {token.id!r} not found"},
         )
     return row.dag_id, row.run_id, row.task_id, row.map_index
 
