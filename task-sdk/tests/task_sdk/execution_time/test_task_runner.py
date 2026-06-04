@@ -4905,9 +4905,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @time_machine.travel("2025-01-01 00:00:00", tick=False)
-    def test_handle_trigger_dag_run_reraises_original_error(
-        self, create_runtime_ti, mock_supervisor_comms
-    ):
+    def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
         """
         When an ``except`` handler in ``run()`` raises before binding ``state``,
         the original exception must propagate
