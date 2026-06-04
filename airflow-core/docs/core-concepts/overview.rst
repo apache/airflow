@@ -60,6 +60,10 @@ A minimal Airflow installation consists of the following components:
   Dags and tasks. The API server is also used by *workers* to communicate state back to Airflow, without requiring direct access
   to the *metadata database*.
 
+* A *Task SDK*, which is an isolated runtime environment inside the *workers* that executes the user-defined Dag code.
+  This acts as a way to isolate execution of user code by routing all execution through the API server. This protects the *metadata database* and other Airflow components from direct access, and allows for better security and stability of Airflow.
+  More about task execution can be found in :doc:`/development/task-sdk`
+
 * A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags and variables.
 
   Setting up a metadata database is described in :doc:`/howto/set-up-database` and is required for
