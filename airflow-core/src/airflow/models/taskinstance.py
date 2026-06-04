@@ -732,7 +732,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict({"dag_id": self.dag_id, "task_id": self.task_id})
+        tags = prune_dict({"dag_id": self.dag_id, "task_id": self.task_id})
+        team_name = getattr(self, "_team_name", None)
+        if team_name:
+            tags["team_name"] = team_name
+        return tags
 
     @staticmethod
     def insert_mapping(

@@ -335,6 +335,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -385,9 +386,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, dag_ids: Collection[str], session: Session
     ) -> dict[str, str | None]:
         """
-        Batch query to resolve team names for multiple DAG IDs using the DAG > Bundle > Team relationship chain.
+        Resolve team names for DAG IDs via the DAG → Bundle → Team relationship.
 
-        DAG IDs > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Results are cached for the lifetime of the scheduler process since this is called
+        on every heartbeat (for metrics tagging) with largely overlapping dag_id sets, and
+        the underlying team assignment only changes on bundle redeployment.
 
         :param dag_ids: Collection of DAG IDs to resolve team names for
         :param session: Database session for queries
@@ -396,36 +399,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag_ids:
             return {}
 
-        try:
-            # Query all team names for the given DAG IDs in a single query
-            query_results = session.execute(
-                select(DagModel.dag_id, Team.name)
-                .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
-                .join(
-                    DagModel, DagModel.bundle_name == DagBundleModel.name
-                )  # Join DagBundleModel to DagModel
-                .where(DagModel.dag_id.in_(dag_ids))
-            ).all()
+        missing = [dag_id for dag_id in dag_ids if dag_id not in self._dag_id_to_team_name]
+        if missing:
+            try:
+                # Query all team names for the given DAG IDs in a single query
+                query_results = session.execute(
+                    select(DagModel.dag_id, Team.name)
+                    .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
+                    .join(
+                        DagModel, DagModel.bundle_name == DagBundleModel.name
+                    )  # Join DagBundleModel to DagModel
+                    .where(DagModel.dag_id.in_(missing))
+                ).all()
 
-            # Create mapping from results
-            dag_id_to_team_name = {dag_id: team_name for dag_id, team_name in query_results}
+                # Create mapping from results
+                queried = {dag_id: team_name for dag_id, team_name in query_results}
 
-            # Ensure all requested dag_ids are in the result (with None for those not found)
-            result = {dag_id: dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+                # Cache all results, including None for dag_ids with no team
+                for dag_id in missing:
+                    self._dag_id_to_team_name[dag_id] = queried.get(dag_id)
+                self.log.debug("Cached team names for %d new dag_ids", len(missing))
 
-            self.log.debug(
-                "Resolved team names for %d DAGs: %s",
-                len([team for team in result.values() if team is not None]),
-                {dag_id: team for dag_id, team in result.items()},
-            )
+            except Exception:
+                # Log the error, explicitly don't fail the scheduling loop
+                self.log.exception("Failed to resolve team names for DAG IDs: %s", missing)
+                # Return dict with all None values to ensure graceful degradation
+                return {}
 
-            return result
-
-        except Exception:
-            # Log the error, explicitly don't fail the scheduling loop
-            self.log.exception("Failed to resolve team names for DAG IDs: %s", list(dag_ids))
-            # Return dict with all None values to ensure graceful degradation
-            return {}
+        # Ensure all requested dag_ids are in the result (with None for those not found)
+        return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
 
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
@@ -716,6 +718,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     len(unique_dag_ids),
                     list(unique_dag_ids),
                 )
+                for ti in task_instances_to_examine:
+                    if team := dag_id_to_team_name.get(ti.dag_id):
+                        ti._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -925,12 +930,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 loop_count,
             )
 
+        starving_pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pool_num_starving_tasks.keys()), session=session)
+            if self._multi_team and pool_num_starving_tasks
+            else {}
+        )
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            stats.gauge(
-                "pool.starving_tasks",
-                num_starving_tasks,
-                tags={"pool_name": pool_name},
-            )
+            starving_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := starving_pool_team_mapping.get(pool_name):
+                starving_tags["team_name"] = team
+            stats.gauge("pool.starving_tasks", num_starving_tasks, tags=starving_tags)
 
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -1604,6 +1613,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
+            if self._multi_team and paused_runs:
+                paused_dag_ids = {dr.dag_id for dr in paused_runs}
+                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
+                for dr in paused_runs:
+                    if team := paused_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1845,6 +1860,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
             dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+
+            if self._multi_team and dag_runs:
+                unique_dag_ids = {dr.dag_id for dr in dag_runs}
+                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+                for dr in dag_runs:
+                    if team := dr_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -3017,33 +3039,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
+        pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+            if self._multi_team
+            else {}
+        )
         for pool_name, slot_stats in pools.items():
-            normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-            stats.gauge(
-                "pool.open_slots",
-                slot_stats["open"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.queued_slots",
-                slot_stats["queued"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.running_slots",
-                slot_stats["running"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.deferred_slots",
-                slot_stats["deferred"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.scheduled_slots",
-                slot_stats["scheduled"],
-                tags={"pool_name": normalized_pool_name},
-            )
+            metric_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := pool_team_mapping.get(pool_name):
+                metric_tags["team_name"] = team
+            stats.gauge("pool.open_slots", slot_stats["open"], tags=metric_tags)
+            stats.gauge("pool.queued_slots", slot_stats["queued"], tags=metric_tags)
+            stats.gauge("pool.running_slots", slot_stats["running"], tags=metric_tags)
+            stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags=metric_tags)
+            stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags=metric_tags)
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
@@ -3324,6 +3333,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+            for ti in task_instances_without_heartbeats:
+                if team := dag_id_to_team_name.get(ti.dag_id):
+                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 

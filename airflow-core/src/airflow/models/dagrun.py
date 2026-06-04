@@ -501,7 +501,11 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+        tags = prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+        team_name = getattr(self, "_team_name", None)
+        if team_name:
+            tags["team_name"] = team_name
+        return tags
 
     def get_state(self):
         return self._state

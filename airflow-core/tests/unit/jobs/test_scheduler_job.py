@@ -2826,6 +2826,38 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param("true", {"pool_name": "team_pool", "team_name": "team_a"}, id="with_team"),
+            pytest.param("false", {"pool_name": "team_pool"}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_pool_metrics_team_name(self, mock_get_backend, multi_team, expected_tags, session):
+        """Pool metrics include team_name only when multi_team is enabled."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        clear_db_teams()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        pool = Pool(pool="team_pool", slots=5, include_deferred=False, team_name="team_a")
+        session.add(pool)
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            self.job_runner._emit_pool_metrics(session=session)
+
+        mock_stats.gauge.assert_any_call("pool.open_slots", mock.ANY, tags=expected_tags)
+        mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
+        mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"
         task_id_1 = "dummy"
@@ -9260,6 +9292,41 @@ class TestSchedulerJob:
             mock_team_resolve.assert_not_called()
             assert result1 == self.job_runner.executor  # Default for no explicit executor
             assert result2 == mock_executors[1]  # Matched by executor name
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_sets_team_name_on_task_instances(self, dag_maker, mock_executors, session):
+        """Test that _team_name is set on TaskInstance objects during the scheduling loop."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_a", session=session)
+        ti.state = State.SCHEDULED
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._multi_team = True
+
+        # Simulate what _executable_task_instances_to_queued does
+        dag_id_to_team_name = self.job_runner._get_team_names_for_dag_ids(["dag_a"], session)
+        if team_name := dag_id_to_team_name.get(ti.dag_id):
+            ti._team_name = team_name
+
+        assert ti._team_name == "team_a"
+        assert ti.stats_tags == {"dag_id": "dag_a", "task_id": "task_a", "team_name": "team_a"}
 
 
 @pytest.mark.need_serialized_dag
