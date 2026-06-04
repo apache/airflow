@@ -262,11 +262,7 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
         :param project_id: The ID of the DataZone project.
         :return: A ``(bucket, prefix)`` tuple. ``bucket`` is the S3 bucket name.
             ``prefix`` is the path component of the project's
-            ``s3BucketPath`` (with no leading or trailing ``/``) — typically
-            ``""`` for IAM domains and
-            ``"<domain_id>/<project_id>/<scope>"`` for IDC domains.
-            Callers should prepend ``prefix`` to any S3 key they construct so
-            writes/reads stay within the IAM scope of the project's role.
+            ``s3BucketPath`` (with no leading or trailing ``/``).
         :raises RuntimeError: If the default tooling environment or the
             ``s3BucketPath`` provisioned resource cannot be found.
         """
@@ -282,8 +278,8 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
                         f"environment {environment_id} for project {project_id} in domain "
                         f"{domain_identifier}"
                     )
-                # value looks like "s3://<bucket>" (IAM) or
-                # "s3://<bucket>/<domain>/<project>/<scope>" (IDC). Return both
+                # value looks like "s3://<bucket>/shared/<suffix>" (IAM) or
+                # "s3://<bucket>/<domain>/<project>/dev/<suffix>" (IDC). Return both
                 # parts so callers can construct project-scoped keys.
                 parts = urlparse(value, allow_fragments=False)
                 bucket = parts.netloc
