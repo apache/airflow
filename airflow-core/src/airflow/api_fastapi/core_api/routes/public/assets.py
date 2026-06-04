@@ -375,8 +375,13 @@ def create_asset_event(
     timestamp = timezone.utcnow()
 
     api_user_teams: set[str] = set()
+    api_allow_consumer_teams: list[str] | None = None
+    api_allow_global_consumers: bool = True
     if conf.getboolean("core", "multi_team"):
         api_user_teams = get_auth_manager().get_authorized_teams(user=user)
+        if body.access_control:
+            api_allow_consumer_teams = body.access_control.consumer_teams or None
+            api_allow_global_consumers = body.access_control.allow_global
 
     assets_event = asset_manager.register_asset_change(
         asset=asset_model,
@@ -385,6 +390,8 @@ def create_asset_event(
         partition_key=body.partition_key,
         source_is_api=True,
         api_user_teams=api_user_teams,
+        api_allow_consumer_teams=api_allow_consumer_teams,
+        api_allow_global_consumers=api_allow_global_consumers,
         session=session,
     )
 
