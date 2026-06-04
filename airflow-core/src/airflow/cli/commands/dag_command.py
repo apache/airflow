@@ -94,7 +94,6 @@ def dag_trigger(args) -> None:
             logical_date=args.logical_date,
             triggering_user_name=user,
             replace_microseconds=args.replace_microseconds,
-            api_client=None,
         )
         AirflowConsole().print_as(
             data=[message] if message is not None else [],
@@ -115,7 +114,7 @@ def dag_delete(args) -> None:
         == "Y"
     ):
         try:
-            message = api_client.delete_dag(dag_id=args.dag_id, api_client=None)
+            message = api_client.delete_dag(dag_id=args.dag_id)
             print(message)
         except OSError as err:
             raise AirflowException(err)
