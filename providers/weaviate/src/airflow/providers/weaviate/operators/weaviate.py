@@ -43,10 +43,12 @@ class WeaviateIngestOperator(BaseOperator):
     custom vectors and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
-    :param collection: The Weaviate collection to be used for storing the data objects into.
+    :param collection_name: The Weaviate collection to be used for storing the data objects into.
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
     :param vector_col: key/column name in which the vectors are stored.
+    :param uuid_column: Column with pre-generated UUIDs.
+    :param tenant: The tenant to which objects will be added.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     """
