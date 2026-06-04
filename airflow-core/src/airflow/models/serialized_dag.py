@@ -406,6 +406,10 @@ class SerializedDagModel(Base):
         This modifies dag_data in place, replacing deadline alert definitions with UUID strings.
         Called before SerializedDagModel creation to ensure UUIDs are included in the hash.
 
+        The post-rewrite ``list[str]`` shape is what is persisted in ``serialized_dag.data``,
+        so ``serialization/schema.json::dag.deadline`` must accept ``list[str]`` alongside
+        the pre-rewrite ``list[dict]`` form.
+
         :param dag_data: The serialized DAG data dictionary
         :return: Mapping of UUID strings to deadline alert data dicts
         """
