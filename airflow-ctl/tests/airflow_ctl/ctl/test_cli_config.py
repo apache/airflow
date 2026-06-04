@@ -412,6 +412,38 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    def test_command_factory_required_datamodel_fields_are_required_flags(self, tmp_path):
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class ConnectionsOperations(BaseOperations):
+                    def create(self, connection: ConnectionBody) -> ConnectionResponse | ServerResponseError:
+                        self.response = self.client.post(
+                            "connections",
+                            json=connection.model_dump(mode="json"),
+                        )
+                        return ConnectionResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        create_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "connections":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "create":
+                    create_args = list(sub_command.args)
+                    break
+
+        connection_id_arg = next(arg for arg in create_args if arg.flags == ("--connection-id",))
+        conn_type_arg = next(arg for arg in create_args if arg.flags == ("--conn-type",))
+        description_arg = next(arg for arg in create_args if arg.flags == ("--description",))
+
+        assert connection_id_arg.kwargs["required"] is True
+        assert conn_type_arg.kwargs["required"] is True
+        assert "required" not in description_arg.kwargs
+
 
 class TestCliConfigMethods:
     @pytest.mark.parametrize(

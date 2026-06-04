@@ -531,6 +531,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool | None = None,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -538,6 +539,7 @@ class CommandFactory:
             dest=arg_dest,
             help=arg_help,
             default=arg_default,
+            required=arg_required if arg_required is not None else _UNSET,
             action=arg_action,
         )
 
@@ -583,6 +585,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
+                        arg_required=True if field_type.is_required() else None,
                     )
                 )
             else:
@@ -598,6 +601,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
+                        arg_required=True if field_type.is_required() else None,
                     )
                 )
         return commands
