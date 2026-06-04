@@ -42,17 +42,26 @@ var ErrCoordinatorFlagsIncomplete = errors.New(
 	"--comm and --logs must be supplied together",
 )
 
-// CLI Flags.
-// The --airflow-metadata flag prints the bundle's airflow-metadata manifest as
-// JSON (per the executable bundle spec) and exits; airflow-go-pack consumes it
-// at build time to populate the bundle's embedded airflow-metadata.yaml. The
-// --comm and --logs flags select the coordinator-mode protocol. All are read by
-// Serve to choose a server mode below.
+// ErrFormatRequiresMetadata is returned by [Serve] when --format is supplied
+// without --airflow-metadata, the only mode whose encoding it selects.
+var ErrFormatRequiresMetadata = errors.New(
+	"--format is only valid together with --airflow-metadata",
+)
+
+// CLI Flags, all read by Serve to choose a server mode below.
+// --airflow-metadata prints the bundle's manifest and exits (airflow-go-pack
+// consumes it to build the embedded airflow-metadata.yaml); --format selects
+// its encoding. --comm and --logs select coordinator mode.
 var (
 	printMetadata = flag.Bool(
 		"airflow-metadata",
 		false,
-		"print the bundle's airflow-metadata manifest as JSON and exit",
+		"print the bundle's airflow-metadata manifest and exit",
+	)
+	metadataFormat = flag.String(
+		"format",
+		string(execution.MetadataFormatYAML),
+		"encoding for --airflow-metadata: yaml (default) or json; only valid with --airflow-metadata",
 	)
 	commAddr = flag.String(
 		"comm",
@@ -118,9 +127,21 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 		c.ApplyServeOpt(serveConfig)
 	}
 
-	switch decideMode() {
+	mode := decideMode()
+
+	// --format applies only to --airflow-metadata; reject it elsewhere instead
+	// of silently ignoring it.
+	if mode != modeAirflowMetadata && flag.CommandLine.Changed("format") {
+		return ErrFormatRequiresMetadata
+	}
+
+	switch mode {
 	case modeAirflowMetadata:
-		return execution.DumpAirflowMetadata(bundle)
+		format, err := execution.ParseMetadataFormat(*metadataFormat)
+		if err != nil {
+			return err
+		}
+		return execution.DumpAirflowMetadata(bundle, format)
 	case modeCoordinator:
 		// In coordinator mode the supervisor reads the logs channel for
 		// structured records, so configuring the hclog/stderr default

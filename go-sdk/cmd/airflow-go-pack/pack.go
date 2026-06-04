@@ -19,7 +19,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -41,68 +40,49 @@ import (
 
 // packOptions are the flags accepted by the root pack command.
 type packOptions struct {
-	pkg        string   // target package (default ".")
-	source     string   // override the auto-detected DAG source file
-	executable string   // pack a pre-built binary instead of building
-	output     string   // override the default <bundleName> output path
-	buildArgs  []string // forwarded verbatim to `go build` (already includes the leading "--")
+	pkg             string   // target package (default ".")
+	source          string   // override the auto-detected DAG source file
+	executable      string   // pack a pre-built binary instead of building
+	output          string   // override the default <bundleName> output path
+	airflowMetadata string   // path to a pre-captured --airflow-metadata manifest (JSON or YAML)
+	goos            string   // target GOOS for the deployable build (falls back to env GOOS, then host)
+	goarch          string   // target GOARCH for the deployable build (falls back to env GOARCH, then host)
+	buildArgs       []string // forwarded verbatim to `go build` (already includes the leading "--")
 }
 
 func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	if opts.executable != "" && len(opts.buildArgs) > 0 {
 		return fmt.Errorf("--executable is mutually exclusive with go build flags after \"--\"")
 	}
+	if opts.executable != "" && (opts.goos != "" || opts.goarch != "") {
+		return fmt.Errorf(
+			"--executable is mutually exclusive with --goos/--goarch: --executable packs the " +
+				"binary as-is and never builds, so it cannot cross-compile. To cross-build a " +
+				"bundle, drop --executable and pass --goos/--goarch with the package path",
+		)
+	}
 
+	// Resolve the DAG source file for both modes up front. --executable requires
+	// it explicitly; the build path falls back to discovery.
 	sourcePath := opts.source
-	// execPath is the binary that receives the footer (the deployable artefact,
-	// which MAY be cross-compiled). introspectPath is the binary we exec to read
-	// --airflow-metadata, which MUST run on the host.
-	var execPath, introspectPath string
-	cleanupExec := func() {}
-	defer func() { cleanupExec() }()
-
 	if opts.executable != "" {
-		execPath = opts.executable
-		introspectPath = opts.executable
 		if sourcePath == "" {
 			return fmt.Errorf(
 				"--executable requires --source: cannot infer the DAG source for a pre-built binary",
 			)
 		}
-	} else {
+	} else if sourcePath == "" {
+		// --source is the documented escape hatch for packages whose main file
+		// cannot be auto-detected: it may be selected by build tags or GOOS, or
+		// the package may have several files with func main(). Discovery runs a
+		// plain `go list` without the forwarded build flags, so it can fail or
+		// pick the wrong file for such packages. Only fall back to discovery
+		// when --source was not supplied, so an explicit --source always wins.
 		discovered, err := discoverMainSource(opts.pkg)
 		if err != nil {
 			return fmt.Errorf("locating DAG source file: %w", err)
 		}
-		if sourcePath == "" {
-			sourcePath = discovered
-		}
-
-		artifact, cleanup, err := buildPackage(stderr, opts.pkg, opts.buildArgs, false)
-		if err != nil {
-			return err
-		}
-		execPath = artifact
-		cleanupExec = cleanup
-		introspectPath = artifact
-
-		// Reading the manifest means exec'ing the binary, so it must be a
-		// host-native build. When cross-compiling, the artefact cannot run
-		// here; build a throwaway host binary from the same sources and build
-		// flags (DAG/task identity is arch-independent) solely to introspect.
-		if isCrossCompile() {
-			hostBin, cleanupHost, err := buildPackage(stderr, opts.pkg, opts.buildArgs, true)
-			if err != nil {
-				return fmt.Errorf("building host binary for metadata introspection: %w", err)
-			}
-			prevCleanup := cleanupExec
-			cleanupExec = func() { cleanupHost(); prevCleanup() }
-			introspectPath = hostBin
-		}
-	}
-
-	if _, err := os.Stat(execPath); err != nil {
-		return fmt.Errorf("executable %s: %w", execPath, err)
+		sourcePath = discovered
 	}
 	if _, err := os.Stat(sourcePath); err != nil {
 		return fmt.Errorf("source file %s: %w", sourcePath, err)
@@ -117,53 +97,71 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		output = defaultPath
 	}
 
+	// The bundle is finalised by renaming a temp file onto output, which fails
+	// if output is an existing directory. Catch that here: the default output is
+	// the package directory's name, so packing ./foo from a dir that already has
+	// a ./foo directory collides. Report it with the fix instead of a bare
+	// "rename ...: file exists" from os.Rename. Done before any build so a
+	// misconfigured output fails fast rather than after a (cross) go build.
+	if info, err := os.Stat(output); err == nil && info.IsDir() {
+		return fmt.Errorf(
+			"output path %q is an existing directory (the bundle output defaults to the "+
+				"package directory's name); pass --output to write the bundle to a file path",
+			output,
+		)
+	}
+
+	// execPath is the binary that receives the footer (the deployable artefact,
+	// which MAY be cross-compiled). introspectPath is the binary obtainMetadata
+	// reads --airflow-metadata from. By default that means exec'ing it on the
+	// host (so it must be host-runnable, hence the cross-compile sidecar below),
+	// but --airflow-metadata bypasses it entirely.
+	var execPath, introspectPath string
+	cleanupExec := func() {}
+	defer func() { cleanupExec() }()
+
+	if opts.executable != "" {
+		execPath = opts.executable
+		introspectPath = opts.executable
+	} else {
+		targetGOOS, targetGOARCH := targetPlatform(opts)
+		artifact, cleanup, err := buildPackage(stderr, opts.pkg, opts.buildArgs, targetGOOS, targetGOARCH)
+		if err != nil {
+			return err
+		}
+		execPath = artifact
+		cleanupExec = cleanup
+		introspectPath = artifact
+
+		// Reading the manifest means exec'ing the binary, so it must be a
+		// host-native build. When cross-compiling, the artefact cannot run
+		// here; build a throwaway host binary from the same sources and the
+		// same forwarded `--` build flags (DAG/task identity is arch-independent)
+		// solely to introspect. This sidecar is unnecessary when
+		// --airflow-metadata supplies the manifest directly.
+		crossCompiling := targetGOOS != runtime.GOOS || targetGOARCH != runtime.GOARCH
+		if crossCompiling && opts.airflowMetadata == "" {
+			hostBin, cleanupHost, err := buildPackage(stderr, opts.pkg, opts.buildArgs, runtime.GOOS, runtime.GOARCH)
+			if err != nil {
+				return fmt.Errorf("building host binary for metadata introspection: %w", err)
+			}
+			prevCleanup := cleanupExec
+			cleanupExec = func() { cleanupHost(); prevCleanup() }
+			introspectPath = hostBin
+		}
+	}
+
+	if _, err := os.Stat(execPath); err != nil {
+		return fmt.Errorf("executable %s: %w", execPath, err)
+	}
+
 	if err := rejectOutputAlias(output, execPath, sourcePath); err != nil {
 		return err
 	}
 
-	meta, err := readAirflowMetadata(introspectPath)
+	meta, err := obtainMetadata(opts, introspectPath)
 	if err != nil {
-		// In --executable mode the introspection binary is the user's
-		// pre-built artefact. If it cannot be exec'd here (e.g. it was built
-		// for a different CPU arch), build a throwaway host-native binary to
-		// read the manifest from instead. The package to rebuild is the
-		// directory holding --source (the bundle's main package), not opts.pkg
-		// (which defaults to the caller's cwd). The pre-built --executable is
-		// still what gets packed.
-		if opts.executable != "" && errors.Is(err, errExecNotStartable) {
-			pkgDir, derr := filepath.Abs(filepath.Dir(sourcePath))
-			if derr != nil {
-				return fmt.Errorf(
-					"cannot exec --executable to read metadata (%w); resolving source package dir failed: %v",
-					err,
-					derr,
-				)
-			}
-			fmt.Fprintf(
-				stderr,
-				"warning: --executable %s is not runnable on %s/%s; building a host binary from %q to read metadata\n",
-				opts.executable,
-				runtime.GOOS,
-				runtime.GOARCH,
-				pkgDir,
-			)
-			hostBin, cleanupHost, berr := buildPackage(stderr, pkgDir, opts.buildArgs, true)
-			if berr != nil {
-				return fmt.Errorf(
-					"cannot exec --executable to read metadata (%w); host fallback build of %q failed: %v",
-					err,
-					pkgDir,
-					berr,
-				)
-			}
-			defer cleanupHost()
-			meta, err = readAirflowMetadata(hostBin)
-			if err != nil {
-				return fmt.Errorf("--airflow-metadata (host fallback build of %q): %w", pkgDir, err)
-			}
-		} else {
-			return fmt.Errorf("--airflow-metadata: %w", err)
-		}
+		return err
 	}
 	if len(meta.Dags) == 0 {
 		return fmt.Errorf("bundle exposes no dags: nothing to pack")
@@ -221,7 +219,13 @@ func discoverMainSource(pkg string) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("go list %s: %w: %s", pkg, err, stderr.String())
+		return "", fmt.Errorf(
+			"go list %s: %w: %s\n"+
+				"airflow-go-pack packs the Go package in the current directory by default; "+
+				"pass your bundle's package path (e.g. `airflow-go-pack ./path/to/bundle`) "+
+				"or --source to point at the DAG source file directly",
+			pkg, err, strings.TrimSpace(stderr.String()),
+		)
 	}
 
 	lines := splitNonEmpty(stdout.String())
@@ -287,28 +291,43 @@ func splitNonEmpty(s string) []string {
 	return out
 }
 
-// isCrossCompile reports whether the go build environment targets a platform
-// other than the host. The introspection build (which we exec to read
-// --airflow-metadata) must be host-native; a cross-compiled artefact cannot
-// run on the build machine.
-func isCrossCompile() bool {
-	goos := os.Getenv("GOOS")
-	goarch := os.Getenv("GOARCH")
-	return (goos != "" && goos != runtime.GOOS) || (goarch != "" && goarch != runtime.GOARCH)
+// targetPlatform resolves the GOOS/GOARCH the deployable bundle is built for:
+// the --goos/--goarch flags win, then the ambient GOOS/GOARCH env, then the
+// host. The flags exist because `go tool airflow-go-pack` builds the packer
+// using the ambient GOOS/GOARCH — setting those in the env to cross-compile a
+// bundle would instead cross-build the packer itself and fail to exec it on the
+// host. Passing the target via flags keeps the env (and the packer build)
+// host-native while still cross-building the bundle.
+func targetPlatform(opts *packOptions) (goos, goarch string) {
+	goos = runtime.GOOS
+	if env := os.Getenv("GOOS"); env != "" {
+		goos = env
+	}
+	if opts.goos != "" {
+		goos = opts.goos
+	}
+	goarch = runtime.GOARCH
+	if env := os.Getenv("GOARCH"); env != "" {
+		goarch = env
+	}
+	if opts.goarch != "" {
+		goarch = opts.goarch
+	}
+	return goos, goarch
 }
 
-// buildPackage runs `go build [extraArgs...] -o <tmp>/bundle <pkg>` and
-// returns the path to the freshly built executable plus a cleanup function.
-// extraArgs is the slice that comes after the "--" separator on the
-// airflow-go-pack command line; we drop the leading "--" before forwarding.
-// When forceHostArch is set, GOOS/GOARCH are pinned to the host so the result
-// is runnable here regardless of any cross-compile settings in the
-// environment.
+// buildPackage runs `go build [extraArgs...] -o <tmp>/bundle <pkg>` for the
+// given GOOS/GOARCH and returns the path to the freshly built executable plus a
+// cleanup function. extraArgs is the slice that comes after the "--" separator
+// on the airflow-go-pack command line; we drop the leading "--" before
+// forwarding. GOOS/GOARCH are set explicitly (overriding any ambient env) so
+// the caller controls the target: the deployable build uses the resolved target
+// platform, the introspection sidecar uses the host.
 func buildPackage(
 	stderr io.Writer,
 	pkg string,
 	extraArgs []string,
-	forceHostArch bool,
+	goos, goarch string,
 ) (string, func(), error) {
 	tmpDir, err := os.MkdirTemp("", "airflow-go-pack-*")
 	if err != nil {
@@ -317,7 +336,7 @@ func buildPackage(
 	cleanup := func() { _ = os.RemoveAll(tmpDir) }
 
 	binName := "bundle"
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		binName += ".exe"
 	}
 	outPath := filepath.Join(tmpDir, binName)
@@ -332,11 +351,9 @@ func buildPackage(
 	args = append(args, "-o", outPath, pkg)
 
 	cmd := exec.Command("go", args...)
-	if forceHostArch {
-		// Later duplicate keys win in os/exec, so these override any
-		// GOOS/GOARCH inherited from the environment.
-		cmd.Env = append(os.Environ(), "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
-	}
+	// Later duplicate keys win in os/exec, so these override any ambient
+	// GOOS/GOARCH (which `go tool` already used to build this packer).
+	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch)
 	cmd.Stdout = stderr
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
@@ -351,9 +368,70 @@ func readAirflowMetadata(execPath string) (airflowmetadata.Manifest, error) {
 	if err != nil {
 		return airflowmetadata.Manifest{}, err
 	}
+	// Decode with a YAML decoder: it reads the binary's YAML default and its
+	// --format json output alike (JSON is a subset of YAML).
 	var meta airflowmetadata.Manifest
-	if err := json.Unmarshal(out, &meta); err != nil {
-		return airflowmetadata.Manifest{}, fmt.Errorf("decoding --airflow-metadata JSON: %w", err)
+	if err := yaml.Unmarshal(out, &meta); err != nil {
+		return airflowmetadata.Manifest{}, fmt.Errorf(
+			"decoding --airflow-metadata output (YAML/JSON): %w",
+			err,
+		)
+	}
+	return meta, nil
+}
+
+// obtainMetadata resolves the bundle manifest either from an explicit
+// --airflow-metadata file or by exec'ing a host-runnable introspection binary.
+// In --executable mode a binary that cannot be exec'd on the host is a hard
+// error with remediation guidance: --executable expects a same-platform binary,
+// and the packer never silently rebuilds a host binary, because a rebuild from
+// unknown inputs (the original build tags, ldflags, and GOOS/GOARCH-specific
+// files are not known here, and build flags are rejected in --executable mode)
+// can advertise a different DAG/task set than the artefact actually shipped.
+func obtainMetadata(opts *packOptions, introspectPath string) (airflowmetadata.Manifest, error) {
+	if opts.airflowMetadata != "" {
+		meta, err := readMetadataFile(opts.airflowMetadata)
+		if err != nil {
+			return airflowmetadata.Manifest{}, fmt.Errorf(
+				"--airflow-metadata %s: %w",
+				opts.airflowMetadata,
+				err,
+			)
+		}
+		return meta, nil
+	}
+
+	meta, err := readAirflowMetadata(introspectPath)
+	if err == nil {
+		return meta, nil
+	}
+	if opts.executable != "" && errors.Is(err, errExecNotStartable) {
+		return airflowmetadata.Manifest{}, fmt.Errorf(
+			"cannot exec --executable %q on %s/%s to read its --airflow-metadata: %w\n"+
+				"--executable expects a binary that runs on this host. To pack a binary for a\n"+
+				"different platform, drop --executable and let the packer cross-build instead:\n"+
+				"    airflow-go-pack --goos <os> --goarch <arch> ./path/to/pkg [-- <go build flags>]\n"+
+				"(the packer builds a host-arch binary, forwarding your -- build flags, solely to\n"+
+				"read the manifest). Alternatively pass --airflow-metadata with the manifest captured\n"+
+				"from the binary on its native platform: %s --airflow-metadata > airflow-metadata.yaml",
+			opts.executable, runtime.GOOS, runtime.GOARCH, err, opts.executable,
+		)
+	}
+	return airflowmetadata.Manifest{}, fmt.Errorf("--airflow-metadata: %w", err)
+}
+
+// readMetadataFile parses a manifest from a pre-captured --airflow-metadata
+// file. It accepts both the JSON a bundle binary prints (via
+// `mybundle --airflow-metadata`) and the airflow-metadata.yaml embedded in an
+// existing bundle: YAML is a superset of JSON, so a YAML decoder reads either.
+func readMetadataFile(path string) (airflowmetadata.Manifest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return airflowmetadata.Manifest{}, err
+	}
+	var meta airflowmetadata.Manifest
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return airflowmetadata.Manifest{}, fmt.Errorf("decoding metadata (YAML/JSON): %w", err)
 	}
 	return meta, nil
 }
@@ -404,7 +482,7 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 		tasks := meta.Dags[id].Tasks
 		taskItems := make([]*yaml.Node, 0, len(tasks))
 		for _, t := range tasks {
-			taskItems = append(taskItems, scalar(t))
+			taskItems = append(taskItems, quotedScalar(t))
 		}
 		dagsNode.Content = append(dagsNode.Content,
 			scalar(id),
@@ -427,13 +505,13 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 			{
 				Kind: yaml.MappingNode,
 				Content: []*yaml.Node{
-					scalar("language"), scalar(meta.SDK.Language),
+					scalar("language"), quotedScalar(meta.SDK.Language),
 					scalar("version"), quotedScalar(meta.SDK.Version),
 					scalar("supervisor_schema_version"),
 					quotedScalar(meta.SDK.SupervisorSchemaVersion),
 				},
 			},
-			scalar("source"), scalar(sourceName),
+			scalar("source"), quotedScalar(sourceName),
 			scalar("dags"), dagsNode,
 		},
 	}
@@ -451,10 +529,16 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 	return buf.Bytes(), nil
 }
 
+// scalar emits a plain (unquoted) node. It is used for structural keys
+// (e.g. "sdk", "tasks") and for the Dag ID mapping keys.
 func scalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value}
 }
 
+// quotedScalar emits a double-quoted node. Data-bearing string *values* — task
+// IDs, the source filename, and the SDK fields — go through this so a value
+// that looks like a number, bool, or date (e.g. a task named "123" or "true")
+// round-trips as a string rather than being retyped by the YAML parser.
 func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
 }
@@ -527,7 +611,14 @@ func sameFile(a, b string) (bool, error) {
 // artefact at output, and guarantees the file being copied is never the same
 // open file as the destination.
 func writeBundle(execPath, output string, source, metadata []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(output), ".airflow-go-pack-*")
+	outDir := filepath.Dir(output)
+	// The temp file and the atomic rename both live in output's directory, so it
+	// must exist. Create it for the user (e.g. --output ./bin/bundle with no
+	// ./bin) instead of failing with an opaque temp-file "no such file" error.
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("creating output directory %s: %w", outDir, err)
+	}
+	tmp, err := os.CreateTemp(outDir, ".airflow-go-pack-*")
 	if err != nil {
 		return fmt.Errorf("creating temp file for %s: %w", output, err)
 	}

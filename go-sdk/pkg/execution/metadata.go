@@ -20,7 +20,10 @@ package execution
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"runtime/debug"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
@@ -30,20 +33,66 @@ import (
 // SDK version from the bundle binary's build info dependencies.
 const sdkModulePath = "github.com/apache/airflow/go-sdk"
 
-// DumpAirflowMetadata runs the bundle's RegisterDags against an in-memory
-// recorder and writes the airflow-metadata manifest JSON to stdout. It must
-// not start the gRPC server or contact any external services; the recorder is
-// the only side effect. airflow-go-pack execs the bundle binary with
-// --airflow-metadata and captures this output to build the embedded manifest.
-func DumpAirflowMetadata(bundle bundlev1.BundleProvider) error {
+// MetadataFormat selects the encoding DumpAirflowMetadata writes to stdout for
+// the bundle binary's --airflow-metadata flag.
+type MetadataFormat string
+
+const (
+	// MetadataFormatYAML is the default; it matches the airflow-metadata.yaml a
+	// bundle embeds, so `mybundle --airflow-metadata > airflow-metadata.yaml`
+	// yields a ready-to-use file.
+	MetadataFormatYAML MetadataFormat = "yaml"
+	// MetadataFormatJSON is opt-in via --format json.
+	MetadataFormatJSON MetadataFormat = "json"
+)
+
+// ParseMetadataFormat validates a --format value and returns the matching
+// MetadataFormat. An empty value defaults to YAML.
+func ParseMetadataFormat(s string) (MetadataFormat, error) {
+	switch MetadataFormat(s) {
+	case "", MetadataFormatYAML:
+		return MetadataFormatYAML, nil
+	case MetadataFormatJSON:
+		return MetadataFormatJSON, nil
+	default:
+		return "", fmt.Errorf(
+			"unsupported --airflow-metadata format %q: want %q or %q",
+			s, MetadataFormatYAML, MetadataFormatJSON,
+		)
+	}
+}
+
+// DumpAirflowMetadata writes the bundle's airflow-metadata manifest to stdout
+// (YAML by default, JSON when format is MetadataFormatJSON). It runs
+// RegisterDags against an in-memory recorder only — no gRPC server, no external
+// services. airflow-go-pack execs the binary with --airflow-metadata and
+// decodes this output to build the embedded manifest.
+func DumpAirflowMetadata(bundle bundlev1.BundleProvider, format MetadataFormat) error {
+	meta, err := collectManifest(bundle)
+	if err != nil {
+		return err
+	}
+	data, err := encodeManifest(meta, format)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(data)
+	return err
+}
+
+// collectManifest builds the manifest by running RegisterDags against an
+// in-memory recorder and enumerating the recorded dags and tasks.
+func collectManifest(bundle bundlev1.BundleProvider) (airflowmetadata.Manifest, error) {
 	reg := bundlev1.New()
 	if err := bundle.RegisterDags(reg); err != nil {
-		return fmt.Errorf("registering dags: %w", err)
+		return airflowmetadata.Manifest{}, fmt.Errorf("registering dags: %w", err)
 	}
 
 	enum, ok := reg.(bundlev1.EnumerableBundle)
 	if !ok {
-		return fmt.Errorf("registry does not implement EnumerableBundle")
+		return airflowmetadata.Manifest{}, fmt.Errorf(
+			"registry does not implement EnumerableBundle",
+		)
 	}
 
 	meta := airflowmetadata.Manifest{
@@ -62,13 +111,24 @@ func DumpAirflowMetadata(bundle bundlev1.BundleProvider) error {
 		}
 		meta.Dags[dag.DagID] = airflowmetadata.Dag{Tasks: taskIDs}
 	}
+	return meta, nil
+}
 
-	data, err := json.MarshalIndent(meta, "", "    ")
-	if err != nil {
-		return err
+// encodeManifest renders the manifest, ensuring exactly one trailing newline
+// (yaml.Marshal adds one; JSON does not).
+func encodeManifest(meta airflowmetadata.Manifest, format MetadataFormat) ([]byte, error) {
+	switch format {
+	case MetadataFormatYAML, "":
+		return yaml.Marshal(meta)
+	case MetadataFormatJSON:
+		data, err := json.MarshalIndent(meta, "", "    ")
+		if err != nil {
+			return nil, err
+		}
+		return append(data, '\n'), nil
+	default:
+		return nil, fmt.Errorf("unsupported airflow-metadata format %q", format)
 	}
-	fmt.Println(string(data))
-	return nil
 }
 
 // sdkVersion returns the version of the SDK module linked into this binary,

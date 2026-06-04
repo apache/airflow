@@ -60,10 +60,32 @@ By default the packer builds the package in the current directory. Pass
 a different package as the positional argument; pass extra go build
 flags after a "--" separator.
 
+--executable expects a binary that runs on this host (same OS/arch). To
+build a bundle for a different platform you have two options: run the
+packer with --goos/--goarch so it cross-builds the deployable artefact
+while building a host-arch binary (forwarding your -- build flags) solely
+to read the manifest; or pack a pre-built cross binary with --executable
+and supply its manifest via --airflow-metadata, captured by running the
+binary on its native platform (mybundle --airflow-metadata > meta.yaml).
+
+Use --goos/--goarch rather than the GOOS/GOARCH env vars: under
+"go tool airflow-go-pack" those env vars cross-build the packer itself,
+which then cannot exec on the host.
+
 Examples:
   go tool airflow-go-pack
   go tool airflow-go-pack ./cmd/my-bundle -- -trimpath -tags=prod
   go tool airflow-go-pack --executable ./build/example --source main.go
+
+  # Cross-platform via the build path: cross-build + host introspection.
+  go tool airflow-go-pack --goos linux --goarch amd64 ./cmd/my-bundle -- -trimpath
+
+  # Cross-platform via a pre-built binary: pack it with its captured manifest.
+  GOOS=linux GOARCH=arm64 go build -o ./build/example-arm64 ./cmd/my-bundle
+  go build -o ./build/example-on-native-host ./cmd/my-bundle
+  ./build/example-on-native-host --airflow-metadata > meta.yaml
+  go tool airflow-go-pack --executable ./build/example-arm64 \
+    --source ./cmd/my-bundle/main.go --airflow-metadata meta.yaml
 `,
 		// Only count args BEFORE "--" toward the positional limit; args
 		// after "--" are forwarded verbatim to `go build` and must not
@@ -106,6 +128,18 @@ Examples:
 	root.Flags().StringVar(&opts.output, "output",
 		"",
 		"output bundle path (defaults to ./<package-dir-name>)")
+	root.Flags().StringVar(&opts.airflowMetadata, "airflow-metadata",
+		"",
+		"path to a pre-captured --airflow-metadata manifest (JSON or YAML); skips "+
+			"introspecting the binary")
+	root.Flags().StringVar(&opts.goos, "goos",
+		"",
+		"target GOOS for the bundle (cross-compile); prefer this over the GOOS env "+
+			"var, which `go tool` would use to cross-build the packer itself")
+	root.Flags().StringVar(&opts.goarch, "goarch",
+		"",
+		"target GOARCH for the bundle (cross-compile); prefer this over the GOARCH env "+
+			"var, which `go tool` would use to cross-build the packer itself")
 
 	root.AddCommand(newInspectCmd())
 	return root

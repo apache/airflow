@@ -113,35 +113,48 @@ convention so authors can forward arbitrary flags to the underlying
       to produce the *target artifact*.
    3. Executes a *host-runnable introspection binary* with
       `--airflow-metadata` to obtain `sdk.{language,version,supervisor_schema_version}`
-      and the `dags` mapping. The packer first tries to exec the target
-      artifact directly; if that fails with "exec format error" (the
-      target is built for a different OS/arch than the host), the
-      packer builds a host-arch sidecar from the same package
-      (`go build` with `GOOS`/`GOARCH` unset, written to
-      `<tmpdir>/<binname>.introspect`) and execs that instead. Both
-      binaries are produced from the same source package against the
-      same module graph, so `RegisterDags` records identical dag/task
-      identity regardless of which one is execed.
-   4. Writes a deterministic ZIP next to the working directory at
-      `<bundleName>.zip`, where `<bundleName>` comes from the
-      binary's `BundleInfo.Name` (part of the same `--airflow-metadata`
-      introspection output).
+      and the `dags` mapping. When cross-compiling, the packer builds a
+      host-arch sidecar from the same package and forwarded build flags
+      and execs that instead; both come from the same sources and flags,
+      so `RegisterDags` records identical identity either way. The sidecar
+      is skipped when `--airflow-metadata` supplies the manifest directly
+      (see the overrides below).
+   4. Writes a self-contained bundle: the deployable executable with
+      the source bytes, the manifest bytes, and the fixed 64-byte
+      `AFBNDL01` trailer appended (the format from ADR 0004 /
+      `task-sdk/docs/executable-bundle-spec.rst`). By default it is
+      written next to the working directory under the bundle's main
+      package directory name; `--output` overrides the path.
 
    Optional overrides, for advanced or pre-built workflows:
 
-   - `--source <path>`: override the auto-detected source file.
-   - `--executable <path>`: skip the internal `go build` and pack a
-     pre-built binary. Mutually exclusive with `--` build-flag
-     passthrough. If the supplied binary is not host-runnable (e.g.
-     the user cross-built a `linux/amd64` binary from a `darwin/arm64`
-     host), the packer still needs to introspect it: it builds a
-     host-arch sidecar from the positional package and execs that for
-     `--airflow-metadata`, then appends the resulting footer to the
-     user-supplied binary. If no positional package was passed and
-     the supplied binary is not host-runnable, the packer errors with
-     a message asking for the source package so the sidecar can be
-     built.
-   - `--output <path>`: override the default output ZIP path.
+   - `--source <path>`: override the auto-detected source file, and the
+     escape hatch when discovery can't pick it. It skips discovery
+     entirely (a plain `go list` that ignores build tags and
+     `GOOS`/`GOARCH`, so it can fail or pick the wrong file).
+   - `--executable <path>`: skip `go build` and pack a pre-built binary.
+     Mutually exclusive with `--` build flags and with `--goos`/`--goarch`
+     (it never builds). The binary must run on the host so the packer can
+     exec it for `--airflow-metadata`. A non-host-runnable binary is a hard
+     error: the packer won't rebuild a host sidecar, because the original
+     build inputs (tags, `-ldflags`, `GOOS`/`GOARCH` files) are unknown and
+     a rebuild could advertise a different dag/task set than shipped. To
+     pack for another platform, use the build path (`--goos`/`--goarch`,
+     below) or supply `--airflow-metadata`.
+   - `--airflow-metadata <path>`: supply a captured manifest instead of
+     introspecting the binary. Accepts the binary's YAML default, its
+     `--format json` output, or a bundle's embedded `airflow-metadata.yaml`
+     (one YAML decoder reads all three). Short-circuits introspection in
+     every mode — the deterministic way to pack a pre-built cross binary
+     with `--executable`.
+   - `--goos <os>` / `--goarch <arch>`: cross-compile the deployable bundle.
+     Prefer these over the `GOOS`/`GOARCH` env vars: under `go tool` those
+     env vars cross-build the packer itself, which then can't exec on the
+     host. The flags target only the internal `go build`, leaving the
+     packer build host-native; they fall back to the env vars, then the
+     host. Mutually exclusive with `--executable`.
+   - `--output <path>`: override the default output path. Its parent
+     directory is created if missing.
 
    Examples:
 
@@ -152,14 +165,20 @@ convention so authors can forward arbitrary flags to the underlying
    # Pack a different package, with extra go build flags.
    go tool airflow-go-pack ./cmd/my-bundle -- -trimpath -tags=prod
 
-   # Pack an already-built binary (skips go build).
+   # Pack an already-built binary for THIS host (skips go build).
    go tool airflow-go-pack --executable ./build/example --source main.go
+
+   # Pack a bundle for a different platform: cross-build via the build
+   # path (no --executable), forwarding go build flags after "--".
+   # Use --goos/--goarch, NOT the GOOS/GOARCH env vars, under `go tool`.
+   go tool airflow-go-pack --goos linux --goarch amd64 ./cmd/my-bundle -- -trimpath
    ```
 
 2. **Extend the existing `--airflow-metadata` flag in
    `bundlev1server.Serve` to print the full spec.** Rather than adding a
    second introspection flag, `--airflow-metadata` is the single flag the
-   packer relies on; it prints a JSON document of the form:
+   packer relies on; it prints a manifest document (YAML by default, JSON
+   under `--format json`) of the form (shown here as JSON for structure):
 
    ```json
    {
@@ -186,6 +205,13 @@ convention so authors can forward arbitrary flags to the underlying
    shipped `decideMode` switch needs only one metadata mode. The bundle's
    `BundleInfo.Name` (used by the packer for the default output
    filename) is carried in the same output.
+
+   A `--format yaml|json` flag selects the encoding and is only valid with
+   `--airflow-metadata` (misuse is a hard error). The default is YAML,
+   matching a bundle's embedded `airflow-metadata.yaml`, so
+   `mybundle --airflow-metadata > airflow-metadata.yaml` is ready to use.
+   The packer never sets `--format`; its YAML decoder reads both the YAML
+   default and `--format json` output (JSON is a subset of YAML).
 
 3. **Bundle authors register the packer in their own `go.mod`:**
 
@@ -251,12 +277,14 @@ convention so authors can forward arbitrary flags to the underlying
 - `go build` flag passthrough uses the standard `--` separator
   convention so the packer's own flag set stays small and stable.
 - Host-runnable detection is by attempted exec, not by parsing the
-  binary's exec format. The packer runs the candidate introspection
-  binary with `--airflow-metadata` and treats the OS's "exec format
-  error" (and the Windows equivalent surfaced by `os/exec`) as the
-  signal to fall back to building a host-arch sidecar. Other exec
-  failures (non-zero exit, malformed JSON, missing flag) are real
-  errors and are surfaced to the user as-is. The Go build cache
-  amortises the sidecar to a link step when host arch is already
-  involved, so there is no measurable overhead when no cross-compile
-  is in play.
+  binary's format: the packer runs the candidate with `--airflow-metadata`
+  and treats an "exec format error" (and its Windows equivalent) as
+  not-startable. Other failures (non-zero exit, malformed output, missing
+  flag) are surfaced as-is.
+- A not-startable binary is handled differently per mode. The **build**
+  path owns the build, so it builds a host-arch sidecar from the same
+  package and `--` flags (the build cache amortises this to a link step,
+  so no measurable overhead without a cross-compile). In **`--executable`**
+  mode the build inputs are unknown, so the packer must not synthesise a
+  sidecar that could diverge from the shipped binary: it fails fast and
+  points the user at the cross-build path or `--airflow-metadata`.
