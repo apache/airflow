@@ -48,7 +48,7 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
     def my_task(**context):
         # Retrieve task_store from context
         task_store = context["task_store"]
-        my_value = task_store.get("my_key")
+        my_value = task_store.get("my_key", default="my_default_key")
 
         # Set the new value
         new_value = f"It is {random.randint(1, 12 + 1)} o'clock"
@@ -70,7 +70,7 @@ Returns the stored string value, or the ``default`` value if the key does not ex
 
 .. code-block:: python
 
-    value = task_store.get("job_id", "123456789")  # returns str or default value
+    value = task_store.get("job_id", default="123456789")  # returns the value associated with `job_id` or the default value
 
 ``set(key, value, *, retention=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,7 +87,7 @@ Writes or overwrites a value for the specified key. Note, ``value`` can be any J
 The optional ``retention`` argument controls when the key expires:
 
 * ``timedelta(...)``: expire after the given duration from the time of the write (e.g. ``timedelta(hours=6)``). The expiry timestamp is computed on the worker in UTC before the value is sent to the API server.
-* ``NEVER_EXPIRE``: the key never expires and is skipped by garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
+* ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
 * ``None`` (default): fall back to the global ``[state_store] default_retention_days`` config.
 
 .. important::
@@ -138,7 +138,7 @@ For :doc:`mapped tasks </authoring-and-scheduling/dynamic-task-mapping>`, the de
     task_store.clear(all_map_indices=True)
 
 
-Use Cases
+Some Example Use Cases
 ---------
 
 External job resumption
@@ -206,7 +206,6 @@ Task store can expose in-progress metrics for observability — row counts, stat
 
 .. code-block:: python
 
-    import json
 
     from airflow.sdk import DAG, task
 

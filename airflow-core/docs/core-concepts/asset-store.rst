@@ -58,7 +58,7 @@ If using asset store in a ``BaseEventTrigger``, the ``self.asset_store`` paramet
 Accessing asset store using ``context``
 ---------------------------------------
 
-An asset can be brought into "scope" (for lack of a better phrase) by including it in ``inlets`` (or both ``inlets`` and ``outlets``). Then subscript ``context["asset_store"]`` with the asset object to retrieve the asset store.
+An asset becomes available through context["asset_store"] when it is included in inlets (or in both inlets and outlets). You can then retrieve its asset store by subscripting context["asset_store"] with the asset object.
 
 .. code-block:: python
 
@@ -136,7 +136,7 @@ API reference
 
 The following methods are available on both the per-asset accessor (``context["asset_store"][my_asset]``), the shorthand (``context["asset_store"]``) when the task has exactly one inlet, and when using the ``self.asset_store`` attribute.
 
-``get(key)``
+``get(key, default)``
 ~~~~~~~~~~~~
 
 Returns the stored JSON value, or ``None`` if the key does not exist.
@@ -144,7 +144,7 @@ Returns the stored JSON value, or ``None`` if the key does not exist.
 .. code-block:: python
 
     # Using context
-    watermark = context["asset_store"][my_asset].get("watermark")
+    watermark = context["asset_store"][my_asset].get("watermark", default="initial_watermark")
 
     # Using self.asset_store
     watermark = self.asset_store[my_asset].get("watermark")
@@ -195,7 +195,7 @@ Deletes *all* asset store keys for the asset.
     # Using self.asset_store
     self.asset_store[my_asset].clear()
 
-Use cases
+Some Example Use cases
 ---------
 
 Watermark pattern
@@ -209,7 +209,6 @@ The canonical use case for asset store is an incremental-load task that advances
 
     orders = Asset("orders", uri="s3://data/orders/")
 
-
     with DAG("incremental_orders", schedule="@daily"):
 
         @task(inlets=[orders], outlets=[orders])
@@ -217,7 +216,7 @@ The canonical use case for asset store is an incremental-load task that advances
             asset_store = context["asset_store"]  # single-inlet shorthand
 
             # Read the last watermark, default to epoch if first run.
-            watermark = asset_store.get("watermark") or "1970-01-01T00:00:00Z"
+            watermark = asset_store.get("watermark", default="1970-01-01T00:00:00Z")
 
             # Fetch only rows created after the watermark.
             rows = fetch_orders_since(watermark)

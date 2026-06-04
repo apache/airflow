@@ -156,7 +156,7 @@ Worker-side backends extend ``BaseStateBackend`` with two pairs of serialization
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStateBackend`:
 
 * ``serialize_task_store_to_ref``: called by ``TaskStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
-* ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference; return the actual value.
+* ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
 * ``serialize_asset_store_to_ref``: same as the task variant but for asset store; receives the asset name or URI as ``asset_ref``.
 * ``deserialize_asset_store_from_ref``: called by ``AssetStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
