@@ -61,7 +61,9 @@ def _compile_output_format_regex(
        *name*. The pattern defaults to ``\w+``; pass *placeholder_patterns*
        to narrow it (e.g. ``{"quarter": r"[1-4]"}``). A ``{`` with no
        matching ``}`` falls through to the literal branch (so a stray ``{``
-       is escaped, not raised).
+       is escaped, not raised). This ``{name}`` → named-group translation
+       mirrors the path-template parsing in Starlette's ``compile_path``
+       (see `Starlette routing <https://www.starlette.io/routing/>`_).
     3. Anything else is escaped via :func:`re.escape` and emitted verbatim,
        so separators, literal hyphens, ``Q``/``W`` prefix letters, and so on
        all participate in the match.
