@@ -98,6 +98,7 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
+    DayWindow,
     HourWindow,
     IdentityMapper,
     RollupMapper,
@@ -10361,18 +10362,28 @@ def test_pending_apdr_select_breaks_tie_on_id(session: Session):
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_dag_run_clears_stale_dag_version_apdr(
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param("window_changed", id="A-window-changed-clears"),
+        pytest.param("unchanged", id="C-unchanged-survives"),
+        pytest.param("null_fingerprint", id="D-null-fingerprint-clears"),
+    ],
+)
+def test_partitioned_dag_run_stale_rollup_fingerprint(
+    scenario: str,
     dag_maker: DagMaker,
     session: Session,
 ):
     """
-    An APDR whose stamped ``dag_version_id`` no longer matches the Dag's
-    latest serialized version was queued under a mapper / window that may
-    not apply any more. The scheduler tick must drop the APDR plus its
-    PartitionedAssetKeyLog rows and emit a structured log message; APDR rows
-    whose stamp matches the latest version are left untouched.
+    APDR stale-fingerprint cleanup: only mapper / window changes trigger cleanup.
+
+    A — window changed (HourWindow → DayWindow): fingerprint differs → APDR cleared.
+    C — nothing changed: fingerprint identical → APDR survives.
+    D — NULL fingerprint (legacy row): treated as stale → APDR cleared.
     """
-    from uuid6 import uuid7
+    from airflow.timetables.base import compute_rollup_fingerprint
+    from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
 
     asset_1 = Asset(name="asset-1")
     with dag_maker(
@@ -10393,63 +10404,198 @@ def test_partitioned_dag_run_clears_stale_dag_version_apdr(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
 
-    stale_apdr = _produce_and_register_asset_event(
-        dag_id="rollup-stale-producer",
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-a",
         asset=asset_1,
         partition_key="2024-01-01T00:00:00",
         session=session,
         dag_maker=dag_maker,
         expected_partition_key="2024-01-01T00",
     )
-    fresh_apdr = _produce_and_register_asset_event(
-        dag_id="rollup-fresh-producer",
-        asset=asset_1,
-        partition_key="2024-01-01T01:00:00",
-        session=session,
-        dag_maker=dag_maker,
-        expected_partition_key="2024-01-01T01",
-    )
-    # Overwrite one APDR's stamp to a UUID the latest serdag will never have,
-    # leaving the other on the live stamp so the negative branch is exercised too.
-    stale_uuid = uuid7()
-    session.execute(
-        update(AssetPartitionDagRun)
-        .where(AssetPartitionDagRun.id == stale_apdr.id)
-        .values(dag_version_id=stale_uuid)
-    )
+
+    if scenario == "window_changed":
+        # Stamp the APDR with a DayWindow fingerprint — differs from the latest HourWindow.
+        # Use the core timetable (has ``partitioned = True``) so compute_rollup_fingerprint works.
+        day_timetable = CorePartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=DayWindow(),
+            ),
+        )
+        stale_fp = compute_rollup_fingerprint(day_timetable)
+        session.execute(
+            update(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.id == apdr.id)
+            .values(rollup_fingerprint=stale_fp)
+        )
+    elif scenario == "null_fingerprint":
+        session.execute(
+            update(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.id == apdr.id)
+            .values(rollup_fingerprint=None)
+        )
+    # scenario == "unchanged": leave the fingerprint as-is (stamped at creation)
+
     session.commit()
 
-    stale_pakl_count_before = session.scalar(
-        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == stale_apdr.id)
+    pakl_count_before = session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id)
     )
-    fresh_pakl_count_before = session.scalar(
-        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == fresh_apdr.id)
-    )
-    assert stale_pakl_count_before is not None
-    assert stale_pakl_count_before > 0
-    assert fresh_pakl_count_before is not None
-    assert fresh_pakl_count_before > 0
+    assert pakl_count_before is not None
+    assert pakl_count_before > 0
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == stale_apdr.id)) == 0, (
-        "stale APDR row should be deleted"
+    apdr_survives = scenario == "unchanged"
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == (
+        1 if apdr_survives else 0
+    ), f"APDR should {'survive' if apdr_survives else 'be deleted'} for scenario={scenario!r}"
+    assert session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id)
+    ) == (pakl_count_before if apdr_survives else 0), (
+        f"PAKL rows should {'survive' if apdr_survives else 'be deleted'} for scenario={scenario!r}"
     )
-    assert (
-        session.scalar(
-            select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == stale_apdr.id)
-        )
-        == 0
-    ), "PAKL rows for the stale APDR should be deleted"
-    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == fresh_apdr.id)) == 1, (
-        "fresh APDR row must survive"
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_structural_edit_does_not_clear_apdr(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    B — C2 core regression: a structural Dag edit that leaves the rollup definition
+    unchanged must NOT clear the APDR.
+
+    The old ``dag_version_id`` approach would bump the version on any serialization,
+    causing spurious cleanup for unrelated task / description changes. The new
+    fingerprint only captures mapper + window, so this test must pass.
+
+    A new SerializedDag version is produced by re-serializing the same dag_id with an
+    extra task (dag_version bumps), but since mapper / window are unchanged the
+    rollup fingerprint stays identical and the APDR must survive.
+    """
+    from airflow.timetables.base import compute_rollup_fingerprint
+    from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
+
+    asset_1 = Asset(name="asset-1")
+    # sdk version — used only for dag_maker (which serializes it to the core timetable).
+    rollup_schedule = PartitionedAssetTimetable(
+        assets=asset_1,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfHourMapper(),
+            window=HourWindow(),
+        ),
     )
-    assert (
-        session.scalar(
-            select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == fresh_apdr.id)
-        )
-        == fresh_pakl_count_before
-    ), "PAKL rows for fresh APDR must survive"
+    # core version — used for compute_rollup_fingerprint (requires ``partitioned = True``).
+    core_rollup_schedule = CorePartitionedAssetTimetable(
+        assets=asset_1,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfHourMapper(),
+            window=HourWindow(),
+        ),
+    )
+    with dag_maker(
+        dag_id="rollup-consumer-structural",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+    session.commit()
+
+    fp_before = compute_rollup_fingerprint(core_rollup_schedule)
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-structural-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    # Confirm the APDR was stamped with the correct fingerprint.
+    assert apdr.rollup_fingerprint == fp_before
+
+    # Re-serialize the same dag_id with an additional task — dag_version bumps, but
+    # mapper / window are identical so rollup fingerprint must not change.
+    with dag_maker(
+        dag_id="rollup-consumer-structural",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+        EmptyOperator(task_id="task-added")
+    session.commit()
+
+    # Verify the fingerprint is stable across the structural edit (guards against
+    # JSON round-trip key-order regressions that would make == return False).
+    fp_after = compute_rollup_fingerprint(core_rollup_schedule)
+    assert fp_after == fp_before, "Fingerprint must not change for a structural-only Dag edit"
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == 1, (
+        "APDR must survive: same rollup fingerprint, only structural Dag edit"
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_fingerprint_compute_failure_does_not_clear_apdr(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    E — fingerprint compute failure: if ``compute_rollup_fingerprint`` raises for a
+    dag_id, the corresponding APDR must be skipped (not deleted).
+
+    This guards against the bug where a failed fingerprint lookup returns None from
+    ``dict.get()``, making ``apdr.rollup_fingerprint != None`` evaluate as True for
+    any non-None stored fingerprint — causing the APDR to be spuriously cleared.
+    """
+    asset_1 = Asset(name="asset-1")
+    rollup_schedule = PartitionedAssetTimetable(
+        assets=asset_1,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfHourMapper(),
+            window=HourWindow(),
+        ),
+    )
+    with dag_maker(
+        dag_id="rollup-consumer-fp-fail",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-fp-fail-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.compute_rollup_fingerprint",
+        side_effect=RuntimeError("simulated deserialization failure"),
+    ):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == 1, (
+        "APDR must survive when compute_rollup_fingerprint raises — skip, not delete"
+    )
 
 
 @pytest.mark.need_serialized_dag

@@ -20,10 +20,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
-from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    JSON,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -32,7 +32,6 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
-    Uuid,
     delete,
     select,
 )
@@ -922,13 +921,16 @@ class AssetPartitionDagRun(Base):
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
-    # The serialized Dag version that produced this APDR. The scheduler
-    # discards APDRs whose stored ``dag_version_id`` no longer matches the
-    # Dag's latest version, because the mapper / window that drove the
-    # APDR's required upstream key set may have changed under it. Nullable
-    # to tolerate legacy rows that pre-date the column; they are treated as
-    # stale on the next scheduler tick.
-    dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    # Serialized snapshot of the rollup definition (mapper + window for every
+    # partitioned asset in the timetable) at the time this APDR was created.
+    # The scheduler discards APDRs whose stored fingerprint no longer matches
+    # the current timetable's fingerprint, because the mapper or window that
+    # drove the APDR's required upstream key set may have changed. Only
+    # mapper / window edits invalidate the fingerprint; unrelated Dag changes
+    # (task additions, description updates) do not. Nullable to tolerate
+    # legacy rows that pre-date the column; they are treated as stale on the
+    # next scheduler tick.
+    rollup_fingerprint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False

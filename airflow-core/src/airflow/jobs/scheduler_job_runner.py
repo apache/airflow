@@ -113,6 +113,7 @@ from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
+from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -2003,19 +2004,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for sd in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
         }
 
-        # Stale-version cleanup. An APDR stamped with a ``dag_version_id`` that
-        # no longer matches the Dag's latest serialized version was queued
-        # under a definition (mapper / window) that may not apply any more.
+        # Stale-fingerprint cleanup. An APDR stamped with a ``rollup_fingerprint``
+        # that no longer matches the latest timetable's fingerprint was queued
+        # under a mapper / window definition that may not apply any more.
         # Firing on partial data — or holding forever because the new mapper
         # demands keys that will never arrive — would both be wrong, so the
         # APDR + its PartitionedAssetKeyLog rows are dropped in the same
         # transaction. Rows stamped ``NULL`` (legacy, pre-column) are likewise
-        # treated as stale on the first tick after upgrade.
+        # treated as stale on the first tick after upgrade. Unlike a Dag version
+        # UUID, this fingerprint captures only the rollup definition, so unrelated
+        # Dag edits (task changes, description updates) do not trigger cleanup.
+        #
+        # The fingerprint per dag is computed once and cached to avoid redundant
+        # serialization when multiple APDRs share the same target dag.
+        latest_fp_by_dag: dict[str, dict] = {}
+        for dag_id, serdag in serdags_by_dag_id.items():
+            try:
+                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(serdag.dag.timetable)
+            except Exception:
+                # If deserialization fails, skip rather than treating as stale —
+                # a broken serdag should not silently wipe pending progress.
+                self.log.exception("Failed to compute rollup fingerprint for Dag '%s'; skipping", dag_id)
+
         stale_apdrs = [
             apdr
             for apdr in pending_apdrs
-            if (serdag := serdags_by_dag_id.get(apdr.target_dag_id)) is not None
-            and apdr.dag_version_id != serdag.dag_version_id
+            if serdags_by_dag_id.get(apdr.target_dag_id) is not None
+            and apdr.target_dag_id in latest_fp_by_dag  # fingerprint failed to compute → skip
+            and (
+                apdr.rollup_fingerprint is None
+                or apdr.rollup_fingerprint != latest_fp_by_dag[apdr.target_dag_id]
+            )
         ]
         if stale_apdrs:
             stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
@@ -2024,12 +2043,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cleared_by_dag[apdr.target_dag_id] += 1
             for target_dag_id, cleared_count in cleared_by_dag.items():
                 self.log.info(
-                    "Cleared provisional partition Dag run(s) for Dag because their stamped Dag version "
-                    "no longer matches the current version. The mapper or window backing the run may have "
-                    "changed; the next scheduler tick will rebuild evaluation from fresh asset events.",
+                    "Cleared provisional partition Dag run(s) because the rollup definition "
+                    "(mapper / window) has changed since they were queued. "
+                    "The next scheduler tick will rebuild evaluation from fresh asset events.",
                     target_dag_id=target_dag_id,
                     cleared_count=cleared_count,
-                    new_dag_version_id=serdags_by_dag_id[target_dag_id].dag_version_id,
                 )
             session.execute(
                 delete(PartitionedAssetKeyLog).where(

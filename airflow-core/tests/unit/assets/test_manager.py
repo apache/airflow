@@ -26,7 +26,6 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
-from uuid6 import uuid7
 
 from airflow import settings
 from airflow.assets.manager import AssetManager
@@ -222,7 +221,7 @@ class TestAssetManager:
         session.flush()
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
 
-        dag_version_id = uuid7()
+        rollup_fingerprint = {"asset-1|test://asset1/": {"__type": "RollupMapper", "__var": {}}}
 
         def _get_or_create_apdr():
             if TYPE_CHECKING:
@@ -235,7 +234,7 @@ class TestAssetManager:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
                     target_dag=testing_dag,
-                    dag_version_id=dag_version_id,
+                    rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
                     session=_session,
                 ).id
@@ -255,6 +254,75 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_queue_partitioned_dags_stamps_rollup_fingerprint(self, session, dag_maker):
+        """APDR created by _queue_partitioned_dags is stamped with the correct rollup fingerprint."""
+        from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+        from airflow.timetables.base import compute_rollup_fingerprint
+        from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
+
+        asset_1 = Asset(name="asset-stamp-test")
+        # sdk version — dag_maker serializes this to a core timetable.
+        rollup_schedule = PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        )
+        # core version — compute_rollup_fingerprint requires ``.partitioned = True``.
+        core_rollup_schedule = CorePartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        )
+        with dag_maker(
+            dag_id="rollup-consumer-stamp",
+            schedule=rollup_schedule,
+            session=session,
+        ):
+            from airflow.providers.standard.operators.empty import EmptyOperator
+
+            EmptyOperator(task_id="t1")
+        session.commit()
+
+        expected_fp = compute_rollup_fingerprint(core_rollup_schedule)
+
+        # Produce an asset event to trigger APDR creation.
+        from airflow.models.taskinstance import TaskInstance
+
+        with dag_maker(dag_id="stamp-producer", schedule=None, session=session) as producer_dag:
+            from airflow.providers.standard.operators.empty import EmptyOperator
+
+            EmptyOperator(task_id="hi", outlets=[asset_1])
+
+        dr = dag_maker.create_dagrun(partition_key="2024-01-01T00:00:00", session=session)
+        [ti] = dr.get_task_instances(session=session)
+        session.commit()
+
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[o.asprofile() for o in producer_dag.get_task("hi").outlets],
+            outlet_events=[],
+            session=session,
+        )
+        session.commit()
+
+        apdr = session.scalar(
+            select(AssetPartitionDagRun).where(
+                AssetPartitionDagRun.target_dag_id == "rollup-consumer-stamp",
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+            )
+        )
+        assert apdr is not None, "APDR should have been created"
+        assert apdr.rollup_fingerprint == expected_fp, (
+            "APDR rollup_fingerprint must match compute_rollup_fingerprint(timetable)"
+        )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):

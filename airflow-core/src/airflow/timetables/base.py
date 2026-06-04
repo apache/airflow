@@ -434,3 +434,49 @@ class Timetable(Protocol):
             partition_date=timezone.coerce_datetime(dag_run.partition_date),
             partition_key=dag_run.partition_key,
         )
+
+
+def compute_rollup_fingerprint(timetable: Timetable) -> dict:
+    """
+    Return the rollup-definition fingerprint for *timetable*.
+
+    The fingerprint is a ``dict[str, Any]`` mapping ``"{name}|{uri}"`` to the
+    JSON-encoded partition mapper for each partitioned asset reachable from the
+    timetable's ``asset_condition``.  Keys are inserted in sorted order so the
+    dict is stable across Python runs.
+
+    Non-partitioned timetables (``timetable.partitioned is False``) return an
+    empty dict.  The scheduler stamps this on :class:`AssetPartitionDagRun` at
+    creation time and compares it on the next tick; only mapper / window changes
+    trigger a stale-APDR cleanup, leaving unrelated Dag edits untouched.
+
+    Both the creation side (``assets/manager.py``) and the cleanup side
+    (``jobs/scheduler_job_runner.py``) call this helper to guarantee the two
+    fingerprints are computed by identical logic.
+    """
+    if not timetable.partitioned:
+        return {}
+
+    # Local import to avoid a circular dependency: encoders.py already imports
+    # Timetable from this module at the top level, so a top-level import of
+    # encode_partition_mapper here would create a cycle.
+    from airflow.serialization.definitions.assets import SerializedAssetNameRef, SerializedAssetUriRef
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    entries: dict[str, dict[str, Any]] = {}
+    for unique_key, _ in timetable.asset_condition.iter_assets():
+        mapper = timetable.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+        key = f"{unique_key.name}|{unique_key.uri}"
+        entries[key] = encode_partition_mapper(mapper)
+
+    for s_asset_ref in timetable.asset_condition.iter_asset_refs():
+        if isinstance(s_asset_ref, SerializedAssetNameRef):
+            mapper = timetable.get_partition_mapper(name=s_asset_ref.name)
+            key = f"{s_asset_ref.name}|"
+            entries[key] = encode_partition_mapper(mapper)
+        elif isinstance(s_asset_ref, SerializedAssetUriRef):
+            mapper = timetable.get_partition_mapper(uri=s_asset_ref.uri)
+            key = f"|{s_asset_ref.uri}"
+            entries[key] = encode_partition_mapper(mapper)
+
+    return dict(sorted(entries.items()))

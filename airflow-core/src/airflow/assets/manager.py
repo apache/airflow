@@ -42,13 +42,12 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.log import Log
+from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
@@ -522,6 +521,8 @@ class AssetManager(LoggingMixin):
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
 
+            fingerprint = compute_rollup_fingerprint(timetable)
+
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
@@ -569,7 +570,7 @@ class AssetManager(LoggingMixin):
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
                     target_dag=target_dag,
-                    dag_version_id=serdag.dag_version_id,
+                    rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
                     session=session,
                 )
@@ -589,7 +590,7 @@ class AssetManager(LoggingMixin):
         *,
         target_key: str,
         target_dag: DagModel,
-        dag_version_id: UUID,
+        rollup_fingerprint: dict,
         asset_id: int,
         session: Session,
     ) -> AssetPartitionDagRun:
@@ -602,9 +603,9 @@ class AssetManager(LoggingMixin):
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
 
-        ``dag_version_id`` is the caller's latest serialized Dag version; the
-        scheduler discards APDRs whose stamp no longer matches the current
-        version (mapper / window may have changed).
+        ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
+        assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
+        longer matches the current timetable's fingerprint (mapper / window may have changed).
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -629,7 +630,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
-                dag_version_id=dag_version_id,
+                rollup_fingerprint=rollup_fingerprint,
             )
             session.add(apdr)
             session.flush()

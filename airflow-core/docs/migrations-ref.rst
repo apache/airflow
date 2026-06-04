@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``dd5f3a8e2b91`` (head) | ``c20871fbf23a`` | ``3.3.0``         | Track dag_version on AssetPartitionDagRun and index          |
+| ``dd5f3a8e2b91`` (head) | ``c20871fbf23a`` | ``3.3.0``         | Add rollup_fingerprint to AssetPartitionDagRun and index     |
 |                         |                  |                   | partitioned_asset_key_log.asset_partition_dag_run_id.        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``c20871fbf23a``        | ``c9d4e5f6a7b8`` | ``3.3.0``         | Add partition_mapper_info to DagModel.                       |
