@@ -189,12 +189,12 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
         return validated_event["agent_runtime_arn"]
 
     def execute(self, context: Context) -> str:
-        response = self.hook.create_agent_runtime(
-            agent_runtime_name=self.agent_runtime_name,
-            agent_runtime_artifact=self.agent_runtime_artifact,
-            role_arn=self.role_arn,
-            network_configuration=self.network_configuration,
-            create_agent_runtime_kwargs=self.create_agent_runtime_kwargs,
+        response = self.hook.conn.create_agent_runtime(
+            agentRuntimeName=self.agent_runtime_name,
+            agentRuntimeArtifact=self.agent_runtime_artifact,
+            roleArn=self.role_arn,
+            networkConfiguration=self.network_configuration,
+            **self.create_agent_runtime_kwargs,
         )
         agent_runtime_arn = response["agentRuntimeArn"]
         agent_runtime_id = response["agentRuntimeId"]
@@ -305,12 +305,16 @@ class BedrockInvokeAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreHook]):
         return response_text
 
     def execute(self, context: Context) -> dict[str, Any]:
-        response = self.hook.invoke_agent_runtime(
-            agent_runtime_arn=self.agent_runtime_arn,
-            payload=self._serialize_payload(self.payload),
-            content_type=self.content_type,
-            accept=self.accept,
-            invoke_agent_runtime_kwargs=self.invoke_agent_runtime_kwargs,
+        response = self.hook.conn.invoke_agent_runtime(
+            **prune_dict(
+                {
+                    "agentRuntimeArn": self.agent_runtime_arn,
+                    "payload": self._serialize_payload(self.payload),
+                    "contentType": self.content_type,
+                    "accept": self.accept,
+                    **self.invoke_agent_runtime_kwargs,
+                }
+            )
         )
         response_body = self._deserialize_response_body(
             self._read_response_body(response["response"]),
@@ -350,7 +354,7 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
         self.agent_runtime_id = agent_runtime_id
 
     def execute(self, context: Context) -> None:
-        self.hook.delete_agent_runtime(agent_runtime_id=self.agent_runtime_id)
+        self.hook.conn.delete_agent_runtime(agentRuntimeId=self.agent_runtime_id)
         self.log.info("Deleted Bedrock AgentCore Runtime %s.", self.agent_runtime_id)
 
 

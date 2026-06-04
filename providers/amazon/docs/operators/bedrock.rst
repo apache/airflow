@@ -85,20 +85,11 @@ To create an Amazon Bedrock AgentCore Runtime, you can use
 AgentCore Runtime creation is asynchronous. The operator can wait until the runtime reaches
 ``READY`` either synchronously or in deferrable mode.
 
-.. code-block:: python
-
-    create_agent_runtime = BedrockCreateAgentRuntimeOperator(
-        task_id="create_agent_runtime",
-        agent_runtime_name="example-runtime",
-        agent_runtime_artifact={
-            "containerConfiguration": {
-                "containerUri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/agent-runtime:latest",
-            },
-        },
-        role_arn="arn:aws:iam::123456789012:role/agent-runtime-role",
-        network_configuration={"networkMode": "PUBLIC"},
-        deferrable=True,
-    )
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_agent_runtime]
+    :end-before: [END howto_operator_bedrock_create_agent_runtime]
 
 .. _howto/operator:BedrockInvokeAgentRuntimeOperator:
 
@@ -113,14 +104,11 @@ runtime response metadata such as the runtime session ID when present.
 For long-running AgentCore Runtime invocations, configure the botocore client ``read_timeout``
 through ``botocore_config``.
 
-.. code-block:: python
-
-    invoke_agent_runtime = BedrockInvokeAgentRuntimeOperator(
-        task_id="invoke_agent_runtime",
-        agent_runtime_arn=create_agent_runtime.output,
-        payload={"prompt": "Summarize this payload"},
-        botocore_config={"read_timeout": 900},
-    )
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_invoke_agent_runtime]
+    :end-before: [END howto_operator_bedrock_invoke_agent_runtime]
 
 .. _howto/operator:BedrockDeleteAgentRuntimeOperator:
 
@@ -133,13 +121,11 @@ To delete an Amazon Bedrock AgentCore Runtime, you can use
 The operator accepts the runtime ID, which can be extracted from the ARN returned by
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
 
-.. code-block:: python
-
-    delete_agent_runtime = BedrockDeleteAgentRuntimeOperator(
-        task_id="delete_agent_runtime",
-        agent_runtime_id="{{ task_instance.xcom_pull('create_agent_runtime').split('/')[-1] }}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_delete_agent_runtime]
+    :end-before: [END howto_operator_bedrock_delete_agent_runtime]
 
 .. _howto/operator:BedrockCustomizeModelOperator:
 
