@@ -88,7 +88,12 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import (
+    PartitionMapper as CorePartitionMapper,
+    RollupMapper as CoreRollupMapper,
+)
+from airflow.partition_mappers.temporal import StartOfHourMapper as CoreStartOfHourMapper
+from airflow.partition_mappers.window import DayWindow as CoreDayWindow, HourWindow as CoreHourWindow
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -98,7 +103,6 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
-    DayWindow,
     HourWindow,
     IdentityMapper,
     RollupMapper,
@@ -108,8 +112,10 @@ from airflow.sdk import (
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DagRunInfo, DataInterval
+from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
+from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
@@ -10382,9 +10388,6 @@ def test_partitioned_dag_run_stale_rollup_fingerprint(
     C — nothing changed: fingerprint identical → APDR survives.
     D — NULL fingerprint (legacy row): treated as stale → APDR cleared.
     """
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
-
     asset_1 = Asset(name="asset-1")
     with dag_maker(
         dag_id="rollup-consumer-stale",
@@ -10417,10 +10420,10 @@ def test_partitioned_dag_run_stale_rollup_fingerprint(
         # Stamp the APDR with a DayWindow fingerprint — differs from the latest HourWindow.
         # Use the core timetable (has ``partitioned = True``) so compute_rollup_fingerprint works.
         day_timetable = CorePartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=RollupMapper(
-                upstream_mapper=StartOfHourMapper(),
-                window=DayWindow(),
+            assets=ensure_serialized_asset(asset_1),
+            default_partition_mapper=CoreRollupMapper(
+                upstream_mapper=CoreStartOfHourMapper(),
+                window=CoreDayWindow(),
             ),
         )
         stale_fp = compute_rollup_fingerprint(day_timetable)
@@ -10476,9 +10479,6 @@ def test_partitioned_dag_run_structural_edit_does_not_clear_apdr(
     extra task (dag_version bumps), but since mapper / window are unchanged the
     rollup fingerprint stays identical and the APDR must survive.
     """
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
-
     asset_1 = Asset(name="asset-1")
     # sdk version — used only for dag_maker (which serializes it to the core timetable).
     rollup_schedule = PartitionedAssetTimetable(
@@ -10490,10 +10490,10 @@ def test_partitioned_dag_run_structural_edit_does_not_clear_apdr(
     )
     # core version — used for compute_rollup_fingerprint (requires ``partitioned = True``).
     core_rollup_schedule = CorePartitionedAssetTimetable(
-        assets=asset_1,
-        default_partition_mapper=RollupMapper(
-            upstream_mapper=StartOfHourMapper(),
-            window=HourWindow(),
+        assets=ensure_serialized_asset(asset_1),
+        default_partition_mapper=CoreRollupMapper(
+            upstream_mapper=CoreStartOfHourMapper(),
+            window=CoreHourWindow(),
         ),
     )
     with dag_maker(
