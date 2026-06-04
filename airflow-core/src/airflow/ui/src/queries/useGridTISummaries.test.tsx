@@ -5,12 +5,19 @@
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  See the License for the
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
-import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -49,7 +56,8 @@ const createMockResponse = (chunks: Array<string>) => {
   } as unknown as Response;
 };
 
-const createWrapper = (queryClient: QueryClient) =>
+const createWrapper =
+  (queryClient: QueryClient) =>
   ({ children }: { readonly children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
@@ -84,10 +92,9 @@ describe("useGridTiSummariesStream", () => {
 
     mockFetch.mockResolvedValueOnce(createMockResponse([chunk]));
 
-    const { result } = renderHook(
-      () => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }), {
+      wrapper,
+    });
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -122,7 +129,7 @@ describe("useGridTiSummariesStream", () => {
 
     const { result } = renderHook(
       () => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1", "run_2"] }),
-      { wrapper }
+      { wrapper },
     );
 
     await act(async () => {
@@ -152,10 +159,7 @@ describe("useGridTiSummariesStream", () => {
 
     mockFetch.mockImplementation(() => Promise.resolve(createMockResponse([])));
 
-    renderHook(
-      () => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }),
-      { wrapper }
-    );
+    renderHook(() => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }), { wrapper });
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -214,10 +218,9 @@ describe("useGridTiSummariesStream", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const { result } = renderHook(
-      () => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"] }), {
+      wrapper,
+    });
 
     await act(async () => {
       await vi.runAllTimersAsync();

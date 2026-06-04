@@ -129,7 +129,11 @@ export const useGridTiSummariesStream = ({
 
     return () => {
       abortController.abort();
-      void reader?.cancel();
+      if (reader) {
+        reader.cancel().catch(() => {
+          // Ignore cancellation errors
+        });
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runIdsKey (stable join) intentionally replaces runIds array to avoid spurious re-streams
   }, [dagId, runIdsKey, refreshTick]);
@@ -154,20 +158,15 @@ export const useGridTiSummariesStream = ({
   // invalidateQueries() calls — never from polling intervals — so this never
   // double-fires with the interval-based refresh above.
   useEffect(() => {
-    let scheduleId: number | ReturnType<typeof setTimeout> | undefined;
+    let scheduleScheduled = false;
+    let isMounted = true;
 
-    const schedule = (cb: () => void) =>
-      typeof globalThis.requestAnimationFrame === "function"
-        ? globalThis.requestAnimationFrame(cb)
-        : setTimeout(cb, 0);
-
-    const cancel = (id: number | ReturnType<typeof setTimeout>) => {
-      if (typeof globalThis.cancelAnimationFrame === "function" && typeof id === "number") {
-        globalThis.cancelAnimationFrame(id);
-      } else {
-        clearTimeout(id as ReturnType<typeof setTimeout>);
-      }
-    };
+    const schedule =
+      typeof globalThis.queueMicrotask === "function"
+        ? globalThis.queueMicrotask
+        : (cb: () => void) => {
+            setTimeout(cb, 0);
+          };
 
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       const [firstKey] = event.query.queryKey as Array<unknown>;
@@ -178,24 +177,22 @@ export const useGridTiSummariesStream = ({
         typeof firstKey === "string" &&
         GRID_MUTATION_WATCHED_KEYS.has(firstKey)
       ) {
-        // Debounce: a single mutation invalidates several matching queries in one tick/frame.
-        if (scheduleId !== undefined) {
-          cancel(scheduleId);
+        // Coalesce: multiple invalidations in the same execution tick only trigger one re-stream.
+        if (!scheduleScheduled) {
+          scheduleScheduled = true;
+          schedule(() => {
+            if (isMounted) {
+              setRefreshTick((tick) => tick + 1);
+            }
+            scheduleScheduled = false;
+          });
         }
-
-        scheduleId = schedule(() => {
-          setRefreshTick((tick) => tick + 1);
-          scheduleId = undefined;
-        });
       }
     });
 
     return () => {
+      isMounted = false;
       unsubscribe();
-
-      if (scheduleId !== undefined) {
-        cancel(scheduleId);
-      }
     };
   }, [queryClient]);
 
