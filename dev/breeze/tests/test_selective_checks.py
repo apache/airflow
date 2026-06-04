@@ -1329,8 +1329,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         pytest.param(
             ("go-sdk/sdk/variable.go",),
-            {"run-go-sdk-tests": "true"},
-            id="Run go tests for go-sdk",
+            {
+                "run-go-sdk-tests": "true",
+                "run-java-sdk-e2e-tests": "false",
+            },
+            id="Run go tests for go-sdk and skip java e2e tests for non-java change",
         ),
         pytest.param(
             ("java-sdk/sdk/build.gradle.kts",),
