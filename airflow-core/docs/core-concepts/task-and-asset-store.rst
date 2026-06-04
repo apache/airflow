@@ -22,12 +22,12 @@ Task and Asset Store Overview
 
 .. versionadded:: 3.3
 
-Airflow has always modeled tasks as stateless, idempotent units of work. A growing class of workloads, however, require some amount of data to be persisted outside of a yask's return value, like a submitted job ID that must survive a worker crash, a watermark that advances run-by-run, or a row counter exposed for observability. Task store and Asset store fill that gap without touching the XCom or Variable systems.
+Airflow has always modeled tasks as stateless, idempotent units of work. A growing class of workloads, however, require some amount of data to be persisted outside of a task's return value, like a submitted job ID that must survive a worker crash, a watermark that advances run-by-run, or a row counter exposed for observability. Task store and Asset store fill that gap without touching the XCom or Variable systems.
 
 Task and Asset Store
 --------------------
 
-Airflow 3.3 ships two persistent key/value stores, differentiated by *what* they are scoped to:
+Task and Asset store provide two key/value stores to persist data like a job ID, watermark, or row count. These two stores are differentiated by *what* they are scoped to:
 
 .. list-table::
    :header-rows: 1
@@ -62,7 +62,7 @@ Use this table to choose the right mechanism for your use case.
    * - **XCom**
      - Pass data *between tasks* within a single Dag run (e.g. the output of one task consumed by a downstream task) or across different multiple Dag runs (referencing the data persisted from another run). XComs are cleared on retry, and should NOT be used to persist data across task retries or across runs.
    * - **Variables**
-     - Dag-wide or installation-wide configuration that changes infrequently and is set by operators rather than by tasks themselves.
+     - Deployment-wide or installation-wide configuration that changes infrequently and is set by operators rather than by tasks themselves.
    * - **Task store**
      - Data that must survive a worker crash or data that must survive across retries within the **same run**. An external job ID written before a long-running job completes is a perfect use case for task store.
    * - **Asset store**

@@ -86,7 +86,7 @@ Writes or overwrites a value for the specified key. Note, ``value`` can be any J
 
 The optional ``retention`` argument controls when the key expires:
 
-* ``timedelta(...)``: expire after the given duration from the time of the write (e.g. ``timedelta(hours=6)``). The expiry timestamp is computed on the worker in UTC before the value is sent to the API server.
+* ``timedelta(...)``: expire after the given duration from the time of the write (e.g. ``timedelta(hours=6)``). The expiry timestamp is computed on the worker before the value is sent to the API server.
 * ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
 * ``None`` (default): fall back to the global ``[state_store] default_retention_days`` config.
 
@@ -172,6 +172,8 @@ the default retention window.
             return result
 
 On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_store.py>`_.
+
+For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablemixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~

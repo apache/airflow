@@ -76,45 +76,6 @@ An asset becomes available through context["asset_store"] when it is included in
 
 To see asset store in-action in a real DAG, checkout the DAG in `example_asset_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_asset_store.py>`_.
 
-Accessing asset store in a ``BaseEventTrigger``
------------------------------------------------
-
-When building Triggers used for asset "watching", asset store can be retrieved using the ``self.asset_store`` attribute.
-
-.. code-block:: python
-
-    from airflow.sdk import Asset, BaseEventTrigger, TriggerEvent
-    from collections.abc import AsyncIterator
-
-
-    class GenericEventTrigger(BaseEventTrigger):
-        ...
-
-        async def run(self) -> AsyncIterator[TriggerEvent]:
-            """Logic that fires a TriggerEvent."""
-            my_data = Asset(name="my_data")
-            asset_store = self.asset_store[my_data]
-            watermark = asset_store.get("watermark")
-            asset_store.set("watermark", "2024-06-01")
-
-In the example above, ``my_data`` is created using the ``name`` However, the ``uri`` can also be used:
-
-.. code-block:: python
-
-    from airflow.sdk import Asset, BaseEventTrigger, TriggerEvent
-    from collections.abc import AsyncIterator
-
-
-    class GenericEventTrigger(BaseEventTrigger):
-        ...
-
-        async def run(self) -> AsyncIterator[TriggerEvent]:
-            """Logic that fires a TriggerEvent."""
-            my_data = Asset(uri="s3://bucket/my_data")
-            asset_store = self.asset_store[my_data]
-            watermark = asset_store.get("watermark")
-            asset_store.set("watermark", "2024-06-01")
-
 Single-inlet shorthand
 ~~~~~~~~~~~~~~~~~~~~~~~
 
