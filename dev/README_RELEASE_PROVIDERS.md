@@ -742,15 +742,35 @@ breeze release-management generate-issue-content-providers --only-available-in-d
     --excluded-pr-list PR_NUMBER1,PR_NUMBER2
 ```
 
-It's also OK to manually modify the content of such generated issue before actually creating the
-issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in the issue content.
-Hit Preview button on "create issue" screen before creating it to verify how it will look like
-for the contributors.
+The command always writes the full, untruncated issue body to a file (a temporary file by
+default, or the path you pass with `--output-file`) and prints that path together with a ready
+to run `gh issue create --body-file ...` command. This file is the source of truth for the issue
+content - it is safe to edit it before the issue is created. There is a comment generated with
+NOTE TO RELEASE MANAGER about this in the issue content.
 
-By default, the command will ask whether to create the issue. You can answer Yes
-and it will attempt to create the issue with `gh` tool. This might not always be possible
-because often our issues create too long URL to create an issue, in which case you will
-have to copy&paste the issue title and content manually to the issue created with "New Issue" in GitHub,
+By default, the command will ask whether to create the issue. You can answer Yes and it will
+create the issue with the `gh` tool using `--body-file` (so there is no longer any "URL too long"
+limitation - the previous `--web` based flow encoded the whole body into the URL and failed on
+large provider waves). If you prefer to create it yourself (or want to preview it first), answer
+No and run the printed `gh issue create --body-file ...` command, or copy the file content into a
+"New Issue" screen in GitHub.
+
+For non-interactive / agentic runs you can skip the prompt by passing `--answer yes` (create the
+issue) or `--answer no` (only generate the file). For example, to generate the body without
+creating the issue:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no
+```
+
+then create it from the file:
+
+```shell script
+gh issue create --repo apache/airflow \
+    --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
+    --body-file files/provider_issue.md --label "testing status,kind:meta"
+```
 
 ## Prepare voting email for Providers release candidate
 

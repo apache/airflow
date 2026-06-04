@@ -4,7 +4,7 @@
 # conventions — auto-detect the adopter's skills-dir layout
 
 Different ASF projects already organise their `.claude/skills/`
-differently. Before `setup-steward adopt` creates symlinks
+differently. Before `setup adopt` creates symlinks
 into the snapshot, it detects which pattern is in place and
 matches it. The framework's symlinks land at the same depth
 as the adopter's existing skills, not one level off.
@@ -26,19 +26,21 @@ started using Claude Code use this. **Detection signal**:
 `.claude/skills/<n>/SKILL.md` is a regular file.
 
 For framework symlinks: create them at
-`<repo-root>/.claude/skills/<n>` → relative path into
-`.apache-steward/.claude/skills/<n>/`.
+`<repo-root>/.claude/skills/magpie-<n>` → relative path into
+`.apache-magpie/skills/<n>/` (the symlink carries the
+`magpie-` prefix; its target keeps the snapshot's clean
+source name).
 
 **Caveat — `.claude/` already gitignored.** Some adopters (notably
 those that previously used Claude Code with per-user `.claude/`
 settings) have `.claude/` listed in their repo's `.gitignore`.
-This prevents `.claude/skills/setup-steward/` from being committed
+This prevents `.claude/skills/magpie-setup/` from being committed
 per [`SKILL.md` Golden rule 6](SKILL.md#golden-rules) (which expects
-`setup-steward` itself to be the only committed framework skill).
+`setup` itself to be the only committed framework skill).
 
 Three resolution paths:
 
-- **Override the gitignore** — add `!/.claude/skills/setup-steward/`
+- **Override the gitignore** — add `!/.claude/skills/magpie-setup/`
   after the broader `.claude/` line. Keeps the rest of `.claude/`
   gitignored; commits only the framework's bootstrap skill.
 - **Switch to Pattern B** — move skills to `.github/skills/` and use
@@ -76,10 +78,10 @@ view of those skills filtered for Claude Code.
 is a symlink resolving into `.github/skills/`.
 
 For framework symlinks: create *both* layers — the inner
-`.github/skills/<n>` → relative path into
-`.apache-steward/.claude/skills/<n>/`, and the outer
-`.claude/skills/<n>` → `../../.github/skills/<n>/` (matching
-the existing pattern). Both layers gitignored.
+`.github/skills/magpie-<n>` → relative path into
+`.apache-magpie/skills/<n>/`, and the outer
+`.claude/skills/magpie-<n>` → `../../.github/skills/magpie-<n>/`
+(matching the existing pattern). Both layers gitignored.
 
 ### C. None yet — neither directory exists
 
@@ -99,7 +101,7 @@ preference, they say so during the adopt flow.
     └── skills/
         ├── <native-skill>/
         │   └── SKILL.md
-        ├── <framework-symlink>  →  ../../.apache-steward/.claude/skills/<framework-skill>/
+        ├── <framework-symlink>  →  ../../.apache-magpie/skills/<framework-skill>/
         └── ...
 ```
 
@@ -110,7 +112,7 @@ preference, they say so during the adopt flow.
 │   └── skills/
 │       ├── <native-skill>/
 │       │   └── SKILL.md
-│       ├── <framework-symlink>  →  ../../.apache-steward/.claude/skills/<framework-skill>/
+│       ├── <framework-symlink>  →  ../../.apache-magpie/skills/<framework-skill>/
 │       └── ...
 └── .github/
     └── skills  →  ../.claude/skills/
@@ -148,21 +150,21 @@ repo. Either orientation counts as Pattern D.
 
 For framework symlinks: create them at **only one layer** —
 the *real* directory side, never the symlinked side. With
-D.1 that means `.github/skills/<n>` → relative path into
-`.apache-steward/.claude/skills/<n>/`; with D.2 it means
-`.claude/skills/<n>` → the same. The opposite path is
+D.1 that means `.github/skills/magpie-<n>` → relative path into
+`.apache-magpie/skills/<n>/`; with D.2 it means
+`.claude/skills/magpie-<n>` → the same. The opposite path is
 automatically the same content via the directory symlink.
 
 Gitignore consequences: only entries on the real-directory
-side are needed (e.g. `/.github/skills/security-*` for D.1,
-or `/.claude/skills/security-*` for D.2). Git treats the
+side are needed (e.g. `/.github/skills/magpie-*` for D.1,
+or `/.claude/skills/magpie-*` for D.2). Git treats the
 symlinked side as a single tracked symlink and does not
 descend into it, so ignore entries on that side would match
 no actual tracked path and are unnecessary.
 
 The directory symlink itself is **adopter-owned** — created
 deliberately by the adopter as part of the project's layout
-choice, and not touched by `/setup-steward unadopt`. The
+choice, and not touched by `/magpie-setup unadopt`. The
 framework treats it the same way it treats the real-directory
 side: as part of the surrounding repo layout.
 

@@ -431,17 +431,17 @@ shorten a message — attribution applies regardless of message length.
 This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-steward/` snapshot directory.
+gitignored symlinks into the `.apache-magpie/` snapshot directory.
 
 A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/setup-steward` (or follow
-[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
-it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+invocable. Run `/magpie-setup` (or follow
+[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
+it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
 [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
 
 Adopter-specific modifications to framework-skill workflows live in
-[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
 [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 
