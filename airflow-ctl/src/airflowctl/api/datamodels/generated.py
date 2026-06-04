@@ -49,6 +49,20 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -1326,6 +1340,18 @@ class AssetStoreBody(BaseModel):
     value: JsonValue
 
 
+class AssetStoreLastUpdatedBy(BaseModel):
+    """
+    Writer info for the last write to an asset store entry.
+    """
+
+    kind: AssetStoreWriterKind
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
 class AssetStoreResponse(BaseModel):
     """
     A single asset store key/value pair with metadata.
@@ -1334,6 +1360,7 @@ class AssetStoreResponse(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    last_updated_by: AssetStoreLastUpdatedBy | None = None
 
 
 class BackfillPostBody(BaseModel):

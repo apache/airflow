@@ -11620,6 +11620,35 @@ components:
       - total_entries
       title: AssetStoreCollectionResponse
       description: All asset store entries for an asset.
+    AssetStoreLastUpdatedBy:
+      properties:
+        kind:
+          $ref: '#/components/schemas/AssetStoreWriterKind'
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      type: object
+      required:
+      - kind
+      title: AssetStoreLastUpdatedBy
+      description: Writer info for the last write to an asset store entry.
     AssetStoreResponse:
       properties:
         key:
@@ -11631,6 +11660,10 @@ components:
           type: string
           format: date-time
           title: Updated At
+        last_updated_by:
+          anyOf:
+          - $ref: '#/components/schemas/AssetStoreLastUpdatedBy'
+          - type: 'null'
       type: object
       required:
       - key
@@ -11638,6 +11671,17 @@ components:
       - updated_at
       title: AssetStoreResponse
       description: A single asset store key/value pair with metadata.
+    AssetStoreWriterKind:
+      type: string
+      enum:
+      - task
+      - watcher
+      - api
+      title: AssetStoreWriterKind
+      description: "Identifies what kind of writer last updated an asset store entry.\n\
+        \n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER`` \u2014\
+        \ written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014 written\
+        \ directly through the Core API (e.g. manual admin write)."
     AssetWatcherResponse:
       properties:
         name:
