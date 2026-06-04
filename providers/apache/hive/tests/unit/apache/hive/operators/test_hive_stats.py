@@ -23,7 +23,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
+from airflow.providers.apache.hive.operators.hive_stats import (
+    HiveStatsCollectionOperator,
+    _quote_presto_identifier,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
 
@@ -58,6 +61,31 @@ class MockPrestoHook(PrestoHook):
 
     def get_connection(self, *args):
         return self.conn
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        # Plain word identifiers are emitted unchanged.
+        ("plain_col", "plain_col"),
+        ("_underscore", "_underscore"),
+        # Anything that is not a plain word identifier is double-quoted, with any
+        # embedded quote doubled so an injection payload stays a single inert name.
+        ("weird-col", '"weird-col"'),
+        ("evil col", '"evil col"'),
+        ('a"b', '"a""b"'),
+        # An identifier the caller already double-quoted correctly is passed through
+        # untouched rather than re-escaped into '"""weird-col"""'.
+        ('"weird-col"', '"weird-col"'),
+        ('"test-123-quoted"', '"test-123-quoted"'),
+        ('"a""b"', '"a""b"'),
+        # A malformed pre-quoted identifier (unbalanced / lone inner quote) is not a
+        # valid quoted identifier, so it is escaped as a literal name instead.
+        ('"a"b"', '"""a""b"""'),
+    ],
+)
+def test_quote_presto_identifier(identifier, expected):
+    assert _quote_presto_identifier(identifier) == expected
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):

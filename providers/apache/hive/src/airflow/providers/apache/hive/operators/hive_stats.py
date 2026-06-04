@@ -32,16 +32,28 @@ if TYPE_CHECKING:
 
 # The table, the partition columns, and the metastore columns projected in the Presto
 # stats SELECT are interpolated as identifiers, which cannot be bound as SQL parameters.
-# Plain word identifiers are emitted unchanged; anything else is double-quoted with
-# embedded quotes doubled (how Presto/Trino escape identifiers). Kept local rather than
-# reusing common.sql's ``Dialect.escape_word``, which needs a live connection and does
-# not double embedded quotes.
+# Plain word identifiers are emitted unchanged, and identifiers the caller already
+# double-quoted correctly are passed through as-is (so a pre-quoted name such as
+# ``"weird-col"`` is not re-escaped into ``"""weird-col"""``); anything else is
+# double-quoted with embedded quotes doubled (how Presto/Trino escape identifiers).
+# Kept local rather than reusing common.sql's ``Dialect.escape_word``, which needs a
+# live connection and does not double embedded quotes.
 _PLAIN_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# A fully and correctly double-quoted identifier: opening and closing quotes with every
+# embedded quote doubled (e.g. ``"a""b"``). Used to detect identifiers the caller has
+# already escaped so they are left untouched instead of being double-escaped.
+_QUOTED_IDENT_RE = re.compile(r'"(?:[^"]|"")*"')
 
 
 def _quote_presto_identifier(identifier: str) -> str:
-    """Quote a Presto/Trino identifier unless it is already a plain word identifier."""
-    if _PLAIN_IDENT_RE.fullmatch(identifier):
+    """
+    Quote a Presto/Trino identifier.
+
+    Plain word identifiers and identifiers the caller already double-quoted
+    correctly are returned unchanged; anything else is wrapped in double quotes
+    with embedded quotes doubled.
+    """
+    if _PLAIN_IDENT_RE.fullmatch(identifier) or _QUOTED_IDENT_RE.fullmatch(identifier):
         return identifier
     return '"' + identifier.replace('"', '""') + '"'
 
