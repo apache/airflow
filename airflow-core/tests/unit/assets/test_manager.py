@@ -581,3 +581,107 @@ class TestFilterDagsByTeam:
             )
 
         assert dag_with_team not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @pytest.mark.parametrize(
+        (
+            "team_mapping",
+            "source_teams",
+            "scheduled_dags",
+            "allow_consumer_teams",
+            "allow_global_consumers",
+            "expected_in",
+        ),
+        [
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                ["team_a"],
+                True,
+                False,
+                id="consumer_blocked_when_team_not_in_allow_consumer_teams",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                ["team_a", "team_b"],
+                True,
+                True,
+                id="consumer_allowed_when_team_in_allow_consumer_teams",
+            ),
+            pytest.param(
+                {},
+                {"team_a"},
+                {},
+                ["team_b"],
+                True,
+                True,
+                id="teamless_consumer_passes_when_allow_global_consumers_true",
+            ),
+            pytest.param(
+                {},
+                {"team_a"},
+                {},
+                ["team_b"],
+                False,
+                False,
+                id="teamless_consumer_blocked_when_allow_global_consumers_false",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": []},
+                ["team_b"],
+                True,
+                False,
+                id="both_filters_must_pass_and_logic",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                [],
+                True,
+                True,
+                id="empty_allow_consumer_teams_means_no_consumer_filtering",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                None,
+                True,
+                True,
+                id="none_allow_consumer_teams_means_no_consumer_filtering",
+            ),
+        ],
+    )
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
+    def test_consumer_team_filtering(
+        self,
+        mock_mapping,
+        team_mapping,
+        source_teams,
+        scheduled_dags,
+        allow_consumer_teams,
+        allow_global_consumers,
+        expected_in,
+    ):
+        dag = _make_dag("dag1")
+        mock_mapping.return_value = team_mapping
+
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue={dag},
+            source_teams=source_teams,
+            asset_model=_make_asset_model(scheduled_dags=scheduled_dags)
+            if scheduled_dags
+            else _make_asset_model(),
+            source_is_api=False,
+            session=mock.Mock(),
+            allow_consumer_teams=allow_consumer_teams,
+            allow_global_consumers=allow_global_consumers,
+        )
+
+        assert (dag in result) == expected_in
