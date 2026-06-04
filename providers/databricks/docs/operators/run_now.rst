@@ -84,21 +84,24 @@ It allows to utilize Airflow workers more effectively using `new functionality i
 .. _howto/operator:DatabricksRunNowDeferrableOperator:retry-args:
 
 Retry args in deferrable mode
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When ``deferrable=True``, the ``databricks_retry_args`` dictionary is serialized across the
 trigger boundary and must contain only Airflow-serializable values (plain Python primitives
 such as ``int``, ``float``, ``str``, ``bool``, ``None``, ``dict``, and ``list``).
 
-**Supported** (serialization-safe):
+**Supported** (serialization-safe and runtime-valid):
 
 .. code-block:: python
 
-    # Integer / float primitives
-    databricks_retry_args = {"stop_after_attempt": 3, "wait_fixed": 30}
+    # Only plain-primitive Retrying kwarg: reraise
+    databricks_retry_args = {"reraise": True}
 
-    # Nested plain-dict form
-    databricks_retry_args = {"stop": {"type": "stop_after_attempt", "value": 3}}
+For controlling attempt count and delay, prefer the dedicated operator
+parameters ``retry_limit`` and ``retry_delay`` rather than
+``databricks_retry_args``. Custom tenacity strategy objects (``stop``,
+``wait``, ``retry``, ``before``, ``after``, etc.) require tenacity
+callable objects, which are not serialization-safe in deferrable mode.
 
 **Not supported** in deferrable mode (will raise ``ValueError`` at task submission):
 
