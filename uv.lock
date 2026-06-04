@@ -7483,6 +7483,7 @@ name = "apache-airflow-providers-slack"
 version = "9.10.1"
 source = { editable = "providers/slack" }
 dependencies = [
+    { name = "aiohttp" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
@@ -7506,6 +7507,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
