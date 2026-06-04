@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -535,10 +536,10 @@ def ti_update_state(
                     task_id=task_id,
                 )
 
-    # Asset registration runs outside the TI row lock. The exception is intentionally
-    # swallowed after logging: the TI state is already committed above, so raising HTTP 500
-    # here would be misleading (the task did succeed) and would cause the task-SDK worker
-    # to retry a state update for a task that has already completed.
+    # Asset registration runs outside the TI row lock. Failures are logged and counted;
+    # raising HTTP 500 here would be misleading because the task already succeeded and
+    # would make the worker retry a state update that has already completed. Durable
+    # retry/reconciliation for dropped asset events is out of scope for this hot-path fix.
     if isinstance(ti_patch_payload, TISuccessStatePayload) and ti_patch_payload.task_outlets:
         try:
             ti_for_assets = session.get(TI, task_instance_id)
@@ -547,11 +548,12 @@ def ti_update_state(
                     ti_for_assets,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
-                    session,
+                    session=session,
                 )
                 session.commit()
         except Exception:
             session.rollback()
+            stats.incr("asset.registration_failures")
             log.exception(
                 "Failed to register asset changes; task state is already committed",
                 task_instance_id=str(task_instance_id),
