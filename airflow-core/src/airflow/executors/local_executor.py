@@ -25,6 +25,7 @@ LocalExecutor.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
@@ -286,17 +287,14 @@ class LocalExecutor(BaseExecutor):
             self._read_results()
 
             for proc in self.workers.values():
-                try:
+                with contextlib.suppress(ValueError):
                     proc.close()
-                except ValueError:
-                    # Raised if the process is still running/alive
-                    pass
 
             self.activity_queue.close()
             self.result_queue.close()
 
     def terminate(self):
-        """Forcefully terminate all worker processes under control of the executor."""
+        """Terminate all worker processes under control of the executor forcefully."""
         self.log.info("Terminating all LocalExecutor worker processes.")
         for proc in self.workers.values():
             if proc.is_alive():
