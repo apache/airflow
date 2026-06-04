@@ -111,6 +111,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
@@ -2952,6 +2953,72 @@ def test_defer_task_try_number_increment_on_state(
     ti.try_number = initial_try_number
     ti.defer_task(session=session)
     assert ti.try_number == expected_try_number, msg
+
+
+def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
+    """Create a deferrable TI whose Dag belongs to the ``testing`` bundle, then defer it."""
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+    from airflow.triggers.base import StartTriggerArgs
+
+    bundle = session.get(DagBundleModel, "testing")
+    bundle.teams = [session.get(Team, "testing")] if with_team else []
+    session.flush()
+
+    ti = create_task_instance(
+        dag_id="test_defer_team",
+        task_id="op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+            trigger_kwargs={"moment": "2024-01-01"},
+        ),
+        session=session,
+    )
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == "test_defer_team").values(bundle_name="testing")
+    )
+    session.flush()
+
+    ti.defer_task(session=session)
+    return ti
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("with_team", "expected_team_name"),
+    [
+        pytest.param(True, "testing", id="bundle-mapped-to-team"),
+        pytest.param(False, None, id="bundle-without-team"),
+    ],
+)
+def test_defer_task_populates_trigger_team_name(
+    create_task_instance, session, testing_dag_bundle, testing_team, with_team, expected_team_name
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=with_team)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name == expected_team_name
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "False"})
+def test_defer_task_skips_trigger_team_name_when_multi_team_disabled(
+    create_task_instance, session, testing_dag_bundle, testing_team
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=True)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name is None
 
 
 class TestTaskInstanceRelationships:
