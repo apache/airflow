@@ -137,8 +137,8 @@ Basic Airflow deployment
 
 This is the simplest deployment of Airflow, usually operated and managed on a single
 machine. Such a deployment usually uses the LocalExecutor, where the *scheduler* and the *workers* are in
-the same Python process and the *Dag files* are read directly from the local filesystem by the *scheduler*.
-The *webserver* runs on the same machine as the *scheduler*. There is no *triggerer* component, which
+the same Python process. The *Dag processor* runs on the same machine and serializes the *Dag files* into the *metadata database*
+for the *scheduler* to read. The *API server* runs on the same machine as the *scheduler*. There is no *triggerer* component, which
 means that task deferral is not possible.
 
 Such an installation typically does not separate user roles - deployment, configuration, operation, authoring
@@ -159,14 +159,14 @@ and where various roles of users are introduced - *Deployment Manager*, **Dag au
 **Operations User**. You can read more about those various roles in the :doc:`/security/security_model`.
 
 In the case of a distributed deployment, it is important to consider the security aspects of the components.
-The *webserver* does not have access to the *Dag files* directly. The code in the ``Code`` tab of the
+The *API server* does not have access to the *Dag files* directly. The code in the ``Code`` tab of the
 UI is read from the *metadata database*. The *webserver* cannot execute any code submitted by the
 **Dag author**. It can only execute code that is installed as an *installed package* or *plugin* by
 the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
 Dags and tasks, but cannot author Dags.
 
-The *Dag files* need to be synchronized between all the components that use them - *scheduler*,
-*triggerer* and *workers*. The *Dag files* can be synchronized by various mechanisms - typical
+The *Dag files* need to be synchronized between all the components that use them - *Dag processor*,
+*triggerer* and *workers*. The *scheduler* reads the serialized Dag from the *metadata database* and does not need direct access to the *Dag files*. The *Dag files* can be synchronized by various mechanisms - typical
 ways how Dags can be synchronized are described in :doc:`helm-chart:manage-dag-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
@@ -177,11 +177,11 @@ Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in
 Separate Dag processing architecture
 ....................................
 
-In a more complex installation where security and isolation are important, you'll also see the
-standalone *Dag processor* component that allows to separate *scheduler* from accessing *Dag files*.
-This is suitable if the deployment focus is on isolation between parsed tasks. While Airflow does not yet
-support full multi-tenant features, it can be used to make sure that **Dag author** provided code is never
-executed in the context of the scheduler.
+The *Dag processor* is a required component in all Airflow 3 deployments. In distributed
+deployments it runs as a standalone process, ensuring the *scheduler* never has direct access
+to *Dag files* and cannot execute code provided by a **Dag author**. While Airflow does not
+yet support full multi-tenant features, this separation ensures that **Dag author** provided
+code is never executed in the context of the *scheduler*.
 
 .. image:: ../img/diagram_dag_processor_airflow_architecture.png
 
