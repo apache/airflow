@@ -3619,6 +3619,37 @@ def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
             },
             id="Mixed PR with only 200 production lines does not trigger (test lines excluded)",
         ),
+        # A large example-DAG diff in a "plain" provider (not standard/git, which
+        # have their own full-tests rule) must NOT force the full matrix. This is
+        # the exact shape of apache/airflow#68037.
+        pytest.param(
+            (
+                "providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
+            ),
+            "600\t600\tproviders/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large provider example_dags-only PR does not trigger full tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/example_dags/example_complex.py",),
+            "600\t600\tairflow-core/src/airflow/example_dags/example_complex.py",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large airflow-core example_dags-only PR does not trigger full tests",
+        ),
+        # Regression guard: a large *non-example* file in the same plain provider
+        # must still count as production code and trigger the full matrix.
+        pytest.param(
+            ("providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",),
+            "600\t600\tproviders/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",
+            {
+                "full-tests-needed": "true",
+            },
+            id="Large provider production (non-example) PR still triggers full tests",
+        ),
     ],
 )
 def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[str, str]):
