@@ -417,8 +417,7 @@ export const $AssetStoreCollectionResponse = {
 export const $AssetStoreLastUpdatedBy = {
     properties: {
         kind: {
-            type: 'string',
-            title: 'Kind'
+            '$ref': '#/components/schemas/AssetStoreWriterKind'
         },
         dag_id: {
             anyOf: [
@@ -500,6 +499,17 @@ export const $AssetStoreResponse = {
     required: ['key', 'value', 'updated_at'],
     title: 'AssetStoreResponse',
     description: 'A single asset store key/value pair with metadata.'
+} as const;
+
+export const $AssetStoreWriterKind = {
+    type: 'string',
+    enum: ['task', 'watcher', 'api'],
+    title: 'AssetStoreWriterKind',
+    description: `Identifies what kind of writer last updated an asset store entry.
+
+\`\`TASK\`\` — written by a task via the execution API.
+\`\`WATCHER\`\` — written by a \`\`BaseEventTrigger\`\` (no task instance).
+\`\`API\`\` — written directly through the Core API (e.g. manual admin write).`
 } as const;
 
 export const $AssetWatcherResponse = {

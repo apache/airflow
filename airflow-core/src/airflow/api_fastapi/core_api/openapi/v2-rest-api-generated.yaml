@@ -11527,8 +11527,7 @@ components:
     AssetStoreLastUpdatedBy:
       properties:
         kind:
-          type: string
-          title: Kind
+          $ref: '#/components/schemas/AssetStoreWriterKind'
         dag_id:
           anyOf:
           - type: string
@@ -11576,6 +11575,17 @@ components:
       - updated_at
       title: AssetStoreResponse
       description: A single asset store key/value pair with metadata.
+    AssetStoreWriterKind:
+      type: string
+      enum:
+      - task
+      - watcher
+      - api
+      title: AssetStoreWriterKind
+      description: "Identifies what kind of writer last updated an asset store entry.\n\
+        \n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER`` \u2014\
+        \ written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014 written\
+        \ directly through the Core API (e.g. manual admin write)."
     AssetWatcherResponse:
       properties:
         name:

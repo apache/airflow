@@ -49,16 +49,18 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
-class AssetStoreLastUpdatedBy(BaseModel):
+class AssetStoreWriterKind(str, Enum):
     """
-    Writer info for the last write to an asset store entry.
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
     """
 
-    kind: Annotated[str, Field(title="Kind")]
-    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
-    run_id: Annotated[str | None, Field(title="Run Id")] = None
-    task_id: Annotated[str | None, Field(title="Task Id")] = None
-    map_index: Annotated[int | None, Field(title="Map Index")] = None
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
 
 
 class AssetWatcherResponse(BaseModel):
@@ -1274,6 +1276,18 @@ class AssetStoreBody(BaseModel):
         extra="forbid",
     )
     value: JsonValue
+
+
+class AssetStoreLastUpdatedBy(BaseModel):
+    """
+    Writer info for the last write to an asset store entry.
+    """
+
+    kind: AssetStoreWriterKind
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
 
 
 class AssetStoreResponse(BaseModel):

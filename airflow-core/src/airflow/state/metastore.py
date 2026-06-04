@@ -84,6 +84,28 @@ def _build_upsert_stmt(
     return stmt
 
 
+def _build_asset_writer_fields(
+    kind: AssetStoreWriterKind | None,
+    dag_id: str | None,
+    run_id: str | None,
+    task_id: str | None,
+    map_index: int | None,
+    *,
+    value: str,
+    now: datetime,
+) -> tuple[dict, dict]:
+    kind_str = kind.value if kind is not None else None
+    writer_info = dict(
+        last_updated_by_kind=kind_str,
+        last_updated_by_dag_id=dag_id,
+        last_updated_by_run_id=run_id,
+        last_updated_by_task_id=task_id,
+        last_updated_by_map_index=map_index,
+    )
+    update_fields = dict(value=value, updated_at=now, **(writer_info if kind is not None else {}))
+    return writer_info, update_fields
+
+
 class MetastoreStoreBackend(BaseStoreBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
@@ -293,18 +315,10 @@ class MetastoreStoreBackend(BaseStoreBackend):
         session: Session,
     ) -> None:
         now = timezone.utcnow()
-        kind_str = kind.value if kind is not None else None
-        writer_info = dict(
-            last_updated_by_kind=kind_str,
-            last_updated_by_dag_id=dag_id,
-            last_updated_by_run_id=run_id,
-            last_updated_by_task_id=task_id,
-            last_updated_by_map_index=map_index,
+        writer_info, update_fields = _build_asset_writer_fields(
+            kind, dag_id, run_id, task_id, map_index, value=value, now=now
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
-        update_fields = dict(value=value, updated_at=now)
-        if kind is not None:
-            update_fields.update(writer_info)
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             AssetStoreModel,
@@ -501,18 +515,10 @@ class MetastoreStoreBackend(BaseStoreBackend):
         session: AsyncSession,
     ) -> None:
         now = timezone.utcnow()
-        kind_str = kind.value if kind is not None else None
-        writer_info = dict(
-            last_updated_by_kind=kind_str,
-            last_updated_by_dag_id=dag_id,
-            last_updated_by_run_id=run_id,
-            last_updated_by_task_id=task_id,
-            last_updated_by_map_index=map_index,
+        writer_info, update_fields = _build_asset_writer_fields(
+            kind, dag_id, run_id, task_id, map_index, value=value, now=now
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
-        update_fields = dict(value=value, updated_at=now)
-        if kind is not None:
-            update_fields.update(writer_info)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),

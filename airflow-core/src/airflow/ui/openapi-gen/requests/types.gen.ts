@@ -115,7 +115,7 @@ export type AssetStoreCollectionResponse = {
  * Writer info for the last write to an asset store entry.
  */
 export type AssetStoreLastUpdatedBy = {
-    kind: string;
+    kind: AssetStoreWriterKind;
     dag_id?: string | null;
     run_id?: string | null;
     task_id?: string | null;
@@ -131,6 +131,15 @@ export type AssetStoreResponse = {
     updated_at: string;
     last_updated_by?: AssetStoreLastUpdatedBy | null;
 };
+
+/**
+ * Identifies what kind of writer last updated an asset store entry.
+ *
+ * ``TASK`` — written by a task via the execution API.
+ * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+ * ``API`` — written directly through the Core API (e.g. manual admin write).
+ */
+export type AssetStoreWriterKind = 'task' | 'watcher' | 'api';
 
 /**
  * Asset watcher serializer for responses.

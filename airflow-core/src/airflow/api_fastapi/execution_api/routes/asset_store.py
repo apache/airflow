@@ -121,18 +121,14 @@ def get_asset_store_by_name(
     return AssetStoreResponse(value=json.loads(value))
 
 
-@router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
-def set_asset_store_by_name(
-    name: Annotated[str, Query(min_length=1)],
-    key: Annotated[str, Query(min_length=1)],
+def _put_asset_store(
+    scope: AssetScope,
+    key: str,
     body: AssetStorePutBody,
+    token: TIToken,
     session: SessionDep,
-    token: TIToken = CurrentTIToken,
 ) -> None:
-    """Set an asset store value by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
     backend = get_state_backend()
-    scope = AssetScope(asset_id=asset_id)
     if isinstance(backend, MetastoreStoreBackend):
         dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
         backend.set_asset_store(
@@ -148,6 +144,18 @@ def set_asset_store_by_name(
         )
     else:
         backend.set(scope, key, json.dumps(body.value), session=session)
+
+
+@router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
+def set_asset_store_by_name(
+    name: Annotated[str, Query(min_length=1)],
+    key: Annotated[str, Query(min_length=1)],
+    body: AssetStorePutBody,
+    session: SessionDep,
+    token: TIToken = CurrentTIToken,
+) -> None:
+    """Set an asset store value by asset name."""
+    _put_asset_store(AssetScope(asset_id=_resolve_asset_id_by_name(name, session)), key, body, token, session)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -197,24 +205,7 @@ def set_asset_store_by_uri(
     token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset store value by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    backend = get_state_backend()
-    scope = AssetScope(asset_id=asset_id)
-    if isinstance(backend, MetastoreStoreBackend):
-        dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
-        backend.set_asset_store(
-            scope,
-            key,
-            json.dumps(body.value),
-            kind=AssetStoreWriterKind.TASK,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            session=session,
-        )
-    else:
-        backend.set(scope, key, json.dumps(body.value), session=session)
+    _put_asset_store(AssetScope(asset_id=_resolve_asset_id_by_uri(uri, session)), key, body, token, session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
