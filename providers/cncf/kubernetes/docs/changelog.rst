@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+10.18.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Enforce execution_timeout in deferrable KubernetesPodOperator (#67229)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix scheduler crashloop from KubernetesExecutor completed-pod adoption (#67850)``
+* ``Fix monitoring-pod leak in KubernetesJobOperator (#67333)``
+* ``Fix KubernetesPodOperator emitting orphan timestamps for empty container writes (#67652)``
+* ``Fix multiple_outputs no-op on deferrable KubernetesPodOperator (#67226)``
+* ``Fix KubernetesPodTrigger.get_task_state KeyError on mapped TIs (#67296) (#67297)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix provider executor tests broken in main (#67268)``
+
+
 10.17.1
 .......
 

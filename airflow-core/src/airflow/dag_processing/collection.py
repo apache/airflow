@@ -129,8 +129,11 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
             load_only(
                 DagRun.dag_id,
                 DagRun.logical_date,
+                DagRun.run_after,
                 DagRun.data_interval_start,
                 DagRun.data_interval_end,
+                DagRun.partition_key,
+                DagRun.partition_date,
             )
         )
     )
@@ -165,8 +168,11 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             load_only(
                 DagRun.dag_id,
                 DagRun.logical_date,
+                DagRun.run_after,
                 DagRun.data_interval_start,
                 DagRun.data_interval_end,
+                DagRun.partition_key,
+                DagRun.partition_date,
             )
         )
     )

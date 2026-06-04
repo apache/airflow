@@ -438,7 +438,7 @@ Currently, **officially** using Airflow:
 1. [Qliro](https://www.qliro.com) [[@kvackkvackanka](https://github.com/kvackkvackanka)]
 1. [Qoala](https://www.qoala.id) [[@gnomeria](https://github.com/gnomeria), [@qoala-engineering](https://github.com/qoala-engineering)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
-1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga) & [@shubhamraj-git](https://github.com/shubhamraj-git)]
+1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga), [@shubhamraj-git](https://github.com/shubhamraj-git), &  [@suhaas-vaddadi](https://github.com/suhaas-vaddadi)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](https://github.com/eronarn)]
 1. [Quero Educação](https://querobolsa.com.br/) [[@joaopedro02](https://github.com/joaopedro02)]
 1. [Quick Algorithm Analytics](https://quickalgorithm.com) [[@QuickAlgorithm](https://github.com/QuickAlgorithm), [@jacojaki](https://github.com/jacojaki), [@Giuzzilla](https://github.com/Giuzzilla), [@breizh24](https://github.com/breizh24) & [@AndreaSoprani](https://github.com/andreasoprani)]

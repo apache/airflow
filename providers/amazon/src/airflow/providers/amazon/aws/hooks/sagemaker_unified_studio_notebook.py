@@ -26,6 +26,7 @@ import time
 import uuid
 from functools import cached_property
 from typing import Any
+from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
 
@@ -246,21 +247,160 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
             error_message = execution_message
         raise RuntimeError(error_message)
 
-    def get_project_s3_path(self, project_id: str) -> str:
+    def get_project_s3_path(self, domain_identifier: str, project_id: str) -> str:
         """
-        Construct the S3 path for a SageMaker Unified Studio project bucket.
+        Look up the S3 bucket path for a SageMaker Unified Studio project.
 
+        The bucket path is read from the ``s3BucketPath`` provisioned resource of
+        the project's default ("Tooling") environment via the DataZone APIs:
+        ``GetEnvironment(GetProjectDefaultEnvironment(...))``. This mirrors how
+        SageMaker Unified Studio resolves the project bucket, and accommodates projects
+        whose bucket name does not follow the
+        ``amazon-sagemaker-{account_id}-{region}-{project_id}`` template (for
+        example, BYOR-bucket projects).
+
+        :param domain_identifier: The ID of the DataZone domain.
         :param project_id: The ID of the DataZone project.
         :return: The S3 bucket name for the project.
+        :raises RuntimeError: If the default tooling environment or the
+            ``s3BucketPath`` provisioned resource cannot be found.
         """
-        account_id = self.account_id
-        region = self.conn_region_name
-        return f"amazon-sagemaker-{account_id}-{region}-{project_id}"
+        environment = self._get_default_tooling_environment(domain_identifier, project_id)
+        environment_id = environment.get("id")
+        provisioned_resources = environment.get("provisionedResources", []) or []
+        for resource in provisioned_resources:
+            if resource.get("name") == "s3BucketPath":
+                value = resource.get("value")
+                if not value:
+                    raise RuntimeError(
+                        f"s3BucketPath provisioned resource is empty in default tooling "
+                        f"environment {environment_id} for project {project_id} in domain "
+                        f"{domain_identifier}"
+                    )
+                # value looks like "s3://<bucket>/<prefix>"; return the bucket name only.
+                parts = urlparse(value, allow_fragments=False)
+                bucket = parts.netloc
+                if not bucket:
+                    raise RuntimeError(
+                        f"s3BucketPath provisioned resource has unexpected format "
+                        f"'{value}' in default tooling environment {environment_id} for "
+                        f"project {project_id} in domain {domain_identifier}"
+                    )
+                return bucket
+
+        raise RuntimeError(
+            f"s3BucketPath provisioned resource not found in default tooling environment "
+            f"{environment_id} for project {project_id} in domain {domain_identifier}"
+        )
+
+    def _get_default_tooling_environment(self, domain_identifier: str, project_id: str) -> dict:
+        """
+        Resolve the project's default ("Tooling") environment via DataZone APIs.
+
+        1. ``ListEnvironmentBlueprints(managed=True, name="Tooling")`` →
+           resolve the Tooling blueprint id.
+        2. ``ListEnvironments(environmentBlueprintIdentifier=...)`` →
+           list the project's tooling environments.
+        3. Pick the environment with the smallest non-null ``deploymentOrder``
+           as the default. If none has one, fall back to the ``ToolingLite``
+           blueprint with the same logic.
+        4. ``GetEnvironment(identifier=...)`` → read the full record (including
+           ``provisionedResources``).
+
+        :param domain_identifier: The ID of the DataZone domain.
+        :param project_id: The ID of the DataZone project.
+        :return: The full environment dict from ``GetEnvironment``.
+        :raises RuntimeError: If no default Tooling/ToolingLite environment is
+            found or the DataZone APIs return an error.
+        """
+        try:
+            default_env_summary = self._find_default_tooling_environment_summary(
+                domain_identifier=domain_identifier,
+                project_id=project_id,
+                blueprint_name="Tooling",
+            )
+            if default_env_summary is None:
+                default_env_summary = self._find_default_tooling_environment_summary(
+                    domain_identifier=domain_identifier,
+                    project_id=project_id,
+                    blueprint_name="ToolingLite",
+                )
+            if default_env_summary is None:
+                raise RuntimeError(
+                    f"No default Tooling or ToolingLite environment found for project "
+                    f"{project_id} in domain {domain_identifier}"
+                )
+
+            return self.conn.get_environment(
+                domainIdentifier=domain_identifier,
+                identifier=default_env_summary["id"],
+            )
+        except ClientError as e:
+            raise RuntimeError(
+                f"Failed to resolve default tooling environment for project {project_id} "
+                f"in domain {domain_identifier}: {e}"
+            ) from e
+
+    def _find_default_tooling_environment_summary(
+        self,
+        domain_identifier: str,
+        project_id: str,
+        blueprint_name: str,
+    ) -> dict | None:
+        """
+        Resolve the default tooling environment summary for a given blueprint.
+
+        Returns ``None`` when the blueprint has no environments for the project
+        (so the caller can fall back to ``ToolingLite``). When environments
+        exist, prefers the one with the lowest non-null ``deploymentOrder``;
+        when ``deploymentOrder`` is absent on every env (the field is optional
+        in the DataZone response shape), falls back to the first item.
+
+        Raises ``RuntimeError`` only when the blueprint itself is missing.
+
+        :param domain_identifier: The ID of the DataZone domain.
+        :param project_id: The ID of the DataZone project.
+        :param blueprint_name: ``"Tooling"`` or ``"ToolingLite"``.
+        :return: The environment summary dict, or ``None``.
+        """
+        blueprints = (
+            self.conn.list_environment_blueprints(
+                domainIdentifier=domain_identifier,
+                managed=True,
+                name=blueprint_name,
+            ).get("items", [])
+            or []
+        )
+        if not blueprints:
+            raise RuntimeError(
+                f"{blueprint_name} environment blueprint not found in domain {domain_identifier}"
+            )
+        blueprint_id = blueprints[0]["id"]
+
+        environments = (
+            self.conn.list_environments(
+                domainIdentifier=domain_identifier,
+                projectIdentifier=project_id,
+                environmentBlueprintIdentifier=blueprint_id,
+            ).get("items", [])
+            or []
+        )
+
+        if not environments:
+            return None
+
+        ordered = [env for env in environments if env.get("deploymentOrder") is not None]
+        if ordered:
+            return min(ordered, key=lambda env: env["deploymentOrder"])
+        # ``deploymentOrder`` is optional in the EnvironmentSummary shape; when
+        # absent on every item, fall back to the first env for this blueprint.
+        return environments[0]
 
     def get_notebook_outputs(
         self,
         notebook_identifier: str,
         notebook_run_id: str,
+        domain_identifier: str,
         owning_project_identifier: str,
     ) -> dict[str, Any]:
         """
@@ -272,14 +412,26 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
 
         :param notebook_identifier: The ID of the notebook that was executed.
         :param notebook_run_id: The ID of the completed notebook run.
+        :param domain_identifier: The ID of the DataZone domain.
         :param owning_project_identifier: The ID of the DataZone project.
         :return: A dict of notebook output key-value pairs. Returns an empty dict
             if no outputs were written or the file cannot be parsed.
         """
-        bucket = self.get_project_s3_path(owning_project_identifier)
+        log = logging.getLogger(__name__)
+        try:
+            bucket = self.get_project_s3_path(domain_identifier, owning_project_identifier)
+        except Exception:
+            log.warning(
+                "Failed to resolve project S3 bucket for project %s in domain %s, "
+                "skipping notebook outputs read.",
+                owning_project_identifier,
+                domain_identifier,
+                exc_info=True,
+            )
+            return {}
+
         key = f"sys/notebooks/{notebook_identifier}/runs/{notebook_run_id}/notebook_outputs.json"
 
-        log = logging.getLogger(__name__)
         log.info("Reading notebook outputs from s3://%s/%s", bucket, key)
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, region_name=self.conn_region_name)

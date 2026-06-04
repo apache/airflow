@@ -29,8 +29,6 @@ DOMAIN_ID = "dzd_example"
 PROJECT_ID = "proj_example"
 NOTEBOOK_ID = "notebook_123"
 NOTEBOOK_RUN_ID = "run_456"
-ACCOUNT_ID = "123456789012"
-REGION = "us-west-2"
 
 HOOK_MODULE = "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook"
 
@@ -284,73 +282,249 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
     # --- get_project_s3_path ---
 
-    def test_get_project_s3_path(self):
-        """Constructs the correct S3 bucket name from account_id, region, and project_id."""
-        with (
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
-            result = self.hook.get_project_s3_path(PROJECT_ID)
-        assert result == f"amazon-sagemaker-{ACCOUNT_ID}-{REGION}-{PROJECT_ID}"
+    def _stub_tooling_blueprint_lookup(
+        self,
+        environments: list[dict] | None = None,
+        tooling_lite_environments: list[dict] | None = None,
+    ) -> None:
+        """Set up list_environment_blueprints + list_environments for the tooling lookup.
+
+        Returns the Tooling blueprint with id ``bp-tooling`` and lists ``environments``
+        for it. If ``tooling_lite_environments`` is provided, also returns a
+        ToolingLite blueprint (``bp-tooling-lite``) and lists those for it.
+        """
+        environments = environments or []
+
+        def list_envs(**kwargs):
+            blueprint_id = kwargs.get("environmentBlueprintIdentifier")
+            if blueprint_id == "bp-tooling":
+                return {"items": environments}
+            if blueprint_id == "bp-tooling-lite":
+                return {"items": tooling_lite_environments or []}
+            return {"items": []}
+
+        def list_blueprints(**kwargs):
+            name = kwargs.get("name")
+            if name == "Tooling":
+                return {"items": [{"id": "bp-tooling", "name": "Tooling"}]}
+            if name == "ToolingLite":
+                return {"items": [{"id": "bp-tooling-lite", "name": "ToolingLite"}]}
+            return {"items": []}
+
+        self.mock_client.list_environment_blueprints.side_effect = list_blueprints
+        self.mock_client.list_environments.side_effect = list_envs
+
+    def test_get_project_s3_path_uses_default_tooling_environment(self):
+        """Resolves bucket name from the default tooling environment's s3BucketPath."""
+        env_id = "env-tooling-1"
+        bucket = "my-byor-bucket"
+        self._stub_tooling_blueprint_lookup(
+            environments=[
+                {"id": "env-other", "name": "Tooling", "deploymentOrder": 5},
+                {"id": env_id, "name": "Tooling", "deploymentOrder": 1},
+            ]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": env_id,
+            "provisionedResources": [
+                {"name": "userRoleArn", "value": "arn:aws:iam::123:role/foo"},
+                {"name": "s3BucketPath", "value": f"s3://{bucket}/dzd_x/{PROJECT_ID}/dev"},
+            ],
+        }
+
+        result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+        assert result == bucket
+        self.mock_client.list_environment_blueprints.assert_any_call(
+            domainIdentifier=DOMAIN_ID,
+            managed=True,
+            name="Tooling",
+        )
+        self.mock_client.list_environments.assert_called_once_with(
+            domainIdentifier=DOMAIN_ID,
+            projectIdentifier=PROJECT_ID,
+            environmentBlueprintIdentifier="bp-tooling",
+        )
+        self.mock_client.get_environment.assert_called_once_with(
+            domainIdentifier=DOMAIN_ID,
+            identifier=env_id,
+        )
+
+    def test_get_project_s3_path_picks_lowest_deployment_order(self):
+        """Picks the env with the lowest non-null deploymentOrder, ignoring None."""
+        env_id = "env-tooling-default"
+        bucket = "default-bucket"
+        self._stub_tooling_blueprint_lookup(
+            environments=[
+                {"id": "env-no-order", "name": "Tooling", "deploymentOrder": None},
+                {"id": "env-other", "name": "Tooling", "deploymentOrder": 9},
+                {"id": env_id, "name": "Tooling", "deploymentOrder": 1},
+            ]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": env_id,
+            "provisionedResources": [{"name": "s3BucketPath", "value": f"s3://{bucket}/p"}],
+        }
+
+        result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+        assert result == bucket
+        self.mock_client.get_environment.assert_called_once_with(
+            domainIdentifier=DOMAIN_ID,
+            identifier=env_id,
+        )
+
+    def test_get_project_s3_path_falls_back_to_tooling_lite(self):
+        """Falls back to ToolingLite when the Tooling blueprint has no envs."""
+        env_id = "env-lite-1"
+        bucket = "lite-bucket"
+        self._stub_tooling_blueprint_lookup(
+            environments=[],
+            tooling_lite_environments=[{"id": env_id, "name": "ToolingLite", "deploymentOrder": 1}],
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": env_id,
+            "provisionedResources": [{"name": "s3BucketPath", "value": f"s3://{bucket}/p"}],
+        }
+
+        result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+        assert result == bucket
+        # Both blueprint lookups happened.
+        assert self.mock_client.list_environment_blueprints.call_count == 2
+        self.mock_client.get_environment.assert_called_once_with(
+            domainIdentifier=DOMAIN_ID,
+            identifier=env_id,
+        )
+
+    def test_get_project_s3_path_falls_back_to_first_when_no_deployment_order(self):
+        """When envs exist but none has deploymentOrder, returns the first env."""
+        env_id = "env-tooling-1"
+        bucket = "first-bucket"
+        self._stub_tooling_blueprint_lookup(
+            environments=[
+                {"id": env_id, "name": "AmazonSagemakerEnvironmentConfig-x"},
+                {"id": "env-tooling-2", "name": "AmazonSagemakerEnvironmentConfig-y"},
+            ]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": env_id,
+            "provisionedResources": [{"name": "s3BucketPath", "value": f"s3://{bucket}/p"}],
+        }
+
+        result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+        assert result == bucket
+        self.mock_client.get_environment.assert_called_once_with(
+            domainIdentifier=DOMAIN_ID,
+            identifier=env_id,
+        )
+
+    def test_get_project_s3_path_raises_when_no_environments_for_either_blueprint(self):
+        """Raises RuntimeError when neither Tooling nor ToolingLite has any envs."""
+        self._stub_tooling_blueprint_lookup(environments=[], tooling_lite_environments=[])
+        with pytest.raises(RuntimeError, match="No default Tooling or ToolingLite environment found"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+    def test_get_project_s3_path_raises_when_blueprint_missing(self):
+        """Raises RuntimeError when the Tooling blueprint is not registered in the domain."""
+        self.mock_client.list_environment_blueprints.return_value = {"items": []}
+        with pytest.raises(RuntimeError, match="Tooling environment blueprint not found"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+    def test_get_project_s3_path_raises_when_resource_missing(self):
+        """Raises RuntimeError when s3BucketPath is not in provisionedResources."""
+        self._stub_tooling_blueprint_lookup(
+            environments=[{"id": "env-1", "name": "Tooling", "deploymentOrder": 1}]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": "env-1",
+            "provisionedResources": [{"name": "userRoleArn", "value": "arn:aws:iam::123:role/foo"}],
+        }
+        with pytest.raises(RuntimeError, match="s3BucketPath provisioned resource not found"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+    def test_get_project_s3_path_raises_when_resource_value_empty(self):
+        """Raises RuntimeError when s3BucketPath is present but empty."""
+        self._stub_tooling_blueprint_lookup(
+            environments=[{"id": "env-1", "name": "Tooling", "deploymentOrder": 1}]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": "env-1",
+            "provisionedResources": [{"name": "s3BucketPath", "value": ""}],
+        }
+        with pytest.raises(RuntimeError, match="s3BucketPath provisioned resource is empty"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+    def test_get_project_s3_path_raises_on_malformed_uri(self):
+        """Raises RuntimeError when s3BucketPath has an unexpected format."""
+        self._stub_tooling_blueprint_lookup(
+            environments=[{"id": "env-1", "name": "Tooling", "deploymentOrder": 1}]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": "env-1",
+            "provisionedResources": [{"name": "s3BucketPath", "value": "not-an-s3-uri"}],
+        }
+        with pytest.raises(RuntimeError, match="unexpected format"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
+
+    def test_get_project_s3_path_wraps_client_error(self):
+        """Wraps boto ClientError from DataZone APIs in RuntimeError."""
+        from botocore.exceptions import ClientError
+
+        error_response = {"Error": {"Code": "AccessDenied", "Message": "no access"}}
+        self.mock_client.list_environment_blueprints.side_effect = ClientError(
+            error_response, "ListEnvironmentBlueprints"
+        )
+        with pytest.raises(RuntimeError, match="Failed to resolve default tooling environment"):
+            self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
 
     # --- get_notebook_outputs ---
+
+    def _stub_project_bucket(self, bucket: str = "test-bucket") -> None:
+        """Configure the mock client to resolve the project bucket to ``bucket``."""
+        self._stub_tooling_blueprint_lookup(
+            environments=[{"id": "env-1", "name": "Tooling", "deploymentOrder": 1}]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": "env-1",
+            "provisionedResources": [
+                {"name": "s3BucketPath", "value": f"s3://{bucket}/dzd_x/{PROJECT_ID}/dev"},
+            ],
+        }
 
     def test_get_notebook_outputs_success(self):
         """Reads and parses JSON outputs from S3."""
         outputs = {"name": "Alice", "age": 42}
+        bucket = "test-bucket"
+        self._stub_project_bucket(bucket)
 
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.return_value = json.dumps(outputs)
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
         assert result == outputs
-        expected_bucket = f"amazon-sagemaker-{ACCOUNT_ID}-{REGION}-{PROJECT_ID}"
         expected_key = f"sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
-        mock_s3_hook_cls.return_value.read_key.assert_called_once_with(
-            key=expected_key, bucket_name=expected_bucket
-        )
+        mock_s3_hook_cls.return_value.read_key.assert_called_once_with(key=expected_key, bucket_name=bucket)
 
     def test_get_notebook_outputs_no_such_key(self):
         """Returns empty dict when the outputs file does not exist in S3."""
         from botocore.exceptions import ClientError
 
         error_response = {"Error": {"Code": "NoSuchKey", "Message": "Not found"}}
+        self._stub_project_bucket()
 
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.side_effect = ClientError(error_response, "GetObject")
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
@@ -361,22 +535,14 @@ class TestSageMakerUnifiedStudioNotebookHook:
         from botocore.exceptions import ClientError
 
         error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        self._stub_project_bucket()
 
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.side_effect = ClientError(error_response, "HeadObject")
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
@@ -384,21 +550,14 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
     def test_get_notebook_outputs_invalid_json(self):
         """Returns empty dict when S3 file contains invalid JSON."""
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        self._stub_project_bucket()
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.return_value = "not valid json {{{"
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
@@ -406,21 +565,14 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
     def test_get_notebook_outputs_non_dict_json(self):
         """Returns empty dict when S3 file contains valid JSON but not a dict."""
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        self._stub_project_bucket()
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.return_value = json.dumps(["a", "b"])
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
@@ -428,21 +580,14 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
     def test_get_notebook_outputs_unexpected_exception(self):
         """Returns empty dict on unexpected S3 errors."""
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        self._stub_project_bucket()
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.side_effect = ConnectionError("Network issue")
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
@@ -450,22 +595,34 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
     def test_get_notebook_outputs_empty_dict(self):
         """Returns empty dict when S3 file contains an empty JSON object."""
-        with (
-            patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "account_id", new_callable=PropertyMock
-            ) as mock_account,
-            patch.object(
-                SageMakerUnifiedStudioNotebookHook, "conn_region_name", new_callable=PropertyMock
-            ) as mock_region,
-        ):
-            mock_account.return_value = ACCOUNT_ID
-            mock_region.return_value = REGION
+        self._stub_project_bucket()
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
             mock_s3_hook_cls.return_value.read_key.return_value = json.dumps({})
             result = self.hook.get_notebook_outputs(
                 notebook_identifier=NOTEBOOK_ID,
                 notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
                 owning_project_identifier=PROJECT_ID,
             )
 
         assert result == {}
+
+    def test_get_notebook_outputs_returns_empty_when_bucket_resolution_fails(self):
+        """Returns empty dict when DataZone APIs fail to resolve the project bucket."""
+        from botocore.exceptions import ClientError
+
+        error_response = {"Error": {"Code": "AccessDenied", "Message": "no access"}}
+        self.mock_client.list_environments.side_effect = ClientError(error_response, "ListEnvironments")
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
+            result = self.hook.get_notebook_outputs(
+                notebook_identifier=NOTEBOOK_ID,
+                notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
+                owning_project_identifier=PROJECT_ID,
+            )
+
+        assert result == {}
+        # S3Hook is not even instantiated when bucket cannot be resolved.
+        mock_s3_hook_cls.assert_not_called()

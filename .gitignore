@@ -308,38 +308,31 @@ dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json
 
-# apache-steward — gitignored snapshot of the framework, refreshed
-# by /setup-steward upgrade. Build artefact, not source.
-/.apache-steward/
+# apache-magpie — gitignored snapshot of the framework, refreshed
+# by /magpie-setup upgrade. Build artefact, not source.
+/.apache-magpie/
 
 # Per-machine local-pin file. Records what THIS machine fetched and
-# when. Compared against the committed .apache-steward.lock to
+# when. Compared against the committed .apache-magpie.lock to
 # detect drift.
-/.apache-steward.local.lock
+/.apache-magpie.local.lock
 
 # Per-machine session-state file. Records adopter-local persistence
-# anchors written by steward skills (e.g. the session-history gist
+# anchors written by magpie skills (e.g. the session-history gist
 # URL written by pr-management-triage Step 6b, per
 # https://github.com/apache/airflow-steward/pull/343).
-/.apache-steward.session-state.json
+/.apache-magpie.session-state.json
 
 # Per-machine project-scope Claude Code settings (sandbox-allowlist
 # absolute paths written by sandbox-add-project-root.sh; per
 # https://github.com/apache/airflow-steward/issues/197).
 /.claude/settings.local.json
 
-# Symlinks created by /setup-steward into the gitignored snapshot.
-/.claude/skills/security-*
-/.claude/skills/pr-management-*
-/.claude/skills/issue-*
-/.claude/skills/setup-isolated-setup-*
-/.claude/skills/setup-override-upstream
-/.claude/skills/setup-shared-config-sync
-/.claude/skills/list-steward-*
-/.github/skills/security-*
-/.github/skills/pr-management-*
-/.github/skills/issue-*
-/.github/skills/setup-isolated-setup-*
-/.github/skills/setup-override-upstream
-/.github/skills/setup-shared-config-sync
-/.github/skills/list-steward-*
+# Symlinks created by /magpie-setup into the gitignored snapshot
+# (every framework skill is namespaced under the magpie- prefix).
+# The committed magpie-setup bootstrap is kept tracked by the
+# negation lines (the magpie-* glob would otherwise ignore it).
+/.claude/skills/magpie-*
+!/.claude/skills/magpie-setup
+/.github/skills/magpie-*
+!/.github/skills/magpie-setup

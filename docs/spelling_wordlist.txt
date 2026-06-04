@@ -502,6 +502,7 @@ doesn
 doesnt
 dom
 Dont
+dotfiles
 DownloadReportV
 downscaling
 downstreams
@@ -554,6 +555,7 @@ enableAutoScale
 enablement
 encodable
 encryptor
+endian
 enqueue
 enqueued
 Entra
@@ -1067,6 +1069,7 @@ msfabric
 msg
 msgraph
 mssql
+mtime
 mTLS
 multi-cloud
 multimodal

@@ -102,7 +102,7 @@ class DeadlineAlert(Base):
 
     @classmethod
     @provide_session
-    def get_by_id(cls, deadline_alert_id: str | UUID, session: Session = NEW_SESSION) -> DeadlineAlert:
+    def get_by_id(cls, deadline_alert_id: str | UUID, *, session: Session = NEW_SESSION) -> DeadlineAlert:
         """
         Retrieve a DeadlineAlert record by its UUID.
 

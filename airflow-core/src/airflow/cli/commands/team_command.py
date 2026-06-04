@@ -172,7 +172,7 @@ def team_sync(args, *, session=NEW_SESSION):
     teams_added = 0
 
     try:
-        for team_name in dag_bundle_teams - Team.get_all_team_names(session):
+        for team_name in dag_bundle_teams - Team.get_all_team_names(session=session):
             team = Team(name=team_name)
             session.add(team)
             teams_added += 1
