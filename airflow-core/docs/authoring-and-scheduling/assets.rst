@@ -646,17 +646,27 @@ Rollup mappers
 The mappers shown above match upstream keys to a single downstream key one-for-one.
 For a coarser downstream period made up of many upstream events — an hourly upstream
 that drives a daily summary, daily inputs that compose a weekly report — use
-``RollupMapper``. ``RollupMapper`` composes an upstream mapper (which normalizes each
-upstream key to the downstream granularity) with a ``Window`` that declares the full
-set of upstream keys required for one downstream key. The scheduler holds the Dag
-run until every upstream key in the window has arrived; partial windows stay pending
-on the next-run-assets view so operators can see progress.
+:class:`~airflow.sdk.RollupMapper`. :class:`~airflow.sdk.RollupMapper` composes an
+upstream mapper (which normalizes each upstream key to the downstream granularity)
+with a :class:`~airflow.sdk.Window` that declares the full set of upstream keys
+required for one downstream key. The scheduler holds the Dag run until every upstream
+key in the window has arrived; partial windows stay pending on the next-run-assets
+view so operators can see progress.
 
-The shipped windows are ``HourWindow`` (sixty minutes per hour), ``DayWindow``
-(twenty-four hours per day), ``WeekWindow`` (seven days per week), ``MonthWindow``,
-``QuarterWindow``, and ``YearWindow``. Pair each window with an upstream mapper that
-decodes to the same temporal grain — for example ``StartOfHourMapper`` with
-``DayWindow``.
+The shipped windows are :class:`~airflow.sdk.HourWindow` (sixty minutes per hour),
+:class:`~airflow.sdk.DayWindow` (twenty-four hours per day),
+:class:`~airflow.sdk.WeekWindow` (seven days per week),
+:class:`~airflow.sdk.MonthWindow`, :class:`~airflow.sdk.QuarterWindow`, and
+:class:`~airflow.sdk.YearWindow`. Pair each window with an upstream mapper that
+decodes to the same temporal grain — for example
+:class:`~airflow.sdk.StartOfHourMapper` with :class:`~airflow.sdk.DayWindow`.
+
+Each upstream asset event carries a fine-grained partition key such as
+``2026-03-10T09:00:00`` (second precision). :class:`~airflow.sdk.StartOfHourMapper`
+normalizes that key to the hour boundary ``2026-03-10T09``, which is the format
+it encodes each expected member in — the same
+strings the scheduler matches against the twenty-four required members of
+:class:`~airflow.sdk.DayWindow`.
 
 The following hourly-to-daily example produces a daily summary once all twenty-four
 upstream hourly partitions for a calendar day have arrived:
@@ -710,7 +720,11 @@ upstream hourly partitions for a calendar day have arrived:
 
 A misconfigured ``RollupMapper`` — e.g. pairing an identity-decoding upstream mapper
 with a ``DayWindow`` — raises ``TypeError`` at Dag parse so the misconfiguration
-surfaces immediately instead of silently holding every downstream run forever.
+surfaces immediately instead of silently holding every downstream run forever. The
+error is a type mismatch: an identity-decoding mapper's ``expected_decoded_type`` is
+``str``, but temporal windows such as :class:`~airflow.sdk.DayWindow` require
+``datetime``; ``RollupMapper`` detects the mismatch at construction time and
+raises before the Dag is scheduled.
 
 ``DayWindow`` always enumerates twenty-four hourly steps. With an upstream mapper
 configured for a local timezone that observes daylight-saving time, the spring-forward
