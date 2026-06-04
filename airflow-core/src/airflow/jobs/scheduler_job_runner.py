@@ -1303,9 +1303,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
             session.add(callback)
 
+        # QUEUED events only fill the external executor id for the scheduler-dispatched try.
+        # Stale queued events are consumed without updating a newer try.
         for key in queued_tis:
             try_number = ti_primary_key_to_try_number_map[key.primary]
             if key.try_number != try_number:
+                event_buffer.pop(key, None)
                 continue
             _, info = event_buffer[key]
             result = cast(
@@ -1322,9 +1325,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .values(external_executor_id=info)
                 ),
             )
+            event_buffer.pop(key)
             if result.rowcount:
-                event_buffer.pop(key)
                 cls.logger().info("Setting external_executor_id for task instance %s to %s", key, info)
+            else:
+                cls.logger().info(
+                    "Discarding queued executor event for task instance %s because no matching "
+                    "try_number=%s row exists",
+                    key,
+                    try_number,
+                )
 
         if not tis_with_right_state:
             return len(event_buffer)

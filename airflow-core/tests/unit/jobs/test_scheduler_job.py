@@ -953,11 +953,42 @@ class TestSchedulerJob:
         with mock.patch(
             "airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks
         ) as row_locks:
-            self.job_runner._process_executor_events(executor=executor, session=session)
+            remaining_events = self.job_runner._process_executor_events(executor=executor, session=session)
 
         ti.refresh_from_db(session=session)
         assert ti.external_executor_id == executor_id
+        assert remaining_events == 0
         assert ti.key not in executor.event_buffer
+        row_locks.assert_not_called()
+
+    def test_process_executor_events_queued_stale_try_number_is_consumed(self, dag_maker, session):
+        dag_id = "test_process_executor_events_queued_stale_try_number_is_consumed"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task = EmptyOperator(task_id="dummy_task")
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+        ti.state = State.QUEUED
+        ti.try_number = 2
+        ti.external_executor_id = "current_executor_id"
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        stale_key = ti.key.with_try_number(1)
+        executor.event_buffer[stale_key] = State.QUEUED, "stale_executor_id"
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks
+        ) as row_locks:
+            remaining_events = self.job_runner._process_executor_events(executor=executor, session=session)
+
+        ti.refresh_from_db(session=session)
+        assert ti.external_executor_id == "current_executor_id"
+        assert remaining_events == 0
+        assert stale_key not in executor.event_buffer
         row_locks.assert_not_called()
 
     def test_process_executor_events_mixed_queued_and_failed_locks_only_failed(self, dag_maker, session):
@@ -986,12 +1017,13 @@ class TestSchedulerJob:
         with mock.patch(
             "airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks
         ) as row_locks:
-            self.job_runner._process_executor_events(executor=executor, session=session)
+            remaining_events = self.job_runner._process_executor_events(executor=executor, session=session)
 
         queued_ti.refresh_from_db(session=session)
         failed_ti.refresh_from_db(session=session)
         assert queued_ti.external_executor_id == queued_executor_id
         assert failed_ti.state == State.FAILED
+        assert remaining_events == 0
         assert queued_ti.key not in executor.event_buffer
         assert failed_ti.key not in executor.event_buffer
         row_locks.assert_called_once()
@@ -3480,6 +3512,32 @@ class TestSchedulerJob:
         assert ti.state == State.QUEUED
         assert ti.queued_by_job_id == new_scheduler_job.id
         assert ti.last_heartbeat_at is not None
+
+    def test_adopt_preserves_external_executor_id_on_adopt(self, dag_maker, session, mock_executor):
+        with dag_maker("test_adopt_preserves_external_executor_id_on_adopt", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        ti.external_executor_id = "existing_executor_id"
+        session.commit()
+
+        mock_executor.try_adopt_task_instances.return_value = []
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        ti.refresh_from_db(session=session)
+        assert ti.state == State.QUEUED
+        assert ti.queued_by_job_id == new_scheduler_job.id
+        assert ti.external_executor_id == "existing_executor_id"
 
     def test_adopt_sets_dagrun_conf_when_none(self, dag_maker, session, mock_executor):
         with dag_maker("test_adopt_sets_dagrun_conf_when_none", session=session):
