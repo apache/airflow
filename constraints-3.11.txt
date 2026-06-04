@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-03T21:54:50.826509
+# This constraints file was automatically generated on 2026-06-04T08:59:43.038094
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -188,6 +188,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.1
+clickhouse-connect==1.1.1
 cloudpickle==3.1.1
 cohere==7.0.2
 colorama==0.4.6
@@ -574,7 +575,7 @@ sqlalchemy-spanner==1.18.0
 sqlalchemy_drill==1.1.10
 sqlparse==0.5.5
 stack-data==0.6.3
-starlette==1.2.0
+starlette==1.2.1
 statsd==4.0.1
 std-uritemplate==2.0.10
 structlog==25.5.0

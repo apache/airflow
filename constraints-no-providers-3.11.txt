@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-03T21:50:34.701321
+# This constraints file was automatically generated on 2026-06-04T08:55:13.966669
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -12,10 +12,10 @@ Deprecated==1.3.1
 Jinja2==3.1.6
 Mako==1.3.12
 MarkupSafe==3.0.3
-PyJWT==2.13.0
+PyJWT==2.12.1
 PyYAML==6.0.3
 Pygments==2.20.0
-SQLAlchemy==2.0.50
+SQLAlchemy==2.0.49
 SecretStorage==3.5.0
 a2wsgi==1.10.10
 aiosmtplib==5.1.0
@@ -31,10 +31,10 @@ babel==2.18.0
 backports.tarfile==1.2.0
 cachetools==6.2.6
 cadwyn==6.2.2
-certifi==2026.5.20
+certifi==2026.4.22
 cffi==2.0.0
 charset-normalizer==3.4.7
-click==8.4.1
+click==8.3.3
 colorlog==6.10.1
 cron_descriptor==2.0.8
 croniter==6.2.2
@@ -43,22 +43,22 @@ dill==0.4.1
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi-cli==0.0.24
-fastapi==0.136.3
+fastapi==0.136.1
 fsspec==2026.4.0
 googleapis-common-protos==1.75.0
 greenback==1.3.0
-greenlet==3.5.1
+greenlet==3.5.0
 grpcio==1.80.0
 h11==0.16.0
 httpcore==1.0.9
-httptools==0.8.0
+httptools==0.7.1
 httpx==0.28.1
-idna==3.17
-importlib_metadata==8.9.0
+idna==3.14
+importlib_metadata==8.7.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
-jaraco.functools==4.5.0
+jaraco.functools==4.4.0
 jeepney==0.9.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
@@ -70,23 +70,23 @@ lockfile==0.12.2
 markdown-it-py==4.2.0
 mdurl==0.1.2
 methodtools==0.4.7
-more-itertools==11.1.0
+more-itertools==11.0.2
 msgspec==0.21.1
 natsort==8.4.0
-opentelemetry-api==1.42.1
-opentelemetry-exporter-otlp-proto-common==1.42.1
-opentelemetry-exporter-otlp-proto-grpc==1.42.1
-opentelemetry-exporter-otlp-proto-http==1.42.1
-opentelemetry-exporter-otlp==1.42.1
-opentelemetry-proto==1.42.1
-opentelemetry-sdk==1.42.1
-opentelemetry-semantic-conventions==0.63b1
+opentelemetry-api==1.41.1
+opentelemetry-exporter-otlp-proto-common==1.41.1
+opentelemetry-exporter-otlp-proto-grpc==1.41.1
+opentelemetry-exporter-otlp-proto-http==1.41.1
+opentelemetry-exporter-otlp==1.41.1
+opentelemetry-proto==1.41.1
+opentelemetry-sdk==1.41.1
+opentelemetry-semantic-conventions==0.62b1
 outcome==1.3.0.post0
 packaging==26.2
 pathlib_abc==0.5.2
 pathspec==1.1.1
 pendulum==3.2.0
-platformdirs==4.10.0
+platformdirs==4.9.6
 pluggy==1.6.0
 protobuf==6.33.6
 psutil==7.2.2
@@ -99,14 +99,14 @@ pygtrie==2.5.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
-python-multipart==0.0.29
+python-multipart==0.0.28
 python-slugify==8.0.4
 referencing==0.37.0
-requests==2.34.2
+requests==2.33.1
 rich-argparse==1.8.0
-rich-toolkit==0.19.10
+rich-toolkit==0.19.7
 rich==13.9.4
-rpds-py==2026.5.1
+rpds-py==0.30.0
 setproctitle==1.3.7
 shellingham==1.5.4
 six==1.17.0
@@ -119,7 +119,7 @@ tabulate==0.10.0
 tenacity==9.1.4
 termcolor==3.3.0
 text-unidecode==1.3
-typer==0.26.3
+typer==0.25.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
@@ -128,10 +128,10 @@ universal_pathlib==0.3.10
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.17
-uvicorn==0.48.0
+uvicorn==0.46.0
 uvloop==0.22.1
-watchfiles==1.2.0
+watchfiles==1.1.1
 websockets==16.0
 wirerope==1.0.0
-wrapt==2.2.1
-zipp==4.1.0
+wrapt==2.1.2
+zipp==3.23.1
