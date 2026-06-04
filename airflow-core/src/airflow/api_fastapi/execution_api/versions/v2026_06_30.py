@@ -22,6 +22,7 @@ from cadwyn import VersionChange, endpoint, schema
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TaskInstance,
     TIAwaitingInputStatePayload,
+    TIRunContext,
 )
 
 
@@ -41,6 +42,16 @@ class AddConnectionTestEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
         endpoint("/connection-tests/{connection_test_id}/connection", ["GET"]).didnt_exist,
+    )
+
+
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add first_task_reschedule_start_date field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )
 
 

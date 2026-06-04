@@ -585,6 +585,12 @@ class RuntimeTaskInstance(TaskInstance):
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
 
+        first_task_reschedule_start_date = getattr(
+            self._ti_context_from_server, "first_task_reschedule_start_date", None
+        )
+        if first_task_reschedule_start_date is not None:
+            return first_task_reschedule_start_date
+
         max_tries: int = self.max_tries
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
