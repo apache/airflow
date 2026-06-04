@@ -211,6 +211,22 @@ class TestDeadline:
             assert TEST_CALLBACK_PATH in repr_str
 
     @pytest.mark.db_test
+    def test_bundle_name_propagated_to_callback(self, dagrun, session):
+        """The bundle name is forwarded to the callback so the triggerer can resolve its team."""
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+            bundle_name="my_bundle",
+        )
+        session.add(deadline)
+        session.flush()
+
+        assert deadline.callback.bundle_name == "my_bundle"
+
+    @pytest.mark.db_test
     def test_handle_miss(self, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,

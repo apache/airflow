@@ -35,6 +35,24 @@ will be removed in a future provider release. If you ship a custom
 ``ElasticsearchTaskHandler``, set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)``
 at module scope in that module.
 
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``ElasticsearchSQLHook: add Polars DataFrame support via custom SQL reader (#66220)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit REMOTE_TASK_LOG registration in ElasticsearchTaskHandler (#67105)``
+* ``Refactor Elasticsearch log formatter to use timezone.from_timestamp (#67245)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 6.5.4
 .....
 

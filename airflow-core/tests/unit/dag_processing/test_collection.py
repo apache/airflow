@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -89,8 +89,9 @@ def test_statement_latest_runs_one_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, "
+            "dag_run.data_interval_end, dag_run.run_after, dag_run.partition_key, "
+            "dag_run.partition_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
             "SELECT max(dag_run.logical_date) AS max_logical_date",
@@ -101,11 +102,38 @@ def test_statement_latest_runs_one_dag():
 
 
 @pytest.mark.db_test
-def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
     with dag_maker("fake-dag", schedule=None):
         pass
     dag_maker.sync_dagbag_to_db()
 
+    logical_date = tz.datetime(2025, 1, 1)
+    run_after = tz.datetime(2025, 1, 2)
+
+    dag_maker.create_dagrun(
+        run_id="latest-run",
+        logical_date=logical_date,
+        data_interval=(logical_date, run_after),
+        run_type=DagRunType.SCHEDULED,
+        run_after=run_after,
+        session=session,
+    )
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
+    latest = session.scalar(_get_latest_runs_stmt("fake-dag"))
+    assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == run_after
+    assert latest.partition_key is None
+    assert latest.partition_date is None
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=None):
+        pass
+    dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
         (
             ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
@@ -124,8 +152,14 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
             session=session,
         )
 
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
     latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
     assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == tz.datetime(2025, 1, 1)
+    assert latest.partition_key == "2025-01-02"
     assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
@@ -228,6 +262,53 @@ class TestAssetModelOperation:
 
         asset_model = session.scalars(select(AssetModel)).one()
         assert len(asset_model.triggers) == expected_num_triggers
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("use_team", "expected"),
+        [
+            pytest.param(True, "testing", id="with-team"),
+            pytest.param(False, None, id="no-team"),
+        ],
+    )
+    def test_add_asset_trigger_references_populates_team_name(
+        self, dag_maker, session, testing_team, use_team, expected
+    ):
+        asset = Asset(
+            "test_trigger_team_asset",
+            watchers=[AssetWatcher(name="watcher", trigger=FileDeleteTrigger(mock.Mock()))],
+        )
+
+        with dag_maker(dag_id="test_trigger_team_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        # Use raw DagModelOperation (not dag_maker's bulk_write_to_db) to control team_name
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_stale = False
+        orm_dags[dag.dag_id].is_paused = False
+        session.flush()
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        # Clear any triggers created by dag_maker's bulk_write_to_db
+        session.execute(delete(Trigger))
+        for asset_model in orm_assets.values():
+            asset_model.watchers = []
+        session.flush()
+
+        team_name = testing_team.name if use_team else None
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert len(triggers) == 1
+        assert triggers[0].team_name == expected
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):

@@ -179,3 +179,4 @@ For the full public API reference, see the :doc:`api` page.
   deferred-vs-async-operators
   api
   concepts
+  executable-bundle-spec

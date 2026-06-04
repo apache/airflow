@@ -49,6 +49,20 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -57,6 +71,18 @@ class AssetWatcherResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     trigger_id: Annotated[int, Field(title="Trigger Id")]
     created_date: Annotated[datetime, Field(title="Created Date")]
+
+
+class AsyncConnectionTestResponse(BaseModel):
+    """
+    Response returned when polling for the status of an enqueued connection test.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
 
 
 class BaseInfoResponse(BaseModel):
@@ -319,9 +345,59 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ConnectionTestQueuedResponse(BaseModel):
+    """
+    Response returned when a connection test has been enqueued for worker execution.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+
+
+class ConnectionTestRequestBody(BaseModel):
+    """
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    connection_id: Annotated[str, Field(max_length=200, pattern="^[\\w.-]+$", title="Connection Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+    commit_on_success: Annotated[
+        bool | None,
+        Field(
+            description="If True, save or update the connection in the connection table when the test succeeds.",
+            title="Commit On Success",
+        ),
+    ] = False
+    executor: Annotated[
+        str | None, Field(description="Executor name to dispatch the connection test to.", title="Executor")
+    ] = None
+    queue: Annotated[
+        str | None,
+        Field(
+            description="Worker queue to route the connection test to (executor-dependent).", title="Queue"
+        ),
+    ] = None
+
+
 class ConnectionTestResponse(BaseModel):
     """
-    Connection Test serializer for responses.
+    Connection Test serializer for synchronous test responses.
     """
 
     status: Annotated[bool, Field(title="Status")]
@@ -983,9 +1059,9 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
-class TaskStateBody(BaseModel):
+class TaskStoreBody(BaseModel):
     """
-    Request body for setting a task state value.
+    Request body for setting a task store value.
 
     ``expires_at`` controls expiry:
 
@@ -1001,9 +1077,9 @@ class TaskStateBody(BaseModel):
     expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
 
 
-class TaskStatePatchBody(BaseModel):
+class TaskStorePatchBody(BaseModel):
     """
-    Request body for patching only the value of an existing task state key.
+    Request body for patching only the value of an existing task store key.
     """
 
     model_config = ConfigDict(
@@ -1012,9 +1088,9 @@ class TaskStatePatchBody(BaseModel):
     value: JsonValue
 
 
-class TaskStateResponse(BaseModel):
+class TaskStoreResponse(BaseModel):
     """
-    A single task state key/value pair with metadata.
+    A single task store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1253,9 +1329,9 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStateBody(BaseModel):
+class AssetStoreBody(BaseModel):
     """
-    Request body for setting an asset state value.
+    Request body for setting an asset store value.
     """
 
     model_config = ConfigDict(
@@ -1264,14 +1340,27 @@ class AssetStateBody(BaseModel):
     value: JsonValue
 
 
-class AssetStateResponse(BaseModel):
+class AssetStoreLastUpdatedBy(BaseModel):
     """
-    A single asset state key/value pair with metadata.
+    Writer info for the last write to an asset store entry.
+    """
+
+    kind: AssetStoreWriterKind
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
+class AssetStoreResponse(BaseModel):
+    """
+    A single asset store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    last_updated_by: AssetStoreLastUpdatedBy | None = None
 
 
 class BackfillPostBody(BaseModel):
@@ -2012,12 +2101,12 @@ class TaskResponse(BaseModel):
     ]
 
 
-class TaskStateCollectionResponse(BaseModel):
+class TaskStoreCollectionResponse(BaseModel):
     """
-    All task state entries for a task instance.
+    All task store entries for a task instance.
     """
 
-    task_states: Annotated[list[TaskStateResponse], Field(title="Task States")]
+    task_store: Annotated[list[TaskStoreResponse], Field(title="Task Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -2057,12 +2146,12 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class AssetStateCollectionResponse(BaseModel):
+class AssetStoreCollectionResponse(BaseModel):
     """
-    All asset state entries for an asset.
+    All asset store entries for an asset.
     """
 
-    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
+    asset_store: Annotated[list[AssetStoreResponse], Field(title="Asset Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

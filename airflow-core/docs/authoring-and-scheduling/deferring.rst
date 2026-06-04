@@ -494,6 +494,14 @@ Under some circumstances, it may be desirable to assign a Trigger to a specific 
 * In a multi-tenant Airflow system where you run a distinct set of ``triggerers`` per team.
 * Running distinct sets of ``triggerers`` hosts, where each set of hosts are configured for different trigger operations (e.g. each set of triggerers may have different cloud permissions).
 
+.. tip::
+
+    If you are using :doc:`Multi-Team mode</core-concepts/multi-team>`, the ``--team-name`` option provides
+    native team-scoped triggerer assignment for all trigger types (task-created, event-driven, and callback).
+    See :ref:`Team-scoped Triggerer <multi-team-triggerer>` in the Multi-Team documentation.
+    The ``--queues`` option described below is an older, queue-based mechanism that can be combined with
+    ``--team-name`` if needed.
+
 To enable queue assignment for triggers, do the following:
 
 1. Set the :ref:`config:triggerer__queues_enabled` config value to ``true``. This will ensure when tasks defer, they pass their assigned task queue to the newly registered trigger instance.

@@ -24,6 +24,12 @@ buildscript {
 }
 
 val airflowSupervisorSchemaVersion: String by project
+val sdkVersion: String by project
+
+// Full Maven coordinate: org.apache.airflow:airflow-sdk:<version>
+group = "org.apache.airflow"
+version = sdkVersion
+base.archivesName.set("airflow-sdk")
 
 plugins {
     kotlin("plugin.serialization") version "2.3.0"
@@ -75,7 +81,11 @@ abstract class GeneratePointersTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val srcFile = schemaFile.get().asFile
-        val outDir = targetDirectory.get().asFile.also { it.mkdirs() }
+        val outDir =
+            targetDirectory.get().asFile.also {
+                it.deleteRecursively()
+                it.mkdirs()
+            }
 
         srcFile.copyTo(outDir.resolve(srcFile.name), overwrite = true)
 
@@ -191,6 +201,7 @@ sourceSets {
 }
 
 dokka {
+    moduleVersion.set(sdkVersion)
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
@@ -214,6 +225,10 @@ tasks.named("compileKotlin") {
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("generateJsonSchema2Pojo")
+}
+
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.withType<Jar> {
