@@ -35,30 +35,47 @@ class ChainMapper(PartitionMapper):
     ) -> None:
         self.mappers = [mapper0, mapper1, *mappers]
 
+    def _map_once(
+        self,
+        mapper: PartitionMapper,
+        keys: list[str],
+        *,
+        validate_source: bool = False,
+    ) -> list[str]:
+        next_keys: list[str] = []
+        for current_key in keys:
+            if validate_source:
+                mapper.validate_source_key(current_key)
+
+            mapped = mapper.to_downstream(current_key)
+            if not isinstance(mapped, (str, Iterable)):
+                raise TypeError(
+                    f"ChainMapper child mappers must return a string or iterable of strings, "
+                    f"but {type(mapper).__name__} returned {type(mapped).__name__}"
+                )
+
+            if isinstance(mapped, str):
+                next_keys.append(mapped)
+            elif isinstance(mapped, Iterable):
+                for mapped_key in mapped:
+                    if not isinstance(mapped_key, str):
+                        raise TypeError(
+                            f"ChainMapper child mappers must return an iterable of strings, "
+                            f"but {type(mapper).__name__} yielded {type(mapped_key).__name__}"
+                        )
+                    next_keys.append(mapped_key)
+        return next_keys
+
     def to_downstream(self, key: str) -> str | Iterable[str]:
         keys: list[str] = [key]
         for mapper in self.mappers:
-            next_keys: list[str] = []
-            for current_key in keys:
-                mapped = mapper.to_downstream(current_key)
-                if not isinstance(mapped, (str, Iterable)):
-                    raise TypeError(
-                        f"ChainMapper child mappers must return a string or iterable of strings, "
-                        f"but {type(mapper).__name__} returned {type(mapped).__name__}"
-                    )
-
-                if isinstance(mapped, str):
-                    next_keys.append(mapped)
-                elif isinstance(mapped, Iterable):
-                    for mapped_key in mapped:
-                        if not isinstance(mapped_key, str):
-                            raise TypeError(
-                                f"ChainMapper child mappers must return an iterable of strings, "
-                                f"but {type(mapper).__name__} yielded {type(mapped_key).__name__}"
-                            )
-                        next_keys.append(mapped_key)
-            keys = next_keys
+            keys = self._map_once(mapper, keys)
         return keys[0] if len(keys) == 1 else keys
+
+    def validate_source_key(self, key: str) -> None:
+        keys: list[str] = [key]
+        for mapper in self.mappers:
+            keys = self._map_once(mapper, keys, validate_source=True)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper

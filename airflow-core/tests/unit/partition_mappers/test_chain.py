@@ -40,6 +40,15 @@ class TestChainMapper:
         sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
         assert sm.to_downstream("2024-01-15T10:30:00") == "2024-01-15"
 
+    def test_validate_source_key(self):
+        sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+        sm.validate_source_key("2024-01-15T10:30:00")
+
+    def test_validate_source_key_rejects_non_canonical_input(self):
+        sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+        with pytest.raises(ValueError, match="does not round-trip"):
+            sm.validate_source_key("2024-1-15T10:30:00")
+
     def test_to_downstream_invalid_non_iterable_return(self):
         sm = ChainMapper(IdentityMapper(), _InvalidReturnMapper())
         with pytest.raises(TypeError, match="must return a string or iterable of strings"):

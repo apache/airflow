@@ -35,6 +35,16 @@ class PartitionMapper(ABC):
     def to_downstream(self, key: str) -> str | Iterable[str]:
         """Return the target key that the given source partition key maps to."""
 
+    def validate_source_key(self, key: str) -> None:
+        """
+        Validate that a source partition key is in a supported format.
+
+        The default implementation accepts any key. Mappers that parse or
+        otherwise expect structured source keys should override this to reject
+        malformed-but-parseable inputs before they are normalized.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
         return {}
 

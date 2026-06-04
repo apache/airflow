@@ -45,14 +45,25 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
             timezone = parse_timezone(timezone)
         self._timezone = timezone
 
-    def to_downstream(self, key: str) -> str:
-        dt = datetime.strptime(key, self.input_format)
+    def _parse_source_key(self, key: str) -> datetime:
+        return datetime.strptime(key, self.input_format)
+
+    def _normalize_timezone(self, dt: datetime) -> datetime:
         if dt.tzinfo is None:
-            dt = make_aware(dt, self._timezone)
-        else:
-            dt = dt.astimezone(self._timezone)
+            return make_aware(dt, self._timezone)
+        return dt.astimezone(self._timezone)
+
+    def to_downstream(self, key: str) -> str:
+        dt = self._normalize_timezone(self._parse_source_key(key))
         normalized = self.normalize(dt)
         return self.format(normalized)
+
+    def validate_source_key(self, key: str) -> None:
+        canonical = self._parse_source_key(key).strftime(self.input_format)
+        if canonical != key:
+            raise ValueError(
+                f"Partition key {key!r} does not round-trip with input format {self.input_format!r}"
+            )
 
     @abstractmethod
     def normalize(self, dt: datetime) -> datetime:
