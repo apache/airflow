@@ -1027,21 +1027,39 @@ class AssetModelOperation(NamedTuple):
                 dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
-                (task_id, asset.id)
-                for task_id, asset in ((task_id, assets[d.name, d.uri]) for task_id, d in references)
+                (task_id, assets[d.name, d.uri]): (
+                    d.access_control.get("consumer_teams", []),
+                    d.access_control.get("allow_global", True),
+                )
+                for task_id, d in references
             }
+            referenced_outlet_keys = {(task_id, asset.id) for (task_id, asset) in referenced_outlets}
             orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
             for key, ref in orm_refs.items():
-                if key not in referenced_outlets:
+                if key not in referenced_outlet_keys:
                     session.delete(ref)
+            for (task_id, asset_model), (consumer_teams, allow_global) in referenced_outlets.items():
+                if (task_id, asset_model.id) in orm_refs:
+                    orm_refs[(task_id, asset_model.id)].allow_consumer_teams = consumer_teams
+                    orm_refs[(task_id, asset_model.id)].allow_global_consumers = allow_global
             session.bulk_save_objects(
-                TaskOutletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
-                for task_id, asset_id in referenced_outlets
-                if (task_id, asset_id) not in orm_refs
+                TaskOutletAssetReference(
+                    asset_id=asset_model.id,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    allow_consumer_teams=consumer_teams,
+                    allow_global_consumers=allow_global,
+                )
+                for (task_id, asset_model), (consumer_teams, allow_global) in referenced_outlets.items()
+                if (task_id, asset_model.id) not in orm_refs
             )
 
     def add_asset_trigger_references(
-        self, assets: dict[tuple[str, str], AssetModel], *, session: Session
+        self,
+        assets: dict[tuple[str, str], AssetModel],
+        *,
+        team_name: str | None = None,
+        session: Session,
     ) -> None:
         from airflow.serialization.encoders import encode_trigger
 
@@ -1113,7 +1131,9 @@ class AssetModelOperation(NamedTuple):
                 trigger
                 for trigger in [
                     Trigger(
-                        classpath=triggers[trigger_hash]["classpath"], kwargs=triggers[trigger_hash]["kwargs"]
+                        classpath=triggers[trigger_hash]["classpath"],
+                        kwargs=triggers[trigger_hash]["kwargs"],
+                        team_name=team_name,
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

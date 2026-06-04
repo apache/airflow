@@ -55,13 +55,20 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
     """
     Resolve the expires_at value from the request body.
 
-    - ``"default"``: apply configured default_retention_days
+    - ``"default"``: apply configured ``[state_store] default_retention_days``.
+      ``0`` means never expire. Negative values raise HTTP 400.
     - ``None``: never expire
     - datetime: use as-is
     """
     if expires_at == "default":
         days = conf.getint("state_store", "default_retention_days")
-        return datetime.now(tz=timezone.utc) + timedelta(days=days)
+        if days < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"[state_store] default_retention_days must be >= 0, got {days}. "
+                "Set to 0 to disable expiry.",
+            )
+        return None if days == 0 else datetime.now(tz=timezone.utc) + timedelta(days=days)
     return expires_at
 
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,6 +72,44 @@ class AssetScope:
 
 
 StoreScope = TaskScope | AssetScope
+
+
+class AssetStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+    def validate_writer_fields(
+        self,
+        dag_id: str | None,
+        run_id: str | None,
+        task_id: str | None,
+        map_index: int | None,
+    ) -> None:
+        task_fields = (dag_id, run_id, task_id, map_index)
+        match self:
+            case AssetStoreWriterKind.TASK:
+                if any(f is None for f in task_fields):
+                    raise ValueError(
+                        f"kind='task' requires dag_id, run_id, task_id, and map_index to all be set; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case AssetStoreWriterKind.WATCHER | AssetStoreWriterKind.API:
+                if any(f is not None for f in task_fields):
+                    raise ValueError(
+                        f"kind={self.value!r} must not carry task fields; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case _:
+                raise AssertionError(f"Unhandled AssetStoreWriterKind: {self!r}")
 
 
 class BaseStoreBackend(ABC):

@@ -21,6 +21,7 @@ import contextlib
 import functools
 import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -167,7 +168,18 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
     return Variable(**var_result.model_dump(exclude={"type"}))
 
 
+_preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
+    "_preset_connections", default=None
+)
+
+
 def _get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if preset is not None and conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -208,6 +220,12 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if preset is not None and conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.cache import SecretCache
@@ -563,7 +581,12 @@ class TaskStoreAccessor:
             expires_at = now + retention
         else:
             days = conf.getint("state_store", "default_retention_days")
-            expires_at = None if days <= 0 else now + timedelta(days=days)
+            if days < 0:
+                raise ValueError(
+                    f"[state_store] default_retention_days must be >= 0, got {days}. "
+                    "Set to 0 to disable expiry."
+                )
+            expires_at = None if days == 0 else now + timedelta(days=days)
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB

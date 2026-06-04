@@ -414,6 +414,62 @@ export const $AssetStoreCollectionResponse = {
     description: 'All asset store entries for an asset.'
 } as const;
 
+export const $AssetStoreLastUpdatedBy = {
+    properties: {
+        kind: {
+            '$ref': '#/components/schemas/AssetStoreWriterKind'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Id'
+        },
+        task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Id'
+        },
+        map_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Map Index'
+        }
+    },
+    type: 'object',
+    required: ['kind'],
+    title: 'AssetStoreLastUpdatedBy',
+    description: 'Writer info for the last write to an asset store entry.'
+} as const;
+
 export const $AssetStoreResponse = {
     properties: {
         key: {
@@ -427,12 +483,33 @@ export const $AssetStoreResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        last_updated_by: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/AssetStoreLastUpdatedBy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
     required: ['key', 'value', 'updated_at'],
     title: 'AssetStoreResponse',
     description: 'A single asset store key/value pair with metadata.'
+} as const;
+
+export const $AssetStoreWriterKind = {
+    type: 'string',
+    enum: ['task', 'watcher', 'api'],
+    title: 'AssetStoreWriterKind',
+    description: `Identifies what kind of writer last updated an asset store entry.
+
+\`\`TASK\`\` — written by a task via the execution API.
+\`\`WATCHER\`\` — written by a \`\`BaseEventTrigger\`\` (no task instance).
+\`\`API\`\` — written directly through the Core API (e.g. manual admin write).`
 } as const;
 
 export const $AssetWatcherResponse = {
@@ -455,6 +532,43 @@ export const $AssetWatcherResponse = {
     required: ['name', 'trigger_id', 'created_date'],
     title: 'AssetWatcherResponse',
     description: 'Asset watcher serializer for responses.'
+} as const;
+
+export const $AsyncConnectionTestResponse = {
+    properties: {
+        token: {
+            type: 'string',
+            title: 'Token'
+        },
+        connection_id: {
+            type: 'string',
+            title: 'Connection Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
+        },
+        result_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Result Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        }
+    },
+    type: 'object',
+    required: ['token', 'connection_id', 'state', 'created_at'],
+    title: 'AsyncConnectionTestResponse',
+    description: 'Response returned when polling for the status of an enqueued connection test.'
 } as const;
 
 export const $BackfillCollectionResponse = {
@@ -2022,6 +2136,170 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
+export const $ConnectionTestQueuedResponse = {
+    properties: {
+        token: {
+            type: 'string',
+            title: 'Token'
+        },
+        connection_id: {
+            type: 'string',
+            title: 'Connection Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
+        }
+    },
+    type: 'object',
+    required: ['token', 'connection_id', 'state'],
+    title: 'ConnectionTestQueuedResponse',
+    description: 'Response returned when a connection test has been enqueued for worker execution.'
+} as const;
+
+export const $ConnectionTestRequestBody = {
+    properties: {
+        connection_id: {
+            type: 'string',
+            maxLength: 200,
+            pattern: '^[\\w.-]+$',
+            title: 'Connection Id'
+        },
+        conn_type: {
+            type: 'string',
+            title: 'Conn Type'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        host: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Host'
+        },
+        login: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Login'
+        },
+        schema: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Schema'
+        },
+        port: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Port'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Password'
+        },
+        extra: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
+        commit_on_success: {
+            type: 'boolean',
+            title: 'Commit On Success',
+            description: 'If True, save or update the connection in the connection table when the test succeeds.',
+            default: false
+        },
+        executor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Executor',
+            description: 'Executor name to dispatch the connection test to.'
+        },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue',
+            description: 'Worker queue to route the connection test to (executor-dependent).'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['connection_id', 'conn_type'],
+    title: 'ConnectionTestRequestBody',
+    description: `Request body for enqueueing a connection test on a worker.
+
+Inherits \`\`connection_id\`\` pattern, \`\`extra\`\` JSON validation, and
+\`\`team_name\`\` handling from \`\`ConnectionBody\`\` so tested connections share
+the same input contract as persisted ones.`
+} as const;
+
 export const $ConnectionTestResponse = {
     properties: {
         status: {
@@ -2036,7 +2314,7 @@ export const $ConnectionTestResponse = {
     type: 'object',
     required: ['status', 'message'],
     title: 'ConnectionTestResponse',
-    description: 'Connection Test serializer for responses.'
+    description: 'Connection Test serializer for synchronous test responses.'
 } as const;
 
 export const $CreateAssetEventsBody = {
@@ -9257,7 +9535,7 @@ export const $LightGridTaskInstanceSummary = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

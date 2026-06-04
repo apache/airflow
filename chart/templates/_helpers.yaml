@@ -1075,6 +1075,9 @@ Usage:
     {{- $bundles := list -}}
     {{- range .Values.dagProcessor.dagBundleConfigList -}}
       {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- if .team_name -}}
+      {{- $_ := set $bundle "team_name" .team_name -}}
+      {{- end -}}
       {{- $bundles = append $bundles $bundle -}}
     {{- end -}}
     {{- $bundles | toJson -}}

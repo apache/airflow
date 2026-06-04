@@ -458,26 +458,26 @@ maintainer-facing PR-management skills (`pr-management-triage`,
 that are exposed as agent skills in agent harnesses such as Claude Code.
 
 The framework is **not** vendored — it lives as a gitignored snapshot
-under `.apache-steward/`, fetched on demand from the version pinned in
-the committed [`.apache-steward.lock`](.apache-steward.lock). The only
-framework artefact committed to this repo is the `setup-steward` skill
-at [`.github/skills/setup-steward/`](.github/skills/setup-steward/);
+under `.apache-magpie/`, fetched on demand from the version pinned in
+the committed [`.apache-magpie.lock`](.apache-magpie.lock). The only
+framework artefact committed to this repo is the `magpie-setup` skill
+at [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
 everything else is a gitignored symlink the setup skill wires up.
 
 A fresh clone needs the snapshot populated before any framework skill
 is invocable. In your agent harness, run:
 
 ```text
-/setup-steward
+/magpie-setup
 ```
 
-(or follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+(or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
 to fetch the snapshot per the committed lock, scaffold the gitignored
 symlinks, and install the post-checkout hook that re-creates them on
 each worktree checkout.
 
 Adopter-specific modifications to framework workflows live in
-[`.apache-steward-overrides/`](.apache-steward-overrides/) (committed) —
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
 never edit the snapshot directly. Framework changes go via PR to
 [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 

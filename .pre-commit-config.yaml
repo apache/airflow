@@ -192,7 +192,7 @@ repos:
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/skills/setup-steward/
+          ^\.github/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -397,7 +397,7 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.github/skills/airflow-translations/|
-          ^\.github/skills/setup-steward/|
+          ^\.github/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -441,8 +441,8 @@ repos:
           ^.*/node_modules/|
           ^\.build/|
           ^generated/|
-          ^\.apache-steward-overrides/|
-          ^\.github/skills/setup-steward/
+          ^\.apache-magpie-overrides/|
+          ^\.github/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -958,8 +958,8 @@ repos:
         files: \.(md|mdown|markdown)$
         exclude: |
           (?x)
-          ^\.apache-steward-overrides/|
-          ^\.github/skills/setup-steward/
+          ^\.apache-magpie-overrides/|
+          ^\.github/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
