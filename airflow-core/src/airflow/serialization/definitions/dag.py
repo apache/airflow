@@ -500,6 +500,26 @@ class SerializedDAG:
         )
         return total_tasks >= self.max_active_tasks
 
+    def validate_partition_key(self, partition_key: str | None) -> None:
+        """
+        Raise ``DagNotPartitionedError`` if a partition key is supplied for a non-partitioned Dag.
+
+        A ``None`` value is always accepted. A non-``None`` value is accepted only when the
+        Dag's timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
+
+        :param partition_key: The partition key to validate, or ``None`` to skip validation.
+        :raises DagNotPartitionedError: When ``partition_key`` is not ``None`` and the Dag's
+            timetable is neither ``partitioned`` nor ``partitioned_at_runtime``.
+        """
+        if (
+            partition_key is not None
+            and not self.timetable.partitioned
+            and not self.timetable.partitioned_at_runtime
+        ):
+            raise DagNotPartitionedError(
+                f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
+
     @provide_session
     def create_dagrun(
         self,
@@ -586,14 +606,7 @@ class SerializedDAG:
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
-        if (
-            partition_key is not None
-            and not self.timetable.partitioned
-            and not self.timetable.partitioned_at_runtime
-        ):
-            raise DagNotPartitionedError(
-                f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
-            )
+        self.validate_partition_key(partition_key)
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
         copied_params = self.params.deep_merge(conf)

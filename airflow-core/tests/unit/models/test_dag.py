@@ -41,7 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagNotPartitionedError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -70,6 +70,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
+    PartitionAtRuntime,
     TaskGroup,
     setup,
     task as task_decorator,
@@ -1508,14 +1509,24 @@ class TestDag:
         )
         assert dr.note == note
 
-    @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
-    def test_create_dagrun_partition_key(self, partition_key, dag_maker):
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_cm"),
+        [
+            (None, nullcontext()),
+            (
+                "my-key",
+                pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"),
+            ),
+            (
+                123,
+                pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"),
+            ),
+        ],
+    )
+    def test_create_dagrun_partition_key(self, partition_key, expected_cm, dag_maker):
         with dag_maker("test_create_dagrun_partition_key"):
             ...
-        cm = nullcontext()
-        if isinstance(partition_key, int):
-            cm = pytest.raises(ValueError, match="Expected partition_key to be `str` | `None` but got `int`")
-        with cm:
+        with expected_cm:
             dr = dag_maker.create_dagrun(
                 run_id="test_create_dagrun_partition_key",
                 run_after=DEFAULT_DATE,
@@ -1525,6 +1536,70 @@ class TestDag:
                 partition_key=partition_key,
             )
             assert dr.partition_key == partition_key
+
+    def test_create_dagrun_partition_key_accepted_for_partitioned_dag(self, dag_maker):
+        """create_dagrun accepts a str partition_key when the Dag uses a partitioned timetable."""
+        with dag_maker(
+            "test_create_dagrun_partitioned",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        dr = dag_maker.create_dagrun(
+            run_id="test_create_dagrun_partitioned",
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            partition_key="my-key",
+        )
+        assert dr.partition_key == "my-key"
+
+    def test_create_dagrun_int_partition_key_rejected_for_partitioned_dag(self, dag_maker):
+        """DagRun-level type check rejects int partition_key even for partitioned Dags."""
+        with dag_maker(
+            "test_create_dagrun_partitioned_int_key",
+            schedule=PartitionAtRuntime(),
+        ):
+            ...
+        with pytest.raises(
+            ValueError,
+            match=r"Expected partition_key to be a `str` or `None` but got `int`",
+        ):
+            dag_maker.create_dagrun(
+                run_id="test_create_dagrun_partitioned_int_key",
+                run_after=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+                state=State.NONE,
+                triggered_by=DagRunTriggeredByType.TEST,
+                partition_key=123,
+            )
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("partition_key", "schedule", "should_raise"),
+        [
+            ("my-key", None, True),
+            (None, None, False),
+            ("my-key", CronPartitionTimetable("@daily", timezone="UTC"), False),
+            ("my-key", PartitionAtRuntime(), False),
+        ],
+    )
+    def test_serialized_dag_validate_partition_key(
+        self,
+        partition_key,
+        schedule,
+        should_raise,
+        dag_maker,
+    ):
+        """SerializedDAG.validate_partition_key raises for non-partitioned Dags and accepts for partitioned."""
+        with dag_maker("test_validate_partition_key", schedule=schedule):
+            ...
+        sdag = dag_maker.serialized_dag
+        if should_raise:
+            with pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"):
+                sdag.validate_partition_key(partition_key)
+        else:
+            sdag.validate_partition_key(partition_key)  # must not raise
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)

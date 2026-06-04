@@ -299,7 +299,9 @@ class TestAssetManager:
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk import PartitionAtRuntime
 
-        with dag_maker(dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session) as producer_dag:
+        with dag_maker(
+            dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session
+        ) as producer_dag:
             from airflow.providers.standard.operators.empty import EmptyOperator
 
             EmptyOperator(task_id="hi", outlets=[asset_1])

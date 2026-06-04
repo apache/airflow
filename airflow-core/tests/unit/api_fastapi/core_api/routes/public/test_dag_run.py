@@ -1573,7 +1573,11 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
-        with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
+        # Use PartitionAtRuntime for partitioned cases so the partition_key gate does not reject the key.
+        source_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=source_schedule, session=session
+        ):
             EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun(partition_key=partition_key)
         ti = dr.task_instances[0]
@@ -1589,13 +1593,21 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
+        trigger_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=trigger_schedule, session=session
+        ):
             pass
-        dr = dag_maker.create_dagrun(
-            run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.ASSET_TRIGGERED,
-            partition_key=partition_key,
-        )
+        create_dagrun_kwargs: dict = {
+            "run_id": "TEST_DAG_RUN_ID",
+            "run_type": DagRunType.ASSET_TRIGGERED,
+            "partition_key": partition_key,
+        }
+        if partition_key is not None:
+            # PartitionAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
+            # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
+            create_dagrun_kwargs["logical_date"] = None
+        dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
         dr.consumed_asset_events.append(event)
 
         session.commit()
