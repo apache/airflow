@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai.models import Model
+from pydantic_ai.models.test import TestModel
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import (
@@ -241,6 +242,47 @@ class TestPydanticAIHookCreateAgent:
             instructions="Be helpful.",
             retries=3,
         )
+
+
+class TestPydanticAIHookCreateAgentInstrumentation:
+    """create_agent() wires OpenTelemetry instrumentation from observability."""
+
+    @staticmethod
+    def _hook() -> PydanticAIHook:
+        return PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
+    def test_instrument_set_when_settings_returned(self, mock_settings):
+        sentinel = MagicMock(name="InstrumentationSettings")
+        mock_settings.return_value = sentinel
+        hook = self._hook()
+        with patch.object(hook, "get_conn", return_value=TestModel()):
+            agent = hook.create_agent(instructions="hi")
+
+        assert agent.instrument is sentinel
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
+    def test_no_instrument_when_settings_none(self, mock_settings):
+        mock_settings.return_value = None
+        hook = self._hook()
+        with patch.object(hook, "get_conn", return_value=TestModel()):
+            agent = hook.create_agent(instructions="hi")
+
+        mock_settings.assert_called_once()
+        assert agent.instrument is None
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_caller_instrument_short_circuits(self, mock_infer_model, mock_settings, mock_agent_cls):
+        """A caller that passes its own ``instrument`` wins; we don't override it."""
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        hook = self._hook()
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(instructions="hi", instrument=False)
+
+        mock_settings.assert_not_called()
 
 
 class TestPydanticAIHookTestConnection:

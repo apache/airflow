@@ -26,6 +26,45 @@
 Changelog
 ---------
 
+9.30.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'GlueCatalogBatchDeletePartitionOperator' (#66721)``
+* ``Add 'OpenSearchServerlessCreateCollectionOperator' (#66549)``
+* ``Propogate 'verify' and 'botocore_config' in batch triggers (#67508)``
+* ``Propogate 'verify' and 'botocore_config' in redshift cluster triggers (#67876)``
+* ``Add ExecuteCallback support to AWS ECS Executor (#63657)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMaker processing stopped state handling (#67291)``
+* ``Fix EMR Serverless task failure on transient AWS throttling errors (#67222)``
+* ``Fix duplicated logs and memory issue with S3 log handler (#67144)``
+* ``Fix EksPodOperator 401 with cross-account AssumeRole via aws_conn_id (#65335)``
+* ``Fix inconsistency in S3 transfer operators (#67378)``
+* ``Support log level parsing from container output in 'EcsRunTaskOperator' (#67180)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+* ``Cleanup redundant RedshiftHook TODO comment for cluster snapshot creation (#67485)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix example_opensearch_serverless system test (#67666)``
+   * ``Fix example_mwaa_serverless system test race condition with stop_workflow_run (#67578)``
+   * ``Fix smus_notebook system test failure in deferrable CI rotation (#67568)``
+   * ``Fix smus_notebook system test: assume DataZone environment role via aws_conn_id (#66976)``
+   * ``Fix provider executor tests broken in main (#67268)``
+   * ``Replace fixed sleep with active IAM trust policy validation in example_emr_eks (#66736)``
+
+
 9.29.0
 ......
 

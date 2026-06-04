@@ -25,8 +25,9 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1712361600
+source-date-epoch: 1780426378
 versions:
+  - 0.2.0
   - 0.1.0
 
 integrations:

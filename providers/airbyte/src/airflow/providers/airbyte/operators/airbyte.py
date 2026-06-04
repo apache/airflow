@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -87,16 +88,27 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         self.job_id = job_object.job_id
         state = job_object.status
+        trigger_poll_interval = 60
+
+        now = time.time()
 
         # Derive absolute deadlines for deferrable execution.
         # execution_timeout is a hard task-level limit (cancels the job),
         # while timeout only limits how long we wait for the job to finish.
         # If both are set, the earliest deadline wins.
-        end_time = time.monotonic() + self.timeout
+        end_time = now + self.timeout
         execution_deadline = None
 
+        defer_timeout: datetime.timedelta | None = None
+
         if self.execution_timeout is not None:
-            execution_deadline = time.monotonic() + self.execution_timeout.total_seconds()
+            execution_deadline = now + self.execution_timeout.total_seconds()
+
+            # Allow two trigger polling cycles for timeout events to be
+            # processed and Airbyte job cancellation to be initiated before
+            # the framework defer timeout expires.
+            poll_buffer = 2 * trigger_poll_interval
+            defer_timeout = datetime.timedelta(seconds=self.execution_timeout.total_seconds() + poll_buffer)
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
 
@@ -111,13 +123,13 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
-                    timeout=None,
+                    timeout=defer_timeout,
                     trigger=AirbyteSyncTrigger(
                         conn_id=self.airbyte_conn_id,
                         job_id=self.job_id,
                         end_time=end_time,
                         execution_deadline=execution_deadline,
-                        poll_interval=60,
+                        poll_interval=trigger_poll_interval,
                     ),
                     method_name="execute_complete",
                 )

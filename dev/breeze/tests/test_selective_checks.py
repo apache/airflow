@@ -3178,6 +3178,78 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             assert "ydb" not in result
 
 
+def test_individual_providers_excludes_platform_excluded_on_arm():
+    """ibm.mq declares `excluded-platforms: [linux/arm64]`, so it must be absent from
+    the ARM individual-providers matrix (used by the Low-dep ARM canary job) and
+    present on AMD."""
+    arm_checks = SelectiveChecks(
+        files=("airflow-core/tests/test_example.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.SCHEDULE,
+        github_context_dict={"ref_name": "main"},
+        default_branch="main",
+        pr_labels=("full tests needed",),
+    )
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+    ):
+        assert arm_checks.platform == "linux/arm64"
+        arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
+        assert arm_output is not None
+        assert "Providers[ibm.mq]" not in arm_output
+
+    amd_checks = SelectiveChecks(
+        files=("airflow-core/tests/test_example.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.SCHEDULE,
+        github_context_dict={"ref_name": "main"},
+        default_branch="main",
+        pr_labels=("full tests needed",),
+    )
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+    ):
+        assert amd_checks.platform == "linux/amd64"
+        amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
+        assert amd_output is not None
+        assert "Providers[ibm.mq]" in amd_output
+
+
+def test_filter_platform_excluded_test_types_handles_all_shapes():
+    """Direct unit check of the in-place filter for the three Providers[...] shapes."""
+    checks = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.SCHEDULE,
+        github_context_dict={"ref_name": "main"},
+        default_branch="main",
+    )
+    with patch.object(
+        SelectiveChecks,
+        "_platform_excluded_providers",
+        new_callable=lambda: property(lambda self: {"ibm.mq"}),
+    ):
+        # Bare match drops entry.
+        ts = {"Providers[ibm.mq]"}
+        checks._filter_platform_excluded_test_types(ts)
+        assert ts == set()
+
+        # Combined positive form drops just the excluded id.
+        ts = {"Providers[amazon,ibm.mq,google]"}
+        checks._filter_platform_excluded_test_types(ts)
+        assert ts == {"Providers[amazon,google]"}
+
+        # Negative form gets the excluded id appended.
+        ts = {"Providers[-amazon,celery,google,standard]"}
+        checks._filter_platform_excluded_test_types(ts)
+        assert ts == {"Providers[-amazon,celery,google,ibm.mq,standard]"}
+
+        # Non-Providers entries are untouched.
+        ts = {"Core", "Always"}
+        checks._filter_platform_excluded_test_types(ts)
+        assert ts == {"Core", "Always"}
+
+
 @patch("airflow_breeze.utils.selective_checks.run_command")
 def test_provider_dependency_bump_check_no_changes(mock_run_command):
     """Test that provider dependency bump check passes when no pyproject.toml files are changed."""
@@ -3486,6 +3558,66 @@ def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
                 "full-tests-needed": "true",
             },
             id="Single large file with 1000 lines",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(10)),
+            "\n".join([f"100\t100\tairflow-core/tests/unit/models/test_file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large test-only PR (2000 lines) does not trigger full tests",
+        ),
+        pytest.param(
+            ("docs/index.rst", "airflow-core/docs/security/security_model.rst"),
+            "600\t600\tdocs/index.rst\n400\t400\tairflow-core/docs/security/security_model.rst",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large docs-only PR does not trigger full tests",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
+                "airflow-ctl/src/airflowctl/api/datamodels/generated.py",
+                "task-sdk/src/airflow/sdk/api/datamodels/_generated.py",
+            ),
+            "\n".join(
+                [
+                    "400\t400\tairflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
+                    "400\t400\tairflow-ctl/src/airflowctl/api/datamodels/generated.py",
+                    "400\t400\ttask-sdk/src/airflow/sdk/api/datamodels/_generated.py",
+                ]
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Generated-only large PR does not trigger full tests",
+        ),
+        # In mixed PRs the production-file filter narrows the `git diff --numstat`
+        # call to the production paths, so the mocked stdout below only contains
+        # the production-file rows (mirroring what real git would return for
+        # that filtered argument list).
+        pytest.param(
+            tuple(
+                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
+                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
+            ),
+            "\n".join([f"60\t60\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
+            {
+                "full-tests-needed": "true",
+            },
+            id="Mixed PR with 600 production lines triggers (test lines excluded but prod >= 500)",
+        ),
+        pytest.param(
+            tuple(
+                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
+                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
+            ),
+            "\n".join([f"20\t20\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Mixed PR with only 200 production lines does not trigger (test lines excluded)",
         ),
     ],
 )

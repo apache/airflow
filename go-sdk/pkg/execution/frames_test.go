@@ -75,7 +75,7 @@ func TestWriteAndReadFrame(t *testing.T) {
 	// Read back.
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
-	assert.Equal(t, 7, frame.ID)
+	assert.Equal(t, int64(7), frame.ID)
 	assert.Equal(t, "GetConnection", frame.Body["type"])
 	assert.Equal(t, "my_db", frame.Body["conn_id"])
 	assert.Nil(t, frame.Err)
@@ -98,7 +98,7 @@ func TestDecodeResponseFrame(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 5, frame.ID)
+	assert.Equal(t, int64(5), frame.ID)
 	assert.Equal(t, "ConnectionResult", frame.Body["type"])
 	assert.Equal(t, "localhost", frame.Body["host"])
 	assert.Nil(t, frame.Err)
@@ -120,7 +120,7 @@ func TestDecodeResponseFrameWithError(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 3, frame.ID)
+	assert.Equal(t, int64(3), frame.ID)
 	assert.Nil(t, frame.Body)
 	assert.NotNil(t, frame.Err)
 	assert.Equal(t, "not_found", frame.Err["error"])
@@ -167,7 +167,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		{"type": "GetVariable", "key": "v2"},
 	}
 	for i, body := range bodies {
-		payload, err := encodeRequest(i, body)
+		payload, err := encodeRequest(int64(i), body)
 		require.NoError(t, err)
 		require.NoError(t, writeFrame(&buf, payload))
 	}
@@ -176,7 +176,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 	for i, expected := range bodies {
 		frame, err := readFrame(&buf)
 		require.NoError(t, err)
-		assert.Equal(t, i, frame.ID)
+		assert.Equal(t, int64(i), frame.ID)
 		assert.Equal(t, expected["key"], frame.Body["key"])
 	}
 }

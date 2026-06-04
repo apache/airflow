@@ -2128,6 +2128,38 @@ class TestOpenLineageListenerAirflow3:
         listener.log.debug.assert_not_called()
         listener.log.warning.assert_called_once()
 
+    def test_submit_callable_recreates_executor_on_broken_pool(self):
+        """When a child process dies and BrokenProcessPool is raised, the
+        listener should shut down the broken executor, create a fresh one, and
+        retry the submission."""
+        from concurrent.futures.process import BrokenProcessPool
+
+        listener = OpenLineageListener()
+        broken_executor = MagicMock()
+        broken_executor.submit.side_effect = BrokenProcessPool()
+        new_executor = MagicMock()
+        new_future = MagicMock()
+        new_executor.submit.return_value = new_future
+
+        listener._executor = broken_executor
+        listener.log = MagicMock()
+
+        def dummy_callable():
+            pass
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor",
+            return_value=new_executor,
+        ):
+            fut = listener.submit_callable(dummy_callable, "arg1", kwarg1="val1")
+
+        broken_executor.shutdown.assert_called_once_with(wait=False)
+        new_executor.submit.assert_called_once_with(dummy_callable, "arg1", kwarg1="val1")
+        new_future.add_done_callback.assert_called_once_with(listener.log_submit_error)
+        assert fut is new_future
+        listener.log.warning.assert_called_once()
+        assert "recreating" in listener.log.warning.call_args[0][0]
+
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestOpenLineageSelectiveEnableAirflow2:
