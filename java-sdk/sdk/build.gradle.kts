@@ -24,6 +24,10 @@ buildscript {
 }
 
 val airflowSupervisorSchemaVersion: String by project
+val sdkVersion: String by project
+
+group = "org.apache.airflow"
+version = sdkVersion
 
 plugins {
     kotlin("plugin.serialization") version "2.3.0"
@@ -191,6 +195,7 @@ sourceSets {
 }
 
 dokka {
+    moduleVersion.set(sdkVersion)
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
