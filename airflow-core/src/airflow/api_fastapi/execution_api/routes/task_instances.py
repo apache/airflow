@@ -296,6 +296,14 @@ def ti_run(
             )
             or 0
         )
+        first_task_reschedule_start_date = None
+        if task_reschedule_count > 0:
+            first_task_reschedule_start_date = session.scalar(
+                select(TaskReschedule.start_date)
+                .where(TaskReschedule.ti_id == task_instance_id)
+                .order_by(TaskReschedule.id.asc())
+                .limit(1)
+            )
 
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
@@ -309,6 +317,8 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+        if first_task_reschedule_start_date is not None:
+            context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
         # Only set if they are non-null
         if ti.next_method:

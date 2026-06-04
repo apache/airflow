@@ -322,6 +322,60 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_state_includes_first_task_reschedule_start_date(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        """Test that running a rescheduled Task Instance includes its first reschedule start date."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        first_reschedule_start_date = timezone.datetime(2024, 9, 30, 10)
+        second_reschedule_start_date = timezone.datetime(2024, 9, 30, 11)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_state_includes_first_task_reschedule_start_date",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.add_all(
+            [
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=first_reschedule_start_date,
+                    end_date=timezone.datetime(2024, 9, 30, 10, 1),
+                    reschedule_date=timezone.datetime(2024, 9, 30, 10, 2),
+                ),
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=second_reschedule_start_date,
+                    end_date=timezone.datetime(2024, 9, 30, 11, 1),
+                    reschedule_date=timezone.datetime(2024, 9, 30, 11, 2),
+                ),
+            ]
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["task_reschedule_count"] == 2
+        assert result["first_task_reschedule_start_date"] == "2024-09-30T10:00:00Z"
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):
