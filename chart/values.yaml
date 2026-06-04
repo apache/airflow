@@ -152,14 +152,6 @@ imagePullSecrets: []
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources
-  # (deprecated, use
-  #   `ingress.web.enabled`,
-  #   `ingress.apiServer.enabled` and/or
-  #   `ingress.flower.enabled`
-  # instead)
-  enabled: ~
-
   # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server ingress resource
@@ -174,9 +166,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the API Server Ingress (deprecated, use `ingress.apiServer.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the API Server Ingress (templated)
     hosts: []
     # - name: ""
@@ -189,13 +178,6 @@ ingress:
 
     # The Ingress Class for the API Server Ingress
     ingressClassName: ""
-
-    # Configs for API Server Ingress TLS (deprecated, use `ingress.apiServer.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the API Server Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
     # HTTP paths to add to the API Server Ingress before the default path
     precedingPaths: []
@@ -217,9 +199,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the web Ingress (deprecated, use `ingress.web.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the web Ingress (templated)
     hosts: []
     # - name: ""
@@ -232,13 +211,6 @@ ingress:
 
     # The Ingress Class for the web Ingress
     ingressClassName: ""
-
-    # Configs for web Ingress TLS (deprecated, use `ingress.web.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the web Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
     # HTTP paths to add to the web Ingress before the default path
     precedingPaths: []
@@ -260,9 +232,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the flower Ingress (deprecated, use `ingress.flower.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the flower Ingress (templated)
     hosts: []
     # - name: ""
@@ -274,13 +243,6 @@ ingress:
 
     # The Ingress Class for the flower Ingress
     ingressClassName: ""
-
-    # Configs for flower Ingress TLS (deprecated, use `ingress.flower.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the flower Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
   # Configs for the Ingress of the StatsD Service
   statsd:
@@ -295,9 +257,6 @@ ingress:
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
-
-    # The hostname for the StatsD Ingress (deprecated, use `ingress.statsd.hosts` instead)
-    host: ""
 
     # The hostnames or hosts configuration for the StatsD Ingress (templated)
     hosts: []
@@ -324,9 +283,6 @@ ingress:
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
-
-    # The hostname for the PgBouncer Ingress (deprecated, use `ingress.pgbouncer.hosts` instead)
-    host: ""
 
     # The hostnames or hosts configuration for the PgBouncer Ingress (templated)
     hosts: []

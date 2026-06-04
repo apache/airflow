@@ -282,14 +282,6 @@
             "type": "object",
             "x-docsSection": "Ingress",
             "properties": {
-                "enabled": {
-                    "description": "Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled).",
-                    "type": [
-                        "boolean",
-                        "null"
-                    ],
-                    "default": null
-                },
                 "apiServer": {
                     "description": "Configuration for the Ingress of the  API server.",
                     "type": "object",
@@ -317,11 +309,6 @@
                             "description": "The pathType for the API server Ingress (required for Kubernetes 1.19 and above).",
                             "type": "string",
                             "default": "ImplementationSpecific"
-                        },
-                        "host": {
-                            "description": "The hostname for the API server Ingress. (Deprecated - renamed to `ingress.apiServer.hosts`)",
-                            "type": "string",
-                            "default": ""
                         },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the API server Ingress.",
@@ -359,11 +346,6 @@
                                         "required": [
                                             "name"
                                         ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
                                     }
                                 ]
                             }
@@ -372,23 +354,6 @@
                             "description": "The Ingress Class for the API server Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for API server Ingress TLS. (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the API server Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         },
                         "precedingPaths": {
                             "description": "HTTP paths to add to the API server Ingress before the default path.",
@@ -430,11 +395,6 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the web Ingress.",
                             "type": "array",
@@ -471,11 +431,6 @@
                                         "required": [
                                             "name"
                                         ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
                                     }
                                 ]
                             }
@@ -484,23 +439,6 @@
                             "description": "The Ingress Class for the web Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for web Ingress TLS. (Deprecated - renamed to `ingress.web.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the web Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         },
                         "precedingPaths": {
                             "description": "HTTP paths to add to the web Ingress before the default path.",
@@ -542,11 +480,6 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the flower Ingress.",
                             "type": "array",
@@ -583,11 +516,6 @@
                                         "required": [
                                             "name"
                                         ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
                                     }
                                 ]
                             }
@@ -596,23 +524,6 @@
                             "description": "The Ingress Class for the flower Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for flower Ingress TLS. (Deprecated - renamed to `ingress.flower.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the flower Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         }
                     }
                 },
@@ -643,11 +554,6 @@
                             "description": "The pathType for the statsd Ingress (required for Kubernetes 1.19 and above).",
                             "type": "string",
                             "default": "ImplementationSpecific"
-                        },
-                        "host": {
-                            "description": "The hostname for the statsd Ingress. (Deprecated - renamed to `ingress.statsd.hosts`)",
-                            "type": "string",
-                            "default": ""
                         },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the statsd Ingress.",
@@ -685,11 +591,6 @@
                                         "required": [
                                             "name"
                                         ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
                                     }
                                 ]
                             }
@@ -729,11 +630,6 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the PgBouncer Ingress. (Deprecated - renamed to `ingress.pgbouncer.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the PgBouncer Ingress.",
                             "type": "array",
@@ -770,11 +666,6 @@
                                         "required": [
                                             "name"
                                         ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
                                     }
                                 ]
                             }
