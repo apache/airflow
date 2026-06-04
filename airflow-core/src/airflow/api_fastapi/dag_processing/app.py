@@ -264,6 +264,14 @@ def register_job(body: JobRegisterBody) -> dict:
     """Register the processor's liveness Job row (server-side) and return its id."""
     job = Job()
     job.job_type = body.job_type
+    # ``Job()`` defaults hostname/unixname/pid to *this* API server's, but the processor runs in a
+    # different process (and usually host). Record the identity it reported so its health check
+    # (``airflow jobs check --job-type DagProcessorJob --hostname <host>``) matches this row.
+    job.hostname = body.hostname
+    if body.unixname:
+        job.unixname = body.unixname
+    if body.pid is not None:
+        job.pid = body.pid
     with create_session() as session:
         job.prepare_for_execution(session=session)
     return {"job_id": job.id}

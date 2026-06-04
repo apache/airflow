@@ -86,9 +86,17 @@ class CallbackClaimBody(BaseModel):
 
 
 class JobRegisterBody(BaseModel):
-    """Job type to register for the processor's liveness record."""
+    """
+    Identity of the processor whose liveness Job is being registered.
+
+    ``hostname``/``unixname``/``pid`` are the *processor's* (not this API server's), so the Job row
+    reflects where the processor runs and ``airflow jobs check --hostname`` matches it.
+    """
 
     job_type: str
+    hostname: str
+    unixname: str | None = None
+    pid: int | None = None
 
 
 class JobCompleteBody(BaseModel):

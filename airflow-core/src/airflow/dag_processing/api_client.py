@@ -19,13 +19,17 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime
+from getpass import getuser
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import httpx
+
+from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -268,7 +272,18 @@ class DagProcessingApiClient:
 
     def register_job(self, job_type: str) -> int:
         """Register the processor's liveness Job row server-side and return its id."""
-        resp = self._send("POST", "/jobs", json={"job_type": job_type})
+        # Report this processor's own identity so the Job row reflects where the processor runs,
+        # not the API server; the health check matches on hostname (see the /jobs endpoint).
+        resp = self._send(
+            "POST",
+            "/jobs",
+            json={
+                "job_type": job_type,
+                "hostname": get_hostname(),
+                "unixname": getuser(),
+                "pid": os.getpid(),
+            },
+        )
         return resp.json()["job_id"]
 
     def job_heartbeat(self, job_id: int) -> None:

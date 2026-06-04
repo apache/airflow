@@ -330,11 +330,28 @@ def test_claim_callbacks_skip_locked_and_delete(client):
 def test_register_job(client):
     job = mock.MagicMock(id=42)
     with mock.patch(f"{APP}.Job", return_value=job), mock.patch(f"{APP}.create_session"):
-        resp = client.post("/jobs", json={"job_type": "DagProcessorJob"})
+        resp = client.post(
+            "/jobs",
+            json={
+                "job_type": "DagProcessorJob",
+                "hostname": "dag-proc-host",
+                "unixname": "airflow",
+                "pid": 1234,
+            },
+        )
 
     assert resp.status_code == 201
     assert resp.json() == {"job_id": 42}
     job.prepare_for_execution.assert_called_once()
+    # The processor's reported identity is recorded (not this server's), so its health check matches.
+    assert job.hostname == "dag-proc-host"
+    assert job.pid == 1234
+
+
+def test_register_job_requires_hostname(client):
+    """hostname is required so the Job row reflects the processor, not the API server."""
+    resp = client.post("/jobs", json={"job_type": "DagProcessorJob"})
+    assert resp.status_code == 422
 
 
 def test_job_heartbeat_updates_latest_heartbeat(client):
