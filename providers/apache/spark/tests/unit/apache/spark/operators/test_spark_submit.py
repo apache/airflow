@@ -555,7 +555,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.return_value = "driver-new"
         task_store = FakeTaskState({"spark_job_id": "driver-001"})
 
-        operator.get_job_status = lambda external_id: prior_status
+        operator.get_job_status = lambda external_id, context: prior_status
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
@@ -639,9 +639,9 @@ class TestSparkSubmitOperatorResumable:
         with mock.patch("requests.get", return_value=mock_response):
             if expected_error:
                 with pytest.raises(RuntimeError, match=expected_error):
-                    operator.get_job_status("driver-001")
+                    operator.get_job_status("driver-001", {})
             else:
-                assert operator.get_job_status("driver-001") == expected_status
+                assert operator.get_job_status("driver-001", {}) == expected_status
 
     def test_get_job_status_ha_tries_next_master(self):
         operator = self._make_operator()
@@ -661,7 +661,7 @@ class TestSparkSubmitOperatorResumable:
             return good_response
 
         with mock.patch("requests.get", side_effect=side_effect):
-            assert operator.get_job_status("driver-001") == "RUNNING"
+            assert operator.get_job_status("driver-001", {}) == "RUNNING"
 
         assert all(":6066/" in url for url in captured_urls), "REST API must use port 6066, not the RPC port"
 
@@ -683,7 +683,7 @@ class TestSparkSubmitOperatorResumable:
             return good_response
 
         with mock.patch("requests.get", side_effect=side_effect):
-            assert operator.get_job_status("driver-001") == "RUNNING"
+            assert operator.get_job_status("driver-001", {}) == "RUNNING"
 
     def test_get_job_status_ha_raises_when_all_masters_unreachable(self):
         operator = self._make_operator()
@@ -693,7 +693,7 @@ class TestSparkSubmitOperatorResumable:
 
         with mock.patch("requests.get", side_effect=ConnectionError("unreachable")):
             with pytest.raises(ConnectionError):
-                operator.get_job_status("driver-001")
+                operator.get_job_status("driver-001", {})
 
     def test_get_job_status_uses_rest_scheme_from_connection(self):
         operator = self._make_operator()
@@ -710,7 +710,7 @@ class TestSparkSubmitOperatorResumable:
             return mock_response
 
         with mock.patch("requests.get", side_effect=capture):
-            operator.get_job_status("driver-001")
+            operator.get_job_status("driver-001", {})
 
         assert len(captured_urls) == 1
         assert captured_urls[0].startswith("https://")

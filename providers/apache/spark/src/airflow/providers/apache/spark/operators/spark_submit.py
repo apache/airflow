@@ -285,7 +285,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self.log.info("Spark driver submitted: %s", driver_id)
         return driver_id
 
-    def get_job_status(self, external_id: JsonValue) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         # called from submit_job which always returns a str (Spark driver IDs are strings)
         external_id = cast("str", external_id)
         if self._hook is None:
