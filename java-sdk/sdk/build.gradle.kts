@@ -81,7 +81,11 @@ abstract class GeneratePointersTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val srcFile = schemaFile.get().asFile
-        val outDir = targetDirectory.get().asFile.also { it.mkdirs() }
+        val outDir =
+            targetDirectory.get().asFile.also {
+                it.deleteRecursively()
+                it.mkdirs()
+            }
 
         srcFile.copyTo(outDir.resolve(srcFile.name), overwrite = true)
 
