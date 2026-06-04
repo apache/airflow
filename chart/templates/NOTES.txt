@@ -193,31 +193,6 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-
-{{- if .Values.securityContext }}
-
- DEPRECATION WARNING:
-    `securityContext` has been renamed to `securityContexts`, to be enabled on container and pod level.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.scheduler.securityContext }}
-
- DEPRECATION WARNING:
-    `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.statsd.securityContext }}
-
- DEPRECATION WARNING:
-    `statsd.securityContext` has been renamed to `statsd.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
 {{- if ne (int .Values.workers.replicas) 1 }}
 
  DEPRECATION WARNING:
@@ -318,14 +293,6 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.podManagementPolicy` has been renamed to `workers.celery.podManagementPolicy`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if not (empty .Values.workers.securityContext) }}
-
- DEPRECATION WARNING:
-    `workers.securityContext` has been renamed to `workers.celery.securityContexts`/`workers.kubernetes.securityContexts`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
