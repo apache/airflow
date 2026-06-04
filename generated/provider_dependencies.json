@@ -321,7 +321,7 @@
   },
   "apache.livy": {
     "deps": [
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http>=6.0.1",
       "apache-airflow>=2.11.0"
@@ -648,7 +648,7 @@
   },
   "databricks": {
     "deps": [
-      "aiohttp>=3.9.2, <4",
+      "aiohttp>=3.14.0, <4",
       "apache-airflow-providers-common-compat>=1.13.0",
       "apache-airflow-providers-common-sql>=1.32.0",
       "apache-airflow>=2.11.0",
@@ -698,7 +698,7 @@
   },
   "dbt.cloud": {
     "deps": [
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.11.0",
@@ -768,7 +768,7 @@
   "edge3": {
     "deps": [
       "aiofiles>=23.2.0",
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.15.0",
       "apache-airflow>=3.0.0,!=3.1.0",
       "pydantic>=2.11.0",
@@ -1063,7 +1063,7 @@
   },
   "http": {
     "deps": [
-      "aiohttp>=3.12.14",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow>=2.11.0",
       "asgiref>=2.3.0; python_version < '3.14'",
@@ -1744,6 +1744,7 @@
   },
   "slack": {
     "deps": [
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.10.1",
       "apache-airflow-providers-common-sql>=1.27.0",
       "apache-airflow>=2.11.0",
