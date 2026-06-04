@@ -56,6 +56,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Java SDK e2e tests (true/false)"
         required: true
         type: string
+      run-go-sdk-e2e-tests:
+        description: "Whether to run Go SDK e2e tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -305,6 +309,17 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "java_sdk"
     if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
+  test-e2e-integration-tests-go-sdk:
+    name: "Go SDK e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Go SDK e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "go_sdk"
+    if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"
