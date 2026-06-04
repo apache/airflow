@@ -509,9 +509,7 @@ class TestSageMakerUnifiedStudioNotebookHook:
             )
 
         assert result == outputs
-        expected_key = (
-            f"dzd_x/{PROJECT_ID}/dev/.sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
-        )
+        expected_key = f"dzd_x/{PROJECT_ID}/dev/.sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
         mock_s3_hook_cls.return_value.read_key.assert_called_once_with(key=expected_key, bucket_name=bucket)
 
     def test_get_notebook_outputs_iam_mode_no_prefix(self):
