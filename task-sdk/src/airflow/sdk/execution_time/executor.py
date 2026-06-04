@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextvars
 import inspect
 import logging
+import os
 import time
 from asyncio import (
     FIRST_COMPLETED,
@@ -67,7 +68,12 @@ class AsyncAwareExecutor(Executor):
     :param max_workers: Maximum concurrent workers used by both thread pool and async semaphore.
     """
 
-    def __init__(self, loop: AbstractEventLoop, max_workers: int = 4):
+    def __init__(self, loop: AbstractEventLoop, max_workers: int | None = None):
+        if max_workers is None:
+            max_workers = os.cpu_count() or 1
+        if max_workers <= 0:
+            raise ValueError("max_workers must be greater than 0")
+
         self._loop = loop
         self._max_workers = max_workers
         self._semaphore = Semaphore(max_workers)
@@ -79,7 +85,12 @@ class AsyncAwareExecutor(Executor):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.shutdown(wait=True)
+        if exc_type is not None:
+            # On error/timeout path, bail immediately without waiting for in-flight tasks.
+            # Note: in-flight threads are abandoned, not killed.
+            self.shutdown(wait=False, cancel_futures=True)
+        else:
+            self.shutdown(wait=True)
 
     def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         if self._shutdown:
