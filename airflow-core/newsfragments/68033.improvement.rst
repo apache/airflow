@@ -1,0 +1,1 @@
+Render dict and list rendered template fields as a collapsible JSON view in the UI
