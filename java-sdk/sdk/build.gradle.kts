@@ -223,7 +223,7 @@ tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("generateJsonSchema2Pojo")
 }
 
-tasks.named("dokkaGeneratePublicationHtml") {
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
     dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
