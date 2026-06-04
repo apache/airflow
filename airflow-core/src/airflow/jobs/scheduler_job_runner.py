@@ -3494,6 +3494,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.executor.send_callback(request)
+            ti.handle_failure(error=str(task_instance_heartbeat_timeout_message_details), session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )
