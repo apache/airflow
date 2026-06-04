@@ -1013,7 +1013,7 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Build Java SDK Javadoc"
-        run: breeze build-docs --only-sdk-docs --sdk=java
+        run: breeze build-docs --sdk-docs-only --sdk=java
       - name: "Upload Javadoc artifact"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
