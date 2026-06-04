@@ -32,9 +32,22 @@ type Props = {
   readonly collapsed?: boolean;
   readonly content: object;
   readonly enableClipboard?: boolean;
+  /**
+   * Enable extra navigation aids for large/deeply-nested JSON: bracket-pair
+   * colorization, indentation/bracket guides, sticky-scroll parent context, and
+   * always-visible folding controls. Defaults to false so existing usages are
+   * unchanged.
+   */
+  readonly showStructureGuides?: boolean;
 } & FlexProps;
 
-const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true, ...rest }: Props) => {
+const RenderedJsonField = ({
+  collapsed = false,
+  content,
+  enableClipboard = true,
+  showStructureGuides = false,
+  ...rest
+}: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { beforeMount, theme } = useMonacoTheme();
   const lineCount = contentFormatted.split("\n").length;
@@ -113,6 +126,14 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
           scrollbar: { vertical: "hidden", verticalScrollbarSize: 0 },
           scrollBeyondLastLine: false,
           wordWrap: "on",
+          ...(showStructureGuides
+            ? {
+                bracketPairColorization: { enabled: true },
+                guides: { bracketPairs: true, highlightActiveBracketPair: true, indentation: true },
+                showFoldingControls: "always" as const,
+                stickyScroll: { enabled: true },
+              }
+            : {}),
         }}
         theme={theme}
         value={contentFormatted}
