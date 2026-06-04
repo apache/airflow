@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { ConnectionResult, GetXComOpts, SetXComOpts, TaskClient } from "../src/index.js";
 import { listRegisteredTasks, registerTask, VariableNotFoundError } from "../src/index.js";
 import { clearRegistry } from "../src/registry.js";
 
@@ -33,5 +34,73 @@ describe("public API", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe("VariableNotFoundError");
     expect(err.key).toBe("missing");
+  });
+
+  it("uses idiomatic TypeScript names for public client types", () => {
+    expectTypeOf<GetXComOpts>().toEqualTypeOf<{
+      key: string;
+      dagId?: string;
+      runId?: string;
+      taskId?: string;
+      mapIndex?: number | null;
+      includePriorDates?: boolean;
+    }>();
+    expectTypeOf<SetXComOpts>().toEqualTypeOf<{
+      key: string;
+      value: SetXComOpts["value"];
+      dagId?: string;
+      runId?: string;
+      taskId?: string;
+      mapIndex?: number | null;
+    }>();
+    expectTypeOf<ConnectionResult>().toEqualTypeOf<{
+      connId: string;
+      connType: string;
+      host?: string | null;
+      schema?: string | null;
+      login?: string | null;
+      password?: string | null;
+      port?: number | null;
+      extra?: string | null;
+    }>();
+    expectTypeOf<TaskClient["getConnection"]>().toEqualTypeOf<
+      (connId: string) => Promise<ConnectionResult | null>
+    >();
+    expectTypeOf<TaskClient["getXCom"]>().toEqualTypeOf<
+      <T = unknown>(opts: GetXComOpts) => Promise<T | null>
+    >();
+  });
+
+  it("rejects wire-format names and non-JSON XCom values", () => {
+    function acceptsGetXComOpts(_opts: GetXComOpts): void {}
+    function acceptsSetXComOpts(_opts: SetXComOpts): void {}
+
+    // TODO: Add coordinator-runtime tests that validate these camelCase
+    // public options map to the supervisor schema's snake_case fields.
+    acceptsGetXComOpts({
+      key: "result",
+      dagId: "example",
+      runId: "manual__2026-01-01T00:00:00+00:00",
+      taskId: "extract",
+      mapIndex: 0,
+      includePriorDates: true,
+    });
+    acceptsSetXComOpts({
+      key: "result",
+      value: { count: 1 },
+      dagId: "example",
+      runId: "manual__2026-01-01T00:00:00+00:00",
+      taskId: "extract",
+      mapIndex: null,
+    });
+
+    // @ts-expect-error public options use dagId, not dag_id.
+    acceptsGetXComOpts({ key: "result", dag_id: "example" });
+    // @ts-expect-error public options use includePriorDates, not include_prior_dates.
+    acceptsGetXComOpts({ key: "result", include_prior_dates: true });
+    // @ts-expect-error public options use connId/connType, not conn_id/conn_type.
+    expectTypeOf<ConnectionResult>().toEqualTypeOf<{ conn_id: string; conn_type: string }>();
+    // @ts-expect-error XCom values must be JSON-compatible.
+    acceptsSetXComOpts({ key: "result", value: new Date() });
   });
 });

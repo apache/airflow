@@ -52,13 +52,13 @@ key by the active runtime, matching Python `@task` behavior.
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                     | Description         |
-| ------------------------------------------ | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow`  | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`          | XCom read/write     |
-| `getConnection(conn_id)`                   | Airflow Connections |
+| Method                                    | Description         |
+| ----------------------------------------- | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
+| `getConnection(connId)`                   | Airflow Connections |
 
-Locator fields such as `dag_id`, `run_id`, and `task_id` default to the
+Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
 
 ## Cancellation

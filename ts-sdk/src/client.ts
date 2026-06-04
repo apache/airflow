@@ -76,7 +76,7 @@ export interface TaskClient {
    * Returns `null` when the connection does not exist. Throws on any other
    * error.
    */
-  getConnection(conn_id: string): Promise<ConnectionResult | null>;
+  getConnection(connId: string): Promise<ConnectionResult | null>;
 }
 
 /** Error thrown by {@link TaskClient.getVariableOrThrow}. */

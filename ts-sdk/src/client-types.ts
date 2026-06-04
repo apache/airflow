@@ -29,36 +29,36 @@ export type JsonValue =
 /**
  * Options for pulling an XCom value.
  *
- * `dag_id`, `task_id`, and `run_id` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context.
  * Pass them only when pulling an XCom value from another task or run.
  */
 export interface GetXComOpts {
   key: string;
-  dag_id?: string;
-  run_id?: string;
-  task_id?: string;
-  map_index?: number | null;
-  include_prior_dates?: boolean;
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  mapIndex?: number | null;
+  includePriorDates?: boolean;
 }
 
 /**
  * Options for pushing an XCom value.
  *
- * `dag_id`, `task_id`, and `run_id` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context.
  */
 export interface SetXComOpts {
   key: string;
   value: JsonValue;
-  dag_id?: string;
-  run_id?: string;
-  task_id?: string;
-  map_index?: number | null;
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  mapIndex?: number | null;
 }
 
 /** Airflow Connection details returned by a task client. */
 export interface ConnectionResult {
-  conn_id: string;
-  conn_type: string;
+  connId: string;
+  connType: string;
   host?: string | null;
   schema?: string | null;
   login?: string | null;
