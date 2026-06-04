@@ -1137,7 +1137,10 @@ class DagRun(Base, LoggingMixin):
                     and all(
                         getattr(t.task, "max_active_tis_per_dagrun", None) is None for t in self.tis if t.task
                     )
-                    and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
+                    and all(
+                        t.state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
+                        for t in self.tis
+                    )
                 )
 
             def recalculate(self) -> _UnfinishedStates:

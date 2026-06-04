@@ -43,6 +43,7 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "up_for_reschedule",
   "upstream_failed",
   "deferred",
+  "awaiting_input",
   "no_status",
 ];
 

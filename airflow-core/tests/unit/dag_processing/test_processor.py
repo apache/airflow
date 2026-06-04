@@ -1944,6 +1944,7 @@ class TestDagProcessingMessageTypes:
         dag_processor_types = get_type_names(ToDagProcessor)
 
         in_supervisor_but_not_in_manager = {
+            "AwaitInputTask",
             "DeferTask",
             "DeleteXCom",
             "GetAssetByName",
