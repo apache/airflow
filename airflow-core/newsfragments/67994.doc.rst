@@ -1,0 +1,1 @@
+Updated the Architecture Overview page to reflect Airflow 3 architecture changes: replaced ``webserver`` references with ``api-server``, introduced ``DAG bundles``as a required component, corrected ``DAG processor`` as required in all deployments, and fixed the claim that the scheduler reads DAG files directly.
