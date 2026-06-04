@@ -116,7 +116,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         job finishes (on both success and on_kill). Useful for cleaning up sidecars such
         as Istio (e.g. ``["curl -X POST localhost:15020/quitquitquit"]``). Each command
         is executed via the shell; failures produce a warning but do not fail the task.
-    <<<<<<< HEAD
     :param track_driver_via_k8s_api: If True (when master is Kubernetes and
         ``deploy_mode`` is ``cluster``), release the ``spark-submit`` JVM once the
         driver pod has been created, then poll the Kubernetes API for the pod phase
@@ -124,7 +123,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         controlled by ``status_poll_interval`` with a 20-second minimum. This frees
         the worker from holding the long-lived submit JVM (~500 MB). Defaults to
         ``False``.
-    =======
     :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
         is ``cluster``), release the ``spark-submit`` JVM once the application has
         been submitted to YARN, then poll the YARN ResourceManager REST API
@@ -141,7 +139,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         ``keytab`` and ``principal`` configured use ``requests-kerberos``
         automatically. Defaults to ``None`` (no auth for non-Kerberos
         connections).
-    >>>>>>> main
     """
 
     conn_name_attr = "conn_id"

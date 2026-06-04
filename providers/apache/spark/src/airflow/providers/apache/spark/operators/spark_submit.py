@@ -113,14 +113,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                            on keytab for Kerberos login
     :param post_submit_commands: Optional list of shell commands to run after the Spark job finishes.
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
-    <<<<<<< HEAD
     :param track_driver_via_k8s_api: If True (when master is Kubernetes and ``deploy_mode``
         is ``cluster``), release the ``spark-submit`` JVM once the driver pod has been
         created, then poll the Kubernetes API for the pod phase until the application
         reaches a terminal state. The polling interval is controlled by
         ``status_poll_interval`` with a 20-second minimum. This frees the worker from
         holding the long-lived submit JVM. Defaults to ``False``.
-    =======
     :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
         is ``cluster``), release the ``spark-submit`` JVM once the application has
         been submitted to YARN, then poll the YARN ResourceManager REST API
@@ -136,7 +134,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         omitted, Kerberos-enabled Spark connections with both ``keytab`` and
         ``principal`` configured use ``requests-kerberos`` automatically.
         Defaults to ``None`` (no auth for non-Kerberos connections).
-    >>>>>>> main
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
