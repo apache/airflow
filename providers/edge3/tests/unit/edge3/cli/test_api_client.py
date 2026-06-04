@@ -21,11 +21,11 @@ from http import HTTPStatus
 from unittest.mock import patch
 
 import pytest
-from aiohttp import ClientResponseError, ConnectionTimeoutError, RequestInfo
-from yarl import URL
+from aiohttp import ClientResponseError, ConnectionTimeoutError
 
 from airflow.providers.edge3.cli.api_client import _make_generic_request
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.asyncio]
@@ -40,32 +40,12 @@ class _ResponseSpec:
     payload: dict | None = None
 
 
-class _MockResponse:
-    def __init__(self, method: str, url: str, spec: _ResponseSpec):
-        self._method = method
-        self._url = url
-        self.status = spec.status
-        self._payload = spec.payload
-
-    def raise_for_status(self) -> None:
-        if self.status >= HTTPStatus.BAD_REQUEST:
-            raise ClientResponseError(
-                request_info=RequestInfo(url=URL(self._url), method=self._method, headers=None),  # type: ignore[arg-type]
-                history=(),
-                status=self.status,
-                message=f"HTTP {self.status}",
-            )
-
-    async def json(self) -> dict:
-        return self._payload or {}
-
-
 class _MockRequestContext:
-    def __init__(self, *, response: _MockResponse | None = None, exc: Exception | None = None):
+    def __init__(self, *, response: MockAiohttpClientResponse | None = None, exc: Exception | None = None):
         self._response = response
         self._exc = exc
 
-    async def __aenter__(self) -> _MockResponse:
+    async def __aenter__(self) -> MockAiohttpClientResponse:
         if self._exc:
             raise self._exc
         return self._response  # type: ignore[return-value]
@@ -85,7 +65,15 @@ def _build_request_side_effect(
         current = next(iterator)
         if isinstance(current, Exception):
             return _MockRequestContext(exc=current)
-        return _MockRequestContext(response=_MockResponse(method=method, url=url, spec=current))
+        return _MockRequestContext(
+            response=MockAiohttpClientResponse(
+                status=current.status,
+                payload=current.payload,
+                method=method,
+                url=url,
+                reason=f"HTTP {current.status}",
+            )
+        )
 
     return _request
 
