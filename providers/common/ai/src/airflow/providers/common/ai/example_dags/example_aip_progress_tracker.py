@@ -15,19 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-AIP progress tracker -- multi-source data fusion with common.ai operators.
+AIP progress tracker -- two approaches to the same problem with common.ai.
 
-Demonstrates Dynamic Task Mapping, structured LLM output, cost-controlled
-synthesis, AI-powered hallucination validation, and HITL approval using only
-``LLMOperator`` -- no LlamaIndex or LangChain dependency required.
+This file contains **two DAGs** that solve the same use case -- tracking
+Airflow Improvement Proposal implementation progress -- using different
+architectural patterns. Comparing them illustrates the tradeoff between
+deterministic control and agent autonomy.
 
-For each active Airflow Improvement Proposal the DAG gathers evidence from
-three sources (Confluence spec text, GitHub PRs/commits, and the GitHub
-file tree), asks an LLM to assess spec-vs-implementation progress per
-deliverable, validates the synthesized report for hallucinations, then
-presents it for maintainer review.
-
-``example_aip_progress_tracker`` (manual trigger):
+``example_aip_progress_tracker`` (pipeline approach):
 
 .. code-block:: text
 
@@ -43,18 +38,32 @@ presents it for maintainer review.
                                    → build_review_body     (@task)
                                    → review_report         (ApprovalOperator)
 
-**What this makes visible that a notebook hides:**
+The pipeline gathers evidence deterministically, then uses LLMs only for
+analysis and synthesis -- with a three-layer quality pipeline (structured
+output → AI validation → arithmetic correction) to prevent hallucination.
 
-* Each AIP investigation is a named, logged task instance with its own
-  retry behaviour -- not a loop iteration buried inside one cell.
-* If the GitHub API is rate-limited for one AIP, only that mapped
-  instance retries; the others preserve their XCom results.
-* The synthesis step's inputs and token budget are fully auditable.
-* An AI validation step checks for hallucinations, then a deterministic
-  step applies the corrections -- no LLM involved in the fix.
-* A maintainer reviews the corrected report before it goes to the dev list.
+``example_aip_progress_tracker_skills`` (skills approach):
 
-Before running:
+.. code-block:: text
+
+    track_aip_progress  (AgentOperator + AgentSkillsToolset)
+        → review_report (ApprovalOperator)
+
+The agent loads the ``aip-tracker`` skill (an `agentskills.io
+<https://agentskills.io>`__ ``SKILL.md`` bundle) which teaches it how to
+assess AIP progress. Custom tools give it access to Confluence and GitHub
+APIs. The agent decides its own evidence-gathering strategy -- simpler DAG,
+but less control over accuracy.
+
+**When to use which:**
+
+* **Pipeline** when accuracy is critical and you want full auditability of
+  every evidence source and LLM judgment.
+* **Agent** when you want a quick assessment and trust the model to follow
+  skill instructions, or when the problem is too open-ended for a fixed
+  pipeline.
+
+Before running either DAG:
 
 1. Create an LLM connection named ``pydanticai_default`` (or the value of
    ``LLM_CONN_ID``) for your chosen model provider.
@@ -62,6 +71,8 @@ Before running:
    rate limits (unauthenticated: 10 req/min; authenticated: 5,000 req/hr).
 3. Trigger the DAG with the default ``aip_numbers`` param or edit it to
    choose which AIPs to investigate.
+4. The agent DAG requires the ``skills`` extra:
+   ``pip install "apache-airflow-providers-common-ai[skills]"``.
 """
 
 from __future__ import annotations
@@ -73,12 +84,15 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import timedelta
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.standard.operators.hitl import ApprovalOperator
 from airflow.sdk import Param
@@ -890,3 +904,250 @@ Flag any claims not grounded in the evidence.
 # [END example_aip_progress_tracker]
 
 example_aip_progress_tracker()
+
+
+# ===========================================================================
+# DAG 2: Agent-based AIP tracker (AgentOperator + AgentSkillsToolset)
+#
+# Same use case, different architecture.  Instead of a 12-task deterministic
+# pipeline, a single AgentOperator with the aip-tracker skill loaded via
+# AgentSkillsToolset.  The agent discovers the skill's grounding rules and
+# calls custom tools to gather evidence from Confluence and GitHub.
+# ===========================================================================
+
+SKILLS_DIR = str(Path(__file__).parent / "skills")
+
+# ---------------------------------------------------------------------------
+# Tool functions the agent can call to gather evidence.
+# These are plain Python functions -- the agent sees their docstrings and
+# decides when and how to call them based on the skill instructions.
+# ---------------------------------------------------------------------------
+
+
+def _github_headers() -> dict[str, str]:
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "airflow-aip-tracker/1.0"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+    return headers
+
+
+def _safe_api_get(url: str, headers: dict[str, str] | None = None) -> dict | list | str:
+    req = urllib.request.Request(url, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return f"HTTP {e.code}: {e.reason}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def fetch_confluence_page(page_id: str) -> str:
+    """Fetch an AIP specification page from the Apache Confluence wiki.
+
+    Args:
+        page_id: The Confluence page ID (e.g. "311626969" for AIP-76).
+
+    Returns:
+        The page title, last-modified date, and body content (HTML).
+        Returns an error message if the page cannot be fetched.
+    """
+    url = f"{CONFLUENCE_BASE_URL}/rest/api/content/{page_id}?expand=body.storage,version"
+    data = _safe_api_get(url)
+    if isinstance(data, str):
+        return data
+
+    title = data.get("title", "Unknown")
+    version = data.get("version", {})
+    modified = version.get("when", "unknown")
+    body_html = data.get("body", {}).get("storage", {}).get("value", "")
+
+    body_text = re.sub(r"<[^>]+>", " ", body_html)
+    body_text = re.sub(r"\s+", " ", body_text).strip()
+    if len(body_text) > 12000:
+        body_text = body_text[:12000] + "... (truncated)"
+
+    return f"Title: {title}\nLast modified: {modified}\n\n{body_text}"
+
+
+def search_github_prs(query: str) -> str:
+    """Search GitHub for pull requests and commits related to an AIP.
+
+    Call this with the AIP number (e.g. "AIP-76") and also with topic
+    keywords (e.g. "asset partition") to find commits not tagged with
+    the AIP number.
+
+    Args:
+        query: Search query (e.g. "AIP-76" or "asset partition PartitionMapper").
+
+    Returns:
+        A list of matching PRs and commits with titles, numbers, and status.
+    """
+    headers = _github_headers()
+    encoded = urllib.parse.quote(f"{query} repo:{GITHUB_REPO}")
+
+    pr_url = f"https://api.github.com/search/issues?q={encoded}+type:pr&per_page=15&sort=updated"
+    time.sleep(GITHUB_API_DELAY)
+    pr_data = _safe_api_get(pr_url, headers)
+
+    lines = []
+    if isinstance(pr_data, dict):
+        for item in pr_data.get("items", [])[:15]:
+            state = item.get("state", "unknown")
+            merged = ""
+            if item.get("pull_request", {}).get("merged_at"):
+                merged = " (merged)"
+            lines.append(f"PR #{item['number']}: {item['title']} [{state}{merged}]")
+
+    commit_url = f"https://api.github.com/search/commits?q={encoded}&per_page=10&sort=committer-date"
+    time.sleep(GITHUB_API_DELAY)
+    commit_data = _safe_api_get(commit_url, headers)
+
+    if isinstance(commit_data, dict):
+        for item in commit_data.get("items", [])[:10]:
+            sha = item.get("sha", "")[:7]
+            msg = item.get("commit", {}).get("message", "").split("\n")[0]
+            lines.append(f"Commit {sha}: {msg}")
+
+    return "\n".join(lines) if lines else "No results found."
+
+
+def get_repo_file_tree(path_prefix: str) -> str:
+    """List files in the Apache Airflow repository under a given path.
+
+    Args:
+        path_prefix: Directory path to list (e.g. "providers/common/ai/src/airflow/providers/common/ai/operators").
+
+    Returns:
+        A list of file paths under the given prefix, with counts of source
+        and test files.
+    """
+    headers = _github_headers()
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/git/trees/main?recursive=1"
+    time.sleep(GITHUB_API_DELAY)
+    data = _safe_api_get(url, headers)
+
+    if isinstance(data, str):
+        return data
+
+    tree = data.get("tree", [])
+    matching = [
+        item["path"] for item in tree if item.get("type") == "blob" and item["path"].startswith(path_prefix)
+    ]
+
+    if not matching:
+        return f"No files found under {path_prefix}"
+
+    source_files = [f for f in matching if f.endswith(".py") and "/tests/" not in f]
+    test_files = [f for f in matching if "/tests/" in f]
+
+    lines = [f"Found {len(matching)} files under {path_prefix}:"]
+    lines.append(f"  Source files: {len(source_files)}, Test files: {len(test_files)}")
+    for f in matching[:20]:
+        lines.append(f"  - {f}")
+    if len(matching) > 20:
+        lines.append(f"  ... and {len(matching) - 20} more")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Agent system prompt -- reinforces the skill's rules at the system level.
+# ---------------------------------------------------------------------------
+
+AGENT_SYSTEM_PROMPT = """\
+You are an Airflow project analyst assessing AIP implementation progress.
+
+You have access to an aip-tracker skill that provides detailed assessment \
+methodology. Load it first and follow its instructions precisely.
+
+HARD RULES (these override any conflicting tendency):
+1. Gather evidence from ALL three sources (Confluence spec, GitHub search, \
+file tree) for every AIP before writing any assessment.
+2. Extract deliverables from the spec's own structure -- completion criteria, \
+phase definitions, or enumerated components. Do NOT split a single spec \
+item into multiple deliverables (e.g. individual files within one component). \
+Do NOT merge multiple spec items into one. Match the spec's granularity.
+3. Always express progress as "X/Y deliverables shipped". NEVER convert to \
+percentages. Do not write "73%" or "72%" or any percentage.
+4. Every deliverable must cite evidence from tool results. If no evidence \
+exists, mark it "not_started" or "unclear" -- do not guess.
+5. Do NOT invent blockers, risks, or characterizations beyond the evidence. \
+Do NOT editorialize with phrases like "near completion", "Advanced maturity", \
+or "substantially implemented". State the fraction and let the reader judge.
+6. PR numbers must come from search_github_prs results. Never fabricate them.
+7. Before returning the report, run the self-verification checklist in the \
+skill. Fix any violations before returning."""
+
+
+# [START example_aip_progress_tracker_skills]
+@dag(
+    tags=["example", "ai", "skills"],
+    params={
+        "aip_numbers": Param(
+            default=DEFAULT_AIP_NUMBERS,
+            type="string",
+            description="Comma-separated AIP numbers to track",
+        ),
+    },
+)
+def example_aip_progress_tracker_skills():
+    """Skills-based AIP tracker using AgentSkillsToolset.
+
+    Same use case as ``example_aip_progress_tracker`` but solved with a
+    single ``AgentOperator`` that loads the ``aip-tracker`` skill and
+    decides its own evidence-gathering strategy.
+    """
+    from pydantic_ai.toolsets import FunctionToolset
+
+    aip_toolset = FunctionToolset(
+        tools=[fetch_confluence_page, search_github_prs, get_repo_file_tree],
+    )
+
+    aip_info = "\n".join(
+        f"- AIP-{num}: {info['topic']} (page_id={info['page_id']}, "
+        f"paths: {', '.join(info['codebase_paths'][:3])})"
+        for num, info in AIP_REGISTRY.items()
+    )
+
+    prompt = (
+        "Track the implementation progress of these AIPs and produce a "
+        "cross-AIP progress report:\n\n"
+        f"{aip_info}\n\n"
+        "Use the aip-tracker skill for detailed instructions on how to "
+        "gather evidence and structure your assessment."
+    )
+
+    # [START aip_tracker_skills_operator]
+    report = AgentOperator(
+        task_id="track_aip_progress",
+        llm_conn_id=LLM_CONN_ID,
+        system_prompt=AGENT_SYSTEM_PROMPT,
+        prompt=prompt,
+        toolsets=[
+            AgentSkillsToolset(sources=[SKILLS_DIR]),
+            aip_toolset,
+        ],
+        agent_params={"model_settings": {"temperature": 0}},
+        usage_limits=UsageLimits(
+            request_limit=30,
+            input_tokens_limit=200_000,
+            output_tokens_limit=16_000,
+        ),
+    )
+    # [END aip_tracker_skills_operator]
+
+    # [START aip_tracker_skills_hitl]
+    ApprovalOperator(
+        task_id="review_report",
+        subject="Review AIP Progress Report (Skills-generated)",
+        body=report.output,
+        response_timeout=timedelta(hours=24),
+    )
+    # [END aip_tracker_skills_hitl]
+
+
+# [END example_aip_progress_tracker_skills]
+
+example_aip_progress_tracker_skills()
