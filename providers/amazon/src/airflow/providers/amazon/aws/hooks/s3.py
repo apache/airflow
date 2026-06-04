@@ -58,7 +58,7 @@ from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -1815,7 +1815,7 @@ class S3Hook(AwsBaseHook):
             try:
                 local_target_path.resolve().relative_to(local_dir_resolved)
             except ValueError:
-                raise AirflowException(
+                raise S3HookPathTraversalError(
                     f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
                 ) from None
             if not local_target_path.parent.exists():

@@ -35,7 +35,7 @@ from moto import mock_aws
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     NO_ACL,
     S3Hook,
@@ -1982,7 +1982,7 @@ class TestAwsS3Hook:
         sync_local_dir = tmp_path / "s3_sync_dir"
         hook = S3Hook()
 
-        with pytest.raises(AirflowException, match="resolves outside local directory"):
+        with pytest.raises(S3HookPathTraversalError, match="resolves outside local directory"):
             hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
 
         assert not (tmp_path / "outside.py").exists()
