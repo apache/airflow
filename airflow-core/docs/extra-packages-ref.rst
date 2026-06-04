@@ -249,6 +249,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | microsoft-azure     | ``pip install 'apache-airflow[microsoft-azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| clickhousedb        | ``pip install 'apache-airflow[clickhousedb]'``      | ClickHouse hooks and operators                      |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cohere              | ``pip install 'apache-airflow[cohere]'``            | Cohere hook and operators                           |
