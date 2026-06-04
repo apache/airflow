@@ -5816,6 +5816,10 @@
                                 "description": "Name of the Dag bundle.",
                                 "type": "string"
                             },
+                            "team_name": {
+                                "description": "Team name for the Dag bundle.",
+                                "type": "string"
+                            },
                             "classpath": {
                                 "description": "Class path of the Dag bundle class.",
                                 "type": "string"
