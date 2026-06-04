@@ -2712,7 +2712,13 @@ class TestSchedulerJob:
         self.job_runner._emit_pool_metrics(session=session)
 
         tags = {"pool_name": pool_name}
-        for stat_name in ("pool.open_slots", "pool.queued_slots", "pool.running_slots"):
+        for stat_name in (
+            "pool.open_slots",
+            "pool.queued_slots",
+            "pool.running_slots",
+            "pool.deferred_slots",
+            "pool.scheduled_slots",
+        ):
             gauge_calls = [c for c in mock_stats.gauge.call_args_list if c.args and c.args[0] == stat_name]
             timing_calls = [
                 c
