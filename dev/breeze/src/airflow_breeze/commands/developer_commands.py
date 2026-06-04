@@ -811,7 +811,7 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
 
     src = java_sdk_root / "sdk" / "build" / "dokka" / "html"
     dst = generated_path / "_build" / "docs" / "java-sdk" / "stable"
-    console_print(f"[info]Staging Dokka output: {src} → {dst}")
+    console_print(f"[info]Staging Dokka output: {src} -> {dst}")
     dst.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
@@ -896,7 +896,7 @@ def _build_python_docs(
         ),
     )
     cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(
-        [shlex.quote(arg) for arg in doc_builder.args_doc_builder]
+        shlex.quote(arg) for arg in doc_builder.args_doc_builder
     )
     shell_params = ShellParams(
         github_repository=github_repository,
