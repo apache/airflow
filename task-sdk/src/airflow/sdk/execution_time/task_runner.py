@@ -87,11 +87,15 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     DagResult,
     DagRunStateResult,
+    DagTaskGroupsExistenceResult,
+    DagTasksExistenceResult,
     DeferTask,
     DRCount,
     ErrorResponse,
     GetDag,
     GetDagRunState,
+    GetDagTaskGroupsExistence,
+    GetDagTasksExistence,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -754,6 +758,32 @@ class RuntimeTaskInstance(TaskInstance):
 
         if TYPE_CHECKING:
             assert isinstance(response, DagResult)
+
+        return response
+
+    @staticmethod
+    def get_dag_tasks_existence(dag_id: str, task_ids: list[str]) -> DagTasksExistenceResult:
+        response = SUPERVISOR_COMMS.send(msg=GetDagTasksExistence(dag_id=dag_id, task_ids=task_ids))
+
+        if isinstance(response, ErrorResponse):
+            raise AirflowRuntimeError(response)
+
+        if TYPE_CHECKING:
+            assert isinstance(response, DagTasksExistenceResult)
+
+        return response
+
+    @staticmethod
+    def get_dag_task_groups_existence(dag_id: str, task_group_ids: list[str]) -> DagTaskGroupsExistenceResult:
+        response = SUPERVISOR_COMMS.send(
+            msg=GetDagTaskGroupsExistence(dag_id=dag_id, task_group_ids=task_group_ids)
+        )
+
+        if isinstance(response, ErrorResponse):
+            raise AirflowRuntimeError(response)
+
+        if TYPE_CHECKING:
+            assert isinstance(response, DagTaskGroupsExistenceResult)
 
         return response
 

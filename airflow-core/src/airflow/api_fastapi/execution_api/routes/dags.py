@@ -17,10 +17,15 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.dags import DagResponse
+from airflow.api_fastapi.execution_api.datamodels.dags import (
+    DagResponse,
+    DagTaskGroupsExistenceResponse,
+    DagTasksExistenceResponse,
+)
 from airflow.models.dag import DagModel
 
 router = APIRouter()
@@ -57,3 +62,69 @@ def get_dag(
         tags=sorted(tag.name for tag in dag_model.tags),
         next_dagrun=dag_model.next_dagrun,
     )
+
+
+@router.get(
+    "/{dag_id}/task-groups/existence",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
+    },
+)
+def get_dag_task_groups_existence(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    task_group_ids: list[str] = Query(
+        default_factory=list, description="Task group ids to check for existence"
+    ),
+) -> DagTaskGroupsExistenceResponse:
+    """Get the list of existing and missing Dag task group ids from the given ids."""
+    if not session.get(DagModel, dag_id):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The Dag with dag_id: `{dag_id}` was not found",
+            },
+        )
+
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
+
+    existing: list[str] = []
+    missing: list[str] = []
+    for task_group_id in task_group_ids:
+        (existing if task_group_id in dag.task_group_dict else missing).append(task_group_id)
+
+    return DagTaskGroupsExistenceResponse(existing=existing, missing=missing)
+
+
+@router.get(
+    "/{dag_id}/tasks/existence",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
+    },
+)
+def get_dag_tasks_existence(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    task_ids: list[str] = Query(default_factory=list, description="Task ids to check for existence"),
+) -> DagTasksExistenceResponse:
+    """Get the list of existing and missing Dag task ids from the given ids."""
+    if not session.get(DagModel, dag_id):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The Dag with dag_id: `{dag_id}` was not found",
+            },
+        )
+
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
+
+    existing: list[str] = []
+    missing: list[str] = []
+    for task_id in task_ids:
+        (existing if dag.has_task(task_id) else missing).append(task_id)
+
+    return DagTasksExistenceResponse(existing=existing, missing=missing)

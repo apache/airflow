@@ -52,7 +52,11 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sdk.execution_time.comms import DagResult
+    from airflow.sdk.execution_time.comms import (
+        DagResult,
+        DagTaskGroupsExistenceResult,
+        DagTasksExistenceResult,
+    )
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -218,6 +222,14 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @staticmethod
     def get_dag(dag_id: str) -> DagResult: ...
+
+    @staticmethod
+    def get_dag_tasks_existence(dag_id: str, task_ids: list[str]) -> DagTasksExistenceResult: ...
+
+    @staticmethod
+    def get_dag_task_groups_existence(
+        dag_id: str, task_group_ids: list[str]
+    ) -> DagTaskGroupsExistenceResult: ...
 
 
 # Public alias for RuntimeTaskInstanceProtocol

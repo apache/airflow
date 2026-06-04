@@ -71,6 +71,8 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
+    DagTaskGroupsExistenceResult,
+    DagTasksExistenceResult,
     DeferTask,
     DeleteAssetStoreByName,
     DeleteAssetStoreByUri,
@@ -89,6 +91,8 @@ from airflow.sdk.execution_time.comms import (
     GetDag,
     GetDagRun,
     GetDagRunState,
+    GetDagTaskGroupsExistence,
+    GetDagTasksExistence,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -1832,6 +1836,26 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
+        elif isinstance(msg, GetDagTaskGroupsExistence):
+            groups_existence = self.client.dags.get_dag_task_groups_existence(
+                dag_id=msg.dag_id,
+                task_group_ids=msg.task_group_ids,
+            )
+            resp = (
+                groups_existence
+                if isinstance(groups_existence, ErrorResponse)
+                else DagTaskGroupsExistenceResult.from_api_response(groups_existence)
+            )
+        elif isinstance(msg, GetDagTasksExistence):
+            tasks_existence = self.client.dags.get_dag_tasks_existence(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+            )
+            resp = (
+                tasks_existence
+                if isinstance(tasks_existence, ErrorResponse)
+                else DagTasksExistenceResult.from_api_response(tasks_existence)
+            )
         elif isinstance(msg, GetTaskStore):
             task_store = self.client.task_store.get(msg.ti_id, msg.key)
             resp = (

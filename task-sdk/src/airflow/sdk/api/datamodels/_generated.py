@@ -179,6 +179,24 @@ class DagRunType(str, Enum):
     ASSET_MATERIALIZATION = "asset_materialization"
 
 
+class DagTaskGroupsExistenceResponse(BaseModel):
+    """
+    Schema for batch Dag task group existence response.
+    """
+
+    existing: Annotated[list[str], Field(title="Existing")]
+    missing: Annotated[list[str], Field(title="Missing")]
+
+
+class DagTasksExistenceResponse(BaseModel):
+    """
+    Schema for batch Dag task existence response.
+    """
+
+    existing: Annotated[list[str], Field(title="Existing")]
+    missing: Annotated[list[str], Field(title="Missing")]
+
+
 class HITLUser(BaseModel):
     """
     Schema for a Human-in-the-loop users.

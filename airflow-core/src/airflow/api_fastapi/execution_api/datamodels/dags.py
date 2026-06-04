@@ -33,3 +33,17 @@ class DagResponse(BaseModel):
     owners: str | None
     tags: list[str]
     next_dagrun: datetime | None
+
+
+class DagTaskGroupsExistenceResponse(BaseModel):
+    """Schema for batch Dag task group existence response."""
+
+    existing: list[str]
+    missing: list[str]
+
+
+class DagTasksExistenceResponse(BaseModel):
+    """Schema for batch Dag task existence response."""
+
+    existing: list[str]
+    missing: list[str]

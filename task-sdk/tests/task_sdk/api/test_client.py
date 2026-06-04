@@ -41,6 +41,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagResponse,
     DagRunState,
     DagRunStateResponse,
+    DagTaskGroupsExistenceResponse,
+    DagTasksExistenceResponse,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -1783,6 +1785,80 @@ class TestDagsOperations:
 
         with pytest.raises(ServerResponseError):
             client.dags.get(dag_id="test_dag")
+
+    def test_get_dag_task_groups_existence(self):
+        """Test that the client can partition task group ids by existence."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag/task-groups/existence":
+                return httpx.Response(
+                    status_code=200,
+                    json={"existing": ["g1"], "missing": ["g2"]},
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_dag_task_groups_existence(dag_id="test_dag", task_group_ids=["g1", "g2"])
+
+        assert result == DagTaskGroupsExistenceResponse(existing=["g1"], missing=["g2"])
+
+    def test_get_dag_task_groups_existence_dag_not_found(self):
+        """Test a missing dag while checking task group existence."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/missing_dag/task-groups/existence":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "The Dag with dag_id: `missing_dag` was not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_dag_task_groups_existence(dag_id="missing_dag", task_group_ids=["g1"])
+
+        assert result == ErrorResponse(error=ErrorType.DAG_NOT_FOUND, detail={"dag_id": "missing_dag"})
+
+    def test_get_dag_tasks_existence(self):
+        """Test that the client can partition task ids by existence."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag/tasks/existence":
+                return httpx.Response(
+                    status_code=200,
+                    json={"existing": ["a"], "missing": ["b"]},
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_dag_tasks_existence(dag_id="test_dag", task_ids=["a", "b"])
+
+        assert result == DagTasksExistenceResponse(existing=["a"], missing=["b"])
+
+    def test_get_dag_tasks_existence_dag_not_found(self):
+        """Test a missing dag while checking task existence."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/missing_dag/tasks/existence":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "The Dag with dag_id: `missing_dag` was not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_dag_tasks_existence(dag_id="missing_dag", task_ids=["a"])
+
+        assert result == ErrorResponse(error=ErrorType.DAG_NOT_FOUND, detail={"dag_id": "missing_dag"})
 
 
 class TestTaskStateOperations:

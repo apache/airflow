@@ -1361,6 +1361,66 @@
       "title": "DagRunType",
       "type": "string"
     },
+    "DagTaskGroupsExistenceResult": {
+      "properties": {
+        "existing": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Existing",
+          "type": "array"
+        },
+        "missing": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "type": {
+          "const": "DagTaskGroupsExistenceResult",
+          "default": "DagTaskGroupsExistenceResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "existing",
+        "missing"
+      ],
+      "title": "DagTaskGroupsExistenceResult",
+      "type": "object"
+    },
+    "DagTasksExistenceResult": {
+      "properties": {
+        "existing": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Existing",
+          "type": "array"
+        },
+        "missing": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "type": {
+          "const": "DagTasksExistenceResult",
+          "default": "DagTasksExistenceResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "existing",
+        "missing"
+      ],
+      "title": "DagTasksExistenceResult",
+      "type": "object"
+    },
     "DeferTask": {
       "additionalProperties": false,
       "description": "Update a task instance state to deferred.",
@@ -1713,6 +1773,7 @@
         "TASK_STORE_NOT_FOUND",
         "ASSET_STORE_NOT_FOUND",
         "DAGRUN_ALREADY_EXISTS",
+        "DAG_NOT_FOUND",
         "PERMISSION_DENIED",
         "GENERIC_ERROR",
         "API_SERVER_ERROR"
@@ -2117,6 +2178,60 @@
         "run_id"
       ],
       "title": "GetDagRunState",
+      "type": "object"
+    },
+    "GetDagTaskGroupsExistence": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_group_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Task Group Ids",
+          "type": "array"
+        },
+        "type": {
+          "const": "GetDagTaskGroupsExistence",
+          "default": "GetDagTaskGroupsExistence",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_group_ids"
+      ],
+      "title": "GetDagTaskGroupsExistence",
+      "type": "object"
+    },
+    "GetDagTasksExistence": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Task Ids",
+          "type": "array"
+        },
+        "type": {
+          "const": "GetDagTasksExistence",
+          "default": "GetDagTasksExistence",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_ids"
+      ],
+      "title": "GetDagTasksExistence",
       "type": "object"
     },
     "GetHITLDetailResponse": {

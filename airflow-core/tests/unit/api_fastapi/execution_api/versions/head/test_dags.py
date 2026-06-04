@@ -25,6 +25,7 @@ from sqlalchemy import update
 
 from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import TaskGroup
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -125,4 +126,87 @@ class TestDag:
             "owners": "airflow",
             "tags": [],
             "next_dagrun": ANY,
+        }
+
+    def test_get_dag_task_groups_existence_partitions(self, client, session, dag_maker):
+        """Test partitioning task groups into existing and missing."""
+
+        dag_id = "test_dag_task_groups_existence"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            with TaskGroup(group_id="grp"):
+                EmptyOperator(task_id="a")
+        session.commit()
+
+        response = client.get(
+            f"/execution/dags/{dag_id}/task-groups/existence",
+            params={"task_group_ids": ["grp", "ghost_group"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"existing": ["grp"], "missing": ["ghost_group"]}
+
+    def test_get_dag_task_groups_existence_dag_not_found(self, client, session, dag_maker):
+        """Test missing Dag when checking task group existence."""
+
+        response = client.get(
+            "/execution/dags/no_such_dag/task-groups/existence",
+            params={"task_group_ids": ["grp"]},
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": {
+                "message": "The Dag with dag_id: `no_such_dag` was not found",
+                "reason": "not_found",
+            }
+        }
+
+    def test_get_dag_tasks_existence_partitions(self, client, session, dag_maker):
+        """Test partitioning tasks into existing and missing."""
+
+        dag_id = "test_dag_tasks_existence"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="a")
+            EmptyOperator(task_id="b")
+
+        session.commit()
+
+        response = client.get(
+            f"/execution/dags/{dag_id}/tasks/existence",
+            params={"task_ids": ["a", "b", "ghost"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"existing": ["a", "b"], "missing": ["ghost"]}
+
+    def test_get_dag_tasks_existence_empty_list(self, client, session, dag_maker):
+        """Test empty task_ids returns empty partition."""
+
+        dag_id = "test_dag_tasks_existence_empty"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="a")
+        session.commit()
+
+        response = client.get(f"/execution/dags/{dag_id}/tasks/existence")
+
+        assert response.status_code == 200
+        assert response.json() == {"existing": [], "missing": []}
+
+    def test_get_dag_tasks_existence_dag_not_found(self, client, session, dag_maker):
+        """Test missing Dag when checking task existence."""
+
+        response = client.get(
+            "/execution/dags/no_such_dag/tasks/existence",
+            params={"task_ids": ["a"]},
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": {
+                "message": "The Dag with dag_id: `no_such_dag` was not found",
+                "reason": "not_found",
+            }
         }

@@ -57,6 +57,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     DagRunType,
+    DagTaskGroupsExistenceResponse,
+    DagTasksExistenceResponse,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -989,6 +991,56 @@ class DagsOperations:
         """Get a DAG via the API server."""
         resp = self.client.get(f"dags/{dag_id}")
         return DagResponse.model_validate_json(resp.read())
+
+    def get_dag_task_groups_existence(
+        self, dag_id: str, task_group_ids: list[str]
+    ) -> DagTaskGroupsExistenceResponse | ErrorResponse:
+        """Check the existence of a Dags task groups."""
+        try:
+            resp = self.client.get(
+                f"dags/{dag_id}/task-groups/existence",
+                params={"task_group_ids": task_group_ids},
+            )
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug(
+                    "Dag not found while checking task group existence",
+                    dag_id=dag_id,
+                    task_group_ids=task_group_ids,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.DAG_NOT_FOUND,
+                    detail={"dag_id": dag_id},
+                )
+            raise
+        return DagTaskGroupsExistenceResponse.model_validate_json(resp.read())
+
+    def get_dag_tasks_existence(
+        self, dag_id: str, task_ids: list[str]
+    ) -> DagTasksExistenceResponse | ErrorResponse:
+        """Check the existence of a Dags tasks."""
+        try:
+            resp = self.client.get(
+                f"dags/{dag_id}/tasks/existence",
+                params={"task_ids": task_ids},
+            )
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug(
+                    "Dag not found while checking task existence",
+                    dag_id=dag_id,
+                    task_ids=task_ids,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.DAG_NOT_FOUND,
+                    detail={"dag_id": dag_id},
+                )
+            raise
+        return DagTasksExistenceResponse.model_validate_json(resp.read())
 
 
 class HITLOperations:

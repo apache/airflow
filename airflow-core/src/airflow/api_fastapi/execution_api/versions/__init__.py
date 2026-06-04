@@ -49,6 +49,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
+    AddDagTaskDetailsExistenceEndpoints,
     AddVariableKeysEndpoint,
 )
 
@@ -59,6 +60,7 @@ bundle = VersionBundle(
         AddVariableKeysEndpoint,
         AddConnectionTestEndpoint,
         AddAwaitingInputStatePayload,
+        AddDagTaskDetailsExistenceEndpoints,
     ),
     Version(
         "2026-06-16",

@@ -443,6 +443,9 @@ class ExternalTaskSensor(BaseSensorOperator):
 
             dttm_filter = self._get_dttm_filter(context)
             if AIRFLOW_V_3_0_PLUS:
+                if self.check_existence and not self._has_checked_existence:
+                    self._check_for_existence_af3(context)
+
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
                     trigger=WorkflowTrigger(
@@ -543,6 +546,58 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"The external task group '{self.external_task_group_id}' in "
                     f"DAG '{self.external_dag_id}' does not exist."
                 )
+
+        self._has_checked_existence = True
+
+    def _check_for_existence_af3(self, context: Context) -> None:
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+
+        ti = context["ti"]
+
+        def _raise_if_dag_missing(exc: AirflowRuntimeError) -> None:
+            if exc.error.error == ErrorType.DAG_NOT_FOUND:
+                raise ExternalDagNotFoundError(
+                    f"The external DAG {self.external_dag_id} does not exist."
+                ) from None
+            raise exc
+
+        try:
+            # Workaround for checking Dag existence by calling get_dag_tasks_existence with an empty task list.
+            ti.get_dag_tasks_existence(
+                dag_id=self.external_dag_id,
+                task_ids=[],
+            )
+        except AirflowRuntimeError as exc:
+            _raise_if_dag_missing(exc)
+
+        if self.external_task_ids:
+            try:
+                tasks_existence = ti.get_dag_tasks_existence(
+                    dag_id=self.external_dag_id,
+                    task_ids=list(self.external_task_ids),
+                )
+            except AirflowRuntimeError as exc:
+                _raise_if_dag_missing(exc)
+            else:
+                if tasks_existence.missing:
+                    raise ExternalTaskNotFoundError(
+                        f"The external task(s) {sorted(tasks_existence.missing)} in Dag "
+                        f"{self.external_dag_id} do not exist."
+                    )
+        elif self.external_task_group_id:
+            try:
+                group_existence = ti.get_dag_task_groups_existence(
+                    dag_id=self.external_dag_id,
+                    task_group_ids=[self.external_task_group_id],
+                )
+            except AirflowRuntimeError as exc:
+                _raise_if_dag_missing(exc)
+            else:
+                if group_existence.missing:
+                    raise ExternalTaskGroupNotFoundError(
+                        f"The external task group '{self.external_task_group_id}' in "
+                        f"Dag '{self.external_dag_id}' does not exist."
+                    )
 
         self._has_checked_existence = True
 

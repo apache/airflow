@@ -1446,6 +1446,68 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
     @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_check_existence_dag_not_found(self, dag_maker):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="non_existing_dag",
+                check_existence=True,
+                deferrable=True,
+            )
+
+        self.context["ti"].get_dag_tasks_existence.side_effect = AirflowRuntimeError(
+            ErrorResponse(error=ErrorType.DAG_NOT_FOUND, detail={"dag_id": "non_existing_dag"})
+        )
+
+        with pytest.raises(
+            ExternalDagNotFoundError,
+        ):
+            op.execute(context=self.context)
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_check_existence_task_not_found(self, dag_maker):
+        from airflow.sdk.execution_time.comms import DagTasksExistenceResult
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_ids=["real_task", "missing_task"],
+                check_existence=True,
+                deferrable=True,
+            )
+
+        self.context["ti"].get_dag_tasks_existence.return_value = DagTasksExistenceResult(
+            existing=["real_task"], missing=["missing_task"]
+        )
+
+        with pytest.raises(ExternalTaskNotFoundError):
+            op.execute(context=self.context)
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_check_existence_task_group_not_found(self, dag_maker):
+        from airflow.sdk.execution_time.comms import DagTaskGroupsExistenceResult
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_group_id="missing_group",
+                check_existence=True,
+                deferrable=True,
+            )
+
+        self.context["ti"].get_dag_task_groups_existence.return_value = DagTaskGroupsExistenceResult(
+            existing=[], missing=["missing_group"]
+        )
+
+        with pytest.raises(ExternalTaskGroupNotFoundError):
+            op.execute(context=self.context)
+
+    @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):
         """Test that the sensor works correctly when only external_dag_id is provided."""
         with dag_maker("test_dag_child"):

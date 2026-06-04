@@ -84,6 +84,8 @@ from airflow.sdk.execution_time.comms import (
     DagResult,
     DagRunResult,
     DagRunStateResult,
+    DagTaskGroupsExistenceResult,
+    DagTasksExistenceResult,
     DeferTask,
     DeleteAssetStoreByName,
     DeleteAssetStoreByUri,
@@ -103,6 +105,8 @@ from airflow.sdk.execution_time.comms import (
     GetDag,
     GetDagRun,
     GetDagRunState,
+    GetDagTaskGroupsExistence,
+    GetDagTasksExistence,
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
@@ -2844,6 +2848,52 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_dag",
+    ),
+    RequestTestCase(
+        message=GetDagTaskGroupsExistence(
+            dag_id="test_dag",
+            task_group_ids=["group_a", "group_b"],
+        ),
+        expected_body={
+            "existing": ["group_a"],
+            "missing": ["group_b"],
+            "type": "DagTaskGroupsExistenceResult",
+        },
+        client_mock=ClientMock(
+            method_path="dags.get_dag_task_groups_existence",
+            kwargs={
+                "dag_id": "test_dag",
+                "task_group_ids": ["group_a", "group_b"],
+            },
+            response=DagTaskGroupsExistenceResult(
+                existing=["group_a"],
+                missing=["group_b"],
+            ),
+        ),
+        test_id="get_dag_task_groups_existence",
+    ),
+    RequestTestCase(
+        message=GetDagTasksExistence(
+            dag_id="test_dag",
+            task_ids=["task_a", "task_b"],
+        ),
+        expected_body={
+            "existing": ["task_a"],
+            "missing": ["task_b"],
+            "type": "DagTasksExistenceResult",
+        },
+        client_mock=ClientMock(
+            method_path="dags.get_dag_tasks_existence",
+            kwargs={
+                "dag_id": "test_dag",
+                "task_ids": ["task_a", "task_b"],
+            },
+            response=DagTasksExistenceResult(
+                existing=["task_a"],
+                missing=["task_b"],
+            ),
+        ),
+        test_id="get_dag_tasks_existence",
     ),
     RequestTestCase(
         message=GetTaskStore(ti_id=TI_ID, key="job_id"),

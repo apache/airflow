@@ -53,3 +53,14 @@ class AddAwaitingInputStatePayload(VersionChange):
         schema(TIAwaitingInputStatePayload).field("next_kwargs").didnt_exist,
         schema(TIAwaitingInputStatePayload).field("rendered_map_index").didnt_exist,
     )
+
+
+class AddDagTaskDetailsExistenceEndpoints(VersionChange):
+    """Add Dag task and task group existence endpoints."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/dags/{dag_id}/tasks/existence", ["GET"]).didnt_exist,
+        endpoint("/dags/{dag_id}/task-groups/existence", ["GET"]).didnt_exist,
+    )

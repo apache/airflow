@@ -103,6 +103,8 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagResult,
     DagRunStateResult,
+    DagTaskGroupsExistenceResult,
+    DagTasksExistenceResult,
     DeferTask,
     DeleteAssetStoreByName,
     DeleteTaskStore,
@@ -115,6 +117,8 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDag,
     GetDagRunState,
+    GetDagTaskGroupsExistence,
+    GetDagTasksExistence,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -3405,6 +3409,48 @@ class TestRuntimeTaskInstance:
         )
         assert response.dag_id == "test_dag"
         assert response.is_paused is False
+
+    def test_get_task_groups_existence(self, mock_supervisor_comms):
+        """Test that get_task_group sends the correct request and returns the partitioned task group existence."""
+        mock_supervisor_comms.send.return_value = DagTaskGroupsExistenceResult(
+            existing=["group_a"],
+            missing=["group_b"],
+        )
+
+        response = RuntimeTaskInstance.get_dag_task_groups_existence(
+            dag_id="test_dag",
+            task_group_ids=["group_a", "group_b"],
+        )
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetDagTaskGroupsExistence(
+                dag_id="test_dag",
+                task_group_ids=["group_a", "group_b"],
+            )
+        )
+        assert response.existing == ["group_a"]
+        assert response.missing == ["group_b"]
+
+    def test_get_tasks_existence(self, mock_supervisor_comms):
+        """Test that get_task sends the correct request and returns the partitioned task existence."""
+        mock_supervisor_comms.send.return_value = DagTasksExistenceResult(
+            existing=["task_a"],
+            missing=["task_b"],
+        )
+
+        response = RuntimeTaskInstance.get_dag_tasks_existence(
+            dag_id="test_dag",
+            task_ids=["task_a", "task_b"],
+        )
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetDagTasksExistence(
+                dag_id="test_dag",
+                task_ids=["task_a", "task_b"],
+            )
+        )
+        assert response.existing == ["task_a"]
+        assert response.missing == ["task_b"]
 
 
 class TestXComAfterTaskExecution:
