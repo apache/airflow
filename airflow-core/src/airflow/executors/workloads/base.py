@@ -42,7 +42,6 @@ class WorkloadType(str, Enum):
 
 
 # Central executor priority registry: tuple is ordered from highest priority to lowest.
-# Connection tests come last so they only consume slots left over after tasks and callbacks.
 #
 # Adding a new workload type is a three-place change that must stay in sync:
 #   1. ``WorkloadType`` — declare the enum member.
