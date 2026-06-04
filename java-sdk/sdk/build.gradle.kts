@@ -26,8 +26,10 @@ buildscript {
 val airflowSupervisorSchemaVersion: String by project
 val sdkVersion: String by project
 
+// Full Maven coordinate: org.apache.airflow:airflow-sdk:<version>
 group = "org.apache.airflow"
 version = sdkVersion
+base.archivesName.set("airflow-sdk")
 
 plugins {
     kotlin("plugin.serialization") version "2.3.0"
