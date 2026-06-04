@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import itertools
 import logging
 from collections import Counter
 from typing import TYPE_CHECKING
@@ -39,7 +38,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.config import conf_vars
@@ -64,13 +63,6 @@ def clear_assets():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
-
-
-def create_mock_dag():
-    for dag_id in itertools.count(1):
-        mock_dag = mock.Mock(spec=DAG)
-        mock_dag.dag_id = dag_id
-        yield mock_dag
 
 
 class TestAssetManager:
@@ -328,14 +320,21 @@ def _make_dag(dag_id: str) -> DagModel:
 
 def _make_asset_model(
     scheduled_dags: dict[str, list[str]] | None = None,
+    allow_global: dict[str, bool] | None = None,
 ) -> AssetModel:
     """Create a mock AssetModel.
 
     :param scheduled_dags: mapping of dag_id -> allow_producer_teams for each consumer reference.
+    :param allow_global: mapping of dag_id -> allow_global_producers for each consumer reference.
     """
+    allow_global = allow_global or {}
     model = mock.Mock(spec=AssetModel)
     model.scheduled_dags = [
-        mock.Mock(dag_id=dag_id, allow_producer_teams=teams)
+        mock.Mock(
+            dag_id=dag_id,
+            allow_producer_teams=teams,
+            allow_global_producers=allow_global.get(dag_id, True),
+        )
         for dag_id, teams in (scheduled_dags or {}).items()
     ]
     return model
@@ -534,3 +533,51 @@ class TestFilterDagsByTeam:
             )
 
         assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_blocked_when_allow_global_false(self):
+        """Teamless DAG producer is blocked when consumer's allow_global_producers=False."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": False}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_allowed_when_allow_global_true(self):
+        """Teamless DAG producer allowed when consumer's allow_global_producers=True (default)."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": True}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_api_user_not_affected_by_allow_global(self):
+        """Teamless API user behavior unchanged by allow_global — still blocked from team-bound consumers."""
+        dag_with_team = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_with_team},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": True}),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag_with_team not in result

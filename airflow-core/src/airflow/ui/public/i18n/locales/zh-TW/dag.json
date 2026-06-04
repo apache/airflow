@@ -1,9 +1,9 @@
 {
   "allRuns": "所有執行",
   "blockingDeps": {
-    "dependency": "依賴 (Dependencies)",
+    "dependency": "相依性 (Dependencies)",
     "reason": "原因",
-    "title": "依賴 (Dependencies) 阻礙任務排程"
+    "title": "相依性 (Dependencies) 阻礙任務排程"
   },
   "calendar": {
     "daily": "每日",
@@ -152,13 +152,13 @@
       "label": "Dag 執行次數"
     },
     "dependencies": {
-      "label": "依賴 (Dependencies)",
+      "label": "相依性 (Dependencies)",
       "options": {
         "allDagDependencies": "所有 Dag 相依性",
         "externalConditions": "外部條件",
         "onlyTasks": "僅限任務"
       },
-      "placeholder": "依賴 (Dependencies)"
+      "placeholder": "相依性 (Dependencies)"
     },
     "graphDirection": {
       "label": "圖表方向"
@@ -183,12 +183,12 @@
       }
     },
     "taskStreamFilter": {
-      "activeFilter": "啟用過濾器",
-      "clearFilter": "清除過濾器",
-      "clickTask": "點擊一個任務以將其選為過濾根",
+      "activeFilter": "啟用篩選器",
+      "clearFilter": "清除篩選器",
+      "clickTask": "點擊一個任務以將其選為篩選根",
       "depth": "深度",
       "direction": "方向",
-      "label": "過濾器",
+      "label": "篩選器",
       "mode": "模式",
       "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
       "modes": {
@@ -218,7 +218,7 @@
   },
   "tabs": {
     "assetEvents": "資源事件",
-    "auditLog": "審計日誌",
+    "auditLog": "稽核日誌",
     "backfills": "回填",
     "calendar": "日曆",
     "code": "程式碼",

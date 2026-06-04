@@ -16,10 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from unittest import mock
+from uuid import UUID
 
+import pytest
+from fastapi import Request
+from fastapi.params import Security as SecurityParam
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+from opentelemetry import context as otel_context, propagate as otel_propagate
+
+from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -45,9 +58,6 @@ def test_access_api_contract(client):
 
 def test_ti_self_routes_have_task_instance_id_param(client):
     """Every route with ti:self scope must have a {task_instance_id} path parameter."""
-    from fastapi.params import Security as SecurityParam
-    from fastapi.routing import APIRoute
-
     app = client.app
 
     for route in app.routes:
@@ -57,6 +67,23 @@ def test_ti_self_routes_have_task_instance_id_param(client):
             if isinstance(dep, SecurityParam) and "ti:self" in (dep.scopes or []):
                 assert "task_instance_id" in route.dependant.path_param_names, (
                     f"Route {route.path} has ti:self scope but no {{task_instance_id}} path parameter"
+                )
+
+
+def test_ct_self_routes_have_connection_test_id_param(client):
+    """Every route with ct:self scope must have a {connection_test_id} path parameter."""
+    from fastapi.params import Security as SecurityParam
+    from fastapi.routing import APIRoute
+
+    app = client.app
+
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for dep in route.dependencies:
+            if isinstance(dep, SecurityParam) and "ct:self" in (dep.scopes or []):
+                assert "connection_test_id" in route.dependant.path_param_names, (
+                    f"Route {route.path} has ct:self scope but no {{connection_test_id}} path parameter"
                 )
 
 
@@ -111,3 +138,109 @@ class TestCorrelationIdMiddleware:
 
         # Verify they didn't interfere with each other
         assert correlation_id_1 != correlation_id_2
+
+
+class TestTraceContextPropagation:
+    """Exercise ``execution_api.otel_trace_propagation`` on the real Execution API app."""
+
+    @pytest.fixture(autouse=True)
+    def _restore_router_dependencies(self):
+        from airflow.api_fastapi.execution_api.routes import execution_api_router
+
+        snapshot = {
+            id(route): list(route.dependencies)
+            for route in execution_api_router.routes
+            if isinstance(route, APIRoute)
+        }
+        yield
+        for route in execution_api_router.routes:
+            if isinstance(route, APIRoute):
+                route.dependencies[:] = snapshot[id(route)]
+
+    @staticmethod
+    def _build_app(mode: str):
+        with conf_vars({("execution_api", "otel_trace_propagation"): mode}):
+            return create_task_execution_api_app()
+
+    @pytest.mark.parametrize(
+        ("mode", "path", "valid_auth", "expect_extract", "expect_status"),
+        [
+            pytest.param("unsafe-always", "/health", False, True, 200, id="always-unauthenticated"),
+            pytest.param("unsafe-always", "/variables/k", False, True, 401, id="always-auth-failure"),
+            pytest.param("unsafe-always", "/variables/k", True, True, None, id="always-authenticated"),
+            pytest.param("only-authenticated", "/health", False, False, 200, id="onlyauth-unauthenticated"),
+            pytest.param("only-authenticated", "/variables/k", False, False, 401, id="onlyauth-auth-failure"),
+            pytest.param("only-authenticated", "/variables/k", True, True, None, id="onlyauth-authenticated"),
+            pytest.param("never", "/health", False, False, 200, id="never-unauthenticated"),
+            pytest.param("never", "/variables/k", False, False, 401, id="never-auth-failure"),
+            pytest.param("never", "/variables/k", True, False, None, id="never-authenticated"),
+        ],
+    )
+    def test_trace_context_extraction(self, mode, path, valid_auth, expect_extract, expect_status):
+        app = self._build_app(mode)
+
+        if valid_auth:
+
+            async def mock_require_auth(request: Request) -> TIToken:
+                ti_id = UUID(
+                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                )
+                return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+
+            app.dependency_overrides[require_auth] = mock_require_auth
+
+        headers = {"Authorization": "Bearer fake"} if valid_auth else {}
+        real_extract = otel_propagate.extract
+        with (
+            mock.patch.object(otel_propagate, "extract", wraps=real_extract) as spy,
+            TestClient(app) as test_client,
+        ):
+            response = test_client.get(path, headers=headers)
+
+        assert spy.called is expect_extract
+        if expect_status is not None:
+            assert response.status_code == expect_status
+
+    def test_trace_context_dep_cleans_up_on_route_exception(self):
+        """Verify extract and cleanup run correctly when a route handler raises."""
+        app = self._build_app("unsafe-always")
+
+        async def mock_require_auth(request: Request) -> TIToken:
+            ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+            return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[require_auth] = mock_require_auth
+
+        real_extract = otel_propagate.extract
+        # raise_server_exceptions=False lets the app's @exception_handler(Exception)
+        # return a 500 response rather than re-raising, matching production behaviour
+        # where AsyncExitStack unwinds the generator in the correct asyncio context.
+        with (
+            mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
+            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            TestClient(app, raise_server_exceptions=False) as test_client,
+        ):
+            response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})
+
+        assert extract_spy.called
+        assert response.status_code == 500
+
+    def test_route_exception_not_masked_by_detach_error(self):
+        """A detach failure during cleanup must not replace the original route exception."""
+        app = self._build_app("unsafe-always")
+
+        async def mock_require_auth(request: Request) -> TIToken:
+            ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+            return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[require_auth] = mock_require_auth
+
+        real_extract = otel_propagate.extract
+        with (
+            mock.patch.object(otel_propagate, "extract", wraps=real_extract),
+            mock.patch.object(otel_context, "detach", side_effect=ValueError("token from another context")),
+            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            TestClient(app) as test_client,
+        ):
+            with pytest.raises(RuntimeError, match="boom"):
+                test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})

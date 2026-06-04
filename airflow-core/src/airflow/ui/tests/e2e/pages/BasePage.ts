@@ -34,16 +34,6 @@ export class BasePage {
     });
   }
 
-  public async isLoggedIn(): Promise<boolean> {
-    try {
-      await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
-
-      return true;
-    } catch {
-      return !this.page.url().includes("/login");
-    }
-  }
-
   public async maximizeBrowser(): Promise<void> {
     try {
       await this.page.setViewportSize({ height: 1080, width: 1920 });

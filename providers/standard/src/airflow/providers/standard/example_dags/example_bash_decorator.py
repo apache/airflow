@@ -26,7 +26,7 @@ from airflow.sdk import chain, dag, task
 from airflow.sdk.exceptions import AirflowSkipException
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
+@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False, tags=["example"])
 def example_bash_decorator():
     """
     ### Bash TaskFlow Decorator Example

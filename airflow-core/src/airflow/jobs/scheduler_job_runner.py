@@ -32,11 +32,14 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from sqlalchemy import (
     CTE,
+    Text,
     and_,
     case,
+    cast as sql_cast,
     delete,
     exists,
     func,
@@ -83,9 +86,16 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.asset_state import AssetStateModel
+from airflow.models.asset_store import AssetStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
+from airflow.models.connection_test import (
+    ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
+    DISPATCHED_STATES,
+    ConnectionTestKey,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -327,7 +337,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
@@ -953,9 +963,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
@@ -1258,6 +1268,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
+            elif isinstance(key, ConnectionTestKey):
+                cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
@@ -1268,7 +1280,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, str(callback_id))
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1564,7 +1576,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(
@@ -1676,6 +1688,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
+        timers.call_regular_interval(
+            delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
+            action=self._reap_stale_connection_tests,
+        )
+
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
@@ -1733,6 +1750,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
+
+                    self._enqueue_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -1952,7 +1971,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # END: create dagruns
 
     @provide_session
-    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
@@ -2388,7 +2407,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
             return callback
@@ -2495,7 +2514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in schedulable_tis
                 ],
             )
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 
@@ -2511,7 +2530,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert latest_dag_version
 
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
@@ -2548,7 +2567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
         """
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
@@ -2589,7 +2608,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
@@ -2681,7 +2700,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
         """
         Check the Log table to see how many times a task instance has been stuck in queued.
 
@@ -2723,7 +2742,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
         metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
         stmt = (
             select(
@@ -2768,13 +2787,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
         stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
@@ -2807,7 +2826,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
         """
         Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
@@ -2848,7 +2867,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(DagRun.state == DagRunState.RUNNING)
-                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id, TI.external_executor_id))
+                        .options(
+                            load_only(
+                                TI.id,
+                                TI.dag_id,
+                                TI.task_id,
+                                TI.run_id,
+                                TI.map_index,
+                                TI.state,
+                                TI.external_executor_id,
+                            )
+                        )
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
@@ -2909,7 +2938,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(
-        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
@@ -3089,7 +3118,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 
@@ -3121,7 +3150,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
-        self._cleanup_orphaned_asset_state(session=session)
+        self._cleanup_orphaned_asset_store(session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3231,19 +3260,145 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             existing_warned_dag_ids.add(warning.dag_id)
 
     @staticmethod
-    def _cleanup_orphaned_asset_state(*, session: Session) -> None:
+    def _cleanup_orphaned_asset_store(*, session: Session) -> None:
         """
-        Delete asset_state rows for assets no longer active in any Dag.
+        Delete asset_store rows for assets no longer active in any Dag.
 
         When _orphan_unreferenced_assets removes an asset from asset_active, its
-        asset_state rows become unreachable — no task can write to them anymore.
+        asset_store rows become unreachable — no task can write to them anymore.
         This runs in the same pass as asset orphanage to keep the table clean.
         """
         active_asset_ids = select(AssetModel.id).join(
             AssetActive,
             (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
         )
-        session.execute(delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
+        session.execute(delete(AssetStoreModel).where(AssetStoreModel.asset_id.not_in(active_asset_ids)))
+
+    def _enqueue_connection_tests(self, *, session: Session) -> None:
+        """
+        Enqueue pending connection tests to executors that support them.
+
+        ``max_concurrency`` is per-scheduler, not global: with N HA schedulers
+        the worst-case per-tick dispatch is ``N * max_concurrency``. Connection
+        tests are user-initiated and rare, so the overshoot self-corrects via
+        the reaper. For a true global cap, wrap the budget+claim below in a
+        sentinel-row ``SELECT ... FOR UPDATE``.
+        """
+        max_concurrency = conf.getint("connection_test", "max_concurrency", fallback=4)
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+
+        active_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+                )
+            )
+            or 0
+        )
+        pending_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state == ConnectionTestState.PENDING
+                )
+            )
+            or 0
+        )
+        stats.gauge("connection_test.active", active_count)
+        stats.gauge("connection_test.pending", pending_count)
+
+        budget = max_concurrency - active_count
+        if budget <= 0:
+            return
+
+        pending_stmt = (
+            select(ConnectionTestRequest)
+            .where(ConnectionTestRequest.state == ConnectionTestState.PENDING)
+            .order_by(ConnectionTestRequest.created_at)
+            .limit(budget)
+        )
+        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        pending_tests = session.scalars(pending_stmt).all()
+
+        if not pending_tests:
+            return
+
+        dispatch_timer = stats.timer("connection_test.dispatch_duration")
+        dispatch_timer.start()
+        for ct in pending_tests:
+            team_name = ct.team_name if self._multi_team else None
+            executor = self._try_to_load_executor(ct, session, team_name=team_name)
+            if executor is None:
+                reason = f"No executor matches '{ct.executor}'"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+            if not executor.supports_connection_test:
+                exec_name = executor.name
+                name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
+                reason = f"Executor '{name}' does not support connection testing"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+
+            workload = workloads.TestConnection.make(
+                connection_test_id=ct.id,
+                connection_id=ct.connection_id,
+                timeout=timeout,
+                queue=ct.queue,
+                generator=executor.jwt_generator,
+            )
+            executor.queue_workload(workload, session=session)
+            ct.state = ConnectionTestState.QUEUED
+
+        dispatch_timer.stop(send=True)
+        session.flush()
+
+    @provide_session
+    def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark connection tests that have exceeded their timeout as FAILED."""
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+        grace_period = max(30, timeout // 2)
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
+
+        stale_stmt = select(ConnectionTestRequest).where(
+            ConnectionTestRequest.state.in_(CONNECTION_TEST_ACTIVE_STATES),
+            ConnectionTestRequest.updated_at < cutoff,
+        )
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        stale_tests = session.scalars(stale_stmt).all()
+
+        for ct in stale_tests:
+            prior_state = ct.state
+            ct.state = ConnectionTestState.FAILED
+            if prior_state == ConnectionTestState.PENDING:
+                ct.result_message = (
+                    f"Connection test expired in PENDING before any executor picked it up "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            elif prior_state == ConnectionTestState.QUEUED:
+                ct.result_message = (
+                    f"Connection test was queued but never started before timeout "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            else:
+                ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
+            prior_state_value = ConnectionTestState(prior_state).value
+            self.log.warning(
+                "Reaped stale connection test %s (connection_id=%s, prior_state=%s, team=%s)",
+                ct.id,
+                ct.connection_id,
+                prior_state_value,
+                ct.team_name,
+            )
+            stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
+            key = ConnectionTestKey(id=str(ct.id))
+            for executor in self.executors:
+                if executor.supports_connection_test:
+                    executor.fail_connection_test(key)
+
+        session.flush()
 
     def _executor_to_workloads(
         self,

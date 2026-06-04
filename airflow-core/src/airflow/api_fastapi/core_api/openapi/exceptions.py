@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -26,7 +28,9 @@ class HTTPExceptionResponse(BaseModel):
     detail: str | dict
 
 
-def create_openapi_http_exception_doc(responses_status_code: list[int]) -> dict:
+def create_openapi_http_exception_doc(
+    responses_status_code: Sequence[int | tuple[int, str]],
+) -> dict:
     """
     Will create additional response example for errors raised by the endpoint.
 
@@ -34,8 +38,21 @@ def create_openapi_http_exception_doc(responses_status_code: list[int]) -> dict:
     raised by the endpoint implementation. This piece of documentation needs to be kept
     in sync with the endpoint code manually.
 
+    Each item can be either a status code or a ``(status_code, description)`` tuple.
     Validation error i.e 422 are natively added to the openapi documentation by FastAPI.
     """
-    responses_status_code = sorted(responses_status_code)
+    openapi_responses: list[tuple[int, dict[str, str | type[HTTPExceptionResponse]]]] = []
+    for response_status_code in responses_status_code:
+        response: dict[str, str | type[HTTPExceptionResponse]] = {"model": HTTPExceptionResponse}
 
-    return {status_code: {"model": HTTPExceptionResponse} for status_code in responses_status_code}
+        if isinstance(response_status_code, tuple):
+            status_code, description = response_status_code
+            response["description"] = description
+        else:
+            status_code = response_status_code
+
+        openapi_responses.append((status_code, response))
+
+    return {
+        status_code: response for status_code, response in sorted(openapi_responses, key=lambda item: item[0])
+    }

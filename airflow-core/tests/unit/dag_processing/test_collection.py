@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -89,8 +89,9 @@ def test_statement_latest_runs_one_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, "
+            "dag_run.data_interval_end, dag_run.run_after, dag_run.partition_key, "
+            "dag_run.partition_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
             "SELECT max(dag_run.logical_date) AS max_logical_date",
@@ -101,11 +102,38 @@ def test_statement_latest_runs_one_dag():
 
 
 @pytest.mark.db_test
-def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
     with dag_maker("fake-dag", schedule=None):
         pass
     dag_maker.sync_dagbag_to_db()
 
+    logical_date = tz.datetime(2025, 1, 1)
+    run_after = tz.datetime(2025, 1, 2)
+
+    dag_maker.create_dagrun(
+        run_id="latest-run",
+        logical_date=logical_date,
+        data_interval=(logical_date, run_after),
+        run_type=DagRunType.SCHEDULED,
+        run_after=run_after,
+        session=session,
+    )
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
+    latest = session.scalar(_get_latest_runs_stmt("fake-dag"))
+    assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == run_after
+    assert latest.partition_key is None
+    assert latest.partition_date is None
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=None):
+        pass
+    dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
         (
             ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
@@ -124,8 +152,14 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
             session=session,
         )
 
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
     latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
     assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == tz.datetime(2025, 1, 1)
+    assert latest.partition_key == "2025-01-02"
     assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
@@ -144,16 +178,16 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_sync_assets_preserves_allow_producer_teams_from_other_bundle(self, dag_maker, session):
+    def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
         """When a producer bundle (without access_control) is synced after a consumer bundle
-        (with access_control), the stored allow_producer_teams must not be wiped out."""
+        (with access_control), the stored access control fields must not be wiped out."""
         from airflow.models.asset import DagScheduleAssetReference
         from airflow.sdk import AssetAccessControl
 
         # First sync: consumer bundle sets access_control on the asset.
         consumer_asset = Asset(
             "shared_asset",
-            access_control=AssetAccessControl(producer_teams=["team1", "team2"]),
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"], allow_global=False),
         )
         with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
             EmptyOperator(task_id="mytask")
@@ -170,6 +204,7 @@ class TestAssetModelOperation:
             select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == "consumer_dag")
         )
         assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
 
         # Second sync: producer bundle references the same asset WITHOUT access_control.
         producer_asset = Asset("shared_asset")
@@ -182,9 +217,10 @@ class TestAssetModelOperation:
         asset_op.sync_assets(session=session)
         session.flush()
 
-        # Consumer's allow_producer_teams must still be preserved.
+        # Consumer's access control must still be preserved.
         session.expire(ref)
         assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
 
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),

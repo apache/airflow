@@ -22,7 +22,7 @@ import copy
 import datetime
 import logging
 from collections.abc import Generator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst
 from sqlalchemy.dialects import mysql
@@ -39,6 +39,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
@@ -56,6 +59,51 @@ def get_dialect_name(session: Session) -> str | None:
     if (bind := session.get_bind()) is None:
         raise ValueError("No bind/engine is associated with the provided Session")
     return getattr(bind.dialect, "name", None)
+
+
+def build_upsert_stmt(
+    dialect: str | None,
+    model: Any,
+    conflict_cols: list[str],
+    values: dict[str, Any],
+    update_fields: dict[str, Any],
+) -> MySQLInsert | PostgreSQLInsert | SQLiteInsert:
+    """
+    Build a dialect-specific ``INSERT ... ON CONFLICT DO UPDATE`` (upsert) statement.
+
+    A single-statement upsert is atomic at the database level, which avoids the
+    race conditions that arise from the non-atomic SELECT-then-INSERT performed by
+    ``session.merge()`` when concurrent transactions target the same primary key.
+
+    :param dialect: dialect name as returned by :func:`get_dialect_name`
+    :param model: the SQLAlchemy model (or table) to insert into
+    :param conflict_cols: columns that make up the conflict target (PostgreSQL/SQLite)
+    :param values: column values to insert
+    :param update_fields: column values to set when a conflicting row already exists
+    :raises ValueError: if the dialect does not support a known upsert syntax
+    """
+    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    elif dialect == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        stmt = mysql_insert(model).values(**values)
+        stmt = stmt.on_duplicate_key_update(**update_fields)
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    else:
+        raise ValueError(
+            f"Unsupported database dialect '{dialect}' for upsert. "
+            "Supported dialects are: postgresql, mysql, sqlite."
+        )
+    return stmt
 
 
 class random_db_uuid(FunctionElement):

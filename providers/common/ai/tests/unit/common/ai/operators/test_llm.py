@@ -31,6 +31,27 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
+try:
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:
+    _CORE_WALKER = False
+
+# Returning the Pydantic instance through XCom (rather than a dict) only happens
+# on cores that register declared ``output_type`` classes from the worker-side
+# DAG walk. On older cores the operator dumps to a dict, so these tests skip.
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
+)
+
+
+class Entities(BaseModel):
+    names: list[str]
+
+
+class Summary(BaseModel):
+    text: str
+
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
@@ -84,13 +105,10 @@ class TestLLMOperator:
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
 
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
-        """Structured output via model_dump(), with model_id, system_prompt, and agent_params."""
-
-        class Entities(BaseModel):
-            names: list[str]
-
+        """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["Alice", "Bob"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -106,7 +124,8 @@ class TestLLMOperator:
         )
         result = op.execute(context=MagicMock())
 
-        assert result == {"names": ["Alice", "Bob"]}
+        assert isinstance(result, Entities)
+        assert result.names == ["Alice", "Bob"]
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
@@ -114,6 +133,33 @@ class TestLLMOperator:
             retries=3,
             model_settings={"temperature": 0.9},
         )
+
+    def test_declares_output_type_for_deserialization(self):
+        """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization.
+
+        Registration happens in the core walk over the loaded DAG (covered by the
+        task-runner tests), not as an ``__init__`` side effect.
+        """
+        assert "output_type" in LLMOperator.deserialization_allowed_class_fields
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_serialize_output_returns_dict(self, mock_hook_cls):
+        """serialize_output=True dumps the BaseModel to a dict on the wire."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["A", "B"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=Entities,
+            serialize_output=True,
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == {"names": ["A", "B"]}
+        assert not isinstance(result, Entities)
 
 
 def _make_context(ti_id=None):
@@ -223,9 +269,6 @@ class TestLLMOperatorApproval:
         """Structured (BaseModel) output is serialized before deferring."""
         from airflow.providers.common.compat.sdk import TaskDeferred
 
-        class Summary(BaseModel):
-            text: str
-
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="hello"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -297,3 +340,41 @@ class TestLLMOperatorApproval:
         result = op.execute_complete({}, generated_output="original", event=event)
 
         assert result == "edited"
+
+    @requires_typed_xcom
+    def test_execute_complete_rehydrates_pydantic_for_structured_output(self):
+        """When output_type is a BaseModel, execute_complete returns the model, not the JSON string."""
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+
+        result = op.execute_complete({}, generated_output='{"text":"hello"}', event=event)
+
+        assert isinstance(result, Summary)
+        assert result.text == "hello"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMOperatorMultimodalPromptGuard:
+    """LLMOperator.execute raises before agent.run_sync when require_approval is True
+    and self.prompt is not a string -- covering direct-operator construction and the
+    native template rendering escape (where a string template renders to a Sequence)."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            require_approval=True,
+        )
+        op.prompt = ["x", object()]  # simulate post-template-render value
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())
+
+        mock_agent.run_sync.assert_not_called()

@@ -226,6 +226,17 @@ any other variant), **translate it to the `upstream` convention** in what you
 propose to the user, rather than perpetuating the old name. Flag the stale
 documentation so it can be fixed in a follow-up.
 
+### Before starting: check for an existing PR
+
+Before working on an issue, check for open PRs already addressing it
+(`gh pr list --search "<issue number or keywords>"`, and look for `closes:`
+/ `fixes:` references). Airflow allows parallel work — "better PR wins"
+(see `contributing-docs/04_how_to_contribute.rst`) — but it is not the
+default: prefer reviewing and building on an existing PR. Open a separate
+one only *if your approach is genuinely different*. Do not blindly open
+another near-identical PR for an issue that already has one (or several) —
+that just adds reviewer noise.
+
 ### Creating Pull Requests
 
 **Always push to the user's fork (`origin`)**, not to `upstream` (`apache/airflow`).
@@ -420,17 +431,17 @@ shorten a message — attribution applies regardless of message length.
 This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-steward/` snapshot directory.
+gitignored symlinks into the `.apache-magpie/` snapshot directory.
 
 A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/setup-steward` (or follow
-[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
-it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+invocable. Run `/magpie-setup` (or follow
+[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
+it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
 [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
 
 Adopter-specific modifications to framework-skill workflows live in
-[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
 [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 
