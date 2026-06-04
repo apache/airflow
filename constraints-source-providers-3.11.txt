@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-04T08:55:04.529331
+# This constraints file was automatically generated on 2026-06-04T11:49:14.797322
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -323,7 +323,7 @@ icalendar==7.1.0
 icdiff==2.0.10
 id==1.6.1
 identify==2.6.19
-idna==3.14
+idna==3.15
 ijson==3.4.0.post0
 imagesize==2.0.0
 immutabledict==4.3.1
@@ -393,7 +393,7 @@ llama-index-workflows==2.20.0
 lockfile==0.12.2
 logfire-api==4.32.1
 looker_sdk==26.6.1
-lxml==6.0.2
+lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
@@ -588,7 +588,7 @@ ray==2.55.1
 reactivex==4.1.0
 readme_renderer==44.0
 redis==6.4.0
-redshift_connector==2.1.13
+redshift_connector==2.1.14
 referencing==0.37.0
 regex==2026.5.9
 requests-file==3.0.1
