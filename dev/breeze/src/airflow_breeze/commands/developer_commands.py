@@ -775,12 +775,12 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
     ``eclipse-temurin:11-jdk`` so no local JDK installation is required. The
     resulting HTML tree is placed at::
 
-        generated/_build/docs/apache-airflow-java-sdk/stable/
+        generated/_build/docs/java-sdk/stable/
 
     and a ``stable.txt`` file (containing the Java SDK version from
     ``java-sdk/gradle.properties``) is written alongside it so that
     ``breeze release-management publish-docs`` places the docs at
-    ``docs-archive/apache-airflow-java-sdk/{version}/``.
+    ``docs-archive/java-sdk/{version}/``.
     """
     java_sdk_root = AIRFLOW_ROOT_PATH / "java-sdk"
     console_print("[info]Building Java SDK Javadoc with Dokka (eclipse-temurin:11-jdk)...")
@@ -810,15 +810,15 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
         return result.returncode
 
     src = java_sdk_root / "sdk" / "build" / "dokka" / "html"
-    dst = generated_path / "_build" / "docs" / "apache-airflow-java-sdk" / "stable"
+    dst = generated_path / "_build" / "docs" / "java-sdk" / "stable"
     console_print(f"[info]Staging Dokka output: {src} → {dst}")
     dst.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
     # Write stable.txt so breeze release-management publish-docs treats this as a
-    # versioned package and places it at docs-archive/apache-airflow-java-sdk/{version}/.
+    # versioned package and places it at docs-archive/java-sdk/{version}/.
     sdk_version = _get_java_sdk_version()
-    stable_txt = generated_path / "_build" / "docs" / "apache-airflow-java-sdk" / "stable.txt"
+    stable_txt = generated_path / "_build" / "docs" / "java-sdk" / "stable.txt"
     stable_txt.write_text(sdk_version + "\n")
     console_print(f"[success]Java SDK docs staged at {dst}  (version: {sdk_version})")
     return 0

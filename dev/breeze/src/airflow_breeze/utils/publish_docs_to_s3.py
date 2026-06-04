@@ -33,9 +33,9 @@ PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 NON_SHORT_NAME_PACKAGES = [
     "apache-airflow",
     "apache-airflow-ctl",
-    "apache-airflow-java-sdk",
     "docker-stack",
     "helm-chart",
+    "java-sdk",
     "task-sdk",
 ]
 
