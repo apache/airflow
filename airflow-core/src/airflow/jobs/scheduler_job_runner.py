@@ -153,6 +153,13 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
+# Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
+# Bounds the per-tick transaction so executor heartbeats and regular scheduling
+# aren't starved; remaining APDRs drain across subsequent ticks.
+# Internal constant rather than a user setting — this is a performance
+# safety bound, not a behavioural knob operators need to tune.
+MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -325,13 +332,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
-        # Per-tick cap on pending AssetPartitionDagRun rows the scheduler
-        # evaluates. Bounds the per-tick transaction so executor heartbeats
-        # and regular scheduling aren't starved; remaining APDRs drain across
-        # subsequent ticks (steady-state throughput knob, not a backlog limit).
-        self._max_partition_dag_runs_per_loop = conf.getint(
-            "scheduler", "max_partition_dag_runs_to_create_per_loop"
-        )
+        self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
