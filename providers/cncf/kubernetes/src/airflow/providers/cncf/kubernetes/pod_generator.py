@@ -199,6 +199,13 @@ class PodGenerator:
         if not k8s_object and not k8s_legacy_object:
             return None
 
+        if not k8s_object and k8s_legacy_object:
+            raise AirflowConfigException(
+                "Using KubernetesExecutor dict inside an executor_config object"
+                "is now deprecated. Please switch to pod_override"
+                "kubernetes.client.models.V1Pod object."
+            )
+
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
         raise TypeError(
