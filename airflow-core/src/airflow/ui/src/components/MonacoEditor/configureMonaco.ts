@@ -22,7 +22,45 @@ type MonacoEnvironment = {
   readonly getWorker: (_moduleId: string, label: string) => Worker;
 };
 
+type MonarchRule = [RegExp | string, string, string?];
+
+type PythonTokenizerLanguage = {
+  readonly tokenizer: Record<string, Array<MonarchRule>>;
+};
+
 let configurationPromise: Promise<void> | undefined;
+
+const ESCAPED_OPEN_BRACE_RULE: MonarchRule = [/\{\{/, "string"];
+const ESCAPED_CLOSE_BRACE_RULE: MonarchRule = [/\}\}/, "string"];
+
+const hasRule = (rules: Array<MonarchRule>, regexSource: string) =>
+  rules.some((rule) => rule[0] instanceof RegExp && rule[0].source === regexSource);
+
+export const patchPythonFStringEscapedBraces = (
+  language: PythonTokenizerLanguage,
+): PythonTokenizerLanguage => {
+  const tokenizer = { ...language.tokenizer };
+
+  for (const stateName of ["fStringBody", "fDblStringBody"]) {
+    const stateRules = [...(tokenizer[stateName] ?? [])];
+
+    if (!hasRule(stateRules, ESCAPED_OPEN_BRACE_RULE[0].source)) {
+      const interpolationIndex = stateRules.findIndex(
+        (rule) => rule[0] instanceof RegExp && rule[0].source === "\\{[^\\}':!=]+",
+      );
+      const insertIndex = interpolationIndex === -1 ? 0 : interpolationIndex;
+
+      stateRules.splice(insertIndex, 0, ESCAPED_OPEN_BRACE_RULE, ESCAPED_CLOSE_BRACE_RULE);
+    }
+
+    tokenizer[stateName] = stateRules;
+  }
+
+  return {
+    ...language,
+    tokenizer,
+  };
+};
 
 const loadMonacoModules = async () => {
   // `editor.api` is API-only — the contribs/styles below must be side-effect imported
@@ -53,13 +91,19 @@ const loadMonacoModules = async () => {
   const languageContributions = Promise.all([
     import("monaco-editor/esm/vs/basic-languages/python/python.contribution"),
     import("monaco-editor/esm/vs/language/json/monaco.contribution"),
+    import("monaco-editor/esm/vs/basic-languages/python/python"),
   ]);
 
-  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
+  const [monaco, [editorWorkerUrl, jsonWorkerUrl], [, , pythonLanguageModule]] = await Promise.all([
     monacoApi,
     workerUrls,
     languageContributions,
   ]);
+
+  monaco.languages.setMonarchTokensProvider(
+    "python",
+    patchPythonFStringEscapedBraces(pythonLanguageModule.language as PythonTokenizerLanguage),
+  );
 
   return { editorWorkerUrl, jsonWorkerUrl, monaco };
 };
