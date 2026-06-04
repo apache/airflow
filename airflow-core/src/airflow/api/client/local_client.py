@@ -86,10 +86,12 @@ class Client:
                     raise AirflowBadRequest(f"Invalid configuration JSON: {err}") from err
             dag_run = api_client.dags.trigger(
                 dag_id,
-                TriggerDAGRunPostBody(
-                    dag_run_id=run_id,
-                    conf=parsed_conf,
-                    logical_date=logical_date,
+                TriggerDAGRunPostBody.model_validate(
+                    {
+                        "dag_run_id": run_id,
+                        "conf": parsed_conf,
+                        "logical_date": logical_date,
+                    }
                 ),
             )
             return {
