@@ -442,7 +442,7 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
         # and the project role's IAM policy only allows S3 reads under that prefix.
         # IAM domains have prefix == "" and the key is unchanged from the
         # legacy bucket-root layout.
-        run_key = f"sys/notebooks/{notebook_identifier}/runs/{notebook_run_id}/notebook_outputs.json"
+        run_key = f".sys/notebooks/{notebook_identifier}/runs/{notebook_run_id}/notebook_outputs.json"
         key = f"{prefix}/{run_key}" if prefix else run_key
 
         log.info("Reading notebook outputs from s3://%s/%s", bucket, key)
