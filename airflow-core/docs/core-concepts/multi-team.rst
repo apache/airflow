@@ -65,6 +65,7 @@ Teams are associated with Dags through **Dag Bundles**. A Dag bundle can be owne
 - All Dags within that bundle belong to that team
 - Tasks in those Dags inherit the team association
 - All Callbacks associated with those Dags also inherit the team association
+- Triggers created by those Dags' tasks inherit the team association
 - The scheduler uses this relationship to determine which executor to use
 
 .. note::
@@ -503,6 +504,49 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
     teams share the same metadata database and common Airflow infrastructure. For absolutely strict security
     requirements, consider separate Airflow deployments.
 
+.. _multi-team-triggerer:
+
+Team-scoped Triggerer
+---------------------
+
+When Multi-Team mode is enabled, a triggerer should be scoped to each specific team using the ``--team-name`` CLI argument. A team-scoped triggerer processes deferred tasks (triggers) belonging to that team's Dags. This allows teams to run isolated triggerer instances with independent capacity and failure domains.
+
+Configuration
+^^^^^^^^^^^^^
+
+Start a team-scoped triggerer by passing ``--team-name``:
+
+.. code-block:: bash
+
+    # Triggerer for team_a only
+    airflow triggerer --team-name team_a
+
+    # Triggerer for team_b only
+    airflow triggerer --team-name team_b
+
+    # Global triggerer — processes triggers from Dags with no team association
+    airflow triggerer
+
+Startup validation ensures that ``core.multi_team`` is enabled and the specified team exists in the database.
+
+Behavior
+^^^^^^^^
+
+- **Team-scoped triggerer** (``--team-name team_x``): Only picks up triggers whose originating Dag belongs to a bundle mapped to ``team_x``.
+- **Global triggerer** (no ``--team-name``): Only picks up triggers whose originating Dag belongs to a bundle with no team assignment.
+- **Multi-Team disabled** (``core.multi_team = False``): ``--team-name`` is rejected. No filtering occurs and all triggerers process all triggers (existing behavior).
+
+Interaction with ``--queues``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Team filtering and queue filtering are orthogonal — they combine as AND conditions. For example, a triggerer started with ``--team-name team_a --queues q1,q2`` only processes triggers that both belong to ``team_a`` and were deferred from tasks in queues ``q1`` or ``q2``.
+
+.. note::
+
+    Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
+    remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
+    combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
+
 .. _multi-team-asset-event-filtering:
 
 Team-Based Asset Event Filtering
@@ -673,7 +717,6 @@ Work in Progress
 Multi-Team mode is currently an experimental feature in preview. It is not yet fully complete and may be subject to changes without warning based on user feedback. Some missing functionality includes:
 
 - Dimensional metrics by team
-- Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
 - Some UI elements may not be fully team-aware
 - Full provider support for executors and secrets backends
 - Command and Secrets based lookup for team based configuration
