@@ -24,11 +24,14 @@ from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, call, mock_open, patch
 
+import kubernetes
 import pytest
 import requests
+from kubernetes.client import V1Pod, V1PodStatus
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.cncf.kubernetes import kube_client
 from airflow.providers.common.compat.sdk import AirflowException
 
 
@@ -99,6 +102,14 @@ class TestSparkSubmitHook:
                 conn_type="spark",
                 host="k8s://https://k8s-master",
                 extra='{"deploy-mode": "client", "namespace": "mynamespace"}',
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_k8s_cluster_no_namespace",
+                conn_type="spark",
+                host="k8s://https://k8s-master",
+                extra='{"deploy-mode": "cluster"}',
             )
         )
         create_connection_without_db(
@@ -930,6 +941,18 @@ class TestSparkSubmitHook:
         # Then
         assert hook._spark_exit_code == 999
 
+    def test_process_spark_submit_log_k8s_submission_id_format(self):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster")
+        log_lines = [
+            "INFO Client: Deployed Spark application arrow-spark with application ID "
+            "spark-1e22d65826b74ac2927249b0e607ed54 and submission ID "
+            "spark:arrow-spark-c8e2e29e73db9c93-driver into Kubernetes",
+        ]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert hook._kubernetes_driver_pod == "arrow-spark-c8e2e29e73db9c93-driver"
+
     def test_process_spark_client_mode_submit_log_k8s(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_k8s_client")
@@ -1146,6 +1169,29 @@ class TestSparkSubmitHook:
             "spark-pi-edf2ace37be7353a958b38733a12f8e6-driver", "mynamespace", **kwargs
         )
 
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_on_kill_deletes_pod_when_k8s_api_tracking_and_submit_sp_already_exited(self, mock_get_client):
+        """on_kill must delete the driver pod when K8s-API tracking is active even if spark-submit
+        has already exited.
+        """
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+        hook._submit_sp = MagicMock()
+        # spark-submit already exited
+        hook._submit_sp.poll.return_value = 0
+
+        mock_client = mock_get_client.return_value
+
+        hook.on_kill()
+
+        mock_client.delete_namespaced_pod.assert_called_once_with(
+            "spark-app-abc-driver",
+            "mynamespace",
+            body=kubernetes.client.V1DeleteOptions(),
+            pretty=True,
+        )
+
     @pytest.mark.parametrize(
         ("command", "expected"),
         [
@@ -1347,7 +1393,6 @@ class TestSparkSubmitHook:
     def test_run_post_submit_commands_success(self, mock_run):
         """Test that post_submit_commands are run with shell=False and shlex.split."""
         import subprocess
-        from unittest.mock import MagicMock
 
         mock_result = MagicMock(spec=subprocess.CompletedProcess)
         mock_result.returncode = 0
@@ -1375,7 +1420,6 @@ class TestSparkSubmitHook:
     def test_run_post_submit_commands_nonzero_exit_warns(self, mock_run):
         """Test that a non-zero exit code logs a warning but does not raise."""
         import subprocess
-        from unittest.mock import MagicMock
 
         mock_result = MagicMock(spec=subprocess.CompletedProcess)
         mock_result.returncode = 1
@@ -1411,6 +1455,163 @@ class TestSparkSubmitHook:
         """Test that None post_submit_commands results in an empty list."""
         hook = SparkSubmitHook(conn_id="")
         assert hook._post_submit_commands == []
+
+    @pytest.mark.parametrize(
+        ("conn_id", "flag", "expected"),
+        [
+            ("spark_k8s_cluster", False, False),
+            ("spark_k8s_cluster", True, True),
+            ("spark_k8s_client", True, False),
+        ],
+    )
+    def test_should_track_driver_via_k8s_api(self, conn_id, flag, expected):
+        hook = SparkSubmitHook(conn_id=conn_id, track_driver_via_k8s_api=flag)
+        assert hook._should_track_driver_via_k8s_api() is expected
+
+    @pytest.mark.parametrize(
+        ("conn_id", "match"),
+        [
+            ("spark_yarn_cluster", "requires Spark master to be Kubernetes"),
+            ("spark_k8s_client", "requires `deploy_mode='cluster'`"),
+            ("spark_k8s_cluster_no_namespace", "requires a namespace"),
+        ],
+    )
+    def test_validate_track_driver_via_k8s_api_raises(self, conn_id, match):
+        hook = SparkSubmitHook(conn_id=conn_id, track_driver_via_k8s_api=True)
+        with pytest.raises(ValueError, match=match):
+            hook._validate_track_driver_via_k8s_api_config()
+
+    def test_validate_track_driver_via_k8s_api_raises_on_conflicting_user_conf(self):
+        hook = SparkSubmitHook(
+            conn_id="spark_k8s_cluster",
+            track_driver_via_k8s_api=True,
+            conf={"spark.kubernetes.submission.waitAppCompletion": "true"},
+        )
+        with pytest.raises(ValueError, match="incompatible with.*waitAppCompletion=true"):
+            hook._validate_track_driver_via_k8s_api_config()
+
+    def test_conf_injection_adds_wait_app_completion(self):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        cmd = hook._build_spark_submit_command("app.jar")
+        conf_pairs = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--conf"]
+        assert "spark.kubernetes.submission.waitAppCompletion=false" in conf_pairs
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_succeeds(self, mock_get_client):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        running_pod = V1Pod(status=V1PodStatus(phase="Running"))
+        succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        mock_client.read_namespaced_pod.side_effect = [running_pod, succeeded_pod]
+
+        with patch.object(hook, "_run_post_submit_commands"):
+            hook._poll_k8s_driver_via_api()
+
+        assert mock_client.delete_namespaced_pod.call_args.args[:2] == ("spark-app-abc-driver", "mynamespace")
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_raises_on_failed(self, mock_get_client):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        failed_pod = V1Pod(status=V1PodStatus(phase="Failed"))
+        mock_client.read_namespaced_pod.return_value = failed_pod
+
+        with pytest.raises(RuntimeError, match="phase=Failed"):
+            hook._poll_k8s_driver_via_api()
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_raises_after_consecutive_unknown(self, mock_get_client):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Unknown"))
+
+        with patch("time.sleep"), pytest.raises(RuntimeError, match="Unknown phase"):
+            hook._poll_k8s_driver_via_api()
+
+        # assert that it was polled minimum 3 times to confirm the Unknown status before raising
+        assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("time.sleep")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_tolerates_transient_api_errors(self, mock_get_client, _):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        api_error = kube_client.ApiException(status=500, reason="Internal Server Error")
+        succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        mock_client.read_namespaced_pod.side_effect = [api_error, api_error, succeeded_pod]
+
+        with patch.object(hook, "_run_post_submit_commands"):
+            hook._poll_k8s_driver_via_api()
+
+        assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_post_submit_commands_run_exactly_once_on_k8s_path(self, mock_get_client):
+        """_run_post_submit_commands must fire exactly once: in _poll_k8s_driver_via_api finally."""
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Succeeded"))
+
+        with patch.object(hook, "_run_post_submit_commands") as mock_cmd:
+            hook._poll_k8s_driver_via_api()
+
+        mock_cmd.assert_called_once()
+
+    @patch("time.sleep")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_raises_after_consecutive_api_errors(self, mock_get_client, _):
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        api_error = kube_client.ApiException(status=500, reason="Internal Server Error")
+        mock_client.read_namespaced_pod.side_effect = api_error
+
+        with pytest.raises(RuntimeError, match="K8s API unreachable"):
+            hook._poll_k8s_driver_via_api()
+
+        assert mock_client.read_namespaced_pod.call_count == 3
+
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_exits_cleanly_on_404(self, mock_get_client):
+        """404 from read_namespaced_pod means pod was deleted by on_kill — should return cleanly, not raise."""
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
+        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        mock_client = mock_get_client.return_value
+        mock_client.read_namespaced_pod.side_effect = kube_client.ApiException(status=404, reason="Not Found")
+
+        hook._poll_k8s_driver_via_api()
+
+        mock_client.delete_namespaced_pod.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.run")
+    def test_run_post_submit_commands_runs_only_once(self, mock_run):
+        """Calling _run_post_submit_commands twice must execute commands exactly once."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        hook = SparkSubmitHook(conn_id="spark_k8s_cluster", post_submit_commands=["echo done"])
+
+        hook._run_post_submit_commands()
+        hook._run_post_submit_commands()
+
+        mock_run.assert_called_once()
 
     _YARN_LOG_LINES = [
         "INFO Client: Requesting a new application from cluster with 1 NodeManagers",
