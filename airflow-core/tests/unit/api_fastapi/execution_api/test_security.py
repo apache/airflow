@@ -30,7 +30,9 @@ from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     _jwt_bearer,
+    _team_name_for_ti_stmt,
     get_team_name_dep,
+    get_team_name_for_ti,
     require_auth,
 )
 
@@ -273,3 +275,36 @@ class TestGetTeamNameDep:
 
         assert result is None
         mock_create_session.assert_not_called()
+
+
+class TestGetTeamNameForTI:
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_result"),
+        [
+            (True, "team_a"),
+            (False, None),
+        ],
+    )
+    def test_get_team_name_for_ti_respects_multi_team(self, multi_team, expected_result):
+        session = MagicMock()
+        session.scalar.return_value = "team_a"
+
+        with patch("airflow.configuration.conf.getboolean", return_value=multi_team):
+            result = get_team_name_for_ti(UUID("d9edb890-fa95-4049-b66f-b6469d4fbc32"), session)
+
+        assert result == expected_result
+        if multi_team:
+            session.scalar.assert_called_once()
+        else:
+            session.scalar.assert_not_called()
+
+
+class TestTeamNameStatement:
+    def test_team_name_statement_checks_task_instance_and_history(self):
+        stmt = _team_name_for_ti_stmt(UUID("da17bd0e-aa95-4995-8c10-26bf5606a9fb"))
+        rendered = str(stmt)
+
+        assert "UNION ALL" in rendered
+        assert "FROM task_instance" in rendered
+        assert "FROM task_instance_history" in rendered
+        assert "task_instance_history.task_instance_id" in rendered

@@ -264,9 +264,10 @@ def _team_name_for_ti_stmt(ti_id):
     """Build the select statement resolving ``TaskInstance.id -> Team.name``."""
     from airflow.models import DagModel, TaskInstance
     from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.team import Team
 
-    return (
+    task_instance_stmt = (
         select(Team.name)
         .select_from(TaskInstance)
         .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
@@ -274,3 +275,14 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
     )
+
+    task_instance_history_stmt = (
+        select(Team.name)
+        .select_from(TaskInstanceHistory)
+        .join(DagModel, DagModel.dag_id == TaskInstanceHistory.dag_id)
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(TaskInstanceHistory.task_instance_id == ti_id)
+    )
+
+    return task_instance_stmt.union_all(task_instance_history_stmt).limit(1)
