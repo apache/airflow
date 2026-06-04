@@ -6712,7 +6712,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
         # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
         QUERIES_PER_TASK_INSTANCE = 1
-        BASE_QUERY_COUNT = 5
+        BASE_QUERY_COUNT = 4
 
         self.create_task_instances(
             session,
