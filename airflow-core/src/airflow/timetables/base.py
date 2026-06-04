@@ -442,13 +442,14 @@ def compute_rollup_fingerprint(timetable: Timetable) -> dict:
 
     The fingerprint is a ``dict[str, Any]`` mapping ``"{name}|{uri}"`` to the
     JSON-encoded partition mapper for each partitioned asset reachable from the
-    timetable's ``asset_condition``.  Keys are inserted in sorted order so the
+    timetable's ``asset_condition``. Keys are inserted in sorted order so the
     dict is stable across Python runs.
 
     Non-partitioned timetables (``timetable.partitioned is False``) return an
-    empty dict.  The scheduler stamps this on :class:`AssetPartitionDagRun` at
+    empty dict. The scheduler stamps this on :class:`AssetPartitionDagRun` at
     creation time and compares it on the next tick; only mapper / window changes
-    trigger a stale-APDR cleanup, leaving unrelated Dag edits untouched.
+    trigger cleanup of a stale partition Dag run, leaving unrelated Dag edits
+    untouched.
 
     Both the creation side (``assets/manager.py``) and the cleanup side
     (``jobs/scheduler_job_runner.py``) call this helper to guarantee the two
