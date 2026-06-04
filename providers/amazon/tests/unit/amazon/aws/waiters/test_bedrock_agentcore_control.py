@@ -40,9 +40,9 @@ class TestBedrockAgentCoreControlCustomWaitersBase:
 class TestAgentRuntimeReadyWaiter(TestBedrockAgentCoreControlCustomWaitersBase):
     WAITER_NAME = "agent_runtime_ready"
     WAITER_ARGS = {"agentRuntimeId": "runtime_id", "agentRuntimeVersion": "1"}
-    SUCCESS_STATES = {"READY"}
-    FAILURE_STATES = {"CREATE_FAILED", "UPDATE_FAILED", "DELETING"}
-    INTERMEDIATE_STATES = {"CREATING", "UPDATING"}
+    SUCCESS_STATES = ["READY"]
+    FAILURE_STATES = ["CREATE_FAILED", "UPDATE_FAILED", "DELETING"]
+    INTERMEDIATE_STATES = ["CREATING", "UPDATING"]
 
     @pytest.fixture
     def mock_getter(self):
