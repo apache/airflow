@@ -28,6 +28,21 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
+try:
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:
+    _CORE_WALKER = False
+
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
+)
+
+
+class Summary(BaseModel):
+    text: str
+    score: float = 0.0
+
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
@@ -193,14 +208,10 @@ class TestAgentOperatorExecute:
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
-        """Structured output via BaseModel is serialized with model_dump."""
-
-        class Summary(BaseModel):
-            text: str
-            score: float
-
+        """Structured output keeps the Pydantic instance so downstream tasks can type-hint it."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             Summary(text="Great", score=0.95)
         )
@@ -213,7 +224,13 @@ class TestAgentOperatorExecute:
         )
         result = op.execute(context=MagicMock())
 
-        assert result == {"text": "Great", "score": 0.95}
+        assert isinstance(result, Summary)
+        assert result.text == "Great"
+        assert result.score == 0.95
+
+    def test_declares_output_type_for_deserialization(self):
+        """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
+        assert "output_type" in AgentOperator.deserialization_allowed_class_fields
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_model_id(self, mock_hook_cls):
@@ -258,18 +275,14 @@ class TestAgentOperatorExecute:
         assert result == "Approved output"
         mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
+    @requires_typed_xcom
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_hitl_deserializes_base_model_to_dict(self, mock_hook_cls, mock_run_hitl):
-        """When enable_hitl_review=True and output_type is BaseModel, execute deserializes JSON to dict."""
-
-        class Summary(BaseModel):
-            text: str
-            score: float
-
+    def test_execute_with_hitl_rehydrates_base_model(self, mock_hook_cls, mock_run_hitl):
+        """When enable_hitl_review=True and output_type is BaseModel, execute returns the model instance."""
         mock_result = _make_mock_run_result(Summary(text="Approved summary", score=0.9))
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
@@ -288,7 +301,9 @@ class TestAgentOperatorExecute:
         context = MagicMock()
         result = op.execute(context=context)
 
-        assert result == {"text": "Approved summary", "score": 0.9}
+        assert isinstance(result, Summary)
+        assert result.text == "Approved summary"
+        assert result.score == 0.9
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -423,10 +438,6 @@ class TestAgentOperatorRegenerateWithFeedback:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls):
         """regenerate_with_feedback returns JSON string for BaseModel output."""
-
-        class Summary(BaseModel):
-            text: str
-
         mock_result = _make_mock_run_result(Summary(text="Revised"))
         mock_result.all_messages.return_value = []
         mock_agent = MagicMock(spec=["run_sync"])
@@ -444,7 +455,7 @@ class TestAgentOperatorRegenerateWithFeedback:
             message_history=[],
         )
 
-        assert output == '{"text":"Revised"}'
+        assert output == '{"text":"Revised","score":0.0}'
 
 
 class TestAgentOperatorDurable:
@@ -503,3 +514,30 @@ class TestAgentOperatorDurable:
 
         # run_sync called directly, no override
         mock_agent.run_sync.assert_called_once_with("test", usage_limits=None)
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestAgentOperatorMultimodalPromptGuard:
+    """AgentOperator.execute raises before agent.run_sync when enable_hitl_review=True
+    and self.prompt is not a string -- covering direct construction and the native
+    template rendering escape (where a string template renders to a Sequence)."""
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_hitl_review(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            enable_hitl_review=True,
+        )
+        op.prompt = ["x", object()]  # simulate post-template-render value
+
+        with pytest.raises(TypeError, match="enable_hitl_review=True"):
+            op.execute(context=MagicMock())
+
+        mock_agent.run_sync.assert_not_called()

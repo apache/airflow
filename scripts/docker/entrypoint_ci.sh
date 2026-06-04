@@ -143,6 +143,10 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__GO_WORKER=True
     fi
 
+    if [[ ${INSTALL_SDK_JAVA=} == "true" ]]; then
+        "${AIRFLOW_SOURCES}/scripts/docker/install_jdk.sh"
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
@@ -415,7 +419,7 @@ function reinstall_shared_distributions() {
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
 # review every addition to this list as a privileged change. See
 # contributing-docs/12_provider_distributions.rst.
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"

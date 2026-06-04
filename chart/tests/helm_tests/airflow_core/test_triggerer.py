@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
 
@@ -805,6 +807,18 @@ class TestTriggererLogGroomer(LogGroomerTestBase):
 class TestTriggererKedaAutoScaler:
     """Tests triggerer keda autoscaler."""
 
+    @staticmethod
+    def _render_triggerer_keda_db_connection(values):
+        docs = render_chart(
+            values=values,
+            show_only=[
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/triggerer/triggerer-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        return prepare_k8s_lookup_dict(docs)
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -907,3 +921,87 @@ class TestTriggererKedaAutoScaler:
 
         assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0]) == "KEDA_DB_CONN"
         assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
+
+    def test_mysql_db_backend_adds_keda_db_conn_to_triggerer(self):
+        docs_by_key = self._render_triggerer_keda_db_connection(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
+                "triggerer": {"keda": {"enabled": True}},
+            }
+        )
+
+        triggerer = docs_by_key[("StatefulSet", "release-name-triggerer")]
+        keda_autoscaler = docs_by_key[("ScaledObject", "release-name-triggerer")]
+        metadata_secret = docs_by_key[("Secret", "release-name-metadata")]
+
+        triggerer_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='triggerer'] | [0].env[].name", triggerer
+        )
+        assert "KEDA_DB_CONN" in triggerer_env_vars
+
+        secret_data = jmespath.search("data", metadata_secret)
+        assert "kedaConnection" in secret_data
+        keda_connection_secret = base64.b64decode(secret_data["kedaConnection"]).decode()
+        assert not keda_connection_secret.startswith("//")
+
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler)
+            == "KEDA_DB_CONN"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler) is None
+
+    def test_pgbouncer_bypass_adds_keda_db_conn_to_triggerer(self):
+        docs_by_key = self._render_triggerer_keda_db_connection(
+            values={
+                "pgbouncer": {"enabled": True},
+                "triggerer": {"keda": {"enabled": True, "usePgbouncer": False}},
+            }
+        )
+
+        triggerer = docs_by_key[("StatefulSet", "release-name-triggerer")]
+        keda_autoscaler = docs_by_key[("ScaledObject", "release-name-triggerer")]
+        metadata_secret = docs_by_key[("Secret", "release-name-metadata")]
+
+        triggerer_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='triggerer'] | [0].env[].name", triggerer
+        )
+        assert "KEDA_DB_CONN" in triggerer_env_vars
+
+        secret_data = jmespath.search("data", metadata_secret)
+        connection_secret = base64.b64decode(secret_data["connection"]).decode()
+        keda_connection_secret = base64.b64decode(secret_data["kedaConnection"]).decode()
+        assert "@release-name-pgbouncer" in connection_secret
+        assert ":6543" in connection_secret
+        assert "@release-name-postgresql" in keda_connection_secret
+        assert ":5432" in keda_connection_secret
+        assert "/postgres" in keda_connection_secret
+
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler) == "KEDA_DB_CONN"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler) is None
+
+    def test_postgresql_default_triggerer_keda_uses_airflow_db_connection(self):
+        docs_by_key = self._render_triggerer_keda_db_connection(
+            values={"triggerer": {"keda": {"enabled": True}}}
+        )
+
+        triggerer = docs_by_key[("StatefulSet", "release-name-triggerer")]
+        keda_autoscaler = docs_by_key[("ScaledObject", "release-name-triggerer")]
+        metadata_secret = docs_by_key[("Secret", "release-name-metadata")]
+
+        triggerer_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='triggerer'] | [0].env[].name", triggerer
+        )
+        assert "AIRFLOW_CONN_AIRFLOW_DB" in triggerer_env_vars
+        assert "KEDA_DB_CONN" not in triggerer_env_vars
+
+        secret_data = jmespath.search("data", metadata_secret)
+        assert "connection" in secret_data
+        assert "kedaConnection" not in secret_data
+
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler)
+            == "AIRFLOW_CONN_AIRFLOW_DB"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler) is None

@@ -144,7 +144,9 @@ def find_task_relatives(
 
 
 @provide_session
-def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
+def get_run_ids(
+    dag: SerializedDAG, run_id: str, future: bool, past: bool, *, session: SASession = NEW_SESSION
+):
     """Return Dag executions' run_ids."""
     current_logical_date = session.scalar(
         select(DagRun.logical_date).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)

@@ -85,10 +85,10 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
-            clear_task_instances(qry, session)
+            clear_task_instances(qry, session=session)
 
-            ti0.refresh_from_db(session)
-            ti1.refresh_from_db(session)
+            ti0.refresh_from_db(session=session)
+            ti1.refresh_from_db(session=session)
 
         # Next try to run will be try 2
         assert ti0.state is None
@@ -903,7 +903,7 @@ class TestClearTasks:
         assert sorted(new_tis) == ["2", "3"]
 
         session.rollback()
-        dr.refresh_from_db(session)
+        dr.refresh_from_db(session=session)
 
         assert dr.created_dag_version_id == old_dag_version.id
         assert len(dr.task_instances) == 2  # should be only the 2 earlier tasks

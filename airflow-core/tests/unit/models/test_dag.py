@@ -2229,7 +2229,10 @@ my_postgres_conn:
         ).all()
         assert len(stored_alerts) == expected_num_deadlines
 
-        intervals = sorted([alert.interval for alert in stored_alerts])
+        intervals = sorted(
+            alert.interval["__data__"] if isinstance(alert.interval, dict) else alert.interval
+            for alert in stored_alerts
+        )
         assert intervals == [300.0, 600.0, 3600.0]
 
         # Now create a dagrun and verify deadlines are created
@@ -2747,7 +2750,7 @@ class TestDagModel:
 
         scheduler_dag = sync_dag_to_db(dag)
         assert scheduler_dag._processor_dags_folder == settings.DAGS_FOLDER
-        sdm = SerializedDagModel.get(dag.dag_id, session)
+        sdm = SerializedDagModel.get(dag.dag_id, session=session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag

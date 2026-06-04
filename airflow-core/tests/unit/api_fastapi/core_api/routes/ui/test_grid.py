@@ -24,6 +24,7 @@ from operator import attrgetter
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
@@ -33,7 +34,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -151,7 +152,7 @@ def examples_dag_bag():
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None):
+def setup(dag_maker, *, session: Session = NEW_SESSION):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()

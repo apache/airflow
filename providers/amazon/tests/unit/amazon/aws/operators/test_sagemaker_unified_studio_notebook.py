@@ -378,6 +378,7 @@ class TestSageMakerUnifiedStudioNotebookOperator:
         mock_hook.get_notebook_outputs.assert_called_once_with(
             notebook_identifier=NOTEBOOK_ID,
             notebook_run_id=NOTEBOOK_RUN_ID,
+            domain_identifier=DOMAIN_ID,
             owning_project_identifier=PROJECT_ID,
         )
         context["ti"].xcom_push.assert_any_call(key="notebook_run_id", value=NOTEBOOK_RUN_ID)

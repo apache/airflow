@@ -17,14 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from azure.batch import models as batch_models
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
+from airflow.providers.microsoft.azure.triggers.batch import AzureBatchTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -91,6 +93,10 @@ class AzureBatchOperator(BaseOperator):
     :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
     :param should_delete_job: Whether to delete job after execution. Default is False
     :param should_delete_pool: Whether to delete pool after execution of jobs. Default is False
+    :param poll_interval: Polling interval in seconds for deferrable mode. Default is 30.
+        Determines how frequently the trigger checks task completion status when deferrable=True.
+    :param deferrable: Run operator in deferrable mode.
+
     """
 
     template_fields: Sequence[str] = (
@@ -139,6 +145,8 @@ class AzureBatchOperator(BaseOperator):
         timeout: int = 25,
         should_delete_job: bool = False,
         should_delete_pool: bool = False,
+        poll_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -176,6 +184,8 @@ class AzureBatchOperator(BaseOperator):
         self.timeout = timeout
         self.should_delete_job = should_delete_job
         self.should_delete_pool = should_delete_pool
+        self.poll_interval = poll_interval
+        self.deferrable = deferrable
 
     @cached_property
     def hook(self) -> AzureBatchHook:
@@ -265,6 +275,7 @@ class AzureBatchOperator(BaseOperator):
             start_task=self.batch_start_task,
         )
         self.hook.create_pool(pool)
+
         # Wait for nodes to reach complete state
         self.hook.wait_for_all_node_state(
             self.batch_pool_id,
@@ -296,6 +307,29 @@ class AzureBatchOperator(BaseOperator):
         )
         # Add task to job
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
+
+        if self.deferrable:
+            # Pre-deferral check (node readiness is already enforced by wait_for_all_node_state above)
+            pool = self.hook.connection.pool.get(self.batch_pool_id)
+            if pool.resize_errors:
+                raise RuntimeError(f"Pool resize errors: {pool.resize_errors}")
+
+            nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
+            self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
+            end_time = time.time() + (self.timeout * 60)
+
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=AzureBatchTrigger(
+                    job_id=self.batch_job_id,
+                    azure_batch_conn_id=self.azure_batch_conn_id,
+                    end_time=end_time,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return
+
         # Wait for tasks to complete
         fail_tasks = self.hook.wait_for_job_tasks_to_complete(job_id=self.batch_job_id, timeout=self.timeout)
         # Clean up
@@ -306,7 +340,44 @@ class AzureBatchOperator(BaseOperator):
             self.clean_up(self.batch_pool_id)
         # raise exception if any task fail
         if fail_tasks:
-            raise AirflowException(f"Job fail. The failed task are: {fail_tasks}")
+            raise RuntimeError(f"Job fail. The failed task are: {fail_tasks}")
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> None:
+        """
+        Return immediately - callback for when the trigger fires.
+
+        The trigger communicates the terminal Azure Batch job state
+        through the event payload.
+        """
+        if event is None:
+            raise RuntimeError("Trigger returned no event.")
+
+        status = event.get("status")
+        message = event.get("message", "No message returned from trigger.")
+        failed_tasks = event.get("failed_tasks")
+
+        try:
+            if status == "success":
+                self.log.info(message)
+                return
+
+            if status == "timeout":
+                raise RuntimeError(message)
+
+            if status == "error":
+                if failed_tasks:
+                    raise RuntimeError(f"{message} Failed tasks: {failed_tasks}")
+
+                raise RuntimeError(message)
+
+            raise RuntimeError(f"Unexpected trigger event received: {event}")
+
+        finally:
+            if self.should_delete_job:
+                self.clean_up(job_id=self.batch_job_id)
+
+            if self.should_delete_pool:
+                self.clean_up(pool_id=self.batch_pool_id)
 
     def on_kill(self) -> None:
         response = self.hook.connection.job.terminate(

@@ -44,11 +44,14 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
+import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
 import DeleteRunButton from "./DeleteRunButton";
 
-const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}:${dagRun.dag_run_id}`;
+// Matches the identifier the bulk Dag Run endpoint echoes back in its ``success`` /
+// ``errors`` lists, so the bulk response can deselect rows directly.
+const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}.${dagRun.dag_run_id}`;
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -333,7 +336,7 @@ export const DagRuns = () => {
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
-  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.dag_runs,
       getKey: getRowKey,
@@ -371,7 +374,8 @@ export const DagRuns = () => {
             {selectedRows.size} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <BulkDeleteDagRunsButton clearSelections={clearSelections} selectedDagRuns={selectedDagRuns} />
+          <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
+          <BulkDeleteDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
