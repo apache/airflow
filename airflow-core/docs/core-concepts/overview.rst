@@ -53,11 +53,11 @@ A minimal Airflow installation consists of the following components:
   *metadata database*. More about processing Dag files can be found in
   :doc:`/administration-and-deployment/dagfile-processing`
 
-* A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
-  Dags and tasks.
+* An *API Server*, which serves the REST API and presents a handy user interface to inspect, trigger and debug the behaviour of
+  Dags and tasks. The API server is also used by *workers* to communicate state back to Airflow, without requiring direct access
+  to the *metadata database*.
 
-* A folder of *Dag files*, which is read by the *scheduler* to figure out what tasks to run and when to
-  run them.
+* A folder of *Dag files*, which is read by the *DAG processor*. The *scheduler* reads the *metadata database* to know which Dags to run and when to run them, not the *Dag files* folder.
 
 * A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags and variables.
 
