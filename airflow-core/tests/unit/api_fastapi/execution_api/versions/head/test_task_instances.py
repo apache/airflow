@@ -1394,9 +1394,12 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
-            side_effect=Exception("simulated DB explosion during asset registration"),
+        with (
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+                side_effect=Exception("simulated DB explosion during asset registration"),
+            ),
+            mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats.incr") as mock_incr,
         ):
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/state",
@@ -1415,6 +1418,7 @@ class TestTIUpdateState:
         ti_db = session.get(TaskInstance, ti.id)
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
+        mock_incr.assert_any_call("asset.registration_failures")
 
     def test_ti_update_state_rolls_back_partial_asset_registration_on_failure(
         self, client, session, create_task_instance
@@ -1449,9 +1453,12 @@ class TestTIUpdateState:
             session.flush()
             raise RuntimeError("simulated failure after partial asset registration")
 
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
-            side_effect=add_event_then_fail,
+        with (
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+                side_effect=add_event_then_fail,
+            ),
+            mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats.incr") as mock_incr,
         ):
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/state",
@@ -1471,6 +1478,7 @@ class TestTIUpdateState:
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
         assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
+        mock_incr.assert_any_call("asset.registration_failures")
 
     def test_ti_update_state_swallow_asset_registration_commit_failure(
         self, client, session, create_task_instance
@@ -1491,19 +1499,34 @@ class TestTIUpdateState:
         )
         session.commit()
 
+        real_register_asset_changes_in_db = TaskInstance.register_asset_changes_in_db
         real_commit = Session.commit
-        commit_count = 0
+        asset_registration_started = False
         failed_asset_commit = False
 
-        def fail_second_commit(session):
-            nonlocal commit_count, failed_asset_commit
-            commit_count += 1
-            if commit_count == 2:
+        def register_asset_changes_then_mark_started(ti, task_outlets, outlet_events, *, session):
+            nonlocal asset_registration_started
+            real_register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
+            asset_registration_started = True
+
+        def fail_asset_registration_commit(session):
+            nonlocal failed_asset_commit
+            if asset_registration_started and not failed_asset_commit:
                 failed_asset_commit = True
                 raise RuntimeError("simulated asset registration commit failure")
             return real_commit(session)
 
-        with mock.patch("airflow.api_fastapi.common.db.common.Session.commit", fail_second_commit):
+        with (
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+                side_effect=register_asset_changes_then_mark_started,
+            ),
+            mock.patch(
+                "airflow.api_fastapi.common.db.common.Session.commit",
+                fail_asset_registration_commit,
+            ),
+            mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats.incr") as mock_incr,
+        ):
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/state",
                 json={
@@ -1527,6 +1550,7 @@ class TestTIUpdateState:
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
         assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
+        mock_incr.assert_any_call("asset.registration_failures")
 
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
@@ -2221,7 +2245,7 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreStoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -2265,7 +2289,7 @@ class TestTIUpdateState:
         ti_db = session.get(TaskInstance, ti.id)
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
         assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
 
     @pytest.mark.db_test

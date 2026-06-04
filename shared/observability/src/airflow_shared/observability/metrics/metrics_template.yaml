@@ -290,6 +290,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "asset.registration_failures"
+    description: "Number of task success asset registration failures after the task state was updated"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "asset.orphaned"
     description: "Number of assets marked as orphans because they are no longer referenced
     in Dag schedule parameters or task outlets"

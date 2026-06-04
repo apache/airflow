@@ -361,6 +361,7 @@ class AssetManager(LoggingMixin):
                 # entire asset_events collection. On long-running deployments that collection
                 # can contain thousands of rows; loading it on the task-success hot path can
                 # leave DB connections idle-in-transaction for minutes, blocking other workers.
+                # This intentionally leaves asset_alias_model.asset_events unsynced in-session.
                 session.execute(
                     insert(asset_alias_asset_event_association_table).values(
                         alias_id=asset_alias_model.id,
