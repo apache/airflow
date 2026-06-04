@@ -30,6 +30,13 @@ repos:
         entry: ../scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
         files: ^(.*/)?airflow/.*/(sensors|operators)/.*\.py$
+      - id: check-trigger-serialize-init
+        name: Check trigger __init__ and serialize() are in sync
+        description: Every trigger __init__ parameter must appear in its serialize() return dict
+        language: python
+        entry: ../scripts/ci/prek/check_trigger_serialize_init.py
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*/triggers/[^/]+\.py$
       - id: update-providers-dependencies
         name: Update dependencies for providers
         entry: ../scripts/ci/prek/update_providers_dependencies.py

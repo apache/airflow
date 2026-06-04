@@ -78,6 +78,8 @@ class TestMLEngineStartTrainingJobTrigger:
             "training_python_module": TEST_TRAINING_PYTHON_MODULE,
             "training_args": TEST_TRAINING_ARGS,
             "labels": TEST_LABELS,
+            "gcp_conn_id": "google_cloud_default",
+            "impersonation_chain": None,
         }
 
     @pytest.mark.asyncio
