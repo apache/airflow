@@ -600,28 +600,6 @@ class TestScheduler:
             "runAsNonRoot": True,
         }
 
-    def test_scheduler_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "scheduler": {
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
-                    }
-                },
-            },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        }
-
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
             values={

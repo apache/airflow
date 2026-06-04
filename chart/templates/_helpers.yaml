@@ -823,11 +823,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/*
 Set the default value for pod securityContext
-If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
+If no value is passed for securityContexts.pod or <node>.securityContexts.pod, defaults to global uid and gid.
 
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | securityContexts.pod |  ->  | securityContext |  ->  | Values.uid + Values.gid |
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
+    +-----------------------------+      +----------------------+      +-------------------------+
+    | <node>.securityContexts.pod |  ->  | securityContexts.pod |  ->  | Values.uid + Values.gid |
+    +-----------------------------+      +----------------------+      +-------------------------+
 
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContext or uid+gid will be ignored.
@@ -846,10 +846,6 @@ Priority of values are from left to right, meaning if first value is not empty, 
       {{- $result = .securityContexts.pod }}
       {{- break }}
     {{- end }}
-    {{- if and (hasKey . "securityContext") .securityContext }}
-      {{- $result = .securityContext }}
-      {{- break }}
-    {{- end }}
   {{- end }}
   {{- if $result }}
     {{- toYaml $result | print }}
@@ -861,11 +857,11 @@ fsGroup: {{ $.gid }}
 
 {{/*
 Set the default value for pod securityContext
-If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
+If no value is passed for <node>.securityContexts.pod, defaults to UID in the local node.
 
-    +-----------------------------+      +------------------------+      +------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid |
-    +-----------------------------+      +------------------------+      +------------+
+    +-----------------------------+      +------------+
+    | <node>.securityContexts.pod |  ->  | <node>.uid |
+    +-----------------------------+      +------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -875,8 +871,6 @@ It is important to pass the local variables scope to this template as it is used
 {{- define "localPodSecurityContext" -}}
   {{- if .securityContexts.pod -}}
     {{ toYaml .securityContexts.pod | print }}
-  {{- else if .securityContext -}}
-    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -884,11 +878,11 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for container securityContext
-If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
+If no value is passed for <node>.securityContexts.container, defaults to UID in the local node.
 
-    +-----------------------------------+      +------------------------+      +------------+
-    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid |
-    +-----------------------------------+      +------------------------+      +------------+
+    +-----------------------------------+      +------------+
+    | <node>.securityContexts.container |  ->  | <node>.uid |
+    +-----------------------------------+      +------------+
 
 The template can be called like so:
   include "localContainerSecurityContext" .Values.statsd
@@ -898,8 +892,6 @@ It is important to pass the local variables scope to this template as it is used
 {{- define "localContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
     {{ toYaml .securityContexts.container | print }}
-  {{- else if .securityContext -}}
-    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -907,7 +899,7 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for workers chown for persistent storage
-If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
+If no value is passed for securityContexts.pod or <node>.securityContexts.pod, defaults to global uid and gid.
 The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
 
     +-----------------------------+      +----------------------------------------------------+      +------------------+      +-------------------------+
@@ -927,8 +919,6 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
   {{- with index . 1 }}
     {{- if .securityContexts.pod -}}
       {{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
-    {{- else if $.Values.securityContext -}}
-      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
       {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
     {{- else -}}
