@@ -207,6 +207,7 @@ _FN_TO_RESOURCE_INFO: dict[str, tuple[str, str | None]] = {
     "requires_access_dag": ("DAG", None),
     "requires_access_backfill": ("DAG", "RUN"),  # backfill is a DAG.RUN alias
     "requires_access_dag_run_bulk": ("DAG", "RUN"),  # dag_run bulk is a DAG.RUN alias
+    "requires_access_dag_run_clear_bulk": ("DAG", "RUN"),  # dag_run clear bulk is a DAG.RUN alias
     "requires_access_event_log": ("DAG", "AUDIT_LOG"),  # event log is a DAG.AUDIT_LOG alias
     "requires_access_pool": ("Pool", None),
     "requires_access_pool_bulk": ("Pool", None),

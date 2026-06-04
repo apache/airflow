@@ -95,23 +95,23 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Asset``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/states``
+     - ``/api/v2/assets/{asset_id}/store``
      - ``Asset``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/assets/{asset_id}/states``
+     - ``/api/v2/assets/{asset_id}/store``
      - ``Asset``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/states/{key:path}``
+     - ``/api/v2/assets/{asset_id}/store/{key:path}``
      - ``Asset``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/assets/{asset_id}/states/{key:path}``
+     - ``/api/v2/assets/{asset_id}/store/{key:path}``
      - ``Asset``
      - ``GET``
    * - ``PUT``
-     - ``/api/v2/assets/{asset_id}/states/{key:path}``
+     - ``/api/v2/assets/{asset_id}/store/{key:path}``
      - ``Asset``
      - ``PUT``
    * - ``GET``
@@ -158,6 +158,14 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/connections/defaults``
      - ``Connection``
      - ``POST``
+   * - ``GET``
+     - ``/api/v2/connections/enqueue-test``
+     - ``Public``
+     - ``No Airflow permission required``
+   * - ``POST``
+     - ``/api/v2/connections/enqueue-test``
+     - ``Public``
+     - ``No Airflow permission required``
    * - ``POST``
      - ``/api/v2/connections/test``
      - ``Connection``
@@ -259,6 +267,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.RUN``
      - ``POST``
    * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/clearDagRuns``
+     - ``DAG.RUN``
+     - ``multi``
+   * - ``POST``
      - ``/api/v2/dags/{dag_id}/dagRuns/list``
      - ``DAG.RUN``
      - ``GET``
@@ -339,23 +351,27 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.TASK_LOGS``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store``
      - ``DAG.TASK_INSTANCE``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key:path}``
      - ``DAG.TASK_INSTANCE``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key:path}``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
+   * - ``PATCH``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key:path}``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``PUT``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key:path}``
      - ``DAG.TASK_INSTANCE``
      - ``PUT``
    * - ``GET``
