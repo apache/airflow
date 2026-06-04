@@ -825,7 +825,7 @@ class TestTIRunState:
         assert response.json() == {
             "detail": {
                 "type": "about:blank",
-                "title": "Invalid State",
+                "title": "Conflict",
                 "detail": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
@@ -1348,7 +1348,7 @@ class TestTIUpdateState:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Task Instance Not Found",
+            "title": "Not Found",
             "detail": "Task Instance not found",
             "reason": "not_found",
         }
@@ -1829,7 +1829,7 @@ class TestTIUpdateState:
         assert response.status_code == 409
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Invalid State",
+            "title": "Conflict",
             "detail": "TI was not in the running state so it cannot be updated",
             "reason": "invalid_state",
             "previous_state": State.SUCCESS,
@@ -2205,7 +2205,7 @@ class TestTIHealthEndpoint:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Task Instance Not Found",
+            "title": "Not Found",
             "detail": "Task Instance not found",
             "reason": "not_found",
         }
@@ -2241,7 +2241,7 @@ class TestTIHealthEndpoint:
         assert response.status_code == 410
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Task Instance Not Found",
+            "title": "Gone",
             "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
             "reason": "not_found",
         }
@@ -2514,7 +2514,7 @@ class TestTIPutRTIF:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Task Instance Not Found",
+            "title": "Not Found",
             "detail": "Task Instance not found",
         }
 
@@ -3723,7 +3723,7 @@ class TestTIPatchRenderedMapIndex:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "type": "about:blank",
-            "title": "Task Instance Not Found",
+            "title": "Not Found",
             "detail": "Task Instance not found",
         }
 
