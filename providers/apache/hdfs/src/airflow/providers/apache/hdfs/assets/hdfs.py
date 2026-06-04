@@ -28,8 +28,6 @@ if TYPE_CHECKING:
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:
-    if not uri.netloc:
-        raise ValueError("URI format hdfs:// must contain a namenode host")
     if not uri.path:
         raise ValueError("URI format hdfs:// must contain a path")
     return uri

@@ -42,6 +42,17 @@ from airflow.providers.common.compat.assets import Asset
             "hdfs://namenode/data/file.csv",
             id="no-explicit-port",
         ),
+        # ``hdfs:///path`` (Hadoop ``fs.defaultFS``) accepted; ``urlunsplit`` collapses the empty authority to ``hdfs:/path``.
+        pytest.param(
+            "hdfs:///apps/myapp/data/bronze/raw/table.parquet",
+            "hdfs:/apps/myapp/data/bronze/raw/table.parquet",
+            id="default-fs-no-host",
+        ),
+        pytest.param(
+            "hdfs:///data/file.csv",
+            "hdfs:/data/file.csv",
+            id="default-fs-short-path",
+        ),
     ],
 )
 def test_sanitize_uri_pass(original: str, normalized: str) -> None:
@@ -54,12 +65,12 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
     "value",
     [
         pytest.param("hdfs://", id="blank"),
-        pytest.param("hdfs:///path/to/file", id="no-host"),
+        pytest.param("hdfs://namenode:8020", id="no-path"),
     ],
 )
 def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError, match="URI format hdfs:// must contain"):
+    with pytest.raises(ValueError, match="URI format hdfs:// must contain a path"):
         sanitize_uri(uri_i)
 
 
@@ -89,4 +100,18 @@ def test_convert_asset_to_openlineage(expected_name, uri) -> None:
     asset = Asset(uri=uri)
     ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
     assert ol_dataset.namespace == "hdfs://namenode:8020"
+    assert ol_dataset.name == expected_name
+
+
+@pytest.mark.parametrize(
+    ("expected_name", "uri"),
+    [
+        pytest.param("apps/myapp/data.parquet", "hdfs:///apps/myapp/data.parquet", id="default-fs"),
+        pytest.param("data/file.csv", "hdfs:///data/file.csv", id="default-fs-short"),
+    ],
+)
+def test_convert_asset_to_openlineage_default_fs(expected_name, uri) -> None:
+    asset = Asset(uri=uri)
+    ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
+    assert ol_dataset.namespace == "hdfs://"
     assert ol_dataset.name == expected_name
