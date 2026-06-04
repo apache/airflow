@@ -148,6 +148,7 @@ export const Deadlines = () => {
         isLoading={isLoading}
         modelName="browse:deadlines.deadline"
         onStateChange={setTableURLState}
+         showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>
