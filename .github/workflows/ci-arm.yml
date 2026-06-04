@@ -48,7 +48,7 @@ env:
   # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
   # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
   # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-  # - java-version in .github/workflows/codeql-analysis.yml and .github/workflows/publish-docs-to-s3.yml
+  # - java-version in .github/workflows/codeql-analysis.yml
   JAVA_VERSION: '11'
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
@@ -982,35 +982,33 @@ jobs:
         run: ./gradlew test
 
   build-java-sdk-docs:
-    name: "Java SDK Javadoc (Dokka)"
+    name: "Java SDK docs"
     needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
+      packages: read
     if: needs.build-info.outputs.run-java-sdk-tests == 'true'
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
-      - name: Setup Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
-        with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-      - name: Build Java SDK Javadoc
-        working-directory: ./java-sdk
-        run: ./gradlew :sdk:dokkaGeneratePublicationHtml --no-daemon
-      - name: Upload Javadoc artifact
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build Java SDK Javadoc"
+        run: breeze build-docs --only-sdk-docs --sdk=java
+      - name: "Upload Javadoc artifact"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: java-sdk-docs
-          path: java-sdk/sdk/build/dokka/html/
+          path: generated/_build/docs/apache-airflow-java-sdk/
           retention-days: 7
           if-no-files-found: error
           overwrite: 'true'

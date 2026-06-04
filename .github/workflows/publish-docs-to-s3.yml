@@ -352,36 +352,23 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     steps:
       - name: "Checkout ${{ inputs.ref }}"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
-      # Keep these in sync:
-      # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
-      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-      # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-      # - java-version in .github/workflows/codeql-analysis.yml and .github/workflows/publish-docs-to-s3.yml
-      - name: Setup Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
-        with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Build Java SDK Javadoc
-        working-directory: ./java-sdk
-        run: ./gradlew :sdk:dokkaGeneratePublicationHtml --no-daemon
-      - name: Stage Dokka output for publish pipeline
-        run: |
-          AIRFLOW_VERSION=$(python3 -c "
-          import re, pathlib
-          src = pathlib.Path('airflow-core/src/airflow/__init__.py').read_text()
-          print(re.search(r\"__version__ = '(.+?)'\", src).group(1))
-          ")
-          mkdir -p generated/_build/docs/apache-airflow-java-sdk/stable
-          cp -r java-sdk/sdk/build/dokka/html/. generated/_build/docs/apache-airflow-java-sdk/stable/
-          echo "${AIRFLOW_VERSION}" > generated/_build/docs/apache-airflow-java-sdk/stable.txt
-      - name: Upload Java SDK docs artifact
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build Java SDK Javadoc"
+        run: breeze build-docs --only-sdk-docs --sdk=java
+      - name: "Upload Java SDK docs artifact"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: java-sdk-docs
