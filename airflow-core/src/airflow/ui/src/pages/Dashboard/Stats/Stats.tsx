@@ -26,6 +26,7 @@ import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
+import { MissedDeadlines } from "./MissedDeadlines";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -67,6 +68,8 @@ export const Stats = () => {
         <DAGImportErrors />
 
         <PluginImportErrors />
+
+        <MissedDeadlines refetchInterval={refetchInterval} />
 
         {queuedDagsCount > 0 ? (
           <StatsCard

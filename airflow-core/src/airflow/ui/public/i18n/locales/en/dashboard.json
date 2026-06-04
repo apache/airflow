@@ -1,4 +1,17 @@
 {
+  "deadlines": {
+    "pending": {
+      "empty": "No upcoming deadlines",
+      "title": "Upcoming"
+    },
+    "recentlyMissed": {
+      "empty": "No missed deadlines in the last 24 hours",
+      "subtitle": "Last 24 hours",
+      "title": "Recently missed"
+    },
+    "showMore": "Show more",
+    "title": "Deadlines"
+  },
   "deferredSlotsNotCounted": "Deferred not counted in slots: {{count}}",
   "deferredSlotsNotCountedTooltip": "Deferred tasks shown in the bar are counted against pool slots. Deferred tasks shown below the bar are from pools that do not count deferred tasks against slots.",
   "favorite": {
@@ -38,6 +51,7 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
+    "missedDeadlines": "Missed Deadlines",
     "queuedDags": "Queued Dags",
     "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
