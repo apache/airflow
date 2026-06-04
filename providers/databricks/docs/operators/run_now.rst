@@ -119,3 +119,38 @@ DatabricksRunNowDeferrableOperator
 Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+
+.. _howto/operator:DatabricksRunNowDeferrableOperator:retry-args:
+
+Retry args in deferrable mode
+-----------------------------
+
+When ``deferrable=True``, the ``databricks_retry_args`` dictionary is serialized across the
+trigger boundary and must contain only Airflow-serializable values (plain Python primitives
+such as ``int``, ``float``, ``str``, ``bool``, ``None``, ``dict``, and ``list``).
+
+**Supported** (serialization-safe):
+
+.. code-block:: python
+
+    # Integer / float primitives
+    databricks_retry_args = {"stop_after_attempt": 3, "wait_fixed": 30}
+
+    # Nested plain-dict form
+    databricks_retry_args = {"stop": {"type": "stop_after_attempt", "value": 3}}
+
+**Not supported** in deferrable mode (will raise ``ValueError`` at task submission):
+
+.. code-block:: python
+
+    from tenacity import stop_after_attempt, wait_incrementing
+
+    # Tenacity strategy objects — NOT serializable
+    databricks_retry_args = {"stop": stop_after_attempt(3)}
+    databricks_retry_args = {"wait": wait_incrementing(start=30, increment=30)}
+
+    # Arbitrary callables — NOT serializable
+    databricks_retry_args = {"retry": my_custom_retry_callable}
+
+If you need a custom callable retry strategy, use the non-deferrable
+:class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` (``deferrable=False``).

@@ -62,6 +62,7 @@ Features
 ~~~~~~~~
 
 * ``Fail fast for non-serializable retry_args in deferrable operators and triggers (#64960)``
+* ``Document supported retry_args shapes for deferrable Databricks operators``
 * ``Forward Airflow Dag params to Databricks job parameters in CreateJobs/SubmitRun/RunNow (#66613)``
 * ``Add session-level query tags to Databricks SQL operators (#66895)``
 
