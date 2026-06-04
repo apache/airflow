@@ -113,7 +113,7 @@ const DeadlineSection = ({
         {hasMoreDeadlines ? (
           <>
             <Separator />
-            <Flex justify="flex-end" px={3} py={2}>
+            <Flex justify="center" px={3} py={2}>
               <Link asChild color="fg.info" fontSize="xs" fontWeight="medium">
                 <RouterLink to={showMoreTo}>{showMoreLabel}</RouterLink>
               </Link>
