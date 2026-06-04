@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren } from "react";
+import { useRef, type PropsWithChildren } from "react";
 
 import { useColorMode } from "src/context/colorMode";
 
@@ -37,12 +37,16 @@ const getMermaid = async (): Promise<MermaidApi> => {
 
 export const MermaidProvider = ({ children }: PropsWithChildren) => {
   const { colorMode } = useColorMode();
+  const initializedTheme = useRef<MermaidTheme | undefined>(undefined);
   const theme: MermaidTheme = colorMode === "dark" ? "dark" : "default";
 
   const renderDiagram = async ({ chart, diagramId }: MermaidRenderParams): Promise<string> => {
     const mermaid = await getMermaid();
 
-    mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
+    if (initializedTheme.current !== theme) {
+      mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
+      initializedTheme.current = theme;
+    }
 
     const { svg } = await mermaid.render(diagramId, chart);
 

@@ -219,8 +219,8 @@ const ReactMarkdown = ({ children, ...props }: Options) => {
   return (
     <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
       <ReactMD
-        {...props}
         components={components}
+        {...props}
         rehypePlugins={shouldEnableMath ? [rehypeKatex] : []}
         remarkPlugins={
           shouldEnableMath ? [remarkGfm, [remarkMath, { singleDollarTextMath: false }]] : [remarkGfm]
