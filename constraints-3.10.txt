@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-04T11:52:45.480641
+# This constraints file was automatically generated on 2026-06-04T22:16:57.600038
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -71,11 +71,11 @@ aiobotocore==3.7.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.2
 aiohttp-cors==0.8.1
-aiohttp==3.13.5
+aiohttp==3.14.0
 aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
-aiosmtplib==5.1.0
+aiosmtplib==5.1.1
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 akeyless==5.0.27
@@ -518,7 +518,7 @@ python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
 python-ldap==3.4.7
-python-multipart==0.0.29
+python-multipart==0.0.30
 python-slugify==8.0.4
 python-telegram-bot==22.7
 python3-saml==1.16.0
@@ -622,7 +622,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.4.1
+virtualenv==21.4.2
 watchfiles==1.2.0
 watchtower==3.4.0
 wcwidth==0.7.0
