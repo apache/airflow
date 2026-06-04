@@ -1799,14 +1799,16 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
         inlet_events[Asset(name="no such asset in inlets")]
 
 
-@mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
-@mock.patch.dict(os.environ, {}, clear=True)
-def test_execute_task_exports_env_vars(
-    mock_context_to_airflow_vars, create_runtime_ti, mock_supervisor_comms
-):
-    """Test that _execute_task exports airflow context to environment variables."""
+def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock_supervisor_comms):
+    """Test that _execute_task exports airflow context via thread-safe context vars (not os.environ)."""
+    from airflow.sdk.execution_time.context import get_airflow_context_var
+
+    captured_vars = {}
 
     def test_function():
+        # Capture context vars during execution - they should be available via get_airflow_context_var
+        captured_vars["dag_id"] = get_airflow_context_var("AIRFLOW_CTX_DAG_ID")
+        captured_vars["task_id"] = get_airflow_context_var("AIRFLOW_CTX_TASK_ID")
         return "test function"
 
     task = PythonOperator(
@@ -1814,14 +1816,15 @@ def test_execute_task_exports_env_vars(
         python_callable=test_function,
     )
 
-    ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
-
-    mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
-    mock_context_to_airflow_vars.return_value = mock_env_vars
+    ti = create_runtime_ti(task=task, dag_id="dag_with_ctx_vars")
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
-    assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
-    assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
+    # Verify context vars were accessible during task execution
+    assert captured_vars["dag_id"] == "dag_with_ctx_vars"
+    assert captured_vars["task_id"] == "test_task"
+
+    # os.environ should NOT be updated (this is the race condition fix)
+    assert "AIRFLOW_CTX_DAG_ID" not in os.environ or os.environ.get("AIRFLOW_CTX_DAG_ID") != "dag_with_ctx_vars"
 
 
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):

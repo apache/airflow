@@ -2052,12 +2052,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
 
-    # Export context in os.environ to make it available for operators to use.
-    # Use thread-safe context variable storage to avoid race conditions in concurrent execution.
+    # Export context vars thread-safely to avoid race conditions in concurrent execution
+    # (e.g., IterableOperator with AsyncAwareExecutor). Use get_airflow_context_var() to read these.
+    # We intentionally do NOT update os.environ here as that would cause races between tasks.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    # Also update os.environ for backward compatibility with code that reads env vars directly.
-    # The context variable (below) provides thread-safe access without race conditions.
-    os.environ.update(airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
 
