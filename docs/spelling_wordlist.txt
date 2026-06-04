@@ -23,6 +23,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentcore
 agentic
 ai
 aio
