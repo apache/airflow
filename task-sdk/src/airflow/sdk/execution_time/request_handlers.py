@@ -29,7 +29,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -50,6 +49,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
+    GetPrevSuccessfulDagRun,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -94,6 +94,7 @@ def get_handler(msg_type):
     return handler
 
 
+@handles(GetConnection)
 def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch a connection and mask its sensitive fields."""
     conn = client.connections.get(msg.conn_id)
@@ -106,6 +107,7 @@ def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel
     return conn, {}
 
 
+@handles(GetVariable)
 def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch a variable and mask its value."""
     var = client.variables.get(msg.key)
@@ -116,6 +118,7 @@ def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | N
     return var, {}
 
 
+@handles(GetVariableKeys)
 def handle_get_variable_keys(
     client: Client, msg: GetVariableKeys
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -127,23 +130,27 @@ def handle_get_variable_keys(
     )
 
 
+@handles(MaskSecret)
 def handle_mask_secret(msg: MaskSecret) -> None:
     """Register a value with the secrets masker."""
     mask_secret(msg.value, msg.name)
 
 
+@handles(PutVariable)
 def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store a variable value."""
     client.variables.set(msg.key, msg.value, msg.description)
     return None, {}
 
 
+@handles(DeleteVariable)
 def handle_delete_variable(client: Client, msg: DeleteVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete a variable value."""
     resp = client.variables.delete(msg.key)
     return resp, {}
 
 
+@handles(GetTICount)
 def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch task instance counts."""
     resp = client.task_instances.get_count(
@@ -158,6 +165,7 @@ def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | No
     return resp, {}
 
 
+@handles(GetTaskStates)
 def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch task states and normalize them for supervisor response handling."""
     task_states_map = client.task_instances.get_task_states(
@@ -173,6 +181,7 @@ def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseMode
     return task_states_map, {}
 
 
+@handles(GetPreviousTI)
 def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous task instance."""
     resp = client.task_instances.get_previous(
@@ -185,6 +194,7 @@ def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseMode
     return resp, {}
 
 
+@handles(SetXCom)
 def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store an XCom value."""
     client.xcoms.set(
@@ -200,12 +210,14 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
     return None, {}
 
 
+@handles(DeleteXCom)
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
     client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
     return None, {}
 
 
+@handles(GetDRCount)
 def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch dag run counts."""
     resp = client.dag_runs.get_count(
@@ -217,6 +229,7 @@ def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | No
     return resp, {}
 
 
+@handles(GetDagRunState)
 def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch dag run state."""
     dr_resp = client.dag_runs.get_state(msg.dag_id, msg.run_id)
@@ -225,6 +238,7 @@ def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseM
     return dr_resp, {}
 
 
+@handles(GetPreviousDagRun)
 def handle_get_previous_dag_run(
     client: Client, msg: GetPreviousDagRun
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -237,21 +251,24 @@ def handle_get_previous_dag_run(
     return resp, {}
 
 
+@handles(GetPrevSuccessfulDagRun)
 def handle_get_prev_successful_dag_run(
-    client: Client, subprocess_id: UUID
+    client: Client, msg: GetPrevSuccessfulDagRun
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous successful dag run using the caller's current id."""
-    dagrun_resp = client.task_instances.get_previous_successful_dagrun(subprocess_id)
+    dagrun_resp = client.task_instances.get_previous_successful_dagrun(msg.ti_id)
     dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
     return dagrun_result, {"exclude_unset": True}
 
 
+@handles(GetXComCount)
 def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch XCom count metadata."""
     resp = client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
     return resp, {}
 
 
+@handles(GetXComSequenceItem)
 def handle_get_xcom_sequence_item(
     client: Client, msg: GetXComSequenceItem
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -262,6 +279,7 @@ def handle_get_xcom_sequence_item(
     return xcom, {}
 
 
+@handles(GetXComSequenceSlice)
 def handle_get_xcom_sequence_slice(
     client: Client, msg: GetXComSequenceSlice
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -281,6 +299,7 @@ def handle_get_xcom_sequence_slice(
     return xcoms, {}
 
 
+@handles(GetXCom)
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom and normalize it for supervisor response handling."""
     xcom = client.xcoms.get(
