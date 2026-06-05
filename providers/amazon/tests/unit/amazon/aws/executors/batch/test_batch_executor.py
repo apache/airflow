@@ -809,7 +809,7 @@ class TestAwsBatchExecutor:
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
-            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.UTC)
+            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
             task.dag_model = mock.Mock()
             task.dag_model.bundle_name = "test_bundle"
             task.dag_model.relative_fileloc = "test_dag.py"
