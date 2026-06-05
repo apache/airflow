@@ -288,15 +288,14 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
         ],
-        # Narrow trigger for the `breeze k8s smoke-test-overlay` CI job. Kept
-        # focused: only the overlay manifests, the per-overlay pytest dir,
-        # the prek hook that builds them, the breeze command that runs the
-        # smoke test, and the workflow file itself. `^chart/` (under
-        # HELM_FILES) is intentionally NOT reused — the overlays don't
-        # care about every chart-template edit, only their own files.
+        #`^chart/` (under HELM_FILES) is intentionally NOT reused
+        # — the overlays don't care about every chart-template edit,
+        # only their own files.
         FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
             r"^chart/kustomize-overlays/",
             r"^chart/tests/overlay_tests/",
+            r"^chart/templates/",
+            r"^chart/files/",
             r"^scripts/ci/prek/build_kustomize_overlays\.py$",
             r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
             r"^\.github/workflows/kustomize-overlays-tests\.yml$",

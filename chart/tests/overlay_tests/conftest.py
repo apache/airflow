@@ -27,7 +27,7 @@ Conventions for new per-overlay tests:
 
 * Inherit from nothing - use the fixtures here and module-level
   functions. There is no need for ``BaseK8STest`` because overlay tests
-  do not need the airflow REST API.
+  do not need the Airflow REST API.
 * Use the ``kubectl`` helper for one-shot commands; use the
   ``run_throwaway_pod`` fixture when you need to exec something inside
   the cluster.

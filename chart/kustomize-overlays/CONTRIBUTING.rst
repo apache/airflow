@@ -104,9 +104,7 @@ The optional ``verify:`` block is the smoke-test contract and is also
       timeout_seconds: 300        # optional; default 300, max 3600
       # `name` is the SUFFIX only - the runner auto-prepends
       # `<release-name>-` so the same overlay works under any release.
-      # Write `foo`, not `RELEASE-NAME-foo`. The legacy `RELEASE-NAME-foo`
-      # form is still tolerated for older overlays but the short form
-      # is the new convention.
+      # Write `foo`, not `RELEASE-NAME-foo`.
       resources:
         - kind: Deployment
           name: foo               # -> matches <release-name>-foo
@@ -129,8 +127,8 @@ How discovery works:
   ``SelectiveChecks.run_kustomize_overlays_tests``, which only trips
   on changes under ``chart/kustomize-overlays/`` and the narrow set
   of files that drive the runner (the prek hook, the breeze command,
-  the workflow file). Unrelated chart edits do not pull in a
-  30-40 minute kind cluster spin-up.
+  the workflow file, the chart templates files). Unrelated chart edits do
+  not pull in a 30-40 minute kind cluster spin-up.
 
 Practical rule: as soon as an overlay has a ``verify:`` block, CI
 starts running its smoke test on every relevant change. Until then,
@@ -162,8 +160,8 @@ place - there is no central registry to also update.
 | after apply              | ``chart/kustomize-overlays/<name>/STATUS.yaml`` (see "STATUS    |
 |                          | file format" above). The smoke-test runner walks this list.     |
 +--------------------------+-----------------------------------------------------------------+
-| Behavioural assertions   | ``chart/tests/overlay_tests/test_<name>``|
-| beyond "resource exists" | ``.py``. Auto-discovered by the smoke-test runner if present.   |
+| Behavioural assertions   | ``chart/tests/overlay_tests/test_<name>.py``|
+| beyond "resource exists" | Auto-discovered by the smoke-test runner if present.|
 |                          | Use the fixtures in the sibling ``conftest.py``                 |
 |                          | (``overlay_namespace``, ``overlay_release_name``, ``kubectl``,  |
 |                          | ``get_secret_data``, ``run_throwaway_pod``) - no copy-paste     |
@@ -317,16 +315,7 @@ a local kind cluster. The full sequence mirrors what
 
 .. code-block:: bash
 
-    breeze k8s setup-env
-    breeze k8s create-cluster
-    breeze k8s configure-cluster
-    # Build the prod image locally and load it into the kind nodes. The
-    # chart's default image lives on ghcr.io behind CI auth, so without
-    # the build + upload pair, `deploy-airflow` will hang with
-    # ImagePullBackOff (HTTP 403). Drop --rebuild-base-image on
-    # subsequent iterations to speed up rebuilds.
-    breeze k8s build-k8s-image --rebuild-base-image
-    breeze k8s upload-k8s-image
+    breeze k8s deploy-cluster --rebuild-base-image
     breeze k8s deploy-airflow
     breeze k8s smoke-test-overlay <name>
 
