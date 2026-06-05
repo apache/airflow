@@ -232,6 +232,59 @@ Pools can be assigned to teams, providing resource isolation for task execution 
 
 Pools without a team assignment remain globally accessible to all teams.
 
+Creating Team-scoped Pools via CLI
+""""""""""""""""""""""""""""""""""
+
+Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a team:
+
+.. code-block:: bash
+
+    # Create a pool assigned to team_a
+    airflow pools set team_a_pool 10 "Pool for team A" --team-name team_a
+
+    # Create a global pool (no team assignment)
+    airflow pools set shared_pool 20 "Shared pool for all teams"
+
+    # Update an existing pool to assign it to a team
+    airflow pools set existing_pool 5 "Now team-scoped" --team-name team_b
+
+.. note::
+
+    The ``--team-name`` option is rejected when ``core.multi_team`` is disabled.
+    The specified team must exist in the database (create it first with ``airflow teams create``).
+
+Creating Team-scoped Pools via the REST API
+"""""""""""""""""""""""""""""""""""""""""""
+
+Use the ``POST /api/v2/pools`` endpoint with the ``team_name`` field in the request body:
+
+.. code-block:: bash
+
+    curl -X POST "http://localhost:8080/api/v2/pools" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "team_a_pool",
+        "slots": 10,
+        "description": "Pool for team A",
+        "include_deferred": false,
+        "team_name": "team_a"
+      }'
+
+To update an existing pool's team assignment, use ``PATCH /api/v2/pools/{pool_name}``:
+
+.. code-block:: bash
+
+    curl -X PATCH "http://localhost:8080/api/v2/pools/team_a_pool" \
+      -H "Content-Type: application/json" \
+      -d '{"team_name": "team_a"}'
+
+Omit ``team_name`` or set it to ``null`` to make a pool global.
+
+Creating Team-scoped Pools via the UI
+"""""""""""""""""""""""""""""""""""""
+
+In the Airflow UI, navigate to **Admin > Pools** and create or edit a pool. When Multi-Team mode is enabled, a **Team** dropdown is available to assign the pool to a team. Leave it empty for a global pool.
+
 Team-based Executor Configuration
 ---------------------------------
 
