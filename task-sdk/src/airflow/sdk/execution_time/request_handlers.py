@@ -134,6 +134,7 @@ def handle_get_variable_keys(
 def handle_mask_secret(msg: MaskSecret) -> None:
     """Register a value with the secrets masker."""
     mask_secret(msg.value, msg.name)
+    return (None, {})
 
 
 @handles(PutVariable)
