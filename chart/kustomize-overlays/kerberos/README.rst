@@ -137,16 +137,10 @@ How to switch
 Status
 ------
 
-This overlay is ``tested``: the ``verify:`` block in ``STATUS.yaml``
-is the smoke-test contract (KDC Deployment Ready, Service exists,
-bootstrap Job Complete, keytab Secret exists), and the
-``test_kerberos.py`` module under
-``chart/tests/overlay_tests/`` adds the
-behavioural assertion: a throwaway client pod ``kinit``\ ing against
-the in-cluster KDC and confirming the principal in ``klist`` output.
-``last-verified`` in ``STATUS.yaml`` records the most recent green
-local run; re-run the smoke test with ``--promote-status`` to refresh
-it whenever you re-verify against your cluster.
+This overlay is ``tested``. See ``STATUS.yaml`` for the smoke-test
+contract (its ``verify:`` block and ``last-verified`` date); the
+behavioural assertion lives in ``test_kerberos.py`` under
+``chart/tests/overlay_tests/``.
 
 To run the smoke test locally:
 
