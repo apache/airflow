@@ -63,10 +63,13 @@ jobs:
           if [[ "${EVENT_NAME}" == "push" ]]; then
             changed_files="$(gh api "repos/${REPOSITORY}/compare/${BEFORE_SHA}...${AFTER_SHA}" \
               --jq '.files[].filename')" || true
-            # Fall back to a full scan if the compare API call failed or returned nothing —
-            # e.g. a force-push, or a newly created release branch whose before SHA is all
-            # zeros (no base commit to diff against).
-            if [[ -z "${changed_files}" ]]; then
+            num_files="$(printf '%s\n' "${changed_files}" | grep -c . || true)"
+            # Fall back to a full scan if the compare call failed, returned nothing, or hit the
+            # API's 300-file cap. The compare API does not paginate files (only commits), so a
+            # merge of >300 files truncates the list and could under-detect a changed language;
+            # release branches have no daily schedule full-scan to back them up. Empty also covers
+            # a force-push or a newly created branch whose before SHA is all zeros (no base commit).
+            if [[ -z "${changed_files}" || "${num_files}" -ge 300 ]]; then
               echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
