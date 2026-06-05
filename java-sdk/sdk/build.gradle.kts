@@ -155,8 +155,9 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
                 appendLine("// Maps every wire `type` discriminator string to its generated model class.")
                 appendLine("// Generated from the Supervisor Schema; do not edit by hand.")
                 appendLine("internal object Discriminator {")
-                appendLine("    val types: Map<String, Class<*>> = mapOf(")
-                entries.forEach { appendLine("        \"${it.wireType}\" to ${it.className}::class.java,") }
+                appendLine("  val types: Map<String, Class<*>> =")
+                appendLine("    mapOf(")
+                entries.forEach { appendLine("      \"${it.wireType}\" to ${it.className}::class.java,") }
                 appendLine("    )")
                 appendLine("}")
             },
@@ -241,7 +242,7 @@ tasks.named("compileKotlin") {
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
-    dependsOn("generateJsonSchema2Pojo")
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
