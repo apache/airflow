@@ -241,7 +241,7 @@ class ValidationResult(BaseModel):
 
 def _github_headers() -> dict[str, str]:
     """Build GitHub API headers, using a token if available."""
-    headers = {"Accept": "application/vnd.github.v3+json"}
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "airflow-aip-tracker/1.0"}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -773,8 +773,6 @@ Flag any claims not grounded in the evidence.
     # ------------------------------------------------------------------
     @task
     def apply_validation(report: str, validation: dict, analyses: list[dict]) -> dict:
-        import re
-
         corrected = report
         applied = 0
         for claim in validation.get("ungrounded_claims", []):
@@ -921,18 +919,12 @@ SKILLS_DIR = str(Path(__file__).parent / "skills")
 # Tool functions the agent can call to gather evidence.
 # These are plain Python functions -- the agent sees their docstrings and
 # decides when and how to call them based on the skill instructions.
+# Reuses _github_headers and _safe_api_get defined above.
 # ---------------------------------------------------------------------------
 
 
-def _github_headers() -> dict[str, str]:
-    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "airflow-aip-tracker/1.0"}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers["Authorization"] = f"token {token}"
-    return headers
-
-
 def _safe_api_get(url: str, headers: dict[str, str] | None = None) -> dict | list | str:
+    """GET a URL, returning parsed JSON or an error string."""
     req = urllib.request.Request(url, headers=headers or {})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
