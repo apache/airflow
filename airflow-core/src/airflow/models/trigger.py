@@ -301,6 +301,52 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    def submit_event_serialized(
+        cls, trigger_id, serialized_payload: Any, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Fire an event whose payload arrives already serde-serialized (AIP-92 Execution API path).
+
+        Resume all deferred tasks waiting on the trigger and notify any associated assets and
+        callbacks, like :meth:`submit_event`, but **without** deserializing the worker-supplied
+        payload on the resume path: the serialized payload is spliced straight into ``next_kwargs``
+        so the trusted api-server never runs ``import_string`` on a worker-controlled body.
+
+        Asset and callback consumers still need the live object, so on those branches the payload
+        is deserialized via ``airflow.sdk.serde.deserialize``, which is allowlist-gated by
+        ``[core] allowed_deserialization_classes`` (not the unrestricted ``BaseSerialization`` path).
+        """
+        # Resume deferred tasks -- the serialized payload is spliced in untouched (no deserialize).
+        for task_instance in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+            )
+        ):
+            handle_serialized_event_submit(serialized_payload, task_instance=task_instance, session=session)
+
+        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        if trigger is None:
+            # Already deleted for some reason
+            return
+        # Only the asset/callback consumers need the materialized object. Deserialize here via
+        # serde, whose allowlist ([core] allowed_deserialization_classes) is the control -- the
+        # resume path above never deserializes the worker payload.
+        if trigger.assets or trigger.callback:
+            from airflow.sdk.serde import deserialize
+            from airflow.triggers.base import TriggerEvent
+
+            payload_obj = deserialize(serialized_payload)
+            for asset in trigger.assets:
+                AssetManager.register_asset_change(
+                    asset=asset.to_serialized(),
+                    extra={"from_trigger": True, "payload": payload_obj},
+                    session=session,
+                )
+            if trigger.callback:
+                trigger.callback.handle_event(TriggerEvent(payload=payload_obj), session)
+
+    @classmethod
+    @provide_session
     def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
@@ -587,4 +633,53 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
 
     _submit_callback_if_necessary()
     _push_xcoms_if_necessary()
+    session.flush()
+
+
+def handle_serialized_event_submit(
+    serialized_payload: Any, *, task_instance: TaskInstance, session: Session
+) -> None:
+    """
+    Resume a deferred task instance with an already-serialized event payload.
+
+    Mirrors the default :func:`handle_event_submit` tail, but splices the serde-encoded
+    payload into ``next_kwargs`` *without* materializing it. The api-server therefore never
+    deserializes the worker-supplied event (no ``import_string`` gadget surface); the worker
+    deserializes the spliced ``next_kwargs`` itself when it resumes.
+
+    :param serialized_payload: The event payload as produced by ``airflow.sdk.serde.serialize``.
+    :param task_instance: The deferred task instance to resume.
+    :param session: The session to flush the state change on.
+    """
+    from airflow.sdk.serde import deserialize, serialize
+
+    next_kwargs_raw = task_instance.next_kwargs or {}
+
+    # The existing next_kwargs are the *task-authored* defer kwargs (trusted), not the worker
+    # event payload, so deserializing them here is not the gadget surface. Keep the compat
+    # try/except so a deferred task that resumes after upgrade (mixed BaseSerialization/serde
+    # data) still works.
+    try:
+        next_kwargs = deserialize(next_kwargs_raw)
+    except (ImportError, KeyError, AttributeError, TypeError):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+    # serialize() returns a plain dict whose values are serde-encoded; splice the already
+    # serde-encoded payload straight in so the api-server never reconstructs the worker object.
+    serialized = serialize(next_kwargs)
+    if TYPE_CHECKING:
+        assert isinstance(serialized, dict)
+    serialized["event"] = serialized_payload
+    task_instance.next_kwargs = serialized
+
+    # Remove ourselves as its trigger
+    task_instance.trigger_id = None
+
+    # Set the state of the task instance to scheduled
+    task_instance.state = TaskInstanceState.SCHEDULED
+    task_instance.scheduled_dttm = timezone.utcnow()
     session.flush()

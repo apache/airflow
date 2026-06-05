@@ -38,6 +38,7 @@ from uuid import uuid4
 import anyio
 import attrs
 import greenback
+import httpx
 import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -49,14 +50,19 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_args
 from airflow.configuration import conf
+
+# Imported at runtime (not under TYPE_CHECKING) because Pydantic models below
+# (e.g. TriggerStateSync) resolve `workloads.RunTrigger` annotations at class build time.
 from airflow.executors import workloads
+from airflow.executors.base_executor import get_execution_api_server_url
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import perform_heartbeat
-from airflow.models.dagbag import DBDagBag
+from airflow.jobs.job import Job
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
+from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -107,21 +113,20 @@ from airflow.sdk.execution_time.request_handlers import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.sdk.serde import serialize as serde_serialize
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from opentelemetry.util._decorator import _AgnosticContextManager
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-    from airflow.jobs.job import Job
-    from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
@@ -131,6 +136,36 @@ tracer = trace.get_tracer(__name__)
 _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
+
+# Sentinel ``sub`` accepted by the execution_api ``require_auth`` (scope defaults to "execution";
+# the trigger/job routes do not enforce ``ti:self``). Mirrors the parse-time token pattern.
+_SENTINEL_SUB = "00000000-0000-0000-0000-000000000000"
+
+# httpx/Client errors caught at the guarded per-loop call sites. This is deliberately broad
+# (it catches 4xx as well as 5xx) so the ``except`` clauses are cheap to write; ``_is_transient``
+# below then re-raises the non-transient ones so a persistent 4xx crashes loudly instead of
+# looping forever at WARNING.
+_TRANSIENT_API_ERRORS = (ServerResponseError, httpx.HTTPError)
+
+
+def _is_transient(exc: Exception) -> bool:
+    """
+    Return ``True`` only for failures worth retrying next loop (a transient API blip).
+
+    A persistent 4xx (e.g. a malformed body or auth problem) is a logic bug the client never
+    retries; swallowing it would wedge the triggerer silently. ``ServerResponseError`` subclasses
+    ``httpx.HTTPStatusError``, so the first branch covers both.
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    # Connection resets, timeouts, DNS failures, etc. -- genuinely transient.
+    return isinstance(exc, httpx.TransportError)
+
+
+# How long to keep retrying the initial Job registration while the api-server is still starting up.
+# The triggerer often boots alongside the api-server (e.g. docker-compose), so an early transient
+# error means "not ready yet, wait" rather than a fatal misconfiguration. After this, give up loudly.
+_STARTUP_REGISTER_TIMEOUT = 300.0
 
 
 def _make_trigger_span(
@@ -240,16 +275,19 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
         )
         try:
-            # Kick off runner sub-process without DB access
+            # AIP-92: the triggerer orchestrates through the Execution API with no metadata-DB
+            # access. Kick off the runner sub-process without DB access. ``job=None``: the
+            # supervisor registers and heartbeats its liveness Job through the Execution API,
+            # not a metadata-DB row.
             self.trigger_runner = TriggerRunnerSupervisor.start(
-                job=self.job,
+                job=None,
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
                 team_name=self.team_name,
             )
 
-            # Run the main DB comms loop in this process
+            # Run the main comms loop in this process
             self.trigger_runner.run()
             return self.trigger_runner._exit_code
         except Exception:
@@ -409,27 +447,20 @@ class TriggerLoggingFactory:
         upload_to_remote(self.bound_logger, self.ti)
 
 
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
-
-
 @attrs.define(kw_only=True)
 class TriggerRunnerSupervisor(WatchedSubprocess):
     """
-    TriggerRunnerSupervisor is responsible for monitoring the subprocess and marshalling DB access.
+    Monitor the async TriggerRunner subprocess and orchestrate triggers over the Execution API.
 
-    This class (which runs in the main/sync process) is responsible for querying the DB, sending RunTrigger
-    workload messages to the subprocess, and collecting results and updating them in the DB.
+    This class (which runs in the main/sync process) holds **no** metadata-DB access (AIP-92).
+    Instead of reading/writing the ``trigger``/``job`` tables directly, it routes all
+    orchestration through the Execution API: it registers a ``Job`` over HTTP, claims triggers,
+    fetches their ``RunTrigger`` workloads, sends them to the subprocess, and reports
+    events/failures/cleanup back to the server.
 
-    ``job`` is optional so AIP-92 Execution-API-backed subclasses can run without a metadata-DB
-    ``Job``. Such subclasses **must** override the methods that read ``self.job`` —
-    :meth:`heartbeat`, :meth:`load_triggers`, and :meth:`metric_tags` — to source their data
-    from the Execution API or another backend. The base implementations of those methods raise
-    :class:`RuntimeError` when called with ``job=None`` so a missing override fails immediately
-    rather than silently zombieing the supervisor.
+    ``job`` is always ``None``: the supervisor registers and heartbeats a liveness ``Job`` through
+    the Execution API rather than a metadata-DB row. Keeping the supervisor DB-free is what lets it
+    eventually move into the ``task_sdk`` module, which has no metadata-DB access.
     """
 
     job: Job | None = None
@@ -442,6 +473,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     runner: TriggerRunner | None = None
     stop: bool = False
+
+    # Id of the Job row this triggerer registered over the API. Used wherever a Job id is needed
+    # (heartbeat, trigger-load, log filename). Set in ``run_context`` once the client is available.
+    _triggerer_id: int | None = attrs.field(init=False, default=None)
+
+    # Monotonic timestamp of the last successful Job heartbeat, used to throttle to the heartrate
+    # so we don't POST every single loop iteration.
+    _last_heartbeat: float = attrs.field(init=False, default=0.0)
+    _heartrate: float = attrs.field(init=False, factory=lambda: Job._heartrate("TriggererJob"))
+
+    # Lazily-built log-filename renderer (DB-free: reads only ``logging.log_filename_template``).
+    # Used to reconstruct the per-trigger log path so logs are captured and uploaded on finish.
+    _log_fname_renderer: Callable[..., str] | None = attrs.field(init=False, default=None)
 
     # Timestamp of the last message received from the TriggerRunner subprocess.  Updated on
     # every message; if it goes silent for longer than runner_health_check_threshold the
@@ -496,21 +540,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return self.make_client()
 
     def make_client(self) -> Client:
-        """
-        Build the API client used to talk to the API server.
+        """Build a REMOTE client pointing at the execution API, authenticated with a minted token."""
+        token = JWTGenerator(
+            valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+            audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
+            issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
+            **get_signing_args(make_secret_key_if_needed=False),
+        ).generate({"sub": _SENTINEL_SUB})
+        return Client(base_url=get_execution_api_server_url(), token=token, dry_run=False)
 
-        Subclasses may override this to substitute a different transport — e.g. a
-        real HTTP client pointing at a remote API server — instead of the default
-        in-process one. The returned client must have ``base_url`` set; downstream
-        request handling (``self.client.variables``, ``.xcoms``, etc.) reads it
-        when issuing requests.
-        """
-        from airflow.sdk.api.client import Client
-
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
-        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"
-        return client
+    @property
+    def triggerer_id(self) -> int:
+        if self._triggerer_id is None:
+            raise RuntimeError(
+                "Triggerer Job has not been registered yet; run_context() must run before this is used."
+            )
+        return self._triggerer_id
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
 
@@ -594,7 +639,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     def run(self) -> None:
-        """Run synchronously and handle all database reads/writes."""
+        """Run the synchronous supervisor loop, orchestrating triggers over the Execution API."""
         with self.run_context():
             while not self.should_stop():
                 if not self.is_alive():
@@ -602,10 +647,41 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     break
                 self.run_once()
 
+    def _register_triggerer_job(self) -> int:
+        """
+        Register the liveness Job over the API, retrying while the api-server is still starting.
+
+        The triggerer can boot before the api-server is ready to serve (they often start together),
+        so a transient error here means "not up yet, wait" rather than a fatal misconfiguration.
+        Retry with capped backoff until ``_STARTUP_REGISTER_TIMEOUT``, then let the error propagate.
+        """
+        deadline = time.monotonic() + _STARTUP_REGISTER_TIMEOUT
+        delay = 1.0
+        while True:
+            try:
+                return self.client.jobs.register("TriggererJob", get_hostname())
+            except _TRANSIENT_API_ERRORS as e:
+                if not _is_transient(e) or time.monotonic() >= deadline:
+                    raise
+                log.warning("Execution API not ready; retrying triggerer Job registration", exc_info=True)
+                time.sleep(delay)
+                delay = min(delay * 2, 10.0)
+
     @contextmanager
     def run_context(self) -> Iterator[None]:
-        """Wrap the run loop. Subclasses can override to install setup/teardown."""
-        yield
+        """Register a Job over the API once before the run loop starts; finalize it on shutdown."""
+        self._triggerer_id = self._register_triggerer_job()
+        log.info("Registered triggerer Job via Execution API", triggerer_id=self._triggerer_id)
+        try:
+            yield
+        finally:
+            # Stamp the Job's end_date so it isn't left looking RUNNING forever. Best-effort:
+            # a transient API blip here shouldn't mask the real shutdown reason.
+            if self._triggerer_id is not None:
+                try:
+                    self.client.jobs.complete(self._triggerer_id)
+                except _TRANSIENT_API_ERRORS:
+                    log.warning("Failed to finalize triggerer Job via Execution API", exc_info=True)
 
     def should_stop(self) -> bool:
         """Return True when the run loop should exit."""
@@ -625,12 +701,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         self.emit_metrics()
 
-    def heartbeat(self):
-        if self.job is None:
-            raise RuntimeError(
-                "TriggerRunnerSupervisor.heartbeat() requires a Job; "
-                "subclasses without a metadata-DB Job must override this method."
-            )
+    def heartbeat(self) -> None:
+        """
+        Heartbeat the Job over the API, throttled to the job heartrate.
+
+        Keeps the runner-deadlock silence check so a hung event loop still stops heartbeating
+        (which lets the scheduler reassign this triggerer's triggers).
+        """
         elapsed = time.monotonic() - self._last_runner_comms
         if self.runner_health_check_threshold > 0 and elapsed > self.runner_health_check_threshold:
             if not self._runner_comms_silence_logged:
@@ -644,80 +721,105 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self._runner_comms_silence_logged = True
             return
         self._runner_comms_silence_logged = False
-        perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
-    def heartbeat_callback(self, session: Session | None = None) -> None:
+        now = time.monotonic()
+        if self._heartrate > 0 and (now - self._last_heartbeat) < self._heartrate:
+            return
+        try:
+            self.client.jobs.heartbeat(self.triggerer_id)
+        except _TRANSIENT_API_ERRORS as e:
+            if not _is_transient(e):
+                raise
+            # A missed heartbeat is not fatal; the next loop retries. Crashing the loop on a
+            # transient blip would be worse (it'd tear down all running triggers).
+            log.warning("Failed to heartbeat Job via Execution API; will retry next cycle", exc_info=True)
+            return
+        self._last_heartbeat = now
         stats.incr("triggerer_heartbeat", 1, 1)
 
     def load_triggers(self) -> None:
-        """Assign triggers to this triggerer and update the runner with the IDs it should run."""
-        if self.job is None:
-            raise RuntimeError(
-                "TriggerRunnerSupervisor.load_triggers() requires a Job; "
-                "subclasses without a metadata-DB Job must override this method."
+        """Claim triggers over the API and reconcile the runner's running set."""
+        try:
+            ids = self.client.triggers.load(
+                triggerer_id=self.triggerer_id,
+                capacity=self.capacity,
+                health_check_threshold=self.health_check_threshold,
+                queues=list(self.queues) if self.queues else None,
+                team_name=self.team_name,
             )
-        Trigger.assign_unassigned(
-            self.job.id,
-            self.capacity,
-            self.health_check_threshold,
-            queues=self.queues,
-            team_name=self.team_name,
-        )
-        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues, team_name=self.team_name)
+        except _TRANSIENT_API_ERRORS as e:
+            if not _is_transient(e):
+                raise
+            log.warning("Failed to load triggers from Execution API; skipping this cycle", exc_info=True)
+            return
+        # Reuse the base diff logic (works out adds/cancels against what we already run).
         self.update_triggers(set(ids))
 
-    def handle_events(self):
-        """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
+    def handle_events(self) -> None:
+        """
+        Submit fired events over the API, re-queuing on a transient blip.
+
+        Popping the event then submitting it means a raised client call would lose the popped
+        event if the loop crashed. Here a transient error re-queues the event (preserving FIFO
+        order) and stops the loop so it retries next cycle.
+        """
         while self.events:
-            # Get the event and its trigger ID
             trigger_id, event = self.events.popleft()
-            # Tell the model to wake up its tasks
-            self.on_trigger_event(trigger_id=trigger_id, event=event)
-            # Emit stat event
+            try:
+                self.on_trigger_event(trigger_id, event)
+            except _TRANSIENT_API_ERRORS as e:
+                if not _is_transient(e):
+                    raise
+                log.warning(
+                    "Failed to submit trigger event via Execution API; will retry next cycle",
+                    exc_info=True,
+                )
+                self.events.appendleft((trigger_id, event))
+                break
             stats.incr("triggers.succeeded")
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
-        """Record that a trigger fired an event."""
-        Trigger.submit_event(trigger_id=trigger_id, event=event)
+        """Report a fired event over the API (the run loop guards against transient errors)."""
+        # The payload may be a non-JSON-native object (e.g. a pendulum DateTime from a temporal
+        # trigger). Serialize it with serde so it survives the HTTP hop. The server splices this
+        # serde form straight into the task instance's next_kwargs WITHOUT deserializing it -- the
+        # worker deserializes it on resume. This keeps untrusted worker payloads from being
+        # reconstructed inside the trusted api-server.
+        self.client.triggers.submit_event(trigger_id, serde_serialize(event.payload))
 
     def clean_unused(self) -> None:
-        """Remove triggers that are no longer needed."""
-        Trigger.clean_unused()
+        """Ask the server to delete orphaned triggers; tolerate a transient API blip."""
+        try:
+            self.client.triggers.cleanup()
+        except _TRANSIENT_API_ERRORS as e:
+            if not _is_transient(e):
+                raise
+            log.warning("Failed to clean up triggers via Execution API; skipping this cycle", exc_info=True)
 
-    def handle_failed_triggers(self):
-        """
-        Handle "failed" triggers. - ones that errored or exited before they sent an event.
-
-        Task Instances that depend on them need failing.
-        """
+    def handle_failed_triggers(self) -> None:
+        """Submit trigger failures over the API, re-queuing on a transient blip (see ``handle_events``)."""
         while self.failed_triggers:
-            # Tell the model to fail this trigger's deps
             trigger_id, exc = self.failed_triggers.popleft()
-            self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
-            # Emit stat event
+            try:
+                self.on_trigger_failure(trigger_id, exc)
+            except _TRANSIENT_API_ERRORS as e:
+                if not _is_transient(e):
+                    raise
+                log.warning(
+                    "Failed to submit trigger failure via Execution API; will retry next cycle",
+                    exc_info=True,
+                )
+                self.failed_triggers.appendleft((trigger_id, exc))
+                break
             stats.incr("triggers.failed")
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
-        """Record that a trigger failed."""
-        Trigger.submit_failure(trigger_id=trigger_id, exc=exc)
+        """Report a trigger failure over the API (the run loop guards against transient errors)."""
+        self.client.triggers.submit_failure(trigger_id, exc)
 
     def metric_tags(self) -> dict[str, str]:
-        """
-        Return extra tags applied to gauges emitted by :meth:`emit_metrics`.
-
-        Subclasses that don't have a metadata-DB ``Job`` (e.g. AIP-92 Execution-API-backed
-        triggerers) **must** override this to supply ``hostname`` (and any other identity
-        tags) from another source. ``triggers.running`` and ``triggerer.capacity_left``
-        declare ``hostname`` as a required name variable in ``metrics_template.yaml``, so
-        an empty dict here would crash :meth:`emit_metrics` on every tick.
-        """
-        hostname = self.job.hostname if self.job is not None else None
-        if hostname is None:
-            raise RuntimeError(
-                "TriggerRunnerSupervisor.metric_tags() requires a Job with a hostname; "
-                "subclasses without a metadata-DB Job must override this method."
-            )
-        return {"hostname": hostname}
+        """Supply the ``hostname`` tag from the host (the supervisor has no metadata-DB Job row)."""
+        return {"hostname": get_hostname()}
 
     def emit_metrics(self):
         tags = self.metric_tags()
@@ -734,124 +836,58 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             tags=tags,
         )
 
-    def _create_workload(
-        self,
-        trigger: Trigger,
-        dag_bag: DBDagBag,
-        render_log_fname: Callable[..., str],
-        session: Session,
-    ) -> workloads.RunTrigger | None:
-        if trigger.task_instance is None:
-            return workloads.RunTrigger(
-                id=trigger.id,
-                classpath=trigger.classpath,
-                encrypted_kwargs=trigger.encrypted_kwargs,
-            )
+    def _trigger_log_id(self) -> int:
+        """
+        Return the id embedded in the on-disk trigger log filename.
 
-        if not trigger.task_instance.dag_version_id:
-            # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
-            log.warning(
-                "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
-                ti_id=trigger.task_instance.id,
-            )
-            return None
+        The reader side (``FileTaskHandler.add_triggerer_suffix``) formats the suffix from
+        ``ti.triggerer_job.id`` (an int). Use the registered Job id so the writer's filename
+        matches the reader's expectation.
+        """
+        return self.triggerer_id
 
-        log_path = render_log_fname(ti=trigger.task_instance)
-        ser_ti = TaskInstanceDTO.model_validate(trigger.task_instance, from_attributes=True)
-
+    def _register_trigger_logger(self, trigger_id: int, ser_ti: TaskInstanceDTO, log_path: str) -> None:
         # When producing logs from TIs, include the supervisor id producing the logs to disambiguate it.
-        # Note: with a Job this is an int (Job.id); without a Job it's a UUID. The reader side
-        # (FileTaskHandler.add_triggerer_suffix) currently formats the suffix from
-        # ``ti.triggerer_job.id``, which only resolves the int form — AIP-92 subclasses without a
-        # metadata Job need their own log retrieval path.
-        log_id = self.job.id if self.job is not None else self.id
-        self.logger_cache[trigger.id] = TriggerLoggingFactory(
+        log_id = self._trigger_log_id()
+        self.logger_cache[trigger_id] = TriggerLoggingFactory(
             log_path=f"{log_path}.trigger.{log_id}.log",
             ti=ser_ti,  # type: ignore
         )
 
-        serialized_dag_model = dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id,
-            session=session,
-        )
-
-        if serialized_dag_model:
-            task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
-
-            # When a TaskInstance of a Trigger contains a task with start_from_trigger enabled,
-            # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
-            # will allow us to build a context on which we will render the templated fields.
-            if task.start_from_trigger:
-                log.info("Start from trigger enabled for task %s", task.task_id)
-                dag_run = trigger.task_instance.get_dagrun(session=session)
-
-                return workloads.RunTrigger(
-                    id=trigger.id,
-                    classpath=trigger.classpath,
-                    encrypted_kwargs=trigger.encrypted_kwargs,
-                    ti=ser_ti,
-                    timeout_after=trigger.task_instance.trigger_timeout,
-                    dag_data=serialized_dag_model.data,
-                    dag_run_data=dag_run.dag_run_data.model_dump(exclude_unset=True),
-                )
-        return workloads.RunTrigger(
-            id=trigger.id,
-            classpath=trigger.classpath,
-            encrypted_kwargs=trigger.encrypted_kwargs,
-            ti=ser_ti,
-            timeout_after=trigger.task_instance.trigger_timeout,
-        )
-
-    def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:
-        """Fetch trigger rows by ID."""
-        return Trigger.bulk_fetch(trigger_ids, session=session)
-
-    def fetch_non_task_trigger_ids(self, *, session: Session) -> set[int]:
-        """Fetch trigger IDs associated with non-task entities."""
-        return Trigger.fetch_trigger_ids_with_non_task_associations(session=session)
+    def _render_log_path(self, ti: TaskInstanceDTO) -> str:
+        if self._log_fname_renderer is None:
+            self._log_fname_renderer = log_filename_template_renderer()
+        return self._log_fname_renderer(ti=ti)
 
     def build_trigger_workloads(self, new_trigger_ids: set[int]) -> list[workloads.RunTrigger]:
-        """Build workloads for new trigger IDs."""
-        dag_bag = DBDagBag()
-        render_log_fname = log_filename_template_renderer()
-        with create_session() as session:
-            new_triggers = self.fetch_trigger_details(new_trigger_ids, session=session)
-            trigger_ids_with_non_task_associations = self.fetch_non_task_trigger_ids(session=session)
-            to_create: list[workloads.RunTrigger] = []
-            for new_trigger_id in new_trigger_ids:
-                # Check it didn't vanish in the meantime
-                if new_trigger_id not in new_triggers:
-                    log.warning("Trigger disappeared before we could start it", id=new_trigger_id)
-                    continue
+        """
+        Fetch workloads for newly-claimed triggers over the API and register their loggers.
 
-                new_trigger_orm = new_triggers[new_trigger_id]
+        On a transient API blip we return an empty list: the triggers stay assigned to us and get
+        re-fetched on the next load cycle, so nothing is lost.
+        """
+        try:
+            raw = self.client.triggers.workloads(list(new_trigger_ids))
+        except _TRANSIENT_API_ERRORS as e:
+            if not _is_transient(e):
+                raise
+            log.warning(
+                "Failed to fetch trigger workloads from Execution API; will retry next cycle",
+                exc_info=True,
+            )
+            return []
 
-                # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
-                # row was updated by either Trigger.submit_event or Trigger.submit_failure
-                # and can happen when a single trigger Job is being run on multiple TriggerRunners
-                # in a High-Availability setup.
-                if (
-                    new_trigger_orm.task_instance is None
-                    and new_trigger_id not in trigger_ids_with_non_task_associations
-                ):
-                    log.info(
-                        (
-                            "TaskInstance of Trigger is None. It was likely updated by another trigger job. "
-                            "Skipping trigger instantiation."
-                        ),
-                        id=new_trigger_id,
-                    )
-                    continue
+        # The client returns the workloads as raw dicts (it must not import the core RunTrigger
+        # type); validate them into RunTrigger objects here in airflow-core.
+        built = [workloads.RunTrigger.model_validate(w) for w in raw]
 
-                if workload := self._create_workload(
-                    trigger=new_trigger_orm,
-                    dag_bag=dag_bag,
-                    render_log_fname=render_log_fname,
-                    session=session,
-                ):
-                    to_create.append(workload)
-
-        return to_create
+        # Register a per-trigger logging factory for each task-backed workload so its logs are
+        # captured and uploaded on finish. The workloads come over HTTP, so we re-derive the log
+        # path here from the (DB-free) filename renderer and the workload's TaskInstanceDTO.
+        for workload in built:
+            if workload.ti is not None:
+                self._register_trigger_logger(workload.id, workload.ti, self._render_log_path(workload.ti))
+        return built
 
     def update_triggers(self, requested_trigger_ids: set[int]):
         """

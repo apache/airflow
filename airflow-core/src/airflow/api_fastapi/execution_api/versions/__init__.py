@@ -50,9 +50,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddConnectionTestEndpoint,
     AddVariableKeysEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_07_14 import AddJobEndpoints, AddTriggerEndpoints
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-07-14", AddTriggerEndpoints, AddJobEndpoints),
     Version("2026-06-30", AddVariableKeysEndpoint, AddConnectionTestEndpoint),
     Version(
         "2026-06-16",

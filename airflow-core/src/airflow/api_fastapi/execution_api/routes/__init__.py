@@ -29,9 +29,11 @@ from airflow.api_fastapi.execution_api.routes import (
     dags,
     health,
     hitl,
+    jobs,
     task_instances,
     task_reschedules,
     task_store,
+    triggers,
     variables,
     xcoms,
 )
@@ -60,5 +62,7 @@ authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 authenticated_router.include_router(task_store.router, prefix="/store/ti", tags=["Task Store"])
 authenticated_router.include_router(asset_store.router, prefix="/store/asset", tags=["Asset Store"])
+authenticated_router.include_router(triggers.router, prefix="/triggers", tags=["Triggers"])
+authenticated_router.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
 
 execution_api_router.include_router(authenticated_router)

@@ -2006,3 +2006,136 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_store.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
+
+
+class TestTriggerOperations:
+    """Exercise the AIP-92 triggerer client operations against a mock transport."""
+
+    def test_load_posts_body_and_returns_ids(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/triggers/load"
+            assert json.loads(request.content) == {
+                "triggerer_id": 7,
+                "capacity": 100,
+                "health_check_threshold": 30.0,
+                "queues": ["default"],
+                "team_name": None,
+            }
+            return httpx.Response(status_code=200, json={"trigger_ids": [1, 2, 3]})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.triggers.load(
+            triggerer_id=7, capacity=100, health_check_threshold=30.0, queues=["default"]
+        )
+        assert result == [1, 2, 3]
+
+    def test_workloads_returns_raw_dicts(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/triggers/workloads"
+            assert json.loads(request.content) == {"trigger_ids": [9]}
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "workloads": [
+                        {
+                            "id": 9,
+                            "classpath": "airflow.triggers.testing.SuccessTrigger",
+                            "encrypted_kwargs": "x",
+                            "type": "RunTrigger",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.triggers.workloads([9])
+        # The SDK client returns the raw dicts; the core supervisor validates them into RunTrigger.
+        assert result == [
+            {
+                "id": 9,
+                "classpath": "airflow.triggers.testing.SuccessTrigger",
+                "encrypted_kwargs": "x",
+                "type": "RunTrigger",
+            }
+        ]
+
+    def test_submit_event(self):
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        # The caller serde-serializes the payload; the wire body carries that serialized form
+        # verbatim. The server stores it without deserializing (the worker deserializes on resume).
+        payload = serde_serialize({"result": "ok"})
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/triggers/5/event"
+            assert json.loads(request.content) == {"payload": payload}
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.submit_event(5, payload) is None
+
+    def test_submit_failure_sends_list_unchanged(self):
+        # The traceback must stay a list end-to-end so the worker's "\n".join(traceback)
+        # renders it line-by-line rather than one character per line.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/triggers/5/failure"
+            assert json.loads(request.content) == {"error": ["line1\n", "line2\n"]}
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.submit_failure(5, ["line1\n", "line2\n"]) is None
+
+    def test_submit_failure_none(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content) == {"error": None}
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.submit_failure(5, None) is None
+
+    def test_cleanup(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/triggers/cleanup"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.cleanup() is None
+
+
+class TestJobOperations:
+    """Exercise the AIP-92 Job register/heartbeat client operations against a mock transport."""
+
+    def test_register_posts_to_jobs_and_returns_id(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            # No trailing slash: the route is registered at exactly /jobs so the client
+            # does not hit a 307 redirect (httpx does not follow redirects by default).
+            assert request.url.path == "/jobs"
+            assert json.loads(request.content) == {"job_type": "TriggererJob", "hostname": "triggerer-host"}
+            return httpx.Response(status_code=201, json={"job_id": 42})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.jobs.register("TriggererJob", "triggerer-host") == 42
+
+    def test_heartbeat(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/jobs/42/heartbeat"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.jobs.heartbeat(42) is None
+
+    def test_complete(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/jobs/42/complete"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        assert client.jobs.complete(42) is None

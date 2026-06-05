@@ -234,6 +234,81 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
+def test_submit_event_serialized_resume_roundtrips_without_deserializing(session, create_task_instance):
+    """
+    ``submit_event_serialized`` resumes a deferred task by splicing the already serde-serialized
+    payload into ``next_kwargs`` (the api-server never materializes it). A non-JSON-native value
+    proves the splice survives a full serde round-trip when the worker deserializes on resume.
+    """
+    from airflow.sdk.serde import deserialize as serde_deserialize, serialize as serde_serialize
+
+    payload = pendulum.datetime(2024, 1, 2, 3, 4, 5, tz="UTC")
+    serialized_payload = serde_serialize(payload)
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"cheesecake": True}
+    session.commit()
+
+    Trigger.submit_event_serialized(trigger.id, serialized_payload, session=session)
+    session.flush()
+    session.refresh(task_instance)
+
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.trigger_id is None
+    # next_kwargs holds the spliced serde form; deserializing it (what the worker does on resume)
+    # reconstructs the original datetime alongside the pre-existing kwargs.
+    assert serde_deserialize(task_instance.next_kwargs) == {"event": payload, "cheesecake": True}
+
+
+@patch.object(TriggererCallback, "handle_event")
+def test_submit_event_serialized_notifies_assets_and_callbacks(
+    mock_callback_handle_event, session, create_task_instance
+):
+    """
+    ``submit_event_serialized`` notifies associated assets and callbacks with the *materialized*
+    payload (deserialized via serde, which is allowlist-gated), while still resuming deferred tasks.
+    """
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    # JSON-native payload: the asset_event.extra column is plain JSON (the DB-path test uses a
+    # plain string for the same reason), so the materialized object must be JSON-serializable.
+    payload = {"result": "ok"}
+    serialized_payload = serde_serialize(payload)
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+
+    asset = AssetModel("test_serialized")
+    asset.add_trigger(trigger, "test_asset_watcher")
+    session.add(asset)
+
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    callback.trigger = trigger
+    session.add(callback)
+    session.commit()
+
+    Trigger.submit_event_serialized(trigger.id, serialized_payload, session=session)
+    session.flush()
+    session.refresh(task_instance)
+
+    assert task_instance.state == State.SCHEDULED
+
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
+    (called_event, called_session), _ = mock_callback_handle_event.call_args
+    assert called_event.payload == payload
+    assert called_session is session
+
+
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
