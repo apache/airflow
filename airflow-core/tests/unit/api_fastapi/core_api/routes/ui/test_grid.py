@@ -24,6 +24,7 @@ from operator import attrgetter
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
@@ -33,7 +34,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -151,7 +152,7 @@ def examples_dag_bag():
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None):
+def setup(dag_maker, *, session: Session = NEW_SESSION):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -836,7 +837,7 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {
-                "child_states": {"None": 1},
+                "child_states": {"none": 1},
                 "dag_version_number": 1,
                 "task_id": "mapped_task_2",
                 "task_display_name": "mapped_task_2",
@@ -845,7 +846,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"success": 1, "running": 1, "None": 1},
+                "child_states": {"success": 1, "running": 1, "none": 1},
                 "dag_version_number": 1,
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
@@ -872,7 +873,7 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 6},
+                "child_states": {"none": 6},
                 "dag_version_number": 1,
                 "task_id": "task_group",
                 "task_display_name": "task_group",
@@ -881,7 +882,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group",
                 "task_display_name": "task_group.inner_task_group",
@@ -890,7 +891,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
                 "task_display_name": "Inner Task Group Sub Task Label",
@@ -899,7 +900,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 4},
+                "child_states": {"none": 4},
                 "dag_version_number": 1,
                 "task_id": "task_group.mapped_task",
                 "task_display_name": "task_group.mapped_task",

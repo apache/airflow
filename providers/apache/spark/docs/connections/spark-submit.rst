@@ -49,6 +49,15 @@ Spark binary (optional)
 Kubernetes namespace (optional, only applies to spark on kubernetes applications)
     Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
 
+REST scheme (optional, only applies to Spark standalone cluster mode)
+    Scheme used to reach the Spark standalone REST API (``http`` or ``https``). Defaults to ``http``.
+    Set to ``https`` when the Spark master REST API is TLS-enabled
+    (``spark.ssl.standalone.enabled=true``).
+
+REST port (optional, only applies to Spark standalone cluster mode)
+    Port of the Spark standalone REST API (``spark.master.rest.port``). Defaults to ``6066``.
+    Override when your cluster uses a non-default REST port.
+
 .. note::
 
   When specifying the connection in environment variable you should specify

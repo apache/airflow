@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -225,6 +225,12 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "enableServiceLinks": {
+            "description": "Enable Kubernetes service links. The default is false in Chart 2.0.",
+            "type": "boolean",
+            "default": false,
+            "x-docsSection": "Kubernetes"
         },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
@@ -968,7 +974,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.29.0"
+                            "default": "v0.30.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -1143,7 +1149,7 @@
             ]
         },
         "volumes": {
-            "description": "Volumes for all Airflow containers.",
+            "description": "Volumes for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -1152,7 +1158,7 @@
             }
         },
         "volumeMounts": {
-            "description": "VolumeMounts for all Airflow containers.",
+            "description": "VolumeMounts for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -5758,6 +5764,10 @@
                                 "description": "Name of the Dag bundle.",
                                 "type": "string"
                             },
+                            "team_name": {
+                                "description": "Team name for the Dag bundle.",
+                                "type": "string"
+                            },
                             "classpath": {
                                 "description": "Class path of the Dag bundle class.",
                                 "type": "string"
@@ -9020,7 +9030,7 @@
                     "default": 100
                 },
                 "configSecretName": {
-                    "description": "The PgBouncer config Secret name.",
+                    "description": "The PgBouncer config Secret name (templated).",
                     "type": [
                         "string",
                         "null"
