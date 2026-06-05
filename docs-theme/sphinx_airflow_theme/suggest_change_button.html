@@ -1,0 +1,82 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% if meta is defined and meta is not none %}
+    {% set check_meta = True %}
+{% else %}
+    {% set check_meta = False %}
+{% endif %}
+
+{% if check_meta and 'github_url' in meta %}
+    {% set display_github = True %}
+{% endif %}
+
+{% if check_meta and 'github_url' in meta %}
+    {% set display_github = True %}
+{% endif %}
+
+{% if hasdoc(pagename) %}
+    {% if display_github %}
+        {% if check_meta and 'github_url' in meta %}
+            {% set github_link = meta['github_url'] %}
+        {% else %}
+            {% set github_link = 'https://' ~ github_host|default("github.com") ~ '/' ~  github_user ~ '/' ~ github_repo ~ '/' ~ theme_vcs_pageview_mode|default("blob") ~ '/' ~  github_version ~ conf_py_path ~ pagename ~ suffix %}
+        {% endif %}
+        <div class="base-layout--button fade-target">
+            <button class="btn-hollow btn-brown with-box-shadow btn-with-icon"
+            onclick="window.scrollTo({ top: 0, behavior: 'smooth' });"
+            aria-label="Scroll to top"
+            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="black" viewBox="0 0 16 16">
+                <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z"></path>
+            </svg>
+            </button>
+            <a href="{{ github_link }}" rel="nofollow" class="suggest-change-link">
+
+                <button class="btn-hollow btn-brown btn-with-icon with-box-shadow button-fixed">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30.76" height="30">
+                        <path d="M15.379 0a15.381 15.381 0 00-4.86 29.974c.769.141 1.05-.334 1.05-.741 0-.365-.013-1.332-.021-2.616-4.278.929-5.181-2.062-5.181-2.062a4.071 4.071 0 00-1.708-2.25c-1.4-.954.106-.935.106-.935a3.231 3.231 0 012.356 1.585 3.274 3.274 0 004.476 1.278 3.287 3.287 0 01.976-2.056c-3.415-.388-7.005-1.707-7.005-7.6a5.947 5.947 0 011.583-4.127 5.53 5.53 0 01.151-4.07s1.291-.413 4.229 1.577a14.577 14.577 0 017.7 0c2.936-1.99 4.225-1.577 4.225-1.577a5.523 5.523 0 01.153 4.07 5.937 5.937 0 011.581 4.127c0 5.909-3.6 7.209-7.022 7.589a3.672 3.672 0 011.044 2.848c0 2.056-.019 3.715-.019 4.219 0 .411.277.89 1.057.74A15.382 15.382 0 0015.378.001z" data-name="Path 224" fill="#51504f" fill-rule="evenodd"></path>
+                    </svg>
+
+                    <span class="bodytext__medium--brownish-grey">{{ _('Suggest a change on this page') }}</span>
+                </button>
+            </a>
+        </div>
+    {% else %}
+        {% if source_url_prefix %}
+            {% set sourcce_link =  source_url_prefix ~ pagename ~ suffix %}
+        {% elif has_source and sourcename %}
+            {% set sourcce_link =  pathto('_sources/' + sourcename, true)|e %}
+        {% else %}
+            {% set sourcce_link = None %}
+        {% endif %}
+        <div class="base-layout--button">
+            <a href="{{ source_link }}" rel="nofollow">
+
+                <button class="btn-hollow btn-brown btn-with-icon with-box-shadow button-fixed">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30.76" height="30">
+                        <path d="M15.379 0a15.381 15.381 0 00-4.86 29.974c.769.141 1.05-.334 1.05-.741 0-.365-.013-1.332-.021-2.616-4.278.929-5.181-2.062-5.181-2.062a4.071 4.071 0 00-1.708-2.25c-1.4-.954.106-.935.106-.935a3.231 3.231 0 012.356 1.585 3.274 3.274 0 004.476 1.278 3.287 3.287 0 01.976-2.056c-3.415-.388-7.005-1.707-7.005-7.6a5.947 5.947 0 011.583-4.127 5.53 5.53 0 01.151-4.07s1.291-.413 4.229 1.577a14.577 14.577 0 017.7 0c2.936-1.99 4.225-1.577 4.225-1.577a5.523 5.523 0 01.153 4.07 5.937 5.937 0 011.581 4.127c0 5.909-3.6 7.209-7.022 7.589a3.672 3.672 0 011.044 2.848c0 2.056-.019 3.715-.019 4.219 0 .411.277.89 1.057.74A15.382 15.382 0 0015.378.001z" data-name="Path 224" fill="#51504f" fill-rule="evenodd"></path>
+                    </svg>
+
+                    <span class="bodytext__medium--brownish-grey">{{ _('View page source') }}</span>
+                </button>
+            </a>
+        </div>
+    {% endif %}
+{% endif %}
