@@ -146,6 +146,20 @@ Curated toolset wrapping
 The ``DbApiHook`` is resolved lazily from ``db_conn_id`` on first tool call
 via ``BaseHook.get_connection(conn_id).get_hook()``.
 
+In read-only mode (``allow_writes=False``, the default) the ``query`` tool also
+accepts read-only metadata statements -- ``DESCRIBE``/``DESC`` and ``SHOW`` --
+in addition to SELECT-family queries. Agents commonly open with ``DESCRIBE`` to
+learn a table's columns, so permitting it keeps runs deterministic instead of
+hard-failing on schema discovery. The toolset passes the connection's dialect to
+the validator, so ``SHOW`` is recognized on databases that support it (Snowflake,
+MySQL, etc.); on databases without ``SHOW`` it stays rejected. Data-modifying
+statements remain blocked -- including ones hidden behind ``DESCRIBE``/``EXPLAIN``
+(e.g. ``EXPLAIN DELETE ...``, ``DESCRIBE DROP TABLE ...``), which the validator
+rejects by scanning the parsed statement for write operations. Like ``SELECT``,
+metadata statements are not scoped by ``allowed_tables`` (see
+:ref:`allowed-tables-limitation`) -- an agent can ``DESCRIBE`` a table outside the
+list, so rely on database permissions to restrict access.
+
 Multi-schema warehouses
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -180,7 +194,8 @@ Parameters
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
-  Default ``False`` — only SELECT-family statements are permitted.
+  Default ``False`` -- only SELECT-family and read-only metadata
+  (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
 ``DataFusionToolset``
@@ -534,7 +549,9 @@ No single layer is sufficient — they work together.
      - Does not restrict what arguments the agent passes to allowed methods.
    * - **SQLToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
-       ``validate_sql()`` and rejects INSERT, UPDATE, DELETE, DROP, etc.
+       ``validate_sql()``: SELECT-family and read-only metadata
+       (``DESCRIBE``/``SHOW``) statements pass; INSERT, UPDATE, DELETE, DROP,
+       and writes hidden behind ``EXPLAIN`` are rejected.
      - Does not prevent the agent from reading sensitive data that the
        database user has SELECT access to.
    * - **DataFusionToolset: read-only by default**

@@ -24,7 +24,10 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
-    from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
+    from airflow.providers.common.ai.utils.sql_validation import (
+        resolve_sqlglot_dialect,
+        validate_sql as _validate_sql,
+    )
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -297,11 +300,23 @@ class SQLToolset(AbstractToolset[Any]):
         columns = hook.get_table_schema(table, schema=schema)
         return json.dumps(columns)
 
-    def _query(self, sql: str) -> str:
-        if not self._allow_writes:
-            _validate_sql(sql)
-
+    def _dialect_for_validation(self) -> str | None:
+        """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
+        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+
+    def _query(self, sql: str) -> str:
+        hook = self._get_db_hook()
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            _validate_sql(
+                sql,
+                dialect=self._dialect_for_validation(),
+                allow_read_only_metadata=True,
+            )
+
         try:
             rows = hook.get_records(sql)
         except Exception as e:
@@ -347,8 +362,13 @@ class SQLToolset(AbstractToolset[Any]):
         return False
 
     def _check_query(self, sql: str) -> str:
+        # Resolve the dialect best-effort: if the connection can't be reached we
+        # still syntax-check dialect-agnostically rather than reporting invalid.
+        dialect: str | None = None
+        with suppress(Exception):
+            dialect = self._dialect_for_validation()
         try:
-            _validate_sql(sql)
+            _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
             return json.dumps({"valid": True})
         except Exception as e:
             return json.dumps({"valid": False, "error": str(e)})
