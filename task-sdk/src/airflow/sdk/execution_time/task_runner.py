@@ -1547,7 +1547,7 @@ def run(
             except Exception:
                 log.exception(
                     "Failed to report terminal task state to supervisor",
-                    state=state.value,
+                    state=state.value if state is not None else None,
                 )
                 # Fail closed for FAILED / UP_FOR_RETRY: when the supervisor
                 # never receives the terminal-state message, exiting 0 would
