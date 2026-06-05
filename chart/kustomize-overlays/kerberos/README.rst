@@ -46,23 +46,6 @@ Prerequisites
   ConfigMaps, Secrets, ServiceAccounts/Roles/RoleBindings, and Jobs in
   that namespace.
 
-Resources produced
-------------------
-
-* ``ConfigMap/<release>-krb5-conf`` - ``krb5.conf`` with the test realm
-  ``EXAMPLE.COM`` and the in-cluster KDC service as ``kdc``/``admin_server``.
-* ``Deployment/<release>-kerberos-kdc`` - single-replica MIT Kerberos
-  KDC + kadmind, image ``gcavalcante8808/krb5-server:latest``.
-* ``Service/<release>-kerberos-kdc`` - exposes 88 TCP+UDP and 749 TCP.
-* ``ServiceAccount`` + ``Role`` + ``RoleBinding`` named
-  ``<release>-kerberos-bootstrap`` - minimum permissions for the
-  bootstrap Job (pod exec + secret create/update in the same namespace).
-* ``Job/<release>-keytab-bootstrap`` - waits for the KDC to be Ready,
-  runs ``kadmin.local`` against it to create the principal and write
-  the keytab, then stores the keytab in:
-* ``Secret/<release>-kerberos-keytab`` (created by the Job) - holds
-  ``airflow.keytab`` under that key.
-
 Usage
 -----
 
@@ -99,8 +82,8 @@ during the local and CI smoke test.
 Wiring the keytab into the chart's sidecar
 ------------------------------------------
 
-The chart's kerberos sidecar (``workers.kerberosSidecar``,
-``workers.celery.kerberosSidecar``) mounts a Secret named in
+The chart's kerberos sidecar (``workers.celery.kerberosInitContainer`,
+``workers.celery.kerberosSidecar``, ``workers.kubernetes.kerberosInitContainer`, ``workers.kubernetes.kerberosSidecar``) mounts a Secret named in
 ``kerberos.keytab``. Point that at the Secret produced by this overlay:
 
 .. code-block:: yaml
@@ -113,8 +96,9 @@ The chart's kerberos sidecar (``workers.kerberosSidecar``,
       principal: airflow/airflow.airflow.svc.cluster.local@EXAMPLE.COM
 
     workers:
-      kerberosSidecar:
-        enabled: true
+      celery:
+        kerberosSidecar:
+          enabled: true
 
     extraSecrets:
       airflow-kerberos-keytab: {}   # exists from this overlay
@@ -172,25 +156,8 @@ To run the smoke test locally:
     breeze k8s deploy-airflow
     breeze k8s smoke-test-overlay kerberos --promote-status
 
-The ``--promote-status`` flag rewrites this overlay's ``STATUS.yaml``
-in place on a green run (chart-version from ``chart/Chart.yaml`` plus
-today's date). Without it the smoke test still runs and verifies, it
-just leaves ``STATUS.yaml`` untouched.
+.. note::
 
-The ``build-k8s-image`` + ``upload-k8s-image`` pair is required locally
-because the chart's default image lives on ghcr.io behind CI auth;
-without those steps ``deploy-airflow`` will fail with ImagePullBackOff
-(HTTP 403). CI itself runs ``breeze k8s run-complete-tests`` which
-chains all of the above.
+   ``--rebuild-base-image`` flag is only needed during the first run
 
-The smoke test runner takes care of this overlay's own images itself:
-``gcavalcante8808/krb5-server`` (KDC pod) and ``alpine/k8s`` (bootstrap
-Job) are auto-discovered from the rendered manifest and pre-loaded into
-every kind node before apply, so the test does not depend on a live
-Docker Hub pull at run time. See ``chart/kustomize-overlays/CONTRIBUTING.rst``
-"What ``smoke-test-overlay`` does for every overlay" for the generic
-machinery.
 
-See ``CONTRIBUTING.rst`` in this directory's parent for the lifecycle
-and the difference between the structural ``build_kustomize_overlays``
-prek hook (which runs on every commit) and this functional smoke test.

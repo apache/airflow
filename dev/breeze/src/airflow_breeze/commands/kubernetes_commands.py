@@ -727,18 +727,16 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # turn the scheduled K8s test job red. Auto-bumped by
 # scripts/ci/prek/upgrade_important_versions.py.
 #
-# Scope: ONLY images referenced by the regular K8s system tests under
+# Scope: ONLY images referenced by the regular K8S system tests under
 # kubernetes-tests/tests/kubernetes_tests/ (the suite `breeze k8s tests`
 # runs against the deployed chart). Images that appear in a kustomize
 # overlay under chart/kustomize-overlays/<name>/ must NOT be added here:
 # `breeze k8s smoke-test-overlay` auto-discovers them from the rendered
 # manifest via _discover_overlay_images() and preloads them with the same
-# pull-and-kind-load pattern, so adding a new overlay image is literally
-# "edit the overlay manifest, done" — no second list to maintain. If a
-# per-overlay pytest module needs to spawn an ad-hoc client pod, prefer
-# reusing an image already declared by the overlay (so it inherits the
-# auto-preload for free); add to this list only as a last resort and only
-# if the image is also useful to the non-overlay K8s tests.
+# pull-and-kind-load pattern. If a per-overlay pytest module needs to spawn
+# an ad-hoc client pod, prefer reusing an image already declared by the
+# overlay (inherits the auto-preload by default); add to this list only
+# if the image is also useful to the non-overlay K8S tests.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "alpine:3.24.1",  # xcom_sidecar default in providers/cncf/kubernetes
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
@@ -2981,12 +2979,10 @@ def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | No
 # ---------------------------------------------------------------------------
 
 KUSTOMIZE_OVERLAYS_PATH = CHART_PATH / "kustomize-overlays"
-# Behavioural overlay tests live under chart/tests/overlay_tests/ (NOT
-# kubernetes-tests/) so they sit next to the overlay manifests and the
-# rest of chart-adjacent pytest content. They are NOT discovered by
-# `breeze testing helm-tests --test-type all` because `overlay_tests` is
-# in chart/pyproject.toml's norecursedirs — only this command (which
-# invokes pytest by explicit path) sees them.
+# Behavioural overlay tests live under chart/tests/overlay_tests/.
+# They are NOT discovered by `breeze testing helm-tests --test-type all`
+# because `overlay_tests` is in chart/pyproject.toml's norecursedirs
+# — only this command (which invokes pytest by explicit path) sees them.
 OVERLAY_TESTS_DIR = CHART_PATH / "tests" / "overlay_tests"
 
 
@@ -3027,9 +3023,8 @@ def _load_overlay_verify_block(overlay_dir: Path) -> dict[str, Any]:
 
 
 # Container `state.waiting.reason` values that indicate the pod is not going
-# to recover without operator intervention (image is missing, image name is
-# malformed, container is in a tight crash loop). Treated as immediate
-# verify-block failure rather than waited out to the configured timeout.
+# to recover without human intervention. Treated as an immediate
+# verify-block failure rather than waiting for the configured timeout.
 _TERMINAL_POD_WAITING_REASONS: frozenset[str] = frozenset(
     {
         "ImagePullBackOff",
@@ -3298,10 +3293,9 @@ class _SequenceIndentingDumper(yaml.SafeDumper):
 def _promote_overlay_status(overlay_dir: Path) -> int:
     """Rewrite STATUS.yaml in-place to ``status: tested``.
 
-    Preserves everything above the YAML document separator ``---``
-    verbatim (license header + any explanatory comments). Re-emits the
-    document body with status fields refreshed and the existing
-    ``verify:`` block carried over.
+    Preserves everything above the YAML document separator ``---``.
+    Re-emits the document body with status fields refreshed and the
+    existing ``verify:`` block carried over.
 
     Idempotent: if the overlay is already ``tested``, ``chart-version``
     and ``last-verified`` are refreshed to current values. ``deprecated``
@@ -3376,12 +3370,7 @@ def _run_overlay_pytest(
 
 
 def _is_ci() -> bool:
-    """Detect GitHub Actions / generic CI via the conventional CI=true env var.
-
-    Matches the existing pattern used elsewhere in breeze (e.g.
-    ``sync_virtualenv`` in kubernetes_utils.py), so the behaviour is
-    consistent: anything keyed off "are we in CI" reads the same signal.
-    """
+    """Detect GitHub Actions / generic CI."""
     return os.environ.get("CI", "").lower() == "true"
 
 
