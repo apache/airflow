@@ -41,6 +41,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.base import BaseToolset
+from airflow.providers.common.ai.utils.callables import is_async_callable
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -187,7 +188,7 @@ def _build_structured_tool_from_spec(
 
     def _sync_call(**kwargs: Any) -> Any:
         try:
-            if asyncio.iscoroutinefunction(spec.fn):
+            if is_async_callable(spec.fn):
                 return _run_coro_sync(spec.fn(**kwargs))
             return spec.fn(**kwargs)
         except ModelRetry as e:
@@ -195,7 +196,7 @@ def _build_structured_tool_from_spec(
 
     async def _async_call(**kwargs: Any) -> Any:
         try:
-            if asyncio.iscoroutinefunction(spec.fn):
+            if is_async_callable(spec.fn):
                 return await spec.fn(**kwargs)
             return spec.fn(**kwargs)
         except ModelRetry as e:

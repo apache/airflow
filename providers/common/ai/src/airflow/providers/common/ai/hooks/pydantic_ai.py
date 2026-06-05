@@ -298,6 +298,12 @@ class PydanticAIHook(DurableAgentMixin, BaseAIHook[PydanticAgentHandle]):
                     [type(toolset).__name__ for toolset in processed],
                 )
 
+        if isinstance(request.output_type, dict):
+            raise ValueError(
+                "PydanticAIHook does not support raw JSON schema mappings for output_type. "
+                "Pass a Python type, such as a Pydantic BaseModel subclass."
+            )
+
         agent_kwargs: dict[str, Any] = {"instructions": request.instructions, **extra_kwargs}
         if request.output_type is not None:
             agent_kwargs["output_type"] = request.output_type

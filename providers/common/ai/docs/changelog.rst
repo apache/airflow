@@ -53,6 +53,14 @@ and :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.run_age
 DAG authors using :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
 ``@task.agent``, and the other LLM operators are unaffected.
 
+``SQLToolset`` now implements the framework-neutral
+:class:`~airflow.providers.common.ai.hooks.base.BaseToolset` interface instead of
+pydantic-ai's ``AbstractToolset`` interface. DAG authors using ``SQLToolset``
+with ``AgentOperator`` or ``@task.agent`` are unaffected. Direct pydantic-ai
+``Agent(toolsets=[SQLToolset(...)])`` callers should use
+``AgentOperator(toolsets=[SQLToolset(...)])`` or pass the SQL tool callables
+through an Airflow agent hook request.
+
 0.4.0
 .....
 

@@ -19,10 +19,12 @@ from __future__ import annotations
 import functools
 import json
 import sys
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.agent import DynamicToolset
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.test import TestModel
@@ -45,6 +47,9 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIVertexHook,
 )
 from airflow.providers.common.ai.mixins.durable import DurableState
+
+if TYPE_CHECKING:
+    from pydantic_ai.toolsets import AbstractToolset
 
 
 def _test_agent() -> Agent[None, str]:
@@ -455,6 +460,25 @@ class TestPydanticAIHookCreateAgent:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_rejects_raw_json_schema_output_type(self, mock_agent_cls, mock_infer_model):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(
+            prompt="hi",
+            output_type={"type": "object", "properties": {}},  # type: ignore[arg-type]
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="raw JSON schema mappings"):
+                hook.create_agent(request)
+
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     def test_create_agent_rejects_tools_in_agent_params_with_toolsets(self, mock_agent_cls, mock_infer_model):
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -649,6 +673,30 @@ class TestPydanticAIHookCreateAgent:
         assert "tools" not in call_kwargs
         assert "toolsets" in call_kwargs
         assert any(ts is abstract_ts for ts in call_kwargs["toolsets"])
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_routes_dynamic_toolset_to_toolsets_kwarg(self, mock_agent_cls, mock_infer_model):
+        """DynamicToolset-wrapped factories must pass through as native pydantic-ai toolsets."""
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        def select_toolset(ctx: RunContext) -> AbstractToolset | None:
+            return None
+
+        dynamic_toolset = DynamicToolset(select_toolset)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", toolsets=[dynamic_toolset], enable_tool_logging=False)
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        assert "tools" not in call_kwargs
+        assert "toolsets" in call_kwargs
+        assert any(ts is dynamic_toolset for ts in call_kwargs["toolsets"])
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)

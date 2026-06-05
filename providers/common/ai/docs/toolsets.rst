@@ -53,12 +53,35 @@ toolset to the correct agent parameter automatically.
     - Any third-party ``AbstractToolset``, including PydanticAI's own MCP
       server classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``,
       ``MCPServerStdio``).
+    - pydantic-ai dynamic toolsets, by wrapping a ``ToolsetFunc`` factory with
+      ``DynamicToolset``.
     - :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
       subclasses (``SQLToolset``).
     - Plain Python callables (``def my_tool(...): ...``).
     - Native pydantic-ai ``Tool`` objects.
 
     The hook routes each item to the correct agent parameter automatically.
+    Bare Python callables are treated as callable tools. To pass a pydantic-ai
+    ``ToolsetFunc`` factory through as a native dynamic toolset, wrap it with
+    ``DynamicToolset``:
+
+    .. code-block:: python
+
+        from pydantic_ai import RunContext
+        from pydantic_ai.agent import DynamicToolset
+        from pydantic_ai.toolsets import AbstractToolset
+
+
+        def select_toolset(ctx: RunContext) -> AbstractToolset | None:
+            return None
+
+
+        AgentOperator(
+            task_id="agent",
+            prompt="Answer with the tools available for this run.",
+            llm_conn_id="pydanticai_default",
+            toolsets=[DynamicToolset(select_toolset)],
+        )
 
 
 Using Toolsets Directly

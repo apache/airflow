@@ -312,8 +312,11 @@ Parameters
   (``SQLToolset``), pydantic-ai ``AbstractToolset`` implementations
   (``HookToolset``, ``MCPToolset``, ``DataFusionToolset``,
   ``AgentSkillsToolset`` for :ref:`agent-skills`, third-party toolsets),
-  plain Python callables, or native pydantic-ai ``Tool`` objects. Mixed lists
-  are supported.
+  pydantic-ai ``DynamicToolset`` instances, plain Python callables, or native
+  pydantic-ai ``Tool`` objects. Mixed lists are supported. Bare Python
+  callables are treated as callable tools; wrap pydantic-ai ``ToolsetFunc``
+  factories with ``DynamicToolset`` to pass them through as native dynamic
+  toolsets.
 - ``enable_tool_logging``: When ``True`` (default), wraps each tool call with
   real-time logging. For pydantic-ai ``AbstractToolset`` items this is done via
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset`; for

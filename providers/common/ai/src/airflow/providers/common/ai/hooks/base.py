@@ -137,8 +137,7 @@ class AgentRunRequest:
 
     :param prompt: User prompt for this invocation (plain ``str`` or a multimodal
         ``Sequence`` accepted by the backend agent's run API).
-    :param output_type: Expected structured output type or backend-specific JSON schema
-        mapping (default: ``str``).
+    :param output_type: Expected structured output type (default: ``str``).
     :param instructions: System-level instructions for the agent.
     :param toolsets: List of tools/toolsets the agent may call (BaseToolset instances, plain callables, or backend-native tool objects).
     :param usage_limits: Backend-specific usage limits; ignored if the hook does not support them.
@@ -152,7 +151,7 @@ class AgentRunRequest:
     """
 
     prompt: str | Sequence[Any]
-    output_type: type[Any] | dict[str, Any] | None = str
+    output_type: type[Any] | None = str
     instructions: str = ""
     toolsets: list[Any] | None = None
     usage_limits: Any = None
