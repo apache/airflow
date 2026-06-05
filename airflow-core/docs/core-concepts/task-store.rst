@@ -61,16 +61,18 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
         task_store.clear()
 
 Reference
--------------
+---------
 
 ``get(key, default)``
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Returns the stored JSON value, or the ``default`` value if the key does not exist.
 
 .. code-block:: python
 
-    value = task_store.get("job_id", default="123456789")  # returns the value associated with `job_id` or the default value
+    value = task_store.get(
+        "job_id", default="123456789"
+    )  # returns the value associated with `job_id` or the default value
 
 ``set(key, value, *, retention=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,7 +141,7 @@ For :doc:`mapped tasks </authoring-and-scheduling/dynamic-task-mapping>`, the de
 
 
 Some Example Use Cases
----------
+----------------------
 
 External job resumption
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -265,7 +267,7 @@ When a task is dynamically mapped (``task.expand(...)``), each map index has its
 
 
 Automatic cleanup (``clear_on_success``)
------------------------------------------
+----------------------------------------
 
 When ``[state_store] clear_on_success = True``, all task store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 

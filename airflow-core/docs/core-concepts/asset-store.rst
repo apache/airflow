@@ -33,12 +33,9 @@ Asset store is accessed through the task context via ``context["asset_store"]``.
 
 
 When is ``asset_store`` available?
-------------------------------------
+----------------------------------
 
 When using asset store within a task, ``context["asset_store"]`` is populated for **concrete** :class:`~airflow.sdk.definitions.asset.Asset` inlets and outlets. A task must declare at least one concrete inlet or outlet for ``asset_store`` to contain any entries.
-
-
-
 
 Accessing asset store using ``context``
 ---------------------------------------
@@ -83,7 +80,7 @@ API reference
 The following methods are available on both the per-asset accessor (``context["asset_store"][my_asset]``), the shorthand (``context["asset_store"]``) when the task has exactly one inlet, and when using the ``self.asset_store`` attribute.
 
 ``get(key, default)``
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Returns the stored JSON value, or the ``default`` value if the key does not exist.
 
@@ -142,7 +139,7 @@ Deletes *all* asset store keys for the asset.
     self.asset_store[my_asset].clear()
 
 Some Example Use cases
----------
+----------------------
 
 Watermark pattern
 ~~~~~~~~~~~~~~~~~
