@@ -71,8 +71,41 @@ class _AuthManagerState:
     _lock = threading.Lock()
 
 
+def _initialize_task_sdk_stats() -> None:
+    """
+    Initialize the Task SDK ``Stats`` singleton in the API server process.
+
+    The API server serves the Edge Worker REST API (``/edge_worker/v1/...``). Its heartbeat
+    handler records ``edge_worker.*`` metrics through the Task SDK ``Stats`` singleton
+    (resolved by the Edge provider via ``airflow.providers.common.compat``).
+
+    Unlike the scheduler, triggerer, dag-processor, executors and task runner, the API server
+    never called ``Stats.initialize(...)``. Since the auto-initializing ``Stats`` was removed
+    (#63932) that singleton stays a ``NoStatsLogger`` in the API server process, so every Edge
+    Worker metric is silently dropped.
+
+    Initialization is guarded so a metrics misconfiguration can never prevent the API server
+    from starting.
+    """
+    try:
+        from airflow.sdk._shared.observability.metrics import stats
+        from airflow.sdk.observability.metrics import stats_utils
+
+        stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
+    except Exception:
+        log.warning(
+            "Failed to initialize Task SDK Stats in the API server; "
+            "Edge Worker metrics will not be emitted.",
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _initialize_task_sdk_stats()
     async with AsyncExitStack() as stack:
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):

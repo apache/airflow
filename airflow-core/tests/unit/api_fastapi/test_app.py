@@ -168,3 +168,42 @@ def test_create_auth_manager_thread_safety():
     assert call_count == 1
 
     app_module.purge_cached_app()
+
+
+class TestInitializeTaskSdkStats:
+    """
+    The API server serves the Edge Worker REST API whose heartbeat handler records
+    ``edge_worker.*`` metrics through the Task SDK ``Stats`` singleton. Unlike other
+    components it never initialized that singleton, so Edge Worker metrics were dropped.
+    ``_initialize_task_sdk_stats`` (called from ``lifespan``) closes that gap.
+    """
+
+    def test_initializes_task_sdk_stats_with_factory(self):
+        """It initializes the Task SDK Stats singleton using the configured factory."""
+        with (
+            mock.patch("airflow.sdk._shared.observability.metrics.stats") as mock_stats,
+            mock.patch("airflow.sdk.observability.metrics.stats_utils") as mock_stats_utils,
+        ):
+            sentinel_factory = object()
+            mock_stats_utils.get_stats_factory.return_value = sentinel_factory
+
+            app_module._initialize_task_sdk_stats()
+
+            mock_stats_utils.get_stats_factory.assert_called_once_with()
+            mock_stats.initialize.assert_called_once()
+            _, kwargs = mock_stats.initialize.call_args
+            assert kwargs["factory"] is sentinel_factory
+            assert isinstance(kwargs["export_legacy_names"], bool)
+
+    def test_stats_failure_does_not_block_startup(self, caplog):
+        """A metrics misconfiguration must not prevent the API server from starting."""
+        with (
+            mock.patch("airflow.sdk._shared.observability.metrics.stats") as mock_stats,
+            mock.patch("airflow.sdk.observability.metrics.stats_utils"),
+        ):
+            mock_stats.initialize.side_effect = RuntimeError("boom")
+
+            # Must not raise.
+            app_module._initialize_task_sdk_stats()
+
+        assert any("Failed to initialize Task SDK Stats" in rec.message for rec in caplog.records)
