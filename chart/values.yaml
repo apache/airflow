@@ -2128,13 +2128,11 @@ migrateDatabaseJob:
   command: ~
 
   # Args to use when running the migrate database job (templated).
-  args:
-    - "bash"
-    - "-c"
-    - >-
-      exec \
-
-      airflow db migrate
+  # When unset, the chart runs a bidirectional reconciliation script
+  # (forward migrate, no-op, or exec downgrade against the running api-server)
+  # depending on whether the chart is being upgraded or downgraded.
+  # See https://github.com/apache/airflow/issues/68072.
+  args: ~
 
   # Annotations on the database migration pod (templated)
   annotations: {}

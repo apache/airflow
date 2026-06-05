@@ -43,7 +43,7 @@ metadata:
     {{- end }}
   {{- $annotations := dict }}
   {{- if .Values.migrateDatabaseJob.useHelmHooks }}
-    {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook" "pre-install,pre-upgrade" }}
     {{- $_ := set $annotations "helm.sh/hook-weight" "1" }}
     {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
   {{- end }}
@@ -105,6 +105,16 @@ spec:
           {{- end }}
           {{- if .Values.migrateDatabaseJob.args }}
           args: {{- tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
+          {{- else }}
+          # Bidirectional metadata DB reconciliation: forward migrate, no-op, or
+          # exec downgrade in the still-running api-server pod depending on the
+          # relationship between the chart's target version and the DB's current
+          # alembic head. See https://github.com/apache/airflow/issues/68072.
+          args:
+            - "bash"
+            - "-c"
+            - |-
+              {{- .Files.Get "files/db_migrate.sh" | nindent 14 }}
           {{- end }}
           {{- if .Values.migrateDatabaseJob.applyCustomEnv }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
@@ -114,6 +124,12 @@ spec:
           {{- end }}
             - name: PYTHONUNBUFFERED
               value: "1"
+            - name: AIRFLOW_TARGET_VERSION
+              value: {{ .Values.airflowVersion | quote }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- if .Values.migrateDatabaseJob.env }}
               {{- tpl (toYaml .Values.migrateDatabaseJob.env) $ | nindent 12 }}
