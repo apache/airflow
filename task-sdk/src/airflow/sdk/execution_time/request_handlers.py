@@ -27,6 +27,7 @@ via ``send_msg``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -74,6 +75,23 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
     from airflow.sdk.api.client import Client
+
+_HANDLER_REGISTRY: dict[type, Callable] = {}
+
+
+def handles(msg_type):
+    def decorator(fn):
+        _HANDLER_REGISTRY[msg_type] = fn
+        return fn
+
+    return decorator
+
+
+def get_handler(msg_type):
+    handler = _HANDLER_REGISTRY.get(msg_type)
+    if handler is None:
+        raise TypeError(f"No handler registered for {msg_type.__name__}")
+    return handler
 
 
 def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel | None, dict[str, bool]]:
