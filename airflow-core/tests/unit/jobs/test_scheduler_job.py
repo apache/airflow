@@ -2723,10 +2723,10 @@ class TestSchedulerJob:
             timing_calls = [
                 c
                 for c in mock_stats.timing.call_args_list
-                if c.args and c.args[0] == f"{stat_name}.distribution"
+                if c.args and c.args[0] == f"{stat_name}_histogram"
             ]
             assert gauge_calls, f"expected gauge emission for {stat_name}"
-            assert timing_calls, f"expected histogram emission for {stat_name}.distribution"
+            assert timing_calls, f"expected histogram emission for {stat_name}_histogram"
             # The matched gauge/timing pair for this pool must report the same value.
             gauge_for_pool = next(c for c in gauge_calls if c.kwargs.get("tags") == tags)
             timing_for_pool = next(c for c in timing_calls if c.kwargs.get("tags") == tags)
