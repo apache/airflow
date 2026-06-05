@@ -715,14 +715,13 @@ class SelectiveChecks:
         """
         Check if PR is large enough to run full tests.
 
-        The heuristics are based on number of files changed and total lines changed,
-        while excluding generated files which can be ignored.
-
-        The line-count check (``LINE_THRESHOLD``) only counts lines in production-code
-        files — tests, docs, newsfragments, generated files, translations, dev tooling,
-        and similar low-risk paths do not contribute to the line count. A 1000-line test
-        or docs PR is not the same shape of risk as a 1000-line change to scheduler
-        code, and only the latter should trigger the full test matrix.
+        Both heuristics — the count of changed files (``FILE_THRESHOLD``) and the
+        total lines changed (``LINE_THRESHOLD``) — only consider production-code
+        files. Tests, docs, newsfragments, generated files, translations, example
+        DAGs, and dev tooling are low-risk: a PR that only touches them, however
+        many files or lines, must not force the full test matrix. A 1000-line (or
+        40-file) test or docs PR is not the same shape of risk as the same churn in
+        scheduler code, and only the latter should trigger the full test matrix.
         """
         FILE_THRESHOLD = 25
         LINE_THRESHOLD = 500
@@ -730,34 +729,12 @@ class SelectiveChecks:
         if not self._files:
             return False
 
-        exclude_patterns = [
-            r"/newsfragments/",
-            r"^uv\.lock$",
-            r"pnpm-lock\.yaml$",
-            r"package-lock\.json$",
-        ]
-
-        relevant_files = [
-            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
-        ]
-
-        files_changed = len(relevant_files)
-        if files_changed >= FILE_THRESHOLD:
-            console_print(
-                f"[warning]Running full set of tests because PR touches {files_changed} files "
-                f"(≥25 threshold)[/]"
-            )
-            return True
-
-        if not self._commit_ref:
-            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
-            return False
-
-        # The line-count gate only counts churn in production code. We compose
-        # the existing `*_PRODUCTION_FILES` and helm groups rather than rolling
-        # a bespoke pattern set, so the definition of "production code" stays
-        # in lockstep with the rest of CI (e.g. SAST scans targeted by
-        # `run_python_scans` / `run_javascript_scans`).
+        # Both gates count churn in production code only. We compose the existing
+        # `*_PRODUCTION_FILES` and helm groups rather than rolling a bespoke pattern
+        # set, so the definition of "production code" stays in lockstep with the rest
+        # of CI (e.g. SAST scans targeted by `run_python_scans` /
+        # `run_javascript_scans`). These groups already exclude tests, docs,
+        # generated files, translations, and example DAGs.
         production_files = list(
             dict.fromkeys(
                 self._matching_files(FileGroupForCi.PYTHON_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
@@ -766,6 +743,18 @@ class SelectiveChecks:
             )
         )
         if not production_files:
+            return False
+
+        files_changed = len(production_files)
+        if files_changed >= FILE_THRESHOLD:
+            console_print(
+                f"[warning]Running full set of tests because PR touches {files_changed} "
+                f"production files (≥{FILE_THRESHOLD} threshold)[/]"
+            )
+            return True
+
+        if not self._commit_ref:
+            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
             return False
 
         try:
@@ -792,8 +781,7 @@ class SelectiveChecks:
                 if total_lines >= LINE_THRESHOLD:
                     console_print(
                         f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"of production code in {len(production_files)} file(s) "
-                        f"(of {files_changed} relevant file(s))[/]"
+                        f"of production code in {len(production_files)} file(s)[/]"
                     )
                     return True
         except Exception:
