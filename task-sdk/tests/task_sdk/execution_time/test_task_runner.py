@@ -1824,7 +1824,9 @@ def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock
     assert captured_vars["task_id"] == "test_task"
 
     # os.environ should NOT be updated (this is the race condition fix)
-    assert "AIRFLOW_CTX_DAG_ID" not in os.environ or os.environ.get("AIRFLOW_CTX_DAG_ID") != "dag_with_ctx_vars"
+    assert (
+        "AIRFLOW_CTX_DAG_ID" not in os.environ or os.environ.get("AIRFLOW_CTX_DAG_ID") != "dag_with_ctx_vars"
+    )
 
 
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
