@@ -3545,10 +3545,8 @@ def smoke_test_overlay(
     bootstrap_hint = (
         f"[error]Run first:\n"
         f"  breeze k8s setup-env\n"
-        f"  breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}\n"
-        f"  breeze k8s configure-cluster\n"
-        f"  breeze k8s build-k8s-image --rebuild-base-image  # first time only\n"
-        f"  breeze k8s upload-k8s-image\n"
+        f"  breeze k8s deploy-cluster --python {python} --kubernetes-version {kubernetes_version}"
+        f" --rebuild-base-image  # --rebuild-base-image only needed first run\n"
         f"  breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}"
     )
     if not kubeconfig.exists():
