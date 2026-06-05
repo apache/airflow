@@ -132,7 +132,7 @@ from airflow.sdk.execution_time.context import (
     TaskStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
-    airflow_context_vars_context,
+    _airflow_context_vars,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -2055,7 +2055,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     # Export context vars thread-safely to avoid race conditions in concurrent execution
     # (e.g., IterableOperator with AsyncAwareExecutor). Use get_airflow_context_var() to read these.
     # We intentionally do NOT update os.environ here as that would cause races between tasks.
+    # We set these in the copied context so they're available inside ctx.run(execute, ...).
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    ctx.run(_airflow_context_vars.set, airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
 
@@ -2077,17 +2079,15 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            # Run task in timeout wrapper with thread-safe context variable storage
-            with airflow_context_vars_context(airflow_context_vars):
-                with timeout(timeout_seconds):
-                    result = ctx.run(execute, context=context)
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             task.on_kill()
             raise
     else:
-        # Run task with thread-safe context variable storage
-        with airflow_context_vars_context(airflow_context_vars):
-            result = ctx.run(execute, context=context)
+        # Run task
+        result = ctx.run(execute, context=context)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
