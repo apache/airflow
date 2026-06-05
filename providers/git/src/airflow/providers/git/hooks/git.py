@@ -114,6 +114,8 @@ class GitHook(BaseHook):
         # GitHub App Auth Options
         self.github_app_id = extra.get("github_app_id")
         self.github_installation_id = extra.get("github_installation_id")
+        self.github_app_private_key: str | None = None
+        self.github_app_token_exp: datetime | None = None
 
         self.env: dict[str, str] = {}
 
@@ -144,10 +146,9 @@ class GitHook(BaseHook):
             # Keep `private_key` populated for callers/tests that expect it to be available,
             # but also keep a dedicated attribute so configure_hook_env() can avoid
             # treating the GitHub App PEM as an SSH key.
-            self.github_app_private_key: str | None = self.private_key
-            self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
-        else:
-            self.github_app_private_key = None
+            self.github_app_private_key = self.private_key
+            self.user_name = None
+            self.auth_token = None
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -193,13 +194,70 @@ class GitHook(BaseHook):
         auth = Auth.AppAuth(self.github_app_id, self.github_app_private_key)
         integration = GithubIntegration(auth=auth)
         access_token = integration.get_access_token(installation_id=self.github_installation_id)
-        github_app_token_exp = access_token.expires_at - timedelta(minutes=57)
+        github_app_token_exp = access_token.expires_at + timedelta(minutes=60)
         log.info(
             "Successfully obtained GitHub App installation access token (expires at: %s)",
             github_app_token_exp,
         )
 
         return "x-access-token", access_token.token, github_app_token_exp
+
+    def _ensure_github_app_token(self) -> None:
+        if self.github_app_id is None or self.github_installation_id is None:
+            return
+
+        TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+        if (
+            self.github_app_token_exp is None
+            or self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER
+        ):
+            log.info(
+                "GitHub App token is missing or near expiry (expires at: %s). Refreshing token.",
+                self.github_app_token_exp,
+            )
+            self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
+
+    @contextlib.contextmanager
+    def _github_app_askpass_env(self):
+        if not self.auth_token:
+            yield
+            return
+
+        token = shlex.quote(self.auth_token)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
+            askpass_script.write(
+                "#!/bin/sh\n"
+                'case "$1" in\n'
+                "  *Username*) echo x-access-token;;\n"
+                f"  *Password*) echo {token};;\n"
+                f"  *) echo {token};;\n"
+                "esac\n"
+            )
+            askpass_script.flush()
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            old_askpass = os.environ.get("GIT_ASKPASS")
+            old_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
+            try:
+                os.environ["GIT_ASKPASS"] = askpass_script.name
+                os.environ["GIT_TERMINAL_PROMPT"] = "0"
+                self.env["GIT_ASKPASS"] = askpass_script.name
+                self.env["GIT_TERMINAL_PROMPT"] = "0"
+                yield
+            finally:
+                if old_askpass is None:
+                    self.env.pop("GIT_ASKPASS", None)
+                    os.environ.pop("GIT_ASKPASS", None)
+                else:
+                    self.env["GIT_ASKPASS"] = old_askpass
+                    os.environ["GIT_ASKPASS"] = old_askpass
+
+                if old_terminal_prompt is None:
+                    self.env.pop("GIT_TERMINAL_PROMPT", None)
+                    os.environ.pop("GIT_TERMINAL_PROMPT", None)
+                else:
+                    self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
+                    os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
 
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):
@@ -258,15 +316,12 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.github_app_token_exp:
-            TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
-            if self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER:
-                log.info(
-                    "GitHub App token is near expiry (expires at: %s). Refreshing token.",
-                    self.github_app_token_exp,
-                )
-                self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
-                self._process_git_auth_url()
+        self._ensure_github_app_token()
+
+        if self.github_app_id is not None and self.github_installation_id is not None:
+            with self._github_app_askpass_env():
+                yield
+            return
 
         # If a GitHub App PEM is present, it should not be treated as an SSH key
         # for configuring `GIT_SSH_COMMAND`.
