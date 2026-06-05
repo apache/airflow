@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree
@@ -27,6 +28,7 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AIRFLOW_ROOT_PATH,
     AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT,
     AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
@@ -35,6 +37,10 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
     ELASTICSEARCH_PATH,
+    JAVA_COMPOSE_PATH,
+    JAVA_DOCKERFILE_PATH,
+    JAVA_SDK_DAGS_PATH,
+    JAVA_SDK_EXAMPLE_LIBS_PATH,
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
@@ -234,8 +240,101 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_java_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the java_sdk E2E test mode.
+
+    Builds the Java example bundle via the Gradle wrapper, then builds a
+    Java-capable Airflow worker image, copies the JARs into the temp directory,
+    and writes the coordinator configuration.
+    """
+    # Build the example bundle inside an ephemeral JDK container so the host
+    # does not need Java installed.
+    #
+    # --user keeps build outputs owned by the current user (not root).
+    # GRADLE_USER_HOME persists the Gradle distribution and dependency cache in
+    # java-sdk/.gradle/ (already gitignored) so the first run downloads once
+    # and subsequent runs skip straight to compilation.
+    # --no-daemon avoids a background JVM that would outlive the container.
+    console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+            # Mount java-sdk/ at /java-sdk (the Gradle root project).
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/java-sdk",
+            "eclipse-temurin:17-jdk",
+            "./gradlew",
+            ":example:installDist",
+            "--no-daemon",
+        ],
+        check=True,
+    )
+
+    # Copy compose override and Dockerfile into the temp directory.
+    copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
+    copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
+
+    # Copy all JARs from installDist output so the compose bind-mount ./jars
+    # gives the worker everything JavaCoordinator needs to build a classpath.
+    copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "jars")
+
+    # Copy the Java SDK example Dag file so Airflow can discover it.
+    copyfile(JAVA_SDK_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
+
+    # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
+    # We do this explicitly so testcontainers' DockerCompose.start() does not
+    # need to handle the build itself (which avoids --no-build vs --build flag
+    # uncertainty across testcontainers versions).
+    console.print(f"[yellow]Building airflow-java-worker image on top of {DOCKER_IMAGE}...")
+    subprocess.run(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"DOCKER_IMAGE={DOCKER_IMAGE}",
+            "-t",
+            "airflow-java-worker",
+            "-f",
+            str(tmp_dir / "Dockerfile.java"),
+            str(tmp_dir),
+        ],
+        check=True,
+    )
+
+    # Coordinator registry: maps the logical name "java-jdk" to JavaCoordinator.
+    # Queue mapping: routes tasks on the "java" Celery queue to "java-jdk".
+    coordinator_config = json.dumps(
+        {
+            "java-jdk": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"jars_root": ["/opt/airflow/jars"]},
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"java": "java-jdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # Connection and variable expected by the Java example bundle tasks.
+        "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
+        "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
-    tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
+    tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
     copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")
@@ -275,6 +374,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "event_driven":
         compose_file_names.extend(["kafka.yml", "providers-mount.yml"])
         _setup_event_driven_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "java_sdk":
+        compose_file_names.append("java.yml")
+        _setup_java_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

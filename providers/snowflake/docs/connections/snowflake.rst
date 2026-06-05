@@ -43,7 +43,8 @@ Login
 
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
-    For OAuth, the OAuth Client Secret.
+    For OAuth, the OAuth Client Secret. For Programmatic Access Token (PAT) authentication, specify
+    the PAT token value.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -57,7 +58,9 @@ Extra (optional)
     * ``region``: Warehouse region.
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
-    * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
+    * ``authenticator``: To connect using OAuth set this parameter ``oauth``. For Programmatic Access
+      Token (PAT) authentication, no special authenticator is required — simply set the PAT token as
+      the Password field. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
     * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
@@ -113,5 +116,25 @@ If serializing with JSON:
             "database": "database",
             "region": "us-east",
             "warehouse": "snow-warehouse"
+        }
+    }'
+
+JSON format example with Programmatic Access Token (PAT)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To authenticate using a `Programmatic Access Token <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_,
+set the PAT token as the password with no special authenticator required:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='{
+        "conn_type": "snowflake",
+        "login": "user",
+        "password": "<programmatic_access_token>",
+        "extra": {
+            "account": "account",
+            "database": "database",
+            "warehouse": "snow-warehouse",
+            "role": "role"
         }
     }'

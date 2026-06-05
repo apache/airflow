@@ -40,8 +40,10 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
+    TaskOutletAssetReference,
 )
 from airflow.models.log import Log
+from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -50,7 +52,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
-    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -181,15 +182,24 @@ class AssetManager(LoggingMixin):
         source_is_api: bool,
         *,
         session: Session,
+        allow_consumer_teams: list[str] | None = None,
+        allow_global_consumers: bool = True,
     ) -> set[DagModel]:
         """
         Filter consuming DAGs based on team membership when multi_team is enabled.
+
+        Both producer-team filtering (consumer decides which producers it accepts) and
+        consumer-team filtering (producer decides which consumers may receive its events)
+        must pass for a DAG to be queued (logical AND).
 
         :param dags_to_queue: set of DagModel instances to potentially queue.
         :param source_teams: set of team names the source belongs to. Empty set means teamless.
         :param asset_model: the AssetModel whose scheduled_dags carry allow_producer_teams.
         :param source_is_api: True if the event was triggered via the REST API (not a DAG task).
         :param session: SQLAlchemy session.
+        :param allow_consumer_teams: list of team names allowed to consume. Empty/None means no filtering.
+        :param allow_global_consumers: whether teamless consumers are allowed. Only applies when
+            allow_consumer_teams is non-empty.
         """
         if not conf.getboolean("core", "multi_team"):
             return dags_to_queue
@@ -204,38 +214,53 @@ class AssetManager(LoggingMixin):
         dag_ids = [dag.dag_id for dag in dags_to_queue]
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
 
-        # Build per-consumer allow_producer_teams from the schedule reference rows.
+        # Build per-consumer allow_producer_teams and allow_global_producers from the schedule reference rows.
         dag_id_to_allow_teams: dict[str, list[str]] = {
             ref.dag_id: ref.allow_producer_teams or [] for ref in asset_model.scheduled_dags
         }
+        dag_id_to_allow_global: dict[str, bool] = {
+            ref.dag_id: ref.allow_global_producers for ref in asset_model.scheduled_dags
+        }
+
+        has_consumer_team_filter = bool(allow_consumer_teams)
 
         filtered = set()
         for dag in dags_to_queue:
             consumer_team = dag_id_to_team.get(dag.dag_id)
 
+            # --- Producer-team filtering (consumer-side control) ---
+            producer_pass = False
             if consumer_team is None:
                 # Teamless consumer accepts events from any source
-                filtered.add(dag)
-                continue
-
-            if is_teamless_source:
+                producer_pass = True
+            elif is_teamless_source:
                 if source_is_api:
                     # Teamless API user can only trigger teamless consumers
-                    continue
-                # Teamless DAG producer is global — triggers all consumers
-                filtered.add(dag)
-                continue
-
-            if consumer_team in source_teams:
+                    producer_pass = False
+                else:
+                    # Teamless DAG producer — check allow_global_producers
+                    producer_pass = dag_id_to_allow_global.get(dag.dag_id, True)
+            elif consumer_team in source_teams:
                 # Same team
-                filtered.add(dag)
+                producer_pass = True
+            else:
+                allow_producer_teams = dag_id_to_allow_teams.get(dag.dag_id, [])
+                if source_teams & set(allow_producer_teams):
+                    # Cross-team via allow_producer_teams
+                    producer_pass = True
+
+            if not producer_pass:
                 continue
 
-            allow_producer_teams = dag_id_to_allow_teams.get(dag.dag_id, [])
-            if source_teams & set(allow_producer_teams):
-                # Cross-team via allow_producer_teams
-                filtered.add(dag)
-                continue
+            # --- Consumer-team filtering (producer-side control) ---
+            if has_consumer_team_filter and allow_consumer_teams is not None:
+                if consumer_team is None:
+                    if not allow_global_consumers:
+                        continue
+                elif consumer_team not in allow_consumer_teams:
+                    continue
+
+            filtered.add(dag)
 
         return filtered
 
@@ -251,6 +276,8 @@ class AssetManager(LoggingMixin):
         partition_key: str | None = None,
         source_is_api: bool = False,
         api_user_teams: set[str] | None = None,
+        api_allow_consumer_teams: list[str] | None = None,
+        api_allow_global_consumers: bool = True,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -262,14 +289,20 @@ class AssetManager(LoggingMixin):
         When multi_team mode is enabled, team-based filtering is applied to determine which
         consumer DAGs should be queued:
         - For DAG-produced events (task_instance is set), source teams are resolved automatically
-          from the producing DAG's bundle.
+          from the producing DAG's bundle. Consumer-team filtering is resolved from the
+          TaskOutletAssetReference for the producing task.
         - For API-produced events (source_is_api=True), ``api_user_teams`` must be provided explicitly.
+          Consumer-team filtering uses ``api_allow_consumer_teams`` and ``api_allow_global_consumers``.
 
         :param source_is_api: True if the event originates from the REST API rather than
             a DAG task execution.
         :param api_user_teams: Teams of the API user triggering the event. Only used when
             source_is_api=True. Ignored when task_instance is provided (teams are resolved
             from the DAG's bundle instead).
+        :param api_allow_consumer_teams: Consumer teams allowed by an API-triggered event.
+            Only used when source_is_api=True.
+        :param api_allow_global_consumers: Whether teamless consumers are allowed for an
+            API-triggered event. Only used when source_is_api=True. Defaults to True.
         """
         from airflow.models.dag import DagModel
 
@@ -374,14 +407,28 @@ class AssetManager(LoggingMixin):
             if task_instance:
                 team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
                 resolved_source_teams = {team_name} if team_name else set()
+                # Resolve consumer-team filtering from the outlet reference
+                outlet_ref = session.scalar(
+                    select(TaskOutletAssetReference).where(
+                        TaskOutletAssetReference.dag_id == task_instance.dag_id,
+                        TaskOutletAssetReference.task_id == task_instance.task_id,
+                        TaskOutletAssetReference.asset_id == asset_model.id,
+                    )
+                )
+                resolved_consumer_teams = outlet_ref.allow_consumer_teams if outlet_ref else None
+                resolved_global_consumers = outlet_ref.allow_global_consumers if outlet_ref else True
             else:
                 resolved_source_teams = api_user_teams or set()
+                resolved_consumer_teams = api_allow_consumer_teams
+                resolved_global_consumers = api_allow_global_consumers
             dags_to_queue = cls._filter_dags_by_team(
                 dags_to_queue=dags_to_queue,
                 source_teams=resolved_source_teams,
                 asset_model=asset_model,
                 source_is_api=source_is_api,
                 session=session,
+                allow_consumer_teams=resolved_consumer_teams,
+                allow_global_consumers=resolved_global_consumers,
             )
 
         log.debug("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
@@ -517,6 +564,8 @@ class AssetManager(LoggingMixin):
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
 
+            fingerprint = compute_rollup_fingerprint(timetable)
+
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
@@ -564,6 +613,7 @@ class AssetManager(LoggingMixin):
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
                     target_dag=target_dag,
+                    rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
                     session=session,
                 )
@@ -582,7 +632,8 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         target_key: str,
-        target_dag: SerializedDagModel,
+        target_dag: DagModel,
+        rollup_fingerprint: dict,
         asset_id: int,
         session: Session,
     ) -> AssetPartitionDagRun:
@@ -594,6 +645,10 @@ class AssetManager(LoggingMixin):
         This leads to the unintended outcome of having two APDRs created instead of one.
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
+
+        ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
+        assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
+        longer matches the current timetable's fingerprint (mapper / window may have changed).
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -618,6 +673,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
+                rollup_fingerprint=rollup_fingerprint,
             )
             session.add(apdr)
             session.flush()

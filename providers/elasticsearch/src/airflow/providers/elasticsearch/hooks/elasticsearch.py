@@ -28,6 +28,8 @@ from elasticsearch import Elasticsearch
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.elasticsearch._compat import apply_compat_with
+from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -171,9 +173,9 @@ class ESConnection:
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = Elasticsearch(self.url, basic_auth=(user, password), **kwargs)
+            self.es = apply_compat_with(Elasticsearch(self.url, basic_auth=(user, password), **kwargs))
         else:
-            self.es = Elasticsearch(self.url, **kwargs)
+            self.es = apply_compat_with(Elasticsearch(self.url, **kwargs))
 
     def cursor(self) -> ElasticsearchSQLCursor:
         return ElasticsearchSQLCursor(self.es, **self.kwargs)
@@ -261,10 +263,25 @@ class ElasticsearchSQLHook(DbApiHook):
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
     ):
-        # TODO: Custom ElasticsearchSQLCursor is incompatible with polars.read_database.
-        # To support: either adapt cursor to polars._executor interface or create custom polars reader.
-        # https://github.com/apache/airflow/pull/50454
-        raise NotImplementedError("Polars is not supported for Elasticsearch")
+        """
+        Execute an Elasticsearch SQL query and return the results as a Polars DataFrame.
+
+        This method uses Elasticsearch SQL cursor-based pagination instead of DB-API,
+        as Elasticsearch is not fully compatible with polars.read_database.
+
+        :param sql: SQL query string
+        :param parameters: Optional query parameters
+        :param kwargs: Additional arguments passed to the underlying reader
+        :return: polars.DataFrame
+        """
+        client = self.get_conn().es
+
+        return read_sql_to_polars(
+            client=client,
+            query=sql,
+            params=parameters,
+            **kwargs,
+        )
 
 
 class ElasticsearchPythonHook(BaseHook):
@@ -283,7 +300,7 @@ class ElasticsearchPythonHook(BaseHook):
 
     def _get_elastic_connection(self):
         """Return the Elasticsearch client."""
-        client = Elasticsearch(self.hosts, **self.es_conn_args)
+        client = apply_compat_with(Elasticsearch(self.hosts, **self.es_conn_args))
 
         return client
 

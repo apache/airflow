@@ -198,6 +198,12 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Coincidir en qualsevol lloc del valor (recerca de subcadena). Més lent en instàncies grans perquè no pot utilitzar l'índex B-tree predeterminat. Més detalls a la secció de documentació sobre índexs de metadades personalitzats.",
+      "title": "Coincidir en qualsevol lloc"
+    }
+  },
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",
@@ -261,7 +267,8 @@
   },
   "task_one": "Tasca",
   "task_other": "Tasques",
-  "taskGroup": "Grup de tasques",
+  "taskGroup_one": "Grup de tasques",
+  "taskGroup_other": "Grups de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
     "dagVersion": "Versió del Dag",

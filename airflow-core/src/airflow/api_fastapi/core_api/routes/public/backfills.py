@@ -42,6 +42,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
@@ -52,6 +53,7 @@ from airflow.models.backfill import (
     DagNonPeriodicScheduleException,
     InvalidBackfillConf,
     InvalidBackfillDate,
+    InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     _create_backfill,
@@ -227,9 +229,16 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 def create_backfill(
     backfill_request: BackfillPostBody,
     user: GetUserDep,
+    session: SessionDep,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
+    resolved_run_on_latest = resolve_run_on_latest_version(
+        backfill_request.run_on_latest_version,
+        backfill_request.dag_id,
+        session,
+        fallback=True,
+    )
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,
@@ -240,7 +249,7 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
-            run_on_latest_version=backfill_request.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
         )
         return BackfillResponse.model_validate(backfill_obj)
 
@@ -265,6 +274,7 @@ def create_backfill(
         InvalidBackfillDirection,
         DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillDateRange,
         InvalidBackfillConf,
     ) as e:
         raise RequestValidationError(str(e))
@@ -319,6 +329,7 @@ def create_backfill_dry_run(
         InvalidBackfillDirection,
         DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillDateRange,
         InvalidBackfillConf,
     ) as e:
         raise RequestValidationError(str(e))

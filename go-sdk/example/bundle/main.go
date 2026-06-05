@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"runtime"
 	"time"
@@ -54,7 +55,9 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 }
 
 func main() {
-	bundlev1server.Serve(&myBundle{})
+	if err := bundlev1server.Serve(&myBundle{}); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
@@ -63,7 +66,14 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 	if err != nil {
 		log.ErrorContext(ctx, "unable to get conn", "error", err)
 	} else {
-		log.InfoContext(ctx, "got conn", "conn", conn)
+		// Log only non-sensitive fields; conn.Password and any secrets in
+		// conn.Extra must never reach the log stream.
+		log.InfoContext(ctx, "got conn",
+			"conn_id", conn.ID,
+			"conn_type", conn.Type,
+			"host", conn.Host,
+			"port", conn.Port,
+		)
 	}
 	for range 10 {
 

@@ -492,6 +492,14 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     :param deferrable: Run operator in the deferrable mode.
     :param cancel_on_kill: Flag to indicate whether to cancel the job
         when the task is killed while in deferrable mode.
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into the EMR on EKS ``spark-defaults`` configuration so the Spark job emits a
+        ``parentRunFacet`` linking back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
+        into the EMR on EKS ``spark-defaults`` configuration so the Spark job sends OL events
+        to the same backend as Airflow. Defaults to the
+        ``openlineage.spark_inject_transport_info`` config value.
     """
 
     aws_hook_class = EmrContainerHook
@@ -522,6 +530,12 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
         job_retry_max_attempts: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         cancel_on_kill: bool = True,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -540,6 +554,8 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
         self.job_id: str | None = None
         self.deferrable = deferrable
         self.cancel_on_kill = cancel_on_kill
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
     @property
     def _hook_parameters(self):
@@ -547,12 +563,24 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
 
     def execute(self, context: Context) -> str | None:
         """Run job on EMR Containers."""
+        configuration_overrides = self.configuration_overrides
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage parent job information into EMR on EKS configuration.")
+            configuration_overrides = inject_parent_job_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+        if self.openlineage_inject_transport_info:
+            self.log.info("Injecting OpenLineage transport information into EMR on EKS configuration.")
+            configuration_overrides = inject_transport_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+
         self.job_id = self.hook.submit_job(
             self.name,
             self.execution_role_arn,
             self.release_label,
             self.job_driver,
-            self.configuration_overrides,
+            configuration_overrides,
             self.client_request_token,
             self.tags,
             self.job_retry_max_attempts,

@@ -175,14 +175,98 @@ for file in PREK_DIR_PATH.rglob("*"):
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 COOLDOWN_DAYS = 4
 
+ROOT_PYPROJECT_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
-def _is_version_within_cooldown(releases: dict, version: str) -> bool:
-    """Return True if the given version was uploaded within the cooldown period."""
+# Package-level cooldown overrides parsed from `[tool.uv.exclude-newer-package]`
+# (and its `[tool.uv.pip.exclude-newer-package]` twin) in the root pyproject.toml.
+# Populated by `_load_manual_cooldown_overrides()` at startup; lookups are
+# case-folded so PyPI casings like "PyYAML" still hit the lowercased TOML keys.
+_MANUAL_COOLDOWN_OVERRIDES: dict[str, float] = {}
+
+
+def _parse_duration_hours(value: str) -> float | None:
+    """Parse a `uv` duration string like "6 hours" or "1 day" into hours.
+
+    Returns None for unrecognised shapes (e.g. ISO timestamps), which are valid
+    `exclude-newer-package` values but don't translate to a relative cooldown.
+    """
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*(minute|minutes|hour|hours|day|days)\s*$", value)
+    if not m:
+        return None
+    amount = float(m.group(1))
+    unit = m.group(2)
+    if unit.startswith("minute"):
+        return amount / 60.0
+    if unit.startswith("hour"):
+        return amount
+    return amount * 24
+
+
+_AUTO_BLOCK_END_SENTINELS = (
+    "# End of automatically generated exclude-newer-package entries",
+    "# End of automatically generated exclude-newer-package-pip entries",
+)
+_SECTION_HEADER_RE = re.compile(r"^\[", re.MULTILINE)
+_OVERRIDE_ENTRY_RE = re.compile(r"^([A-Za-z0-9_.-]+)\s*=\s*[\"']([^\"']+)[\"']\s*(?:#.*)?$")
+
+
+def _iter_manual_override_blocks(text: str):
+    """Yield `(start, end, block_text)` for each manual exclude-newer-package block."""
+    for sentinel in _AUTO_BLOCK_END_SENTINELS:
+        idx = text.find(sentinel)
+        if idx == -1:
+            continue
+        block_start = idx + len(sentinel)
+        next_section = _SECTION_HEADER_RE.search(text, block_start)
+        block_end = next_section.start() if next_section else len(text)
+        yield block_start, block_end, text[block_start:block_end]
+
+
+def _parse_manual_overrides(text: str) -> dict[str, float]:
+    """Read manual `exclude-newer-package` overrides keyed by lowercased package name.
+
+    Only duration-shaped values (e.g. `"12 hours"`, `"1 day"`) are returned; boolean
+    overrides for first-party packages (`apache-airflow-* = false`) live inside the
+    auto-generated blocks and are intentionally skipped — they aren't cooldown
+    overrides, just opt-outs that don't need PyPI checks.
+    """
+    overrides: dict[str, float] = {}
+    for _, _, block in _iter_manual_override_blocks(text):
+        for line in block.splitlines():
+            match = _OVERRIDE_ENTRY_RE.match(line.strip())
+            if not match:
+                continue
+            hours = _parse_duration_hours(match.group(2))
+            if hours is not None:
+                overrides[match.group(1).lower()] = hours
+    return overrides
+
+
+def _load_manual_cooldown_overrides() -> None:
+    """Populate `_MANUAL_COOLDOWN_OVERRIDES` from the root pyproject.toml."""
+    global _MANUAL_COOLDOWN_OVERRIDES
+    try:
+        text = ROOT_PYPROJECT_PATH.read_text()
+    except OSError:
+        _MANUAL_COOLDOWN_OVERRIDES = {}
+        return
+    _MANUAL_COOLDOWN_OVERRIDES = _parse_manual_overrides(text)
+    if VERBOSE and _MANUAL_COOLDOWN_OVERRIDES:
+        console.print(f"[bright_blue]Manual cooldown overrides loaded: {_MANUAL_COOLDOWN_OVERRIDES}")
+
+
+def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: float | None = None) -> bool:
+    """Return True if the given version was uploaded within the cooldown period.
+
+    `cooldown_hours` defaults to the global `COOLDOWN_DAYS` window; pass an
+    explicit value to honour a per-package override.
+    """
     files = releases.get(version, [])
     if not files:
         return False
     upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
-    cutoff = datetime.now(timezone.utc) - timedelta(days=COOLDOWN_DAYS)
+    effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
     return upload_time > cutoff
 
 
@@ -202,10 +286,14 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
         sorted_versions = sorted([Version(v) for v in releases.keys()])
     else:
         sorted_versions = sorted([Version(v) for v in releases.keys() if not Version(v).is_prerelease])
+    # A per-package override in pyproject.toml's `[tool.uv.exclude-newer-package]`
+    # narrows or widens the cooldown for this specific package — honour it so the
+    # script picks the same version `uv lock` would resolve against the override.
+    cooldown_hours = _MANUAL_COOLDOWN_OVERRIDES.get(package_name.lower())
     # Skip versions released within the cooldown period
     latest_version = ""
     for version in reversed(sorted_versions):
-        if not _is_version_within_cooldown(releases, str(version)):
+        if not _is_version_within_cooldown(releases, str(version), cooldown_hours):
             latest_version = str(version)
             break
     if not latest_version:
@@ -213,6 +301,93 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version
+
+
+def _remove_override_entry(text: str, package_name: str) -> str:
+    """Strip `<package> = "<duration>"` lines and their `# REMOVE BY` headers.
+
+    Conservative on purpose: only contiguous `# REMOVE BY ...` /
+    `# this override is redundant ...` comment lines directly above the entry
+    are dropped. Broader context comments stay so a human reviewer can prune
+    them — the diff makes the now-orphaned context obvious to clean up.
+    """
+    lines = text.split("\n")
+    override_re = re.compile(rf"^{re.escape(package_name)}\s*=\s*[\"'][^\"']*[\"']\s*(?:#.*)?$")
+
+    def is_remove_by(line: str) -> bool:
+        stripped = line.lstrip()
+        return stripped.startswith("# REMOVE BY") or stripped.startswith("# this override is redundant")
+
+    while True:
+        target_idx = next((i for i, ln in enumerate(lines) if override_re.match(ln)), None)
+        if target_idx is None:
+            break
+        block_start = target_idx
+        while block_start > 0 and is_remove_by(lines[block_start - 1]):
+            block_start -= 1
+        del lines[block_start : target_idx + 1]
+        # Collapse consecutive blanks left behind by the deletion.
+        if 0 < block_start < len(lines):
+            if lines[block_start - 1].strip() == "" and lines[block_start].strip() == "":
+                del lines[block_start]
+    return "\n".join(lines)
+
+
+def prune_obsolete_cooldown_overrides() -> bool:
+    """Remove exclude-newer-package overrides whose target package is now past the global cooldown.
+
+    A per-package override exists to let a freshly-published release through the
+    project-wide `exclude-newer = "4 days"` gate. Once that release ages past the
+    global window, `uv lock` would resolve the same version with or without the
+    override — so the override no longer earns its complexity and can come out.
+    Running this on every important-versions upgrade means the line, and its
+    `# REMOVE BY ...` marker, retire themselves without anyone having to
+    remember the calendar date.
+    """
+    try:
+        text = ROOT_PYPROJECT_PATH.read_text()
+    except OSError:
+        return False
+    overrides = _parse_manual_overrides(text)
+    if not overrides:
+        return False
+
+    obsolete: list[str] = []
+    for package_name in overrides:
+        try:
+            response = requests.get(
+                f"https://pypi.org/pypi/{package_name}/json",
+                headers={"User-Agent": "Python requests"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            releases = response.json()["releases"]
+        except Exception as exc:
+            console.print(f"[bright_yellow]Skipping {package_name} override obsolescence check ({exc})")
+            continue
+        candidates = sorted(
+            (Version(v) for v in releases.keys() if not Version(v).is_prerelease),
+            reverse=True,
+        )
+        if not candidates:
+            continue
+        latest = str(candidates[0])
+        # If the latest stable release is OUTSIDE the global cooldown window,
+        # the per-package override is no longer changing what `uv lock` resolves.
+        if not _is_version_within_cooldown(releases, latest):
+            obsolete.append(package_name)
+
+    if not obsolete:
+        return False
+
+    new_text = text
+    for pkg in obsolete:
+        console.print(f"[bright_green]Removing obsolete exclude-newer-package override for {pkg}")
+        new_text = _remove_override_entry(new_text, pkg)
+    if new_text == text:
+        return False
+    ROOT_PYPROJECT_PATH.write_text(new_text)
+    return True
 
 
 def get_all_python_versions() -> list[Version]:
@@ -1066,6 +1241,12 @@ def main() -> None:
     global _github_token
     _github_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
 
+    # Honour `[tool.uv.exclude-newer-package]` overrides when checking PyPI for
+    # the latest version of any tracked package — otherwise the script's own
+    # 4-day cooldown would shadow a per-package window the project deliberately
+    # narrowed in pyproject.toml.
+    _load_manual_cooldown_overrides()
+
     versions = fetch_all_package_versions()
     log_special_versions(versions)
     latest_python_versions = fetch_python_versions()
@@ -1084,6 +1265,11 @@ def main() -> None:
             hatchling_requires, hatchling_with_git_requires, versions
         )
         changed = changed or pyproject_changed
+
+    # Sweep up exclude-newer-package overrides whose target version has now
+    # aged past the global cooldown — keeps the manual overrides self-retiring.
+    overrides_changed = prune_obsolete_cooldown_overrides()
+    changed = changed or overrides_changed
 
     if changed:
         sync_breeze_lock_file()

@@ -101,21 +101,30 @@ const formatElkEdge = (edge: EdgeResponse, font: string, node?: NodeResponse): F
 });
 
 /**
- * Returns true when every child task that has at least one external connection
- * shares exactly the same set of external sources AND the same set of external
- * targets as every other externally-connected child.
+ * Returns true when every child task with at least one external connection
+ * shares the **exact same full external profile** — the same set of external
+ * sources AND the same set of external targets — as every other externally-
+ * connected child.
  *
- * Example — a "cleanup" group where every task fans out from one upstream node
- * and funnels into the same downstream node:
+ * Canonical pattern — a "cleanup" group where every task fans out from one
+ * upstream node and funnels into the same downstream node:
  *
  *   upstream → T1 ─┐
  *   upstream → T2 ─┼→ downstream
  *   upstream → T3 ─┘
  *
- * Rendering N individual crossing edges adds visual noise without conveying
- * any extra information beyond "the group connects upstream → downstream".
- * When this returns true, the caller collapses those N edges to a single
- * group-level edge while still rendering the children inside the group.
+ * Here all three children have profile ``({upstream}, {downstream})`` — same
+ * sources, same targets. Rendering N individual crossing edges adds visual
+ * noise without conveying any extra information beyond "the group connects
+ * upstream → downstream". When this returns true, the caller collapses those
+ * N edges to a single group-level edge while still rendering the children.
+ *
+ * Mixed profiles — e.g. one child is the group's "entry" (external sources
+ * only, no external targets) while others are "exits" (external targets only,
+ * no external sources) — are NOT canonical. The author has expressed
+ * deliberately different external connectivity per child, and collapsing
+ * those edges would hide that intent. The check returns false in that case,
+ * and the caller renders each crossing edge individually. See #67714.
  *
  * Uses the original, unmodified edge list so that prior sibling group
  * transformations do not affect the connectivity check.
@@ -124,89 +133,123 @@ export const hasUniformExternalConnectivity = (
   childIdSet: Set<string>,
   edges: Array<EdgeResponse>,
 ): boolean => {
-  const sourcesPerChild = new Map<string, Set<string>>();
-  const targetsPerChild = new Map<string, Set<string>>();
+  // For each externally-connected child, build the full ``(sources, targets)``
+  // profile in a single map (rather than tracking sources and targets in
+  // independent maps — which loses the per-child correlation).
+  const profileByChild = new Map<string, { sources: Set<string>; targets: Set<string> }>();
+  const getOrInitProfile = (childId: string) => {
+    let profile = profileByChild.get(childId);
+
+    if (profile === undefined) {
+      profile = { sources: new Set<string>(), targets: new Set<string>() };
+      profileByChild.set(childId, profile);
+    }
+
+    return profile;
+  };
 
   for (const edge of edges) {
     const sourceIsChild = childIdSet.has(edge.source_id);
     const targetIsChild = childIdSet.has(edge.target_id);
 
     if (!sourceIsChild && targetIsChild) {
-      const existing = sourcesPerChild.get(edge.target_id) ?? new Set<string>();
-
-      existing.add(edge.source_id);
-      sourcesPerChild.set(edge.target_id, existing);
+      getOrInitProfile(edge.target_id).sources.add(edge.source_id);
     }
 
     if (sourceIsChild && !targetIsChild) {
-      const existing = targetsPerChild.get(edge.source_id) ?? new Set<string>();
-
-      existing.add(edge.target_id);
-      targetsPerChild.set(edge.source_id, existing);
+      getOrInitProfile(edge.source_id).targets.add(edge.target_id);
     }
   }
 
-  // Need at least 2 children with external connections on at least one side
-  // for the optimisation to be worthwhile.
-  if (sourcesPerChild.size < 2 && targetsPerChild.size < 2) {
+  // Need at least 2 externally-connected children for the optimisation to be
+  // worthwhile — one child has nothing to collapse against.
+  if (profileByChild.size < 2) {
     return false;
   }
 
-  // Build the union of all external sources / targets across all children.
-  const allSources = new Set<string>();
-  const allTargets = new Set<string>();
+  // All externally-connected children must share the exact same profile.
+  const [reference, ...rest] = [...profileByChild.values()];
 
-  for (const sources of sourcesPerChild.values()) {
-    for (const source of sources) {
-      allSources.add(source);
-    }
-  }
-  for (const targets of targetsPerChild.values()) {
-    for (const target of targets) {
-      allTargets.add(target);
-    }
+  // The early-return above on ``profileByChild.size < 2`` guarantees that the
+  // destructure produced a defined ``reference``, but TypeScript can't see
+  // through the map-size guard. This explicit check both narrows the type and
+  // documents the invariant.
+  if (reference === undefined) {
+    return false;
   }
 
-  // Every child's external sources must equal allSources (same size sufficient
-  // given allSources is already the union — a child with fewer differs in size).
-  for (const sources of sourcesPerChild.values()) {
-    if (sources.size !== allSources.size) {
+  const setsEqual = (left: Set<string>, right: Set<string>) => {
+    if (left.size !== right.size) {
       return false;
     }
-  }
-  for (const targets of targetsPerChild.values()) {
-    if (targets.size !== allTargets.size) {
-      return false;
+    for (const value of left) {
+      if (!right.has(value)) {
+        return false;
+      }
     }
-  }
 
-  return true;
+    return true;
+  };
+
+  return rest.every(
+    (profile) =>
+      setsEqual(profile.sources, reference.sources) && setsEqual(profile.targets, reference.targets),
+  );
 };
 
 // ---------------------------------------------------------------------------
 // Edge rewriting helper
 // ---------------------------------------------------------------------------
 
+type RewriteGroupEdgesProps = {
+  childIdSet: Set<string>;
+  edges: Array<EdgeResponse>;
+  groupId: string;
+  /**
+   * When false (the default, used for *closed* groups), purely-internal edges
+   * are dropped — the collapsed group does not need its internal layout.
+   *
+   * When true (used when applying the uniform-external optimisation to an
+   * *open* group), internal edges pass through unchanged so the caller can
+   * still extract them as the group's internal edges; only crossing edges get
+   * rewritten and deduplicated.
+   */
+  preserveInternal?: boolean;
+};
+
 /**
- * Given the current working edge list, drops purely-internal edges, rewrites
- * crossing edges so both endpoints reference `groupId` instead of a child node,
- * then deduplicates the result so N rewritten edges collapse to one per
- * (source, target) pair.
+ * Rewrites crossing edges so both endpoints reference `groupId` instead of a
+ * child node, then deduplicates the result so N rewritten edges collapse to
+ * one per (source, target) pair.
  */
-const rewriteGroupEdges = (
-  edges: Array<EdgeResponse>,
-  childIdSet: Set<string>,
-  groupId: string,
-): Array<EdgeResponse> => {
+const rewriteGroupEdges = ({
+  childIdSet,
+  edges,
+  groupId,
+  preserveInternal = false,
+}: RewriteGroupEdgesProps): Array<EdgeResponse> => {
   const seen = new Set<string>();
 
   return edges
-    .filter((fe) => !(childIdSet.has(fe.source_id) && childIdSet.has(fe.target_id)))
-    .map((fe) => ({
-      ...fe,
-      source_id: childIdSet.has(fe.source_id) ? groupId : fe.source_id,
-      target_id: childIdSet.has(fe.target_id) ? groupId : fe.target_id,
-    }))
+    .filter((fe) => preserveInternal || !(childIdSet.has(fe.source_id) && childIdSet.has(fe.target_id)))
+    .map((fe) => {
+      const sourceIsChild = childIdSet.has(fe.source_id);
+      const targetIsChild = childIdSet.has(fe.target_id);
+
+      // Internal edges of an open group must pass through unchanged so the
+      // caller can recognise and extract them. Rewriting both endpoints to
+      // ``groupId`` would (a) collapse them to a self-loop and (b) hide them
+      // from the subsequent internal-edge extraction loop.
+      if (preserveInternal && sourceIsChild && targetIsChild) {
+        return fe;
+      }
+
+      return {
+        ...fe,
+        source_id: sourceIsChild ? groupId : fe.source_id,
+        target_id: targetIsChild ? groupId : fe.target_id,
+      };
+    })
     .filter((fe) => {
       const key = `${fe.source_id}-${fe.target_id}`;
 
@@ -266,8 +309,20 @@ export const generateElkGraph = ({
       // and downstream target(s), collapse N crossing edges to one group-level
       // edge (same as a closed group) while keeping the children visible.
       // Checked against unformattedEdges so prior sibling transforms don't interfere.
+      //
+      // ``preserveInternal: true`` is required because the group is *open* — its
+      // internal edges must survive past the rewrite so the extraction loop
+      // below can pull them into the group's ``edges`` array. Without it, ELK
+      // would receive an open group with no internal edges and fail to lay out
+      // the children in a sensible left-to-right order whenever an internal
+      // task has a direct dependency on a node outside the group (see #67714).
       if (hasUniformExternalConnectivity(childIdSet, unformattedEdges)) {
-        filteredEdges = rewriteGroupEdges(filteredEdges, childIdSet, node.id);
+        filteredEdges = rewriteGroupEdges({
+          childIdSet,
+          edges: filteredEdges,
+          groupId: node.id,
+          preserveInternal: true,
+        });
       }
 
       // Extract any remaining internal edges (both endpoints inside this group).
@@ -302,7 +357,11 @@ export const generateElkGraph = ({
     if (!isOpen && node.children !== undefined) {
       // Use a Set for O(1) membership checks — childIds.includes() would be
       // O(n) per edge, turning the filter/map into O(n × E) for large groups.
-      filteredEdges = rewriteGroupEdges(filteredEdges, new Set(childIds), node.id);
+      filteredEdges = rewriteGroupEdges({
+        childIdSet: new Set(childIds),
+        edges: filteredEdges,
+        groupId: node.id,
+      });
     }
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;

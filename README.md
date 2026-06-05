@@ -68,6 +68,8 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
+- [Community standards](#community-standards)
+- [Agent-assisted contribution (apache-steward)](#agent-assisted-contribution-apache-steward)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -292,7 +294,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State               | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|---------------------|-----------------|-----------------------|------------------|
-| 3         | 3.2.1                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.2.2                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | Limited maintenance | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL                 | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL                 | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
@@ -430,6 +432,55 @@ If you can't wait to contribute, and want to get started asap, check out the [co
 Official Docker (container) images for Apache Airflow are described in [images](https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md).
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Community standards
+
+Everyone interacting with the Apache Airflow project — on GitHub, the
+mailing lists, Slack, the CWiki, or anywhere else — is expected to
+follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+When repeated Code of Conduct breaches, spamming, abuse of project
+resources, or other sustained disruptive behaviour cannot be resolved
+through normal review and mentoring, the project applies the
+[Community escalation process](COMMUNITY_ESCALATION.md). It describes
+the steps maintainers and the PMC may take — from direct feedback,
+through closing PRs, up to PMC-level or ASF-Infrastructure-level
+blocks and reporting accounts to GitHub — and how affected
+contributors can appeal a decision by emailing the PMC at
+`private@airflow.apache.org`.
+
+## Agent-assisted contribution (apache-steward)
+
+This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+framework via a snapshot mechanism. The framework provides
+maintainer-facing PR-management skills (`pr-management-triage`,
+`pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
+that are exposed as agent skills in agent harnesses such as Claude Code.
+
+The framework is **not** vendored — it lives as a gitignored snapshot
+under `.apache-magpie/`, fetched on demand from the version pinned in
+the committed [`.apache-magpie.lock`](.apache-magpie.lock). The only
+framework artefact committed to this repo is the `magpie-setup` skill
+at [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
+everything else is a gitignored symlink the setup skill wires up.
+
+A fresh clone needs the snapshot populated before any framework skill
+is invocable. In your agent harness, run:
+
+```text
+/magpie-setup
+```
+
+(or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
+to fetch the snapshot per the committed lock, scaffold the gitignored
+symlinks, and install the post-checkout hook that re-creates them on
+each worktree checkout.
+
+Adopter-specific modifications to framework workflows live in
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
+never edit the snapshot directly. Framework changes go via PR to
+[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 
 ## Voting Policy

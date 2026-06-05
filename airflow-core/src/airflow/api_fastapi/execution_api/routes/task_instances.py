@@ -48,6 +48,7 @@ from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_d
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -67,7 +68,12 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    CurrentTIToken,
+    ExecutionAPIRoute,
+    get_team_name_for_ti,
+    require_auth,
+)
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
@@ -105,11 +111,13 @@ tracer = trace.get_tracer(__name__)
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
     dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (status.HTTP_409_CONFLICT, "The TI is already in the requested state"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
     response_model_exclude_unset=True,
 )
 def ti_run(
@@ -285,8 +293,6 @@ def ti_run(
             or 0
         )
 
-        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
-
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
         context = TIRunContext(
@@ -323,11 +329,16 @@ def ti_run(
 @ti_id_router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The TI is already in the requested state",
+            ),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_update_state(
     task_instance_id: UUID,
@@ -411,6 +422,8 @@ def ti_update_state(
         exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
         exclude_unset=True,
     )
+    if "rendered_map_index" in data:
+        data["_rendered_map_index"] = data.pop("rendered_map_index")
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     try:
@@ -428,7 +441,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
-        ti = session.get(TI, task_instance_id, with_for_update=True)
+        ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
         query = query.values(state=(updated_state := TaskInstanceState.FAILED))
@@ -556,7 +569,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
-        ti = session.get(TI, task_instance_id, with_for_update=True)
+        ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -568,7 +581,7 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
-                ti.prepare_db_for_next_try(session)
+                ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(
@@ -581,9 +594,12 @@ def _create_ti_state_update_query_and_update_state(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
-                    session,
+                    session=session,
                 )
-        _emit_task_span(ti, state=updated_state)
+        try:
+            _emit_task_span(ti, state=updated_state)
+        except Exception:
+            log.warning("Failed to emit task span", exc_info=True)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -600,6 +616,7 @@ def _create_ti_state_update_query_and_update_state(
             classpath=ti_patch_payload.classpath,
             kwargs={},
             queue=ti_patch_payload.queue,
+            team_name=get_team_name_for_ti(task_instance_id, session),
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -639,13 +656,11 @@ def _create_ti_state_update_query_and_update_state(
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
-                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
-                # in SQLA2. The task is marked as FAILED regardless.
+                ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
+                if ti is not None:
+                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
                 return query, TaskInstanceState.FAILED
 
-        # We can directly use task_instance_id instead of fetching the TaskInstance object to avoid SQLA2
-        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
         session.add(
             TaskReschedule(
@@ -672,10 +687,12 @@ def _create_ti_state_update_query_and_update_state(
 @ti_id_router.patch(
     "/{task_instance_id}/skip-downstream",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_skip_downstream(
     task_instance_id: UUID,
@@ -733,16 +750,20 @@ def ti_skip_downstream(
 @ti_id_router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {
-            "description": "The TI attempting to heartbeat should be terminated for the given reason"
-        },
-        status.HTTP_410_GONE: {
-            "description": "Task Instance not found in the TI table but exists in the Task Instance History table"
-        },
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The TI attempting to heartbeat should be terminated for the given reason",
+            ),
+            (
+                status.HTTP_410_GONE,
+                "Task Instance not found in the TI table but exists in the Task Instance History table",
+            ),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_heartbeat(
     task_instance_id: UUID,
@@ -852,12 +873,15 @@ def ti_heartbeat(
     description="Store the rendered task instance fields (RTIF) for a task instance. "
     "These are the template fields after Jinja rendering has been applied. "
     "Called by the worker after task execution begins.",
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "Invalid payload for the setting rendered task instance fields"
-        },
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                "Invalid payload for the setting rendered task instance fields",
+            ),
+        ]
+    ),
 )
 def ti_put_rtif(
     task_instance_id: UUID,
@@ -874,7 +898,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    task_instance.update_rtif(put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}
@@ -883,10 +907,15 @@ def ti_put_rtif(
 @ti_id_router.patch(
     "/{task_instance_id}/rendered-map-index",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                "Invalid rendered_map_index value",
+            ),
+        ]
+    ),
 )
 def ti_patch_rendered_map_index(
     task_instance_id: UUID,
@@ -905,7 +934,7 @@ def ti_patch_rendered_map_index(
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
 
-    query = update(TI).where(TI.id == task_instance_id).values(rendered_map_index=rendered_map_index)
+    query = update(TI).where(TI.id == task_instance_id).values(_rendered_map_index=rendered_map_index)
     result = session.execute(query)
 
     result = cast("CursorResult[Any]", result)
@@ -920,9 +949,11 @@ def ti_patch_rendered_map_index(
 @ti_id_router.get(
     "/{task_instance_id}/previous-successful-dagrun",
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance or Dag Run not found"),
+        ]
+    ),
 )
 def get_previous_successful_dagrun(
     task_instance_id: UUID, session: SessionDep
@@ -1186,9 +1217,11 @@ def _get_group_tasks(
 @ti_id_router.get(
     "/{task_instance_id}/validate-inlets-and-outlets",
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+        ]
+    ),
 )
 def validate_inlets_and_outlets(
     task_instance_id: UUID,

@@ -419,3 +419,32 @@ class S3TablesPutTableBucketPolicyOperator(AwsBaseOperator[S3TablesHook]):
             resourcePolicy=self.resource_policy,
         )
         self.log.info("Policy set on table bucket %s", self.table_bucket_arn)
+
+
+class S3TablesDeleteTableBucketPolicyOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Delete the resource policy from an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteTableBucketPolicyOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    """
+
+    aws_hook_class = S3TablesHook
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn")
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting policy from table bucket %s", self.table_bucket_arn)
+        self.hook.conn.delete_table_bucket_policy(tableBucketARN=self.table_bucket_arn)
+        self.log.info("Policy deleted from table bucket %s", self.table_bucket_arn)

@@ -129,6 +129,7 @@ class Deadline(Base):
         dagrun_id: int,
         deadline_alert_id: UUID | None,
         dag_id: str | None = None,
+        bundle_name: str | None = None,
     ):
         super().__init__()
         self.deadline_time = deadline_time
@@ -137,6 +138,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.callback.bundle_name = bundle_name
         self.deadline_alert_id = deadline_alert_id
 
     def __repr__(self):
@@ -240,7 +242,7 @@ class Deadline(Base):
                 "context": get_simple_context()
             }
 
-            self.callback.queue()
+            self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
@@ -490,7 +492,7 @@ DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
 
 @provide_session
-def _fetch_from_db(model_reference: Mapped, session=None, **conditions) -> datetime | None:
+def _fetch_from_db(model_reference: Mapped, *, session=None, **conditions) -> datetime | None:
     """
     Fetch a datetime value from the database using the provided model reference and filtering conditions.
 

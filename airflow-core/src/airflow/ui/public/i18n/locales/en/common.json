@@ -18,10 +18,14 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
@@ -267,7 +271,9 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Group",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
   "taskGroup_one": "Task Group",
   "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
@@ -283,6 +289,7 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
+    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
     "triggerer": {
       "assigned": "Assigned triggerer",

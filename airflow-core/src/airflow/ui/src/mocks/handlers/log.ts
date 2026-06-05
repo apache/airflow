@@ -227,9 +227,21 @@ export const handlers: Array<HttpHandler> = [
           timestamp: "2025-02-18T12:19:56.263258Z",
           try_number: 1,
         },
+        { event: "::group::Pre Execute" },
+        {
+          event: "DAG bundles loaded: dags-folder, example_dags",
+          level: "info",
+          timestamp: "2025-02-18T12:19:56.400000Z",
+        },
+        {
+          event: "Filling up the DagBag from /files/dags/log_grouping.py",
+          level: "info",
+          timestamp: "2025-02-18T12:19:56.400000Z",
+        },
+        { event: "::endgroup::" },
         {
           dag_id: "log_grouping",
-          event: "Task finished",
+          event: "Done. Returned value was: None",
           level: "info",
           map_index: -1,
           run_id: "manual__2025-02-18T12:19",

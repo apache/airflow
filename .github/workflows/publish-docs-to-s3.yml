@@ -138,7 +138,7 @@ jobs:
         run: |
           # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
           # dev/registry/derive_wave_providers.py.
-          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-task-sdk" "helm-chart" "docker-stack")
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "task-sdk" "helm-chart" "docker-stack")
           has_provider=false
           for token in $INCLUDE_DOCS; do
             is_non_provider=false
@@ -345,8 +345,56 @@ jobs:
           if-no-files-found: 'error'
           overwrite: 'true'
 
+  build-java-sdk-docs:
+    needs: [build-info]
+    timeout-minutes: 30
+    name: "Build Java SDK Javadoc"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    outputs:
+      built: ${{ steps.sdk-present.outputs.exists }}
+    steps:
+      - name: "Checkout ${{ inputs.ref }}"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - name: "Check whether the Java SDK exists at this ref"
+        id: sdk-present
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if [[ -f "java-sdk/gradlew" ]]; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
+          fi
+      - name: "Install Breeze"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: ./.github/actions/breeze
+      - name: "Build Java SDK Javadoc"
+        if: steps.sdk-present.outputs.exists == 'true'
+        run: breeze build-docs --sdk-docs-only --sdk=java
+      - name: "Upload Java SDK docs"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/java-sdk/
+          retention-days: '7'
+          if-no-files-found: 'error'
+          overwrite: 'true'
+
   publish-docs-to-s3:
-    needs: [build-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -385,6 +433,12 @@ jobs:
           path: /mnt/_build
       - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
+      - name: "Download Java SDK docs artifact"
+        if: needs.build-java-sdk-docs.outputs.built == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/java-sdk
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
           sudo mkdir -vp ./files/sbom
@@ -416,8 +470,10 @@ jobs:
       - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          JAVA_SDK_DOCS: ${{ needs.build-java-sdk-docs.outputs.built == 'true' && 'java-sdk' || '' }}
         run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
+          breeze release-management publish-docs --override-versioned --run-in-parallel
+          ${INCLUDE_DOCS} ${JAVA_SDK_DOCS}
       - name: Check disk space available
         run: df -H
       - name: "Update watermarks"
@@ -441,7 +497,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6.1.0
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

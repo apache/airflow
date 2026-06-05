@@ -21,11 +21,36 @@ from collections.abc import AsyncIterator, Sequence
 from enum import Enum
 from typing import Any, Literal
 
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    GatewayTimeout,
+    InternalServerError,
+    ResourceExhausted,
+    ServiceUnavailable,
+)
+from google.cloud.run_v2 import Execution
+
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 DEFAULT_BATCH_LOCATION = "us-central1"
+
+# gRPC errors that indicate a transient failure of the Cloud Run API rather
+# than a terminal state of the underlying job. Re-polling is the right move:
+# any of these surfacing from get_operation while the Cloud Run execution is
+# still progressing would otherwise crash the trigger and have Airflow's
+# task-level retry re-submit the whole job. Anything outside this tuple
+# (NotFound, PermissionDenied, auth failures, ...) still propagates.
+_RETRYABLE_GRPC_EXCEPTIONS = (
+    ServiceUnavailable,  # 503 / UNAVAILABLE
+    InternalServerError,  # 500 / INTERNAL
+    DeadlineExceeded,  # 504 / DEADLINE_EXCEEDED
+    GatewayTimeout,  # 504 / gateway timeout
+    ResourceExhausted,  # 429 / RESOURCE_EXHAUSTED
+    Aborted,  # ABORTED — usually retryable concurrency conflict
+)
 
 
 class RunJobStatus(Enum):
@@ -110,11 +135,27 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         timeout = self.timeout
         self.hook = self._get_async_hook()
         while timeout is None or timeout > 0:
-            operation = await self.hook.get_operation(
-                operation_name=self.operation_name,
-                location=self.location,
-                use_regional_endpoint=self.use_regional_endpoint,
-            )
+            try:
+                operation = await self.hook.get_operation(
+                    operation_name=self.operation_name,
+                    location=self.location,
+                    use_regional_endpoint=self.use_regional_endpoint,
+                )
+            except _RETRYABLE_GRPC_EXCEPTIONS as e:
+                self.log.warning(
+                    "Transient error from Cloud Run get_operation (%s). Retrying... (%s)",
+                    type(e).__name__,
+                    e,
+                )
+
+                if timeout is not None:
+                    timeout -= self.polling_period_seconds
+
+                if timeout is None or timeout > 0:
+                    await asyncio.sleep(self.polling_period_seconds)
+
+                continue
+
             if operation.done:
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.
@@ -127,13 +168,50 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                             "job_name": self.job_name,
                         }
                     )
-                else:
+                    return
+
+                # The LRO can complete without populating ``operation.error`` even when the
+                # underlying Cloud Run Execution did not succeed — for example when the job is
+                # cancelled from the Google Cloud UI or API, every remaining task ends up in
+                # ``cancelled_count`` rather than ``failed_count``. Mirror the sync path's
+                # ``_fail_if_execution_failed`` check on the Execution payload so deferrable mode
+                # surfaces the same failure semantics.
+                execution = Execution.deserialize(operation.response.value)
+                if execution.succeeded_count + execution.failed_count != execution.task_count:
                     yield TriggerEvent(
                         {
-                            "status": RunJobStatus.SUCCESS.value,
+                            "status": RunJobStatus.FAIL.value,
+                            "operation_error_code": None,
+                            "operation_error_message": (
+                                f"Cloud Run Job did not finish all tasks: task_count="
+                                f"{execution.task_count}, succeeded_count="
+                                f"{execution.succeeded_count}, failed_count="
+                                f"{execution.failed_count}, cancelled_count="
+                                f"{execution.cancelled_count}."
+                            ),
                             "job_name": self.job_name,
                         }
                     )
+                    return
+                if execution.failed_count > 0:
+                    yield TriggerEvent(
+                        {
+                            "status": RunJobStatus.FAIL.value,
+                            "operation_error_code": None,
+                            "operation_error_message": (
+                                f"Some Cloud Run Job tasks failed: failed_count="
+                                f"{execution.failed_count} of task_count={execution.task_count}."
+                            ),
+                            "job_name": self.job_name,
+                        }
+                    )
+                    return
+                yield TriggerEvent(
+                    {
+                        "status": RunJobStatus.SUCCESS.value,
+                        "job_name": self.job_name,
+                    }
+                )
                 return
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")

@@ -204,24 +204,38 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
     return maker
 
 
+# structlog >= 26.1.0 added a `name` slot + kwarg to BytesLogger
+# (hynek/structlog#786). Detect it once so we can avoid a redundant slot and
+# forward `name` through the parent init. The same detection is applied to
+# WriteLogger so the analogous upstream change lands without a regression.
+_BYTES_LOGGER_HAS_NAME = "name" in getattr(structlog.BytesLogger, "__slots__", ())
+_WRITE_LOGGER_HAS_NAME = "name" in getattr(structlog.WriteLogger, "__slots__", ())
+
+
 class NamedBytesLogger(structlog.BytesLogger):
-    __slots__ = ("name",)
+    __slots__ = () if _BYTES_LOGGER_HAS_NAME else ("name",)
 
     def __init__(self, name: str | None = None, file: BinaryIO | None = None):
-        self.name = name
         if file is not None:
             file = make_file_io_non_caching(file)
-        super().__init__(file)
+        if _BYTES_LOGGER_HAS_NAME:
+            super().__init__(file, name=name)  # type: ignore[call-arg]
+        else:
+            super().__init__(file)
+            self.name = name
 
 
 class NamedWriteLogger(structlog.WriteLogger):
-    __slots__ = ("name",)
+    __slots__ = () if _WRITE_LOGGER_HAS_NAME else ("name",)
 
     def __init__(self, name: str | None = None, file: TextIO | None = None):
-        self.name = name
         if file is not None:
             file = make_file_io_non_caching(file)
-        super().__init__(file)
+        if _WRITE_LOGGER_HAS_NAME:
+            super().__init__(file, name=name)  # type: ignore[call-arg]
+        else:
+            super().__init__(file)
+            self.name = name
 
 
 LogOutputType = TypeVar("LogOutputType", bound=TextIO | BinaryIO)

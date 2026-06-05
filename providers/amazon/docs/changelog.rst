@@ -26,6 +26,94 @@
 Changelog
 ---------
 
+9.30.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'GlueCatalogBatchDeletePartitionOperator' (#66721)``
+* ``Add 'OpenSearchServerlessCreateCollectionOperator' (#66549)``
+* ``Propogate 'verify' and 'botocore_config' in batch triggers (#67508)``
+* ``Propogate 'verify' and 'botocore_config' in redshift cluster triggers (#67876)``
+* ``Add ExecuteCallback support to AWS ECS Executor (#63657)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMaker processing stopped state handling (#67291)``
+* ``Fix EMR Serverless task failure on transient AWS throttling errors (#67222)``
+* ``Fix duplicated logs and memory issue with S3 log handler (#67144)``
+* ``Fix EksPodOperator 401 with cross-account AssumeRole via aws_conn_id (#65335)``
+* ``Fix inconsistency in S3 transfer operators (#67378)``
+* ``Support log level parsing from container output in 'EcsRunTaskOperator' (#67180)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+* ``Cleanup redundant RedshiftHook TODO comment for cluster snapshot creation (#67485)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix example_opensearch_serverless system test (#67666)``
+   * ``Fix example_mwaa_serverless system test race condition with stop_workflow_run (#67578)``
+   * ``Fix smus_notebook system test failure in deferrable CI rotation (#67568)``
+   * ``Fix smus_notebook system test: assume DataZone environment role via aws_conn_id (#66976)``
+   * ``Fix provider executor tests broken in main (#67268)``
+   * ``Replace fixed sleep with active IAM trust policy validation in example_emr_eks (#66736)``
+
+
+9.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support to AthenaSQLHook (#66844)``
+* ``Add S3TablesDeleteTableBucketPolicyOperator (#66957)``
+* ``Add parent info injection to EMR operator (#66816)``
+* ``Add MwaaServerlessDeleteWorkflowOperator (#66891)``
+* ``Add callback support to AWS batch executor (#62984)``
+* ``Add MwaaServerlessUpdateWorkflowOperator (#66833)``
+* ``Add S3TablesPutTableBucketPolicyOperator (#66720)``
+* ``Add S3VectorsQueryVectorsOperator (#66724)``
+* ``Add async support to SageMakerNotebookJobTrigger (#65571)``
+* ``Add S3VectorsPutVectorsOperator (#66545)``
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Add S3TablesRenameTableOperator (#66544)``
+* ``Add MwaaServerlessStopWorkflowRunOperator (#66548)``
+* ``Add BedrockUpdateGuardrailOperator (#66547)``
+* ``Add GlueCatalogCreatePartitionOperator (#66546)``
+* ``Add MwaaServerlessWorkflowRunSensor (#66382)``
+* ``Add 'BedrockCreateEvaluationJobOperator' (#66722)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CreateWorkflowOperator if_exists=skip ARN construction (#66974)``
+* ``Fix EMR container job not cancelled on deferral timeout (#64770)``
+
+Misc
+~~~~
+
+* ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Bundle documentation for Amazon S3 (#66993)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``Fix s3_tables system test: use CDK-provided ACCOUNT_ID for bucket policy (#66972)``
+   * ``Fix system test bugs: bedrock_guardrail, glue_catalog, s3_vectors (#66758)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Adjust log message header for expandable sources (#66570)``
+   * ``Fix SageMaker delete model compat test to handle moto status code change (#66473)``
+
 9.28.0
 ......
 

@@ -165,7 +165,7 @@ class S3ToGCSOperator(S3ListOperator):
         replace=False,
         gzip=False,
         google_impersonation_chain: str | Sequence[str] | None = None,
-        deferrable=conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         return_gcs_uris: bool = False,
         **kwargs,

@@ -2229,7 +2229,10 @@ my_postgres_conn:
         ).all()
         assert len(stored_alerts) == expected_num_deadlines
 
-        intervals = sorted([alert.interval for alert in stored_alerts])
+        intervals = sorted(
+            alert.interval["__data__"] if isinstance(alert.interval, dict) else alert.interval
+            for alert in stored_alerts
+        )
         assert intervals == [300.0, 600.0, 3600.0]
 
         # Now create a dagrun and verify deadlines are created
@@ -2747,7 +2750,7 @@ class TestDagModel:
 
         scheduler_dag = sync_dag_to_db(dag)
         assert scheduler_dag._processor_dags_folder == settings.DAGS_FOLDER
-        sdm = SerializedDagModel.get(dag.dag_id, session)
+        sdm = SerializedDagModel.get(dag.dag_id, session=session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
@@ -2959,6 +2962,88 @@ class TestDagModel:
         assert DagModel.get_dag_id_to_team_name_mapping([dag_id1, dag_id2], session=session) == {
             dag_id1: "testing"
         }
+
+
+class TestDagModelPartitionMapperInfo:
+    """Pure-function tests for DagModel.is_rollup_asset / has_rollup_mappers."""
+
+    @pytest.mark.parametrize(
+        ("info", "name", "uri", "expected"),
+        [
+            pytest.param([], "a", "s3://a", False, id="empty-info"),
+            pytest.param(
+                [
+                    {"name": "asset", "is_rollup": True},
+                    {"uri": "s3://asset", "is_rollup": False},
+                ],
+                "asset",
+                "s3://asset",
+                True,
+                id="name-match-wins-over-uri",
+            ),
+            pytest.param(
+                [{"uri": "s3://asset", "is_rollup": True}],
+                "asset",
+                "s3://asset",
+                True,
+                id="uri-match-fallback",
+            ),
+            pytest.param(
+                [{"name": "other", "is_rollup": True}],
+                "asset",
+                "s3://asset",
+                False,
+                id="unknown-asset",
+            ),
+        ],
+    )
+    def test_is_rollup_asset(self, info, name, uri, expected):
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = info
+        assert dm.is_rollup_asset(name=name, uri=uri) is expected
+
+    def test_is_rollup_asset_raises_when_field_missing(self):
+        # ``is_rollup`` is required by the TypedDict contract; a missing field
+        # signals a serialization bug that must surface, not silently default.
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = [{"name": "asset"}]
+        with pytest.raises(KeyError, match="is_rollup"):
+            dm.is_rollup_asset(name="asset", uri="s3://asset")
+
+    @pytest.mark.parametrize(
+        ("info", "expected"),
+        [
+            pytest.param([], False, id="empty"),
+            pytest.param(
+                [
+                    {"name": "a", "is_rollup": False},
+                    {"uri": "s3://b", "is_rollup": False},
+                ],
+                False,
+                id="no-rollup-entries",
+            ),
+            pytest.param(
+                [
+                    {"name": "a", "is_rollup": False},
+                    {"uri": "s3://b", "is_rollup": True},
+                ],
+                True,
+                id="at-least-one-rollup",
+            ),
+        ],
+    )
+    def test_has_rollup_mappers(self, info, expected):
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = info
+        assert dm.has_rollup_mappers is expected
+
+    def test_has_rollup_mappers_raises_when_field_missing(self):
+        # ``is_rollup`` is required by the TypedDict contract; a missing field
+        # signals a serialization bug that must surface, not silently default.
+        dm = DagModel(dag_id="d")
+        dm.partition_mapper_info = [{"name": "a"}, {"uri": "s3://b"}]
+        with pytest.raises(KeyError, match="is_rollup"):
+            _ = dm.has_rollup_mappers
 
 
 class TestQueries:
@@ -3567,7 +3652,7 @@ class TestTaskClearingSetupTeardownBehavior:
         # now, we know that t1 is the teardown for s1, so now we know that s1 will be "torn down"
         # by the time w4 runs, so we now know that w4 no longer requires s1, so when we clear w4,
         # s1 will not also be cleared
-        self.cleared_downstream(w4) == {w4}
+        assert self.cleared_downstream(w4) == {w4}
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1, w4}
         assert self.cleared_upstream(w1) == {s1, w1, t1}

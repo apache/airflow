@@ -36,11 +36,13 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -103,6 +105,7 @@ class SerializedDAG:
     allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
+    rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -152,6 +155,7 @@ class SerializedDAG:
                 "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
+                "rerun_with_latest_version",
                 "doc_md",
                 "edge_info",
                 "end_date",
@@ -180,6 +184,7 @@ class SerializedDAG:
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -218,7 +223,11 @@ class SerializedDAG:
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()  # Activation is needed when we add trigger references.
 
-        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        team_name: str | None = None
+        if airflow_conf.getboolean("core", "multi_team"):
+            team_name = DagBundleModel.get_team_name(bundle_name, session=session)
+
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
         session.flush()
 
@@ -479,7 +488,7 @@ class SerializedDAG:
             )
 
     @provide_session
-    def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
+    def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         from airflow.models.taskinstance import TaskInstance
 
@@ -651,10 +660,15 @@ class SerializedDAG:
                 }
             )
 
+            interval = deserialized_deadline_alert.interval
+
+            if isinstance(interval, VariableInterval):
+                interval = interval.resolve()
+
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
-                    interval=deserialized_deadline_alert.interval,
+                    interval=interval,
                     # TODO : Pretty sure we can drop these last two; verify after testing is complete
                     dag_id=self.dag_id,
                     run_id=orm_dagrun.run_id,
@@ -668,6 +682,7 @@ class SerializedDAG:
                             dagrun_id=orm_dagrun.id,
                             deadline_alert_id=deadline_alert.id,
                             dag_id=orm_dagrun.dag_id,
+                            bundle_name=orm_dagrun.dag_model.bundle_name,
                         )
                     )
                     stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})

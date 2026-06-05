@@ -26,13 +26,13 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.7.17",
+    "trove-classifiers==2026.5.22.10",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.2.0"
+version = "0.4.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -69,7 +69,7 @@ dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.14.1",
     "apache-airflow-providers-standard>=1.12.1",
-    "pydantic-ai-slim>=1.34.0",
+    "pydantic-ai-slim>=1.71.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -80,6 +80,15 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+# Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset
+# (pulls in pydantic-ai-slim>=1.74 transitively; the provider base floor stays
+# 1.71); the git provider supplies GitHook + GitPython for cloning GitSkills with
+# credentials from a `git` connection. Native progressive disclosure is tracked
+# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+"skills" = [
+    "apache-airflow-providers-git>=0.4.0",
+    "pydantic-ai-skills>=0.11.0",
+]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',
@@ -95,6 +104,19 @@ dependencies = [
 "common.sql" = [
     "apache-airflow-providers-common-sql"
 ]
+"langchain" = [
+    "langchain>=1.0.0",
+]
+"llamaindex" = [
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
+]
+"pdf" = ["pypdf>=4.0.0"]
+"docx" = ["python-docx>=1.0.0"]
+"git" = [
+    "apache-airflow-providers-git"
+]
 
 [dependency-groups]
 dev = [
@@ -103,11 +125,17 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-git",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "apache-airflow-providers-common-sql[datafusion]"
+    "pydantic-ai-skills>=0.11.0",
+    "apache-airflow-providers-common-sql[datafusion]",
+    "langchain>=1.0.0",
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
 ]
 
 # To build docs:
@@ -136,8 +164,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.2.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.2.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
