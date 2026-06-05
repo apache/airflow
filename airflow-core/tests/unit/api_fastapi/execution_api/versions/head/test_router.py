@@ -71,8 +71,8 @@ def test_expiring_token_is_reissued(
 
 
 @pytest.mark.db_test
-def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: FastAPI, time_machine):
-    """Token that expires mid-request is still reissued by the middleware.
+def test_token_expiring_mid_request_is_reissued_without_revalidation(client, exec_app: FastAPI, time_machine):
+    """Middleware reissues from cached JWTBearer claims without re-validating the token.
 
     Regression test for the TOCTOU race in JWTReissueMiddleware: a heartbeat arrives with a
     token that has ~0s left, JWTBearer validates it (still technically valid at that moment),
@@ -81,7 +81,8 @@ def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: Fa
     header would be set, and the task would die on the next heartbeat.
 
     With the fix the middleware reads claims from request.scope (set by JWTBearer) instead of
-    re-validating, so it still issues a fresh token even when the original has since expired.
+    calling avalidated_claims again, so it still issues a fresh token even when the original
+    has since expired.
     """
     moment = 1743451846
     auth = AsyncMock(spec=JWTValidator)
@@ -91,9 +92,9 @@ def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: Fa
         "exp": moment + 600,
     }
 
-    # Move time to 1 second past the token's expiry — simulates the middleware running after
-    # the token boundary. JWTBearer already accepted the token (mocked); the middleware must
-    # still issue a refresh rather than silently dropping it.
+    # Move time to 1 second past the token's expiry. JWTBearer already accepted the token
+    # (mocked); the middleware must still issue a refresh using the cached claims rather than
+    # silently dropping it.
     time_machine.move_to(moment + 601, tick=False)
 
     lifespan.registry.register_value(JWTValidator, auth)
