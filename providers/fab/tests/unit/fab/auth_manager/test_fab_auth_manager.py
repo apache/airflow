@@ -1059,6 +1059,10 @@ def test_resetdb(
 
 
 @pytest.mark.db_test
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS,
+    reason="Compat matrix against Airflow < 3.1 uses NullPool, which does not track checked-out connections.",
+)
 class TestDeserializeUserSessionLifecycle:
     def test_no_connection_checked_out_after_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "session_lifecycle_test_user")
