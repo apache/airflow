@@ -125,6 +125,7 @@ class FileGroupForCi(Enum):
     REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
     REMOTE_LOGGING_E2E_OPENSEARCH_FILES = auto()
     EVENT_DRIVEN_E2E_FILES = auto()
+    JAVA_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -213,6 +214,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/kafka\.yml$",
             r"^providers/apache/kafka/.*",
             r"^providers/common/messaging/.*",
+        ],
+        FileGroupForCi.JAVA_SDK_E2E_FILES: [
+            r"^java-sdk/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/java\.yml$",
+            r"^airflow-e2e-tests/docker/Dockerfile\.java$",
+            r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -1033,6 +1041,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
 
     @cached_property
+    def run_java_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1148,6 +1160,7 @@ class SelectiveChecks:
             or self.run_remote_logging_elasticsearch_e2e_tests
             or self.run_remote_logging_opensearch_e2e_tests
             or self.run_event_driven_e2e_tests
+            or self.run_java_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 

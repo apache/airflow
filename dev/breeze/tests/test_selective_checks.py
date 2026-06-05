@@ -1329,8 +1329,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         pytest.param(
             ("go-sdk/sdk/variable.go",),
-            {"run-go-sdk-tests": "true"},
-            id="Run go tests for go-sdk",
+            {
+                "run-go-sdk-tests": "true",
+                "run-java-sdk-e2e-tests": "false",
+            },
+            id="Run go tests for go-sdk and skip java e2e tests for non-java change",
+        ),
+        pytest.param(
+            ("java-sdk/sdk/build.gradle.kts",),
+            {
+                "run-java-sdk-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java unit and e2e tests for java-sdk source change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/java.yml",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when java compose override changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when JavaCoordinator changes",
         ),
         (
             pytest.param(
