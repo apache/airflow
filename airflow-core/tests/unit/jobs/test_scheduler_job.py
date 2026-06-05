@@ -12773,3 +12773,157 @@ def test_resolve_partition_date(mappers, partition_key, carried_partition_date, 
         carried_partition_date=carried_partition_date,
     )
     assert result == expected
+
+
+class TestSchedulerObservabilityMetrics:
+    """Tests for the scheduler observability metrics emitted in scheduler_job_runner.py."""
+
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        _clean_db()
+        self.job_runner: SchedulerJobRunner | None = None
+        yield
+        _clean_db()
+
+    # --- scheduler.loop_exceptions ---
+
+    def test_loop_exceptions_incr_on_scheduler_loop_failure(self):
+        """scheduler.loop_exceptions is emitted with exception_class tag when _run_scheduler_loop raises."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats,
+            mock.patch.object(self.job_runner, "register_signals", return_value=MagicMock()),
+            mock.patch.object(self.job_runner.executor, "start"),
+            mock.patch.object(self.job_runner.executor, "end"),
+            mock.patch.object(self.job_runner, "_run_scheduler_loop", side_effect=RuntimeError("loop crash")),
+            pytest.raises(RuntimeError, match="loop crash"),
+        ):
+            self.job_runner._execute()
+
+        mock_stats.incr.assert_any_call("scheduler.loop_exceptions", tags={"exception_class": "RuntimeError"})
+
+    def test_loop_exceptions_not_emitted_on_clean_exit(self):
+        """scheduler.loop_exceptions is NOT emitted when _run_scheduler_loop returns normally."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats,
+            mock.patch.object(self.job_runner, "register_signals", return_value=MagicMock()),
+            mock.patch.object(self.job_runner.executor, "start"),
+            mock.patch.object(self.job_runner.executor, "end"),
+            mock.patch.object(self.job_runner, "_run_scheduler_loop"),
+        ):
+            self.job_runner._execute()
+
+        emitted_names = [c.args[0] for c in mock_stats.incr.call_args_list]
+        assert "scheduler.loop_exceptions" not in emitted_names
+
+    # --- scheduler.executor_events.{batch_size,processed,failed} ---
+
+    def test_executor_events_batch_metrics_emitted_on_success(self):
+        """batch_size gauge and processed counter are emitted via the early-return path."""
+        # Empty event buffer → tis_with_right_state is empty → early return with num_events=0
+        mock_executor = MagicMock()
+        mock_executor.get_event_buffer.return_value = {}
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
+            result = SchedulerJobRunner.process_executor_events(
+                executor=mock_executor, job_id=1, scheduler_dag_bag=MagicMock(), session=MagicMock()
+            )
+
+        assert result == 0
+        mock_stats.gauge.assert_called_once_with("scheduler.executor_events.batch_size", 0)
+        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", 0)
+
+    def test_executor_events_failed_metric_emitted_on_exception(self):
+        """failed counter is emitted in _process_executor_events when process_executor_events raises."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats,
+            mock.patch.object(
+                SchedulerJobRunner, "process_executor_events", side_effect=ValueError("executor boom")
+            ),
+            pytest.raises(ValueError, match="executor boom"),
+        ):
+            self.job_runner._process_executor_events(executor=MagicMock(), session=MagicMock())
+
+        mock_stats.incr.assert_called_once_with(
+            "scheduler.executor_events.failed", tags={"reason": "ValueError"}
+        )
+        mock_stats.gauge.assert_not_called()
+
+    # --- scheduler.zombies.detected ---
+
+    def test_zombies_detected_heartbeat_timeout_emitted(self):
+        """scheduler.zombies.detected{reason:heartbeat_timeout} is emitted when zombies are found."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        fake_tis = [MagicMock(), MagicMock(), MagicMock()]
+
+        mock_session = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_session)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats,
+            mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=mock_ctx),
+            mock.patch.object(
+                self.job_runner, "_find_task_instances_without_heartbeats", return_value=fake_tis
+            ),
+            mock.patch.object(self.job_runner, "_purge_task_instances_without_heartbeats"),
+        ):
+            self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_stats.incr.assert_called_once_with(
+            "scheduler.zombies.detected", 3, tags={"reason": "heartbeat_timeout"}
+        )
+
+    def test_zombies_detected_not_emitted_when_no_heartbeat_timeout(self):
+        """scheduler.zombies.detected is NOT emitted when no zombie task instances are found."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        mock_session = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_session)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats,
+            mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=mock_ctx),
+            mock.patch.object(self.job_runner, "_find_task_instances_without_heartbeats", return_value=[]),
+        ):
+            self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_stats.incr.assert_not_called()
+
+    def test_zombies_detected_adopt_failure_emitted(self, dag_maker, session):
+        """scheduler.zombies.detected{reason:adopt_failure} is emitted for tasks that can't be adopted."""
+        with dag_maker(dag_id="test_zombie_adopt_failure", schedule="@daily"):
+            EmptyOperator(task_id="task1")
+
+        old_job = Job()
+        session.add(old_job)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
+        ti = dr.get_task_instances(session=session)[0]
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_by_job_id = old_job.id
+        session.merge(ti)
+        session.commit()
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
+            num_reset = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        assert num_reset == 1
+        mock_stats.incr.assert_any_call("scheduler.zombies.detected", 1, tags={"reason": "adopt_failure"})
