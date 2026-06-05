@@ -231,6 +231,15 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
    not flake on Docker Hub rate limits, registry outages, or images
    that turn private mid-flight. Image discovery is driven entirely by
    what the overlay declares; no per-overlay images list is needed.
+   Discovered images are checked against the ``ALLOWED_OVERLAY_IMAGES``
+   allow-list in ``dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py``
+   and the smoke test fails fast if an overlay references anything not on
+   it, so CI never pulls an arbitrary, unreviewed image. Adding an image
+   means editing both the overlay (owned by ``/chart/`` in CODEOWNERS) and
+   the allow-list (owned by ``/dev/``), so a maintainer must approve it;
+   and because the smoke test only runs in the committer-approved PROD
+   image / k8s flow, a fork PR cannot pull a new image without that
+   approval.
 3. **Apply.** The substituted manifest is fed to ``kubectl apply -f -``.
 4. **Walk the ``verify:`` block with fail-fast pod checks.** For each
    declared resource the runner polls the success condition (rollout

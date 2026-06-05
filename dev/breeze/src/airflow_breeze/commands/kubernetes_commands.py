@@ -744,6 +744,22 @@ K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
 )
 
+# Allow-list of third-party container images that kustomize overlays under
+# chart/kustomize-overlays/ may declare. `breeze k8s smoke-test-overlay`
+# auto-discovers every `image:` in the rendered manifest and `docker pull`s it
+# into kind; this list bounds *what* it may pull so an overlay cannot make CI
+# pull and run an arbitrary, unreviewed image. It is a deliberately-reviewed
+# gate: introducing an overlay image means editing both the overlay manifest
+# (owned by `/chart/` in .github/CODEOWNERS) and this list (owned by `/dev/`),
+# so a maintainer must approve before CI will pull it. Keep entries pinned to
+# the exact `image:` string the overlay declares.
+ALLOWED_OVERLAY_IMAGES: frozenset[str] = frozenset(
+    {
+        "gcavalcante8808/krb5-server:latest",  # kerberos overlay KDC + client test pod
+        "alpine/k8s:1.31.0",  # kerberos overlay keytab-bootstrap job
+    }
+)
+
 
 def _docker_pull_with_429_retry(image: str, output: Output | None, max_attempts: int = 5) -> int:
     """Run `docker pull <image>` retrying with exponential backoff on Docker Hub 429s.
@@ -3219,6 +3235,15 @@ def _discover_overlay_images(manifest: str) -> list[str]:
     return sorted(images)
 
 
+def _find_disallowed_overlay_images(images: list[str]) -> list[str]:
+    """Return the overlay images that are not on the ``ALLOWED_OVERLAY_IMAGES`` allow-list.
+
+    Bounds what ``smoke-test-overlay`` may ``docker pull`` so an overlay cannot make
+    CI pull and run an arbitrary, unreviewed image. See ``ALLOWED_OVERLAY_IMAGES``.
+    """
+    return [image for image in images if image not in ALLOWED_OVERLAY_IMAGES]
+
+
 def _preload_overlay_images(
     manifest: str,
     python: str,
@@ -3236,6 +3261,15 @@ def _preload_overlay_images(
     images = _discover_overlay_images(manifest)
     if not images:
         return 0
+    disallowed = _find_disallowed_overlay_images(images)
+    if disallowed:
+        console_print(
+            "[error]Overlay references image(s) not on the allow-list: "
+            f"{disallowed}.\nAdd them to ALLOWED_OVERLAY_IMAGES in "
+            "dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py "
+            "(a maintainer-reviewed change) before the smoke test will pull them."
+        )
+        return 1
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     console_print(
         f"[info]Preloading {len(images)} overlay image(s) into kind cluster {cluster_name}: {images}"
