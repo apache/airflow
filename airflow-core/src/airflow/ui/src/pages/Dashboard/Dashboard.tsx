@@ -82,12 +82,12 @@ export const Dashboard = () => {
         <Box order={4}>
           <FavoriteDags />
         </Box>
-        <Box order={5}>
-          <DashboardDeadlines />
-        </Box>
-        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={6}>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
           <Health />
           <PoolSummary />
+        </Box>
+        <Box order={6}>
+          <DashboardDeadlines />
         </Box>
         <Box order={7}>
           <HistoricalMetrics />
