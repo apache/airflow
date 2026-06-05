@@ -1059,21 +1059,6 @@ def test_resetdb(
 
 @pytest.mark.db_test
 class TestDeserializeUserSessionLifecycle:
-    """Regression test for the session leak that PR #60274 introduced.
-
-    ``deserialize_user`` switched from ``with create_session()`` (which closes
-    the session in a finally block) to a thread-local ``scoped_session`` that
-    is never closed. SQLAlchemy auto-begins a transaction for the SELECT; the
-    function returns without commit / rollback / Session.remove(). The thread-
-    local session keeps a connection checked out, and PostgreSQL's
-    ``idle_in_transaction_session_timeout`` eventually closes the underlying
-    connection, raising ``PendingRollbackError`` on next reuse.
-
-    The test asserts the postcondition: ``pool.checkedout()`` is 0 after
-    ``deserialize_user`` returns. No PostgreSQL timeout needed — observing
-    the leak directly is sufficient.
-    """
-
     def test_no_connection_checked_out_after_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         from airflow import settings
 
@@ -1109,13 +1094,7 @@ class TestDeserializeUserSessionCleanup:
     @staticmethod
     @contextmanager
     def _patched_session(auth_manager, mock_session):
-        """Route both ``self.session`` and ``create_session()`` to *mock_session*.
-
-        The SELECT runs through ``with create_session() as session:`` while the
-        retry-cleanup path still calls ``self.session.remove()``. Patching both
-        keeps the existing call-count assertions (``scalars`` and ``remove``)
-        working against the post-fix code path.
-        """
+        """Route both ``self.session`` and ``create_session()`` to *mock_session*."""
         create_session_cm = MagicMock()
         create_session_cm.__enter__.return_value = mock_session
         create_session_cm.__exit__.return_value = False
