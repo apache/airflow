@@ -147,8 +147,7 @@ class GitHook(BaseHook):
             # but also keep a dedicated attribute so configure_hook_env() can avoid
             # treating the GitHub App PEM as an SSH key.
             self.github_app_private_key = self.private_key
-            self.user_name = None
-            self.auth_token = None
+            self.auth_token = ""
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
