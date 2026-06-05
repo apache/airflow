@@ -39,7 +39,7 @@ pnpm add @apache-airflow/ts-sdk
 ```ts
 import { registerTask } from "@apache-airflow/ts-sdk";
 
-registerTask("say_hello", async ({ ctx, client }) => {
+registerTask({ dagId: "example_dag", taskId: "say_hello" }, async ({ ctx, client }) => {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
 });
@@ -80,17 +80,17 @@ TypeScript handlers:
 ```ts
 import { registerTask } from "@apache-airflow/ts-sdk";
 
-registerTask("extract", async ({ client }) => {
+registerTask({ dagId: "sales_pipeline", taskId: "extract" }, async ({ client }) => {
   const connection = await client.getConnection("sales_db");
   const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
 
   return {
-    connectionId: connection?.connId,
+    connectionId: connection?.connId ?? null,
     rowCount,
   };
 });
 
-registerTask("transform", async ({ client }) => {
+registerTask({ dagId: "sales_pipeline", taskId: "transform" }, async ({ client }) => {
   const extracted = await client.getXCom<{ rowCount: number }>({
     key: "return_value",
     taskId: "extract",
@@ -103,9 +103,10 @@ registerTask("transform", async ({ client }) => {
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
-the work and uses `TaskClient` for task-time Airflow data access. The follow-up
-coordinator runtime will launch Node.js, find the registered handler for the
-stub task, and map the TypeScript public API to the supervisor schema.
+the work and uses `TaskClient` for task-time Airflow data access. Register each
+handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
+follow-up coordinator runtime will launch Node.js, find the registered handler
+for that Dag/task pair, and run it.
 
 ## TaskClient
 

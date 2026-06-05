@@ -19,41 +19,72 @@
 
 import type { TaskHandler } from "./task.js";
 
-const registry = new Map<string, TaskHandler>();
+/** Identifies the Airflow task handled by a TypeScript function. */
+export interface TaskRegistration {
+  /** Identifier of the Dag containing this task. */
+  dagId: string;
+  /** Airflow task ID, including any TaskGroup prefix. */
+  taskId: string;
+}
 
-/**
- * Register a TypeScript handler for an Airflow task.
- *
- * `taskId` must match the Dag-side operator's `task_id` exactly, including
- * any TaskGroup prefix.
- */
+/** Registry of TypeScript task handlers keyed by Dag ID and task ID. */
+export class TaskRegistry {
+  readonly #tasks = new Map<string, Map<string, TaskHandler>>();
+
+  /**
+   * Register a TypeScript handler for an Airflow task.
+   *
+   * `dagId` must match the Python Dag's `dag_id`. `taskId` must match the
+   * Dag-side operator's `task_id` exactly, including any TaskGroup prefix.
+   */
+  register<TReturn = unknown>(registration: TaskRegistration, handler: TaskHandler<TReturn>): void {
+    const { dagId, taskId } = registration;
+    if (!dagId || typeof dagId !== "string") {
+      throw new Error("dagId must be a non-empty string");
+    }
+    if (!taskId || typeof taskId !== "string") {
+      throw new Error("taskId must be a non-empty string");
+    }
+    if (typeof handler !== "function") {
+      throw new Error(`handler for Dag "${dagId}" task "${taskId}" must be a function`);
+    }
+    const dagTasks = this.#tasks.get(dagId) ?? new Map<string, TaskHandler>();
+    if (dagTasks.has(taskId)) {
+      throw new Error(`Task "${taskId}" is already registered for Dag "${dagId}"`);
+    }
+    dagTasks.set(taskId, handler as TaskHandler);
+    this.#tasks.set(dagId, dagTasks);
+  }
+
+  /** Look up a registered handler. Returns `undefined` when no handler exists. */
+  get(dagId: string, taskId: string): TaskHandler | undefined {
+    return this.#tasks.get(dagId)?.get(taskId);
+  }
+
+  /** List all registered tasks. */
+  list(): TaskRegistration[] {
+    return [...this.#tasks.entries()].flatMap(([dagId, tasks]) =>
+      [...tasks.keys()].map((taskId) => ({ dagId, taskId })),
+    );
+  }
+}
+
+const defaultRegistry = new TaskRegistry();
+
+/** Register a TypeScript handler in the default task registry. */
 export function registerTask<TReturn = unknown>(
-  taskId: string,
+  registration: TaskRegistration,
   handler: TaskHandler<TReturn>,
 ): void {
-  if (!taskId || typeof taskId !== "string") {
-    throw new Error("registerTask: taskId must be a non-empty string");
-  }
-  if (typeof handler !== "function") {
-    throw new Error(`registerTask: handler for "${taskId}" must be a function`);
-  }
-  if (registry.has(taskId)) {
-    throw new Error(`Task "${taskId}" is already registered`);
-  }
-  registry.set(taskId, handler as TaskHandler);
+  defaultRegistry.register(registration, handler);
 }
 
 /** Look up a registered handler. Returns `undefined` when no handler exists. */
-export function getRegisteredTask(taskId: string): TaskHandler | undefined {
-  return registry.get(taskId);
+export function getRegisteredTask(dagId: string, taskId: string): TaskHandler | undefined {
+  return defaultRegistry.get(dagId, taskId);
 }
 
-/** List all registered task IDs. */
-export function listRegisteredTasks(): string[] {
-  return [...registry.keys()];
-}
-
-/** Clear the registry. Primarily for testing. */
-export function clearRegistry(): void {
-  registry.clear();
+/** List all registered tasks. */
+export function listRegisteredTasks(): TaskRegistration[] {
+  return defaultRegistry.list();
 }

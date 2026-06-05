@@ -18,15 +18,20 @@
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { ConnectionResult, GetXComOpts, SetXComOpts, TaskClient } from "../src/index.js";
+import type {
+  ConnectionResult,
+  GetXComOpts,
+  SetXComOpts,
+  TaskClient,
+  TaskRegistration,
+} from "../src/index.js";
 import { listRegisteredTasks, registerTask, VariableNotFoundError } from "../src/index.js";
-import { clearRegistry } from "../src/registry.js";
 
 describe("public API", () => {
   it("exports task registration helpers", () => {
-    clearRegistry();
-    registerTask("public_api_task", async () => undefined);
-    expect(listRegisteredTasks()).toEqual(["public_api_task"]);
+    const registration = { dagId: "public_api_dag", taskId: "public_api_task" };
+    registerTask(registration, async () => undefined);
+    expect(listRegisteredTasks()).toContainEqual(registration);
   });
 
   it("exports public error classes", () => {
@@ -37,6 +42,10 @@ describe("public API", () => {
   });
 
   it("uses idiomatic TypeScript names for public client types", () => {
+    expectTypeOf<TaskRegistration>().toEqualTypeOf<{
+      dagId: string;
+      taskId: string;
+    }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
       key: string;
       dagId?: string;
@@ -74,6 +83,7 @@ describe("public API", () => {
   it("rejects wire-format names and non-JSON XCom values", () => {
     function acceptsGetXComOpts(_opts: GetXComOpts): void {}
     function acceptsSetXComOpts(_opts: SetXComOpts): void {}
+    function acceptsTaskRegistration(_registration: TaskRegistration): void {}
 
     // TODO: Add coordinator-runtime tests that validate these camelCase
     // public options map to the supervisor schema's snake_case fields.
@@ -100,6 +110,10 @@ describe("public API", () => {
     acceptsGetXComOpts({ key: "result", include_prior_dates: true });
     // @ts-expect-error public options use connId/connType, not conn_id/conn_type.
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{ conn_id: string; conn_type: string }>();
+    // @ts-expect-error task registration requires explicit dagId/taskId fields.
+    acceptsTaskRegistration("public_api_task");
+    // @ts-expect-error task registration uses dagId, not dag_id.
+    acceptsTaskRegistration({ dag_id: "example", taskId: "extract" });
     // @ts-expect-error XCom values must be JSON-compatible.
     acceptsSetXComOpts({ key: "result", value: new Date() });
   });

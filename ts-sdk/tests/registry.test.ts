@@ -17,64 +17,88 @@
  * under the License.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import {
-  registerTask,
-  getRegisteredTask,
-  listRegisteredTasks,
-  clearRegistry,
-} from "../src/registry.js";
+import { describe, it, expect } from "vitest";
+import { TaskRegistry } from "../src/registry.js";
 
 describe("registry", () => {
-  beforeEach(() => {
-    clearRegistry();
-  });
-
   it("registers and retrieves a handler", async () => {
+    const registry = new TaskRegistry();
     const handler = async () => "hello";
-    registerTask("my_task", handler);
-    const got = getRegisteredTask("my_task");
+    registry.register({ dagId: "example_dag", taskId: "my_task" }, handler);
+    const got = registry.get("example_dag", "my_task");
     expect(got).toBe(handler);
   });
 
-  it("returns undefined for unknown task_ids", () => {
-    expect(getRegisteredTask("nope")).toBeUndefined();
+  it("returns undefined for unknown taskIds", () => {
+    const registry = new TaskRegistry();
+    expect(registry.get("example_dag", "nope")).toBeUndefined();
+    expect(registry.get("unknown_dag", "my_task")).toBeUndefined();
   });
 
-  it("lists registered task_ids", () => {
-    registerTask("a", async () => undefined);
-    registerTask("b", async () => undefined);
-    expect(listRegisteredTasks().sort()).toEqual(["a", "b"]);
+  it("returns an empty list when no tasks are registered", () => {
+    const registry = new TaskRegistry();
+    expect(registry.list()).toEqual([]);
   });
 
-  it("rejects duplicate registration", () => {
-    registerTask("dup", async () => undefined);
-    expect(() => registerTask("dup", async () => undefined)).toThrowError(/already registered/);
+  it("lists registered tasks", () => {
+    const registry = new TaskRegistry();
+    registry.register({ dagId: "dag_a", taskId: "a" }, async () => undefined);
+    registry.register({ dagId: "dag_b", taskId: "b" }, async () => undefined);
+    const registered = registry.list();
+    expect(registered).toHaveLength(2);
+    expect(registered).toContainEqual({ dagId: "dag_a", taskId: "a" });
+    expect(registered).toContainEqual({ dagId: "dag_b", taskId: "b" });
   });
 
-  it("rejects empty string task_id", () => {
-    expect(() => registerTask("", async () => undefined)).toThrowError(/non-empty string/);
+  it("rejects duplicate registration within a Dag", () => {
+    const registry = new TaskRegistry();
+    registry.register({ dagId: "example_dag", taskId: "dup" }, async () => undefined);
+    expect(() =>
+      registry.register({ dagId: "example_dag", taskId: "dup" }, async () => undefined),
+    ).toThrowError(/already registered/);
+  });
+
+  it("allows the same taskId in different Dags", () => {
+    const registry = new TaskRegistry();
+    const first = async () => "first";
+    const second = async () => "second";
+    registry.register({ dagId: "first_dag", taskId: "extract" }, first);
+    registry.register({ dagId: "second_dag", taskId: "extract" }, second);
+
+    expect(registry.get("first_dag", "extract")).toBe(first);
+    expect(registry.get("second_dag", "extract")).toBe(second);
+  });
+
+  it("rejects an empty dagId", () => {
+    const registry = new TaskRegistry();
+    expect(() =>
+      registry.register({ dagId: "", taskId: "my_task" }, async () => undefined),
+    ).toThrowError(/dagId must be a non-empty string/);
+  });
+
+  it("rejects an empty taskId", () => {
+    const registry = new TaskRegistry();
+    expect(() =>
+      registry.register({ dagId: "example_dag", taskId: "" }, async () => undefined),
+    ).toThrowError(/taskId must be a non-empty string/);
   });
 
   it("rejects non-function handlers", () => {
+    const registry = new TaskRegistry();
     expect(() =>
-      registerTask("x", "not a function" as unknown as () => Promise<unknown>),
+      registry.register(
+        { dagId: "example_dag", taskId: "x" },
+        "not a function" as unknown as () => Promise<unknown>,
+      ),
     ).toThrowError(/must be a function/);
   });
 
-  it("handles dotted TaskGroup task_ids (group.task)", () => {
-    registerTask("transforms.normalize", async () => "ok");
-    expect(getRegisteredTask("transforms.normalize")).toBeDefined();
+  it("treats a dotted TaskGroup taskId as a single taskId (group.task)", () => {
+    const registry = new TaskRegistry();
+    registry.register({ dagId: "example_dag", taskId: "transforms.normalize" }, async () => "ok");
+    expect(registry.get("example_dag", "transforms.normalize")).toBeDefined();
     // Should NOT accidentally match the prefix alone
-    expect(getRegisteredTask("transforms")).toBeUndefined();
-    expect(getRegisteredTask("normalize")).toBeUndefined();
-  });
-
-  it("clearRegistry empties everything", () => {
-    registerTask("a", async () => undefined);
-    registerTask("b", async () => undefined);
-    expect(listRegisteredTasks().length).toBe(2);
-    clearRegistry();
-    expect(listRegisteredTasks()).toEqual([]);
+    expect(registry.get("example_dag", "transforms")).toBeUndefined();
+    expect(registry.get("example_dag", "normalize")).toBeUndefined();
   });
 });
