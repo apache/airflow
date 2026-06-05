@@ -299,7 +299,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
         ],
-        #`^chart/` (under HELM_FILES) is intentionally NOT reused
+        # `^chart/` (under HELM_FILES) is intentionally NOT reused
         # — the overlays don't care about every chart-template edit,
         # only their own files.
         FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
