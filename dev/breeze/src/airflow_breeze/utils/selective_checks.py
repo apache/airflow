@@ -663,10 +663,21 @@ class SelectiveChecks:
             console_print("[warning]Running full set of tests because env files changed[/]")
             return True
         if self._matching_files(
-            FileGroupForCi.API_FILES,
+            FileGroupForCi.API_CODEGEN_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
-            console_print("[warning]Running full set of tests because api files changed[/]")
+            # Only the API *contract* changing (the generated OpenAPI spec, or the
+            # client generator) ripples broadly — to the UI codegen, the generated
+            # clients, and every consumer — so it warrants the full matrix. Plain
+            # API source/test edits that leave the committed spec untouched do not:
+            # a prek hook regenerates and verifies the spec, so an unchanged spec
+            # reliably means an unchanged contract. Those edits still run the `API`
+            # test type and the `fab` provider (via `run_api_tests`); they just no
+            # longer drag in the whole provider matrix.
+            console_print(
+                "[warning]Running full set of tests because the API contract "
+                "(generated OpenAPI spec / client generator) changed[/]"
+            )
             return True
         if self._matching_files(
             FileGroupForCi.GIT_PROVIDER_FILES,
