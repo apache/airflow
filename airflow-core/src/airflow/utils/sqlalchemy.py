@@ -255,6 +255,7 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
 
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
+        # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
         return ApiClient()._ApiClient__deserialize_model(pod_dict, V1Pod)
     except Exception:
         return None
