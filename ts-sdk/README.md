@@ -48,6 +48,65 @@ registerTask("say_hello", async ({ ctx, client }) => {
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
 key by the active runtime, matching Python `@task` behavior.
 
+## Intended Coordinator Usage
+
+This PR only adds the TypeScript-side public interface. The coordinator runtime
+will be added separately, but the intended authoring shape matches the other
+non-Python SDKs: a Python Dag declares the scheduling shape with stub tasks, and
+the TypeScript module registers handlers with matching task IDs.
+
+Python Dag:
+
+```python
+from airflow.sdk import dag, task
+
+
+@dag
+def sales_pipeline():
+    @task.stub(queue="typescript")
+    def extract(): ...
+
+    @task.stub(queue="typescript")
+    def transform(extracted): ...
+
+    transform(extract())
+
+
+sales_pipeline()
+```
+
+TypeScript handlers:
+
+```ts
+import { registerTask } from "@apache-airflow/ts-sdk";
+
+registerTask("extract", async ({ client }) => {
+  const connection = await client.getConnection("sales_db");
+  const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
+
+  return {
+    connectionId: connection?.connId,
+    rowCount,
+  };
+});
+
+registerTask("transform", async ({ client }) => {
+  const extracted = await client.getXCom<{ rowCount: number }>({
+    key: "return_value",
+    taskId: "extract",
+  });
+
+  return {
+    transformedRows: extracted?.rowCount ?? 0,
+  };
+});
+```
+
+The Python stub defines the Dag dependency graph. The TypeScript handler does
+the work and uses `TaskClient` for task-time Airflow data access. The follow-up
+coordinator runtime will launch Node.js, find the registered handler for the
+stub task, and map the TypeScript public API to the supervisor schema.
+
 ## TaskClient
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
