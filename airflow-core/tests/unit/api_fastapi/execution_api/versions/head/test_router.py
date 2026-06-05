@@ -20,17 +20,76 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import FastAPI
+import svcs
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.security import HTTPBearer
+from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.security import (
+    _REQUEST_SCOPE_TOKEN_KEY,
+    _jwt_bearer,
+)
+
+
+@pytest.fixture
+def client():
+    """Test client that exercises JWTBearer so request.scope is populated for the middleware."""
+    from starlette.routing import Mount
+
+    from airflow.api_fastapi.app import cached_app
+
+    app = cached_app(apps="execution")
+
+    exec_app: FastAPI | None = None
+    for route in app.routes:
+        if isinstance(route, Mount) and route.path == "/execution" and isinstance(route.app, FastAPI):
+            exec_app = route.app
+            break
+    if exec_app is None:
+        raise RuntimeError("Execution API sub-app not found")
+
+    _http_bearer = HTTPBearer(auto_error=False)
+
+    async def mock_jwt_bearer(request: Request):
+        """Drop-in for _jwt_bearer that uses the registered JWTValidator mock and sets scope."""
+        if cached := request.scope.get(_REQUEST_SCOPE_TOKEN_KEY):
+            return cached
+
+        creds = await _http_bearer(request)
+        if not creds:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing auth token")
+
+        async with svcs.Container(request.app.state.svcs_registry) as services:
+            validator: JWTValidator = await services.aget(JWTValidator)
+            try:
+                claims = await validator.avalidated_claims(creds.credentials, {})
+            except Exception:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid auth token")
+
+        claims.setdefault("scope", "execution")
+        token = TIToken(id=claims["sub"], claims=TIClaims(**claims))
+        request.scope[_REQUEST_SCOPE_TOKEN_KEY] = token
+        return token
+
+    exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+    with TestClient(app) as c:
+        yield c
+
+    exec_app.dependency_overrides.pop(_jwt_bearer, None)
 
 
 @pytest.fixture
 def exec_app(client):
-    last_route = client.app.routes[-1]
-    assert isinstance(last_route.app, FastAPI)
-    return last_route.app
+    from starlette.routing import Mount
+
+    for route in client.app.routes:
+        if isinstance(route, Mount) and route.path == "/execution" and isinstance(route.app, FastAPI):
+            return route.app
+    raise RuntimeError("Execution API sub-app not found")
 
 
 @pytest.mark.parametrize(
@@ -67,6 +126,7 @@ def test_expiring_token_is_reissued(
         assert "Refreshed-API-Token" in response.headers
     else:
         assert "Refreshed-API-Token" not in response.headers
+    # avalidated_claims must be called exactly once — by JWTBearer only, not by the middleware.
     auth.avalidated_claims.assert_awaited_once_with("dummy", {})
 
 
