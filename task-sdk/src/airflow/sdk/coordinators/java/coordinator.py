@@ -156,7 +156,6 @@ class _JarInfo:
         raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
 
 
-
 def _convert_jars_root(
     value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
 ) -> list[pathlib.Path]:
