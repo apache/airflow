@@ -520,6 +520,17 @@ core:
       type: boolean
       example: ~
       default: "False"
+    team_name_cache_ttl:
+      description: |
+        Number of seconds a Dag's owning team (resolved from its bundle) is cached in memory before it
+        is looked up again. The team is read on every Dag authorization check, including the grid
+        endpoints which re-poll continuously, so caching it avoids repeated Team-table joins. A team
+        reassignment takes up to this many seconds to take effect, and different API server workers may
+        briefly disagree during that window. Set to ``0`` to disable caching.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "30"
     rerun_with_latest_version:
       description: |
         Default value for whether cleared, rerun, or backfilled tasks should use
