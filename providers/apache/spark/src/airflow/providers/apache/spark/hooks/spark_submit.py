@@ -1169,7 +1169,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     if len(pod.spec.containers) == 1:
                         driver_container = container
                     else:
-                        driver_container + None
+                        driver_container = None
 
                 if driver_container:
                     for status in pod.status.container_statuses or []:
@@ -1191,6 +1191,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                         consecutive_waiting,
                                         consecutive_waiting * poll_interval,
                                     )
+                            else:
+                                consecutive_waiting = 0
                 else:
                     phase = pod.status.phase or "Initializing"
                     self.log.info("Application status for %s (phase: %s)", app_id, phase)
