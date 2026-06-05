@@ -51,28 +51,35 @@ import subprocess
 import sys
 import time
 
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from kubernetes import client, config as k8s_config
+from kubernetes.stream import stream
+from sqlalchemy.exc import OperationalError
+
+import airflow
+from airflow.settings import engine
+
+# NOTE: _REVISION_HEADS_MAP is a private symbol in airflow.utils.db. Tracked in
+# #68072 to expose a public accessor; using the private name is the only way
+# today to map a target version string to an alembic revision.
+from airflow.utils.db import _REVISION_HEADS_MAP
+
 
 def decide_action(target: str) -> str:
     """Return one of ``noop``, ``forward``, ``downgrade``, ``fresh``."""
-    # NOTE: _REVISION_HEADS_MAP is a private symbol in airflow.utils.db.
-    # Tracked in #68072 to expose a public accessor; using the private name is
-    # the only way today to map a target version string to an alembic revision.
-    from airflow.utils.db import _REVISION_HEADS_MAP
-
     target_rev = _REVISION_HEADS_MAP.get(target)
     if target_rev is None:
         # Unknown target version (e.g. dev build). Be conservative: forward only.
         return "forward"
 
     try:
-        from alembic.migration import MigrationContext
-
-        from airflow.settings import engine
-
         with engine.connect() as conn:
             current_rev = MigrationContext.configure(conn).get_current_revision()
-    except Exception:
-        # DB unreachable or alembic_version table missing -> treat as fresh install.
+    except OperationalError:
+        # DB unreachable -> treat as fresh install; ``airflow db migrate`` will
+        # re-surface a real connectivity error with a clearer message.
         return "fresh"
 
     if current_rev is None:
@@ -80,30 +87,28 @@ def decide_action(target: str) -> str:
     if current_rev == target_rev:
         return "noop"
 
-    # Walk the alembic revision graph to decide direction. If target is an
-    # ancestor of current we need to downgrade; otherwise forward migrate.
-    from alembic.config import Config
-    from alembic.script import ScriptDirectory
-
-    import airflow
-
+    # Walk the TARGET image's revision graph from base to target_rev. Target's
+    # ScriptDirectory only contains revisions up to target's heads, so we
+    # cannot walk from an unknown current_rev (the downgrade case): the call
+    # would raise ``RevisionError``. Instead, build the ancestor set of target
+    # and check membership.
     cfg = Config()
     cfg.set_main_option(
         "script_location",
         os.path.join(os.path.dirname(airflow.__file__), "migrations"),
     )
     script = ScriptDirectory.from_config(cfg)
-    ancestors_of_current = {rev.revision for rev in script.walk_revisions("base", current_rev)}
-    if target_rev in ancestors_of_current and target_rev != current_rev:
-        return "downgrade"
-    return "forward"
+    ancestors_of_target = {rev.revision for rev in script.walk_revisions("base", target_rev)}
+    if current_rev in ancestors_of_target:
+        # current is an ancestor of target -> moving forward.
+        return "forward"
+    # current is not in target's history -> must be newer than target.
+    return "downgrade"
 
 
 def discover_api_server_pod(namespace: str) -> str:
     """Return the name of a Running api-server pod in *namespace*."""
-    from kubernetes import client, config
-
-    config.load_incluster_config()
+    k8s_config.load_incluster_config()
     api = client.CoreV1Api()
     pods = api.list_namespaced_pod(
         namespace=namespace,
@@ -122,10 +127,7 @@ def discover_api_server_pod(namespace: str) -> str:
 
 def run_downgrade_in_api_server(pod_name: str, namespace: str, target_version: str) -> int:
     """Exec ``airflow db downgrade`` in the api-server pod via the Kubernetes API."""
-    from kubernetes import client, config
-    from kubernetes.stream import stream
-
-    config.load_incluster_config()
+    k8s_config.load_incluster_config()
     api = client.CoreV1Api()
     command = ["airflow", "db", "downgrade", "--to-version", target_version, "--yes"]
 
@@ -151,7 +153,12 @@ def run_downgrade_in_api_server(pod_name: str, namespace: str, target_version: s
             sys.stderr.flush()
     returncode = resp.returncode
     resp.close()
-    return returncode or 0
+    # Treat an unknown exit code as failure rather than success: if the stream
+    # closes without populating returncode we cannot prove the downgrade ran.
+    if returncode is None:
+        sys.stderr.write("[db_migrate] downgrade exec stream closed without an exit code\n")
+        return 1
+    return returncode
 
 
 # Components that talk to the metadata DB and are managed by this helm release.
@@ -173,9 +180,7 @@ def scale_release_workloads_to_zero(namespace: str, release_name: str, timeout_s
     when it applies the post-hook manifests, so we deliberately do NOT scale
     them up again here.
     """
-    from kubernetes import client, config
-
-    config.load_incluster_config()
+    k8s_config.load_incluster_config()
     apps = client.AppsV1Api()
     core = client.CoreV1Api()
 
@@ -222,7 +227,7 @@ def main() -> int:
         print("[db_migrate] DB already at target revision, nothing to do.")
         return 0
     if action in {"fresh", "forward"}:
-        return subprocess.call(["airflow", "db", "migrate"])
+        return subprocess.run(["airflow", "db", "migrate"], check=False).returncode
     if action == "downgrade":
         if not release_name:
             raise SystemExit("RELEASE_NAME must be set for the downgrade branch")
