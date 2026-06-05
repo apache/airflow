@@ -164,8 +164,6 @@ class CallbackSubprocess(WatchedSubprocess):
     ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
     """
 
-    client: Client  # The HTTP client to use for communication with the API server.
-
     decoder: ClassVar[TypeAdapter[CallbackToSupervisor]] = TypeAdapter(CallbackToSupervisor)
 
     @classmethod

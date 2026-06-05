@@ -132,6 +132,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
+    get_handler,
     handle_delete_variable,
     handle_delete_xcom,
     handle_get_connection,
@@ -635,6 +636,8 @@ class WatchedSubprocess:
     No migration is attempted if this is set to *None* (default).
     """
 
+    client: Client
+
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
     _open_sockets: weakref.WeakKeyDictionary[socket, str] = attrs.field(
@@ -948,7 +951,8 @@ class WatchedSubprocess:
                     otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
-        raise NotImplementedError()
+        resp, dump_opts = get_handler(type(msg))(self.client, msg)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     @staticmethod
     def _close_unused_sockets(*sockets):
@@ -1275,7 +1279,6 @@ def _remote_logging_conn(client: Client):
 
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
-    client: Client
     """The HTTP client to use for communication with the API server."""
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
