@@ -111,10 +111,10 @@ spec:
           # relationship between the chart's target version and the DB's current
           # alembic head. See https://github.com/apache/airflow/issues/68072.
           args:
-            - "bash"
+            - "python3"
             - "-c"
             - |-
-              {{- .Files.Get "files/db_migrate.sh" | nindent 14 }}
+              {{- .Files.Get "files/db_migrate.py" | nindent 14 }}
           {{- end }}
           {{- if .Values.migrateDatabaseJob.applyCustomEnv }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
