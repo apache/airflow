@@ -182,8 +182,13 @@ class AsyncAwareExecutor(Executor):
             pending[future] = future
             return True
 
-        while len(pending) < self._max_workers and _submit_next():
-            pass
+        def _fill_pending() -> None:
+            """Submit tasks until pending reaches max_workers or iterator is exhausted."""
+            while len(pending) < self._max_workers and _submit_next():
+                pass
+
+        # Submit up to max_workers tasks initially
+        _fill_pending()
 
         while pending:
             wait_timeout = _remaining_timeout()
@@ -196,8 +201,7 @@ class AsyncAwareExecutor(Executor):
 
             for completed in done:
                 pending.pop(completed)
-                while len(pending) < self._max_workers and _submit_next():
-                    pass
+                _fill_pending()
                 yield completed.result()
 
 

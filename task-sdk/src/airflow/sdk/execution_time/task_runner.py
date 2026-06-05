@@ -549,6 +549,15 @@ class RuntimeTaskInstance(TaskInstance):
         """
         _xcom_push(self, key, value)
 
+    async def axcom_push(self, key: str, value: Any):
+        """
+        Make an XCom available for tasks to pull asynchronously.
+
+        :param key: Key to store the value under.
+        :param value: Value to store. Only be JSON-serializable values may be used.
+        """
+        await _axcom_push(self, key, value)
+
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
     ) -> int | range | None:
@@ -831,6 +840,15 @@ class IndexedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         if key == BaseXCom.XCOM_RETURN_KEY:
             self.xcom_pushed = True
 
+    async def axcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        await super().axcom_push(key=f"{key}_{self.index}", value=value)
+        if key == BaseXCom.XCOM_RETURN_KEY:
+            self.xcom_pushed = True
+
     def next_retry_datetime(self):
         """
         Get datetime of the next retry if the task instance fails.
@@ -891,6 +909,10 @@ class IndexedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         return self.try_number + 1
 
     @property
+    def xcom_key(self) -> str:
+        return f"{self.task_id}_{self.index}"
+
+    @property
     def do_xcom_push(self) -> bool:
         return self.task.do_xcom_push
 
@@ -918,8 +940,33 @@ def _xcom_push(
     )
 
 
+async def _axcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
+    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
+
+    await XCom.aset(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
+        _mapped_length=mapped_length,
+    )
+
+
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
-    """Push a XCom directly to metadata DB, bypassing custom xcom_backend."""
+    """Push a XCom asynchronously through XCom.aset, which pushes to XCom Backend if configured."""
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
     XCom._set_xcom_in_db(
         key=key,
         value=value,

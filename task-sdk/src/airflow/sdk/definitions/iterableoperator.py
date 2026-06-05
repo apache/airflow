@@ -217,7 +217,7 @@ class IterableOperator(BaseOperator):
         )
         return unmapped_task
 
-    def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
+    async def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
         if task.xcom_pushed:
             self.log.debug(
                 "XCom already pushed for task_id %s with index %s",
@@ -231,7 +231,7 @@ class IterableOperator(BaseOperator):
                 task.index,
             )
 
-            task.xcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+            await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
 
     def _run_tasks(
         self,
@@ -260,8 +260,6 @@ class IterableOperator(BaseOperator):
 
                         if raised is None:
                             self.log.debug("result: %s", result)
-                            if result is not None and task.do_xcom_push:
-                                self._xcom_push(task=task, value=result)
                             continue
 
                         if isinstance(raised, TaskDeferred):
@@ -374,6 +372,11 @@ class IterableOperator(BaseOperator):
                 result = await self._run_async_operator(context, task)
             else:
                 result = await executor.run_sync(self._run_operator, context, task)
+
+            # Push XCom asynchronously (non-blocking)
+            if result is not None and task.do_xcom_push:
+                await self._xcom_push(task, result)
+
             return task, result, None
         except BaseException as e:
             return task, None, e
