@@ -18,16 +18,13 @@ from __future__ import annotations
 
 import logging
 import multiprocessing
-import os
 import sys
-import threading
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
 
-import psutil
 from openlineage.client.serde import Serde
 
 from airflow import settings
@@ -56,7 +53,6 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
-from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -64,12 +60,6 @@ if TYPE_CHECKING:
 
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-if sys.platform == "darwin":
-    from setproctitle import getproctitle
-
-    setproctitle = lambda title: logging.getLogger(__name__).debug("Mac OS detected, skipping setproctitle")
-else:
-    from setproctitle import getproctitle, setproctitle
 
 
 def _executor_initializer():
@@ -125,6 +115,25 @@ def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
     return event
 
+
+def _emit_task_instance_event(adapter_method, event_type, operator_name, **kwargs):
+    """
+    Emit an OL event for a task instance lifecycle transition.
+
+    Module-level so it is picklable across the ProcessPoolExecutor boundary.
+    Runs in a pool worker started via forkserver context, so it never inherits
+    locked mutexes from a multi-threaded parent.  Mirrors
+    _emit_manual_state_change_event but records the standard ol.event.size
+    gauge with event_type and operator_name tags.
+    """
+    redacted_event = adapter_method(**kwargs)
+    event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+    Stats.gauge(
+        "ol.event.size",
+        event_size,
+        tags={"event_type": event_type, "operator_name": operator_name},
+    )
+    return redacted_event
 
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
@@ -253,7 +262,11 @@ class OpenLineageListener:
                     task_instance=task_instance,
                 )
 
-            redacted_event = self.adapter.start_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                self.adapter.start_task,
+                event_type,
+                operator_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 job_description=doc,
@@ -277,14 +290,8 @@ class OpenLineageListener:
                     **debug_facet,
                 },
             )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
-            )
 
-        self._execute(on_running, "on_running", use_fork=True)
+        on_running()
 
     if AIRFLOW_V_3_0_PLUS:
 
@@ -385,7 +392,11 @@ class OpenLineageListener:
                     task_instance=task_instance,
                 )
 
-            redacted_event = self.adapter.complete_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                self.adapter.complete_task,
+                event_type,
+                operator_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -408,14 +419,8 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
-            )
 
-        self._execute(on_success, "on_success", use_fork=True)
+        on_success()
 
     if AIRFLOW_V_3_0_PLUS:
 
@@ -531,7 +536,11 @@ class OpenLineageListener:
                     task_instance=task_instance,
                 )
 
-            redacted_event = self.adapter.fail_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                self.adapter.fail_task,
+                event_type,
+                operator_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -555,14 +564,8 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
-            )
 
-        self._execute(on_failure, "on_failure", use_fork=True)
+        on_failure()
 
     if AIRFLOW_V_3_0_PLUS:
 
@@ -654,7 +657,11 @@ class OpenLineageListener:
                     task_instance=task_instance,
                 )
 
-            redacted_event = self.adapter.complete_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                self.adapter.complete_task,
+                event_type,
+                operator_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -677,14 +684,8 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
-            )
 
-        self._execute(on_skipped, "on_skipped", use_fork=True)
+        on_skipped()
 
     def _on_task_instance_manual_state_change(
         self,
@@ -698,8 +699,7 @@ class OpenLineageListener:
 
         This path is only reached on the scheduler (``process_executor_events ->
         handle_failure``, or manual UI/API state changes). Emission is routed through
-        the same ``ProcessPoolExecutor`` the DAG-run listeners use rather than through
-        ``_fork_execute``: the pool's ``_executor_initializer`` rebuilds the ORM once
+        the same ``ProcessPoolExecutor`` the DAG-run listeners use: the pool's ``_executor_initializer`` rebuilds the ORM once
         per worker, so the child never shares a pooled Postgres SSL connection with
         the scheduler, and bursts of external-state-change events no longer produce a
         fork-per-event.
@@ -817,60 +817,6 @@ class OpenLineageListener:
             self.log.warning(
                 "OpenLineage received exception in method `_on_task_instance_manual_state_change`",
                 exc_info=e,
-            )
-
-    def _execute(self, callable, callable_name: str, use_fork: bool = False):
-        if use_fork:
-            self._thread_execute(callable, callable_name)
-        else:
-            callable()
-
-
-    def _thread_execute(self, callable, callable_name: str):
-        """Execute callable in a daemon thread with timeout.
-
-        Replaces the previous ``os.fork()`` approach to avoid the
-        ``DeprecationWarning`` on Python 3.12+ about forking in
-        multi-threaded processes (which can also lead to deadlocks
-        when a thread holds a lock at fork time).
-
-        A daemon thread shares the parent's address space, so the
-        callable's closures (which capture non-picklable ORM models
-        and extractors) work without serialization.  ``join(timeout)``
-        provides the same timeout protection as the old fork path.
-        """
-        self.log.debug("Will execute OpenLineage callable in thread.")
-
-        def _target():
-            self.log.debug(
-                "Executing OpenLineage process - %s - thread %s",
-                callable_name,
-                threading.current_thread().name,
-            )
-            try:
-                callable()
-                self.log.debug("Thread finishes after %s", callable_name)
-            except Exception:
-                self.log.warning(
-                    "OpenLineage %s thread failed. This has no impact on actual task execution status.",
-                    callable_name,
-                    exc_info=True,
-                )
-
-        thread = threading.Thread(
-            target=_target,
-            name=f"OpenLineage-{callable_name}",
-            daemon=True,
-        )
-        thread.start()
-        thread.join(timeout=conf.execution_timeout())
-        if thread.is_alive():
-            self.log.warning(
-                "OpenLineage thread %r did not finish within %s seconds. "
-                "Continuing without waiting. "
-                "This has no impact on actual task execution status.",
-                callable_name,
-                conf.execution_timeout(),
             )
 
     @property
