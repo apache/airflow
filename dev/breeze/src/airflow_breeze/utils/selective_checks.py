@@ -649,6 +649,10 @@ class SelectiveChecks:
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
                 )
                 return False
+            # On push to release branches (v3-X-test, etc), only run selective tests.
+            # Canaries (SCHEDULE) and manual triggers (WORKFLOW_DISPATCH) still run full matrix.
+            if self._github_event == GithubEvents.PUSH and self._default_branch != "main":
+                return False
             console_print(f"[warning]Running everything because event is {self._github_event}[/]")
             return True
         if not self._commit_ref:
