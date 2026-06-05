@@ -67,3 +67,39 @@ def test_expiring_token_is_reissued(
         assert "Refreshed-API-Token" in response.headers
     else:
         assert "Refreshed-API-Token" not in response.headers
+    auth.avalidated_claims.assert_awaited_once_with("dummy", {})
+
+
+@pytest.mark.db_test
+def test_just_expired_token_is_reissued_within_grace_period(client, exec_app: FastAPI, time_machine):
+    """Token that expires mid-request is still reissued by the middleware.
+
+    Regression test for the TOCTOU race in JWTReissueMiddleware: a heartbeat arrives with a
+    token that has ~0s left, JWTBearer validates it (still technically valid at that moment),
+    the request completes, and the middleware runs. In the old code the middleware would call
+    avalidated_claims a second time and get ExpiredSignatureError — no Refreshed-API-Token
+    header would be set, and the task would die on the next heartbeat.
+
+    With the fix the middleware reads claims from request.scope (set by JWTBearer) instead of
+    re-validating, so it still issues a fresh token even when the original has since expired.
+    """
+    moment = 1743451846
+    auth = AsyncMock(spec=JWTValidator)
+    auth.avalidated_claims.return_value = {
+        "sub": "edb09971-4e0e-4221-ad3f-800852d38085",
+        "iat": moment,
+        "exp": moment + 600,
+    }
+
+    # Move time to 1 second past the token's expiry — simulates the middleware running after
+    # the token boundary. JWTBearer already accepted the token (mocked); the middleware must
+    # still issue a refresh rather than silently dropping it.
+    time_machine.move_to(moment + 601, tick=False)
+
+    lifespan.registry.register_value(JWTValidator, auth)
+
+    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    assert "Refreshed-API-Token" in response.headers
+    # avalidated_claims must be called exactly once — by JWTBearer only.
+    auth.avalidated_claims.assert_awaited_once_with("dummy", {})
