@@ -103,7 +103,19 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-    return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    #return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+
+    # stat_name_otel_handler() raises InvalidStatsNameException for names that
+    # contain non-ASCII characters (e.g. TaskGroup IDs with ç, ã, ö, é …).
+    # This function is declared -> bool, so it must NEVER raise; callers such
+    # as SafeOtelLogger.timing() rely on the False return to silently skip the
+    # metric emission.  Without this guard the exception propagates into the
+    # scheduler's critical section and causes CrashLoopBackOff.
+    # See: https://github.com/apache/airflow/issues/68018
+    try:
+        return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    except InvalidStatsNameException:
+        return False
 
 
 def _type_as_str(obj: Instrument) -> str:
