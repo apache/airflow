@@ -9563,6 +9563,124 @@ export const $MenuItemCollectionResponse = {
     description: 'Menu Item Collection serializer for responses.'
 } as const;
 
+export const $NextRunAssetEventResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        uri: {
+            type: 'string',
+            title: 'Uri'
+        },
+        last_update: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Update'
+        },
+        received_count: {
+            type: 'integer',
+            title: 'Received Count',
+            default: 0
+        },
+        required_count: {
+            type: 'integer',
+            title: 'Required Count',
+            default: 1
+        },
+        received_keys: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Received Keys'
+        },
+        required_keys: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Required Keys'
+        },
+        is_rollup: {
+            type: 'boolean',
+            title: 'Is Rollup',
+            default: false
+        },
+        mapper_error: {
+            type: 'boolean',
+            title: 'Mapper Error',
+            default: false
+        },
+        asset_inactive: {
+            type: 'boolean',
+            title: 'Asset Inactive',
+            default: false
+        }
+    },
+    type: 'object',
+    required: ['id', 'name', 'uri'],
+    title: 'NextRunAssetEventResponse',
+    description: 'One asset event in the ``next_run_assets`` payload.'
+} as const;
+
+export const $NextRunAssetsResponse = {
+    properties: {
+        asset_expression: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Expression'
+        },
+        events: {
+            items: {
+                '$ref': '#/components/schemas/NextRunAssetEventResponse'
+            },
+            type: 'array',
+            title: 'Events'
+        },
+        pending_partition_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Pending Partition Count'
+        }
+    },
+    type: 'object',
+    required: ['events'],
+    title: 'NextRunAssetsResponse',
+    description: 'Response for the ``next_run_assets`` endpoint.'
+} as const;
+
 export const $NodeResponse = {
     properties: {
         id: {
@@ -9677,10 +9795,47 @@ export const $PartitionedDagRunAssetResponse = {
         received: {
             type: 'boolean',
             title: 'Received'
+        },
+        received_count: {
+            type: 'integer',
+            title: 'Received Count'
+        },
+        required_count: {
+            type: 'integer',
+            title: 'Required Count'
+        },
+        received_keys: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Received Keys'
+        },
+        required_keys: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Required Keys'
+        },
+        is_rollup: {
+            type: 'boolean',
+            title: 'Is Rollup',
+            default: false
+        },
+        mapper_error: {
+            type: 'boolean',
+            title: 'Mapper Error',
+            default: false
+        },
+        asset_inactive: {
+            type: 'boolean',
+            title: 'Asset Inactive',
+            default: false
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'received'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'received', 'received_count', 'required_count', 'received_keys', 'required_keys'],
     title: 'PartitionedDagRunAssetResponse',
     description: 'Asset info within a partitioned Dag run detail.'
 } as const;

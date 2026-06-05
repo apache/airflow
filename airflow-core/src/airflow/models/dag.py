@@ -66,7 +66,7 @@ from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
-from airflow.timetables.base import DataInterval, Timetable
+from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -388,6 +388,16 @@ class DagModel(Base):
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Whether the timetable is periodic (supports backfilling).
     timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Cached partition mapper metadata for partitioned timetables, populated
+    # during Dag serialization so the UI can resolve mapper attributes without
+    # deserializing the timetable. See ``PartitionMapperInfo`` for the per-asset
+    # entry shape; empty list for timetables without per-asset partition mappers.
+    # No ``server_default`` — MySQL refuses literal defaults on JSON columns;
+    # the migration backfills existing rows and ``default=list`` covers new
+    # ORM inserts that don't pass an explicit value.
+    partition_mapper_info: Mapped[list[PartitionMapperInfo]] = mapped_column(
+        sa.JSON(), nullable=False, default=list
+    )
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
@@ -480,6 +490,38 @@ class DagModel(Base):
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
+
+    def is_rollup_asset(self, *, name: str, uri: str) -> bool:
+        """
+        Return whether the asset identified by *name*/*uri* uses a rollup mapper.
+
+        Reads the cached ``partition_mapper_info`` populated during Dag
+        serialization, mirroring ``PartitionedAssetTimetable.get_partition_mapper``.
+
+        Entries come from three shapes:
+
+        - Regular ``Asset`` → ``{"name": ..., "uri": ..., "is_rollup": ...}``
+        - ``Asset.ref(name=...)`` (``SerializedAssetNameRef``) → ``{"name": ..., "is_rollup": ...}``
+        - ``Asset.ref(uri=...)`` (``SerializedAssetUriRef``) → ``{"uri": ..., "is_rollup": ...}``
+
+        Name match wins over uri match (any name hit in the list outranks
+        any uri hit), so the first pass scans for a name match and the
+        second pass falls back to uri. The uri pass exists for uri-only
+        ref entries (which carry no ``name`` field) — without it, those
+        refs would never resolve.
+        """
+        for entry in self.partition_mapper_info:
+            if entry.get("name") == name:
+                return entry["is_rollup"]
+        for entry in self.partition_mapper_info:
+            if entry.get("uri") == uri:
+                return entry["is_rollup"]
+        return False
+
+    @property
+    def has_rollup_mappers(self) -> bool:
+        """Whether any cached partition mapper is a rollup mapper."""
+        return any(entry["is_rollup"] for entry in self.partition_mapper_info)
 
     @property
     def next_dagrun_data_interval(self) -> DataInterval | None:

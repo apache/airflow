@@ -39,7 +39,12 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``c9d4e5f6a7b8`` (head) | ``a7e6d4c3b2f1`` | ``3.3.0``         | Add allow_consumer_teams columns to                          |
+| ``dd5f3a8e2b91`` (head) | ``c20871fbf23a`` | ``3.3.0``         | Add rollup_fingerprint to AssetPartitionDagRun and index     |
+|                         |                  |                   | partitioned_asset_key_log.asset_partition_dag_run_id.        |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c20871fbf23a``        | ``c9d4e5f6a7b8`` | ``3.3.0``         | Add partition_mapper_info to DagModel.                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c9d4e5f6a7b8``        | ``a7e6d4c3b2f1`` | ``3.3.0``         | Add allow_consumer_teams columns to                          |
 |                         |                  |                   | task_outlet_asset_reference table.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``a7e6d4c3b2f1``        | ``8812eb67b63c`` | ``3.3.0``         | Add connection_test_request table for the deferred           |
