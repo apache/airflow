@@ -4904,6 +4904,43 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        When an ``except`` handler in ``run()`` raises before binding ``state``,
+        the original exception must propagate
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        class _TriggerSendError(Exception):
+            pass
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="missing_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_reraises_original_error",
+            run_id="test_run",
+            task=task,
+        )
+
+        def _send(msg=None, **kwargs):
+            # Fail only the TriggerDagRun comms (the call that would 404 for a
+            # missing DAG); let every earlier send behave as the default mock.
+            if isinstance(msg, TriggerDagRun):
+                raise _TriggerSendError("simulated 404 for missing target DAG")
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        log = mock.MagicMock()
+
+        # The original error must surface, not UnboundLocalError on ``state``.
+        with pytest.raises(_TriggerSendError):
+            run(ti, ti.get_template_context(), log)
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
@@ -5325,6 +5362,24 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(GetTaskStore(ti_id=runtime_ti.id, key="job_id"))
 
+    def test_task_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        captured = {}
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["task_store"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "watermark"}
+        )
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
+
     def test_task_state_set_sends_typed_values(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         """set() accepts any JsonValue — dict, int, list — not just strings."""
 
@@ -5440,6 +5495,27 @@ class TestTaskInstanceStateOperations:
             SetAssetStoreByName(name="my_asset", key="watermark", value="2026-04-30")
         )
         mock_supervisor_comms.send.assert_any_call(GetAssetStoreByName(name="my_asset", key="watermark"))
+
+    def test_asset_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        watched = Asset(name="my_asset", uri="s3://bucket/data")
+        captured = {}
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["asset_store"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = lambda msg: (
+            ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"})
+            if isinstance(msg, GetAssetStoreByName)
+            else TestTaskInstanceStateOperations._watcher_side_effect(msg)
+        )
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
 
     def test_asset_state_delete(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")

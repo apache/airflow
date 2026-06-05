@@ -21,6 +21,7 @@ import contextlib
 import functools
 import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -167,7 +168,18 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
     return Variable(**var_result.model_dump(exclude={"type"}))
 
 
+_preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
+    "_preset_connections", default=None
+)
+
+
 def _get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if preset is not None and conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -208,6 +220,12 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if preset is not None and conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.cache import SecretCache
@@ -506,9 +524,9 @@ class TaskStoreAccessor:
     # is not implemented yet cos it's unclear whether task state values will be
     # used in templates.
 
-    def get(self, key: str) -> JsonValue:
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
         """
-        Return the stored value, or ``None`` if the key does not exist.
+        Return the stored value, or ``default`` if the key does not exist.
 
         Supported types: ``str``, ``int``, ``float``, ``bool``, ``list``, ``dict``.
         ``datetime`` is not JSON-serializable; store it as ``value.isoformat()`` and
@@ -535,11 +553,13 @@ class TaskStoreAccessor:
                     key,
                 )
             return stored
-        return None
+        return default
 
     def set(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
         """
         Write or overwrite the value for the given key.
+
+        ``value`` must not be ``None``.
 
         ``retention`` is an optional key that controls when this key expires:
 
@@ -550,6 +570,9 @@ class TaskStoreAccessor:
         from airflow.sdk.execution_time.comms import SetTaskStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        if value is None:
+            raise ValueError("Cannot set value as None")
+
         # expires_at is always resolved on the worker in UTC before being sent.
         now = datetime.now(tz=timezone.utc)
         if retention is NEVER_EXPIRE:
@@ -558,7 +581,12 @@ class TaskStoreAccessor:
             expires_at = now + retention
         else:
             days = conf.getint("state_store", "default_retention_days")
-            expires_at = None if days <= 0 else now + timedelta(days=days)
+            if days < 0:
+                raise ValueError(
+                    f"[state_store] default_retention_days must be >= 0, got {days}. "
+                    "Set to 0 to disable expiry."
+                )
+            expires_at = None if days == 0 else now + timedelta(days=days)
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
@@ -640,8 +668,8 @@ class AssetStoreAccessor:
             return f"<AssetStoreAccessor name={self._name!r}>"
         return f"<AssetStoreAccessor uri={self._uri!r}>"
 
-    def get(self, key: str) -> JsonValue:
-        """Return the stored value, or ``None`` if the key does not exist."""
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Return the stored value, or ``default`` if the key does not exist."""
         from airflow.sdk.execution_time.comms import (
             AssetStoreResult,
             ErrorResponse,
@@ -674,12 +702,15 @@ class AssetStoreAccessor:
                     self._name or self._uri,
                 )
             return stored
-        return None
+        return default
 
     def set(self, key: str, value: JsonValue) -> None:
-        """Write or overwrite the value for the given key."""
+        """Write or overwrite the value for the given key. ``value`` must not be ``None``."""
         from airflow.sdk.execution_time.comms import SetAssetStoreByName, SetAssetStoreByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if value is None:
+            raise ValueError("Cannot set value as None")
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
@@ -797,9 +828,9 @@ class AssetStoreAccessors:
             return next(iter(self._by_name.values()))
         return next(iter(self._by_uri.values()))
 
-    def get(self, key: str) -> JsonValue:
-        """Return the stored value for the single-inlet task, or ``None`` if not found."""
-        return self._single_accessor().get(key)
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Return the stored value for the single-inlet or single-outlet task, or ``default`` if not found."""
+        return self._single_accessor().get(key, default)
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the single-inlet task."""

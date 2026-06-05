@@ -143,6 +143,10 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__GO_WORKER=True
     fi
 
+    if [[ ${INSTALL_SDK_JAVA=} == "true" ]]; then
+        "${AIRFLOW_SOURCES}/scripts/docker/install_jdk.sh"
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 

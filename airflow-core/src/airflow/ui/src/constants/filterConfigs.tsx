@@ -129,6 +129,13 @@ export const useFilterConfigs = () => {
       min: 1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.DEADLINE_TIME_RANGE]: {
+      endKey: SearchParamsKeys.DEADLINE_TIME_LTE,
+      icon: <MdDateRange />,
+      label: translate("browse:deadlines.columns.deadlineTime"),
+      startKey: SearchParamsKeys.DEADLINE_TIME_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.DURATION_GTE]: {
       icon: <MdHourglassEmpty />,
       label: translate("common:filters.durationFrom"),
@@ -208,6 +215,16 @@ export const useFilterConfigs = () => {
       label: translate("common:mapIndex"),
       min: -1,
       type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.MISSED]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:deadlines.filters.status"),
+      options: [
+        { label: translate("browse:deadlines.filters.statusOptions.all"), value: "" },
+        { label: translate("browse:deadlines.filters.statusOptions.pending"), value: "false" },
+        { label: translate("browse:deadlines.filters.statusOptions.missed"), value: "true" },
+      ],
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.NAME_PATTERN]: {
       hotkeyDisabled: true,

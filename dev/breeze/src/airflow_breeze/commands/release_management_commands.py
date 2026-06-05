@@ -197,7 +197,12 @@ from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_venv
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    from github import Issue, PullRequest
     from packaging.version import Version
+
+    PullRequestOrIssue: TypeAlias = PullRequest.PullRequest | Issue.Issue
 
 argument_provider_distributions = click.argument(
     "provider_distributions",
@@ -241,9 +246,13 @@ option_use_local_hatch = click.option(
 )
 
 MY_DIR_PATH = os.path.dirname(__file__)
-SOURCE_DIR_PATH = os.path.abspath(
-    os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir, os.pardir, os.pardir)
-)
+# Derive the repository root from AIRFLOW_ROOT_PATH (the canonical root resolved by breeze)
+# rather than walking parents of this module's file. When breeze runs from the uvx cache
+# (the standard execution mode, see ADR 0017), this file lives under the uv archive, so the
+# parent-walking approach resolved to the cache dir instead of the repo - breaking dist
+# discovery in tag-providers and the airflow-ctl release-notes path. AIRFLOW_ROOT_PATH is
+# always correct regardless of how breeze is launched.
+SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
@@ -265,7 +274,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.1"
-AIRFLOW_UV_VERSION = "0.11.16"
+AIRFLOW_UV_VERSION = "0.11.17"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
@@ -1386,7 +1395,7 @@ def tag_providers(
     tags = []
     if clean_tags:
         extra_flags.append("--force")
-    for file in os.listdir(os.path.join(SOURCE_DIR_PATH, "dist")):
+    for file in os.listdir(AIRFLOW_DIST_PATH):
         if file.endswith(".whl"):
             match = re.match(r".*airflow_providers_(.*)-(.*)-py3.*", file)
             if match:
@@ -2446,12 +2455,17 @@ def merge_prod_images(
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
-    """Check if package has been prepared in dist folder."""
+    """Check if package has been prepared in dist folder.
+
+    The trailing separator after the provider id is required so that a short provider id is
+    not matched as a prefix of a longer one - e.g. ``git`` must not match the ``github``
+    distribution files (``apache_airflow_providers_github-...``).
+    """
     return any(
         file.startswith(
             (
-                f"apache_airflow_providers_{package.replace('.', '_')}",
-                f"apache-airflow-providers-{package.replace('.', '-')}",
+                f"apache_airflow_providers_{package.replace('.', '_')}-",
+                f"apache-airflow-providers-{package.replace('.', '-')}-",
             )
         )
         for file in dist_files
@@ -2464,9 +2478,9 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
     for filename in dist_files:
-        if filename.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and filename.endswith(
-            ".tar.gz"
-        ):
+        if filename.startswith(
+            f"apache_airflow_providers_{package.replace('.', '_')}-"
+        ) and filename.endswith(".tar.gz"):
             file = filename[: -len(".tar.gz")]
             version = file.split("-")[-1]
             match = VERSION_MATCH.match(version)
@@ -2616,16 +2630,24 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
+@click.option(
+    "--output-file",
+    type=click.Path(file_okay=True, dir_okay=False, writable=True, path_type=Path),
+    help="Write the generated issue body to this file (untruncated). If not provided, a "
+    "temporary file is created. Submit it directly with 'gh issue create --body-file <file>'.",
+)
 @argument_provider_distributions
+@option_answer
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
+    output_file: Path | None,
     provider_distributions: list[str],
 ):
     import jinja2
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
     class ProviderPRInfo(NamedTuple):
         provider_id: str
@@ -2771,10 +2793,8 @@ def generate_issue_content_providers(
         )
         console_print()
         console_print()
-        console_print(
-            "Issue title: [warning]Status of testing Providers that were "
-            f"prepared on {datetime.now():%B %d, %Y}[/]"
-        )
+        issue_title = f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}"
+        console_print(f"Issue title: [warning]{issue_title}[/]")
         console_print()
         issue_content += "\n"
         users: set[str] = set()
@@ -2783,8 +2803,29 @@ def generate_issue_content_providers(
                 if pr.user.login:
                     users.add("@" + pr.user.login)
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
-        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
-        console_print(syntax)
+        # Persist the body to a file and submit with "gh issue create --body-file". Passing the
+        # body inline (or via "--web", which encodes it into the URL) fails with "argument/URL
+        # too long" on large provider waves; a file avoids that and console truncation, and gives
+        # a deterministic artifact that a human or an agent can submit later.
+        if output_file is not None:
+            issue_body_path = output_file
+            if issue_body_path.parent != Path():
+                issue_body_path.parent.mkdir(parents=True, exist_ok=True)
+            issue_body_path.write_text(issue_content)
+        else:
+            with tempfile.NamedTemporaryFile(
+                mode="w", prefix="provider_issue_", suffix=".md", delete=False
+            ) as tmp_file:
+                tmp_file.write(issue_content)
+                issue_body_path = Path(tmp_file.name)
+        console_print(Syntax(issue_content, "markdown", theme="ansi_dark"))
+        console_print()
+        console_print(f"[info]The full issue body has been written to:[/] {issue_body_path}")
+        manual_command = (
+            f'gh issue create --repo apache/airflow --title "{issue_title}" '
+            f'--body-file "{issue_body_path}" --label "testing status,kind:meta"'
+        )
+        console_print(f"[info]You can create (or re-create) the issue at any time with:[/]\n{manual_command}")
         create_issue = user_confirm("Should I create the issue?")
         if create_issue == Answer.YES:
             res = run_command(
@@ -2792,22 +2833,27 @@ def generate_issue_content_providers(
                     "gh",
                     "issue",
                     "create",
-                    "-t",
-                    f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
-                    "-b",
-                    issue_content,
-                    "-l",
+                    "--repo",
+                    "apache/airflow",
+                    "--title",
+                    issue_title,
+                    "--body-file",
+                    os.fspath(issue_body_path),
+                    "--label",
                     "testing status,kind:meta",
-                    "-w",
                 ],
                 check=False,
+                capture_output=True,
+                text=True,
             )
             if res.returncode != 0:
                 console_print(
-                    "Failed to create issue. If the error is about 'too long URL' you have "
-                    "to create the issue manually by copy&pasting the above output"
+                    f"[error]Failed to create issue:[/]\n{res.stderr}\n"
+                    f"[info]The full issue body is at {issue_body_path} - create it manually with:[/]\n"
+                    f"{manual_command}"
                 )
                 sys.exit(1)
+            console_print(f"[success]Issue created:[/] {res.stdout.strip()}")
 
 
 def get_git_log_command(
@@ -3895,6 +3941,32 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
     run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
 
+def _ensure_default_python_for_reproducible_client() -> None:
+    """Fail fast unless running under the default Python.
+
+    The client generator post-processes ``trigger_dag_run_post_body.py`` with ``ast.unparse``,
+    which re-emits that file using the running interpreter's grammar. Building under any Python
+    other than ``DEFAULT_PYTHON_MAJOR_MINOR_VERSION`` therefore produces a non-reproducible client
+    (and the generation step may not even emit the wheel/sdist). Refuse to continue rather than
+    silently producing a bad package.
+    """
+    current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if current_python_version == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+        return
+    console_print(
+        f"[error]Python version mismatch: current version is {current_python_version}, "
+        f"but the reproducible client must be built with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]"
+    )
+    console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
+    console_print(
+        "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+        f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+        "  - For a legacy global install, reinstall with the right Python:\n"
+        f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+    )
+    sys.exit(1)
+
+
 @release_management_group.command(name="prepare-python-client", help="Prepares python client packages.")
 @option_distribution_format
 @option_version_suffix
@@ -3928,6 +4000,7 @@ def prepare_python_client(
     only_publish_build_scripts: bool,
     security_schemes: str,
 ):
+    _ensure_default_python_for_reproducible_client()
     shutil.rmtree(PYTHON_CLIENT_TMP_DIR, ignore_errors=True)
     PYTHON_CLIENT_TMP_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(src=SOURCE_API_YAML_PATH, dst=TARGET_API_YAML_PATH)
@@ -4001,23 +4074,11 @@ def prepare_python_client(
         This patch:
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
-        """
-        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
-            console_print(
-                f"[error]Python version mismatch: current version is {current_python_version}, "
-                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
-                f"reproducibility problems with prepared package.[/]"
-            )
-            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
-            console_print(
-                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
-                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
-                "  - For a legacy global install, reinstall with the right Python:\n"
-                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
-            )
-            sys.exit(1)
 
+        The interpreter is already pinned to ``DEFAULT_PYTHON_MAJOR_MINOR_VERSION`` by
+        ``_ensure_default_python_for_reproducible_client`` at the start of the command, so the
+        ``ast.unparse`` re-emit below is reproducible.
+        """
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )
@@ -4412,9 +4473,8 @@ def generate_issue_content(
     is_helm_chart: bool,
     is_airflow_ctl: bool = False,
 ):
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
-    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
     verbose = get_verbose()
 
     previous = previous_release
@@ -4432,7 +4492,7 @@ def generate_issue_content(
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
-    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(list)
     users: dict[int, set[str]] = defaultdict(lambda: set())
     count_prs = limit_pr_count or len(prs)
 

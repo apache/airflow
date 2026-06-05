@@ -59,7 +59,7 @@ class ResumableJobMixin:
             def submit_job(self, context) -> JsonValue:
                 return self.hook.submit(...)
 
-            def get_job_status(self, external_id: JsonValue) -> str:
+            def get_job_status(self, external_id: JsonValue, context: Context) -> str:
                 return self.hook.get_status(external_id)
 
             def is_job_active(self, status: str) -> bool:
@@ -106,7 +106,7 @@ class ResumableJobMixin:
         if task_store is not None:
             external_id = task_store.get(self.external_id_key)
             if external_id:
-                status = self.get_job_status(external_id)
+                status = self.get_job_status(external_id, context)
                 if self.is_job_active(status):
                     self.log.info(
                         "Reconnecting to existing job identified by: %s (status: %s)", external_id, status
@@ -126,18 +126,30 @@ class ResumableJobMixin:
 
         external_id = self.submit_job(context)
 
-        if task_store is not None:
+        if task_store is not None and external_id is not None:
             task_store.set(self.external_id_key, external_id)
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
 
     def submit_job(self, context: Context) -> JsonValue:
-        """Submit the job to the external system. Return its external ID."""
+        """
+        Submit the job to the external system. Return its external ID.
+
+        The returned ID must not be ``None``, a ``None`` return is treated as
+        "no ID available" and the ID will not be persisted to task state.
+        """
         raise NotImplementedError
 
-    def get_job_status(self, external_id: JsonValue) -> str:
-        """Query the external system for the current job status."""
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        """
+        Query the external system for the current job status.
+
+        ``context`` is provided so implementations can use it if needed to implement advanced features such as:
+
+        - cache terminal status to ``task_store`` when the remote resource may be
+          ephemeral (e.g. a K8s driver pod that gets garbage-collected after completion),
+        """
         raise NotImplementedError
 
     def is_job_active(self, status: str) -> bool:
