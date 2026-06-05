@@ -18,6 +18,18 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolate_hook_lineage_collector(hook_lineage_collector):
+    """
+    Use a fresh hook lineage collector for each common.ai unit test.
+
+    ObjectStoragePath IO records assets on the process-wide collector in compat environments.
+    """
+    return None
+
 
 def make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary.

@@ -919,7 +919,7 @@ def test_process_workloads_routes_execute_callback(mock_send_workloads, callback
     executor = celery_executor.CeleryExecutor()
     executor._process_workloads([workload])
 
-    mock_send_workloads.assert_called_once_with([(callback_id, workload, expected_queue, None)])
+    mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")

@@ -32,7 +32,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -321,6 +321,7 @@ class TestSparkSubmitOperator:
             openlineage_inject_transport_info=True,
             **self._config,
         )
+        mock_get_hook.return_value._should_track_driver_status = False
         operator.execute(MagicMock())
 
         assert operator.conf == {
@@ -387,6 +388,7 @@ class TestSparkSubmitOperator:
             openlineage_inject_transport_info=True,
             **self._config,
         )
+        mock_get_hook.return_value._should_track_driver_status = False
         operator.execute({"ti": mock_ti})
 
         assert operator.conf == {
@@ -425,6 +427,7 @@ class TestSparkSubmitOperator:
             CompositeConfig.from_dict({"transports": {"test1": {"type": "console"}}})
         )
 
+        mock_get_hook.return_value._should_track_driver_status = False
         with caplog.at_level(logging.INFO):
             operator = SparkSubmitOperator(
                 task_id="spark_submit_job",
@@ -456,6 +459,7 @@ class TestSparkSubmitOperator:
             config=ConsoleConfig()
         )
 
+        mock_get_hook.return_value._should_track_driver_status = False
         with caplog.at_level(logging.INFO):
             operator = SparkSubmitOperator(
                 task_id="spark_submit_job",
@@ -474,3 +478,298 @@ class TestSparkSubmitOperator:
         assert operator.conf == {
             "parquet.compression": "SNAPPY",
         }
+
+
+class FakeTaskState:
+    """In-memory task state for tests."""
+
+    def __init__(self, stored: dict[str, str] | None = None):
+        self._store: dict[str, str] = dict(stored or {})
+
+    def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: str) -> None:
+        self._store[key] = value
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
+)
+class TestSparkSubmitOperatorResumable:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_resumable_dag", schedule=None, default_args=args)
+
+    def _make_operator(self, **kwargs):
+        return SparkSubmitOperator(task_id="test", dag=self.dag, application="test.jar", **kwargs)
+
+    def _make_hook(self, should_track=False, is_yarn=False, is_kubernetes=False):
+        hook = MagicMock()
+        hook._should_track_driver_status = should_track
+        hook._is_yarn = is_yarn
+        hook._is_kubernetes = is_kubernetes
+        hook._connection = {"master": "spark://localhost:7077"}
+        return hook
+
+    def test_non_cluster_mode_calls_hook_submit_directly(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=False)
+
+        operator.execute(context={})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+
+    def test_cluster_mode_first_run_persists_id_before_polling(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-001"
+
+        task_store = FakeTaskState()
+        persisted_before_poll = []
+
+        def track_poll(external_id, context):
+            persisted_before_poll.append(task_store.get("spark_job_id"))
+
+        operator.poll_until_complete = track_poll
+
+        operator.execute(context={"task_store": task_store})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert persisted_before_poll == ["driver-001"]
+
+    @pytest.mark.parametrize(
+        ("prior_status", "expect_submit", "expect_poll_id"),
+        [
+            ("RUNNING", False, "driver-001"),
+            ("SUBMITTED", False, "driver-001"),
+            ("FINISHED", False, None),
+            ("FAILED", True, "driver-new"),
+            ("KILLED", True, "driver-new"),
+        ],
+    )
+    def test_retry_behaviour_based_on_prior_driver_status(self, prior_status, expect_submit, expect_poll_id):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-new"
+        task_store = FakeTaskState({"spark_job_id": "driver-001"})
+
+        operator.get_job_status = lambda external_id, context: prior_status
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_store": task_store})
+
+        if expect_submit:
+            operator._hook.submit.assert_called_once_with("test.jar")
+        else:
+            operator._hook.submit.assert_not_called()
+
+        if expect_poll_id:
+            assert polled == [expect_poll_id]
+        else:
+            assert polled == []
+
+    def test_submits_fresh_when_task_store_unavailable(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-001"
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        # no task_store key in context
+        operator.execute(context={})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert polled == ["driver-001"]
+
+    def test_reconnect_on_retry_false_submits_fresh_and_polls(self):
+        operator = self._make_operator(reconnect_on_retry=False)
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-new"
+        task_store = FakeTaskState({"spark_job_id": "driver-old"})
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_store": task_store})
+        # reconnect_on_retry=False: ignores prior driver ID, submits fresh, but still polls
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert polled == ["driver-new"]
+
+    @pytest.mark.parametrize(
+        ("is_yarn", "is_kubernetes", "status", "expected_active", "expected_succeeded"),
+        [
+            (False, False, "RUNNING", True, False),
+            (False, False, "SUBMITTED", True, False),
+            (False, False, "FINISHED", False, True),
+            (False, False, "FAILED", False, False),
+            (True, False, "RUNNING", True, False),
+            (True, False, "ACCEPTED", True, False),
+            (True, False, "NEW", True, False),
+            (True, False, "FINISHED", False, True),
+            (True, False, "FAILED", False, False),
+            (False, True, "Running", True, False),
+            (False, True, "Pending", True, False),
+            (False, True, "Succeeded", False, True),
+            (False, True, "Failed", False, False),
+        ],
+    )
+    def test_job_status_mappings(self, is_yarn, is_kubernetes, status, expected_active, expected_succeeded):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn=is_yarn, is_kubernetes=is_kubernetes)
+
+        assert operator.is_job_active(status) == expected_active
+        assert operator.is_job_succeeded(status) == expected_succeeded
+
+    @pytest.mark.parametrize(
+        ("response_json", "expected_status", "expected_error"),
+        [
+            ({"success": True, "driverState": "RUNNING"}, "RUNNING", None),
+            ({"success": False, "message": "driver not found"}, None, "driver not found"),
+            ({"driverState": "RUNNING"}, None, "unknown error"),
+        ],
+    )
+    def test_get_job_status(self, response_json, expected_status, expected_error):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        mock_response = MagicMock()
+        mock_response.json.return_value = response_json
+
+        with mock.patch("requests.get", return_value=mock_response):
+            if expected_error:
+                with pytest.raises(RuntimeError, match=expected_error):
+                    operator.get_job_status("driver-001", {})
+            else:
+                assert operator.get_job_status("driver-001", {}) == expected_status
+
+    def test_get_job_status_ha_tries_next_master(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        # Master URL port (7077) is RPC — REST API must use 6066, not 7077
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        good_response = MagicMock()
+        good_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+        captured_urls = []
+
+        def side_effect(url, timeout):
+            captured_urls.append(url)
+            if "m1" in url:
+                raise ConnectionError("m1 unreachable")
+            return good_response
+
+        with mock.patch("requests.get", side_effect=side_effect):
+            assert operator.get_job_status("driver-001", {}) == "RUNNING"
+
+        assert all(":6066/" in url for url in captured_urls), "REST API must use port 6066, not the RPC port"
+
+    def test_get_job_status_ha_tries_next_master_on_success_false(self):
+        """success:false from m1 (e.g. HA recovery in progress) should fall through to m2."""
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        bad_response = MagicMock()
+        bad_response.json.return_value = {"success": False, "message": "Driver not found"}
+        good_response = MagicMock()
+        good_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+
+        def side_effect(url, timeout):
+            if "m1" in url:
+                return bad_response
+            return good_response
+
+        with mock.patch("requests.get", side_effect=side_effect):
+            assert operator.get_job_status("driver-001", {}) == "RUNNING"
+
+    def test_get_job_status_ha_raises_when_all_masters_unreachable(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        with mock.patch("requests.get", side_effect=ConnectionError("unreachable")):
+            with pytest.raises(ConnectionError):
+                operator.get_job_status("driver-001", {})
+
+    def test_get_job_status_uses_rest_scheme_from_connection(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://myhost:6066", "rest_scheme": "https"}
+        operator._hook = hook
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+        captured_urls = []
+
+        def capture(url, timeout):
+            captured_urls.append(url)
+            return mock_response
+
+        with mock.patch("requests.get", side_effect=capture):
+            operator.get_job_status("driver-001", {})
+
+        assert len(captured_urls) == 1
+        assert captured_urls[0].startswith("https://")
+
+    def test_poll_until_complete_runs_post_submit_on_failure(self):
+        """post_submit_commands must run even when the driver exits with a failure status."""
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://myhost:7077"}
+        hook._driver_status = "FAILED"
+
+        def simulate_failed_tracking():
+            hook._driver_status = "FAILED"
+
+        hook._start_driver_status_tracking = mock.MagicMock(side_effect=simulate_failed_tracking)
+        post_submit_called = []
+        hook._run_post_submit_commands = mock.MagicMock(side_effect=lambda: post_submit_called.append(True))
+        operator._hook = hook
+
+        with pytest.raises(RuntimeError, match="FAILED"):
+            operator.poll_until_complete("driver-001", {})
+
+
+class TestSparkSubmitOperatorK8sTracking:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_k8s_tracking_dag", schedule=None, default_args=args)
+
+    def _make_operator(self, **kwargs):
+        return SparkSubmitOperator(task_id="test", dag=self.dag, application="test.jar", **kwargs)
+
+    def _make_k8s_hook(self):
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = True
+        return hook
+
+    def test_execute_calls_submit_then_poll_when_flag_set(self):
+        operator = self._make_operator(track_driver_via_k8s_api=True)
+        hook = self._make_k8s_hook()
+        operator._hook = hook
+        call_order = []
+        hook.submit.side_effect = lambda *a, **kw: call_order.append("submit")
+        hook._poll_k8s_driver_via_api.side_effect = lambda: call_order.append("poll")
+
+        operator.execute(context={})
+
+        hook.submit.assert_called_once_with("test.jar")
+        hook._poll_k8s_driver_via_api.assert_called_once()
+        assert call_order == ["submit", "poll"]
+
+    def test_execute_falls_through_to_plain_submit_when_flag_off(self):
+        operator = self._make_operator(track_driver_via_k8s_api=False)
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = False
+        operator._hook = hook
+
+        operator.execute(context={})
+
+        hook.submit.assert_called_once_with("test.jar")
+        hook._poll_k8s_driver_via_api.assert_not_called()

@@ -831,6 +831,17 @@ class TestFabAuthManager:
                 [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
                 [MenuItem.AUDIT_LOG],
             ),
+            *(
+                [
+                    (
+                        [MenuItem.DEADLINES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
+                        [MenuItem.DEADLINES],
+                    )
+                ]
+                if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -1035,7 +1046,7 @@ def test_resetdb(
     mock_connect = mock_engine.connect.return_value
 
     session_mock = MagicMock()
-    resetdb(session_mock, skip_init=skip_init)
+    resetdb(session=session_mock, skip_init=skip_init)
 
     # In the non-MySQL path, drop functions are called with the raw connection
     mock_drop_airflow.assert_called_once_with(mock_connect)

@@ -27,6 +27,37 @@ Changelog
 ---------
 
 
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable execution timeout handling for Airbyte jobs. (#67816)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement execution_timeout semantics for AirbyteTriggerSyncOperator in deferrable mode (#64051)``
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Fix deferrable execution_timeout handling in AirbyteTriggerSyncOperator (#67382)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare providers release 2026-05-19 (#67137)``
+
 5.4.2
 .....
 

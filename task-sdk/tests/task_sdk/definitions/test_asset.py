@@ -459,49 +459,21 @@ class TestAssetSubclasses:
         assert obj.group == group
 
 
-class TestAllowProducerTeamsValidationProperty:
-    @pytest.mark.parametrize(
-        "teams",
-        [
-            [""],
-            ["  "],
-            ["\t"],
-            ["\n"],
-            [123],
-            [None],
-            [True],
-            [{}],
-            ["team_a", "  ", "team_b"],
-        ],
-    )
-    def test_rejects_lists_with_invalid_entries(self, teams):
-        with pytest.raises(ValueError, match="allow_producer_teams"):
-            Asset(name="test_asset", allow_producer_teams=teams)
+class TestAssetAccessControl:
+    def test_sets_access_control_correctly(self):
+        from airflow.sdk.definitions.asset.access_control import AssetAccessControl
 
-    @pytest.mark.parametrize(
-        "teams",
-        [
-            [],
-            ["team_a"],
-            ["team_a", "team_b"],
-            ["team-with-dashes"],
-            ["team_with_underscores"],
-        ],
-    )
-    def test_accepts_valid_allow_producer_teams(self, teams):
-        asset = Asset(name="test_asset", allow_producer_teams=teams)
-        assert asset.allow_producer_teams == teams
+        ac = AssetAccessControl(producer_teams=["team_a"], allow_global=False)
+        asset = Asset(name="x", access_control=ac)
+        assert asset.access_control.producer_teams == ["team_a"]
+        assert asset.access_control.allow_global is False
 
-
-class TestAllowProducerTeamsField:
-    def test_sets_field_correctly(self):
-        asset = Asset(name="x", allow_producer_teams=["team_a"])
-        assert asset.allow_producer_teams == ["team_a"]
-
-    def test_defaults_to_empty_list(self):
+    def test_defaults_to_default_access_control(self):
         asset = Asset(name="x")
-        assert asset.allow_producer_teams == []
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True
 
-    def test_explicit_empty_list(self):
-        asset = Asset(name="x", allow_producer_teams=[])
-        assert asset.allow_producer_teams == []
+    def test_explicit_none_uses_default(self):
+        asset = Asset(name="x", access_control=None)
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True

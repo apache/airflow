@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+7.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Fail fast for non-serializable retry_args in deferrable operators and triggers (#64960)``
+* ``Forward Airflow Dag params to Databricks job parameters in CreateJobs/SubmitRun/RunNow (#66613)``
+* ``Add session-level query tags to Databricks SQL operators (#66895)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Lock in Databricks workflow depends_on parent-key behavior (#66681)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+7.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Support user-assigned managed identity for Azure VM auth (#66072)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Repair action missing job parameters in 'DatabricksRunNowOperator' (#67055)``
+* ``Preserve Databricks deferrable trigger caller across triggerer restarts (#66965)``
+* ``Fix 'DatabricksWorkflowTaskGroup' leaking TaskGroupContext on internal exception (#66582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky databricks token-expiry test by freezing time_machine (#66660)``
+   * ``Enable plugin tests in test_databricks_workflow.py for Airflow 3.0+ (#66442)``
+
 7.14.0
 ......
 

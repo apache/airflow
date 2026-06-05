@@ -30,11 +30,12 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from opentelemetry import trace as otel_trace
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
@@ -104,12 +105,14 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.timetables.simple import PartitionAtRuntime
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
@@ -437,7 +440,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, dag_maker, create_task_instance, session):
+    def test_ti_updates_with_task(self, dag_maker, create_task_instance, *, session: Session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -467,7 +470,7 @@ class TestTaskInstance:
         run_task_instance(ti2, task2, session=session)
         # Ensure it's reloaded
         ti2.executor_config = None
-        ti2.refresh_from_db(session)
+        ti2.refresh_from_db(session=session)
         assert ti2.executor_config == {"bar": "baz"}
         session.rollback()
 
@@ -520,7 +523,7 @@ class TestTaskInstance:
         def run_with_error(ti):
             with contextlib.suppress(AirflowException):
                 dag_maker.run_ti(ti.task_id, ti.dag_run)
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
@@ -1410,7 +1413,8 @@ class TestTaskInstance:
         downstream_ti_state,
         expected_are_dependents_done,
         dag_maker,
-        session,
+        *,
+        session: Session,
     ):
         with dag_maker():
             EmptyOperator(task_id="0") >> EmptyOperator(task_id="downstream_task")
@@ -1418,11 +1422,11 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         downstream_ti = dr.get_task_instance("downstream_task", session=session)
 
-        downstream_ti.set_state(downstream_ti_state, session)
+        downstream_ti.set_state(downstream_ti_state, session=session)
         session.flush()
 
         ti0 = dr.get_task_instance(task_id="0", session=session)
-        assert ti0.are_dependents_done(session) == expected_are_dependents_done
+        assert ti0.are_dependents_done(session=session) == expected_are_dependents_done
 
     def test_xcom_push_flag(self, dag_maker):
         """
@@ -1504,7 +1508,7 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.try_number == 0
 
     @provide_session
-    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, *, session: Session):
         """Test that external_executor_id can store values exceeding 250 characters."""
         # Kubernetes pod names and other executor IDs can exceed 250 chars
         long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
@@ -2314,7 +2318,7 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, session):
+    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
@@ -2952,6 +2956,72 @@ def test_defer_task_try_number_increment_on_state(
     assert ti.try_number == expected_try_number, msg
 
 
+def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
+    """Create a deferrable TI whose Dag belongs to the ``testing`` bundle, then defer it."""
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+    from airflow.triggers.base import StartTriggerArgs
+
+    bundle = session.get(DagBundleModel, "testing")
+    bundle.teams = [session.get(Team, "testing")] if with_team else []
+    session.flush()
+
+    ti = create_task_instance(
+        dag_id="test_defer_team",
+        task_id="op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+            trigger_kwargs={"moment": "2024-01-01"},
+        ),
+        session=session,
+    )
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == "test_defer_team").values(bundle_name="testing")
+    )
+    session.flush()
+
+    ti.defer_task(session=session)
+    return ti
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("with_team", "expected_team_name"),
+    [
+        pytest.param(True, "testing", id="bundle-mapped-to-team"),
+        pytest.param(False, None, id="bundle-without-team"),
+    ],
+)
+def test_defer_task_populates_trigger_team_name(
+    create_task_instance, session, testing_dag_bundle, testing_team, with_team, expected_team_name
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=with_team)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name == expected_team_name
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "False"})
+def test_defer_task_skips_trigger_team_name_when_multi_team_disabled(
+    create_task_instance, session, testing_dag_bundle, testing_team
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=True)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name is None
+
+
 class TestTaskInstanceRelationships:
     @pytest.mark.parametrize(
         "attr",
@@ -3455,7 +3525,7 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
     assert dr.partition_key == "abc123"
@@ -3478,7 +3548,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     session,
 ):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dag1_id = dag.dag_id
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
@@ -3511,6 +3581,228 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert pakl.asset_partition_dag_run_id == apdr.id
     assert pakl.source_partition_key == "abc123"
     assert pakl.target_dag_id == "asset_event_listener"
+
+
+def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, session):
+    """Task-emitted partition_key lands on the AssetEvent but does NOT back-fill DagRun.partition_key.
+
+    DagRun.partition_key (provenance) is set by the scheduler / trigger side, not by task
+    runtime emission. A run that started with partition_key=None should remain None even when
+    a task emits an outlet event carrying its own key.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_backfill", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "us"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
+    """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="scheduler-key", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "task-key"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "task-key"
+    session.refresh(dr)
+    assert dr.partition_key == "scheduler-key"
+
+
+def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):
+    """Multiple distinct runtime keys produce one AssetEvent each; DagRun.partition_key stays None."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_fanout", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_maker, session):
+    """An outlet event without partition_key inherits DagRun.partition_key as the routing pointer.
+
+    When a task emits an outlet event that carries no explicit partition_key, the resulting
+    AssetEvent should inherit the DagRun's partition_key so that downstream partitioned consumers
+    can still be routed correctly.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_none", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {"x": 1}},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "from-run"
+
+
+def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
+    """One event with an explicit key + one without produce two AssetEvents (explicit key + inherited run key)."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "from-run"}
+    session.refresh(dr)
+    assert dr.partition_key == "from-run"
+
+
+def test_runtime_partition_key_event_stays_none_when_no_key_and_no_run_key(dag_maker, session):
+    """Task has no partition_key and run has no partition_key -> event.partition_key is None.
+
+    Pins the `is not None` guard: both sides are None so effective_pk stays None and no
+    routing pointer is written to the AssetEvent.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_both_none", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key is None
+
+
+def test_runtime_partition_key_does_not_backfill_partition_at_runtime_run(dag_maker, session):
+    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionAtRuntime run.
+
+    Provenance contract: DagRun.partition_key is set only at run-creation/trigger time.
+    A PartitionAtRuntime Dag triggered via REST without a partition_key starts with
+    partition_key=None. Even when a task discovers a partition at runtime and emits an
+    outlet event carrying an explicit key, DagRun.partition_key must remain None — the
+    key belongs to the AssetEvent, not to the run's provenance.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "2025-01-01"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "2025-01-01"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_when_runtime_partition_keys_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    """Runtime-emitted fan-out populates PartitionedAssetKeyLog + AssetPartitionDagRun per key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    producer_dag_id = dag.dag_id
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="rt_consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    session.commit()
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == producer_dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    pakls = session.scalars(select(PartitionedAssetKeyLog)).all()
+    apdrs = session.scalars(select(AssetPartitionDagRun)).all()
+    assert {p.source_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_dag_id for p in pakls} == {"rt_consumer"}
+    assert {a.partition_key for a in apdrs} == {"us", "eu"}
+    assert {a.target_dag_id for a in apdrs} == {"rt_consumer"}
 
 
 async def empty_callback_for_deadline():
@@ -3645,12 +3937,10 @@ class TestMakeTaskCarrier:
 
         propagator = TraceContextTextMapPropagator()
         parent_trace_id = (
-            otel_trace.get_current_span(context=propagator.extract(parent_carrier))
-            .get_span_context()
-            .trace_id
+            trace.get_current_span(context=propagator.extract(parent_carrier)).get_span_context().trace_id
         )
         child_trace_id = (
-            otel_trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+            trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
         )
         assert child_trace_id == parent_trace_id
         assert child_trace_id != 0
@@ -3719,3 +4009,62 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
     assert ti.context_carrier["traceparent"] != original_ti_traceparent
     assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_preserves_detail_level(dag_maker, session):
+    """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
+    from airflow._shared.observability.traces import (
+        TASK_SPAN_DETAIL_LEVEL_KEY,
+        get_task_span_detail_level,
+    )
+
+    with dag_maker("test_clear_preserves_level"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(conf={TASK_SPAN_DETAIL_LEVEL_KEY: 2})
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span = trace.get_current_span(new_ctx)
+    assert get_task_span_detail_level(span) == 2
+
+
+@pytest.mark.db_test
+def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
+    """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
+
+    Regression test for issue #67813: the scheduler's orphaned-task adoption loaded
+    TaskInstances via ``load_only`` and then called ``repr(ti)`` on detached instances.
+    ``__repr__`` reads ``map_index`` and ``state`` (among others); on a detached instance
+    a column that was not loaded raises ``DetachedInstanceError``. ``__repr__`` is used in
+    logging and must degrade gracefully — printing ``<deferred>`` — instead of crashing.
+    """
+    with dag_maker("test_repr_deferred_columns", session=session):
+        EmptyOperator(task_id="op1")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="op1", session=session)
+    ti.state = State.QUEUED
+    session.commit()
+    ti_id = ti.id
+
+    # Reload the row with ``map_index`` and ``state`` left as deferred columns, then detach
+    # the instance so that touching them would otherwise require a (now-impossible) DB load.
+    session.expunge_all()
+    reloaded = session.scalar(
+        select(TaskInstance)
+        .where(TaskInstance.id == ti_id)
+        .options(load_only(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id))
+    )
+    session.expunge(reloaded)
+    unloaded = sa_inspect(reloaded).unloaded
+    assert "map_index" in unloaded
+    assert "state" in unloaded
+
+    result = repr(reloaded)  # would raise DetachedInstanceError without the guard
+
+    assert "<deferred>" in result
+    assert "[queued]" not in result

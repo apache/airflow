@@ -200,6 +200,14 @@ def test_capacity_decode():
             TriggererJobRunner(job=job, capacity=input_str)
 
 
+@pytest.mark.parametrize("team_name", ["team_a", None])
+def test_triggerer_job_runner_stores_team_name(team_name):
+    """TriggererJobRunner stores team_name as-is (validated at CLI layer)."""
+    job = Job()
+    runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
+    assert runner.team_name == team_name
+
+
 @pytest.fixture
 def supervisor_builder(mocker, session):
     def builder(job=None):
@@ -234,6 +242,42 @@ def supervisor_builder(mocker, session):
         return proc
 
     return builder
+
+
+def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
+    """TriggerRunnerSupervisor stores team_name field."""
+    job = Job()
+    session.add(job)
+    session.flush()
+
+    import psutil
+
+    process = mocker.Mock(spec=psutil.Process, pid=99)
+    mock_stdin = mocker.Mock(spec=socket)
+
+    proc = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name="team_x",
+    )
+    assert proc.team_name == "team_x"
+
+    proc_global = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=job.id,
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+        team_name=None,
+    )
+    assert proc_global.team_name is None
 
 
 def test_run_invokes_seams_in_order(supervisor_builder, mocker):
@@ -455,6 +499,29 @@ def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
     assign_unassigned.assert_not_called()
     ids_for_triggerer.assert_not_called()
     update_triggers.assert_not_called()
+
+
+def test_load_triggers_passes_team_name(supervisor_builder, mocker):
+    """load_triggers passes team_name to assign_unassigned and ids_for_triggerer."""
+    proc = supervisor_builder()
+    proc.team_name = "team_x"
+
+    assign_unassigned = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.assign_unassigned")
+    ids_for_triggerer = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.Trigger.ids_for_triggerer", return_value=[1, 2]
+    )
+    mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
+
+    proc.load_triggers()
+
+    assign_unassigned.assert_called_once_with(
+        proc.job.id,
+        proc.capacity,
+        proc.health_check_threshold,
+        queues=proc.queues,
+        team_name="team_x",
+    )
+    ids_for_triggerer.assert_called_once_with(proc.job.id, queues=proc.queues, team_name="team_x")
 
 
 def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mocker):
@@ -776,6 +843,70 @@ class TestTriggerRunner:
         mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
+    def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
+        """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""
+        from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+        class _SharedTrigger(BaseEventTrigger):
+            def __init__(self, queue_url: str, region: str | None = None):
+                super().__init__()
+                self.queue_url = queue_url
+                self.region = region
+
+            def serialize(self):
+                return (
+                    f"{type(self).__module__}.{type(self).__qualname__}",
+                    {"queue_url": self.queue_url, "region": self.region},
+                )
+
+            def shared_stream_key(self):
+                return ("queue", self.queue_url)
+
+            @classmethod
+            async def open_shared_stream(cls, kwargs):
+                yield {"region": "us"}
+                yield {"region": "eu"}
+                # Stay alive so the manager can tear us down on unsubscribe.
+                await asyncio.Event().wait()
+
+            async def filter_shared_stream(self, shared_stream):
+                async for raw in shared_stream:
+                    if self.region is None or raw["region"] == self.region:
+                        yield TriggerEvent(raw)
+
+            async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+                yield TriggerEvent({})
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+        }
+        trigger = _SharedTrigger(queue_url="https://q", region="us")
+        trigger.task_instance = MagicMock()
+        trigger.task_instance.map_index = -1
+
+        async def _drive():
+            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+            # Wait until the "us" event has been pushed onto the outbound queue,
+            # then cancel the trigger so the test can exit deterministically.
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                if trigger_runner.events:
+                    break
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await run_task
+
+        asyncio.run(_drive())
+
+        events = list(trigger_runner.events)
+        assert len(events) == 1
+        trigger_id, event = events[0]
+        assert trigger_id == 1
+        assert event.payload == {"region": "us"}
+        # Group is torn down on unsubscribe.
+        assert trigger_runner._shared_streams._groups == {}
+
     def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
         trigger_runner = TriggerRunner()
@@ -1018,13 +1149,19 @@ def test_trigger_runner_exception_stops_triggerer():
     import signal
 
     job_runner = TriggererJobRunner(Job())
-    time.sleep(0.1)
 
     # Wait 4 seconds for the triggerer to stop
     try:
 
         def on_timeout(signum, frame):
-            os.kill(job_runner.trigger_runner.pid, signal.SIGKILL)
+            # _execute() sets up trigger_runner asynchronously; on a slow runner the
+            # timer can fire before the subprocess exists. Re-arm and try again rather
+            # than dereferencing a not-yet-started runner.
+            runner = job_runner.trigger_runner
+            if runner is None:
+                signal.setitimer(signal.ITIMER_REAL, 0.1)
+                return
+            os.kill(runner.pid, signal.SIGKILL)
 
         signal.signal(signal.SIGALRM, on_timeout)
         signal.setitimer(signal.ITIMER_REAL, 0.1)
@@ -1796,19 +1933,19 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
-            # AIP-103 task/asset state — triggerer has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — triggerer has no task execution context.
+            "GetTaskStore",
+            "SetTaskStore",
+            "DeleteTaskStore",
+            "ClearTaskStore",
+            "GetAssetStoreByName",
+            "GetAssetStoreByUri",
+            "SetAssetStoreByName",
+            "SetAssetStoreByUri",
+            "DeleteAssetStoreByName",
+            "DeleteAssetStoreByUri",
+            "ClearAssetStoreByName",
+            "ClearAssetStoreByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1830,9 +1967,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStoreResult",
+            "AssetStoreResult",
         }
 
         supervisor_diff = (

@@ -34,10 +34,11 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.callback import ExecuteCallback
+from airflow.executors.workloads.connection_test import TestConnection
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
-from airflow.models.callback import CallbackKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -77,8 +78,9 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.callback import CallbackKey
+    from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -168,6 +170,9 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supports_callbacks: bool = False
     supports_multi_team: bool = False
+    # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``)
+    # to bound hook execution. Executors that opt in must run on POSIX systems.
+    supports_connection_test: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -217,7 +222,8 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
+        self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -249,7 +255,7 @@ class BaseExecutor(LoggingMixin):
 
     def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
-        if isinstance(ti_key, CallbackKey):
+        if not isinstance(ti_key, TaskInstanceKey):
             self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
             return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
@@ -265,11 +271,19 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
-            self.queued_callbacks[workload.callback.id] = workload
+            self.queued_callbacks[workload.key] = workload
+        elif isinstance(workload, workloads.TestConnection):
+            if not self.supports_connection_test:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support TestConnection workloads. "
+                    f"Set supports_connection_test = True and implement connection test handling "
+                    f"in _process_workloads(). See LocalExecutor for reference implementation."
+                )
+            self.queued_connection_tests[workload.key] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
-                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+                f"Workload must be one of: ExecuteTask, ExecuteCallback, TestConnection."
             )
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, ExecutorWorkload]]:
@@ -335,14 +349,35 @@ class BaseExecutor(LoggingMixin):
         open_slots = self.parallelism - len(self.running)
 
         num_running_workloads = len(self.running)
-        num_queued_workloads = len(self.queued_tasks) + len(self.queued_callbacks)
+        num_queued_workloads = (
+            len(self.queued_tasks) + len(self.queued_callbacks) + len(self.queued_connection_tests)
+        )
 
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
+        self.trigger_connection_tests()
+
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def trigger_connection_tests(self) -> None:
+        """Process queued connection tests, respecting available slot capacity."""
+        if not self.supports_connection_test or not self.queued_connection_tests:
+            return
+
+        available = self.slots_available
+        if available <= 0:
+            return
+
+        tests_to_run = list(self.queued_connection_tests.values())[:available]
+        self._process_workloads(tests_to_run)
+
+    def fail_connection_test(self, key: ConnectionTestKey) -> None:
+        """Drop a connection-test workload from in-memory queues (called by the reaper)."""
+        self.queued_connection_tests.pop(key, None)
+        self.running.discard(key)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (
@@ -497,7 +532,7 @@ class BaseExecutor(LoggingMixin):
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
-        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
+        Note: Callback events (with CallbackKey keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -508,7 +543,7 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
+                if not isinstance(key, TaskInstanceKey) or key.dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events
@@ -562,13 +597,24 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
+        """Number of new workloads (tasks, callbacks, and connection tests) this executor instance can accept."""
+        return (
+            self.parallelism
+            - len(self.running)
+            - len(self.queued_tasks)
+            - len(self.queued_callbacks)
+            - len(self.queued_connection_tests)
+        )
 
     @property
     def slots_occupied(self):
-        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
+        """Number of workloads (tasks, callbacks, and connection tests) this executor instance is currently managing."""
+        return (
+            len(self.running)
+            + len(self.queued_tasks)
+            + len(self.queued_callbacks)
+            + len(self.queued_connection_tests)
+        )
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
@@ -673,6 +719,16 @@ class BaseExecutor(LoggingMixin):
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=server,
+            )
+        if isinstance(workload, TestConnection):
+            from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test
+
+            return supervise_connection_test(
+                connection_test_id=workload.connection_test_id,
+                connection_id=workload.connection_id,
+                timeout=workload.timeout,
                 token=workload.token,
                 server=server,
             )

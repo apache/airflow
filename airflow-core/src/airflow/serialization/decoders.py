@@ -41,14 +41,17 @@ from airflow.serialization.definitions.deadline import (
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
+    WindowNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
+    is_core_window_import_path,
 )
 
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers.window import Window
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -106,7 +109,7 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
-        allow_producer_teams=var.get("allow_producer_teams", []),
+        access_control=var.get("access_control", {}),
     )
 
 
@@ -156,6 +159,7 @@ def decode_deadline_alert(encoded_data: dict):
 
     :meta private:
     """
+    from airflow.sdk.definitions.deadline import VariableInterval
     from airflow.sdk.serde import deserialize
 
     data = encoded_data.get(Encoding.VAR, encoded_data)
@@ -163,9 +167,30 @@ def decode_deadline_alert(encoded_data: dict):
     reference_data = data[DeadlineAlertFields.REFERENCE]
     reference = decode_deadline_reference(reference_data)
 
+    raw_interval = data[DeadlineAlertFields.INTERVAL]
+
+    if raw_interval is None:
+        raise ValueError(
+            "DeadlineAlert interval is missing. This can happen after downgrading "
+            "from a version that supports VariableInterval. Downgrade is not fully reversible."
+        )
+
+    interval: datetime.timedelta | VariableInterval
+
+    # Backward compatibility: previously interval was stored as total_seconds() (float/int).
+    # Handle numeric values by converting to timedelta.
+    if isinstance(raw_interval, (int, float)):
+        interval = datetime.timedelta(seconds=raw_interval)
+    else:
+        deserialized = deserialize(raw_interval)
+        if isinstance(deserialized, (datetime.timedelta, VariableInterval)):
+            interval = deserialized
+        else:
+            raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
+
     return SerializedDeadlineAlert(
         reference=reference,
-        interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        interval=interval,
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )
@@ -202,3 +227,21 @@ def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     else:
         partition_mapper_cls = find_registered_custom_partition_mapper(importable_string)
     return partition_mapper_cls.deserialize(var[Encoding.VAR])
+
+
+def decode_window(var: dict[str, Any]) -> Window:
+    """
+    Decode a previously serialized :class:`Window`.
+
+    Only built-in windows are accepted — a tampered serialized Dag naming a
+    non-core import path is rejected up-front instead of being handed to
+    ``import_string``. See :func:`encode_window` for the matching encode-side
+    restriction.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    if not is_core_window_import_path(importable_string):
+        raise WindowNotSupported(importable_string)
+    window_cls: type[Window] = import_string(importable_string)
+    return window_cls.deserialize(var[Encoding.VAR])

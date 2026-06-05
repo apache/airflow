@@ -47,7 +47,7 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
-        <Button size="sm" variant="outline">
+        <Button variant="outline">
           {`${dagRuns.length} ${translate("triggered")} ${translate("dagRun_other", { count: dagRuns.length })}`}
         </Button>
       </Popover.Trigger>

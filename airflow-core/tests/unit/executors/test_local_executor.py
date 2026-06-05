@@ -398,6 +398,12 @@ class TestLocalExecutor:
         executor.end()
 
 
+class TestLocalExecutorConnectionTestSupport:
+    def test_supports_connection_test_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_connection_test is True
+
+
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
     TEST_TOKEN = "test_token"
@@ -427,7 +433,7 @@ class TestLocalExecutorCallbackSupport:
         executor.start()
 
         try:
-            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor.queued_callbacks[callback_workload.key] = callback_workload
             executor._process_workloads([callback_workload])
             assert len(executor.queued_callbacks) == 0
             # We can't easily verify worker execution without running the worker,

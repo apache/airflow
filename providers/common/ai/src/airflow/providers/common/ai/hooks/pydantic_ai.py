@@ -22,6 +22,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
+from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
@@ -185,11 +186,27 @@ class PydanticAIHook(BaseHook):
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
+        When ``[common.ai] otel_export_enabled`` is set and the worker has an
+        OpenTelemetry exporter configured, the agent is instrumented to emit
+        GenAI spans through Airflow's tracing pipeline. See
+        :mod:`airflow.providers.common.ai.observability`.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
-        return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        if "instrument" not in agent_kwargs:
+            # Set the public ``agent.instrument`` surface rather than the
+            # ``Agent(instrument=...)`` constructor kwarg, which is deprecated in
+            # current pydantic-ai. Assigning ``agent.instrument`` works across the
+            # provider's ``pydantic-ai-slim>=1.71`` floor (a plain instance
+            # attribute on older versions, a property on newer ones). A caller
+            # that passed its own ``instrument`` wins.
+            settings = genai_instrumentation_settings()
+            if settings is not None:
+                agent.instrument = settings
+        return agent
 
     def test_connection(self) -> tuple[bool, str]:
         """

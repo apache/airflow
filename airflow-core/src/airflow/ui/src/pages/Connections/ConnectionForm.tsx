@@ -265,7 +265,6 @@ const ConnectionForm = ({
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="brand"
             disabled={
               Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
             }

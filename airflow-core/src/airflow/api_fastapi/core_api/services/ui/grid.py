@@ -122,12 +122,16 @@ def agg_state(states):
     return None
 
 
+def _serialize_child_states(child_states: Counter[Any]) -> dict[str, int]:
+    return {state if state is not None else "none": count for state, count in child_states.items()}
+
+
 def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
     return {
         "state": agg_state(summary.child_states),
         "min_start_date": summary.min_start_date,
         "max_end_date": summary.max_end_date,
-        "child_states": dict(summary.child_states),
+        "child_states": _serialize_child_states(summary.child_states),
         "dag_version_number": summary.dag_version_number,
     }
 

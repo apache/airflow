@@ -90,7 +90,10 @@ If release name contains chart name it will be used as a full name.
     {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
     {{- $kedaUsePgBouncer = or .Values.workers.celery.keda.usePgbouncer (and (not (has .Values.workers.celery.keda.usePgbouncer (list true false))) .Values.workers.keda.usePgbouncer) }}
   {{- end }}
-  {{- if and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
+  {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
+  {{- $workersKedaNeedsDbConn := and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
+  {{- $triggererKedaNeedsDbConn := and $triggererKedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))) }}
+  {{- if or $workersKedaNeedsDbConn $triggererKedaNeedsDbConn }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
@@ -459,7 +462,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_config_secret" -}}
-  {{- default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
+  {{- if .Values.pgbouncer.configSecretName }}
+    {{- tpl .Values.pgbouncer.configSecretName . }}
+  {{- else }}
+    {{- printf "%s-pgbouncer-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "pgbouncer_certificates_secret" -}}
@@ -1072,6 +1079,9 @@ Usage:
     {{- $bundles := list -}}
     {{- range .Values.dagProcessor.dagBundleConfigList -}}
       {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- if .team_name -}}
+      {{- $_ := set $bundle "team_name" .team_name -}}
+      {{- end -}}
       {{- $bundles = append $bundles $bundle -}}
     {{- end -}}
     {{- $bundles | toJson -}}
@@ -1145,9 +1155,59 @@ Usage:
       {{- if gt (len $nested) 0 -}}
         {{- $_ := set $newValues $key $nested -}}
       {{- end -}}
-    {{- else if not (eq $val nil) -}}
+    {{- else if not (kindIs "invalid" $val) -}}
       {{- $_ := set $newValues $key $val -}}
     {{- end -}}
   {{- end -}}
   {{- toYaml $newValues -}}
+{{- end -}}
+
+{{/*
+serviceAccountTokenVolume mount
+
+Usage:
+  {{ include "serviceAccountTokenVolumeMount" (list . .Values.scheduler.serviceAccount) }}
+*/}}
+{{- define "serviceAccountTokenVolumeMount" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  mountPath: {{ $sa.serviceAccountTokenVolume.mountPath }}
+  readOnly: true
+  {{- end }}
+{{- end -}}
+
+{{/*
+serviceAccountTokenVolume
+
+Usage:
+  {{ include "serviceAccountTokenVolume" (list . .Values.scheduler.serviceAccount) }}
+*/}}
+{{- define "serviceAccountTokenVolume" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  projected:
+    defaultMode: 420
+    sources:
+    - serviceAccountToken:
+        {{- if $sa.serviceAccountTokenVolume.audience }}
+        audience: {{ $sa.serviceAccountTokenVolume.audience }}
+        {{- end }}
+        expirationSeconds: {{ $sa.serviceAccountTokenVolume.expirationSeconds }}
+        path: token
+    - configMap:
+        items:
+        - key: ca.crt
+          path: ca.crt
+        name: kube-root-ca.crt
+    - downwardAPI:
+        items:
+        - fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+          path: namespace
+  {{- end }}
 {{- end -}}

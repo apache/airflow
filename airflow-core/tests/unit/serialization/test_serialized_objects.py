@@ -513,6 +513,22 @@ def test_serialize_deserialize_deadline_alert(reference):
     assert deserialized.callback == original.callback
 
 
+def test_deserialize_deadline_alert_none_interval_raises():
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = BaseSerialization.serialize(valid)
+
+    # Inject downgrade corruption.
+    serialized[Encoding.VAR][DeadlineAlertFields.INTERVAL] = None
+
+    with pytest.raises(ValueError, match="interval"):
+        BaseSerialization.deserialize(serialized)
+
+
 @pytest.mark.parametrize(
     "conn_uri",
     [
@@ -744,6 +760,166 @@ def test_serde_decode_asset_condition_unknown_type():
         decode_asset_like({"__type": "UNKNOWN_TYPE"})
 
 
+def test_encode_asset_with_access_control():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(producer_teams=["team_a"], allow_global=False),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": [],
+        "allow_global": False,
+    }
+
+
+def test_encode_asset_with_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(consumer_teams=["team_ml", "team_data"]),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {
+        "producer_teams": [],
+        "consumer_teams": ["team_ml", "team_data"],
+        "allow_global": True,
+    }
+
+
+def test_encode_asset_with_both_producer_and_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(
+            producer_teams=["team_a"], consumer_teams=["team_b"], allow_global=False
+        ),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_b"],
+        "allow_global": False,
+    }
+
+
+def test_encode_asset_without_access_control_omits_key():
+    from airflow.sdk import Asset
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(name="test", uri="s3://bucket/key")
+    encoded = encode_asset_like(asset)
+    assert "access_control" not in encoded
+
+
+def test_decode_asset_with_access_control():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+            "access_control": {"producer_teams": ["team_a"], "allow_global": False},
+        }
+    )
+    assert decoded.access_control == {"producer_teams": ["team_a"], "allow_global": False}
+
+
+def test_decode_asset_with_consumer_teams():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+            "access_control": {
+                "producer_teams": ["team_a"],
+                "consumer_teams": ["team_ml"],
+                "allow_global": False,
+            },
+        }
+    )
+    assert decoded.access_control == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_ml"],
+        "allow_global": False,
+    }
+
+
+def test_decode_asset_defaults_access_control_to_empty_dict():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+        }
+    )
+    assert decoded.access_control == {}
+
+
+def test_access_control_round_trip_with_consumer_teams():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.decoders import decode_asset_like
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(
+            producer_teams=["team_a"], consumer_teams=["team_ml", "team_data"], allow_global=False
+        ),
+    )
+    encoded = encode_asset_like(asset)
+    decoded = decode_asset_like(encoded)
+
+    assert decoded.access_control == {
+        "producer_teams": ["team_a"],
+        "consumer_teams": ["team_ml", "team_data"],
+        "allow_global": False,
+    }
+
+
+def test_access_control_round_trip_consumer_teams_only():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.decoders import decode_asset_like
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(consumer_teams=["team_ml"]),
+    )
+    encoded = encode_asset_like(asset)
+    decoded = decode_asset_like(encoded)
+
+    assert decoded.access_control["consumer_teams"] == ["team_ml"]
+    assert decoded.access_control["producer_teams"] == []
+    assert decoded.access_control["allow_global"] is True
+
+
 def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 
@@ -753,51 +929,95 @@ def test_encode_timezone():
 
 
 @pytest.mark.parametrize(
-    ("cls", "args", "encode_type", "encode_var"),
+    ("cls", "kwargs", "encode_type", "encode_var"),
     [
-        (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
+        (IdentityMapper, {}, "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
             StartOfHourMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfHourMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+        ),
+        (
+            StartOfHourMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfHourMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
         ),
         (
             StartOfDayMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfDayMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+        ),
+        (
+            StartOfDayMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfDayMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
         ),
         (
             StartOfWeekMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfWeekMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+        ),
+        (
+            StartOfWeekMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfWeekMapper",
+            {
+                "timezone": "Asia/Taipei",
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "%Y-%m-%d (W%V)",
+            },
         ),
         (
             StartOfMonthMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfMonthMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+        ),
+        (
+            StartOfMonthMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfMonthMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
         ),
         (
             StartOfQuarterMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfQuarterMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+        ),
+        (
+            StartOfQuarterMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+            {
+                "timezone": "Asia/Taipei",
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "%Y-Q{quarter}",
+            },
         ),
         (
             StartOfYearMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfYearMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+        ),
+        (
+            StartOfYearMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfYearMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
         ),
     ],
 )
-def test_encode_partition_mapper(cls, args, encode_type, encode_var):
+def test_encode_partition_mapper(cls, kwargs, encode_type, encode_var):
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = cls(*args)
+    partition_mapper = cls(**kwargs)
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: encode_type,
         Encoding.VAR: encode_var,
@@ -858,6 +1078,7 @@ def test_encode_product_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
                     },
@@ -896,6 +1117,7 @@ def test_encode_chain_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
                     },
@@ -903,6 +1125,7 @@ def test_encode_chain_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H",
                         "output_format": "%Y-%m-%d",
                     },

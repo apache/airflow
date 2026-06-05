@@ -24,12 +24,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1777991095
+source-date-epoch: 1780426378
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.18.0
+  - 2.17.0
   - 2.16.0
   - 2.15.0
   - 2.14.0
@@ -104,6 +106,15 @@ config:
       This section applies settings for OpenLineage integration.
 
     options:
+      config_conn_id:
+        description: |
+          Specify a Generic Airflow connection ID that contains OpenLineage configuration in connection
+          extra. This can be used to keep the OpenLineage transport configuration, including auth settings,
+          outside of the Airflow configuration file.
+        version_added: ~
+        type: string
+        example: "openlineage_default"
+        default: ""
       config_path:
         description: |
           Specify the path to the YAML configuration file.

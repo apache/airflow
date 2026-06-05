@@ -225,6 +225,7 @@ def get_query_filter_by_worker_name(worker_name: str):
 def _fetch_edge_hosts_from_db(
     hostname: str | None = None,
     states: list | None = None,
+    *,
     session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
     query = select(EdgeWorkerModel)
@@ -238,13 +239,13 @@ def _fetch_edge_hosts_from_db(
 
 @providers_configuration_loaded
 @provide_session
-def get_registered_edge_hosts(states: list | None = None, session: Session = NEW_SESSION):
+def get_registered_edge_hosts(*, states: list | None = None, session: Session = NEW_SESSION):
     return _fetch_edge_hosts_from_db(states=states, session=session)
 
 
 @provide_session
 def request_maintenance(
-    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, *, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance request to the db."""
     query = get_query_filter_by_worker_name(worker_name=worker_name)
@@ -256,7 +257,7 @@ def request_maintenance(
 
 
 @provide_session
-def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+def exit_maintenance(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Write maintenance exit to the db."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -267,7 +268,7 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 
 @provide_session
-def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
+def remove_worker(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -287,7 +288,7 @@ def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 @provide_session
 def change_maintenance_comment(
-    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, *, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance comment in the db."""
     query = get_query_filter_by_worker_name(worker_name)
@@ -308,7 +309,7 @@ def change_maintenance_comment(
 
 
 @provide_session
-def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
+def request_shutdown(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Request to shutdown the edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -323,7 +324,7 @@ def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 
 @provide_session
-def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+def add_worker_queues(worker_name: str, queues: list[str], *, session: Session = NEW_SESSION) -> None:
     """Add queues to an edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -341,7 +342,7 @@ def add_worker_queues(worker_name: str, queues: list[str], session: Session = NE
 
 
 @provide_session
-def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+def remove_worker_queues(worker_name: str, queues: list[str], *, session: Session = NEW_SESSION) -> None:
     """Remove queues from an edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -361,7 +362,7 @@ def remove_worker_queues(worker_name: str, queues: list[str], session: Session =
 
 
 @provide_session
-def set_worker_concurrency(worker_name: str, concurrency: int, session: Session = NEW_SESSION) -> None:
+def set_worker_concurrency(worker_name: str, concurrency: int, *, session: Session = NEW_SESSION) -> None:
     """Set the concurrency of an edge worker."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)

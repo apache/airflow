@@ -98,6 +98,20 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dic
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
+                # Skip dependency objects whose edge endpoints reference DAGs
+                # outside the caller's readable set. ``dep.node_id`` /
+                # ``dep.source`` / ``dep.target`` would otherwise embed those
+                # DAG ids in the response even when the top-level filter
+                # above hides the DAG itself.
+                if readable_dag_ids is not None:
+                    referenced_dag_ids: set[str] = set()
+                    if dep.source != dep.dependency_type and ":" not in dep.source:
+                        referenced_dag_ids.add(dep.source)
+                    if dep.target != dep.dependency_type and ":" not in dep.target:
+                        referenced_dag_ids.add(dep.target)
+                    if not referenced_dag_ids.issubset(readable_dag_ids):
+                        continue
+
                 # Add nodes
                 nodes_dict[dag_node_id] = {"id": dag_node_id, "label": dag, "type": "dag"}
                 if dep.node_id not in nodes_dict:

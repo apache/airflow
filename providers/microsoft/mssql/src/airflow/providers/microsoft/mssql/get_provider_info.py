@@ -68,6 +68,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook",
                 "hook-name": "Microsoft SQL Server",
                 "connection-type": "mssql",
+                "ui-field-behaviour": {"relabeling": {"schema": "Database"}},
             }
         ],
     }

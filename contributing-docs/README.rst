@@ -64,6 +64,14 @@ To learn about various roles and communication channels in the Airflow project:
 * `How to communicate <02_how_to_communicate.rst>`__
   describes how to communicate with the community and how to get help.
 
+* `Code of Conduct <../CODE_OF_CONDUCT.md>`__ states the behaviour
+  the project expects from everyone, and the
+  `Community escalation process <../COMMUNITY_ESCALATION.md>`__
+  describes what happens when Code of Conduct breaches, spamming, or
+  other sustained disruptive behaviour cannot be resolved through
+  normal review and mentoring — and how to appeal a decision via
+  ``private@airflow.apache.org``.
+
 * `How to contribute <04_how_to_contribute.rst>`__ describes the various ways of how you can contribute to Airflow.
 
 To learn how to setup your environment for development and how to develop and test code:

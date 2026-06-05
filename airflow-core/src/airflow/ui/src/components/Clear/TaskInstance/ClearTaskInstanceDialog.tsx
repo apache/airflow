@@ -17,19 +17,19 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import Time from "src/components/Time";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
@@ -70,17 +70,11 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const taskId = props.allMapped ? props.taskId : props.taskInstance.task_id;
   const mapIndex: number | undefined = props.allMapped ? undefined : props.taskInstance.map_index;
   const taskInstance: TaskInstanceResponse | undefined = props.allMapped ? undefined : props.taskInstance;
-  const onCloseDialog = props.onClose;
+  const closeDialog = props.onClose;
   const openDialog = props.open;
   /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId,
-    onSuccessConfirm: onCloseDialog,
-  });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
 
@@ -89,20 +83,44 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-  const userToggledRunOnLatestRef = useRef(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    taskId,
-  });
+
+  useEffect(() => {
+    if (openDialog) {
+      setNote(taskInstance?.note ?? null);
+    }
+  }, [openDialog, taskInstance?.note]);
+
+  const onCloseDialog = () => {
+    setNote(taskInstance?.note ?? null);
+    closeDialog();
+  };
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+  });
+
+  // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
+  // differ" heuristic still applies when neither DAG-level nor global config is set.
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
+    fallback: dagVersionsDiffer,
+  });
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagId,
+    dagRunId,
+    onSuccessConfirm: onCloseDialog,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -134,24 +152,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
     total_entries: 0,
   };
 
-  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
-    latestBundleVersion: dagDetails?.bundle_version,
-    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
-    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
-  });
-
-  useEffect(() => {
-    if (!openDialog) {
-      userToggledRunOnLatestRef.current = false;
-    } else if (!userToggledRunOnLatestRef.current) {
-      setRunOnLatestVersion(dagVersionsDiffer);
-    }
-  }, [openDialog, dagVersionsDiffer]);
-
   return (
     <>
-      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false} size="xl">
+      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -219,10 +222,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
               {shouldShowRunOnLatestOption ? (
                 <Checkbox
                   checked={runOnLatestVersion}
-                  onCheckedChange={(event) => {
-                    userToggledRunOnLatestRef.current = true;
-                    setRunOnLatestVersion(Boolean(event.checked));
-                  }}
+                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
                 >
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>
@@ -234,63 +234,50 @@ const ClearTaskInstanceDialog = (props: Props) => {
               >
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
-              <Button
-                colorPalette="brand"
-                disabled={affectedTasks.total_entries === 0}
-                loading={isPending || isPendingPatchDagRun}
-                onClick={onOpen}
-              >
+              <Button disabled={affectedTasks.total_entries === 0} loading={isPending} onClick={onOpen}>
                 <CgRedo /> {translate("modal.confirm")}
               </Button>
             </Flex>
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-      {open ? (
-        <ClearTaskInstanceConfirmationDialog
-          dagDetails={{
+      <ClearTaskInstanceConfirmationDialog
+        dagDetails={{
+          dagId,
+          dagRunId,
+          downstream,
+          future,
+          mapIndex,
+          onlyFailed,
+          past,
+          taskId,
+          upstream,
+        }}
+        onClose={onClose}
+        onConfirm={() => {
+          const noteChanged = note !== (taskInstance?.note ?? null);
+
+          mutate({
             dagId,
-            dagRunId,
-            downstream,
-            future,
-            mapIndex,
-            onlyFailed,
-            past,
-            taskId,
-            upstream,
-          }}
-          onClose={onClose}
-          onConfirm={() => {
-            mutate({
-              dagId,
-              requestBody: {
-                dag_run_id: dagRunId,
-                dry_run: false,
-                include_downstream: downstream,
-                include_future: future,
-                include_past: past,
-                include_upstream: upstream,
-                only_failed: onlyFailed,
-                run_on_latest_version: runOnLatestVersion,
-                task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
-                ...(preventRunningTask ? { prevent_running_task: true } : {}),
-              },
-            });
-            if (note !== (taskInstance?.note ?? null)) {
-              mutatePatchTaskInstance({
-                dagId,
-                dagRunId,
-                ...(allMapped ? {} : { mapIndex }),
-                requestBody: { note },
-                taskId,
-              });
-            }
-            onCloseDialog();
-          }}
-          open={open}
-          preventRunningTask={preventRunningTask}
-        />
-      ) : null}
+            requestBody: {
+              dag_run_id: dagRunId,
+              dry_run: false,
+              include_downstream: downstream,
+              include_future: future,
+              include_past: past,
+              include_upstream: upstream,
+              note: noteChanged ? note : undefined,
+              only_failed: onlyFailed,
+              run_on_latest_version: runOnLatestVersion,
+              task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
+              ...(preventRunningTask ? { prevent_running_task: true } : {}),
+            },
+          });
+          onCloseDialog();
+        }}
+        open={open}
+        preventRunningTask={preventRunningTask}
+      />
     </>
   );
 };

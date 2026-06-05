@@ -49,6 +49,7 @@ from airflow.sdk.definitions.asset import (
     AssetAny as AssetAny,
     AssetWatcher as AssetWatcher,
 )
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.connection import Connection as Connection
@@ -63,7 +64,7 @@ from airflow.sdk.definitions.decorators.task_group import task_group as task_gro
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
@@ -74,6 +75,15 @@ from airflow.sdk.definitions.partition_mappers.temporal import (
     StartOfQuarterMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
+)
+from airflow.sdk.definitions.partition_mappers.window import (
+    DayWindow,
+    HourWindow,
+    MonthWindow,
+    QuarterWindow,
+    WeekWindow,
+    Window,
+    YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
     ExceptionRetryPolicy as ExceptionRetryPolicy,
@@ -86,6 +96,7 @@ from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetOrTimeSchedule,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -111,6 +122,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -133,25 +145,31 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DayWindow",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "HourWindow",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MonthWindow",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "PartitionAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
+    "QuarterWindow",
     "RetryAction",
     "RetryDecision",
     "RetryPolicy",
     "RetryRule",
+    "RollupMapper",
     "SecretCache",
     "SkipMixin",
     "StartOfDayMapper",
@@ -164,8 +182,11 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WeekWindow",
     "WeightRule",
+    "Window",
     "XComArg",
+    "YearWindow",
     "asset",
     "chain",
     "chain_linear",

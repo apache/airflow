@@ -69,7 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
-    AssetStateResponse,
+    AssetStoreResponse,
     BundleInfo,
     ConnectionResponse,
     DagResponse,
@@ -80,10 +80,9 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
-    TaskInstance,
     TaskInstanceState,
-    TaskStateResponse,
     TaskStatesResponse,
+    TaskStoreResponse,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -98,6 +97,10 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.workloads.task import (
+    # Pydantic needs this at runtime since we don't model_rebuild() StartupDetails.
+    TaskInstanceDTO,  # noqa: TC001
+)
 
 try:
     from socket import recv_fds
@@ -334,7 +337,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    ti: TaskInstance
+    ti: TaskInstanceDTO
     dag_rel_path: str
     bundle_info: BundleInfo
     start_date: datetime
@@ -563,24 +566,24 @@ class VariableResult(VariableResponse):
         return cls(**variable_response.model_dump(exclude_defaults=True), type="VariableResult")
 
 
-class TaskStateResult(TaskStateResponse):
-    """Response to GetTaskState; wraps the generated API response for supervisor to worker comms."""
+class TaskStoreResult(TaskStoreResponse):
+    """Response to GetTaskStore; wraps the generated API response for supervisor to worker comms."""
 
-    type: Literal["TaskStateResult"] = "TaskStateResult"
-
-    @classmethod
-    def from_task_state_response(cls, resp: TaskStateResponse) -> TaskStateResult:
-        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStateResult")
-
-
-class AssetStateResult(AssetStateResponse):
-    """Response to GetAssetState; wraps the generated API response for supervisor to worker comms."""
-
-    type: Literal["AssetStateResult"] = "AssetStateResult"
+    type: Literal["TaskStoreResult"] = "TaskStoreResult"
 
     @classmethod
-    def from_asset_state_response(cls, resp: AssetStateResponse) -> AssetStateResult:
-        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateResult")
+    def from_task_store_response(cls, resp: TaskStoreResponse) -> TaskStoreResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStoreResult")
+
+
+class AssetStoreResult(AssetStoreResponse):
+    """Response to GetAssetStore; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["AssetStoreResult"] = "AssetStoreResult"
+
+    @classmethod
+    def from_asset_store_response(cls, resp: AssetStoreResponse) -> AssetStoreResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStoreResult")
 
 
 class AssetsByAliasResult(BaseModel):
@@ -772,7 +775,7 @@ ToTask = Annotated[
     AssetResult
     | AssetsByAliasResult
     | AssetEventsResult
-    | AssetStateResult
+    | AssetStoreResult
     | ConnectionResult
     | DagRunResult
     | DagRunStateResult
@@ -784,7 +787,7 @@ ToTask = Annotated[
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
-    | TaskStateResult
+    | TaskStoreResult
     | TICount
     | TaskBreadcrumbsResult
     | TaskStatesResult
@@ -914,77 +917,78 @@ class DeleteXCom(BaseModel):
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
 
-class GetTaskState(BaseModel):
+class GetTaskStore(BaseModel):
     ti_id: UUID
     key: str
-    type: Literal["GetTaskState"] = "GetTaskState"
+    type: Literal["GetTaskStore"] = "GetTaskStore"
 
 
-class SetTaskState(BaseModel):
+class SetTaskStore(BaseModel):
     ti_id: UUID
     key: str
-    value: str
-    type: Literal["SetTaskState"] = "SetTaskState"
+    value: JsonValue
+    expires_at: AwareDatetime | None
+    type: Literal["SetTaskStore"] = "SetTaskStore"
 
 
-class DeleteTaskState(BaseModel):
+class DeleteTaskStore(BaseModel):
     ti_id: UUID
     key: str
-    type: Literal["DeleteTaskState"] = "DeleteTaskState"
+    type: Literal["DeleteTaskStore"] = "DeleteTaskStore"
 
 
-class ClearTaskState(BaseModel):
+class ClearTaskStore(BaseModel):
     ti_id: UUID
     all_map_indices: bool = False
-    type: Literal["ClearTaskState"] = "ClearTaskState"
+    type: Literal["ClearTaskStore"] = "ClearTaskStore"
 
 
-class GetAssetStateByName(BaseModel):
+class GetAssetStoreByName(BaseModel):
     name: str
     key: str
-    type: Literal["GetAssetStateByName"] = "GetAssetStateByName"
+    type: Literal["GetAssetStoreByName"] = "GetAssetStoreByName"
 
 
-class GetAssetStateByUri(BaseModel):
+class GetAssetStoreByUri(BaseModel):
     uri: str
     key: str
-    type: Literal["GetAssetStateByUri"] = "GetAssetStateByUri"
+    type: Literal["GetAssetStoreByUri"] = "GetAssetStoreByUri"
 
 
-class SetAssetStateByName(BaseModel):
+class SetAssetStoreByName(BaseModel):
     name: str
     key: str
-    value: str
-    type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
+    value: JsonValue
+    type: Literal["SetAssetStoreByName"] = "SetAssetStoreByName"
 
 
-class SetAssetStateByUri(BaseModel):
+class SetAssetStoreByUri(BaseModel):
     uri: str
     key: str
-    value: str
-    type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
+    value: JsonValue
+    type: Literal["SetAssetStoreByUri"] = "SetAssetStoreByUri"
 
 
-class DeleteAssetStateByName(BaseModel):
+class DeleteAssetStoreByName(BaseModel):
     name: str
     key: str
-    type: Literal["DeleteAssetStateByName"] = "DeleteAssetStateByName"
+    type: Literal["DeleteAssetStoreByName"] = "DeleteAssetStoreByName"
 
 
-class DeleteAssetStateByUri(BaseModel):
+class DeleteAssetStoreByUri(BaseModel):
     uri: str
     key: str
-    type: Literal["DeleteAssetStateByUri"] = "DeleteAssetStateByUri"
+    type: Literal["DeleteAssetStoreByUri"] = "DeleteAssetStoreByUri"
 
 
-class ClearAssetStateByName(BaseModel):
+class ClearAssetStoreByName(BaseModel):
     name: str
-    type: Literal["ClearAssetStateByName"] = "ClearAssetStateByName"
+    type: Literal["ClearAssetStoreByName"] = "ClearAssetStoreByName"
 
 
-class ClearAssetStateByUri(BaseModel):
+class ClearAssetStoreByUri(BaseModel):
     uri: str
-    type: Literal["ClearAssetStateByUri"] = "ClearAssetStateByUri"
+    type: Literal["ClearAssetStoreByUri"] = "ClearAssetStoreByUri"
 
 
 class GetConnection(BaseModel):
@@ -1189,21 +1193,21 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    ClearAssetStateByName
-    | ClearAssetStateByUri
-    | ClearTaskState
+    ClearAssetStoreByName
+    | ClearAssetStoreByUri
+    | ClearTaskStore
     | DeferTask
-    | DeleteAssetStateByName
-    | DeleteAssetStateByUri
-    | DeleteTaskState
+    | DeleteAssetStoreByName
+    | DeleteAssetStoreByUri
+    | DeleteTaskStore
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetsByAlias
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
-    | GetAssetStateByName
-    | GetAssetStateByUri
+    | GetAssetStoreByName
+    | GetAssetStoreByUri
     | GetConnection
     | GetDagRun
     | GetDagRunState
@@ -1213,7 +1217,7 @@ ToSupervisor = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTaskRescheduleStartDate
-    | GetTaskState
+    | GetTaskStore
     | GetTICount
     | GetTaskBreadcrumbs
     | GetTaskStates
@@ -1226,11 +1230,11 @@ ToSupervisor = Annotated[
     | PutVariable
     | RescheduleTask
     | RetryTask
-    | SetAssetStateByName
-    | SetAssetStateByUri
+    | SetAssetStoreByName
+    | SetAssetStoreByUri
     | SetRenderedFields
     | SetRenderedMapIndex
-    | SetTaskState
+    | SetTaskStore
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

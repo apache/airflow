@@ -597,7 +597,9 @@ class SerializedDagModel(Base):
         dag: LazyDeserializedDAG,
         bundle_name: str,
         bundle_version: str | None = None,
+        version_data: dict | None = None,
         min_update_interval: int | None = None,
+        *,
         session: Session = NEW_SESSION,
         _prefetched: DagWriteMetadata | None = None,
     ) -> bool:
@@ -610,6 +612,7 @@ class SerializedDagModel(Base):
         :param dag: a DAG to be written into database
         :param bundle_name: bundle name of the DAG
         :param bundle_version: bundle version of the DAG
+        :param version_data: optional structured data associated with this version
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
         :param _prefetched: Pre-fetched metadata to skip per-DAG queries; used by bulk callers
@@ -740,6 +743,7 @@ class SerializedDagModel(Base):
             # Update the latest dag version
             dag_version.bundle_name = bundle_name
             dag_version.bundle_version = bundle_version
+            dag_version.version_data = version_data
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
@@ -749,6 +753,7 @@ class SerializedDagModel(Base):
             dag_id=dag.dag_id,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             session=session,
         )
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
@@ -803,7 +808,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
+    def read_all_dags(cls, *, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.
 
@@ -862,7 +867,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
+    def has_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> bool:
         """
         Check a DAG exist in serialized_dag table.
 
@@ -873,7 +878,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
+    def get_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:
             return row.dag
@@ -881,7 +886,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
+    def get(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
 
@@ -892,7 +897,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
+    def get_dag_dependencies(cls, *, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs.
 

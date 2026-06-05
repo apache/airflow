@@ -99,6 +99,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.SkipMixin
 
+.. autoclass:: airflow.sdk.ResumableJobMixin
+
 .. autoapiclass:: airflow.sdk.BaseHook
 
 Callbacks
@@ -181,6 +183,8 @@ Assets
 ------
 .. autoapiclass:: airflow.sdk.Asset
 
+.. autoapiclass:: airflow.sdk.AssetAccessControl
+
 .. autoapiclass:: airflow.sdk.AssetAlias
 
 .. autoapiclass:: airflow.sdk.AssetAll
@@ -209,6 +213,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
+
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
 
@@ -233,9 +239,28 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.StartOfYearMapper
 
+.. autoapiclass:: airflow.sdk.RollupMapper
+
 .. autoapiclass:: airflow.sdk.ProductMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
+
+Rollup Windows
+~~~~~~~~~~~~~~
+
+.. autoapiclass:: airflow.sdk.Window
+
+.. autoapiclass:: airflow.sdk.HourWindow
+
+.. autoapiclass:: airflow.sdk.DayWindow
+
+.. autoapiclass:: airflow.sdk.WeekWindow
+
+.. autoapiclass:: airflow.sdk.MonthWindow
+
+.. autoapiclass:: airflow.sdk.QuarterWindow
+
+.. autoapiclass:: airflow.sdk.YearWindow
 
 I/O Helpers
 -----------
@@ -247,6 +272,16 @@ The ``lineage`` module is available as part of the Task SDK. It provides the pub
 collector interfaces used to capture and retrieve asset lineage metadata during task execution.
 
 .. autoapimodule:: airflow.sdk.lineage
+
+Coordinators
+------------
+
+Coordinators bridge the Airflow worker and a non-Python language runtime.
+See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
+
+.. rubric:: JVM
+
+.. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
 
 Execution Time Components
 -------------------------
@@ -260,6 +295,10 @@ It corresponds to the same context that is exposed to Jinja templates during tas
 For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
+
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
 
 .. rubric:: Logging
 
@@ -275,7 +314,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:

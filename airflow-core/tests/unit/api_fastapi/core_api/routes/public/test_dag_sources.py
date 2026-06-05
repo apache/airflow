@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import pendulum
 import pytest
 from httpx import Response
 from sqlalchemy import select
 
+from airflow.api_fastapi.core_api.routes.public.dag_sources import REDACTED_SOURCE
+from airflow.models import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
 from airflow.utils.state import DagRunState
@@ -86,7 +89,6 @@ class TestGetDAGSource:
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         response: Response = test_client.get(f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"})
 
-        assert isinstance(response, Response)
         assert response.status_code == 200
         assert dag_content == response.content.decode()
         with pytest.raises(json.JSONDecodeError):
@@ -114,7 +116,6 @@ class TestGetDAGSource:
             f"{API_PREFIX}/{TEST_DAG_ID}",
             headers=headers,
         )
-        assert isinstance(response, Response)
         assert response.status_code == 200
         assert response.json() == {
             "content": dag_content,
@@ -180,3 +181,59 @@ class TestGetDAGSource:
         url = f"{API_PREFIX}/{wrong_fileloc}"
         response = test_client.get(url, headers={"Accept": "application/json"})
         assert response.status_code == 404
+
+    @pytest.fixture
+    def colocated_unreadable_dag(self, session, test_dag):
+        """Insert a second ``DagModel`` sharing the requested Dag's source file."""
+        requested = session.scalar(select(DagModel).where(DagModel.dag_id == TEST_DAG_ID))
+        colocated = DagModel(
+            dag_id="other_dag_in_same_file",
+            fileloc=requested.fileloc,
+            relative_fileloc=requested.relative_fileloc,
+            bundle_name=requested.bundle_name,
+            is_paused=False,
+        )
+        session.add(colocated)
+        session.commit()
+        return colocated
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_sources.get_auth_manager")
+    def test_source_is_redacted_when_caller_cannot_read_all_dags_in_file(
+        self, mock_get_auth_manager, test_client, test_dag, colocated_unreadable_dag
+    ):
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {TEST_DAG_ID}
+
+        response: Response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "content": REDACTED_SOURCE,
+            "dag_id": TEST_DAG_ID,
+            "version_number": 1,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
+        }
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_sources.get_auth_manager")
+    def test_source_is_returned_when_caller_can_read_all_dags_in_file(
+        self, mock_get_auth_manager, test_client, test_dag, colocated_unreadable_dag
+    ):
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {
+            TEST_DAG_ID,
+            colocated_unreadable_dag.dag_id,
+        }
+        dag_content = self._get_dag_file_code(test_dag.fileloc)
+
+        response: Response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "content": dag_content,
+            "dag_id": TEST_DAG_ID,
+            "version_number": 1,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
+        }
