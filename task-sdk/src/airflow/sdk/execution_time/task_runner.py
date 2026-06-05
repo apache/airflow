@@ -1405,7 +1405,7 @@ def run(
     signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
-    state: TaskInstanceState
+    state: TaskInstanceState | None = None
     error: BaseException | None = None
 
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
@@ -1532,7 +1532,10 @@ def run(
         msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     finally:
-        stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+        # `state` may still be unset if an exception handler above raised before
+        # binding it
+        if state is not None:
+            stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
             # If the supervisor rejects the terminal-state report
@@ -1544,7 +1547,7 @@ def run(
             except Exception:
                 log.exception(
                     "Failed to report terminal task state to supervisor",
-                    state=state.value,
+                    state=state.value if state is not None else None,
                 )
                 # Fail closed for FAILED / UP_FOR_RETRY: when the supervisor
                 # never receives the terminal-state message, exiting 0 would
