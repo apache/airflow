@@ -88,8 +88,8 @@ def _initialize_task_sdk_stats() -> None:
     from starting.
     """
     try:
-        from airflow.sdk._shared.observability.metrics import stats
-        from airflow.sdk.observability.metrics import stats_utils
+        from airflow._shared.observability.metrics import stats
+        from airflow.observability.metrics import stats_utils
 
         stats.initialize(
             factory=stats_utils.get_stats_factory(),
@@ -97,8 +97,7 @@ def _initialize_task_sdk_stats() -> None:
         )
     except Exception:
         log.warning(
-            "Failed to initialize Task SDK Stats in the API server; "
-            "Edge Worker metrics will not be emitted.",
+            "Failed to initialize Task SDK Stats in the API server; Edge Worker metrics will not be emitted.",
             exc_info=True,
         )
 
