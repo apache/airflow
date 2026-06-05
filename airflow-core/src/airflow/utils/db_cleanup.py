@@ -77,6 +77,7 @@ class _TableConfig:
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
+    :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
     """
 
     table_name: str
@@ -90,6 +91,7 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    extra_filters: list[Any] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -174,6 +176,14 @@ config_list: list[_TableConfig] = [
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
+    _TableConfig(
+        table_name="connection_test_request",
+        recency_column_name="updated_at",
+        extra_columns=["state"],
+        extra_filters=[
+            column("state").in_(["success", "failed"]),
+        ],
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -341,6 +351,7 @@ def _build_query(
     dag_id_column=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    extra_filters: list[Any] | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -348,6 +359,9 @@ def _build_query(
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if extra_filters:
+        conditions.extend(extra_filters)
 
     if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
@@ -394,6 +408,7 @@ def _cleanup_table(
     skip_archive: bool = False,
     session: Session,
     batch_size: int | None = None,
+    extra_filters: list[Any] | None = None,
     **kwargs,
 ) -> None:
     print()
@@ -409,6 +424,7 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        extra_filters=extra_filters,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
@@ -654,6 +670,7 @@ def export_archived_records(
     table_names: list[str] | None = None,
     drop_archives: bool = False,
     needs_confirm: bool = True,
+    *,
     session: Session = NEW_SESSION,
 ) -> None:
     """Export archived data to the given output path in the given format."""
@@ -682,7 +699,7 @@ def export_archived_records(
 
 @provide_session
 def drop_archived_tables(
-    table_names: list[str] | None, needs_confirm: bool, session: Session = NEW_SESSION
+    table_names: list[str] | None, needs_confirm: bool, *, session: Session = NEW_SESSION
 ) -> None:
     """Drop archived tables."""
     archived_table_names = _get_archived_table_names(table_names, session)

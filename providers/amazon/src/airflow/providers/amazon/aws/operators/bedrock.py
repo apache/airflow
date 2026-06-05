@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, Literal
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentCoreHook,
     BedrockAgentHook,
     BedrockAgentRuntimeHook,
     BedrockHook,
@@ -31,6 +33,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
 )
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
@@ -109,6 +112,250 @@ class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
         self.log.info("Bedrock %s prompt: %s", self.model_id, self.input_data)
         self.log.info("Bedrock model response: %s", response_body)
         return response_body
+
+
+class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlHook]):
+    """
+    Create an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateAgentRuntimeOperator`
+
+    :param agent_runtime_name: The name of the AgentCore Runtime. (templated)
+    :param agent_runtime_artifact: The artifact configuration for the AgentCore Runtime. (templated)
+    :param role_arn: The ARN of the IAM role for the AgentCore Runtime. (templated)
+    :param network_configuration: The network configuration for the AgentCore Runtime. (templated)
+    :param create_agent_runtime_kwargs: Any optional parameters to pass to the API. (templated)
+    :param wait_for_completion: Whether to wait for the AgentCore Runtime to reach READY. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for runtime readiness. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
+        to reach READY. This implies waiting for completion. This mode requires aiobotocore
+        module to be installed. (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreControlHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "agent_runtime_name",
+        "agent_runtime_artifact",
+        "role_arn",
+        "network_configuration",
+        "create_agent_runtime_kwargs",
+    )
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_name: str,
+        agent_runtime_artifact: dict[str, Any],
+        role_arn: str,
+        network_configuration: dict[str, Any],
+        create_agent_runtime_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.agent_runtime_name = agent_runtime_name
+        self.agent_runtime_artifact = agent_runtime_artifact
+        self.role_arn = role_arn
+        self.network_configuration = network_configuration
+        self.create_agent_runtime_kwargs = create_agent_runtime_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while creating AgentCore Runtime: {validated_event}")
+
+        self.log.info("Bedrock AgentCore Runtime `%s` is ready.", validated_event["agent_runtime_arn"])
+        return validated_event["agent_runtime_arn"]
+
+    def execute(self, context: Context) -> str:
+        response = self.hook.conn.create_agent_runtime(
+            agentRuntimeName=self.agent_runtime_name,
+            agentRuntimeArtifact=self.agent_runtime_artifact,
+            roleArn=self.role_arn,
+            networkConfiguration=self.network_configuration,
+            **self.create_agent_runtime_kwargs,
+        )
+        agent_runtime_arn = response["agentRuntimeArn"]
+        agent_runtime_id = response["agentRuntimeId"]
+        agent_runtime_version = response["agentRuntimeVersion"]
+
+        if self.deferrable:
+            self.log.info("Deferring until AgentCore Runtime %s reaches READY.", agent_runtime_arn)
+            self.defer(
+                trigger=BedrockAgentRuntimeReadyTrigger(
+                    agent_runtime_id=agent_runtime_id,
+                    agent_runtime_version=agent_runtime_version,
+                    agent_runtime_arn=agent_runtime_arn,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting for AgentCore Runtime %s to reach READY.", agent_runtime_arn)
+            self.hook.get_waiter("agent_runtime_ready").wait(
+                agentRuntimeId=agent_runtime_id,
+                agentRuntimeVersion=agent_runtime_version,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return agent_runtime_arn
+
+
+class BedrockInvokeAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreHook]):
+    """
+    Invoke an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockInvokeAgentRuntimeOperator`
+
+    :param agent_runtime_arn: The ARN of the AgentCore Runtime to invoke. (templated)
+    :param payload: The invocation payload. Dict and list payloads are JSON serialized. (templated)
+    :param content_type: The MIME type of the input payload. (templated) Default: application/json
+    :param accept: The desired MIME type of the response. (templated) Default: application/json
+    :param invoke_agent_runtime_kwargs: Any optional parameters to pass to the API. (templated)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "agent_runtime_arn",
+        "payload",
+        "content_type",
+        "accept",
+        "invoke_agent_runtime_kwargs",
+    )
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_arn: str,
+        payload: dict[str, Any] | list[Any] | str | bytes,
+        content_type: str | None = "application/json",
+        accept: str | None = "application/json",
+        invoke_agent_runtime_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.agent_runtime_arn = agent_runtime_arn
+        self.payload = payload
+        self.content_type = content_type
+        self.accept = accept
+        self.invoke_agent_runtime_kwargs = invoke_agent_runtime_kwargs or {}
+
+    @staticmethod
+    def _serialize_payload(payload: dict[str, Any] | list[Any] | str | bytes) -> bytes:
+        if isinstance(payload, bytes):
+            return payload
+        if isinstance(payload, str):
+            return payload.encode()
+        return json.dumps(payload).encode()
+
+    @staticmethod
+    def _read_response_body(response_body: Any) -> bytes:
+        if hasattr(response_body, "read"):
+            response_body = response_body.read()
+        if isinstance(response_body, bytes):
+            return response_body
+        if isinstance(response_body, str):
+            return response_body.encode()
+        return json.dumps(response_body).encode()
+
+    @staticmethod
+    def _deserialize_response_body(response_body: bytes, content_type: str | None) -> Any:
+        try:
+            response_text = response_body.decode()
+        except UnicodeDecodeError:
+            return response_body
+
+        if content_type and "json" in content_type.lower():
+            return json.loads(response_text)
+        return response_text
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        response = self.hook.conn.invoke_agent_runtime(
+            **prune_dict(
+                {
+                    "agentRuntimeArn": self.agent_runtime_arn,
+                    "payload": self._serialize_payload(self.payload),
+                    "contentType": self.content_type,
+                    "accept": self.accept,
+                    **self.invoke_agent_runtime_kwargs,
+                }
+            )
+        )
+        response_body = self._deserialize_response_body(
+            self._read_response_body(response["response"]),
+            response.get("contentType") or self.accept,
+        )
+        return {
+            key: value for key, value in response.items() if key not in {"ResponseMetadata", "response"}
+        } | {"response": response_body}
+
+
+class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlHook]):
+    """
+    Delete an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockDeleteAgentRuntimeOperator`
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime to delete. (templated)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreControlHook
+    template_fields: Sequence[str] = aws_template_fields("agent_runtime_id")
+
+    def __init__(self, *, agent_runtime_id: str, **kwargs):
+        super().__init__(**kwargs)
+        self.agent_runtime_id = agent_runtime_id
+
+    def execute(self, context: Context) -> None:
+        self.hook.conn.delete_agent_runtime(agentRuntimeId=self.agent_runtime_id)
+        self.log.info("Deleted Bedrock AgentCore Runtime %s.", self.agent_runtime_id)
 
 
 class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
@@ -1278,3 +1525,59 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         response = self.hook.conn.update_guardrail(**kwargs)
         self.log.info("Updated guardrail %s version %s", response["guardrailId"], response["version"])
         return response["guardrailId"]
+
+
+class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create an Amazon Bedrock model evaluation job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateEvaluationJobOperator`
+
+    :param job_name: The name of the evaluation job. (templated)
+    :param role_arn: The IAM role ARN for the evaluation job. (templated)
+    :param evaluation_config: The evaluation configuration dict. (templated)
+    :param inference_config: The inference configuration dict. (templated)
+    :param output_data_config: The output data configuration dict. (templated)
+    :param job_description: Optional description. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields("job_name", "role_arn", "job_description")
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        role_arn: str,
+        evaluation_config: dict[str, Any],
+        inference_config: dict[str, Any],
+        output_data_config: dict[str, Any],
+        job_description: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.role_arn = role_arn
+        self.evaluation_config = evaluation_config
+        self.inference_config = inference_config
+        self.output_data_config = output_data_config
+        self.job_description = job_description
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating evaluation job %s", self.job_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "jobName": self.job_name,
+                "roleArn": self.role_arn,
+                "evaluationConfig": self.evaluation_config,
+                "inferenceConfig": self.inference_config,
+                "outputDataConfig": self.output_data_config,
+                "jobDescription": self.job_description,
+            }
+        )
+        response = self.hook.conn.create_evaluation_job(**kwargs)
+        job_arn = response["jobArn"]
+        self.log.info("Created evaluation job %s: %s", self.job_name, job_arn)
+        return job_arn

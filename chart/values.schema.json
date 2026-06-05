@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.2.1",
+            "default": "3.2.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -225,6 +225,12 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "enableServiceLinks": {
+            "description": "Enable Kubernetes service links. The default is false in Chart 2.0.",
+            "type": "boolean",
+            "default": false,
+            "x-docsSection": "Kubernetes"
         },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
@@ -968,7 +974,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.29.0"
+                            "default": "v0.30.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -1143,7 +1149,7 @@
             ]
         },
         "volumes": {
-            "description": "Volumes for all Airflow containers.",
+            "description": "Volumes for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -1152,7 +1158,7 @@
             }
         },
         "volumeMounts": {
-            "description": "VolumeMounts for all Airflow containers.",
+            "description": "VolumeMounts for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -5758,6 +5764,10 @@
                                 "description": "Name of the Dag bundle.",
                                 "type": "string"
                             },
+                            "team_name": {
+                                "description": "Team name for the Dag bundle.",
+                                "type": "string"
+                            },
                             "classpath": {
                                 "description": "Class path of the Dag bundle class.",
                                 "type": "string"
@@ -8643,7 +8653,7 @@
                 "tracesEnabled": {
                     "description": "Send Airflow traces to the OTel Collector. Sets `[traces] otel_on` in the rendered Airflow config and deploys the collector when either `tracesEnabled` or `metricsEnabled` is true.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "metricsEnabled": {
                     "description": "Send Airflow metrics to the OTel Collector. Sets `[metrics] otel_on` in the rendered Airflow config and forces `[metrics] statsd_on` to False because Airflow can only export metrics to one backend at a time.",
@@ -9020,7 +9030,7 @@
                     "default": 100
                 },
                 "configSecretName": {
-                    "description": "The PgBouncer config Secret name.",
+                    "description": "The PgBouncer config Secret name (templated).",
                     "type": [
                         "string",
                         "null"
@@ -10300,9 +10310,46 @@
                     "additionalProperties": false,
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods. When false, you can use `serviceAccountTokenVolume` to manually configure service account token volume for pod-launching executors.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "serviceAccountTokenVolume": {
+                            "description": "Configuration for manual service account token volume. Only used when automountServiceAccountToken is false and for pod-launching executors. (CeleryExecutor, KubernetesExecutor)",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable manual service account token volume configuration.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "mountPath": {
+                                    "description": "Path where the service account token volume will be mounted.",
+                                    "type": "string",
+                                    "default": "/var/run/secrets/kubernetes.io/serviceaccount"
+                                },
+                                "volumeName": {
+                                    "description": "Name of the service account token volume.",
+                                    "type": "string",
+                                    "default": "kube-api-access"
+                                },
+                                "expirationSeconds": {
+                                    "description": "Token expiration time in seconds.",
+                                    "type": "integer",
+                                    "minimum": 600,
+                                    "maximum": 7776000,
+                                    "default": 3600
+                                },
+                                "audience": {
+                                    "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                }
+                            }
                         },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",

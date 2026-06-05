@@ -30,6 +30,7 @@ from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
 from google.cloud.bigquery.routine import Routine
 from google.cloud.exceptions import Conflict
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import (
     DocumentationDatasetFacet,
     ErrorMessageRunFacet,
@@ -1029,6 +1030,33 @@ class TestBigQueryInsertJobOperator:
         )
 
         assert result == real_job_id
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_pushes_deprecated_job_id_path_xcom(self, mock_hook):
+        job_id = "123456"
+        real_job_id = f"{job_id}_hash"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        job = MagicMock(state="DONE", job_id=real_job_id, error_result=False)
+        job.to_api_repr.return_value = {"configuration": {"query": {}}}
+        mock_hook.return_value.insert_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="`job_id_path` XCom is deprecated"):
+            op.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_copy_success(self, mock_hook):

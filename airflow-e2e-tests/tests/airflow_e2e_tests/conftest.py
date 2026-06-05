@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree
@@ -27,6 +28,8 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AIRFLOW_ROOT_PATH,
+    AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT,
     AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
@@ -34,9 +37,16 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
     ELASTICSEARCH_PATH,
+    JAVA_COMPOSE_PATH,
+    JAVA_DOCKERFILE_PATH,
+    JAVA_SDK_DAGS_PATH,
+    JAVA_SDK_EXAMPLE_LIBS_PATH,
+    KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     OPENSEARCH_PATH,
+    PROVIDERS_MOUNT_CONTAINER_PATH,
+    PROVIDERS_ROOT_PATH,
     TEST_REPORT_FILE,
     XCOM_BUCKET,
 )
@@ -121,6 +131,94 @@ def _setup_opensearch_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _copy_kafka_files(tmp_dir):
+    """Copy the Kafka compose file and broker init script into the temp directory."""
+    copyfile(KAFKA_DIR_PATH.parent / "kafka.yml", tmp_dir / "kafka.yml")
+
+    kafka_dir = tmp_dir / "kafka"
+    kafka_dir.mkdir()
+    copyfile(KAFKA_DIR_PATH / "update_run.sh", kafka_dir / "update_run.sh")
+    current_permissions = os.stat(kafka_dir / "update_run.sh").st_mode
+    os.chmod(kafka_dir / "update_run.sh", current_permissions | 0o111)
+
+
+def _write_providers_mount_override(tmp_dir: Path, providers: list[str]) -> list[str]:
+    """Write a docker-compose override that bind-mounts in-tree provider sources.
+
+    Each entry in ``providers`` is a provider id with dot-separated path segments (e.g.
+    ``"apache.kafka"``). The host source ``providers/<dotted/as/slashes>`` is mounted
+    read-only into every airflow service at ``<PROVIDERS_MOUNT_CONTAINER_PATH>/<dashed>``.
+    Returns the list of in-container paths suitable for ``_PIP_ADDITIONAL_REQUIREMENTS``
+    so pip installs the in-tree (latest, possibly unreleased) provider instead of the
+    PyPI release.
+    """
+    in_container_paths: list[str] = []
+    volume_entries: list[str] = []
+    for provider_id in providers:
+        host_path = PROVIDERS_ROOT_PATH / provider_id.replace(".", "/")
+        if not host_path.is_dir():
+            raise RuntimeError(f"Provider source directory not found: {host_path}")
+        container_path = f"{PROVIDERS_MOUNT_CONTAINER_PATH}/{provider_id.replace('.', '-')}"
+        in_container_paths.append(container_path)
+        volume_entries.append(f"      - {host_path}:{container_path}:ro")
+
+    volumes_block = "\n".join(volume_entries)
+    services_block = "\n".join(
+        f"  {svc}:\n    volumes:\n{volumes_block}" for svc in AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT
+    )
+    (tmp_dir / "providers-mount.yml").write_text(f"---\nservices:\n{services_block}\n")
+    return in_container_paths
+
+
+def _setup_event_driven_integration(dot_env_file, tmp_dir):
+    _copy_kafka_files(tmp_dir)
+
+    # Install kafka and common-messaging providers from the in-tree sources so the
+    # test exercises the latest code even before a PyPI release is cut.
+    provider_paths = _write_providers_mount_override(tmp_dir, ["apache.kafka", "common.messaging"])
+
+    kafka_conn = json.dumps(
+        {
+            "conn_type": "kafka",
+            "extra": {
+                "bootstrap.servers": "broker:29092",
+                "group.id": "kafka_default_group",
+                "security.protocol": "PLAINTEXT",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "latest",
+            },
+        }
+    )
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"AIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n"
+        f"_PIP_ADDITIONAL_REQUIREMENTS={' '.join(provider_paths)}\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _create_kafka_topics(compose_instance):
+    """Create Kafka topics required by the event-driven Dag."""
+    for topic in ("fizz_buzz", "dlq"):
+        compose_instance.exec_in_container(
+            command=[
+                "kafka-topics",
+                "--bootstrap-server",
+                "broker:29092",
+                "--create",
+                "--topic",
+                topic,
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
+                "--if-not-exists",
+            ],
+            service_name="broker",
+        )
+
+
 def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     _copy_localstack_files(tmp_dir)
 
@@ -142,8 +240,101 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_java_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the java_sdk E2E test mode.
+
+    Builds the Java example bundle via the Gradle wrapper, then builds a
+    Java-capable Airflow worker image, copies the JARs into the temp directory,
+    and writes the coordinator configuration.
+    """
+    # Build the example bundle inside an ephemeral JDK container so the host
+    # does not need Java installed.
+    #
+    # --user keeps build outputs owned by the current user (not root).
+    # GRADLE_USER_HOME persists the Gradle distribution and dependency cache in
+    # java-sdk/.gradle/ (already gitignored) so the first run downloads once
+    # and subsequent runs skip straight to compilation.
+    # --no-daemon avoids a background JVM that would outlive the container.
+    console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+            # Mount java-sdk/ at /java-sdk (the Gradle root project).
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/java-sdk",
+            "eclipse-temurin:17-jdk",
+            "./gradlew",
+            ":example:installDist",
+            "--no-daemon",
+        ],
+        check=True,
+    )
+
+    # Copy compose override and Dockerfile into the temp directory.
+    copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
+    copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
+
+    # Copy all JARs from installDist output so the compose bind-mount ./jars
+    # gives the worker everything JavaCoordinator needs to build a classpath.
+    copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "jars")
+
+    # Copy the Java SDK example Dag file so Airflow can discover it.
+    copyfile(JAVA_SDK_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
+
+    # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
+    # We do this explicitly so testcontainers' DockerCompose.start() does not
+    # need to handle the build itself (which avoids --no-build vs --build flag
+    # uncertainty across testcontainers versions).
+    console.print(f"[yellow]Building airflow-java-worker image on top of {DOCKER_IMAGE}...")
+    subprocess.run(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"DOCKER_IMAGE={DOCKER_IMAGE}",
+            "-t",
+            "airflow-java-worker",
+            "-f",
+            str(tmp_dir / "Dockerfile.java"),
+            str(tmp_dir),
+        ],
+        check=True,
+    )
+
+    # Coordinator registry: maps the logical name "java-jdk" to JavaCoordinator.
+    # Queue mapping: routes tasks on the "java" Celery queue to "java-jdk".
+    coordinator_config = json.dumps(
+        {
+            "java-jdk": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"jars_root": ["/opt/airflow/jars"]},
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"java": "java-jdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # Connection and variable expected by the Java example bundle tasks.
+        "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
+        "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
-    tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
+    tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
     copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")
@@ -180,6 +371,12 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "xcom_object_storage":
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "event_driven":
+        compose_file_names.extend(["kafka.yml", "providers-mount.yml"])
+        _setup_event_driven_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "java_sdk":
+        compose_file_names.append("java.yml")
+        _setup_java_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -203,6 +400,10 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.exec_in_container(
             command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
         )
+
+        if E2E_TEST_MODE == "event_driven":
+            console.print("[yellow]Creating Kafka topics...")
+            _create_kafka_topics(_E2ETestState.compose_instance)
 
     except Exception:
         console.print("[red]Failed to start docker compose")
@@ -263,6 +464,12 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
             _print_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
+
+
+@pytest.fixture(scope="session")
+def compose_instance():
+    """Provide access to the running Docker Compose instance."""
+    return _E2ETestState.compose_instance
 
 
 def generate_test_report(results):

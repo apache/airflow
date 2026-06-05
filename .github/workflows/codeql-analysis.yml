@@ -33,13 +33,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-languages:
+    name: Detect languages to scan
+    runs-on: ["ubuntu-22.04"]
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      languages: ${{ steps.set-languages.outputs.languages }}
+    steps:
+      - name: Compute CodeQL language matrix
+        id: set-languages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        # On `pull_request` we only scan the languages whose files actually changed in the PR.
+        # On `push` (to main) and `schedule` we always scan every language to keep full main coverage.
+        run: |
+          set -euo pipefail
+          all_languages='["python","javascript","actions","go","java"]'
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          pr_files_path="repos/${REPOSITORY}/pulls/${PR_NUMBER}/files"
+          changed_files="$(gh api --paginate "${pr_files_path}" --jq '.[].filename')"
+          languages=()
+          grep -Eiq '\.(py|pyi)$'                        <<< "${changed_files}" && languages+=("python")
+          grep -Eiq '\.(js|jsx|mjs|cjs|ts|tsx|vue)$'     <<< "${changed_files}" && languages+=("javascript")
+          grep -Eiq '^\.github/(workflows|actions)/'     <<< "${changed_files}" && languages+=("actions")
+          grep -Eiq '(\.go$|/go\.(mod|sum)$)'            <<< "${changed_files}" && languages+=("go")
+          grep -Eiq '(\.java$|\.gradle(\.kts)?$|\.kts$)' <<< "${changed_files}" && languages+=("java")
+          if [[ ${#languages[@]} -eq 0 ]]; then
+            echo "languages=[]" >> "${GITHUB_OUTPUT}"
+          else
+            json_languages="$(printf '%s\n' "${languages[@]}" \
+              | jq -Rsc 'split("\n") | map(select(length > 0))')"
+            echo "languages=${json_languages}" >> "${GITHUB_OUTPUT}"
+          fi
+
   analyze:
     name: Analyze
+    needs: detect-languages
+    # Skip entirely when no scannable language changed (e.g. docs-only PRs).
+    if: needs.detect-languages.outputs.languages != '[]'
     runs-on: ["ubuntu-22.04"]
     strategy:
       fail-fast: false
       matrix:
-        language: ['python', 'javascript', 'actions', 'go']
+        language: ${{ fromJSON(needs.detect-languages.outputs.languages) }}
+
     permissions:
       actions: read
       contents: read
@@ -51,16 +96,34 @@ jobs:
         with:
           persist-credentials: false
 
+      # Keep these in sync:
+      # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
+      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+      # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
+      # - java-version in .github/workflows/codeql-analysis.yml
+      - name: Setup Java
+        if: matrix.language == 'java'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
+        if: matrix.language != 'java'
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+
+      - name: Build Java SDK
+        if: matrix.language == 'java'
+        working-directory: java-sdk
+        run: ./gradlew classes testClasses
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
         with:
           # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
           category: "/language:${{matrix.language}}"

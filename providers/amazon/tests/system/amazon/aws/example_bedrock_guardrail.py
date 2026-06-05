@@ -84,6 +84,12 @@ with DAG(
         guardrail_name=f"{env_id}-guardrail-updated",
         blocked_input_messaging="Updated: input blocked.",
         blocked_outputs_messaging="Updated: output blocked.",
+        content_policy_config={
+            "filtersConfig": [
+                {"type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+                {"type": "VIOLENCE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+            ]
+        },
     )
     # [END howto_operator_bedrock_update_guardrail]
 

@@ -105,7 +105,9 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         docker_version = run_command(["docker", "version"], return_output=True)
 
     console.print("[yellow] Shutting down previous instances of quick-start docker compose")
-    compose = DockerClient(compose_project_name="quick-start", compose_project_directory=tmp_dir).compose
+    compose = DockerClient(
+        compose_project_name="breeze-quick-start", compose_project_directory=tmp_dir
+    ).compose
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
         console.print("[yellow] Starting docker compose")

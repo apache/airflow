@@ -22,6 +22,7 @@ from contextlib import nullcontext
 from unittest import mock
 
 import pytest
+from sqlalchemy import Column, Integer, MetaData, Table
 
 from airflow.models import Base
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
@@ -48,6 +49,17 @@ class CustomDBManager(BaseDBManager):
 
         config = self.get_alembic_config()
         alembic_command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+legacy_metadata = MetaData()
+Table("external_legacy_table", legacy_metadata, Column("id", Integer, primary_key=True))
+
+
+class LegacyTablesDBManager(BaseDBManager):
+    metadata = legacy_metadata
+    version_table_name = "legacy_alembic_version"
+    migration_dir = "legacy_migration_dir"
+    alembic_file = "legacy_alembic.ini"
 
 
 class LegacySignatureExternalManager:
@@ -154,14 +166,50 @@ class TestBaseDBManager:
         assert "Upgrading the MockDBManager database" in caplog.text
 
     @mock.patch.object(BaseDBManager, "create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "_has_existing_manager_tables", return_value=False)
     @mock.patch.object(BaseDBManager, "get_current_revision")
     def test_upgrade_empty_db_without_migration_files_uses_create_db_from_orm(
-        self, mock_current_revision, mock_create_db_from_orm, session
+        self, mock_current_revision, mock_has_existing_manager_tables, mock_create_db_from_orm, session
     ):
         mock_current_revision.return_value = None
         manager = MockDBManager(session)
         manager.upgradedb()
+        mock_has_existing_manager_tables.assert_called_once()
         mock_create_db_from_orm.assert_called_once()
+
+    @mock.patch.object(BaseDBManager, "get_current_revision", return_value=None)
+    @mock.patch.object(BaseDBManager, "create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "get_alembic_config")
+    @mock.patch.object(BaseDBManager, "get_script_object")
+    @mock.patch("airflow.utils.db_manager.inspect")
+    @mock.patch("alembic.command.stamp")
+    @mock.patch("alembic.command.upgrade")
+    def test_upgrade_with_existing_manager_tables_without_version_stamps_base_then_runs_migrations(
+        self,
+        mock_upgrade,
+        mock_stamp,
+        mock_inspect,
+        mock_get_script_object,
+        mock_get_alembic_config,
+        mock_create_db_from_orm,
+        mock_get_current_revision,
+        session,
+    ):
+        config = object()
+        mock_get_alembic_config.return_value = config
+        base_revision = mock.Mock(revision="base-revision", down_revision=None)
+        mock_get_script_object.return_value.walk_revisions.return_value = [
+            mock.Mock(revision="head-revision", down_revision="base-revision"),
+            base_revision,
+        ]
+        mock_inspect.return_value.get_table_names.return_value = ["external_legacy_table"]
+
+        manager = LegacyTablesDBManager(session)
+        manager.upgradedb()
+
+        mock_create_db_from_orm.assert_not_called()
+        mock_stamp.assert_called_once_with(config, "base-revision")
+        mock_upgrade.assert_called_once_with(config, revision="heads", sql=False)
 
     @mock.patch.object(BaseDBManager, "get_script_object")
     @mock.patch.object(BaseDBManager, "get_current_revision")

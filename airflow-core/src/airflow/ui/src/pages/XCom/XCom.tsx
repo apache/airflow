@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, Link, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, Heading, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
@@ -29,6 +29,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -60,49 +61,44 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
   {
     accessorKey: "dag_id",
     cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
+        {original.dag_display_name}
+      </RouterLink>
     ),
     header: translate("xcom.columns.dag"),
   },
   {
     accessorKey: "run_id",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-          <TruncatedText text={original.run_id} />
-        </RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+        <TruncatedText text={original.run_id} />
+      </RouterLink>
     ),
     header: translate("common:dagRunId"),
   },
   {
     accessorKey: "run_after",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-          <Time datetime={original.run_after} />
-        </RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+        <Time datetime={original.run_after} />
+      </RouterLink>
     ),
     header: translate("common:dagRun.runAfter"),
   },
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink
-          to={getTaskInstanceLink({
-            dagId: original.dag_id,
-            dagRunId: original.run_id,
-            mapIndex: original.map_index,
-            taskId: original.task_id,
-          })}
-        >
-          <TruncatedText text={original.task_display_name} />
-        </RouterLink>
-      </Link>
+      <RouterLink
+        fontWeight="bold"
+        to={getTaskInstanceLink({
+          dagId: original.dag_id,
+          dagRunId: original.run_id,
+          mapIndex: original.map_index,
+          taskId: original.task_id,
+        })}
+      >
+        <TruncatedText text={original.task_display_name} />
+      </RouterLink>
     ),
     header: translate("common:task_one"),
   },

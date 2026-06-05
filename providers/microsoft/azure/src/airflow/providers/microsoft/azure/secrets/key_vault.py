@@ -238,6 +238,16 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     def _get_secret_value(self, path_prefix: str, secret_id: str) -> str | None:
         """Get an Azure Key Vault secret value for the given prefix and key."""
         name = self.build_path(path_prefix, secret_id, self.sep)
+        # Azure Key Vault secret names must be 1-127 characters, containing only 0-9, a-z, A-Z, and -.
+        # https://learn.microsoft.com/en-us/azure/key-vault/general/about-keys-secrets-certificates#object-identifiers
+        if not re.fullmatch(r"[0-9a-zA-Z-]{1,127}", name):
+            self.log.warning(
+                "Secret name %r is not valid. "
+                "Azure Key Vault secret names must be 1-127 characters long "
+                "and contain only alphanumeric characters and dashes.",
+                name,
+            )
+            return None
         try:
             secret = self.client.get_secret(name=name)
             return secret.value

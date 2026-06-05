@@ -137,9 +137,7 @@ ENV/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
-!.claude/skills/pr-stats
-!.claude/skills/pr-triage
-!.claude/skills/maintainer-review
+!.claude/skills/setup-steward
 
 # Kiro
 .kiro/
@@ -309,3 +307,32 @@ dev/registry/output/
 dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json
+
+# apache-magpie — gitignored snapshot of the framework, refreshed
+# by /magpie-setup upgrade. Build artefact, not source.
+/.apache-magpie/
+
+# Per-machine local-pin file. Records what THIS machine fetched and
+# when. Compared against the committed .apache-magpie.lock to
+# detect drift.
+/.apache-magpie.local.lock
+
+# Per-machine session-state file. Records adopter-local persistence
+# anchors written by magpie skills (e.g. the session-history gist
+# URL written by pr-management-triage Step 6b, per
+# https://github.com/apache/airflow-steward/pull/343).
+/.apache-magpie.session-state.json
+
+# Per-machine project-scope Claude Code settings (sandbox-allowlist
+# absolute paths written by sandbox-add-project-root.sh; per
+# https://github.com/apache/airflow-steward/issues/197).
+/.claude/settings.local.json
+
+# Symlinks created by /magpie-setup into the gitignored snapshot
+# (every framework skill is namespaced under the magpie- prefix).
+# The committed magpie-setup bootstrap is kept tracked by the
+# negation lines (the magpie-* glob would otherwise ignore it).
+/.claude/skills/magpie-*
+!/.claude/skills/magpie-setup
+/.github/skills/magpie-*
+!/.github/skills/magpie-setup

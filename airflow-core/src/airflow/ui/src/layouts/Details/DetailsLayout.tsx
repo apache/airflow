@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
@@ -42,9 +42,7 @@ import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { SearchDagsButton } from "src/components/SearchDags";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
-import { ProgressBar } from "src/components/ui";
-import { Toaster } from "src/components/ui";
-import { Tooltip } from "src/components/ui/Tooltip";
+import { IconButton, ProgressBar, Toaster } from "src/components/ui";
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -212,6 +210,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
+  const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
+  const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
 
   return (
     <HoverProvider>
@@ -237,23 +237,21 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <BackfillBanner dagId={dagId} />
           <Box flex={1} minH={0}>
             {isRightPanelCollapsed ? (
-              <Tooltip content={translate("common:showDetailsPanel")}>
-                <IconButton
-                  aria-label={translate("common:showDetailsPanel")}
-                  bg="fg.subtle"
-                  borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
-                  boxShadow="md"
-                  left={direction === "rtl" ? "-5px" : undefined}
-                  onClick={() => setIsRightPanelCollapsed(false)}
-                  position="absolute"
-                  right={direction === "ltr" ? "-5px" : undefined}
-                  size="2xs"
-                  top="50%"
-                  zIndex={10}
-                >
-                  {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                bg="fg.subtle"
+                borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
+                boxShadow="md"
+                label={translate("common:showDetailsPanel")}
+                left={direction === "rtl" ? "0" : undefined}
+                onClick={() => setIsRightPanelCollapsed(false)}
+                position="absolute"
+                right={direction === "ltr" ? "0" : undefined}
+                size="2xs"
+                top="50%"
+                zIndex={10}
+              >
+                {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
+              </IconButton>
             ) : undefined}
             <PanelGroup
               autoSaveId={`${panelViewKey}-${direction}`}
@@ -262,12 +260,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               key={`${panelViewKey}-${direction}`}
               ref={panelGroupRef}
             >
-              <Panel
-                defaultSize={dagView === "graph" ? 70 : 20}
-                id="main-panel"
-                minSize={dagView === "gantt" && Boolean(runId) ? 35 : 6}
-                order={1}
-              >
+              <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
                 <Flex flexDirection="column" height="100%">
                   <PanelButtons
                     dagView={dagView}
@@ -370,42 +363,35 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     order={2}
                   >
                     <Box display="flex" flexDirection="column" h="100%" position="relative">
-                      <Tooltip content={translate("common:collapseDetailsPanel")}>
-                        <IconButton
-                          aria-label={translate("common:collapseDetailsPanel")}
-                          bg="fg.subtle"
-                          borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
-                          boxShadow="md"
-                          left={direction === "ltr" ? "-5px" : undefined}
-                          onClick={() => setIsRightPanelCollapsed(true)}
-                          position="absolute"
-                          right={direction === "rtl" ? "-5px" : undefined}
-                          size="2xs"
-                          top="50%"
-                          zIndex={2}
-                        >
-                          {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
-                        </IconButton>
-                      </Tooltip>
+                      <IconButton
+                        bg="fg.subtle"
+                        borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
+                        boxShadow="md"
+                        label={translate("common:collapseDetailsPanel")}
+                        left={direction === "ltr" ? "0" : undefined}
+                        onClick={() => setIsRightPanelCollapsed(true)}
+                        position="absolute"
+                        right={direction === "rtl" ? "0" : undefined}
+                        size="2xs"
+                        top="50%"
+                        zIndex={2}
+                      >
+                        {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
+                      </IconButton>
                       {children}
                       {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                         <>
-                          <Tooltip
-                            content={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                          <IconButton
+                            colorPalette={Boolean(error) ? "red" : "orange"}
+                            label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                            margin="2"
+                            marginBottom="-1"
+                            onClick={onOpen}
+                            rounded="full"
+                            variant="solid"
                           >
-                            <IconButton
-                              aria-label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
-                              colorPalette={Boolean(error) ? "red" : "orange"}
-                              margin="2"
-                              marginBottom="-1"
-                              onClick={onOpen}
-                              rounded="full"
-                              size="md"
-                              variant="solid"
-                            >
-                              <LuFileWarning />
-                            </IconButton>
-                          </Tooltip>
+                            <LuFileWarning />
+                          </IconButton>
 
                           <DAGWarningsModal
                             error={error}

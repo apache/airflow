@@ -12,11 +12,35 @@
     "title": "Journal d'Audit"
   },
   "xcom": {
+    "add": {
+      "error": "Échec de l'ajout du XCom",
+      "errorTitle": "Erreur",
+      "success": "XCom ajouté avec succès",
+      "successTitle": "XCom ajouté",
+      "title": "Ajouter un XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Clé",
       "value": "Valeur"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Échec de la suppression du XCom",
+      "errorTitle": "Erreur",
+      "success": "XCom supprimé avec succès",
+      "successTitle": "XCom supprimé",
+      "title": "Supprimer le XCom",
+      "warning": "Êtes-vous sûr de vouloir supprimer ce XCom ? Cette action est irréversible."
+    },
+    "edit": {
+      "error": "Échec de la mise à jour du XCom",
+      "errorTitle": "Erreur",
+      "success": "XCom mis à jour avec succès",
+      "successTitle": "XCom mis à jour",
+      "title": "Modifier le XCom"
+    },
+    "key": "Clé",
+    "title": "XCom",
+    "value": "Valeur"
   }
 }

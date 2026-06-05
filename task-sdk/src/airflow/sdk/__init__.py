@@ -22,6 +22,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -45,6 +46,7 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DayWindow",
     "DeadlineAlert",
     "DeadlineReference",
     "DeltaDataIntervalTimetable",
@@ -52,21 +54,28 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "HourWindow",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MonthWindow",
     "MultipleCronTriggerTimetable",
+    "NEVER_EXPIRE",
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
+    "QuarterWindow",
+    "ResumableJobMixin",
     "RetryAction",
     "RetryDecision",
     "RetryPolicy",
     "RetryRule",
+    "RollupMapper",
     "SkipMixin",
     "SyncCallback",
     "StartOfDayMapper",
@@ -80,8 +89,11 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WeekWindow",
     "WeightRule",
+    "Window",
     "XComArg",
+    "YearWindow",
     "asset",
     "chain",
     "chain_linear",
@@ -114,11 +126,19 @@ if TYPE_CHECKING:
         cross_downstream,
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAccessControl,
+        AssetAlias,
+        AssetAll,
+        AssetAny,
+        AssetWatcher,
+    )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
@@ -131,7 +151,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
@@ -142,6 +162,15 @@ if TYPE_CHECKING:
         StartOfQuarterMapper,
         StartOfWeekMapper,
         StartOfYearMapper,
+    )
+    from airflow.sdk.definitions.partition_mappers.window import (
+        DayWindow,
+        HourWindow,
+        MonthWindow,
+        QuarterWindow,
+        WeekWindow,
+        Window,
+        YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
         ExceptionRetryPolicy,
@@ -154,6 +183,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
+        PartitionAtRuntime,
         PartitionedAssetTimetable,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -170,6 +200,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
+    from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.types import TaskInstance
 
@@ -178,6 +209,7 @@ if TYPE_CHECKING:
 __lazy_imports: dict[str, str] = {
     "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
+    "AssetAccessControl": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
@@ -201,6 +233,7 @@ __lazy_imports: dict[str, str] = {
     "CronPartitionTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DayWindow": ".definitions.partition_mappers.window",
     "DeadlineAlert": ".definitions.deadline",
     "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
@@ -208,21 +241,27 @@ __lazy_imports: dict[str, str] = {
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
     "ExceptionRetryPolicy": ".definitions.retry_policy",
+    "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MonthWindow": ".definitions.partition_mappers.window",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
+    "QuarterWindow": ".definitions.partition_mappers.window",
+    "ResumableJobMixin": ".bases.resumablemixin",
     "RetryAction": ".definitions.retry_policy",
     "RetryDecision": ".definitions.retry_policy",
     "RetryPolicy": ".definitions.retry_policy",
     "RetryRule": ".definitions.retry_policy",
+    "RollupMapper": ".definitions.partition_mappers.base",
     "SecretCache": ".execution_time.cache",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
@@ -237,14 +276,18 @@ __lazy_imports: dict[str, str] = {
     "TaskInstanceState": ".api.datamodels._generated",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
+    "Window": ".definitions.partition_mappers.window",
     "XComArg": ".definitions.xcom_arg",
+    "YearWindow": ".definitions.partition_mappers.window",
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",

@@ -2505,12 +2505,17 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                             BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
-
         if self.project_id:
             job_id_path = convert_job_id(
                 job_id=self.job_id,
                 project_id=self.project_id,
                 location=self.location,
+            )
+            warnings.warn(
+                "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
+                "future provider release. Use the operator return value or BigQuery job extra link instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
 

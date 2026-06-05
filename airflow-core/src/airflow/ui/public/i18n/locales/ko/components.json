@@ -62,8 +62,8 @@
     "duration": "기간 (초)",
     "lastDagRun_one": "마지막 Dag 실행",
     "lastDagRun_other": "마지막 {{count}}개 Dag 실행",
-    "lastTaskInstance_one": "마지막 작업 인스턴스",
-    "lastTaskInstance_other": "마지막 {{count}}개 작업 인스턴스",
+    "lastTaskInstance_one": "마지막 태스크 인스턴스",
+    "lastTaskInstance_other": "마지막 {{count}}개 태스크 인스턴스",
     "queuedDuration": "대기열 대기 시간",
     "runAfter": "실행 후",
     "runDuration": "실행 기간"
@@ -90,10 +90,10 @@
     "downloadImageError": "그래프 이미지를 다운로드하지 못했습니다.",
     "downloadImageErrorTitle": "다운로드 실패",
     "otherDagRuns": "+다른 Dag 실행",
-    "taskCount_one": "{{count}}개 작업",
-    "taskCount_other": "{{count}}개 작업",
-    "taskGroup": "작업 그룹",
-    "zoomToTask": "선택된 작업으로 확대"
+    "taskCount_one": "{{count}}개 태스크",
+    "taskCount_other": "{{count}}개 태스크",
+    "taskGroup": "태스크 그룹",
+    "zoomToTask": "선택된 태스크로 확대"
   },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",
@@ -112,8 +112,8 @@
   "sortedAscending": "오름차순 정렬됨",
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",
-  "taskTries": "작업 시도 횟수",
-  "taskTryPlaceholder": "작업 시도 선택",
+  "taskTries": "태스크 시도 횟수",
+  "taskTryPlaceholder": "태스크 시도 선택",
   "team": {
     "selector": {
       "helperText": "선택 사항. 특정 팀으로 사용을 제한합니다.",

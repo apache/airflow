@@ -62,6 +62,9 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle/|
           ^scripts/ci/license-templates/
         args:
           - --comment-style
@@ -188,7 +191,8 @@ repos:
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
-          ^scripts/ci/license-templates/
+          ^scripts/ci/license-templates/|
+          ^\.github/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -393,13 +397,14 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.github/skills/airflow-translations/|
+          ^\.github/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: a4727cbbcd26d7098e96b9cb738169b59711ae51  # frozen: v1.24.1
+    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -435,7 +440,9 @@ repos:
           ^.*/openapi-gen/|
           ^.*/node_modules/|
           ^\.build/|
-          ^generated/
+          ^generated/|
+          ^\.apache-magpie-overrides/|
+          ^\.github/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -499,6 +506,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
+      - id: check-task-instance-dto-sync
+        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
+        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -507,7 +520,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.12']
+        additional_dependencies: ['ruff==0.15.15']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -670,6 +683,9 @@ repos:
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -702,6 +718,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/docs/connections/spark-submit.rst$|
+          ^providers/apache/spark/docs/operators\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -803,6 +820,12 @@ repos:
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         pass_filenames: true
+      - id: check-example-dag-tags
+        name: Check example DAGs carry the "example" tag
+        entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/prek/check_license.py
@@ -879,7 +902,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-excluded-provider-markers
-        name: Check excluded-provider python_version markers in pyproject.toml
+        name: Check excluded-provider python_version and platform markers in pyproject.toml
         language: python
         entry: ./scripts/ci/prek/check_excluded_provider_markers.py
         files: >
@@ -915,6 +938,17 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
+      - id: sync-provider-readme
+        name: Sync provider README.rst Requirements table with pyproject.toml
+        description: |
+          Provider README.rst files are regenerated from pyproject.toml at distribution-build
+          time. Between releases, dependency bumps in pyproject.toml do not propagate to the
+          committed README, leading to drift. This hook re-renders the Requirements table from
+          the current pyproject.toml whenever the latter changes.
+        entry: ./scripts/ci/prek/sync_provider_readme.py
+        language: python
+        files: ^providers/.*/pyproject\.toml$
+        pass_filenames: true
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
@@ -922,6 +956,10 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: |
+          (?x)
+          ^\.apache-magpie-overrides/|
+          ^\.github/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1051,6 +1089,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-provide-session-positional
+        name: Check that no new @provide_session functions declare `session` positionally
+        entry: ./scripts/ci/prek/check_provide_session_kwargs.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
@@ -1134,6 +1178,20 @@ repos:
         pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
+      - id: generate-supervisor-schemas-snapshot
+        name: Regenerate supervisor schema snapshot
+        entry: ./scripts/ci/prek/generate_supervisor_schemas_snapshot.py
+        language: python
+        pass_filenames: false
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: check-supervisor-schemas-versions
+        name: Check supervisor schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_supervisor_schemas_versions.py
+        language: python
+        pass_filenames: true
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
@@ -1160,3 +1218,10 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+      - id: ktlint
+        name: Run ktlint format
+        description: "Use ktlint (via Gradle) to format Kotlin and Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk ktlintFormat
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*$

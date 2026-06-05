@@ -65,14 +65,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.2.1"
+defaultAirflowTag: "3.2.2"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.2.1"
+airflowVersion: "3.2.2"
 
 images:
   airflow:
@@ -102,7 +102,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.29.0
+    tag: v0.30.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -136,6 +136,8 @@ schedulerName: ~
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+# Whenever service links should be added to each pod.
+enableServiceLinks: false
 
 # List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
 # registries. Items can be either strings or {name: secret} objects.
@@ -369,10 +371,10 @@ env: []
 # - name: ""
 #   value: ""
 
-# Volumes for all Airflow containers
+# Volumes for all Airflow containers (templated)
 volumes: []
 
-# VolumeMounts for all Airflow containers
+# VolumeMounts for all Airflow containers (templated)
 volumeMounts: []
 
 # Secrets for all Airflow containers
@@ -3189,7 +3191,7 @@ statsd:
 # OpenTelemetry Collector settings
 otelCollector:
   # Send Airflow traces to the OTel Collector (sets [traces] otel_on).
-  tracesEnabled: true
+  tracesEnabled: false
 
   # Send Airflow metrics to the OTel Collector (sets [metrics] otel_on and disables statsd).
   metricsEnabled: false
@@ -3349,7 +3351,7 @@ pgbouncer:
   # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
-  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined
+  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined (templated)
   configSecretName: ~
   # Secret example:
   #  apiVersion: v1
@@ -3754,6 +3756,25 @@ cleanup:
 
     # Annotations to add to cleanup CronJob Kubernetes Service Account.
     annotations: {}
+
+    # Service Account Token Volume configuration
+    # This is only used when `automountServiceAccountToken` is 'false'
+    # and allows manual configuration of the Service Account token volume
+    serviceAccountTokenVolume:
+      # Enable manual Service Account token volume configuration
+      enabled: false
+
+      # Path where the Service Account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+
+      # Name of the volume
+      volumeName: kube-api-access
+
+      # Token expiration in seconds
+      expirationSeconds: 3600
+
+      # Audience for the token
+      audience: ~
 
   # When not set, the values defined in the global `securityContext` will be used
   # (deprecated, use `cleanup.securityContexts` instead)

@@ -541,7 +541,7 @@ def discover_classes_from_provider(
             if candidate is None or not inspect.isclass(candidate):
                 log.warning("%s is not a class", class_path)
                 continue
-            cls = typing.cast("type[typing.Any]", candidate)
+            cls = candidate
 
             # Use section name as category for class-level entries
             category_map = {

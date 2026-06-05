@@ -1285,6 +1285,40 @@ def set_milestone(
         console_print(f"[error]Failed to check existing milestone: {e}[/]")
         return
 
+    # Re-read labels from the freshly-fetched issue to close the race between
+    # the workflow's initial label snapshot (taken by the get-pr-info job a
+    # couple of minutes ago) and the actual milestone-set step. Maintainers
+    # sometimes add and remove a backport label inside that window; honour
+    # the latest state, not the stale snapshot.
+    try:
+        current_labels = [label.name for label in issue.labels]
+    except Exception as e:
+        console_print(f"[warning]Could not re-read PR labels; falling back to snapshot decision: {e}[/]")
+        current_labels = labels
+
+    if set(current_labels) != set(labels):
+        console_print("[info]Labels changed since workflow snapshot; re-evaluating.[/]")
+        console_print(f"[info]Snapshot labels: {sorted(labels)}[/]")
+        console_print(f"[info]Current labels:  {sorted(current_labels)}[/]")
+
+        if _should_skip_milestone_tagging(current_labels):
+            console_print(
+                f"[info]Skipping milestone tagging - PR now has skip label(s): "
+                f"{set(current_labels) & MILESTONE_SKIP_LABELS}[/]"
+            )
+            return
+
+        new_version, new_reason = _determine_milestone_version(current_labels, pr_title, base_branch)
+        if (new_version, new_reason) != (version, reason):
+            console_print(
+                f"[info]Determination changed after re-read: was ({version}, {reason!r}); "
+                f"now ({new_version}, {new_reason!r}). Using current labels.[/]"
+            )
+            version, reason = new_version, new_reason
+            if version is None:
+                console_print(f"[info]No milestone to set after re-evaluation: {reason}[/]")
+                return
+
     major, minor = version
     milestone_prefix = _get_milestone_prefix(major, minor)
     console_print(f"[info]Looking for milestone with prefix: {milestone_prefix}[/]")

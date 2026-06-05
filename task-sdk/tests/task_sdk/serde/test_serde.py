@@ -27,7 +27,7 @@ from typing import ClassVar
 import attr
 import pytest
 from packaging import version
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 
 from airflow._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk.definitions.asset import Asset
@@ -36,12 +36,15 @@ from airflow.sdk.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
+    _extra_allowed,
     _get_patterns,
     _get_regexp_patterns,
     _match,
     _match_glob,
     _match_regexp,
+    allow_class,
     deserialize,
+    iter_pydantic_models,
     serialize,
 )
 
@@ -194,6 +197,27 @@ class T:
 class C:
     def __call__(self):
         return None
+
+
+class NestedLeaf(BaseModel):
+    value: int
+
+
+class NestedMid(BaseModel):
+    leaves: list[NestedLeaf]
+
+
+class NestedRoot(BaseModel):
+    mid: NestedMid
+    maybe: NestedLeaf | None
+
+
+class SelfRefNode(BaseModel):
+    name: str
+    children: list[SelfRefNode] = []
+
+
+SelfRefNode.model_rebuild()
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -367,7 +391,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): r"unit\.airflow\..",
+            ("core", "allowed_deserialization_classes_regexp"): r"unit\.airflow\..*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -393,6 +417,94 @@ class TestSerDe:
         """
         assert _match("unit.airflow.deep")
         assert _match("unit.airflow.FALSE") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): r"unit\.airflow\.Variable",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_regexp_does_not_prefix_match(self):
+        """
+        A pattern without an explicit end anchor must not admit classes that share
+        the pattern as a prefix. ``re.match`` would let ``unit.airflow.Variable_Malicious``
+        through because it only anchors at the start of the string; ``re.fullmatch``
+        rejects it. Patterns with ``.*`` at the end retain prefix-style behaviour.
+        """
+        assert _match("unit.airflow.Variable")
+        assert _match("unit.airflow.Variable_Malicious") is False
+        assert _match("unit.airflow.VariableSubclass") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "airflow.*",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_class_round_trips_pydantic_subclass(self):
+        """``allow_class`` lets a Pydantic subclass round-trip without editing the allow-list config."""
+        instance = U(x=7, v=V(w=W(x=42), s=["a", "b"], t=(1, 2), c=99), u=("z", 0))
+        snapshot = set(_extra_allowed)
+        try:
+            assert qualname(U) not in _extra_allowed
+            allow_class(U)
+            assert qualname(U) in _extra_allowed
+
+            restored = deserialize(serialize(instance))
+            assert isinstance(restored, U)
+            assert restored == instance
+        finally:
+            _extra_allowed.clear()
+            _extra_allowed.update(snapshot)
+
+    def test_allow_class_rejects_locals_qualname(self):
+        """Nested-in-function classes have ``<locals>`` in qualname and cannot round-trip."""
+
+        def _make():
+            class Local(BaseModel):
+                v: int
+
+            return Local
+
+        with pytest.raises(ValueError, match="defined inside a function"):
+            allow_class(_make())
+
+    def test_allow_class_rejects_class_with_mismatched_module_attr(self):
+        """A class whose qualname does not import back to itself must be rejected."""
+        Mismatched = create_model("DifferentName", x=(int, ...))
+
+        with pytest.raises(ValueError, match="cannot be re-imported|does not resolve"):
+            allow_class(Mismatched)
+
+    def test_iter_pydantic_models_shapes(self):
+        """iter_pydantic_models finds models in bare, optional/union, and container annotations."""
+
+        class M1(BaseModel):
+            a: int
+
+        class M2(BaseModel):
+            b: int
+
+        assert set(iter_pydantic_models(M1)) == {M1}
+        assert set(iter_pydantic_models(M1 | None)) == {M1}
+        assert set(iter_pydantic_models(M1 | M2)) == {M1, M2}
+        assert set(iter_pydantic_models(list[M1])) == {M1}
+        assert set(iter_pydantic_models(dict[str, M2])) == {M2}
+        assert set(iter_pydantic_models(list[M1 | M2 | None])) == {M1, M2}
+        # Non-model annotations yield nothing.
+        assert set(iter_pydantic_models(str)) == set()
+        assert set(iter_pydantic_models(list[int])) == set()
+
+    def test_iter_pydantic_models_recurses_into_fields(self):
+        """Models nested inside a model's fields are yielded, not just the top-level type."""
+        assert set(iter_pydantic_models(NestedRoot)) == {NestedRoot, NestedMid, NestedLeaf}
+        # Holds when the declared type is a container of the root model.
+        assert set(iter_pydantic_models(list[NestedRoot])) == {NestedRoot, NestedMid, NestedLeaf}
+
+    def test_iter_pydantic_models_terminates_on_self_reference(self):
+        """A self-referential model must not loop forever."""
+        assert set(iter_pydantic_models(SelfRefNode)) == {SelfRefNode}
 
     def test_incompatible_version(self):
         data = dict(

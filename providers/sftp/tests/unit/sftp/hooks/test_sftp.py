@@ -633,6 +633,29 @@ class TestSFTPHook:
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
+    def test_validate_within_directory_rejects_escape(self):
+        base = os.path.join(self.temp_dir, "download")
+        with pytest.raises(ValueError, match="outside the destination directory"):
+            SFTPHook._validate_within_directory(base, os.path.join(base, "..", "victim"))
+        # An in-bounds candidate is returned unchanged.
+        inside = os.path.join(base, "sub", "file")
+        assert SFTPHook._validate_within_directory(base, inside) == inside
+
+    def test_retrieve_directory_rejects_server_path_traversal(self):
+        # A remote SFTP server can return a directory-entry name containing ".."
+        # so the recursive download would escape the local destination directory.
+        remote = "/srv/export"
+        local = os.path.join(self.temp_dir, "download_traversal")
+        escaping_file = "/srv/export/../victim/payload"
+        with (
+            patch.object(SFTPHook, "get_tree_map", return_value=([escaping_file], [], [])),
+            patch.object(SFTPHook, "retrieve_file") as mock_retrieve,
+        ):
+            with pytest.raises(ValueError, match="outside the destination directory"):
+                self.hook.retrieve_directory(remote_full_path=remote, local_full_path=local)
+            mock_retrieve.assert_not_called()
+        assert not os.path.exists(os.path.join(self.temp_dir, "victim"))
+
     @patch("paramiko.SSHClient")
     @patch("paramiko.ProxyCommand")
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")

@@ -54,6 +54,13 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     default_partition_mapper: PartitionMapper = IdentityMapper()
 
 
+class PartitionAtRuntime(BaseTimetable):
+    """Marker timetable indicating that partition key(s) are determined at runtime."""
+
+    can_be_scheduled = False
+    partitioned_at_runtime = True
+
+
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
     if isinstance(o, BaseAsset):
         return o

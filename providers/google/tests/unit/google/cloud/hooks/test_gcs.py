@@ -2003,3 +2003,31 @@ class TestSyncGcsHook:
         assert "GCS object size (15) and local file size (9) differ." in logs_string
         assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
         self.gcs_hook.download.assert_called_once()
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_sync_to_local_dir_rejects_path_traversal(self, mock_get_conn, tmp_path):
+        """A blob name that resolves outside ``local_dir`` must be refused.
+
+        GCS allows ``..`` segments in object names. Without a containment check,
+        ``local_dir.joinpath(blob.name)`` could write outside the intended directory
+        (CWE-22) — exploitable when the bucket is shared with untrusted writers.
+        """
+        test_bucket = "test_bucket"
+        mock_bucket = self._create_bucket(name=test_bucket)
+        mock_get_conn.return_value.bucket.return_value = mock_bucket
+        mock_bucket.list_blobs.return_value = [
+            self._create_blob("../escape.py", "C1", mock_bucket),
+        ]
+
+        sync_local_dir = tmp_path / "gcs_sync_dir"
+        sync_local_dir.mkdir()
+        self.gcs_hook.download = MagicMock()
+
+        with pytest.raises(ValueError, match="escapes the target directory"):
+            self.gcs_hook.sync_to_local_dir(
+                bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=False
+            )
+
+        self.gcs_hook.download.assert_not_called()
+        # Nothing should have been written outside the sync dir.
+        assert not (tmp_path / "escape.py").exists()

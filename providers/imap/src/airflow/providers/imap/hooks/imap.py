@@ -302,13 +302,13 @@ class ImapHook(BaseHook):
         return os.path.islink(name)
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return "../" in name
+        return f"..{os.sep}" in name
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
             local_output_directory + name
-            if local_output_directory.endswith("/")
-            else local_output_directory + "/" + name
+            if local_output_directory.endswith(os.sep)
+            else local_output_directory + os.sep + name
         )
 
     def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:

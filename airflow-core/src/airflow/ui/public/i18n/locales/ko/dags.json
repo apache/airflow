@@ -3,7 +3,7 @@
   "dagActions": {
     "delete": {
       "button": "Dag 삭제",
-      "warning": "실행 및 작업를 포함하여 Dag과(와) 관련된 모든 메타데이터가 제거됩니다."
+      "warning": "실행 및 태스크를 포함하여 Dag과(와) 관련된 모든 메타데이터가 제거됩니다."
     }
   },
   "favoriteDag": "Dag 즐겨찾기",
@@ -25,8 +25,8 @@
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
     "affectedTasks": {
-      "noItemsFound": "작업를 찾을 수 없습니다.",
-      "title": "영향을 받는 작업: {{count}}"
+      "noItemsFound": "태스크를 찾을 수 없습니다.",
+      "title": "영향을 받는 태스크: {{count}}"
     },
     "clear": {
       "button": "{{type}} 지우기",
@@ -35,9 +35,9 @@
       "title": "{{type}} 지우기"
     },
     "clearAllMapped": {
-      "button": "매핑된 작업 전체 초기화",
-      "buttonTooltip": "Shift+C를 눌러 매핑된 작업 인스턴스를 모두 초기화합니다.",
-      "title": "매핑된 작업 인스턴스 전체 초기화"
+      "button": "매핑된 태스크 전체 초기화",
+      "buttonTooltip": "Shift+C를 눌러 매핑된 태스크 인스턴스를 모두 초기화합니다.",
+      "title": "매핑된 태스크 인스턴스 전체 초기화"
     },
     "confirmationDialog": {
       "description": "태스크가 현재 {{time}}에 사용자 {{user}} 님에 의해 시작되어, 현재 {{state}} 상태입니다. \n실행이 완료되거나 태스크 지우기 대화 상자에서 \"실행 중인 태스크 재실행 방지\" 옵션을 선택 해제할 때까지 이 태스크를 지울 수 없습니다.",
@@ -66,12 +66,12 @@
     },
     "options": {
       "downstream": "다운스트림",
-      "existingTasks": "기존 작업 지우기",
+      "existingTasks": "기존 태스크 지우기",
       "future": "미래",
-      "onlyFailed": "실패한 작업만 지우기",
+      "onlyFailed": "실패한 태스크만 지우기",
       "past": "과거",
       "preventRunningTasks": "실행 중인 태스크 재실행 방지",
-      "queueNew": "새 작업 대기열에 추가",
+      "queueNew": "새 태스크 대기열에 추가",
       "runOnLatestVersion": "최신 번들 버전으로 실행",
       "upstream": "업스트림"
     }
@@ -81,7 +81,7 @@
     "clear": "검색 지우기",
     "dags": "Dag 검색",
     "hotkey": "+K",
-    "tasks": "작업 검색"
+    "tasks": "태스크 검색"
   },
   "sort": {
     "displayName": {

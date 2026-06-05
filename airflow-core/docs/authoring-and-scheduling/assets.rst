@@ -188,6 +188,8 @@ Declaring an ``@asset`` automatically creates:
 * A ``DAG`` with *dag_id* set to the function name.
 * A task inside the ``DAG`` with *task_id* set to the function name, and *outlet* to the created ``Asset``.
 
+The parameter names ``self``, ``context``, and ``outlet_events`` are **reserved** in an ``@asset`` function: they are populated by Airflow at runtime (with the asset itself, the execution context, and the outlet event accessor respectively) and are never treated as inlet asset references.
+
 Attaching extra information to an emitting asset event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -402,10 +404,10 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
-.. _asset_allow_producer_teams:
+.. _asset_access_control:
 
-Cross-team asset event filtering with ``allow_producer_teams``
---------------------------------------------------------------
+Cross-team asset event filtering with ``access_control``
+--------------------------------------------------------
 
 .. versionadded:: 3.3.0
 
@@ -413,40 +415,82 @@ When :doc:`Multi-Team mode </core-concepts/multi-team>` is enabled, asset events
 membership. By default, a consuming Dag only receives asset events produced by Dags within the same team
 or by global (teamless) Dags. This prevents unintended cross-team triggers.
 
-To allow specific other teams to produce events that trigger your Dag, use the ``allow_producer_teams`` parameter
-on the ``Asset`` definition:
+To configure cross-team access, use the ``access_control`` parameter on the ``Asset`` definition with an
+``AssetAccessControl`` instance:
 
 .. code-block:: python
 
-    from airflow.sdk import Asset
+    from airflow.sdk import Asset, AssetAccessControl
 
     shared_data = Asset(
         name="my_data",
         uri="s3://bucket/shared/data.csv",
-        allow_producer_teams=["team_analytics", "team_ml"],
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
     )
 
 In this example, asset events produced by Dags belonging to ``team_analytics`` or ``team_ml`` will be
 accepted by any consuming Dag that schedules on ``shared_data``, in addition to events from the consuming
 Dag's own team.
 
+``AssetAccessControl`` parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``AssetAccessControl`` class accepts the following parameters:
+
+- **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
+  consumed by this asset's consumers, in addition to the consumer's own team.
+- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dag producers can trigger
+  consumers of this asset. When set to ``False``, only Dags with an explicit team association
+  (same team or listed in ``producer_teams``) can trigger consumers.
+
+Blocking global producers
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, global (teamless) Dags can trigger any consumer. In strict team isolation scenarios, you
+may want to block teamless producers:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+With ``allow_global=False``, only Dags belonging to the consumer's own team or to ``team_analytics`` can
+trigger consumers of ``strict_data``. Teamless Dag producers are blocked.
+
+.. note::
+
+   The ``allow_global`` flag only affects Dag producers. Teamless API users are always restricted to
+   triggering teamless consumers only, regardless of this setting.
+
 Default behavior
 ~~~~~~~~~~~~~~~~
 
-When ``allow_producer_teams`` is not specified (or set to an empty list), the default same-team filtering applies.
-The rules depend on whether the producer and consumer have a team association:
+When ``access_control`` is not specified, a default ``AssetAccessControl()`` is used (empty
+``producer_teams`` and ``allow_global=True``). The rules depend on whether the producer and consumer
+have a team association:
 
 - **Both have the same team**: The event is always delivered.
 - **Producer has a team, consumer has a different team**: The event is blocked (unless the
-  producer's team is in the asset's ``allow_producer_teams``).
-- **Producer has no team (global Dag)**: The event is delivered to all consumers, regardless of
-  the consumer's team. Global Dags act as shared infrastructure that any team can depend on.
+  producer's team is in the asset's ``producer_teams``).
+- **Producer has no team (global Dag)**: The event is delivered to all consumers whose asset has
+  ``allow_global=True`` (the default). Global Dags act as shared infrastructure that any team can
+  depend on.
 - **Consumer has no team (global Dag)**: The consumer accepts events from any source,
   regardless of the producer's team. Teamless consumers act as shared infrastructure that any
   team can feed into.
 - **Neither has a team**: The event is delivered (both are global).
 
-When Multi-Team mode is disabled, ``allow_producer_teams`` is ignored and all asset events are delivered to all
+When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
 
 Asset partitions
@@ -593,6 +637,143 @@ including ``partition_key`` in the request body):
         "logical_date": "2026-03-10T00:00:00Z",
         "partition_key": "us|2026-03-10T09:00:00"
       }'
+
+Rollup mappers
+~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+The mappers shown above match upstream keys to a single downstream key one-for-one.
+For a coarser downstream period made up of many upstream events — an hourly upstream
+that drives a daily summary, daily inputs that compose a weekly report — use
+:class:`~airflow.sdk.RollupMapper`. :class:`~airflow.sdk.RollupMapper` composes an
+upstream mapper (which normalizes each upstream key to the downstream granularity)
+with a :class:`~airflow.sdk.Window` that declares the full set of upstream keys
+required for one downstream key. The scheduler holds the Dag run until every upstream
+key in the window has arrived; partial windows stay pending on the next-run-assets
+view so operators can see progress.
+
+The shipped windows are :class:`~airflow.sdk.HourWindow` (sixty minutes per hour),
+:class:`~airflow.sdk.DayWindow` (twenty-four hours per day),
+:class:`~airflow.sdk.WeekWindow` (seven days per week),
+:class:`~airflow.sdk.MonthWindow`, :class:`~airflow.sdk.QuarterWindow`, and
+:class:`~airflow.sdk.YearWindow`. Pair each window with an upstream mapper that
+decodes to the same temporal grain — for example
+:class:`~airflow.sdk.StartOfHourMapper` with :class:`~airflow.sdk.DayWindow`.
+
+Each upstream asset event carries a fine-grained partition key such as
+``2026-03-10T09:00:00`` (second precision). :class:`~airflow.sdk.StartOfHourMapper`
+normalizes that key to the hour boundary ``2026-03-10T09``, which is the format
+it encodes each expected member in — the same
+strings the scheduler matches against the twenty-four required members of
+:class:`~airflow.sdk.DayWindow`.
+
+The following hourly-to-daily example produces a daily summary once all twenty-four
+upstream hourly partitions for a calendar day have arrived:
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        CronPartitionTimetable,
+        DayWindow,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        StartOfHourMapper,
+        task,
+    )
+
+    hourly_sales = Asset(uri="file://incoming/sales/hourly.csv", name="hourly_sales")
+
+    # Producer: emits one partitioned event per hour (key looks like 2026-03-10T09:00:00).
+    with DAG(
+        dag_id="ingest_hourly_sales",
+        schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    ):
+
+        @task(outlets=[hourly_sales])
+        def ingest():
+            pass
+
+        ingest()
+
+    # Consumer: fires once a day's twenty-four hourly partitions are all in.
+    with DAG(
+        dag_id="daily_sales_summary",
+        schedule=PartitionedAssetTimetable(
+            assets=hourly_sales,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=DayWindow(),
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def summarize(dag_run=None):
+            # dag_run.partition_key is the day, e.g. "2026-03-10".
+            print(dag_run.partition_key)
+
+        summarize()
+
+A misconfigured ``RollupMapper`` — e.g. pairing an identity-decoding upstream mapper
+with a ``DayWindow`` — raises ``TypeError`` at Dag parse so the misconfiguration
+surfaces immediately instead of silently holding every downstream run forever. The
+error is a type mismatch: an identity-decoding mapper's ``expected_decoded_type`` is
+``str``, but temporal windows such as :class:`~airflow.sdk.DayWindow` require
+``datetime``; ``RollupMapper`` detects the mismatch at construction time and
+raises before the Dag is scheduled.
+
+``DayWindow`` always enumerates twenty-four hourly steps. With an upstream mapper
+configured for a local timezone that observes daylight-saving time, the spring-forward
+day has only twenty-three real hours (one window member never has a matching event,
+so the run is held indefinitely) and the fall-back day has twenty-five (the repeated
+hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
+boundary; see the ``DayWindow`` class docstring for the full discussion.
+
+Setting partition keys at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the partition key is not known ahead of time (for example, a watermark
+discovered from the source data, a late-arriving file, or a backfill request),
+let the producing task decide it while it runs. Schedule the producer with
+``PartitionAtRuntime()`` and record the key(s) on the emitted event with
+``outlet_events[self].add_partitions(...)``:
+
+.. code-block:: python
+
+    from airflow.sdk import PartitionAtRuntime, asset
+
+
+    @asset(
+        uri="file://incoming/player-stats/live-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def live_region_player_stats(self, outlet_events):
+        # The key is only known once the task runs.
+        outlet_events[self].add_partitions("us")
+
+Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
+``outlet_events`` (the outlet event accessor) are reserved parameter names that
+Airflow populates at runtime. Pass a single key, or a list to fan out to several
+partitions in one run. Each key produces its own asset event, and duplicate
+keys collapse to a single event:
+
+.. code-block:: python
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+When a runtime run emits exactly one partition key, the producing
+``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
+these events the same way as timetable-produced partitions, through
+``PartitionedAssetTimetable``.
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.
