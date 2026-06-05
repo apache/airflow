@@ -204,10 +204,18 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `run_python_scans` (SAST/SCA target) and the line-threshold check
             # in `_is_large_enough_pr` to decide whether a PR's diff is large
             # enough to force the full test matrix.
-            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
+            #
+            # `example_dags/` are illustrative, not shipped runtime code, so a large
+            # example-DAG diff must not force the full matrix. They are still selected
+            # for their own tests via the broader `ALL_AIRFLOW_PYTHON_FILES` /
+            # `ALL_PROVIDERS_PYTHON_FILES` groups, so excluding them here only affects
+            # the line-count gate (and SAST target), not test selection. The
+            # `(?:.*/)?` covers both airflow-core's top-level `airflow/example_dags/`
+            # and the nested `providers/<name>/.../example_dags/` layout.
+            r"^airflow-core/src/airflow/(?!(?:.*/)?example_dags/)(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
             r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
             r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
-            r"^providers/(?:[^/]+/)+src/.*\.py$",
+            r"^providers/(?:[^/]+/)+src/(?!(?:.*/)?example_dags/).*\.py$",
             r"^shared/[^/]+/src/.*\.py$",
             r"^pyproject\.toml$",
             r"^hatch_build\.py$",
