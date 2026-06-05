@@ -3634,6 +3634,42 @@ def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_comman
             },
             id="PR with only lock files changed",
         ),
+        # The file-count gate, like the line-count gate, only counts production
+        # code. A PR that touches many test, docs, or example-DAG files — and no
+        # production code — must not force the full matrix on its file count alone.
+        pytest.param(
+            tuple(f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(30)),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large test-only PR (30 files) does not trigger full tests",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/docs/page_{i}.rst" for i in range(30)),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large docs-only PR (30 files) does not trigger full tests",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/example_dags/example_{i}.py" for i in range(30)),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large example_dags-only PR (30 files) does not trigger full tests",
+        ),
+        # A mix below the production-file threshold (20 production + 20 test files)
+        # must not trip the file-count gate on the combined count of 40.
+        pytest.param(
+            tuple(
+                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(20)]
+                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(20)]
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Mixed PR with 20 production files (of 40) does not trigger on file count",
+        ),
     ],
 )
 def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
