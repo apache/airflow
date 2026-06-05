@@ -411,6 +411,7 @@ class TestCommandFactory:
         limit_arg = next(arg for arg in list_args if arg.flags[0] in ("limit", "--limit"))
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
+        assert limit_arg.kwargs["default"] == 100
 
 
 class TestCliConfigMethods:

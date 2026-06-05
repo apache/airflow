@@ -28,6 +28,7 @@ import os
 import sys
 from argparse import Namespace
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from enum import Enum
 from functools import partial
 from pathlib import Path
@@ -441,6 +442,10 @@ class CommandFactory:
             defaults_count = len(node.args.defaults)
             required_count = len(positional_args) - defaults_count
             required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+            default_param_values = {}
+            for arg, default in zip(positional_args[required_count:], node.args.defaults):
+                with suppress(ValueError, TypeError):
+                    default_param_values[arg.arg] = ast.literal_eval(default)
 
             for arg in positional_args:
                 arg_name = arg.arg
@@ -456,6 +461,7 @@ class CommandFactory:
                 "name": func_name,
                 "parameters": args,
                 "required_param_names": required_param_names,
+                "default_param_values": default_param_values,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -617,6 +623,7 @@ class CommandFactory:
         for operation in self.operations:
             args = []
             required_names: set[str] = operation.get("required_param_names") or set()
+            default_values: dict[str, Any] = operation.get("default_param_values") or {}
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
@@ -651,7 +658,7 @@ class CommandFactory:
                                         f"{parameter_key} for {operation.get('name')} "
                                         f"operation in {operation.get('parent').name}"
                                     ),
-                                    arg_default=None,
+                                    arg_default=default_values.get(parameter_key, None),
                                 )
                             )
                     else:
