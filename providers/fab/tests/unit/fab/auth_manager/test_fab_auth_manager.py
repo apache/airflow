@@ -28,6 +28,7 @@ from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
+from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
@@ -1060,8 +1061,6 @@ def test_resetdb(
 @pytest.mark.db_test
 class TestDeserializeUserSessionLifecycle:
     def test_no_connection_checked_out_after_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
-        from airflow import settings
-
         user = create_user(flask_app, "session_lifecycle_test_user")
         try:
             settings.engine.dispose()
@@ -1095,7 +1094,7 @@ class TestDeserializeUserSessionCleanup:
     @contextmanager
     def _patched_session(auth_manager, mock_session):
         """Route both ``self.session`` and ``create_session()`` to *mock_session*."""
-        create_session_cm = MagicMock()
+        create_session_cm = MagicMock(spec=["__enter__", "__exit__"])
         create_session_cm.__enter__.return_value = mock_session
         create_session_cm.__exit__.return_value = False
         with (
