@@ -947,8 +947,8 @@ def fetch_confluence_page(page_id: str) -> str:
     """
     url = f"{CONFLUENCE_BASE_URL}/rest/api/content/{page_id}?expand=body.storage,version"
     data = _safe_api_get(url)
-    if isinstance(data, str):
-        return data
+    if not isinstance(data, dict):
+        return str(data)
 
     title = data.get("title", "Unknown")
     version = data.get("version", {})
@@ -1020,8 +1020,8 @@ def get_repo_file_tree(path_prefix: str) -> str:
     time.sleep(GITHUB_API_DELAY)
     data = _safe_api_get(url, headers)
 
-    if isinstance(data, str):
-        return data
+    if not isinstance(data, dict):
+        return str(data)
 
     tree = data.get("tree", [])
     matching = [
