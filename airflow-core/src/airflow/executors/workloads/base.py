@@ -71,9 +71,7 @@ class BundleInfo(BaseModel):
 
     This field is serialized on every workload payload sent through executor channels
     (Celery/Redis, SQS, K8s pod annotations, etc.). Keep payloads small — ideally under
-    64 KB — to avoid hitting message-size limits. Bundles with large version metadata
-    should store a reference (e.g., a DB row ID or pre-signed URL) and fetch on the
-    worker side rather than inlining the full payload here.
+    256 KB — to avoid hitting message-size limits.
     """
 
 
