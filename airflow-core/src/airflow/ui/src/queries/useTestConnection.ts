@@ -16,39 +16,81 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useConnectionServiceTestConnection } from "openapi/queries";
-import type { ConnectionTestResponse } from "openapi/requests/types.gen";
+import {
+  useConnectionServiceEnqueueConnectionTest,
+  useConnectionServiceGetConnectionTest,
+} from "openapi/queries";
+import type { ApiError } from "openapi/requests";
+import type { ConnectionTestRequestBody } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
-export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
-  const { t: translate } = useTranslation("admin");
+type ConnectionStatus = boolean | undefined;
 
-  const onSuccess = (res: ConnectionTestResponse) => {
-    setConnected(res.status);
-    if (res.status) {
+const ACTIVE_STATES = new Set(["pending", "queued", "running"]);
+const POLL_INTERVAL = 2000;
+
+const isActive = (state: string | undefined) => state !== undefined && ACTIVE_STATES.has(state);
+
+export const useTestConnection = (setConnected: (status: ConnectionStatus) => void) => {
+  const { t: translate } = useTranslation("admin");
+  const [token, setToken] = useState<string | undefined>(undefined);
+
+  const enqueue = useConnectionServiceEnqueueConnectionTest({
+    onError: (error) => {
+      setConnected(false);
       toaster.create({
-        description: res.message,
-        title: translate("connections.testSuccess.title"),
-        type: "success",
-      });
-    } else {
-      toaster.create({
-        description: res.message,
-        title: translate("connections.testError.title"),
+        title:
+          (error as ApiError).status === 409
+            ? translate("connections.testInProgress.title")
+            : translate("connections.testError.title"),
         type: "error",
       });
-    }
-  };
-
-  const onError = () => {
-    setConnected(false);
-  };
-
-  return useConnectionServiceTestConnection({
-    onError,
-    onSuccess,
+    },
+    onSuccess: (response) => {
+      setToken(response.token);
+    },
   });
+
+  const { data } = useConnectionServiceGetConnectionTest(
+    { airflowConnectionTestToken: token ?? "" },
+    undefined,
+    {
+      enabled: token !== undefined,
+      refetchInterval: (query) => (isActive(query.state.data?.state) ? POLL_INTERVAL : false),
+    },
+  );
+
+  const state = data?.state;
+  const resultMessage = data?.result_message;
+
+  useEffect(() => {
+    if (state === undefined || isActive(state)) {
+      return;
+    }
+
+    const succeeded = state === "success";
+
+    setConnected(succeeded);
+    toaster.create({
+      description: resultMessage ?? undefined,
+      title: succeeded
+        ? translate("connections.testSuccess.title")
+        : translate("connections.testError.title"),
+      type: succeeded ? "success" : "error",
+    });
+
+    setToken(undefined);
+  }, [state, resultMessage, setConnected, translate]);
+
+  const test = (requestBody: ConnectionTestRequestBody) => {
+    setConnected(undefined);
+    enqueue.mutate({ requestBody });
+  };
+
+  const isPending = enqueue.isPending || (token !== undefined && (state === undefined || isActive(state)));
+
+  return { isPending, test };
 };
