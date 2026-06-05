@@ -1883,9 +1883,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         partition_dag_ids: set[str] = set()
 
         evaluator = AssetEvaluator(session)
+        apdr_query = (
+            select(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+        )
         for apdr in session.scalars(
-            select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        ):
+            with_row_locks(apdr_query, of=AssetPartitionDagRun, session=session, skip_locked=True)
+):
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
 
