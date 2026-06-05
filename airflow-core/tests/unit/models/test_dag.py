@@ -53,6 +53,7 @@ from airflow.models.dag import (
     DagModel,
     DagOwnerAttributes,
     DagTag,
+    clear_team_name_cache,
     get_asset_triggered_next_run_info,
     get_next_data_interval,
     get_run_data_interval,
@@ -3006,6 +3007,33 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
         assert DagModel.get_dagmodel(dag_id) is not None
+        assert DagModel.get_team_name(dag_id, session=session) is None
+
+    def test_get_team_name_is_cached(self, testing_team):
+        session = settings.Session()
+        team_bundle = DagBundleModel(name="cache-team-bundle")
+        team_bundle.teams.append(testing_team)
+        no_team_bundle = DagBundleModel(name="cache-no-team-bundle")
+        session.add_all([team_bundle, no_team_bundle])
+        session.flush()
+
+        dag_id = "test_get_team_name_is_cached"
+        orm_dag = DagModel(dag_id=dag_id, bundle_name="cache-team-bundle", is_stale=False)
+        session.add(orm_dag)
+        session.flush()
+
+        clear_team_name_cache()
+        # First lookup resolves and caches the team.
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
+
+        # Reassign the Dag to a team-less bundle: the cached value is still returned,
+        # proving the lookup is served from cache rather than re-querying.
+        orm_dag.bundle_name = "cache-no-team-bundle"
+        session.flush()
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
+
+        # After clearing the cache the fresh (now team-less) value is returned.
+        clear_team_name_cache()
         assert DagModel.get_team_name(dag_id, session=session) is None
 
     def test_get_dag_id_to_team_name_mapping(self, testing_team):
