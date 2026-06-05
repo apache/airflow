@@ -89,7 +89,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -276,10 +276,11 @@ class FabAuthManager(BaseAuthManager[User]):
         user_id = int(token["sub"])
 
         def _fetch_user() -> User:
-            try:
-                return self.session.scalars(select(User).where(User.id == user_id)).one()
-            except NoResultFound:
-                raise ValueError(f"User with id {token['sub']} not found")
+            with create_session() as session:
+                try:
+                    return session.scalars(select(User).where(User.id == user_id)).one()
+                except NoResultFound:
+                    raise ValueError(f"User with id {token['sub']} not found")
 
         try:
             return _fetch_user()

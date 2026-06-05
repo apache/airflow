@@ -1107,11 +1107,28 @@ class TestDeserializeUserSessionCleanup:
     """
 
     @staticmethod
+    @contextmanager
     def _patched_session(auth_manager, mock_session):
-        """Replace the ``session`` property on *auth_manager* with *mock_session*."""
-        return mock.patch.object(
-            type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
-        )
+        """Route both ``self.session`` and ``create_session()`` to *mock_session*.
+
+        The SELECT runs through ``with create_session() as session:`` while the
+        retry-cleanup path still calls ``self.session.remove()``. Patching both
+        keeps the existing call-count assertions (``scalars`` and ``remove``)
+        working against the post-fix code path.
+        """
+        create_session_cm = MagicMock()
+        create_session_cm.__enter__.return_value = mock_session
+        create_session_cm.__exit__.return_value = False
+        with (
+            mock.patch.object(
+                type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
+            ),
+            mock.patch(
+                "airflow.providers.fab.auth_manager.fab_auth_manager.create_session",
+                return_value=create_session_cm,
+            ),
+        ):
+            yield
 
     @pytest.mark.parametrize(
         "raised_exc",
