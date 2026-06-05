@@ -146,6 +146,22 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
+# API source/test change with NO OpenAPI spec change: the full matrix is no longer
+# forced. airflow-core Python changed (so mypy-airflow-core + flynt run); no
+# provider.yaml, helm, or UI files changed, so those checks stay skipped.
+ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
+    "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,"
+    "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
+    "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
+    "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,"
+    "mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+)
+
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "check-provider-yaml-valid,identity,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -314,72 +330,114 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow-core/src/airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "",
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when API file changed",
+                id="API source change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
             pytest.param(
                 ("airflow-core/src/airflow/api_fastapi/file.py",),
                 {
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when fastapi files change",
+                id="fastapi source change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
             pytest.param(
                 ("airflow-core/tests/unit/api/file.py",),
                 {
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
-                    "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
+                    "docs-build": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should run when API test files change",
+                id="API test change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
@@ -429,25 +487,49 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "",
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google "
+                    "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "true",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": (
+                        "identity,lint-helm-chart,"
+                        "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,"
+                        "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
+                        "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
+                        "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
+                        "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    ),
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] "
+                                "Providers[common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[google]",
+                            }
+                        ]
+                    ),
                     "run-mypy-providers": "true",
                 },
-                id="All tests and docs should run on API change",
+                id="API source + provider change runs API + affected providers, not the full matrix",
             )
         ),
         (
@@ -2320,6 +2402,9 @@ def test_expected_output_push(
         pytest.param(
             ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
             {
+                # The OpenAPI spec IS the API contract — changing it ripples to the UI
+                # codegen and generated clients, so it still forces the full matrix.
+                "full-tests-needed": "true",
                 "selected-providers-list-as-string": "",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2334,7 +2419,7 @@ def test_expected_output_push(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy-providers": "true",
             },
-            id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
+            id="OpenAPI spec change still forces the full matrix",
         ),
         pytest.param(
             (
