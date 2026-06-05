@@ -21,12 +21,50 @@ default — surfaces gaps and remediation commands.
 ## Pre-flight
 
 1. `git rev-parse --show-toplevel` — must succeed.
-2. `git remote get-url origin` — refuse if it resolves to
-   `apache/airflow-steward` itself (this skill is for
-   adopters, not the framework).
+2. **Framework checkout?** Detect structurally (as in
+   [`adopt.md` Step 0](adopt.md#step-0--pre-flight)):
+   `skills/setup/SKILL.md` exists at the repo root with
+   `name: magpie-setup` and `skills/list-skills/` is present. If
+   so **and** `.apache-magpie.lock` records `method: local`, the
+   repo is **self-adopted** — run the
+   [Local self-adoption checks](#local-self-adoption-checks)
+   instead of the snapshot checks below, then stop. A framework
+   checkout with no `method: local` lock is simply not adopted
+   yet — point at `/magpie-setup`.
 3. If `<repo-root>/.apache-magpie.lock` is missing, the
    repo is not adopted. Surface and stop with a pointer at
    `/magpie-setup adopt`.
+
+## Local self-adoption checks
+
+Run these (and only these) when pre-flight detected a framework
+checkout self-adopted with `method: local`. There is no snapshot,
+no remote lock, and no per-machine lock to drift against — the
+committed symlinks into the in-repo `skills/` source *are* the
+adoption state.
+
+1. **Marker lock.** `.apache-magpie.lock` parses and records
+   `method: local`. ✓ when present; ✗ with a pointer at
+   `/magpie-setup` otherwise.
+2. **Symlinks resolve into `skills/`.** In **both**
+   `.claude/skills/` and `.github/skills/`, every `magpie-<n>` is
+   a symlink whose target (`../../skills/<n>/`) resolves to a
+   directory containing `SKILL.md`. ✗ list any dangling or
+   non-symlink entry; remediation: re-run `/magpie-setup`
+   (idempotent).
+3. **Coverage.** Every `skills/<n>/` with a `SKILL.md` has a
+   matching `magpie-<n>` symlink in **both** dirs (unless a
+   `skill-families:` filter was deliberately applied). ⚠ list any
+   source skill with no link; remediation: `/magpie-setup`.
+4. **`.gitignore`.** `.claude/skills/*` and `.github/skills/*` are
+   ignored, with `!/.claude/skills/magpie-*` and
+   `!/.github/skills/magpie-*` un-ignoring the committed symlinks.
+   ✗ if either un-ignore line is missing (those symlinks would not
+   be tracked).
+5. **No remote leftovers.** No `.apache-magpie/` snapshot dir and
+   no `.apache-magpie.local.lock` — local self-adoption uses
+   neither. ⚠ surface either if found (a stale remote adoption was
+   not cleaned up).
 
 ## The checks
 

@@ -1,5 +1,5 @@
 ---
-name: setup
+name: magpie-setup
 description: |
   Adopt and maintain the apache-steward framework in a project
   repo via the snapshot-based adoption mechanism. The only
@@ -93,6 +93,21 @@ copy):
   [`overrides.md`](overrides.md) for the contract and
   [`docs/setup/agentic-overrides.md`](../../docs/setup/agentic-overrides.md)
   for the design rationale.
+
+**Local self-adoption (the framework checkout only).** The one
+repo that cannot be adopted via the snapshot mechanism is the
+Apache Magpie framework checkout itself — a remote snapshot of the
+framework into itself would be circular. Instead it **self-adopts**
+with `method:local`: each `magpie-<skill>` is a **committed**
+symlink into the in-repo `../../skills/<skill>/` source — written
+under both `.claude/skills/` (Claude Code) and `.github/skills/`
+(GitHub's skill loader) — with no snapshot, no remote fetch, and
+no copy. This makes
+the framework's own skills callable while developing the framework,
+and every contributor gets them active on a fresh clone with no
+setup step. `adopt` detects the framework checkout structurally and
+routes there automatically (see
+[`adopt.md` → Local self-adoption](adopt.md#local-self-adoption-methodlocal)).
 
 ## The two lock files
 
@@ -342,7 +357,7 @@ first, then continue.
 | Flag | Effect |
 |---|---|
 | `from:<git-ref>` / `from:<version>` | Adopt or upgrade from a specific framework ref or version. Used during `adopt` (overrides the user prompt) and `upgrade` (overrides the committed lock for *this run only* — does NOT update the committed lock). |
-| `method:<git-branch\|git-tag\|svn-zip>` | Pick the install method explicitly. Default during `adopt`: prompt the user. |
+| `method:<git-branch\|git-tag\|svn-zip\|local>` | Pick the install method explicitly. Default during `adopt`: prompt the user. **`local`** is **framework-checkout only** — it self-adopts by linking the in-repo `skills/` source directly instead of fetching a snapshot (see [`adopt.md` → Local self-adoption](adopt.md#local-self-adoption-methodlocal)). |
 | `skill-families:<list>` | Comma-separated **opt-in** families to symlink (`security`, `pr-management`, `issue`). Default on `adopt`: prompt. Default on `upgrade`: read the families list from `<committed-lock>` / `<local-lock>`, **auto-include any opt-in family the framework has introduced since the lock was written** (recorded back into the lock), and **ensure every framework skill in the effective family set has a valid symlink** — create or repair missing / broken symlinks, not just add new ones. The flag never accepts the always-on families (`setup-*` minus `setup` itself, and `list-*`); per [Golden rule 8](#golden-rules) those are wired up unconditionally on every run and there is no way to ask for them or opt out. |
 | `--purge-overrides` | *(unadopt only)* Also `git rm -r` `.apache-magpie-overrides/`. Default: preserve. |
 | `dry-run` | Show what the skill would do without writing anything. |
