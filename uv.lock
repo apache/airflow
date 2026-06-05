@@ -4216,8 +4216,8 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=3.5.2" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "cryptography", specifier = ">=44.0.3" },
-    { name = "kubernetes", specifier = ">=35.0.0,<36.0.0" },
-    { name = "kubernetes-asyncio", specifier = ">=32.0.0,<36.0.0" },
+    { name = "kubernetes", specifier = ">=35.0.0,!=36.0.0,<37.0.0" },
+    { name = "kubernetes-asyncio", specifier = ">=32.0.0,<37.0.0" },
     { name = "urllib3", specifier = ">=2.1.0,!=2.6.0" },
 ]
 
