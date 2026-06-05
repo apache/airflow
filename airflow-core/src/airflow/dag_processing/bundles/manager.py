@@ -20,7 +20,7 @@ import importlib
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -396,7 +396,7 @@ class DagBundlesManager(LoggingMixin):
         return params
 
     def get_bundle(
-        self, name: str, version: str | None = None, version_data: dict | None = None
+        self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
     ) -> BaseDagBundle:
         """
         Get a DAG bundle by name.

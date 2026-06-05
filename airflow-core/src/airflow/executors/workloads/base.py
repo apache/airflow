@@ -67,6 +67,14 @@ class BundleInfo(BaseModel):
     name: str
     version: str | None = None
     version_data: dict[str, Any] | None = None
+    """Optional structured metadata for this bundle version (e.g., an S3 object manifest).
+
+    This field is serialized on every workload payload sent through executor channels
+    (Celery/Redis, SQS, K8s pod annotations, etc.). Keep payloads small — ideally under
+    64 KB — to avoid hitting message-size limits. Bundles with large version metadata
+    should store a reference (e.g., a DB row ID or pre-signed URL) and fetch on the
+    worker side rather than inlining the full payload here.
+    """
 
 
 class BaseWorkloadSchema(BaseModel):
