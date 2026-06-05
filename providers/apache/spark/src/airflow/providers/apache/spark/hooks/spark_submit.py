@@ -1165,6 +1165,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 phase = pod.status.phase or "Initializing"
                 self.log.info("Application status for %s (phase: %s)", app_id, phase)
                 if phase == "Succeeded":
+                    if pod.status.container_statuses:
+                        cs = pod.status.container_statuses[0]
+                        if cs.state and cs.state.terminated:
+                            t = cs.state.terminated
+                            self.log.info(
+                                "Container final status: exit_code=%s reason=%s started_at=%s finished_at=%s",
+                                t.exit_code,
+                                t.reason,
+                                t.started_at,
+                                t.finished_at,
+                            )
                     break
                 if phase == "Failed":
                     container_state = ""
