@@ -860,7 +860,12 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
-        mock_stats.incr.assert_not_called()
+        # Only the processed-events counter should have fired across all three sub-tests;
+        # no killed_externally mismatch metric should appear.
+        assert all(
+            c.args[0] == "scheduler.executor_events.processed"
+            for c in mock_stats.incr.call_args_list
+        )
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -905,7 +910,9 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SCHEDULED
         self.job_runner.executor.callback_sink.send.assert_not_called()
-        mock_stats.incr.assert_not_called()
+        # Stale success from defer exit must not trigger a mismatch metric —
+        # only the standard processed-events counter should fire.
+        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=1)
 
         # Without next_method, scheduled + stale success is still a mismatch (e.g. external kill).
         ti1.next_method = None
@@ -957,7 +964,9 @@ class TestSchedulerJob:
             for rec in caplog.records
         )
         mock_task_callback.assert_not_called()
-        mock_stats.incr.assert_not_called()
+        # Only the processed-events counter should fire; duplicate try_number events
+        # must not trigger any error/mismatch metrics.
+        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=2)
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_process_executor_events_with_asset_events(self, session, dag_maker):
