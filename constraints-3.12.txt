@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-04T22:15:28.493512
+# This constraints file was automatically generated on 2026-06-05T03:40:01.554832
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -369,7 +369,7 @@ jwcrypto==1.5.7
 keyring==25.7.0
 kombu==5.6.2
 krb5==0.9.0
-kubernetes==35.0.0
+kubernetes==36.0.1
 kubernetes_asyncio==35.0.1
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
