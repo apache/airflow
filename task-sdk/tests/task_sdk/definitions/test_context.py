@@ -90,11 +90,9 @@ class TestCurrentContext:
         assert cloned["templates_dict"]["tpl"][1]["x"] == 1
 
         actual["outlet_events"].append(Asset(name="another"))
-        assert cloned["outlet_events"] is not actual["outlet_events"]
-        assert len(cloned["outlet_events"]) == 1
-        assert Asset(name="another") not in cloned["outlet_events"]
-        assert len(actual["outlet_events"]) == 2
-        assert Asset(name="another") in actual["outlet_events"]
+        assert cloned["outlet_events"] is actual["outlet_events"]
+        assert len(cloned["outlet_events"]) == 2
+        assert Asset(name="another") in cloned["outlet_events"]
         assert cloned["inlet_events"] is not actual["inlet_events"]
 
         actual["dag_run"].dag_id = "changed"

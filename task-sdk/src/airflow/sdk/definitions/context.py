@@ -116,8 +116,12 @@ def clone_context(context: Context) -> Context:
     - ``inlets`` and ``outlets`` are converted to new lists (shallow copy)
       because the sequence identity must be isolated but the elements are
       typically read-only accessor objects.
-    - ``outlet_events`` and ``dag_run`` are deep-copied because they carry
-      nested state that must not be shared between concurrent executions.
+    - ``dag_run`` is deep-copied because it carries nested state that must
+      not be shared between concurrent executions.
+    - ``outlet_events`` is intentionally **not** copied so that events emitted
+      by sub-tasks are captured in the parent's accessor and serialized when
+      the parent task completes. Concurrent writes to the same asset may race,
+      but that is expected behavior for parallel sub-tasks.
 
     Use cases
     - Multithreading: when using thread-based executors (``concurrent.futures``
@@ -151,7 +155,8 @@ def clone_context(context: Context) -> Context:
     if templates_dict is not None:
         cloned_context["templates_dict"] = copy.deepcopy(templates_dict)
     cloned_context["inlet_events"] = copy.deepcopy(context["inlet_events"])
-    cloned_context["outlet_events"] = copy.deepcopy(context["outlet_events"])
+    # outlet_events is intentionally NOT copied - sub-tasks must emit into the
+    # parent's accessor so events are serialized when the parent completes.
     cloned_context["dag_run"] = copy.deepcopy(context["dag_run"])
     return cloned_context
 
