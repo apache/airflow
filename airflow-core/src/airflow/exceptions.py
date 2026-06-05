@@ -145,6 +145,10 @@ class DagVersionNotFound(AirflowNotFoundException):
     """Raised when a DagVersion for the given dag_id / bundle_version is not found."""
 
 
+class DagNotPartitionedError(ValueError):
+    """Raise when a partition_key is supplied for a Dag that is not partitioned."""
+
+
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 

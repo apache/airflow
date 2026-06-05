@@ -173,9 +173,95 @@ func TestDecodeConnectionResult(t *testing.T) {
 	assert.Equal(t, "postgres", result.ConnType)
 	assert.Equal(t, "db.example.com", result.Host)
 	assert.Equal(t, "mydb", result.Schema)
-	assert.Equal(t, "user", result.Login)
-	assert.Equal(t, "secret", result.Password)
+	require.NotNil(t, result.Login)
+	assert.Equal(t, "user", *result.Login)
+	require.NotNil(t, result.Password)
+	assert.Equal(t, "secret", *result.Password)
 	assert.Equal(t, 5432, result.Port)
+}
+
+// TestDecodeConnectionResultNullableCredentials covers the four shapes login /
+// password can take on the wire: absent, explicit None, explicit "", and a
+// real value. Empty-string and absent must be distinguishable so URI building
+// in sdk.Connection picks the same branch the HTTP-backed SDK would.
+func TestDecodeConnectionResultNullableCredentials(t *testing.T) {
+	empty := ""
+	user := "user"
+	tests := []struct {
+		name         string
+		body         map[string]any
+		wantLogin    *string
+		wantPassword *string
+	}{
+		{
+			name: "absent keys decode to nil",
+			body: map[string]any{
+				"type":    "ConnectionResult",
+				"conn_id": "c",
+			},
+			wantLogin:    nil,
+			wantPassword: nil,
+		},
+		{
+			name: "explicit nil decodes to nil",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    nil,
+				"password": nil,
+			},
+			wantLogin:    nil,
+			wantPassword: nil,
+		},
+		{
+			name: "empty string is preserved",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    "",
+				"password": "",
+			},
+			wantLogin:    &empty,
+			wantPassword: &empty,
+		},
+		{
+			name: "non-empty string is preserved",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    "user",
+				"password": "secret",
+			},
+			wantLogin:    &user,
+			wantPassword: nil, // checked below
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := decodeConnectionResult(tc.body)
+			require.NoError(t, err)
+
+			if tc.wantLogin == nil {
+				assert.Nil(t, result.Login)
+			} else {
+				require.NotNil(t, result.Login)
+				assert.Equal(t, *tc.wantLogin, *result.Login)
+			}
+
+			if tc.name == "non-empty string is preserved" {
+				require.NotNil(t, result.Password)
+				assert.Equal(t, "secret", *result.Password)
+				return
+			}
+			if tc.wantPassword == nil {
+				assert.Nil(t, result.Password)
+			} else {
+				require.NotNil(t, result.Password)
+				assert.Equal(t, *tc.wantPassword, *result.Password)
+			}
+		})
+	}
 }
 
 func TestDecodeVariableResult(t *testing.T) {

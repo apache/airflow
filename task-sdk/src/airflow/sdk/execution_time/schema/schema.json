@@ -299,16 +299,16 @@
       "title": "AssetResult",
       "type": "object"
     },
-    "AssetStateResult": {
+    "AssetStoreResult": {
       "additionalProperties": false,
-      "description": "Response to GetAssetState; wraps the generated API response for supervisor to worker comms.",
+      "description": "Response to GetAssetStore; wraps the generated API response for supervisor to worker comms.",
       "properties": {
         "value": {
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "AssetStateResult",
-          "default": "AssetStateResult",
+          "const": "AssetStoreResult",
+          "default": "AssetStoreResult",
           "title": "Type",
           "type": "string"
         }
@@ -316,7 +316,7 @@
       "required": [
         "value"
       ],
-      "title": "AssetStateResult",
+      "title": "AssetStoreResult",
       "type": "object"
     },
     "AssetsByAliasResult": {
@@ -368,15 +368,15 @@
       "title": "BundleInfo",
       "type": "object"
     },
-    "ClearAssetStateByName": {
+    "ClearAssetStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
           "type": "string"
         },
         "type": {
-          "const": "ClearAssetStateByName",
-          "default": "ClearAssetStateByName",
+          "const": "ClearAssetStoreByName",
+          "default": "ClearAssetStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -384,18 +384,18 @@
       "required": [
         "name"
       ],
-      "title": "ClearAssetStateByName",
+      "title": "ClearAssetStoreByName",
       "type": "object"
     },
-    "ClearAssetStateByUri": {
+    "ClearAssetStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
           "type": "string"
         },
         "type": {
-          "const": "ClearAssetStateByUri",
-          "default": "ClearAssetStateByUri",
+          "const": "ClearAssetStoreByUri",
+          "default": "ClearAssetStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -403,10 +403,10 @@
       "required": [
         "uri"
       ],
-      "title": "ClearAssetStateByUri",
+      "title": "ClearAssetStoreByUri",
       "type": "object"
     },
-    "ClearTaskState": {
+    "ClearTaskStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
@@ -419,8 +419,8 @@
           "type": "boolean"
         },
         "type": {
-          "const": "ClearTaskState",
-          "default": "ClearTaskState",
+          "const": "ClearTaskStore",
+          "default": "ClearTaskStore",
           "title": "Type",
           "type": "string"
         }
@@ -428,7 +428,7 @@
       "required": [
         "ti_id"
       ],
-      "title": "ClearTaskState",
+      "title": "ClearTaskStore",
       "type": "object"
     },
     "ConnectionResult": {
@@ -1408,7 +1408,7 @@
       "title": "DeferTask",
       "type": "object"
     },
-    "DeleteAssetStateByName": {
+    "DeleteAssetStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -1419,8 +1419,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteAssetStateByName",
-          "default": "DeleteAssetStateByName",
+          "const": "DeleteAssetStoreByName",
+          "default": "DeleteAssetStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -1429,10 +1429,10 @@
         "name",
         "key"
       ],
-      "title": "DeleteAssetStateByName",
+      "title": "DeleteAssetStoreByName",
       "type": "object"
     },
-    "DeleteAssetStateByUri": {
+    "DeleteAssetStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -1443,8 +1443,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteAssetStateByUri",
-          "default": "DeleteAssetStateByUri",
+          "const": "DeleteAssetStoreByUri",
+          "default": "DeleteAssetStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -1453,10 +1453,10 @@
         "uri",
         "key"
       ],
-      "title": "DeleteAssetStateByUri",
+      "title": "DeleteAssetStoreByUri",
       "type": "object"
     },
-    "DeleteTaskState": {
+    "DeleteTaskStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
@@ -1468,8 +1468,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteTaskState",
-          "default": "DeleteTaskState",
+          "const": "DeleteTaskStore",
+          "default": "DeleteTaskStore",
           "title": "Type",
           "type": "string"
         }
@@ -1478,7 +1478,7 @@
         "ti_id",
         "key"
       ],
-      "title": "DeleteTaskState",
+      "title": "DeleteTaskStore",
       "type": "object"
     },
     "DeleteVariable": {
@@ -1648,8 +1648,8 @@
         "VARIABLE_NOT_FOUND",
         "XCOM_NOT_FOUND",
         "ASSET_NOT_FOUND",
-        "TASK_STATE_NOT_FOUND",
-        "ASSET_STATE_NOT_FOUND",
+        "TASK_STORE_NOT_FOUND",
+        "ASSET_STORE_NOT_FOUND",
         "DAGRUN_ALREADY_EXISTS",
         "PERMISSION_DENIED",
         "GENERIC_ERROR",
@@ -1839,7 +1839,7 @@
       "title": "GetAssetEventByAssetAlias",
       "type": "object"
     },
-    "GetAssetStateByName": {
+    "GetAssetStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -1850,8 +1850,8 @@
           "type": "string"
         },
         "type": {
-          "const": "GetAssetStateByName",
-          "default": "GetAssetStateByName",
+          "const": "GetAssetStoreByName",
+          "default": "GetAssetStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -1860,10 +1860,10 @@
         "name",
         "key"
       ],
-      "title": "GetAssetStateByName",
+      "title": "GetAssetStoreByName",
       "type": "object"
     },
-    "GetAssetStateByUri": {
+    "GetAssetStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -1874,8 +1874,8 @@
           "type": "string"
         },
         "type": {
-          "const": "GetAssetStateByUri",
-          "default": "GetAssetStateByUri",
+          "const": "GetAssetStoreByUri",
+          "default": "GetAssetStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -1884,7 +1884,7 @@
         "uri",
         "key"
       ],
-      "title": "GetAssetStateByUri",
+      "title": "GetAssetStoreByUri",
       "type": "object"
     },
     "GetAssetsByAlias": {
@@ -2342,31 +2342,6 @@
       "title": "GetTaskRescheduleStartDate",
       "type": "object"
     },
-    "GetTaskState": {
-      "properties": {
-        "ti_id": {
-          "format": "uuid",
-          "title": "Ti Id",
-          "type": "string"
-        },
-        "key": {
-          "title": "Key",
-          "type": "string"
-        },
-        "type": {
-          "const": "GetTaskState",
-          "default": "GetTaskState",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "ti_id",
-        "key"
-      ],
-      "title": "GetTaskState",
-      "type": "object"
-    },
     "GetTaskStates": {
       "properties": {
         "dag_id": {
@@ -2454,6 +2429,31 @@
         "dag_id"
       ],
       "title": "GetTaskStates",
+      "type": "object"
+    },
+    "GetTaskStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetTaskStore",
+          "default": "GetTaskStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "key"
+      ],
+      "title": "GetTaskStore",
       "type": "object"
     },
     "GetVariable": {
@@ -3342,7 +3342,7 @@
       "title": "SentFDs",
       "type": "object"
     },
-    "SetAssetStateByName": {
+    "SetAssetStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -3356,8 +3356,8 @@
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "SetAssetStateByName",
-          "default": "SetAssetStateByName",
+          "const": "SetAssetStoreByName",
+          "default": "SetAssetStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -3367,10 +3367,10 @@
         "key",
         "value"
       ],
-      "title": "SetAssetStateByName",
+      "title": "SetAssetStoreByName",
       "type": "object"
     },
-    "SetAssetStateByUri": {
+    "SetAssetStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -3384,8 +3384,8 @@
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "SetAssetStateByUri",
-          "default": "SetAssetStateByUri",
+          "const": "SetAssetStoreByUri",
+          "default": "SetAssetStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -3395,7 +3395,7 @@
         "key",
         "value"
       ],
-      "title": "SetAssetStateByUri",
+      "title": "SetAssetStoreByUri",
       "type": "object"
     },
     "SetRenderedFields": {
@@ -3441,7 +3441,7 @@
       "title": "SetRenderedMapIndex",
       "type": "object"
     },
-    "SetTaskState": {
+    "SetTaskStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
@@ -3468,8 +3468,8 @@
           "title": "Expires At"
         },
         "type": {
-          "const": "SetTaskState",
-          "default": "SetTaskState",
+          "const": "SetTaskStore",
+          "default": "SetTaskStore",
           "title": "Type",
           "type": "string"
         }
@@ -3480,7 +3480,7 @@
         "value",
         "expires_at"
       ],
-      "title": "SetTaskState",
+      "title": "SetTaskStore",
       "type": "object"
     },
     "SetXCom": {
@@ -4084,26 +4084,6 @@
       "title": "TaskState",
       "type": "object"
     },
-    "TaskStateResult": {
-      "additionalProperties": false,
-      "description": "Response to GetTaskState; wraps the generated API response for supervisor to worker comms.",
-      "properties": {
-        "value": {
-          "$ref": "#/$defs/JsonValue"
-        },
-        "type": {
-          "const": "TaskStateResult",
-          "default": "TaskStateResult",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "value"
-      ],
-      "title": "TaskStateResult",
-      "type": "object"
-    },
     "TaskStatesResult": {
       "properties": {
         "task_states": {
@@ -4122,6 +4102,26 @@
         "task_states"
       ],
       "title": "TaskStatesResult",
+      "type": "object"
+    },
+    "TaskStoreResult": {
+      "additionalProperties": false,
+      "description": "Response to GetTaskStore; wraps the generated API response for supervisor to worker comms.",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "TaskStoreResult",
+          "default": "TaskStoreResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "TaskStoreResult",
       "type": "object"
     },
     "TriggerDagRun": {

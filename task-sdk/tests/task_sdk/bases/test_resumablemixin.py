@@ -45,7 +45,7 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
         self.submitted_ids.append(self._next_id)
         return self._next_id
 
-    def get_job_status(self, external_id: JsonValue) -> str:
+    def get_job_status(self, external_id: JsonValue, context) -> str:
         return self._status_map.get(str(external_id), "UNKNOWN")
 
     def is_job_active(self, status: str) -> bool:
@@ -72,10 +72,10 @@ class FakeTaskState:
         self._store[key] = value
 
 
-def make_context(task_state: FakeTaskState | None = None) -> dict:
+def make_context(task_store: FakeTaskState | None = None) -> dict:
     ctx: dict = {}
-    if task_state is not None:
-        ctx["task_state"] = task_state
+    if task_store is not None:
+        ctx["task_store"] = task_store
     return ctx
 
 
@@ -162,6 +162,28 @@ class TestRetryWithDifferentJobStatuses:
 
         assert op.submitted_ids == ["job-002"], "should resubmit fresh"
         assert op.polled_ids == ["job-002"]
+
+
+class TestNoneExternalId:
+    def test_none_external_id_is_not_stored(self):
+        """submit_job() returning None must not call task_state.set()."""
+
+        class NoneIdOp(ConcreteResumableOperator):
+            def submit_job(self, context) -> JsonValue:
+                return None
+
+            def poll_until_complete(self, external_id, context) -> None:
+                pass
+
+            def get_job_result(self, external_id, context) -> str:
+                return "done"
+
+        op = NoneIdOp(task_id="test_task")
+        task_state = FakeTaskState()
+
+        op.execute_resumable(make_context(task_state))
+
+        assert task_state._store == {}
 
 
 class TestExternalIdKey:

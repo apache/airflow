@@ -252,6 +252,11 @@ definitions in Airflow.
         # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.  We will match the existing
         # menus of ["browse", "docs", "admin", "user"] and if there's no match then create a new menu.
         "category": "browse",
+        # Optional flag, only relevant for destination "nav". When True, this item is always rendered directly on the
+        # navigation toolbar instead of inside the "Plugins" submenu. When two or more non-promoted items remain they
+        # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
+        # Defaults to False.
+        "nav_top_level": True,
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -277,6 +282,11 @@ definitions in Airflow.
         # Optional category, only relevant for destination "nav". This is used to group the react apps in the navigation bar. We will match the existing
         # menus of ["browse", "docs", "admin", "user"] and if there's no match then create a new menu.
         "category": "browse",
+        # Optional flag, only relevant for destination "nav". When True, this item is always rendered directly on the
+        # navigation toolbar instead of inside the "Plugins" submenu. When two or more non-promoted items remain they
+        # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
+        # Defaults to False.
+        "nav_top_level": True,
     }
 
 

@@ -106,6 +106,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
           dagRunId: dagRun.dag_run_id,
           requestBody: {
             dry_run: false,
+            note: options.note ?? undefined,
             only_failed: options.onlyFailed,
             only_new: options.onlyNew,
           },
@@ -129,26 +130,6 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
         });
       }
     });
-
-    if (succeeded.length > 0 && options.note !== null) {
-      const noteSettled = await Promise.allSettled(
-        succeeded
-          .filter((dagRun) => dagRun.note !== options.note)
-          .map((dagRun) =>
-            DagRunService.patchDagRun({
-              dagId: dagRun.dag_id,
-              dagRunId: dagRun.dag_run_id,
-              requestBody: { note: options.note },
-            }).then(() => dagRun),
-          ),
-      );
-
-      noteSettled.forEach((outcome) => {
-        if (outcome.status === "rejected") {
-          errors.push({ error: `note: ${formatError(outcome.reason)}` });
-        }
-      });
-    }
 
     await invalidateQueries(dagRuns);
 
