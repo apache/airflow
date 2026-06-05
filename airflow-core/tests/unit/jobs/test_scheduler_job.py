@@ -68,7 +68,12 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
-from airflow.models.callback import ExecutorCallback
+from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.connection_test import (
+    ConnectionTestKey,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -83,7 +88,12 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import (
+    PartitionMapper as CorePartitionMapper,
+    RollupMapper as CoreRollupMapper,
+)
+from airflow.partition_mappers.temporal import StartOfHourMapper as CoreStartOfHourMapper
+from airflow.partition_mappers.window import DayWindow as CoreDayWindow, HourWindow as CoreHourWindow
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -93,15 +103,19 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
+    HourWindow,
     IdentityMapper,
+    RollupMapper,
     StartOfHourMapper,
     task,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DagRunInfo, DataInterval
+from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
+from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
@@ -712,6 +726,20 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    def test_process_executor_events_drains_connection_test_events(self, dag_maker, session):
+        """Connection-test events in the event_buffer are drained without being treated as callbacks."""
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ct_key = ConnectionTestKey(id=str(uuid4()))
+        executor.event_buffer[ct_key] = (ConnectionTestState.SUCCESS, None)
+
+        with mock.patch.object(session, "get", wraps=session.get) as spy_get:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+            callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
+            assert callback_lookups == []
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -9903,10 +9931,11 @@ def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: 
 
 
 @pytest.mark.db_test
-def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(session, caplog):
+def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(session):
     """
     Partitioned timetables may leave next_dagrun / next_dagrun_create_after unset when no run is due.
-    Scheduler should skip and log if partition key is not set.
+    The scheduler must skip the Dag without resolving its serialized definition AND log why,
+    so operators can diagnose a Dag held by a misconfigured timetable.
     """
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
@@ -9921,12 +9950,20 @@ def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(sessi
     dag_model.max_active_runs = 16
     dag_model.allowed_run_types = None
 
-    with caplog.at_level(logging.ERROR):
-        with mock.patch.object(runner, "_get_current_dag") as mock_get_dag:
-            runner._create_dag_runs([dag_model], session)
+    # ``LoggingMixin.log`` is a property that lazily fills ``_log``; preload the
+    # cache with a mock so the log-emission can be asserted by call signature.
+    runner._log = mock.MagicMock()
+    with mock.patch.object(runner, "_get_current_dag") as mock_get_dag:
+        runner._create_dag_runs([dag_model], session)
 
     mock_get_dag.assert_not_called()
-    assert "dag_model.next_dagrun_partition_key is None" in caplog.text
+    # Operator-visibility invariant: the skip must log why, not silently swallow.
+    assert runner._log.error.mock_calls == [
+        mock.call(
+            "dag_model.next_dagrun_partition_key is None; expected str",
+            dag_id="partitioned-skip-no-next-fields",
+        )
+    ]
 
 
 @pytest.mark.db_test
@@ -10087,6 +10124,560 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_holds_until_window_complete(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """A rollup APDR stays pending until every upstream key in the window has arrived."""
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # First minute key arrives — only 1 / 60 upstream keys, so the APDR must
+    # not fire yet.
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # Send the remaining 59 minute keys — once all 60 are present the rollup is
+    # satisfied and the APDR creates its Dag run on the next tick.
+    for minute in range(1, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    A misconfigured rollup mapper that raises during status evaluation must not crash
+    the scheduler tick — the asset is treated as not-yet-satisfied, the APDR remains
+    pending, and the exception is logged in the scheduler log.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    with mock.patch.object(
+        SchedulerJobRunner,
+        "_check_rollup_asset_status",
+        side_effect=RuntimeError("misconfigured rollup mapper"),
+    ):
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_survives_scheduler_restart_partial_arrival(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    Rollup completion is driven by PAKL rows (the source of truth), not by any
+    in-memory scheduler state.  After a simulated scheduler restart, a brand new
+    SchedulerJobRunner instance can pick up where the previous one left off and
+    fire the Dag run once all upstream keys have arrived.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    # --- First scheduler process: send 30 of 60 required minute keys ---
+    runner_1 = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-0",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    for minute in range(1, 30):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner_1._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None, "APDR must not fire with only 30 of 60 keys"
+    assert partition_dags == set()
+
+    # --- Simulate scheduler restart: expire session state, create new runner ---
+    session.expire_all()
+    del runner_1
+
+    runner_2 = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # Send the remaining 30 minute keys (total 60 distinct).
+    for minute in range(30, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner_2._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None, (
+        "APDR must fire once all 60 upstream keys have arrived, even after a scheduler restart"
+    )
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
+    """
+    The pending-APDR select must wrap the query in ``with_row_locks(skip_locked=True)``
+    so HA scheduler replicas don't both grab the same satisfied APDR and race the
+    ``created_dag_run_id`` UPDATE (which would orphan whichever DagRun loses the race).
+    """
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks",
+        wraps=with_row_locks,
+    ) as wrapped:
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    apdr_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is AssetPartitionDagRun]
+    assert len(apdr_calls) == 1, f"Expected exactly one with_row_locks call for APDR, got {apdr_calls}"
+    call = apdr_calls[0]
+    assert call.kwargs["skip_locked"] is True
+    assert call.kwargs["key_share"] is False
+    assert call.kwargs["session"] is session
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pending_apdr_select_breaks_tie_on_id(session: Session):
+    """
+    Two APDRs sharing a ``created_at`` (possible under bulk asset-event ingestion)
+    must be ordered by ``id`` ascending so concurrent HA scheduler ticks pick the
+    same LIMIT slice — otherwise replicas can disagree on which APDRs the LIMIT
+    selects even when the row lock would otherwise prevent the duplicate fire.
+    """
+    shared_ts = timezone.utcnow()
+    first_inserted = AssetPartitionDagRun(target_dag_id="d1", partition_key="b", created_at=shared_ts)
+    session.add(first_inserted)
+    session.flush()
+    second_inserted = AssetPartitionDagRun(target_dag_id="d2", partition_key="a", created_at=shared_ts)
+    session.add(second_inserted)
+    session.flush()
+
+    fetched = session.scalars(
+        select(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+    ).all()
+
+    assert first_inserted.id < second_inserted.id
+    assert [a.id for a in fetched] == [first_inserted.id, second_inserted.id]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param("window_changed", id="A-window-changed-clears"),
+        pytest.param("unchanged", id="C-unchanged-survives"),
+        pytest.param("null_fingerprint", id="D-null-fingerprint-clears"),
+    ],
+)
+def test_partitioned_dag_run_stale_rollup_fingerprint(
+    scenario: str,
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    APDR stale-fingerprint cleanup: only mapper / window changes trigger cleanup.
+
+    A — window changed (HourWindow → DayWindow): fingerprint differs → APDR cleared.
+    C — nothing changed: fingerprint identical → APDR survives.
+    D — NULL fingerprint (legacy row): treated as stale → APDR cleared.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer-stale",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-a",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    if scenario == "window_changed":
+        # Stamp the APDR with a DayWindow fingerprint — differs from the latest HourWindow.
+        # Use the core timetable (has ``partitioned = True``) so compute_rollup_fingerprint works.
+        day_timetable = CorePartitionedAssetTimetable(
+            assets=ensure_serialized_asset(asset_1),
+            default_partition_mapper=CoreRollupMapper(
+                upstream_mapper=CoreStartOfHourMapper(),
+                window=CoreDayWindow(),
+            ),
+        )
+        stale_fp = compute_rollup_fingerprint(day_timetable)
+        session.execute(
+            update(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.id == apdr.id)
+            .values(rollup_fingerprint=stale_fp)
+        )
+    elif scenario == "null_fingerprint":
+        session.execute(
+            update(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.id == apdr.id)
+            .values(rollup_fingerprint=None)
+        )
+    # scenario == "unchanged": leave the fingerprint as-is (stamped at creation)
+
+    session.commit()
+
+    pakl_count_before = session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id)
+    )
+    assert pakl_count_before is not None
+    assert pakl_count_before > 0
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    apdr_survives = scenario == "unchanged"
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == (
+        1 if apdr_survives else 0
+    ), f"APDR should {'survive' if apdr_survives else 'be deleted'} for scenario={scenario!r}"
+    assert session.scalar(
+        select(func.count()).where(PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id)
+    ) == (pakl_count_before if apdr_survives else 0), (
+        f"PAKL rows should {'survive' if apdr_survives else 'be deleted'} for scenario={scenario!r}"
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_structural_edit_does_not_clear_apdr(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    B — C2 core regression: a structural Dag edit that leaves the rollup definition
+    unchanged must NOT clear the APDR.
+
+    The old ``dag_version_id`` approach would bump the version on any serialization,
+    causing spurious cleanup for unrelated task / description changes. The new
+    fingerprint only captures mapper + window, so this test must pass.
+
+    A new SerializedDag version is produced by re-serializing the same dag_id with an
+    extra task (dag_version bumps), but since mapper / window are unchanged the
+    rollup fingerprint stays identical and the APDR must survive.
+    """
+    asset_1 = Asset(name="asset-1")
+    # sdk version — used only for dag_maker (which serializes it to the core timetable).
+    rollup_schedule = PartitionedAssetTimetable(
+        assets=asset_1,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfHourMapper(),
+            window=HourWindow(),
+        ),
+    )
+    # core version — used for compute_rollup_fingerprint (requires ``partitioned = True``).
+    core_rollup_schedule = CorePartitionedAssetTimetable(
+        assets=ensure_serialized_asset(asset_1),
+        default_partition_mapper=CoreRollupMapper(
+            upstream_mapper=CoreStartOfHourMapper(),
+            window=CoreHourWindow(),
+        ),
+    )
+    with dag_maker(
+        dag_id="rollup-consumer-structural",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+    session.commit()
+
+    fp_before = compute_rollup_fingerprint(core_rollup_schedule)
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-structural-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    # Confirm the APDR was stamped with the correct fingerprint.
+    assert apdr.rollup_fingerprint == fp_before
+
+    # Re-serialize the same dag_id with an additional task — dag_version bumps, but
+    # mapper / window are identical so rollup fingerprint must not change.
+    with dag_maker(
+        dag_id="rollup-consumer-structural",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+        EmptyOperator(task_id="task-added")
+    session.commit()
+
+    # Verify the fingerprint is stable across the structural edit (guards against
+    # JSON round-trip key-order regressions that would make == return False).
+    fp_after = compute_rollup_fingerprint(core_rollup_schedule)
+    assert fp_after == fp_before, "Fingerprint must not change for a structural-only Dag edit"
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == 1, (
+        "APDR must survive: same rollup fingerprint, only structural Dag edit"
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_fingerprint_compute_failure_does_not_clear_apdr(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    E — fingerprint compute failure: if ``compute_rollup_fingerprint`` raises for a
+    dag_id, the corresponding APDR must be skipped (not deleted).
+
+    This guards against the bug where a failed fingerprint lookup returns None from
+    ``dict.get()``, making ``apdr.rollup_fingerprint != None`` evaluate as True for
+    any non-None stored fingerprint — causing the APDR to be spuriously cleared.
+    """
+    asset_1 = Asset(name="asset-1")
+    rollup_schedule = PartitionedAssetTimetable(
+        assets=asset_1,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfHourMapper(),
+            window=HourWindow(),
+        ),
+    )
+    with dag_maker(
+        dag_id="rollup-consumer-fp-fail",
+        schedule=rollup_schedule,
+        session=session,
+    ):
+        EmptyOperator(task_id="task-original")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-fp-fail-producer",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.compute_rollup_fingerprint",
+        side_effect=RuntimeError("simulated deserialization failure"),
+    ):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalar(select(func.count()).where(AssetPartitionDagRun.id == apdr.id)) == 1, (
+        "APDR must survive when compute_rollup_fingerprint raises — skip, not delete"
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_idempotent_with_duplicate_upstream_events(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    Rollup completion is based on distinct upstream partition keys, not on the
+    number of PartitionedAssetKeyLog rows.
+
+    PAKL by design does not enforce uniqueness — the same (asset, partition_key)
+    can appear in multiple rows when several producer Dags emit the same key.
+    The scheduler resolves this via set semantics in source_key_by_asset_per_apdr
+    (a defaultdict of defaultdict of set), so a duplicate PAKL row must not
+    prevent the rollup from completing once all 60 distinct keys are present.
+
+    Do NOT add a unique constraint to PAKL to "fix" duplicates — that would break
+    legitimate multi-producer workflows where two independent Dags produce the
+    same asset partition.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # Emit the first minute key twice from two different producer Dags — this
+    # writes two PAKL rows for the same (asset, partition_key).
+    apdr = _produce_and_register_asset_event(
+        dag_id="rollup-producer-dup-a",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-dup-b",
+        asset=asset_1,
+        partition_key="2024-01-01T00:00:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+
+    # Send the remaining 59 distinct minute keys (total = 60 distinct + 1 duplicate
+    # = 61 PAKL rows).
+    for minute in range(1, 60):
+        _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None, (
+        "APDR must fire when 60 distinct upstream keys are present, regardless of duplicate PAKL rows"
+    )
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
     dag_maker: DagMaker,
     session: Session,
@@ -10161,6 +10752,185 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
         assert asset_event.source_task_id == "hi"
         assert "asset-event-producer-" in asset_event.source_dag_id
         assert asset_event.source_run_id == "test"
+
+
+def _make_n_satisfied_apdrs(
+    *,
+    consumer_dag_id: str,
+    asset: Asset,
+    partition_keys: list[str],
+    session: Session,
+    dag_maker: DagMaker,
+) -> list[AssetPartitionDagRun]:
+    """Build a consumer Dag plus *N* satisfied APDRs (one per partition_key)."""
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    return [
+        _produce_and_register_asset_event(
+            dag_id=f"asset-event-producer-{i}",
+            asset=asset,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        for i, key in enumerate(partition_keys, start=1)
+    ]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: Session):
+    """
+    cap == APDR count: every pending APDR fires in a single tick.
+
+    Pairs with :func:`test_partition_cap_at_n_minus_one_leaves_one_pending` to pin
+    the ``LIMIT`` boundary against off-by-one regressions (``>`` vs ``>=``).
+    """
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-n",
+        asset=Asset(name="asset-cap-n"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 3
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    for apdr in apdrs:
+        session.refresh(apdr)
+        assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"cap-consumer-n"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, session: Session):
+    """
+    cap == APDR count - 1: oldest cap APDRs fire, the newest remains pending.
+
+    FIFO ordering means the *last-created* APDR is the one left for the next
+    tick. Together with :func:`test_partition_cap_at_exactly_n_processes_all`
+    this pins the ``LIMIT`` boundary — a ``LIMIT N-1`` regression would still
+    pass the at-cap test, but the older sibling here would fail to fire.
+    """
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-n-minus-one",
+        asset=Asset(name="asset-cap-n-minus-one"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    # Pin created_at so FIFO ordering is stable across fast in-memory runs —
+    # otherwise three APDRs created in the same microsecond tie under
+    # ``ORDER BY created_at`` and "which two fire" becomes nondeterministic.
+    base = timezone.utcnow()
+    for i, apdr in enumerate(apdrs):
+        apdr.created_at = base + timedelta(seconds=i)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    for apdr in apdrs:
+        session.refresh(apdr)
+    assert apdrs[0].created_dag_run_id is not None
+    assert apdrs[1].created_dag_run_id is not None
+    assert apdrs[2].created_dag_run_id is None
+    assert partition_dags == {"cap-consumer-n-minus-one"}
+
+
+def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
+    """Toggle ``AssetActive`` row for an asset to simulate orphan / reactivation."""
+    row = session.scalar(select(AssetActive).where(AssetActive.name == name, AssetActive.uri == uri))
+    if active and row is None:
+        session.add(AssetActive(name=name, uri=uri))
+    elif not active and row is not None:
+        session.delete(row)
+    session.commit()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_skips_when_asset_is_inactive(dag_maker: DagMaker, session: Session):
+    """
+    An otherwise-satisfied APDR does not fire while its upstream asset is inactive.
+
+    If the asset becomes orphaned (no Dag declares it any more) while the consumer
+    Dag still references it, firing on the stale ``PartitionedAssetKeyLog`` history
+    would conflict with the declared topology — so the scheduler freezes the APDR
+    instead.
+    """
+    asset = Asset(name="asset-inactive")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="inactive-asset-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_resumes_when_asset_reactivates(dag_maker: DagMaker, session: Session):
+    """
+    A frozen APDR fires automatically once its asset is reactivated.
+
+    Pairs with :func:`test_partitioned_dag_run_skips_when_asset_is_inactive` to pin
+    the freeze ↔ resume contract: deactivation halts fire, reactivation resumes it
+    without any other state change.
+    """
+    asset = Asset(name="asset-reactivate")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="reactivate-asset-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=True)
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"reactivate-asset-consumer"}
 
 
 # ---------------------------------------------------------------------------
@@ -10321,3 +11091,461 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         assert _extract_bundle_name(ti) == "my-bundle"
         # but bundle_version follows the dag_run's unpinned state
         assert _extract_bundle_version(ti) is None
+
+
+def _make_scheduler_runner_for_connection_tests(
+    executors: list[BaseExecutor],
+    *,
+    primary: BaseExecutor | None = None,
+) -> SchedulerJobRunner:
+    """Build a SchedulerJobRunner wired only with the attributes the connection-test methods read."""
+    mock_job = mock.MagicMock(spec=Job)
+    mock_job.id = 1
+    mock_job.max_tis_per_query = 16
+    runner = SchedulerJobRunner.__new__(SchedulerJobRunner)
+    runner.job = mock_job
+    runner.executors = executors
+    runner.executor = primary or executors[0]
+    runner._multi_team = False
+    runner._log = mock.MagicMock(spec=logging.Logger)
+    return runner
+
+
+@pytest.fixture
+def scheduler_job_runner_for_connection_tests(session):
+    """Yield a SchedulerJobRunner wired to a single LocalExecutor with a clean DB."""
+    session.execute(delete(ConnectionTestRequest))
+    session.commit()
+
+    executor = LocalExecutor()
+    executor.name = ExecutorName(
+        module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
+    )
+    executor.queued_connection_tests.clear()
+    yield _make_scheduler_runner_for_connection_tests([executor])
+    session.execute(delete(ConnectionTestRequest))
+    session.commit()
+
+
+class TestDispatchConnectionTests:
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_pending_tests(self, scheduler_job_runner_for_connection_tests, session):
+        """Pending connection tests are dispatched to a supporting executor."""
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+        assert ct.state == ConnectionTestState.PENDING
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.QUEUED
+        assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_reads_team_from_row(self, scheduler_job_runner_for_connection_tests, session):
+        """In multi-team mode the executor is loaded for the team persisted on the row."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = True
+
+        session.add(
+            ConnectionTestRequest(conn_type="test_type", connection_id="team_conn", team_name="team_a")
+        )
+        session.commit()
+
+        with mock.patch.object(runner, "_try_to_load_executor", return_value=None) as mock_load:
+            runner._enqueue_connection_tests(session=session)
+
+        assert mock_load.call_args.kwargs["team_name"] == "team_a"
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "1",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_respects_concurrency_limit(self, scheduler_job_runner_for_connection_tests, session):
+        """Excess pending tests stay PENDING when concurrency is at capacity."""
+        ct_active = ConnectionTestRequest(conn_type="test_type", connection_id="active_conn")
+        ct_active.state = ConnectionTestState.QUEUED
+        session.add(ct_active)
+
+        ct_pending = ConnectionTestRequest(conn_type="test_type", connection_id="pending_conn")
+        session.add(ct_pending)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct_pending = session.get(ConnectionTestRequest, ct_pending.id)
+        assert ct_pending.state == ConnectionTestState.PENDING
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_fails_fast_when_executor_does_not_support_test(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Failure message names the executor that was tried, not 'no executor'."""
+        unsupporting_executor = BaseExecutor()
+        unsupporting_executor.supports_connection_test = False
+        unsupporting_executor.name = ExecutorName(
+            module_path="airflow.executors.base_executor.BaseExecutor", alias="celery"
+        )
+        scheduler_job_runner_for_connection_tests.executors = [unsupporting_executor]
+        scheduler_job_runner_for_connection_tests.executor = unsupporting_executor
+
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn", executor="celery")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert ct.result_message == "Executor 'celery' does not support connection testing"
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_with_unmatched_executor_fails_fast(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Tests requesting an executor with no match are failed immediately."""
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn", executor="gpu_workers")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "gpu_workers" in ct.result_message
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "3",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_budget_dispatches_up_to_remaining_slots(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """When 1 slot is occupied, only budget (cap - active) pending tests are dispatched."""
+        ct_active = ConnectionTestRequest(conn_type="test_type", connection_id="active_conn")
+        ct_active.state = ConnectionTestState.RUNNING
+        session.add(ct_active)
+
+        pending_tests = []
+        for i in range(3):
+            ct = ConnectionTestRequest(conn_type="test_type", connection_id=f"pending_{i}")
+            session.add(ct)
+            pending_tests.append(ct)
+        session.commit()
+        pending_ids = [ct.id for ct in pending_tests]
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        states = [session.get(ConnectionTestRequest, pid).state for pid in pending_ids]
+        assert states.count(ConnectionTestState.QUEUED) == 2
+        assert states.count(ConnectionTestState.PENDING) == 1
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "2",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_order_is_fifo_by_created_at(self, scheduler_job_runner_for_connection_tests, session):
+        """Pending tests are dispatched in FIFO order based on created_at."""
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time - timedelta(minutes=5), tick=False):
+            ct_old = ConnectionTestRequest(conn_type="test_type", connection_id="old_conn")
+            session.add(ct_old)
+            session.flush()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct_new = ConnectionTestRequest(conn_type="test_type", connection_id="new_conn")
+            session.add(ct_new)
+            session.flush()
+
+        with time_machine.travel(initial_time + timedelta(minutes=1), tick=False):
+            ct_newest = ConnectionTestRequest(conn_type="test_type", connection_id="newest_conn")
+            session.add(ct_newest)
+            session.flush()
+
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        assert session.get(ConnectionTestRequest, ct_old.id).state == ConnectionTestState.QUEUED
+        assert session.get(ConnectionTestRequest, ct_new.id).state == ConnectionTestState.QUEUED
+        assert session.get(ConnectionTestRequest, ct_newest.id).state == ConnectionTestState.PENDING
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_fails_fast_for_unserved_executor(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Tests requesting an executor no team serves are failed immediately."""
+        with mock.patch.object(
+            scheduler_job_runner_for_connection_tests,
+            "_try_to_load_executor",
+            return_value=None,
+        ):
+            ct = ConnectionTestRequest(
+                conn_type="test_type", connection_id="test_conn", executor="nonexistent_executor"
+            )
+            session.add(ct)
+            session.commit()
+
+            scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "nonexistent_executor" in ct.result_message
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_executor_matched_by_alias(self, session):
+        """When executor is specified, the executor whose name.alias matches is selected."""
+        session.execute(delete(ConnectionTestRequest))
+        session.commit()
+
+        executor_a = LocalExecutor()
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
+        executor_a.queued_connection_tests.clear()
+
+        executor_b = LocalExecutor()
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
+        executor_b.queued_connection_tests.clear()
+
+        runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
+
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="team_conn", executor="executor_b")
+        session.add(ct)
+        session.commit()
+
+        runner._enqueue_connection_tests(session=session)
+
+        assert len(executor_b.queued_connection_tests) == 1
+        assert len(executor_a.queued_connection_tests) == 0
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_executor_matched_by_module_path(self, session):
+        """When executor is specified by module_path, the matching executor is selected."""
+        session.execute(delete(ConnectionTestRequest))
+        session.commit()
+
+        executor_a = LocalExecutor()
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
+        executor_a.queued_connection_tests.clear()
+
+        executor_b = LocalExecutor()
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
+        executor_b.queued_connection_tests.clear()
+
+        runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
+
+        ct = ConnectionTestRequest(
+            conn_type="test_type", connection_id="team_conn", executor="path.to.ExecutorB"
+        )
+        session.add(ct)
+        session.commit()
+
+        runner._enqueue_connection_tests(session=session)
+
+        assert len(executor_b.queued_connection_tests) == 1
+        assert len(executor_a.queued_connection_tests) == 0
+
+    def test_dispatch_executor_matched_by_class_name(self, session):
+        """When executor is specified by class name only, the matching executor is selected."""
+        session.execute(delete(ConnectionTestRequest))
+        session.commit()
+
+        executor_a = LocalExecutor()
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
+        executor_a.queued_connection_tests.clear()
+
+        executor_b = LocalExecutor()
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
+        executor_b.queued_connection_tests.clear()
+
+        runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
+
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="team_conn", executor="ExecutorB")
+        session.add(ct)
+        session.commit()
+
+        runner._enqueue_connection_tests(session=session)
+
+        assert len(executor_b.queued_connection_tests) == 1
+        assert len(executor_a.queued_connection_tests) == 0
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_fails_when_executor_does_not_support_connection_test(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """When the resolved executor does not support connection tests, the test is failed gracefully."""
+        executor = scheduler_job_runner_for_connection_tests.executor
+        executor.supports_connection_test = False
+
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._enqueue_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "does not support connection testing" in ct.result_message
+
+
+class TestReapStaleConnectionTests:
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_stale_queued_test(self, scheduler_job_runner_for_connection_tests, session):
+        """Stale QUEUED tests are marked as FAILED by the reaper."""
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
+            ct.state = ConnectionTestState.QUEUED
+            session.add(ct)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "queued but never started" in ct.result_message
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_when_state_loaded_as_plain_str(self, scheduler_job_runner_for_connection_tests, session):
+        """Reaper handles a state loaded from the DB as a plain str (fresh-session path), not an enum."""
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(conn_type="test_type", connection_id="reload_conn")
+            ct.state = ConnectionTestState.RUNNING
+            session.add(ct)
+            session.commit()
+
+        # Expire so the reaper reloads ``state`` as a plain ``str`` (as a fresh scheduler process would).
+        session.expire_all()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_does_not_reap_fresh_tests(self, scheduler_job_runner_for_connection_tests, session):
+        """Fresh QUEUED tests are not reaped."""
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
+        ct.state = ConnectionTestState.QUEUED
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.QUEUED
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_stale_running_test(self, scheduler_job_runner_for_connection_tests, session):
+        """Stale RUNNING tests are also reaped by the reaper."""
+        initial_time = timezone.utcnow()
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(conn_type="test_type", connection_id="running_conn")
+            ct.state = ConnectionTestState.RUNNING
+            session.add(ct)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "timed out" in ct.result_message
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reaper_ignores_terminal_states(self, scheduler_job_runner_for_connection_tests, session):
+        """Tests in terminal states (SUCCESS, FAILED) are not touched by the reaper."""
+        initial_time = timezone.utcnow()
+        with time_machine.travel(initial_time, tick=False):
+            ct_success = ConnectionTestRequest(conn_type="test_type", connection_id="success_conn")
+            ct_success.state = ConnectionTestState.SUCCESS
+            ct_success.result_message = "OK"
+            session.add(ct_success)
+
+            ct_failed = ConnectionTestRequest(conn_type="test_type", connection_id="failed_conn")
+            ct_failed.state = ConnectionTestState.FAILED
+            ct_failed.result_message = "Error"
+            session.add(ct_failed)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        assert session.get(ConnectionTestRequest, ct_success.id).state == ConnectionTestState.SUCCESS
+        assert session.get(ConnectionTestRequest, ct_failed.id).state == ConnectionTestState.FAILED

@@ -37,6 +37,7 @@ from airflow.providers_manager import (
     PluginInfo,
     ProviderInfo,
     ProvidersManager,
+    RemoteLoggingInfo,
 )
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -45,6 +46,16 @@ if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
     from airflow.cli.cli_config import CLICommand
+
+
+class FakeRemoteLogIO:
+    """Importable stub used by remote-logging discovery tests."""
+
+    processors: tuple = ()
+
+    @classmethod
+    def from_config(cls):
+        return cls()
 
 
 def test_cleanup_providers_manager(cleanup_providers_manager):
@@ -162,6 +173,78 @@ class TestProviderManager:
                 provider_name="airflow.providers.common.sql",
             ),
         )
+
+    def test_providers_manager_register_remote_logging_by_scheme(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "fake",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_by_scheme["fake"] == RemoteLoggingInfo(
+            classpath=f"{__name__}.FakeRemoteLogIO",
+            scheme="fake",
+            package_name="fake.remote.logging",
+        )
+        assert "unknown" not in providers_manager._remote_logging_by_scheme
+
+    def test_providers_manager_register_remote_logging_duplicate_scheme_first_wins(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging.first"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "dup",
+                    }
+                ]
+            },
+        )
+        providers_manager._provider_dict["fake.remote.logging.second"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "dup",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        winner = providers_manager._remote_logging_by_scheme["dup"]
+        assert winner.package_name == "fake.remote.logging.first"
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_info_list[0].package_name == "fake.remote.logging.first"
+
+    def test_providers_manager_remote_logging_bad_class_filtered(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": "fake.module.does.not.exist.FakeRemoteLogIO",
+                        "scheme": "bad",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert "bad" not in providers_manager._remote_logging_by_scheme
+        assert providers_manager._remote_logging_info_list == []
 
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts

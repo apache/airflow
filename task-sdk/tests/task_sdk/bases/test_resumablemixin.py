@@ -45,7 +45,7 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
         self.submitted_ids.append(self._next_id)
         return self._next_id
 
-    def get_job_status(self, external_id: JsonValue) -> str:
+    def get_job_status(self, external_id: JsonValue, context) -> str:
         return self._status_map.get(str(external_id), "UNKNOWN")
 
     def is_job_active(self, status: str) -> bool:

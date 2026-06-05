@@ -1029,6 +1029,7 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ExecuteTask'
           - $ref: '#/components/schemas/ExecuteCallback'
+          - $ref: '#/components/schemas/TestConnection'
           title: Command
           description: Command line to use to execute the job in Airflow
           discriminator:
@@ -1036,6 +1037,7 @@ components:
             mapping:
               ExecuteCallback: '#/components/schemas/ExecuteCallback'
               ExecuteTask: '#/components/schemas/ExecuteTask'
+              TestConnection: '#/components/schemas/TestConnection'
         concurrency_slots:
           type: integer
           title: Concurrency Slots
@@ -1344,6 +1346,39 @@ components:
 
 
         Note that None is also allowed, so always use this in a type hint with Optional.'
+    TestConnection:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_test_id:
+          type: string
+          format: uuid
+          title: Connection Test Id
+        connection_id:
+          type: string
+          title: Connection Id
+        timeout:
+          type: integer
+          title: Timeout
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        type:
+          type: string
+          const: TestConnection
+          title: Type
+          default: TestConnection
+      type: object
+      required:
+      - token
+      - connection_test_id
+      - connection_id
+      - timeout
+      title: TestConnection
+      description: Execute a connection test on a worker.
     ValidationError:
       properties:
         loc:
