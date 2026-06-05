@@ -33,6 +33,10 @@ class AssetStoreModel(Base):
 
     Not scoped to any DAG run — a watermark written in run 1 is readable by run 2.
     Rows survive until explicitly deleted or the asset itself is deleted.
+
+    ``last_updated_by_*`` columns record who last wrote this entry. They are denormalized
+    (no FK) so that the references survives DAG run cleanup, and so cases like watchers (``BaseEventTrigger``)
+    can write without a task instance.
     """
 
     __tablename__ = "asset_store"
@@ -42,6 +46,12 @@ class AssetStoreModel(Base):
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    last_updated_by_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_updated_by_dag_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_run_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_task_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
+    last_updated_by_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint("asset_id", "key", name="asset_store_pkey"),

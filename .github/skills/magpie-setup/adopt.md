@@ -63,9 +63,31 @@ between automatically:
    `$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd)")` —
    surface it explicitly in the error message so the operator
    can `cd` there without guessing.
-3. Confirm we are **not** in `apache/airflow-steward` itself
-   (read `git remote get-url origin` and refuse if it
-   resolves to the framework).
+3. Detect whether we are **in the Apache Magpie framework
+   checkout itself** rather than an adopter repo. The framework
+   checkout is the one place self-adoption is possible — it
+   links its own `skills/` source directly instead of fetching a
+   snapshot (see
+   [Local self-adoption](#local-self-adoption-methodlocal)).
+
+   Detect it **structurally** — do *not* rely on the `origin`
+   URL, which on a contributor's fork points at
+   `<user>/airflow-steward`, not `apache/`. The repo is the
+   framework checkout when `skills/setup/SKILL.md` exists at the
+   repo root with `name: magpie-setup` in its frontmatter **and**
+   `skills/list-skills/` is present.
+
+   - **Framework checkout** → self-adoption is available. If the
+     user passed `method:local`, go straight to
+     [Local self-adoption](#local-self-adoption-methodlocal).
+     Otherwise offer it — the only non-circular adoption for the
+     framework repo is the local one (a remote snapshot of the
+     framework into itself would shadow the live `skills/`
+     source with a stale copy). On confirmation, follow that
+     section; a remote `method:` against the framework checkout
+     is refused.
+   - **Adopter repo** (the structural markers are absent) →
+     continue with the normal remote-snapshot flow below.
 4. Detect the adopter's existing skills-dir convention by
    following [`conventions.md`](conventions.md). Pin the
    result as `<adopter-skills-dir>` for the rest of this
@@ -104,6 +126,100 @@ between automatically:
    The consolidation is a one-time, deliberate layout
    change; the adopt flow surfaces every step before
    writing.
+
+## Local self-adoption (`method:local`)
+
+**Framework checkout only.** When `/magpie-setup` runs inside the
+Apache Magpie framework checkout (detected in
+[Step 0](#step-0--pre-flight)), it adopts the framework *into
+itself* by linking the live `skills/` source directly — **no
+remote URL, no snapshot fetch, no repo copy**. This is how a
+maintainer makes the framework's own skills callable while
+developing the framework. An adopter repo never reaches this
+section; it runs Steps 1–12 below.
+
+How it differs from a remote adoption:
+
+- **No `<snapshot-dir>`.** Nothing is fetched — the skill sources
+  already live in `skills/` at the repo root.
+- **No remote lock.** A single committed marker file
+  `.apache-magpie.lock` records `method: local` (no
+  `url`/`ref`/`commit`/`sha512`), and there is no
+  `.apache-magpie.local.lock`.
+- **Symlinks are committed, not gitignored.** Each
+  `magpie-<skill>` symlink targets `../../skills/<skill>/` — an
+  in-repo path that always resolves on a fresh clone — so the
+  links are committed. They are written under **both**
+  `.claude/skills/` (Claude Code) and `.github/skills/` (GitHub's
+  skill loader), so the framework's own skills are discoverable
+  by either harness; `.gitignore` un-ignores `magpie-*` in both
+  dirs. Every contributor gets the skills active with no setup
+  step.
+- **All skills, no family prompt.** Self-adoption links *every*
+  skill under `skills/`, so the opt-in family prompt of
+  [Step 5](#step-5--pick-the-skill-families) is skipped.
+  `skill-families:` is still honoured if the maintainer wants to
+  narrow the set.
+- **`magpie-setup` is itself a symlink** (→ `../../skills/setup/`),
+  not a committed copy. The copy-vs-symlink rule of
+  [`SKILL.md` Golden rule 6](SKILL.md#golden-rules) exists only
+  because adopter snapshots disappear on clone; the framework's
+  own source is always present, so the bootstrap is linked like
+  every other skill.
+
+### Steps
+
+1. **Pre-flight** ([Step 0](#step-0--pre-flight)) has confirmed
+   we are in the framework checkout and in the main checkout (not
+   a worktree).
+2. **Refuse a remote method.** If the user passed
+   `method:git-branch|git-tag|svn-zip`, stop: a remote snapshot
+   of the framework into itself is circular and would shadow the
+   live `skills/` source.
+3. **Enumerate skills.** List every directory under
+   `<repo-root>/skills/` that contains a `SKILL.md`. Apply
+   `skill-families:` as a filter if it was passed; otherwise take
+   all of them.
+4. **Write the marker lock** at `<repo-root>/.apache-magpie.lock`:
+
+   ```text
+   # .apache-magpie.lock — committed. Local self-adoption marker.
+   # The framework checkout links its own skills/ source; there is
+   # no remote snapshot. Edited only by /magpie-setup.
+
+   method: local
+   source: skills/
+   ```
+
+5. **`.gitignore`.** Ensure each skills dir glob is ignored with
+   the `magpie-*` set un-ignored, in **both** locations
+   (idempotent — add any missing line):
+
+   ```text
+   .claude/skills/*
+   !/.claude/skills/magpie-*
+   .github/skills/*
+   !/.github/skills/magpie-*
+   ```
+
+6. **Create the symlinks.** For each enumerated skill `<n>`,
+   create the relative symlink `magpie-<n>` → `../../skills/<n>`
+   under **both** `<repo-root>/.claude/skills/` and
+   `<repo-root>/.github/skills/`. Idempotent: re-point a
+   pre-existing `magpie-<n>` symlink only if it targets something
+   else; never overwrite a non-symlink (surface the conflict and
+   stop). Show the full list and confirm before writing.
+7. **Verify + stage.** Confirm every `magpie-<n>` symlink (in
+   both dirs) resolves to a directory containing `SKILL.md`, then
+   suggest the user `git add` the symlinks, `.apache-magpie.lock`,
+   and `.gitignore`.
+
+Self-adoption skips the adopter-only steps entirely: no snapshot
+fetch (Step 3), no committed-`setup` reconcile (Step 3b), no
+fit-signal probe (Step 4b), no family prompt (Step 5), no
+`.apache-magpie-overrides/` scaffold (Step 9), no `user.md`
+(Step 9b), no comdev MCP prereqs (Step 9c), no project-doc
+updates (Step 11) — the framework repo *is* the documentation.
 
 ## Step 1 — Detect adoption shape
 

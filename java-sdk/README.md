@@ -81,6 +81,98 @@ This generates both an HTML representation and Javadoc.
   export AIRFLOW_VAR_MY_VARIABLE=123
   ```
 
+## Publishing
+
+The SDK is published to Maven Central via the
+[ASF Nexus staging repository](https://repository.apache.org).
+The full release process follows the
+[ASF Maven publishing guide](https://infra.apache.org/publishing-maven-artifacts.html).
+
+### Prerequisites
+
+* An ASF committer account with access to
+  [repository.apache.org](https://repository.apache.org).
+* A GPG key that has been
+  [added to the project KEYS file](https://infra.apache.org/release-signing.html)
+  and uploaded to a public key server.
+
+### Bump the version
+
+Edit `gradle.properties` and set the version for this release:
+
+```properties
+sdkVersion=1.0.0
+```
+
+Commit the change and push it to the release branch.
+
+### Verify the POM locally
+
+Before touching any remote repository, publish to your local Maven cache and
+inspect the generated POM:
+
+```bash
+./gradlew :sdk:publishToMavenLocal
+cat ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
+```
+
+Check that the coordinates, description, license, SCM, and organization fields
+look correct.
+
+### Export your signing key
+
+The build expects an ASCII-armored PGP private key.  Export it with:
+
+```bash
+gpg --armor --export-secret-keys <your-key-id>
+```
+
+Copy the full output (including the header and footer) for use in the next step.
+
+### Publish to ASF Nexus staging
+
+Store the four credentials in `~/.gradle/gradle.properties` so they are not
+exposed in your shell history:
+
+```properties
+mavenUsername=<your-asf-id>
+mavenPassword=<your-asf-nexus-token>
+signing.key=<ascii-armored-pgp-key>
+signing.password=<key-passphrase>
+```
+
+Then run the publish task:
+
+```bash
+./gradlew :sdk:publish
+```
+
+Alternatively, pass them on the command line (note the single quotes around
+properties whose values contain newlines or special characters):
+
+```bash
+./gradlew :sdk:publish \
+  -PmavenUsername=<your-asf-id> \
+  -PmavenPassword=<your-asf-nexus-token> \
+  -P'signing.key=<ascii-armored-pgp-key>' \
+  -P'signing.password=<key-passphrase>'
+```
+
+### Release
+
+The process from now on should be the same as releasing other Airflow components.
+
+### Dry-run against a local repository
+
+To test the full publish flow without touching ASF infrastructure, override the
+repository URL to a local directory (no signing key required since nothing goes
+to Maven Central):
+
+```bash
+./gradlew :sdk:publish -PmavenUrl=file:///tmp/local-maven-repo
+ls /tmp/local-maven-repo/org/apache/airflow/airflow-sdk/
+```
+
 ## Technical Details
 
 The user uses the SDK to implement a Java application that implements task

@@ -24,12 +24,16 @@ from airflow.sdk import (
     AllowedKeyMapper,
     Asset,
     CronPartitionTimetable,
+    DayWindow,
     IdentityMapper,
+    MonthWindow,
     PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
+    RollupMapper,
     StartOfDayMapper,
     StartOfHourMapper,
+    StartOfMonthMapper,
     StartOfYearMapper,
     asset,
     task,
@@ -278,3 +282,78 @@ def multi_region_player_stats(self, outlet_events):
     and duplicate keys collapse to a single event.
     """
     outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+
+daily_sales = Asset(uri="s3://sales/daily", name="daily_sales")
+daily_costs = Asset(uri="s3://costs/daily", name="daily_costs")
+# --- Chained rollup: hourly → daily → monthly --------------------------------
+# The hourly source asset already exists above (``team_a_player_stats``).
+# Each rollup Dag publishes its own asset so the next level can consume it.
+
+daily_team_a = Asset(uri="s3://team-a/daily", name="daily_team_a")
+monthly_team_a = Asset(uri="s3://team-a/monthly", name="monthly_team_a")
+
+
+with DAG(
+    dag_id="daily_team_a_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=team_a_player_stats,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfDayMapper(),
+            window=DayWindow(),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup"],
+):
+    """
+    First rollup level: 24 hourly partitions of ``team_a_player_stats`` → one daily summary.
+
+    ``StartOfDayMapper`` normalizes each upstream hourly timestamp (``%Y-%m-%dT%H:%M:%S``)
+    to its day-start (``%Y-%m-%d``); ``DayWindow`` declares the downstream run needs
+    all 24 hourly partitions before firing. Publishes ``daily_team_a`` so the
+    monthly rollup below can consume it.
+    """
+
+    @task(outlets=[daily_team_a])
+    def summarise_team_a_day(dag_run=None):
+        """Produce the full-day rollup once every hour has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All 24 hourly partitions received. Day: {dag_run.partition_key}")
+
+    summarise_team_a_day()
+
+
+with DAG(
+    dag_id="monthly_team_a_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=daily_team_a,
+        # The upstream (``daily_team_a``) emits day-formatted partition keys
+        # (``%Y-%m-%d``), so the upstream mapper here must accept that format.
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfMonthMapper(input_format="%Y-%m-%d"),
+            window=MonthWindow(),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup"],
+):
+    """
+    Chained rollup: every day of ``daily_team_a`` (itself a rollup) → one monthly summary.
+
+    Demonstrates how a rollup output can feed another rollup. ``StartOfMonthMapper``
+    is configured with ``input_format="%Y-%m-%d"`` so it can parse the day keys
+    emitted by ``daily_team_a_rollup``; ``MonthWindow`` waits for every day of the
+    calendar month (28–31 depending on the month). The partition key is the month
+    identifier, e.g. ``2024-01``.
+    """
+
+    @task(outlets=[monthly_team_a])
+    def summarise_team_a_month(dag_run=None):
+        """Produce the full-month rollup once every day has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All daily partitions received. Month: {dag_run.partition_key}")
+
+    summarise_team_a_month()

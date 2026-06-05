@@ -113,6 +113,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                            on keytab for Kerberos login
     :param post_submit_commands: Optional list of shell commands to run after the Spark job finishes.
         Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
+    :param track_driver_via_k8s_api: If True (when master is Kubernetes and ``deploy_mode``
+        is ``cluster``), release the ``spark-submit`` JVM once the driver pod has been
+        created, then poll the Kubernetes API for the pod phase until the application
+        reaches a terminal state. The polling interval is controlled by
+        ``status_poll_interval`` with a 20-second minimum. This frees the worker from
+        holding the long-lived submit JVM. Defaults to ``False``.
     :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
         is ``cluster``), release the ``spark-submit`` JVM once the application has
         been submitted to YARN, then poll the YARN ResourceManager REST API
@@ -188,6 +194,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
         reconnect_on_retry: bool = True,
+        track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
@@ -236,6 +243,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._yarn_rm_auth = yarn_rm_auth
 
         self.reconnect_on_retry = reconnect_on_retry
+        self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
@@ -251,6 +259,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         hook = self._hook
+        if self._track_driver_via_k8s_api:
+            hook._validate_track_driver_via_k8s_api_config()
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
@@ -258,6 +268,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
+        if hook._should_track_driver_via_k8s_api():
+            # TODO: Wire into execute_resumable() via ResumableJobMixin
+            # (fill submit_job / poll_until_complete K8s stubs) to enable crash recovery.
+            hook.submit(self.application)
+            hook._poll_k8s_driver_via_api()
+            return
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:
@@ -269,7 +285,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self.log.info("Spark driver submitted: %s", driver_id)
         return driver_id
 
-    def get_job_status(self, external_id: JsonValue) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         # called from submit_job which always returns a str (Spark driver IDs are strings)
         external_id = cast("str", external_id)
         if self._hook is None:
@@ -402,6 +418,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
             post_submit_commands=self.post_submit_commands,
+            track_driver_via_k8s_api=self._track_driver_via_k8s_api,
             yarn_track_via_rm_api=self._yarn_track_via_rm_api,
             yarn_rm_auth=self._yarn_rm_auth,
         )
