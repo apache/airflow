@@ -66,7 +66,7 @@ Reference
 ``get(key, default)``
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Returns the stored string value, or the ``default`` value if the key does not exist.
+Returns the stored JSON value, or the ``default`` value if the key does not exist.
 
 .. code-block:: python
 

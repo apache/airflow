@@ -46,7 +46,7 @@ Full dotted path to a class that implements :class:`~airflow.sdk.state.BaseState
 ``default_retention_days``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Number of days to retain **task store** rows after their last update. Rows older than this are deleted during the next garbage collection pass.
+Number of days after which task store rows expire. When a key is written with no explicit retention, expires_at is computed on the worker as now + default_retention_days. Changing this setting does not affect already-written rows.
 
 * Set to ``0`` to disable time-based cleanup entirely.
 * Default: ``30``.
@@ -105,7 +105,7 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
   Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
 
 **``default_retention_days`` fallback (task store only)**
-  Keys written with no explicit ``retention`` (i.e. ``expires_at`` is ``NULL``) are governed by the global ``default_retention_days`` setting. When this setting is positive, the garbage collection job treats such rows as expiring ``default_retention_days`` days after their last update.
+  Keys written with no explicit retention get an ``expires_at`` of now + default_retention_days computed at write time. Garbage collection deletes rows where ``expires_at < now()``."
 
 **``NEVER_EXPIRE`` keys**
   Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the garbage collection to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.

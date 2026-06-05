@@ -37,22 +37,7 @@ When is ``asset_store`` available?
 
 When using asset store within a task, ``context["asset_store"]`` is populated for **concrete** :class:`~airflow.sdk.definitions.asset.Asset` inlets and outlets. A task must declare at least one concrete inlet or outlet for ``asset_store`` to contain any entries.
 
-If using asset store in a ``BaseEventTrigger``, the ``self.asset_store`` parameter can be used within the ``BaseEventTrigger``. It can be subscripted in the same way that ``context["asset_store"]`` can be.
 
-.. warning::
-
-   **Outlets-only tasks**: if a task declares only ``outlets`` (no ``inlets``), ``context["asset_store"][my_asset]`` may raise a ``KeyError`` at runtime. The workaround is to declare the asset in **both** ``inlets`` and ``outlets``.
-
-   .. code-block:: python
-
-       # my_asset defined above ...
-
-
-       @task(inlets=[my_asset], outlets=[my_asset])
-       def write_asset(**context):
-           context["asset_store"][my_asset].set("watermark", "2024-01-01")
-
-   This known issue will be resolved in a future release.
 
 
 Accessing asset store using ``context``
@@ -100,7 +85,7 @@ The following methods are available on both the per-asset accessor (``context["a
 ``get(key, default)``
 ~~~~~~~~~~~~
 
-Returns the stored JSON value, or ``None`` if the key does not exist.
+Returns the stored JSON value, or the ``default`` value if the key does not exist.
 
 .. code-block:: python
 
@@ -125,10 +110,10 @@ Writes or overwrites a key-value pair. Unlike task store, asset store has no ``r
 .. code-block:: python
 
     # Using context
-    context["asset_store"][my_asset].set("watermark", "2024-06-01T00:00:00Z")
+    context["asset_store"][my_asset].set("watermark", default="2024-06-01T00:00:00Z")
 
     # Using self.asset_store
-    self.asset_store[my_asset].set("watermark", "2024-06-01T00:00:00Z")
+    self.asset_store[my_asset].set("watermark", default="2024-06-01T00:00:00Z")
 
 ``delete(key)``
 ~~~~~~~~~~~~~~~
