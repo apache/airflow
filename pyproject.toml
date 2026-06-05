@@ -1551,6 +1551,10 @@ apache-airflow-task-sdk-integration-tests = false
 # this override is redundant and should be deleted along with the line below.
 google-cloud-aiplatform = "4 hours"
 
+# REMOVE BY 2026-06-06 — once 3.14.0 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+aiohttp = "2 days"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1697,6 +1701,9 @@ apache-airflow-task-sdk-integration-tests = false
 
 # REMOVE BY 2026-06-07 along with the matching entry above.
 google-cloud-aiplatform = "4 hours"
+
+# REMOVE BY 2026-06-06 along with the matching entry above.
+aiohttp = "2 days"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
