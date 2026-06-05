@@ -56,4 +56,23 @@ rules:
     verbs:
       - "create"
       - "get"
+  # The downgrade branch scales every DB-touching workload to 0 after running
+  # ``airflow db downgrade`` so no OLD code keeps querying the now-downgraded
+  # schema before helm rolls in TARGET pods. See chart/files/db_migrate.py.
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments"
+      - "statefulsets"
+    verbs:
+      - "get"
+      - "list"
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments/scale"
+      - "statefulsets/scale"
+    verbs:
+      - "get"
+      - "patch"
 {{- end }}

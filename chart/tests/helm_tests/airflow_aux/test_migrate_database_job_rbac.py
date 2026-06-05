@@ -58,6 +58,18 @@ class TestMigrateDatabaseJobRBAC:
         assert ("pods/exec",) in resources_to_verbs
         assert {"create", "get"}.issubset(resources_to_verbs[("pods/exec",)])
 
+    def test_role_rules_grant_deployments_and_statefulsets_scale(self):
+        # The downgrade branch scales every DB-touching workload to 0 after
+        # running ``airflow db downgrade`` so no OLD code keeps querying the
+        # now-downgraded schema before helm rolls in TARGET pods.
+        docs = render_chart(show_only=[ROLE_TEMPLATE])
+        rules = jmespath.search("rules", docs[0])
+        resources_to_verbs = {tuple(r["resources"]): set(r["verbs"]) for r in rules}
+        assert ("deployments", "statefulsets") in resources_to_verbs
+        assert {"get", "list"}.issubset(resources_to_verbs[("deployments", "statefulsets")])
+        assert ("deployments/scale", "statefulsets/scale") in resources_to_verbs
+        assert {"get", "patch"}.issubset(resources_to_verbs[("deployments/scale", "statefulsets/scale")])
+
     def test_rolebinding_subject_is_migrate_db_job_sa(self):
         docs = render_chart(show_only=[ROLEBINDING_TEMPLATE])
         subjects = jmespath.search("subjects", docs[0])

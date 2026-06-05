@@ -8,10 +8,20 @@ the chart's ``airflowVersion`` and the alembic head currently in the database:
 * ``target == current`` — no-op.
 * ``target > current`` — ``airflow db migrate`` (existing behaviour).
 * ``target < current`` — ``airflow db downgrade --to-version <target>``
-  executed inside the still-running api-server pod, so reverse alembic
-  scripts that ship only in the source-version image are available.
+  executed inside the still-running api-server pod (so reverse alembic
+  scripts that ship only in the source-version image are available),
+  followed by scaling every DB-touching workload of this release
+  (``api-server``, ``scheduler``, ``triggerer``, ``dag-processor``,
+  ``worker``) to ``0``. Helm then patches those workloads back to their
+  configured ``replicas`` with the TARGET image as the upgrade proceeds,
+  so the cluster comes back up cleanly on the target version without any
+  OLD code running against the now-downgraded schema. A downgrade is
+  therefore a brief outage rather than a zero-downtime rolling update —
+  this is unavoidable when the schema goes backwards.
 
-A ``Role`` + ``RoleBinding`` granting ``pods`` and ``pods/exec`` to the
+A ``Role`` + ``RoleBinding`` granting ``pods``, ``pods/exec``,
+``deployments`` / ``statefulsets`` (``get``, ``list``) and
+``deployments/scale`` / ``statefulsets/scale`` (``get``, ``patch``) to the
 existing ``migrate-database-job`` ``ServiceAccount`` are now rendered when
 ``rbac.create`` is true (default). The downgrade branch is the only consumer.
 

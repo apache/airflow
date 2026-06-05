@@ -25,12 +25,21 @@ downgrade, or a no-op, and runs the right command:
   (uses the TARGET image, which ships forward scripts).
 * target  < current  -> ``airflow db downgrade --to-version <target>``
   executed inside the still-running api-server pod (the OLD image still
-  ships the reverse scripts).
+  ships the reverse scripts), followed by scaling every DB-touching
+  workload (api-server, scheduler, triggerer, dag-processor, worker) to
+  zero so that no OLD pod keeps talking to the now-downgraded schema. Helm
+  then patches those workloads back to ``replicas: N`` with the TARGET
+  image as the upgrade proceeds, so the cluster comes back up cleanly on
+  the target version. This means a downgrade trades the otherwise-broken
+  rolling-update window for a brief outage (which is unavoidable when the
+  schema goes backwards).
 
 Required env:
 
 * ``AIRFLOW_TARGET_VERSION`` - the version the chart is being upgraded/installed to.
 * ``POD_NAMESPACE`` - release namespace, injected via downward API.
+* ``RELEASE_NAME`` - the helm release name, used to scope the scale-down to
+  only the workloads owned by this release.
 
 Reference: https://github.com/apache/airflow/issues/68072
 """
@@ -40,6 +49,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 
 
 def decide_action(target: str) -> str:
@@ -144,9 +154,62 @@ def run_downgrade_in_api_server(pod_name: str, namespace: str, target_version: s
     return returncode or 0
 
 
+# Components that talk to the metadata DB and are managed by this helm release.
+# A downgrade-then-scale-back sequence must drain all of them so no OLD code
+# keeps talking to the now-downgraded schema before helm rolls in TARGET pods.
+_DB_TOUCHING_COMPONENTS = (
+    "api-server",
+    "scheduler",
+    "triggerer",
+    "dag-processor",
+    "worker",
+)
+
+
+def scale_release_workloads_to_zero(namespace: str, release_name: str, timeout_seconds: int = 300) -> None:
+    """Scale all DB-touching workloads of this release to 0 and wait for drain.
+
+    Helm will patch the same Deployments/StatefulSets back to ``replicas: N``
+    when it applies the post-hook manifests, so we deliberately do NOT scale
+    them up again here.
+    """
+    from kubernetes import client, config
+
+    config.load_incluster_config()
+    apps = client.AppsV1Api()
+    core = client.CoreV1Api()
+
+    selector = f"release={release_name},component in ({','.join(_DB_TOUCHING_COMPONENTS)})"
+    scale_body = {"spec": {"replicas": 0}}
+
+    deployments = apps.list_namespaced_deployment(namespace, label_selector=selector).items
+    statefulsets = apps.list_namespaced_stateful_set(namespace, label_selector=selector).items
+
+    for d in deployments:
+        print(f"[db_migrate] scaling Deployment/{d.metadata.name} to 0", flush=True)
+        apps.patch_namespaced_deployment_scale(d.metadata.name, namespace, scale_body)
+    for s in statefulsets:
+        print(f"[db_migrate] scaling StatefulSet/{s.metadata.name} to 0", flush=True)
+        apps.patch_namespaced_stateful_set_scale(s.metadata.name, namespace, scale_body)
+
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        remaining = core.list_namespaced_pod(namespace, label_selector=selector).items
+        if not remaining:
+            print("[db_migrate] all DB-touching pods drained.", flush=True)
+            return
+        print(
+            f"[db_migrate] waiting for {len(remaining)} pod(s) to terminate...",
+            flush=True,
+        )
+        time.sleep(2)
+    raise TimeoutError(f"DB-touching pods did not drain within {timeout_seconds}s after scale-to-zero")
+
+
 def main() -> int:
     target = os.environ.get("AIRFLOW_TARGET_VERSION")
     namespace = os.environ.get("POD_NAMESPACE")
+    release_name = os.environ.get("RELEASE_NAME")
     if not target:
         raise SystemExit("AIRFLOW_TARGET_VERSION must be set")
     if not namespace:
@@ -161,9 +224,17 @@ def main() -> int:
     if action in {"fresh", "forward"}:
         return subprocess.call(["airflow", "db", "migrate"])
     if action == "downgrade":
+        if not release_name:
+            raise SystemExit("RELEASE_NAME must be set for the downgrade branch")
         pod = discover_api_server_pod(namespace)
         print(f"[db_migrate] downgrading via api-server pod {pod}", flush=True)
-        return run_downgrade_in_api_server(pod, namespace, target)
+        rc = run_downgrade_in_api_server(pod, namespace, target)
+        if rc != 0:
+            return rc
+        # Drain OLD pods before helm rolls in TARGET pods to avoid OLD code
+        # running against the now-downgraded schema (see module docstring).
+        scale_release_workloads_to_zero(namespace, release_name)
+        return 0
     raise SystemExit(f"unknown action: {action}")
 
 

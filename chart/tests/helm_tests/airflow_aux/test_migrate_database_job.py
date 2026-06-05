@@ -336,6 +336,17 @@ class TestMigrateDatabaseJob:
         assert ns_var is not None
         assert ns_var["valueFrom"]["fieldRef"]["fieldPath"] == "metadata.namespace"
 
+    def test_release_name_env_set(self):
+        # The downgrade branch scopes the scale-to-zero step to workloads
+        # owned by this helm release via ``release=<RELEASE_NAME>``.
+        docs = render_chart(
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        release_var = next((e for e in env if e["name"] == "RELEASE_NAME"), None)
+        assert release_var is not None
+        assert release_var["value"] == "release-name"
+
     def test_should_add_extra_volumes(self):
         docs = render_chart(
             values={
