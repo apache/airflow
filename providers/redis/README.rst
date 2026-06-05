@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-redis``
 
-Release: ``4.4.4``
+Release: ``4.4.5``
 
 
 `Redis <https://redis.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``redis`` provider. All classes for this provider
 are in ``airflow.providers.redis`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.5/>`_.
 
 Installation
 ------------
@@ -88,4 +88,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.5/changelog.html>`_.

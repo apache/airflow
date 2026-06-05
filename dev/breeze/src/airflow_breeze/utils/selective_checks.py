@@ -125,6 +125,7 @@ class FileGroupForCi(Enum):
     REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
     REMOTE_LOGGING_E2E_OPENSEARCH_FILES = auto()
     EVENT_DRIVEN_E2E_FILES = auto()
+    JAVA_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -214,16 +215,31 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/apache/kafka/.*",
             r"^providers/common/messaging/.*",
         ],
+        FileGroupForCi.JAVA_SDK_E2E_FILES: [
+            r"^java-sdk/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/java\.yml$",
+            r"^airflow-e2e-tests/docker/Dockerfile\.java$",
+            r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+        ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
             # dev tooling, and generated files within those trees. Used by
             # `run_python_scans` (SAST/SCA target) and the line-threshold check
             # in `_is_large_enough_pr` to decide whether a PR's diff is large
             # enough to force the full test matrix.
-            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
+            #
+            # `example_dags/` are illustrative, not shipped runtime code, so a large
+            # example-DAG diff must not force the full matrix. They are still selected
+            # for their own tests via the broader `ALL_AIRFLOW_PYTHON_FILES` /
+            # `ALL_PROVIDERS_PYTHON_FILES` groups, so excluding them here only affects
+            # the line-count gate (and SAST target), not test selection. The
+            # `(?:.*/)?` covers both airflow-core's top-level `airflow/example_dags/`
+            # and the nested `providers/<name>/.../example_dags/` layout.
+            r"^airflow-core/src/airflow/(?!(?:.*/)?example_dags/)(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
             r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
             r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
-            r"^providers/(?:[^/]+/)+src/.*\.py$",
+            r"^providers/(?:[^/]+/)+src/(?!(?:.*/)?example_dags/).*\.py$",
             r"^shared/[^/]+/src/.*\.py$",
             r"^pyproject\.toml$",
             r"^hatch_build\.py$",
@@ -641,6 +657,10 @@ class SelectiveChecks:
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
                 )
                 return False
+            # On push to release branches (v3-X-test, etc), only run selective tests.
+            # Canaries (SCHEDULE) and manual triggers (WORKFLOW_DISPATCH) still run full matrix.
+            if self._github_event == GithubEvents.PUSH and self._default_branch != "main":
+                return False
             console_print(f"[warning]Running everything because event is {self._github_event}[/]")
             return True
         if not self._commit_ref:
@@ -677,10 +697,21 @@ class SelectiveChecks:
             console_print("[warning]Running full set of tests because env files changed[/]")
             return True
         if self._matching_files(
-            FileGroupForCi.API_FILES,
+            FileGroupForCi.API_CODEGEN_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
-            console_print("[warning]Running full set of tests because api files changed[/]")
+            # Only the API *contract* changing (the generated OpenAPI spec, or the
+            # client generator) ripples broadly — to the UI codegen, the generated
+            # clients, and every consumer — so it warrants the full matrix. Plain
+            # API source/test edits that leave the committed spec untouched do not:
+            # a prek hook regenerates and verifies the spec, so an unchanged spec
+            # reliably means an unchanged contract. Those edits still run the `API`
+            # test type and the `fab` provider (via `run_api_tests`); they just no
+            # longer drag in the whole provider matrix.
+            console_print(
+                "[warning]Running full set of tests because the API contract "
+                "(generated OpenAPI spec / client generator) changed[/]"
+            )
             return True
         if self._matching_files(
             FileGroupForCi.GIT_PROVIDER_FILES,
@@ -722,14 +753,13 @@ class SelectiveChecks:
         """
         Check if PR is large enough to run full tests.
 
-        The heuristics are based on number of files changed and total lines changed,
-        while excluding generated files which can be ignored.
-
-        The line-count check (``LINE_THRESHOLD``) only counts lines in production-code
-        files — tests, docs, newsfragments, generated files, translations, dev tooling,
-        and similar low-risk paths do not contribute to the line count. A 1000-line test
-        or docs PR is not the same shape of risk as a 1000-line change to scheduler
-        code, and only the latter should trigger the full test matrix.
+        Both heuristics — the count of changed files (``FILE_THRESHOLD``) and the
+        total lines changed (``LINE_THRESHOLD``) — only consider production-code
+        files. Tests, docs, newsfragments, generated files, translations, example
+        DAGs, and dev tooling are low-risk: a PR that only touches them, however
+        many files or lines, must not force the full test matrix. A 1000-line (or
+        40-file) test or docs PR is not the same shape of risk as the same churn in
+        scheduler code, and only the latter should trigger the full test matrix.
         """
         FILE_THRESHOLD = 25
         LINE_THRESHOLD = 500
@@ -737,34 +767,12 @@ class SelectiveChecks:
         if not self._files:
             return False
 
-        exclude_patterns = [
-            r"/newsfragments/",
-            r"^uv\.lock$",
-            r"pnpm-lock\.yaml$",
-            r"package-lock\.json$",
-        ]
-
-        relevant_files = [
-            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
-        ]
-
-        files_changed = len(relevant_files)
-        if files_changed >= FILE_THRESHOLD:
-            console_print(
-                f"[warning]Running full set of tests because PR touches {files_changed} files "
-                f"(≥25 threshold)[/]"
-            )
-            return True
-
-        if not self._commit_ref:
-            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
-            return False
-
-        # The line-count gate only counts churn in production code. We compose
-        # the existing `*_PRODUCTION_FILES` and helm groups rather than rolling
-        # a bespoke pattern set, so the definition of "production code" stays
-        # in lockstep with the rest of CI (e.g. SAST scans targeted by
-        # `run_python_scans` / `run_javascript_scans`).
+        # Both gates count churn in production code only. We compose the existing
+        # `*_PRODUCTION_FILES` and helm groups rather than rolling a bespoke pattern
+        # set, so the definition of "production code" stays in lockstep with the rest
+        # of CI (e.g. SAST scans targeted by `run_python_scans` /
+        # `run_javascript_scans`). These groups already exclude tests, docs,
+        # generated files, translations, and example DAGs.
         production_files = list(
             dict.fromkeys(
                 self._matching_files(FileGroupForCi.PYTHON_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
@@ -773,6 +781,18 @@ class SelectiveChecks:
             )
         )
         if not production_files:
+            return False
+
+        files_changed = len(production_files)
+        if files_changed >= FILE_THRESHOLD:
+            console_print(
+                f"[warning]Running full set of tests because PR touches {files_changed} "
+                f"production files (≥{FILE_THRESHOLD} threshold)[/]"
+            )
+            return True
+
+        if not self._commit_ref:
+            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
             return False
 
         try:
@@ -799,8 +819,7 @@ class SelectiveChecks:
                 if total_lines >= LINE_THRESHOLD:
                     console_print(
                         f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"of production code in {len(production_files)} file(s) "
-                        f"(of {files_changed} relevant file(s))[/]"
+                        f"of production code in {len(production_files)} file(s)[/]"
                     )
                     return True
         except Exception:
@@ -1025,6 +1044,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
 
     @cached_property
+    def run_java_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1140,6 +1163,7 @@ class SelectiveChecks:
             or self.run_remote_logging_elasticsearch_e2e_tests
             or self.run_remote_logging_opensearch_e2e_tests
             or self.run_event_driven_e2e_tests
+            or self.run_java_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 

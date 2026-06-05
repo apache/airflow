@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -70,17 +70,11 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const taskId = props.allMapped ? props.taskId : props.taskInstance.task_id;
   const mapIndex: number | undefined = props.allMapped ? undefined : props.taskInstance.map_index;
   const taskInstance: TaskInstanceResponse | undefined = props.allMapped ? undefined : props.taskInstance;
-  const onCloseDialog = props.onClose;
+  const closeDialog = props.onClose;
   const openDialog = props.open;
   /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId,
-    onSuccessConfirm: onCloseDialog,
-  });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
 
@@ -92,6 +86,17 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
+
+  useEffect(() => {
+    if (openDialog) {
+      setNote(taskInstance?.note ?? null);
+    }
+  }, [openDialog, taskInstance?.note]);
+
+  const onCloseDialog = () => {
+    setNote(taskInstance?.note ?? null);
+    closeDialog();
+  };
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -110,6 +115,12 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
     dagLevelConfig: dagDetails?.rerun_with_latest_version,
     fallback: dagVersionsDiffer,
+  });
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagId,
+    dagRunId,
+    onSuccessConfirm: onCloseDialog,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -230,45 +241,43 @@ const ClearTaskInstanceDialog = (props: Props) => {
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-      {open ? (
-        <ClearTaskInstanceConfirmationDialog
-          dagDetails={{
-            dagId,
-            dagRunId,
-            downstream,
-            future,
-            mapIndex,
-            onlyFailed,
-            past,
-            taskId,
-            upstream,
-          }}
-          onClose={onClose}
-          onConfirm={() => {
-            const noteChanged = note !== (taskInstance?.note ?? null);
+      <ClearTaskInstanceConfirmationDialog
+        dagDetails={{
+          dagId,
+          dagRunId,
+          downstream,
+          future,
+          mapIndex,
+          onlyFailed,
+          past,
+          taskId,
+          upstream,
+        }}
+        onClose={onClose}
+        onConfirm={() => {
+          const noteChanged = note !== (taskInstance?.note ?? null);
 
-            mutate({
-              dagId,
-              requestBody: {
-                dag_run_id: dagRunId,
-                dry_run: false,
-                include_downstream: downstream,
-                include_future: future,
-                include_past: past,
-                include_upstream: upstream,
-                note: noteChanged ? note : undefined,
-                only_failed: onlyFailed,
-                run_on_latest_version: runOnLatestVersion,
-                task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
-                ...(preventRunningTask ? { prevent_running_task: true } : {}),
-              },
-            });
-            onCloseDialog();
-          }}
-          open={open}
-          preventRunningTask={preventRunningTask}
-        />
-      ) : null}
+          mutate({
+            dagId,
+            requestBody: {
+              dag_run_id: dagRunId,
+              dry_run: false,
+              include_downstream: downstream,
+              include_future: future,
+              include_past: past,
+              include_upstream: upstream,
+              note: noteChanged ? note : undefined,
+              only_failed: onlyFailed,
+              run_on_latest_version: runOnLatestVersion,
+              task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
+              ...(preventRunningTask ? { prevent_running_task: true } : {}),
+            },
+          });
+          onCloseDialog();
+        }}
+        open={open}
+        preventRunningTask={preventRunningTask}
+      />
     </>
   );
 };

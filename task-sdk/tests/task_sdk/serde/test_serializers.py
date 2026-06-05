@@ -146,6 +146,24 @@ class TestSerializers:
         if tz_input in ["EDT", "CDT", "MDT", "PDT"]:
             assert deserialize(serialize(deserialized_dt)) == deserialized_dt
 
+    def test_deserialize_legacy_datetime_bare_timestamp(self):
+        """Legacy BaseSerialization stored datetimes as ``{"__type": "datetime", "__var": <utc ts>}``.
+
+        serde must read that form back (used e.g. for trigger kwargs encoded via
+        BaseSerialization) and reconstruct a UTC ``datetime`` with the same instant.
+        """
+        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        legacy = {"__type": "datetime", "__var": moment.timestamp()}
+
+        deserialized = deserialize(legacy)
+
+        assert isinstance(deserialized, datetime.datetime)
+        assert deserialized.timestamp() == moment.timestamp()
+
+        # The same form nested inside a dict (the shape trigger kwargs take).
+        nested = deserialize({"moment": legacy})
+        assert nested["moment"].timestamp() == moment.timestamp()
+
     @pytest.mark.parametrize(
         ("expr", "expected"),
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],

@@ -196,6 +196,7 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
+    sdk: tuple[str, ...] = ()
     worker_type: tuple[str, ...] = ()
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
@@ -663,6 +664,8 @@ services:
         _set_var(_env, "GITHUB_TOKEN", self.github_token)
         if "go" in self.worker_type:
             _set_var(_env, "GO_WORKER", True)
+        if "java" in self.sdk:
+            _set_var(_env, "INSTALL_SDK_JAVA", True)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)

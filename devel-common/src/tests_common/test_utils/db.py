@@ -380,7 +380,7 @@ def clear_db_callbacks():
 @_retry_db
 def set_default_pool_slots(slots):
     with create_session() as session:
-        default_pool = Pool.get_default_pool(session)
+        default_pool = Pool.get_default_pool(session=session)
         default_pool.slots = slots
 
 
@@ -468,6 +468,16 @@ def clear_db_teams():
         from airflow.models.team import Team
 
         session.execute(delete(Team))
+
+
+def clear_db_connection_tests():
+    with create_session() as session:
+        try:
+            from airflow.models.connection_test import ConnectionTestRequest
+
+            session.execute(delete(ConnectionTestRequest))
+        except ImportError:
+            pass
 
 
 @_retry_db
@@ -1001,3 +1011,4 @@ def clear_all():
         clear_db_backfills()
         clear_db_dag_bundles()
         clear_db_dag_parsing_requests()
+    clear_db_connection_tests()

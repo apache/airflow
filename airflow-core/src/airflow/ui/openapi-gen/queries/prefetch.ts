@@ -162,7 +162,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (queryClient: Query
 * Next Run Assets
 * @param data The data for the request.
 * @param data.dagId
-* @returns unknown Successful Response
+* @returns NextRunAssetsResponse Successful Response
 * @throws ApiError
 */
 export const prefetchUseAssetServiceNextRunAssets = (queryClient: QueryClient, { dagId }: {
@@ -223,6 +223,17 @@ export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClie
 export const prefetchUseConnectionServiceGetConnection = (queryClient: QueryClient, { connectionId }: {
   connectionId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }), queryFn: () => ConnectionService.getConnection({ connectionId }) });
+/**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseConnectionServiceGetConnectionTest = (queryClient: QueryClient, { airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) });
 /**
 * Get Connections
 * Get all connection entries.

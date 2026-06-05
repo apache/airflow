@@ -274,6 +274,45 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    @conf_vars({("core", "load_examples"): "false"})
+    @pytest.mark.parametrize(
+        ("dag_id", "schedule"),
+        [
+            pytest.param("table_none_schedule", "None", id="schedule_none"),
+            pytest.param("table_once_schedule", "'@once'", id="schedule_once_with_two_executions"),
+        ],
+    )
+    def test_next_execution_table_flag_with_no_next_run(
+        self, dag_id, schedule, tmp_path, stdout_capture, stderr_capture
+    ):
+        """Regression test for #67394: --table must not crash when schedule yields None."""
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5), schedule={schedule})",
+                "task = EmptyOperator(task_id='empty_task', dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table", "--num-executions", "2"])
+        # Must not raise AttributeError on None DagRunInfo
+        with stdout_capture:
+            with stderr_capture as temp_stderr:
+                dag_command.dag_next_execution(args)
+        assert "No following schedule" in temp_stderr.getvalue()
+
+        # Rebuild Test DB for other tests
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])

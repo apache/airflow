@@ -1149,7 +1149,7 @@
             ]
         },
         "volumes": {
-            "description": "Volumes for all Airflow containers.",
+            "description": "Volumes for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -1158,7 +1158,7 @@
             }
         },
         "volumeMounts": {
-            "description": "VolumeMounts for all Airflow containers.",
+            "description": "VolumeMounts for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -5764,6 +5764,10 @@
                                 "description": "Name of the Dag bundle.",
                                 "type": "string"
                             },
+                            "team_name": {
+                                "description": "Team name for the Dag bundle.",
+                                "type": "string"
+                            },
                             "classpath": {
                                 "description": "Class path of the Dag bundle class.",
                                 "type": "string"
@@ -9026,7 +9030,7 @@
                     "default": 100
                 },
                 "configSecretName": {
-                    "description": "The PgBouncer config Secret name.",
+                    "description": "The PgBouncer config Secret name (templated).",
                     "type": [
                         "string",
                         "null"
