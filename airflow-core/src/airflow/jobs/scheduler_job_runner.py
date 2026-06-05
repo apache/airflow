@@ -684,6 +684,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                # Eager-load dag_version: TIs become transient (via make_transient) before
+                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
+                # transient objects silently return None instead of raising DetachedInstanceError.
                 .options(selectinload(TI.dag_version))
             )
 
