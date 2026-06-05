@@ -25,7 +25,18 @@ buildscript {
 
 val airflowSupervisorSchemaVersion: String by project
 
+val sdkArtifact = "airflow-sdk"
+val sdkVersion: String by project
+
+// Full Maven coordinate: org.apache.airflow:airflow-sdk:<version>
+// artifactId is set explicitly on the MavenPublication below.
+group = "org.apache.airflow"
+version = sdkVersion
+
 plugins {
+    `java-library`
+    `maven-publish`
+    signing
     kotlin("plugin.serialization") version "2.3.0"
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
@@ -75,7 +86,11 @@ abstract class GeneratePointersTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val srcFile = schemaFile.get().asFile
-        val outDir = targetDirectory.get().asFile.also { it.mkdirs() }
+        val outDir =
+            targetDirectory.get().asFile.also {
+                it.deleteRecursively()
+                it.mkdirs()
+            }
 
         srcFile.copyTo(outDir.resolve(srcFile.name), overwrite = true)
 
@@ -162,6 +177,13 @@ tasks.register<GeneratePointersTask>("generatePointers") {
     targetDirectory = pointersDir
 }
 
+val javadocJar by tasks.registering(Jar::class) {
+    description = "Assembles Javadoc JAR from Dokka output"
+    group = JavaBasePlugin.DOCUMENTATION_GROUP
+    archiveClassifier.set("javadoc")
+    from(tasks.named("dokkaGeneratePublicationJavadoc"))
+}
+
 jsonSchema2Pojo {
     setSource(listOf(pointersDir.get().asFile))
     targetPackage = jsonSchemaPackage
@@ -191,6 +213,7 @@ sourceSets {
 }
 
 dokka {
+    moduleVersion.set(sdkVersion)
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
@@ -198,6 +221,11 @@ dokka {
             suppress.set(true)
         }
     }
+}
+
+java {
+    withSourcesJar() // Required by Maven Central.
+    // Do NOT call withJavadocJar(); we use Dokka to generate documentation. See javadocJar above.
 }
 
 tasks.named("generateJsonSchema2Pojo") {
@@ -216,7 +244,12 @@ tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("generateJsonSchema2Pojo")
 }
 
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+}
+
 tasks.withType<Jar> {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
     manifest {
         attributes(
             "Airflow-Supervisor-Schema-Version" to airflowSupervisorSchemaVersion,
@@ -226,4 +259,72 @@ tasks.withType<Jar> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+private fun getProperty(name: String) = providers.gradleProperty(name).orNull
+
+private fun getProperty(
+    name: String,
+    env: String,
+): String? = getProperty(name) ?: System.getenv(env)
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = sdkArtifact
+            from(components["java"])
+            artifact(javadocJar)
+            pom {
+                name = "Apache Airflow Java SDK"
+                description = "Java SDK for implementing Apache Airflow task logic on the JVM."
+                url = "https://airflow.apache.org"
+
+                organization {
+                    name = "The Apache Software Foundation"
+                    url = "https://www.apache.org/"
+                }
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                        distribution = "repo"
+                    }
+                }
+                scm {
+                    connection = "scm:git:https://gitbox.apache.org/repos/asf/airflow.git"
+                    developerConnection = "scm:git:https://gitbox.apache.org/repos/asf/airflow.git"
+                    url = "https://github.com/apache/airflow"
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "mavenRepo"
+            url =
+                uri(
+                    getProperty("mavenUrl")
+                        ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
+                            "https://repository.apache.org/content/repositories/snapshots/"
+                        } else {
+                            "https://repository.apache.org/service/local/staging/deploy/maven2/"
+                        },
+                )
+            getProperty("mavenUsername", "ASF_NEXUS_USERNAME").let { user ->
+                credentials {
+                    username = user
+                    password = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+                }
+            }
+        }
+    }
+}
+
+signing {
+    getProperty("signing.key", "SIGNING_KEY").let { secretKey ->
+        val password = getProperty("signing.password", "SIGNING_PASSWORD")
+        useInMemoryPgpKeys(secretKey, password)
+        sign(publishing.publications["mavenJava"])
+    }
 }

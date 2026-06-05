@@ -2523,7 +2523,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
-                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
+                "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -3618,6 +3618,37 @@ def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
                 "full-tests-needed": "false",
             },
             id="Mixed PR with only 200 production lines does not trigger (test lines excluded)",
+        ),
+        # A large example-DAG diff in a "plain" provider (not standard/git, which
+        # have their own full-tests rule) must NOT force the full matrix. This is
+        # the exact shape of apache/airflow#68037.
+        pytest.param(
+            (
+                "providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
+            ),
+            "600\t600\tproviders/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large provider example_dags-only PR does not trigger full tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/example_dags/example_complex.py",),
+            "600\t600\tairflow-core/src/airflow/example_dags/example_complex.py",
+            {
+                "full-tests-needed": "false",
+            },
+            id="Large airflow-core example_dags-only PR does not trigger full tests",
+        ),
+        # Regression guard: a large *non-example* file in the same plain provider
+        # must still count as production code and trigger the full matrix.
+        pytest.param(
+            ("providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",),
+            "600\t600\tproviders/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",
+            {
+                "full-tests-needed": "true",
+            },
+            id="Large provider production (non-example) PR still triggers full tests",
         ),
     ],
 )

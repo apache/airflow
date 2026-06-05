@@ -245,6 +245,9 @@ classpath
 classpaths
 cleartext
 cli
+ClickHouse
+clickhouse
+clickhousedb
 ClientSecretCredential
 cloudant
 CloudantV
@@ -1264,6 +1267,7 @@ Preload
 preload
 prepend
 prepended
+prepends
 preprocess
 Preprocessed
 preprocessing
@@ -1405,6 +1409,7 @@ Roadmap
 roadmap
 roc
 RoleBinding
+rollup
 rom
 romeoandjuliet
 rootcss

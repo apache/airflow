@@ -239,9 +239,28 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.StartOfYearMapper
 
+.. autoapiclass:: airflow.sdk.RollupMapper
+
 .. autoapiclass:: airflow.sdk.ProductMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
+
+Rollup Windows
+~~~~~~~~~~~~~~
+
+.. autoapiclass:: airflow.sdk.Window
+
+.. autoapiclass:: airflow.sdk.HourWindow
+
+.. autoapiclass:: airflow.sdk.DayWindow
+
+.. autoapiclass:: airflow.sdk.WeekWindow
+
+.. autoapiclass:: airflow.sdk.MonthWindow
+
+.. autoapiclass:: airflow.sdk.QuarterWindow
+
+.. autoapiclass:: airflow.sdk.YearWindow
 
 I/O Helpers
 -----------
