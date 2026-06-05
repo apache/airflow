@@ -45,7 +45,6 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -66,7 +65,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
     from graphviz.dot import Dot
-    from pendulum.tz.timezone import FixedTimezone, Timezone
     from sqlalchemy.orm import Session
 
     from airflow import DAG
@@ -124,27 +122,6 @@ def dag_delete(args) -> None:
         print("Cancelled")
 
 
-def _compute_day_bound(label: datetime.date, tt_tz: Timezone | FixedTimezone | None) -> datetime.datetime:
-    """
-    Return the UTC instant of `label`'s local midnight in `tt_tz`.
-
-    When `tt_tz` is None the partition_date values are midnight-anchored UTC
-    dates (no time-of-day meaning), so the result is simply midnight UTC for
-    that calendar day. When `tt_tz` is a timetable timezone (only set for
-    CronMixin subclasses such as CronPartitionTimetable), partitioned runs are
-    stored as local-midnight UTC instants and the comparison must be done in
-    the timetable's timezone rather than at the raw UTC instant.
-
-    Callers pass ``label`` for the inclusive lower bound and
-    ``label + timedelta(days=1)`` for the half-open upper bound.
-    """
-    if tt_tz is None:
-        return datetime.datetime(label.year, label.month, label.day, tzinfo=datetime.timezone.utc)
-    return timezone.convert_to_utc(
-        timezone.make_aware(datetime.datetime(label.year, label.month, label.day), tt_tz)
-    )
-
-
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -188,12 +165,13 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         query = query.where(DagRun.partition_key == args.partition_key)
     else:
         query = query.where(DagRun.partition_date.is_not(None))
-        tt_tz = dag.timetable.timezone if isinstance(dag.timetable, CronMixin) else None
         if args.partition_date_start is not None:
-            lower = _compute_day_bound(args.partition_date_start.date(), tt_tz)
+            lower = dag.timetable.get_partition_day_bound(args.partition_date_start.date())
             query = query.where(DagRun.partition_date >= lower)
         if args.partition_date_end is not None:
-            upper = _compute_day_bound(args.partition_date_end.date() + datetime.timedelta(days=1), tt_tz)
+            upper = dag.timetable.get_partition_day_bound(
+                args.partition_date_end.date() + datetime.timedelta(days=1)
+            )
             query = query.where(DagRun.partition_date < upper)
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 

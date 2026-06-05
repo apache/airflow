@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
 
 from typing_extensions import NotRequired
@@ -256,6 +257,22 @@ class Timetable(Protocol):
             f"partition mapper (asset name={name!r}, uri={uri!r})."
         )
         raise NotImplementedError(msg)
+
+    def get_partition_day_bound(self, day: datetime.date) -> DateTime:
+        """
+        Return the UTC instant of *day*'s midnight boundary.
+
+        Partition dates are midnight-anchored UTC calendar days by default.
+        Callers pass *day* for the inclusive lower bound and
+        ``day + timedelta(days=1)`` for the half-open upper bound.
+
+        Timetables with a local timezone (e.g. :class:`~airflow.timetables._cron.CronMixin`
+        subclasses) override this to return local-midnight converted to UTC so
+        that partition-date comparisons are done in the timetable's timezone.
+        """
+        return timezone.coerce_datetime(
+            datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
+        )
 
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:

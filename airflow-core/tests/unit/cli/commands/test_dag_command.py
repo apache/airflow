@@ -1745,17 +1745,15 @@ class TestCliDagsClear:
     def test_no_tz_lower_bound_truncates_time_of_day(self, parser, monkeypatch):
         """--partition-date-start with a non-midnight time-of-day must still match the day.
 
-        With no timetable timezone the else-branch truncates the CLI value to
-        date() and compares against UTC midnight.  A start of 2026-03-08T12:00:00
-        truncates to 2026-03-08, giving lower = 2026-03-08T00:00Z, which is <=
-        the stored 2026-03-08T00:00Z run (so it is included).  Without truncation
-        the raw-instant comparison would be 2026-03-08T12:00Z > 2026-03-08T00:00Z
-        and the run would be missed.
+        A start of 2026-03-08T12:00:00 truncates to 2026-03-08 via .date(),
+        giving lower = 2026-03-08T00:00Z, which is <= the stored 2026-03-08T00:00Z
+        run (so it is included).  Without truncation the raw-instant comparison
+        would be 2026-03-08T12:00Z > 2026-03-08T00:00Z and the run would be missed.
         """
+        from airflow.timetables.base import Timetable
 
-        class _NoTzTimetable:
+        class _NoTzTimetable(Timetable):
             partitioned = True
-            # no timezone attribute — triggers the no-tz else-branch
 
         def _patched(*, bundle_names, dag_id):
             dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
@@ -1791,10 +1789,10 @@ class TestCliDagsClear:
         partition_date < 2026-03-09T00Z (included).  The 2026-03-09T00Z run
         does NOT satisfy partition_date < 2026-03-09T00Z (excluded).
         """
+        from airflow.timetables.base import Timetable
 
-        class _NoTzTimetable:
+        class _NoTzTimetable(Timetable):
             partitioned = True
-            # no timezone attribute — triggers the no-tz else-branch
 
         def _patched(*, bundle_names, dag_id):
             dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
@@ -1887,11 +1885,11 @@ class TestCliDagsClear:
 
     @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
     def test_asset_timetable_clears_window_inclusive(self, parser):
-        """PartitionedAssetTimetable uses the no-tz path; day-granular UTC bounds are correct.
+        """PartitionedAssetTimetable uses the base default; day-granular UTC bounds are correct.
 
-        isinstance(dag.timetable, CronMixin) is False, so tt_tz=None and
-        _compute_day_bound returns midnight UTC for each calendar day.  The
-        full window 2026-04-10 to 2026-04-14 (inclusive) should clear the
+        PartitionedAssetTimetable has no local timezone, so
+        get_partition_day_bound returns midnight UTC for each calendar day.
+        The full window 2026-04-10 to 2026-04-14 (inclusive) should clear the
         at-boundary and within-window runs; 2026-04-15 and partition_date=None
         must not be touched.
         """
