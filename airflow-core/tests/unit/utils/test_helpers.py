@@ -21,6 +21,7 @@ import itertools
 import re
 from typing import TYPE_CHECKING
 
+import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -31,17 +32,22 @@ from airflow.utils.helpers import (
     at_most_one,
     build_airflow_dagrun_url,
     exactly_one,
+    log_filename_template_renderer,
     merge_dicts,
     prune_dict,
     validate_key,
 )
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import env_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
 
 CHUNK_SIZE_POSITIVE_INT = "Chunk size must be a positive integer"
+DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
 
 
 @pytest.fixture
@@ -264,3 +270,74 @@ class SchedulerJobRunner(MockJobRunner):
 
 class TriggererJobRunner(MockJobRunner):
     job_type = "TriggererJob"
+
+
+@pytest.mark.db_test
+class TestLogFilenameTemplateRenderer:
+    """Regression tests for #68075: the scheduler-side log filename renderer must tolerate
+    ``logical_date is None`` (asset-triggered / partitioned runs) and never abort the scheduler."""
+
+    # log_filename_template contains '%' in its default ({% if %}), which configparser interpolation
+    # (used by conf_vars) cannot round-trip; set it via an env var, which airflow reads raw.
+    TEMPLATE_ENV = "AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE"
+
+    def _make_ti(self, create_task_instance, logical_date):
+        return create_task_instance(
+            dag_id="dag_for_log_filename_rendering",
+            task_id="task_for_log_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            run_after=DEFAULT_DATE,
+            logical_date=logical_date,
+        )
+
+    def _render(self, template, ti):
+        with env_vars({self.TEMPLATE_ENV: template}):
+            log_filename_template_renderer.cache_clear()
+            try:
+                return log_filename_template_renderer()(ti=ti)
+            finally:
+                log_filename_template_renderer.cache_clear()
+
+    @pytest.mark.parametrize("logical_date", [None, DEFAULT_DATE])
+    def test_jinja_ts_is_none_safe(self, create_task_instance, logical_date):
+        ti = self._make_ti(create_task_instance, logical_date)
+        rendered = self._render("{{ ti.dag_id }}/{{ ts }}/{{ try_number }}.log", ti)
+        # ts resolves to a valid date (run_after fallback when logical_date is None); no crash.
+        assert rendered == f"dag_for_log_filename_rendering/{DEFAULT_DATE.isoformat()}/{ti.try_number}.log"
+
+    def test_fstring_logical_date_none_uses_run_after(self, create_task_instance):
+        ti = self._make_ti(create_task_instance, None)
+        rendered = self._render("{dag_id}/{logical_date}/{try_number}.log", ti)
+        assert rendered == f"dag_for_log_filename_rendering/{DEFAULT_DATE.isoformat()}/{ti.try_number}.log"
+
+    def test_broken_template_does_not_crash_scheduler(self, create_task_instance):
+        """The exact template from #68075 calls ``ti.logical_date.strftime(...)`` directly. With
+        logical_date=None it cannot render (Jinja's ``default()`` evaluates its argument eagerly),
+        but it must NOT raise - aborting the scheduler - so the renderer falls back to the default
+        run_id-based template instead."""
+        ti = self._make_ti(create_task_instance, None)
+        template = (
+            'shared/{{ ti.dag_id }}/{{ ts_nodash | default(ti.logical_date.strftime("%Y%m%dT%H%M%S")) }}'
+            "/{{ ti.task_id }}/attempt_{{ try_number | default(ti.try_number) }}.log"
+        )
+        rendered = self._render(template, ti)  # must not raise
+        assert f"run_id={ti.run_id}" in rendered
+
+    @pytest.mark.parametrize("logical_date", [None, DEFAULT_DATE])
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "{{ ti.dag_id }}/{{ ts }}/{{ try_number }}.log",
+            "{dag_id}/{logical_date}/{try_number}.log",
+        ],
+    )
+    def test_write_path_matches_read_path(
+        self, create_task_instance, create_log_template, template, logical_date
+    ):
+        """The write-side renderer and the read-side FileTaskHandler._render_filename must produce
+        identical paths for well-formed templates, for both logical_date set and None."""
+        create_log_template(template)
+        ti = self._make_ti(create_task_instance, logical_date)
+        write_path = self._render(template, ti)
+        read_path = FileTaskHandler("")._render_filename(ti, ti.try_number)
+        assert write_path == read_path
