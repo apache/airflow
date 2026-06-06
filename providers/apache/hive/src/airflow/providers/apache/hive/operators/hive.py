@@ -61,6 +61,7 @@ class HiveOperator(BaseOperator):
         This can make monitoring easier.
     :param hive_cli_params: parameters passed to hive CLO
     :param auth: optional authentication option passed for the Hive connection
+    :param jdbc_params: Additional JDBC parameters to append to the Beeline URL.
     :param proxy_user: Run HQL code as this user.
     """
 
@@ -95,6 +96,7 @@ class HiveOperator(BaseOperator):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        jdbc_params: dict[str, Any] | None = None,
         proxy_user: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -110,6 +112,7 @@ class HiveOperator(BaseOperator):
         self.mapred_job_name = mapred_job_name
         self.hive_cli_params = hive_cli_params
         self.auth = auth
+        self.jdbc_params = jdbc_params or {}
         self.proxy_user = proxy_user
         job_name_template = conf.get_mandatory_value(
             "hive",
@@ -128,6 +131,7 @@ class HiveOperator(BaseOperator):
             mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
+            jdbc_params=self.jdbc_params,
             proxy_user=self.proxy_user,
         )
 
