@@ -199,6 +199,21 @@ class TestJWTBearerLogging:
         assert bearer_credential not in repr(logs)
         assert "invalid token" not in response.text
 
+    def test_non_task_subject_yields_none_id(self, app):
+        """A non-task principal (e.g. the DAG processor) presents a non-UUID ``sub``; ``id`` is None.
+
+        It still authenticates on a route that does not require a specific task instance.
+        """
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": "dag-processor", "scope": "execution"}
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+        client = TestClient(app)
+
+        response = client.get("/protected", headers={"Authorization": "Bearer fake"})
+
+        assert response.status_code == 200
+        assert response.json() == {"id": "None"}
+
 
 class TestTiSelfScopeEnforcement:
     """Routes with the ``ti:self`` scope reject mismatched JWT subjects."""

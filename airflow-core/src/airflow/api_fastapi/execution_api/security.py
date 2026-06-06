@@ -68,6 +68,7 @@ Why ``ExecutionAPIRoute`` is needed:
 # ruff: noqa: I002
 
 from typing import Any, get_args
+from uuid import UUID
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
@@ -135,7 +136,16 @@ class JWTBearer(HTTPBearer):
             log.warning("JWT claims did not match task identity token schema", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
 
-        token = TIToken(id=claims["sub"], claims=claim_model)
+        # ``sub`` is a task-instance UUID for worker/task tokens, but a non-task principal (e.g. the
+        # DAG processor reading connections/variables at parse time) presents a non-UUID subject.
+        # Keep ``id`` as the UUID where it is one, else ``None``; routes that need a task instance
+        # check for it (ti:self / explicit lookups), conn/var reads do not.
+        try:
+            token_id: UUID | None = UUID(str(claims["sub"]))
+        except (ValueError, TypeError):
+            token_id = None
+
+        token = TIToken(id=token_id, claims=claim_model)
         request.scope[_REQUEST_SCOPE_TOKEN_KEY] = token
         return token
 

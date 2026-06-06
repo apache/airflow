@@ -28,7 +28,7 @@ from tests_common.test_utils.config import conf_vars
 class TestMintDagProcessorToken:
     @mock.patch.object(dag_processor_token, "get_signing_args", return_value={"secret_key": "s"})
     @mock.patch.object(dag_processor_token, "JWTGenerator")
-    def test_carries_both_audiences_and_sentinel_subject(self, mock_generator, _signing_args):
+    def test_carries_both_audiences_and_subject(self, mock_generator, _signing_args):
         mock_generator.return_value.generate.return_value = "minted-token"
         with conf_vars(
             {

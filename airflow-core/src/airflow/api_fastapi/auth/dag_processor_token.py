@@ -35,9 +35,10 @@ from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
-# The Execution API is task-instance scoped: its ``sub`` is validated as a UUID. The DAG processor
-# is not a task instance, so its token carries an all-zero sentinel UUID rather than a real id.
-DAG_PROCESSOR_TOKEN_SUBJECT = "00000000-0000-0000-0000-000000000000"
+# The DAG processor is not a task instance. The Execution API accepts a non-task ``sub`` (its token
+# ``id`` is then ``None``; only task-bound routes require a real id), so this is a plain identifier
+# rather than a task-instance UUID.
+DAG_PROCESSOR_TOKEN_SUBJECT = "dag-processor"
 
 
 def mint_dag_processor_token(
