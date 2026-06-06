@@ -131,7 +131,7 @@ def handle_get_variable_keys(
 
 
 @handles(MaskSecret)
-def handle_mask_secret(msg: MaskSecret) -> tuple[BaseModel | None, dict[str, bool]]:
+def handle_mask_secret(client: Client, msg: MaskSecret) -> tuple[BaseModel | None, dict[str, bool]]:
     """Register a value with the secrets masker."""
     mask_secret(msg.value, msg.name)
     return (None, {})
