@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import threading
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -26,6 +27,7 @@ import pendulum
 import pytest
 from sqlalchemy import func, select
 
+import airflow.models.backfill as backfill_module
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
@@ -711,6 +713,82 @@ def test_active_dag_run(dag_maker, session):
             triggering_user_name="pytest",
             dag_run_conf={"this": "param"},
         )
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_concurrent_active_backfill_creation_allows_only_one_winner(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    first_thread_entered = threading.Event()
+    release_first_thread = threading.Event()
+    gate_lock = threading.Lock()
+    first_call_pending = True
+    results = []
+
+    original_get_info_list = backfill_module._get_info_list
+
+    def gated_get_info_list(*args, **kwargs):
+        nonlocal first_call_pending
+
+        with gate_lock:
+            should_wait = first_call_pending
+            if should_wait:
+                first_call_pending = False
+
+        if should_wait:
+            first_thread_entered.set()
+            assert release_first_thread.wait(timeout=10)
+
+        return original_get_info_list(*args, **kwargs)
+
+    def create_backfill():
+        try:
+            result = _create_backfill(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                max_active_runs=10,
+                reverse=False,
+                triggering_user_name="pytest",
+                dag_run_conf={"this": "param"},
+            )
+        except Exception as exc:
+            results.append(exc)
+        else:
+            results.append(result)
+
+    with mock.patch.object(backfill_module, "_get_info_list", side_effect=gated_get_info_list):
+        first_thread = threading.Thread(target=create_backfill)
+        second_thread = threading.Thread(target=create_backfill)
+
+        first_thread.start()
+        assert first_thread_entered.wait(timeout=10)
+
+        second_thread.start()
+        release_first_thread.set()
+
+        first_thread.join(timeout=10)
+        second_thread.join(timeout=10)
+
+    assert not first_thread.is_alive()
+    assert not second_thread.is_alive()
+
+    successes = [result for result in results if isinstance(result, Backfill)]
+    failures = [result for result in results if isinstance(result, Exception)]
+
+    assert len(successes) == 1
+    assert len(failures) == 1
+    assert isinstance(failures[0], AlreadyRunningBackfill)
+
+    session.expire_all()
+    assert (
+        session.scalar(
+            select(func.count()).where(Backfill.dag_id == dag.dag_id, Backfill.completed_at.is_(None))
+        )
+        == 1
+    )
 
 
 def create_next_run(
