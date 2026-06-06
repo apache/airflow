@@ -40,7 +40,7 @@ When using asset store within a task, ``context["asset_store"]`` is populated fo
 Accessing asset store using ``context``
 ---------------------------------------
 
-An asset becomes available through context["asset_store"] when it is included in inlets (or in both inlets and outlets). You can then retrieve its asset store by subscripting context["asset_store"] with the asset object.
+An asset becomes available through context["asset_store"] when it is included in inlets or outlets. You can then retrieve its asset store by subscripting context["asset_store"] with the asset object.
 
 .. code-block:: python
 
@@ -61,7 +61,7 @@ To see asset store in-action in a real DAG, checkout the DAG in `example_asset_s
 Single-inlet shorthand
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-For tasks with exactly **one** concrete inlet, you can call ``get``, ``set``, ``delete``, and ``clear`` directly on ``context["asset_store"]`` without subscripting.
+For tasks with exactly **one** concrete inlet or outlet, you can call ``get``, ``set``, ``delete``, and ``clear`` directly on ``context["asset_store"]`` without subscripting.
 
 .. code-block:: python
 
@@ -71,13 +71,13 @@ For tasks with exactly **one** concrete inlet, you can call ``get``, ``set``, ``
         watermark = asset_store.get("watermark")
         asset_store.set("watermark", "2024-06-01")
 
-If the task has more than one concrete inlet, calling the shorthand raises a ``ValueError``. Use the subscript form (``context["asset_store"][my_asset]``) whenever a task has multiple inlets.
+If the task has more than one concrete inlet or outlet, calling the shorthand raises a ``ValueError``. Use the subscript form (``context["asset_store"][my_asset]``) whenever a task has multiple inlets.
 
 
 API reference
 -------------
 
-The following methods are available on both the per-asset accessor (``context["asset_store"][my_asset]``), the shorthand (``context["asset_store"]``) when the task has exactly one inlet, and when using the ``self.asset_store`` attribute.
+The following methods are available on both the per-asset accessor (``context["asset_store"][my_asset]``) and the shorthand (``context["asset_store"]``) when the task has exactly one inlet.
 
 ``get(key, default)``
 ~~~~~~~~~~~~~~~~~~~~~
@@ -88,9 +88,6 @@ Returns the stored JSON value, or the ``default`` value if the key does not exis
 
     # Using context
     watermark = context["asset_store"][my_asset].get("watermark", default="initial_watermark")
-
-    # Using self.asset_store
-    watermark = self.asset_store[my_asset].get("watermark")
 
 ``set(key, value)``
 ~~~~~~~~~~~~~~~~~~~
@@ -107,10 +104,7 @@ Writes or overwrites a key-value pair. Unlike task store, asset store has no ``r
 .. code-block:: python
 
     # Using context
-    context["asset_store"][my_asset].set("watermark", default="2024-06-01T00:00:00Z")
-
-    # Using self.asset_store
-    self.asset_store[my_asset].set("watermark", default="2024-06-01T00:00:00Z")
+    context["asset_store"][my_asset].set("watermark", "2024-06-01T00:00:00Z")
 
 ``delete(key)``
 ~~~~~~~~~~~~~~~
@@ -122,9 +116,6 @@ Deletes a single key. No-op if the key does not exist.
     # Using context
     context["asset_store"][my_asset].delete("watermark")
 
-    # Using self.asset_store
-    self.asset_store[my_asset].delete("watermark")
-
 ``clear()``
 ~~~~~~~~~~~
 
@@ -134,9 +125,6 @@ Deletes *all* asset store keys for the asset.
 
     # Using context
     context["asset_store"][my_asset].clear()
-
-    # Using self.asset_store
-    self.asset_store[my_asset].clear()
 
 Some Example Use cases
 ----------------------

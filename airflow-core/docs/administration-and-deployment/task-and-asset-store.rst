@@ -22,7 +22,7 @@ Task and Asset Store Configuration
 
 .. versionadded:: 3.3
 
-The task and asset store is the persistence layer for :doc:`task store </core-concepts/task-store>` and :doc:`asset store </core-concepts/asset-store>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend.
+The task and asset store is the persistence layer for :doc:`task store </core-concepts/task-store>` and :doc:`asset store </core-concepts/asset-store>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend. Configuration (``[state_store]``), the CLI (``airflow state-store``), and the backend base class (:class:`~airflow.sdk.state.BaseStoreBackend`) all use the ``state_store`` name for this feature.
 
 Configuration reference
 -----------------------
@@ -36,7 +36,7 @@ All options live under the ``[state_store]`` section of ``airflow.cfg``.
 ``backend``
 ~~~~~~~~~~~
 
-Full dotted path to a class that implements :class:`~airflow.sdk.state.BaseStateBackend`. Defaults to the built-in metastore backend.
+Full dotted path to a class that implements :class:`~airflow.sdk.state.BaseStoreBackend`. Defaults to the built-in metastore backend.
 
 .. code-block:: ini
 
@@ -110,8 +110,8 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
 **``NEVER_EXPIRE`` keys**
   Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the garbage collection to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.
 
-**Orphan sweep (asset store)**
-  Asset store rows for assets that no longer have an ``asset_active`` record are deleted during the orphan-sweep pass. This cleans up store entries for deactivated or renamed assets.
+**``on_delete=CASCADE`` (asset store)**
+  When an asset is deleted, all corresponding asset store rows for that asset are deleted.
 
 .. important::
 
@@ -122,16 +122,16 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
 Custom backends
 ---------------
 
-A custom backend must subclass :class:`~airflow.sdk.state.BaseStateBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStateBackend` for the full API.
+A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
 Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. Use ``isinstance`` to dispatch:
 
 .. code-block:: python
 
-    from airflow.sdk.state import BaseStateBackend, TaskScope, AssetScope
+    from airflow.sdk.state import BaseStoreBackend, TaskScope, AssetScope
 
 
-    class MyBackend(BaseStateBackend):
+    class MyBackend(BaseStoreBackend):
         def get(self, scope, key, *, session=None):
             if isinstance(scope, TaskScope):
                 return self._task_store.get(scope, key)
@@ -151,9 +151,9 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStateBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
 
-Override four serialization hooks from :class:`~airflow.sdk.state.BaseStateBackend`:
+Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 
 * ``serialize_task_store_to_ref``: called by ``TaskStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
 * ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
@@ -170,13 +170,13 @@ Example skeleton:
 
 .. code-block:: python
 
-    from airflow.sdk.state import BaseStateBackend, TaskScope, AssetScope
+    from airflow.sdk.state import BaseStoreBackend, TaskScope, AssetScope
 
     if TYPE_CHECKING:
         from pydantic import JsonValue
 
 
-    class S3StateBackend(BaseStateBackend):
+    class S3StateBackend(BaseStoreBackend):
 
         def _task_ref(self, ti_id: str, key: str) -> str:
             return f"airflow/task-store/{ti_id}/{key}"

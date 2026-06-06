@@ -107,7 +107,7 @@ The optional ``retention`` argument controls when the key expires:
 ``NEVER_EXPIRE`` sentinel
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Import ``NEVER_EXPIRE`` from ``airflow.sdk.execution_time.context``:
+Import ``NEVER_EXPIRE`` from ``airflow.sdk``:
 
 .. code-block:: python
 
