@@ -1675,6 +1675,7 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, AwaitInputTask):
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, RescheduleTask):
             self._send_terminal_state_msg(msg)
