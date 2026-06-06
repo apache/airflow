@@ -258,17 +258,16 @@ class Timetable(Protocol):
         )
         raise NotImplementedError(msg)
 
-    def get_partition_day_bound(self, day: datetime.date) -> DateTime:
+    def resolve_day_bound(self, day: datetime.date) -> DateTime:
         """
-        Return the UTC instant of *day*'s midnight boundary.
+        Return the UTC instant of *day*'s start (midnight).
 
-        Partition dates are midnight-anchored UTC calendar days by default.
-        Callers pass *day* for the inclusive lower bound and
-        ``day + timedelta(days=1)`` for the half-open upper bound.
-
-        Timetables with a local timezone (e.g. :class:`~airflow.timetables._cron.CronMixin`
-        subclasses) override this to return local-midnight converted to UTC so
-        that partition-date comparisons are done in the timetable's timezone.
+        By default a calendar day starts at midnight UTC. Timetables with a local
+        timezone (e.g. :class:`~airflow.timetables._cron.CronMixin` subclasses)
+        override this to anchor at local midnight in their timezone, converted to
+        UTC. Callers pass *day* for an inclusive lower bound and
+        ``day + timedelta(days=1)`` for a half-open upper bound (e.g. ``dag_clear``
+        uses it to bound ``partition_date`` queries).
         """
         return timezone.coerce_datetime(
             datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)

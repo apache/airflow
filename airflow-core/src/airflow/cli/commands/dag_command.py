@@ -173,10 +173,10 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     else:
         query = query.where(DagRun.partition_date.is_not(None))
         if args.partition_date_start is not None:
-            lower = dag.timetable.get_partition_day_bound(args.partition_date_start.date())
+            lower = dag.timetable.resolve_day_bound(args.partition_date_start.date())
             query = query.where(DagRun.partition_date >= lower)
         if args.partition_date_end is not None:
-            upper = dag.timetable.get_partition_day_bound(
+            upper = dag.timetable.resolve_day_bound(
                 args.partition_date_end.date() + datetime.timedelta(days=1)
             )
             query = query.where(DagRun.partition_date < upper)

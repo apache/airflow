@@ -143,14 +143,13 @@ class CronMixin:
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
-    def get_partition_day_bound(self, day: datetime.date) -> DateTime:
+    def resolve_day_bound(self, day: datetime.date) -> DateTime:
         """
         Return the UTC instant of *day*'s local midnight in this timetable's timezone.
 
-        Overrides the base default (midnight UTC) so that partition-date range
-        comparisons for :class:`~airflow.timetables._cron.CronMixin`-based
-        timetables are evaluated in the timetable's local timezone rather than at
-        the raw UTC midnight instant.
+        Overrides the base default (midnight UTC) so day-bound comparisons are
+        evaluated in the timetable's local timezone rather than at the raw UTC
+        instant.
         """
         return convert_to_utc(make_aware(datetime.datetime(day.year, day.month, day.day), self._timezone))
 

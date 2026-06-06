@@ -1882,7 +1882,7 @@ class TestCliDagsClear:
         """PartitionedAssetTimetable uses the base default; day-granular UTC bounds are correct.
 
         PartitionedAssetTimetable has no local timezone, so
-        get_partition_day_bound returns midnight UTC for each calendar day.
+        resolve_day_bound returns midnight UTC for each calendar day.
         The full window 2026-04-10 to 2026-04-14 (inclusive) should clear the
         at-boundary and within-window runs; 2026-04-15 and partition_date=None
         must not be touched.

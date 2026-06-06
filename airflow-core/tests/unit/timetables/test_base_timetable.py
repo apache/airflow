@@ -183,19 +183,19 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     assert expected_key in fp
 
 
-def test_base_get_partition_day_bound_returns_midnight_utc():
+def test_base_resolve_day_bound_returns_midnight_utc():
     """Base default returns midnight UTC as a pendulum DateTime for any calendar day."""
     tt = NullTimetable()
-    result = tt.get_partition_day_bound(datetime.date(2026, 4, 10))
+    result = tt.resolve_day_bound(datetime.date(2026, 4, 10))
 
     expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
     assert result == expected
     assert result.timezone_name == "UTC"
 
 
-def test_base_get_partition_day_bound_is_pendulum_datetime():
+def test_base_resolve_day_bound_is_pendulum_datetime():
     """Return value from the base default is a pendulum DateTime, not stdlib datetime."""
     tt = NullTimetable()
-    result = tt.get_partition_day_bound(datetime.date(2026, 1, 1))
+    result = tt.resolve_day_bound(datetime.date(2026, 1, 1))
 
     assert isinstance(result, pendulum.DateTime)

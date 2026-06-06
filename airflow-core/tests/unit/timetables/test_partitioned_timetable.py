@@ -258,8 +258,8 @@ class TestPartitionedAssetTimetable:
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
 
-    def test_partitioned_asset_timetable_get_partition_day_bound_returns_midnight_utc(self):
-        """PartitionedAssetTimetable has no local timezone; get_partition_day_bound uses the base default.
+    def test_partitioned_asset_timetable_resolve_day_bound_returns_midnight_utc(self):
+        """PartitionedAssetTimetable has no local timezone; resolve_day_bound uses the base default.
 
         Non-regression: verifies the timetable walks the base-default code path
         (midnight UTC) rather than any CronMixin path.
@@ -268,7 +268,7 @@ class TestPartitionedAssetTimetable:
             assets=Asset(name="asset-a"),
             default_partition_mapper=IdentityMapper(),
         )
-        result = tt.get_partition_day_bound(datetime.date(2026, 4, 10))
+        result = tt.resolve_day_bound(datetime.date(2026, 4, 10))
 
         expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
         assert result == expected

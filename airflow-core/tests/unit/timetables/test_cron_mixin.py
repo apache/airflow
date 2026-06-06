@@ -45,27 +45,27 @@ def test_dom_and_dow_conflict():
     assert "Every minute, only on Monday" in desc
 
 
-def test_cron_mixin_get_partition_day_bound_utc_tz():
+def test_cron_mixin_resolve_day_bound_utc_tz():
     """UTC timetable: local midnight equals UTC midnight."""
     cm = CronMixin("0 0 * * *", "UTC")
-    result = cm.get_partition_day_bound(datetime.date(2026, 4, 10))
+    result = cm.resolve_day_bound(datetime.date(2026, 4, 10))
 
     expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
     assert result == expected
 
 
-def test_cron_mixin_get_partition_day_bound_utc_plus8_crosses_day():
+def test_cron_mixin_resolve_day_bound_utc_plus8_crosses_day():
     """UTC+8 timetable: 2026-02-19 local midnight = 2026-02-18T16:00:00Z."""
     cm = CronMixin("0 0 * * *", "Asia/Taipei")
-    result = cm.get_partition_day_bound(datetime.date(2026, 2, 19))
+    result = cm.resolve_day_bound(datetime.date(2026, 2, 19))
 
     expected = pendulum.datetime(2026, 2, 18, 16, 0, 0, tz="UTC")
     assert result == expected
 
 
-def test_cron_mixin_get_partition_day_bound_is_pendulum_datetime():
+def test_cron_mixin_resolve_day_bound_is_pendulum_datetime():
     """Return value is a pendulum DateTime."""
     cm = CronMixin("0 0 * * *", "Asia/Taipei")
-    result = cm.get_partition_day_bound(datetime.date(2026, 1, 1))
+    result = cm.resolve_day_bound(datetime.date(2026, 1, 1))
 
     assert isinstance(result, pendulum.DateTime)
