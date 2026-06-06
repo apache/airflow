@@ -182,7 +182,7 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
-    def _get_github_app_token(self) -> tuple[str, str, datetime]:
+    def _get_github_app_token(self):
         try:
             from github import Auth, GithubIntegration
         except ImportError as exc:
