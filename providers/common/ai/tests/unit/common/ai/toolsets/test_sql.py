@@ -494,3 +494,65 @@ class TestSQLToolsetMultiSchema:
 
         result = json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
         assert result == ["public.users"]
+
+
+class TestSQLToolsetMetadataStatements:
+    """Read-only metadata statements (DESCRIBE/SHOW) flow through the query tool."""
+
+    def test_describe_allowed_through_query(self):
+        """DESCRIBE is read-only metadata and should not be rejected as unsafe."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(
+            records=[("id", "INTEGER"), ("name", "VARCHAR")],
+            last_description=[("column_name",), ("data_type",)],
+        )
+
+        result = asyncio.run(
+            ts.call_tool("query", {"sql": "DESCRIBE TABLE users"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert "rows" in data
+        ts._hook.get_records.assert_called_once_with("DESCRIBE TABLE users")
+
+    def test_show_allowed_with_snowflake_dialect(self):
+        """SHOW parses to a metadata statement once the hook's dialect is passed through."""
+        ts = SQLToolset("sf_default")
+        ts._hook = _make_mock_db_hook(records=[("USERS",)], last_description=[("name",)])
+        ts._hook.dialect_name = "snowflake"
+
+        result = asyncio.run(ts.call_tool("query", {"sql": "SHOW TABLES"}, ctx=MagicMock(), tool=MagicMock()))
+        data = json.loads(result)
+        assert "rows" in data
+        ts._hook.get_records.assert_called_once_with("SHOW TABLES")
+
+    @pytest.mark.parametrize(
+        "sql",
+        # SHOW falls back to Command on Postgres (no SHOW support); DELETE is a write.
+        ["SHOW TABLES", "DELETE FROM users"],
+        ids=["show_without_dialect_support", "write"],
+    )
+    def test_query_blocks_disallowed_statements(self, sql):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            asyncio.run(ts.call_tool("query", {"sql": sql}, ctx=MagicMock(), tool=MagicMock()))
+
+    def test_check_query_accepts_describe(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool("check_query", {"sql": "DESCRIBE TABLE users"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        assert json.loads(result)["valid"] is True
+
+    def test_check_query_handles_unresolvable_connection(self):
+        """check_query stays usable (dialect-agnostic) when the connection can't be resolved."""
+        ts = SQLToolset("missing_conn")
+        with patch.object(ts, "_get_db_hook", side_effect=RuntimeError("no such connection")):
+            result = asyncio.run(
+                ts.call_tool("check_query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock())
+            )
+        assert json.loads(result)["valid"] is True
