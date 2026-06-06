@@ -167,6 +167,11 @@ class _BaseTemporalMapper(PartitionMapper):
             timezone = parse_timezone(timezone)
         self._timezone = timezone
 
+    @property
+    def tzinfo(self) -> Timezone | FixedTimezone:
+        """Timezone this mapper localizes keys in (used by ``RollupMapper`` for DST-aware windows)."""
+        return self._timezone
+
     def to_downstream(self, key: str) -> str:
         dt = datetime.strptime(key, self.input_format)
         if dt.tzinfo is None:

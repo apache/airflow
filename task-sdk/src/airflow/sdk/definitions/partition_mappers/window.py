@@ -58,7 +58,14 @@ class HourWindow(Window):
 
 
 class DayWindow(Window):
-    """Twenty-four consecutive hourly keys making up one day."""
+    """
+    The hourly keys making up one calendar day.
+
+    Twenty-four with a UTC/naive upstream mapper; DST-aware with a local-timezone upstream
+    mapper (twenty-three on the spring-forward day, twenty-five on the fall-back day). The
+    DST-aware enumeration runs in the scheduler (airflow-core); this Task SDK definition only
+    declares the window for Dag authoring and serialization.
+    """
 
     expected_decoded_type: ClassVar[type] = datetime
 
