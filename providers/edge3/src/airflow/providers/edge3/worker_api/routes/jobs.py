@@ -62,6 +62,7 @@ def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
         ]
     ),
 )

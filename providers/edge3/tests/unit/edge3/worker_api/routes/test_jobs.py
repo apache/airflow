@@ -23,6 +23,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
@@ -137,7 +138,7 @@ class TestJobsApiRoutes:
             assert db_job is not None
             assert db_job.state == TaskInstanceState.SUCCESS
 
-    def test_fetch_filters_by_team_name(self, session: Session):
+    def test_fetch_filters_by_worker_team_name(self, session: Session):
         with create_session() as session:
             session.add(
                 EdgeWorkerModel(
@@ -176,6 +177,15 @@ class TestJobsApiRoutes:
             assert result is not None
             assert result.dag_id == "dag_a"
             assert result.task_id == "task_a"
+
+    def test_fetch_unknown_worker_raises_404(self, session: Session):
+        body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
+
+        with pytest.raises(HTTPException) as exc_info:
+            fetch("unknown-worker", body, session)
+
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        assert exc_info.value.detail == "Worker not found"
 
     def test_fetch_without_team_name_returns_any_team(self, session: Session):
         """When a worker has no team_name, no team filter is applied so any queued job can be returned."""
