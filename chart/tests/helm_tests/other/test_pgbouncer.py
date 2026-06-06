@@ -111,13 +111,9 @@ class TestPgbouncer:
     def test_pgbouncer_service_ip_family_policy(self):
         docs = render_chart(
             values={
-                "pgbouncer": {
-                    "enabled": True,
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "pgbouncer": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
         )

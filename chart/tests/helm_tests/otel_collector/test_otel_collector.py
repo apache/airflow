@@ -403,12 +403,8 @@ class TestOtelCollectorService:
     def test_ip_family_policy(self):
         docs = render_chart(
             values={
-                "otelCollector": {
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=[SERVICE_TEMPLATE],
         )

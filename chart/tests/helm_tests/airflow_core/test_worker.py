@@ -2788,12 +2788,8 @@ class TestWorkerService:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/workers/worker-service.yaml"],
         )

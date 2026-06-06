@@ -746,12 +746,8 @@ class TestTriggererService:
     def test_ip_family_policy(self):
         docs = render_chart(
             values={
-                "triggerer": {
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/triggerer/triggerer-service.yaml"],
         )

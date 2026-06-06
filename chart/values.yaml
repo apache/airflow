@@ -139,6 +139,13 @@ labels: {}
 # Whenever service links should be added to each pod.
 enableServiceLinks: false
 
+# Specify the ip family policy to configure dual-stack networking for all Services.
+# See https://kubernetes.io/docs/concepts/services-networking/dual-stack/
+ipFamilyPolicy: ~
+
+# List of IP families for all Services (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"]).
+ipFamilies: []
+
 # List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
 # registries. Items can be either strings or {name: secret} objects.
 imagePullSecrets: []
@@ -1105,15 +1112,6 @@ workers:
   # (deprecated, use `workers.celery.labels` and/or `workers.kubernetes.labels` instead)
   labels: {}
 
-  # Headless service configuration (used for internal log access with CeleryExecutor)
-  service:
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
-
   # Log groomer configuration for Airflow Celery workers
   # (deprecated, use `workers.celery.logGroomerSidecar` instead)
   logGroomerSidecar:
@@ -1935,15 +1933,6 @@ scheduler:
   # Labels specific to scheduler objects and pods
   labels: {}
 
-  # Headless service configuration (used for internal log access)
-  service:
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
-
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -2316,12 +2305,6 @@ apiServer:
     # loadBalancerSourceRanges:
     #   - "10.123.0.0/16"
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   podDisruptionBudget:
     enabled: false
@@ -2613,15 +2596,6 @@ triggerer:
 
   # Labels specific to triggerer objects and pods
   labels: {}
-
-  # Headless service configuration (used for internal log access)
-  service:
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   logGroomerSidecar:
     # Whether to deploy the Airflow triggerer log groomer sidecar.
@@ -3064,12 +3038,6 @@ flower:
     # loadBalancerSourceRanges:
     #   - "10.123.0.0/16"
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   # Launch additional containers into the flower pods.
   extraContainers: []
@@ -3202,12 +3170,6 @@ statsd:
   service:
     extraAnnotations: {}
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   # Select certain nodes for StatsD pods.
   nodeSelector: {}
@@ -3308,12 +3270,6 @@ otelCollector:
   service:
     annotations: {}
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   nodeSelector: {}
   affinity: {}
@@ -3443,12 +3399,6 @@ pgbouncer:
     extraAnnotations: {}
     clusterIp: ~
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   # https://www.pgbouncer.org/config.html
   verbose: 0
@@ -3607,12 +3557,6 @@ redis:
     # If using NodePort service type, custom node port can be specified
     nodePort:
 
-    # Specify the ip family policy to configure dual-stack see `Type` in
-    # https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-    ipFamilyPolicy: ~
-
-    # List of IP families (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"])
-    ipFamilies: []
 
   persistence:
     # Enable persistent volumes

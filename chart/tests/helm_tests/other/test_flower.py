@@ -576,13 +576,9 @@ class TestFlowerService:
     def test_ip_family_policy(self):
         docs = render_chart(
             values={
-                "flower": {
-                    "enabled": True,
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "flower": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/flower/flower-service.yaml"],
         )

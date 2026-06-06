@@ -580,12 +580,8 @@ class TestRedisService:
     def test_ip_family_policy(self):
         docs = render_chart(
             values={
-                "redis": {
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/redis/redis-service.yaml"],
         )

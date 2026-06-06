@@ -1093,12 +1093,8 @@ class TestSchedulerService:
         docs = render_chart(
             values={
                 "executor": "LocalExecutor",
-                "scheduler": {
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/scheduler/scheduler-service.yaml"],
         )

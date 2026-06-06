@@ -428,13 +428,9 @@ class TestStatsdService:
     def test_ip_family_policy(self):
         docs = render_chart(
             values={
-                "statsd": {
-                    "enabled": True,
-                    "service": {
-                        "ipFamilyPolicy": "PreferDualStack",
-                        "ipFamilies": ["IPv4", "IPv6"],
-                    },
-                },
+                "statsd": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
             },
             show_only=["templates/statsd/statsd-service.yaml"],
         )
