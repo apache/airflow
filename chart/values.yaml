@@ -2305,7 +2305,6 @@ apiServer:
     # loadBalancerSourceRanges:
     #   - "10.123.0.0/16"
 
-
   podDisruptionBudget:
     enabled: false
 
@@ -3038,7 +3037,6 @@ flower:
     # loadBalancerSourceRanges:
     #   - "10.123.0.0/16"
 
-
   # Launch additional containers into the flower pods.
   extraContainers: []
 
@@ -3170,7 +3168,6 @@ statsd:
   service:
     extraAnnotations: {}
 
-
   # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
@@ -3269,7 +3266,6 @@ otelCollector:
 
   service:
     annotations: {}
-
 
   nodeSelector: {}
   affinity: {}
@@ -3398,7 +3394,6 @@ pgbouncer:
   service:
     extraAnnotations: {}
     clusterIp: ~
-
 
   # https://www.pgbouncer.org/config.html
   verbose: 0
@@ -3556,7 +3551,6 @@ redis:
 
     # If using NodePort service type, custom node port can be specified
     nodePort:
-
 
   persistence:
     # Enable persistent volumes
