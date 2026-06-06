@@ -133,14 +133,8 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     anchored in the timetable's timezone for tz-aware partitioned timetables.
     --partition-date-start is the inclusive start local calendar day;
     --partition-date-end is the inclusive end local calendar day (any
-    time-of-day component in either value is ignored).
-
-    Each bound is parsed by ``parsedate``:
-    naive input is read in the configured default timezone (UTC unless
-    overridden), and tz-aware input is normalized to UTC before ``.date()``
-    extracts the calendar day -- no re-projection to the timetable timezone
-    occurs. To avoid an off-by-one-day shift, supply a naive date
-    (e.g. ``2026-02-19``) or a value already expressed in UTC.
+    time-of-day or timezone-offset component in either value is ignored; only
+    the calendar date is used).
     """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
