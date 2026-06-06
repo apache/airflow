@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstanceCollectionResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -91,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1172,6 +1174,26 @@ class TestDagRunOperations:
             )
         ],
     )
+    clear_task_instance_collection_response = ClearTaskInstanceCollectionResponse(
+        task_instances=[
+            TaskInstanceResponse(
+                id=uuid.uuid4(),
+                task_id="task_1",
+                dag_id="test_dag",
+                dag_run_id="manual__2024-12-31T23:59:59+00:00",
+                map_index=-1,
+                run_after=datetime.datetime(2024, 12, 31, 23, 59, 59),
+                try_number=1,
+                max_tries=0,
+                task_display_name="task_1",
+                dag_display_name="test_dag",
+                pool="default_pool",
+                pool_slots=1,
+                executor_config="{}",
+            )
+        ],
+        total_entries=1,
+    )
 
     dag_run_collection_response = DAGRunCollectionResponse(
         dag_runs=[dag_run_response],
@@ -1308,6 +1330,30 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
         assert "state" not in captured_params
         assert captured_params["limit"] == "5"
+
+    def test_clear(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/clear"
+            request_body = json.loads(request.content)
+            assert request_body["dry_run"] is False
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.clear(dag_id=self.dag_id, dag_run_id=self.dag_run_id, dry_run=False)
+        assert response == self.dag_run_response
+
+    def test_clear_dry_run(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/clear"
+            request_body = json.loads(request.content)
+            assert request_body["dry_run"] is True
+            return httpx.Response(
+                200, json=json.loads(self.clear_task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.clear(dag_id=self.dag_id, dag_run_id=self.dag_run_id, dry_run=True)
+        assert response == self.clear_task_instance_collection_response
 
 
 class TestJobsOperations:
