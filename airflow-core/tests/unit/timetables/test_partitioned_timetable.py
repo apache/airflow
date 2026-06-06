@@ -258,28 +258,18 @@ class TestPartitionedAssetTimetable:
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
 
+    def test_partitioned_asset_timetable_get_partition_day_bound_returns_midnight_utc(self):
+        """PartitionedAssetTimetable has no local timezone; get_partition_day_bound uses the base default.
 
-# ---------------------------------------------------------------------------
-# get_partition_day_bound — PartitionedAssetTimetable uses base default
-# ---------------------------------------------------------------------------
+        Non-regression: verifies the timetable walks the base-default code path
+        (midnight UTC) rather than any CronMixin path.
+        """
+        tt = PartitionedAssetTimetable(
+            assets=Asset(name="asset-a"),
+            default_partition_mapper=IdentityMapper(),
+        )
+        result = tt.get_partition_day_bound(datetime.date(2026, 4, 10))
 
-
-def test_partitioned_asset_timetable_get_partition_day_bound_returns_midnight_utc():
-    """PartitionedAssetTimetable has no local timezone; get_partition_day_bound uses the base default.
-
-    Non-regression: verifies the timetable walks the base-default code path
-    (midnight UTC) rather than any CronMixin path.
-    """
-    from airflow.partition_mappers.identity import IdentityMapper
-    from airflow.sdk import Asset
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
-    tt = PartitionedAssetTimetable(
-        assets=Asset(name="asset-a"),
-        default_partition_mapper=IdentityMapper(),
-    )
-    result = tt.get_partition_day_bound(datetime.date(2026, 4, 10))
-
-    expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
-    assert result == expected
-    assert result.timezone_name == "UTC"
+        expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
+        assert result == expected
+        assert result.timezone_name == "UTC"

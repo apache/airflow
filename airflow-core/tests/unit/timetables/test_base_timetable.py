@@ -22,6 +22,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.timetables.simple import NullTimetable
 
 
 def test_builtin_timetable_type_name_returns_class_name():
@@ -182,15 +183,8 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     assert expected_key in fp
 
 
-# ---------------------------------------------------------------------------
-# get_partition_day_bound — base default
-# ---------------------------------------------------------------------------
-
-
 def test_base_get_partition_day_bound_returns_midnight_utc():
     """Base default returns midnight UTC as a pendulum DateTime for any calendar day."""
-    from airflow.timetables.simple import NullTimetable
-
     tt = NullTimetable()
     result = tt.get_partition_day_bound(datetime.date(2026, 4, 10))
 
@@ -201,8 +195,6 @@ def test_base_get_partition_day_bound_returns_midnight_utc():
 
 def test_base_get_partition_day_bound_is_pendulum_datetime():
     """Return value from the base default is a pendulum DateTime, not stdlib datetime."""
-    from airflow.timetables.simple import NullTimetable
-
     tt = NullTimetable()
     result = tt.get_partition_day_bound(datetime.date(2026, 1, 1))
 
