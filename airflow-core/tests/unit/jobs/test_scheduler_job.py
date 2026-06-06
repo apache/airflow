@@ -82,6 +82,7 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -7311,6 +7312,97 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
+
+    def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
+        """
+        A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by
+        the scheduler sweep (the default applied as the response), while a not-yet-expired one is
+        left untouched. This proves HITL timeout liveness with no triggerer running.
+        """
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_defaults",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr_past = dag_maker.create_dagrun()
+        dr_future = dag_maker.create_dagrun(
+            run_id="future", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+        )
+        ti_past = dr_past.get_task_instance("dummy1", session=session)
+        ti_future = dr_future.get_task_instance("dummy1", session=session)
+        for ti, offset in ((ti_past, -60), (ti_future, 60)):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=offset)
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+            session.add(
+                HITLDetail(
+                    ti_id=ti.id,
+                    options=["Approve", "Reject"],
+                    subject="approve?",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                )
+            )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti_past)
+        session.refresh(ti_future)
+        # Past-deadline task resumed with the default applied; the future one is left parked.
+        assert ti_past.state == State.SCHEDULED
+        assert ti_past.next_method == "execute_complete"
+        assert ti_past.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        assert ti_past.next_kwargs["event"]["timedout"] is True
+        assert ti_future.state == State.AWAITING_INPUT
+        hitl_detail = session.get(HITLDetail, ti_past.id)
+        assert hitl_detail.chosen_options == ["Approve"]
+        assert hitl_detail.responded_by is None
+        assert hitl_detail.responded_at is not None
+
+    def test_awaiting_input_timeout_without_defaults_fails(self, dag_maker):
+        """A parked ``awaiting_input`` task past its deadline with no defaults is failed by the sweep."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_nodefaults",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        ti.state = State.AWAITING_INPUT
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                defaults=None,
+                multiple=False,
+                params={},
+            )
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti)
+        # Resumed into execute_complete with a timeout failure event (raises HITLTimeoutError on
+        # resume), rather than the generic __fail__ deferral-timeout path.
+        assert ti.state == State.SCHEDULED
+        assert ti.next_method == "execute_complete"
+        assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """

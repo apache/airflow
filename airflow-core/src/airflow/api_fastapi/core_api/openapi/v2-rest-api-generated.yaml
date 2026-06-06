@@ -15867,6 +15867,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
