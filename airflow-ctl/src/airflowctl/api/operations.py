@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstanceCollectionResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -49,6 +50,7 @@ from airflowctl.api.datamodels.generated import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
+    DAGRunClearBody,
     DAGRunCollectionResponse,
     DAGRunResponse,
     DagStatsCollectionResponse,
@@ -667,6 +669,27 @@ class DagRunOperations(BaseOperations):
         try:
             self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
             return dag_run_id
+        except ServerResponseError as e:
+            raise e
+
+    def clear(
+        self, dag_id: str, dag_run_id: str, dry_run: bool | None = None, only_failed: bool | None = None
+    ) -> ClearTaskInstanceCollectionResponse | DAGRunResponse | ServerResponseError:
+        """Clear a Dag run."""
+        dry_run = dry_run if dry_run is not None else True
+        only_failed = only_failed if only_failed is not None else False
+        body = DAGRunClearBody(
+            dry_run=dry_run,
+            only_failed=only_failed,
+        )
+        try:
+            self.response = self.client.post(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+                json=body.model_dump(mode="json"),
+            )
+            if dry_run:
+                return ClearTaskInstanceCollectionResponse.model_validate_json(self.response.content)
+            return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
