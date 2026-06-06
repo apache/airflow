@@ -28,8 +28,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
