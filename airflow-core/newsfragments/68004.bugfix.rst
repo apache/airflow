@@ -1,0 +1,9 @@
+Make ``RollupMapper`` calendar windows DST-aware
+
+``DayWindow`` no longer assumes every day has 24 hours. When paired with a local-timezone upstream
+mapper it now enumerates the real local hours of the calendar day, yielding 23 expected upstream
+keys on a spring-forward day and 25 on a fall-back day instead of a fixed 24. This fixes
+asset-partitioned rollups being held forever on spring-forward days (an expected hourly key that
+never occurs is no longer in the required set). With a UTC (or naive) upstream mapper the behavior
+is unchanged (24 hours). On a fall-back day, the repeated local hour collapses to a single key
+unless the upstream mapper's ``input_format`` carries the UTC offset (``%z``).
