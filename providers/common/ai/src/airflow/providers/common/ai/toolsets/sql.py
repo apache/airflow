@@ -183,7 +183,6 @@ class SQLToolset(BaseToolset):
     def id(self) -> str:
         return f"sql-{self._db_conn_id}"
 
-
     # ------------------------------------------------------------------
     # Lazy hook resolution
     # ------------------------------------------------------------------

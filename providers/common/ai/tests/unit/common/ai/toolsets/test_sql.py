@@ -367,7 +367,7 @@ class TestSQLToolsetMultiSchema:
             }
         )
 
-        result = json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+        result = json.loads(ts._list_tables())
         assert result == ["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS", "MODEL_CRM.SF_ASTRO_ORGS"]
 
     def test_list_tables_never_introspects_none_schema_when_all_qualified(self):
@@ -375,7 +375,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.X", "MODEL_CRM.Y"])
         ts._hook = self._schema_aware_hook({"MODEL_ASTRO": ["X"], "MODEL_CRM": ["Y"]})
 
-        asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+        ts._list_tables()
 
         called_schemas = {c.kwargs.get("schema") for c in ts._hook.inspector.get_table_names.call_args_list}
         assert called_schemas == {"MODEL_ASTRO", "MODEL_CRM"}
@@ -385,7 +385,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("pg", allowed_tables=["users", "MODEL_ASTRO.X"], schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users", "orders"], "MODEL_ASTRO": ["X", "Z"]})
 
-        result = json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+        result = json.loads(ts._list_tables())
         # Qualified schemas listed first (sorted), then the default schema.
         assert result == ["MODEL_ASTRO.X", "users"]
 
@@ -393,16 +393,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"])
         ts._hook = self._schema_aware_hook({"MODEL_ASTRO": ["DEPLOYMENT_IMAGE_DETAILS"]})
 
-        result = json.loads(
-            asyncio.run(
-                ts.call_tool(
-                    "get_schema",
-                    {"table_name": "MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"},
-                    ctx=MagicMock(),
-                    tool=MagicMock(),
-                )
-            )
-        )
+        result = json.loads(ts._get_schema("MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"))
         assert result == [{"name": "id", "type": "INTEGER"}]
         ts._hook.get_table_schema.assert_called_once_with("DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO")
 
@@ -410,13 +401,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.X"])
         ts._hook = self._schema_aware_hook({"MODEL_ASTRO": ["X"]})
 
-        result = json.loads(
-            asyncio.run(
-                ts.call_tool(
-                    "get_schema", {"table_name": "SECRETS.PASSWORDS"}, ctx=MagicMock(), tool=MagicMock()
-                )
-            )
-        )
+        result = json.loads(ts._get_schema("SECRETS.PASSWORDS"))
         assert "error" in result
         ts._hook.get_table_schema.assert_not_called()
 
@@ -424,7 +409,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("pg", schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users"]})
 
-        asyncio.run(ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock()))
+        ts._get_schema("users")
         ts._hook.get_table_schema.assert_called_once_with("users", schema="public")
 
     def test_list_tables_matches_case_insensitively(self):
@@ -440,23 +425,14 @@ class TestSQLToolsetMultiSchema:
             }
         )
 
-        result = json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+        result = json.loads(ts._list_tables())
         assert result == ["MODEL_ASTRO.deployment_image_details", "MODEL_CRM.sf_astro_orgs"]
 
     def test_get_schema_matches_case_insensitively(self):
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"])
         ts._hook = self._schema_aware_hook({"MODEL_ASTRO": ["deployment_image_details"]})
 
-        result = json.loads(
-            asyncio.run(
-                ts.call_tool(
-                    "get_schema",
-                    {"table_name": "MODEL_ASTRO.deployment_image_details"},
-                    ctx=MagicMock(),
-                    tool=MagicMock(),
-                )
-            )
-        )
+        result = json.loads(ts._get_schema("MODEL_ASTRO.deployment_image_details"))
         assert "error" not in result
         ts._hook.get_table_schema.assert_called_once_with("deployment_image_details", schema="MODEL_ASTRO")
 
@@ -465,7 +441,7 @@ class TestSQLToolsetMultiSchema:
         ts = SQLToolset("pg", allowed_tables=["public.users", "users"], schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users"]})
 
-        result = json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+        result = json.loads(ts._list_tables())
         assert result == ["public.users"]
 
 
@@ -480,10 +456,7 @@ class TestSQLToolsetMetadataStatements:
             last_description=[("column_name",), ("data_type",)],
         )
 
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "DESCRIBE TABLE users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
+        data = json.loads(ts._query("DESCRIBE TABLE users"))
         assert "rows" in data
         ts._hook.get_records.assert_called_once_with("DESCRIBE TABLE users")
 
@@ -493,8 +466,7 @@ class TestSQLToolsetMetadataStatements:
         ts._hook = _make_mock_db_hook(records=[("USERS",)], last_description=[("name",)])
         ts._hook.dialect_name = "snowflake"
 
-        result = asyncio.run(ts.call_tool("query", {"sql": "SHOW TABLES"}, ctx=MagicMock(), tool=MagicMock()))
-        data = json.loads(result)
+        data = json.loads(ts._query("SHOW TABLES"))
         assert "rows" in data
         ts._hook.get_records.assert_called_once_with("SHOW TABLES")
 
@@ -510,22 +482,18 @@ class TestSQLToolsetMetadataStatements:
         ts._hook.dialect_name = "postgresql"
 
         with pytest.raises(SQLSafetyError, match="not allowed"):
-            asyncio.run(ts.call_tool("query", {"sql": sql}, ctx=MagicMock(), tool=MagicMock()))
+            ts._query(sql)
 
     def test_check_query_accepts_describe(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
 
-        result = asyncio.run(
-            ts.call_tool("check_query", {"sql": "DESCRIBE TABLE users"}, ctx=MagicMock(), tool=MagicMock())
-        )
+        result = ts._check_query("DESCRIBE TABLE users")
         assert json.loads(result)["valid"] is True
 
     def test_check_query_handles_unresolvable_connection(self):
         """check_query stays usable (dialect-agnostic) when the connection can't be resolved."""
         ts = SQLToolset("missing_conn")
         with patch.object(ts, "_get_db_hook", side_effect=RuntimeError("no such connection")):
-            result = asyncio.run(
-                ts.call_tool("check_query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock())
-            )
+            result = ts._check_query("SELECT 1")
         assert json.loads(result)["valid"] is True
