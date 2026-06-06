@@ -137,10 +137,6 @@ class CronMixin:
     def summary(self) -> str:
         return self._expression
 
-    @property
-    def timezone(self) -> Timezone | FixedTimezone:
-        return self._timezone
-
     def validate(self) -> None:
         try:
             croniter(self._expression)
