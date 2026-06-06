@@ -39,6 +39,7 @@ import msgspec
 import pytest
 import time_machine
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -1039,6 +1040,61 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_handles_lock_timeout(self, mock_is_lock_not_available, session, caplog):
+        """Dags deactivation should gracefully handle database lock timeouts."""
+        from sqlalchemy.exc import OperationalError
+
+        session.add(DagBundleModel(name="gone-bundle"))
+        session.flush()
+        session.execute(
+            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
+        )
+        session.add(
+            DagModel(
+                dag_id="dag_in_inactive_bundle",
+                bundle_name="gone-bundle",
+                relative_fileloc="some_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+
+        # Mock session.execute to raise OperationalError only when updating DagModel
+        original_execute = session.execute
+
+        def mock_execute(*args, **kwargs):
+            if hasattr(args[0], "table") and getattr(args[0].table, "name", "") == "dag":
+                raise OperationalError("Lock wait timeout exceeded", params={}, orig=Exception())
+            return original_execute(*args, **kwargs)
+
+        mock_is_lock_not_available.return_value = True
+
+        with mock.patch.object(session, "execute", side_effect=mock_execute):
+            manager.deactivate_stale_dags(last_parsed={})
+
+        assert "Lock not available when deactivating stale DAGs" in caplog.text
+
+    @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
+    @mock.patch("airflow.models.dag.DagModel.deactivate_deleted_dags")
+    def test_deactivate_deleted_dags_handles_lock_timeout(
+        self, mock_deactivate_deleted_dags, mock_is_lock_not_available, caplog
+    ):
+        """Dags deactivation of deleted dags should gracefully handle database lock timeouts."""
+        mock_deactivate_deleted_dags.side_effect = OperationalError(
+            "Lock wait timeout exceeded", params={}, orig=Exception()
+        )
+        mock_is_lock_not_available.return_value = True
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.deactivate_deleted_dags(bundle_name="testing_bundle", present=set())
+
+        assert "Lock not available when deactivating deleted DAGs for bundle testing_bundle" in caplog.text
 
     @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
