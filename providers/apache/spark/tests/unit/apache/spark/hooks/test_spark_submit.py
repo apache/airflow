@@ -941,17 +941,24 @@ class TestSparkSubmitHook:
         # Then
         assert hook._spark_exit_code == 999
 
-    def test_process_spark_submit_log_k8s_submission_id_format(self):
+    @pytest.mark.parametrize(
+        "pod_name",
+        [
+            "arrow-spark-c8e2e29e73db9c93-driver",
+            "victim-driver-foo-abc-driver",
+        ],
+    )
+    def test_process_spark_submit_log_k8s_submission_id_format(self, pod_name):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster")
         log_lines = [
-            "INFO Client: Deployed Spark application arrow-spark with application ID "
+            f"INFO Client: Deployed Spark application {pod_name.removesuffix('-driver')} with application ID "
             "spark-1e22d65826b74ac2927249b0e607ed54 and submission ID "
-            "spark:arrow-spark-c8e2e29e73db9c93-driver into Kubernetes",
+            f"spark:{pod_name} into Kubernetes",
         ]
 
         hook._process_spark_submit_log(log_lines)
 
-        assert hook._kubernetes_driver_pod == "arrow-spark-c8e2e29e73db9c93-driver"
+        assert hook._kubernetes_driver_pod == pod_name
 
     def test_process_spark_client_mode_submit_log_k8s(self):
         # Given
@@ -1589,8 +1596,8 @@ class TestSparkSubmitHook:
         assert mock_client.read_namespaced_pod.call_count == 3
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_poll_k8s_driver_exits_cleanly_on_404(self, mock_get_client):
-        """404 from read_namespaced_pod means pod was deleted by on_kill — should return cleanly, not raise."""
+    def test_poll_k8s_driver_raises_on_404(self, mock_get_client):
+        """404 from read_namespaced_pod means the submitted driver cannot be tracked."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
         hook._kubernetes_driver_pod = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
@@ -1598,7 +1605,8 @@ class TestSparkSubmitHook:
         mock_client = mock_get_client.return_value
         mock_client.read_namespaced_pod.side_effect = kube_client.ApiException(status=404, reason="Not Found")
 
-        hook._poll_k8s_driver_via_api()
+        with pytest.raises(RuntimeError, match="was not found"):
+            hook._poll_k8s_driver_via_api()
 
         mock_client.delete_namespaced_pod.assert_not_called()
 
