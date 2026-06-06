@@ -168,6 +168,7 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$|
@@ -186,13 +187,14 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -299,7 +301,7 @@ repos:
          - 'black==26.1.0'
         exclude: >
           (?x)
-          ^\.github/skills/aip-user-stories
+          ^\.agents/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -396,8 +398,8 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/|
-          ^\.github/skills/magpie-setup/|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -442,7 +444,7 @@ repos:
           ^\.build/|
           ^generated/|
           ^\.apache-magpie-overrides/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -680,6 +682,8 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
@@ -887,7 +891,7 @@ repos:
         files: >
           (?x)
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.agents/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
@@ -959,7 +963,7 @@ repos:
         exclude: |
           (?x)
           ^\.apache-magpie-overrides/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
