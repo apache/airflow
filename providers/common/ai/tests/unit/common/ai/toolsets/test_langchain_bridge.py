@@ -29,6 +29,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.hooks.base import BaseToolset, ToolSpec
 from airflow.providers.common.ai.toolsets.langchain_bridge import airflow_toolset_to_langchain_tools
 
 _PASSTHROUGH = SchemaValidator(core_schema.any_schema())
@@ -180,6 +181,95 @@ class TestAirflowToolsetToLangChainTools:
 
         with pytest.raises(AirflowOptionalProviderFeatureException):
             airflow_toolset_to_langchain_tools(FakeToolset())
+
+
+_TEXT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"text": {"type": "string"}},
+    "required": ["text"],
+}
+
+
+class FakeSyncBaseToolset(BaseToolset):
+    def as_tools(self) -> list[ToolSpec]:
+        return [
+            ToolSpec(
+                name="greet",
+                description="Greet someone.",
+                parameters=_TEXT_SCHEMA,
+                fn=lambda text: f"hello {text}",
+            ),
+            ToolSpec(
+                name="retry_me",
+                description="Always retries.",
+                parameters=_TEXT_SCHEMA,
+                fn=self._boom,
+            ),
+        ]
+
+    @staticmethod
+    def _boom(text: str) -> str:
+        raise ModelRetry("please try again")
+
+
+class FakeAsyncBaseToolset(BaseToolset):
+    def as_tools(self) -> list[ToolSpec]:
+        return [
+            ToolSpec(
+                name="greet_async",
+                description="Async greet.",
+                parameters=_TEXT_SCHEMA,
+                fn=self._greet,
+            ),
+            ToolSpec(
+                name="retry_async",
+                description="Always retries (async).",
+                parameters=_TEXT_SCHEMA,
+                fn=self._boom,
+            ),
+        ]
+
+    @staticmethod
+    async def _greet(text: str) -> str:
+        return f"async hello {text}"
+
+    @staticmethod
+    async def _boom(text: str) -> str:
+        raise ModelRetry("async please try again")
+
+
+class TestBaseToolsetConversion:
+    def test_sync_fn_sync_invoke(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeSyncBaseToolset())}
+        assert tools["greet"].invoke({"text": "world"}) == "hello world"
+
+    def test_sync_fn_async_invoke(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeSyncBaseToolset())}
+        assert asyncio.run(tools["greet"].ainvoke({"text": "world"})) == "hello world"
+
+    def test_async_fn_sync_invoke(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeAsyncBaseToolset())}
+        assert tools["greet_async"].invoke({"text": "world"}) == "async hello world"
+
+    def test_async_fn_async_invoke(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeAsyncBaseToolset())}
+        assert asyncio.run(tools["greet_async"].ainvoke({"text": "world"})) == "async hello world"
+
+    def test_sync_fn_model_retry_returned_as_output_sync(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeSyncBaseToolset())}
+        assert tools["retry_me"].invoke({"text": "x"}) == "please try again"
+
+    def test_sync_fn_model_retry_returned_as_output_async(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeSyncBaseToolset())}
+        assert asyncio.run(tools["retry_me"].ainvoke({"text": "x"})) == "please try again"
+
+    def test_async_fn_model_retry_returned_as_output_sync(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeAsyncBaseToolset())}
+        assert tools["retry_async"].invoke({"text": "x"}) == "async please try again"
+
+    def test_async_fn_model_retry_returned_as_output_async(self):
+        tools = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeAsyncBaseToolset())}
+        assert asyncio.run(tools["retry_async"].ainvoke({"text": "x"})) == "async please try again"
 
 
 class TestSQLToolsetConversion:

@@ -25,6 +25,7 @@ import pytest
 # Skip the entire test module on older Airflow versions tested in compat CI.
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
+from airflow.providers.common.ai.hooks.base import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
@@ -32,27 +33,30 @@ from airflow.providers.common.ai.policies.retry import (
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
 
 
-def _make_mock_agent(category, should_retry, delay=0, reasoning="test"):
-    """Create a mock agent that returns a canned ErrorClassification."""
-    mock_result = MagicMock()
-    mock_result.output = ErrorClassification(
-        category=category,
-        should_retry=should_retry,
-        suggested_delay_seconds=delay,
-        reasoning=reasoning,
+def _make_run_result(output):
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1),
     )
-    mock_agent = MagicMock()
-    mock_agent.run_sync.return_value = mock_result
-    return mock_agent
+
+
+def _make_mock_hook(run_result):
+    mock_hook = MagicMock()
+    mock_hook.create_agent.return_value = MagicMock()
+    mock_hook.run_agent.return_value = run_result
+    return mock_hook
 
 
 class TestLLMClassifyDecisions:
     """Test that _classify maps LLM classification to correct RetryDecisions."""
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_auth_error_returns_fail(self, mock_hook_cls):
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
-            "auth", should_retry=False, reasoning="API key expired"
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_auth_error_returns_fail(self, mock_get_hook):
+        mock_get_hook.return_value = _make_mock_hook(
+            _make_run_result(
+                ErrorClassification(category="auth", should_retry=False, reasoning="API key expired")
+            )
         )
         policy = LLMRetryPolicy(llm_conn_id="test")
         decision = policy.evaluate(PermissionError("403"), try_number=1, max_tries=3)
@@ -61,10 +65,14 @@ class TestLLMClassifyDecisions:
         assert "auth" in decision.reason
         assert "API key expired" in decision.reason
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_rate_limit_returns_retry_with_delay(self, mock_hook_cls):
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
-            "rate_limit", should_retry=True, delay=60, reasoning="429"
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_rate_limit_returns_retry_with_delay(self, mock_get_hook):
+        mock_get_hook.return_value = _make_mock_hook(
+            _make_run_result(
+                ErrorClassification(
+                    category="rate_limit", should_retry=True, suggested_delay_seconds=60, reasoning="429"
+                )
+            )
         )
         policy = LLMRetryPolicy(llm_conn_id="test")
         decision = policy.evaluate(RuntimeError("429"), try_number=1, max_tries=3)
@@ -72,11 +80,15 @@ class TestLLMClassifyDecisions:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=60)
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_transient_retry_with_zero_delay_uses_default(self, mock_hook_cls):
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_transient_retry_with_zero_delay_uses_default(self, mock_get_hook):
         """suggested_delay_seconds=0 means use the task's default delay, not override."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
-            "transient", should_retry=True, delay=0
+        mock_get_hook.return_value = _make_mock_hook(
+            _make_run_result(
+                ErrorClassification(
+                    category="transient", should_retry=True, suggested_delay_seconds=0, reasoning="glitch"
+                )
+            )
         )
         policy = LLMRetryPolicy(llm_conn_id="test")
         decision = policy.evaluate(RuntimeError("glitch"), try_number=1, max_tries=3)
@@ -84,11 +96,15 @@ class TestLLMClassifyDecisions:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay is None  # None = use task's default
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_negative_delay_treated_as_no_override(self, mock_hook_cls):
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_negative_delay_treated_as_no_override(self, mock_get_hook):
         """Negative delay from LLM should not produce a negative timedelta."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
-            "transient", should_retry=True, delay=-5
+        mock_get_hook.return_value = _make_mock_hook(
+            _make_run_result(
+                ErrorClassification(
+                    category="transient", should_retry=True, suggested_delay_seconds=-5, reasoning="x"
+                )
+            )
         )
         policy = LLMRetryPolicy(llm_conn_id="test")
         decision = policy.evaluate(RuntimeError("x"), try_number=1, max_tries=3)
@@ -96,39 +112,46 @@ class TestLLMClassifyDecisions:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay is None
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_prompt_includes_exception_type_and_message(self, mock_hook_cls):
-        mock_agent = _make_mock_agent("data", should_retry=False)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_prompt_includes_exception_type_and_message(self, mock_get_hook):
+        mock_hook = _make_mock_hook(
+            _make_run_result(ErrorClassification(category="data", should_retry=False, reasoning="test"))
+        )
+        mock_get_hook.return_value = mock_hook
 
         policy = LLMRetryPolicy(llm_conn_id="test")
         policy.evaluate(ValueError("bad column type"), try_number=2, max_tries=5)
 
-        prompt = mock_agent.run_sync.call_args[0][0]
-        assert "ValueError: bad column type" in prompt
-        assert "attempt 2 of 5" in prompt
+        request = mock_hook.create_agent.call_args[0][0]
+        assert "ValueError: bad column type" in request.prompt
+        assert "attempt 2 of 5" in request.prompt
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("x", False)
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_custom_instructions_forwarded_to_agent(self, mock_get_hook):
+        mock_hook = _make_mock_hook(
+            _make_run_result(ErrorClassification(category="x", should_retry=False, reasoning="test"))
+        )
+        mock_get_hook.return_value = mock_hook
 
         policy = LLMRetryPolicy(llm_conn_id="test", instructions="My custom prompt")
         policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
-        mock_hook_cls.return_value.create_agent.assert_called_once_with(
-            output_type=ErrorClassification,
-            instructions="My custom prompt",
-        )
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.instructions == "My custom prompt"
+        assert request.output_type is ErrorClassification
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_timeout_passed_via_model_settings(self, mock_hook_cls):
-        mock_agent = _make_mock_agent("auth", False)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_timeout_passed_via_model_settings(self, mock_get_hook):
+        mock_hook = _make_mock_hook(
+            _make_run_result(ErrorClassification(category="auth", should_retry=False, reasoning="test"))
+        )
+        mock_get_hook.return_value = mock_hook
 
         policy = LLMRetryPolicy(llm_conn_id="test", timeout=15.0)
         policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
-        model_settings = mock_agent.run_sync.call_args.kwargs["model_settings"]
+        request = mock_hook.create_agent.call_args[0][0]
+        model_settings = request.agent_params["model_settings"]
         assert model_settings["timeout"] == 15.0
 
 
@@ -169,12 +192,13 @@ class TestLLMFallbackBehaviour:
         d = policy.evaluate(ValueError("bad"), try_number=1, max_tries=3)
         assert d.action == RetryAction.DEFAULT
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_agent_run_sync_failure_triggers_fallback(self, mock_hook_cls):
-        """Failure during run_sync (not hook creation) still triggers fallback."""
-        mock_agent = MagicMock()
-        mock_agent.run_sync.side_effect = RuntimeError("network error mid-call")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_run_agent_failure_triggers_fallback(self, mock_get_hook):
+        """Failure during run_agent (not hook creation) still triggers fallback."""
+        mock_hook = MagicMock()
+        mock_hook.create_agent.return_value = MagicMock()
+        mock_hook.run_agent.side_effect = RuntimeError("network error mid-call")
+        mock_get_hook.return_value = mock_hook
 
         policy = LLMRetryPolicy(
             llm_conn_id="test",
@@ -184,10 +208,12 @@ class TestLLMFallbackBehaviour:
         assert d.action == RetryAction.FAIL
         assert d.reason == "fallback"
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
-    def test_hook_creation_failure_triggers_fallback(self, mock_hook_cls):
+    @patch.object(BaseAIHook, "get_agent_hook")
+    def test_hook_creation_failure_triggers_fallback(self, mock_get_hook):
         """Failure during hook.create_agent still triggers fallback."""
-        mock_hook_cls.return_value.create_agent.side_effect = RuntimeError("unexpected")
+        mock_hook = MagicMock()
+        mock_hook.create_agent.side_effect = RuntimeError("unexpected")
+        mock_get_hook.return_value = mock_hook
 
         policy = LLMRetryPolicy(
             llm_conn_id="test",

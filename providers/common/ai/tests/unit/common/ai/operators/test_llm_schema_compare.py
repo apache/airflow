@@ -21,6 +21,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.providers.common.ai.hooks.base import AgentRunRequest, AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
@@ -31,16 +32,13 @@ from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+def _make_run_result(output):
+    """Create an AgentRunResult compatible with log_run_summary."""
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0),
     )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
 
 
 _BASE_KWARGS = dict(task_id="test_task", prompt="test prompt", llm_conn_id="llm_conn")
@@ -260,22 +258,22 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_llm_hook.create_agent.return_value = mock_agent
+        mock_llm_hook.run_agent.return_value = _make_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         )
-        mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
 
         result = op.execute(context={})
 
         mock_build_schema_context.assert_called_once()
         mock_build_system_prompt.assert_called_once_with("schema_context")
-        mock_llm_hook.create_agent.assert_called_once_with(
-            output_type=SchemaCompareResult,
-            instructions="system_prompt",
-            param="value",
-        )
-        mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
+        request = mock_llm_hook.create_agent.call_args[0][0]
+        assert isinstance(request, AgentRunRequest)
+        assert request.output_type is SchemaCompareResult
+        assert request.instructions == "system_prompt"
+        assert request.agent_params == {"param": "value"}
+        mock_llm_hook.run_agent.assert_called_once_with(mock_agent, request)
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
 
     @mock.patch(
@@ -336,26 +334,23 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_llm_hook.create_agent.return_value = mock_agent
+        mock_llm_hook.run_agent.return_value = _make_run_result(
             SchemaCompareResult(
                 compatible=True, mismatches=[], summary="S3 and Postgres schemas are compatible"
             )
         )
-        mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
 
         with mock.patch.object(op, "_build_schema_context", return_value=schema_context):
             result = op.execute(context={})
 
-        instructions = mock_llm_hook.create_agent.call_args[1]["instructions"]
-        assert "schema comparison expert" in instructions
-        assert "postgresql" in instructions
-        assert "aws_default" in instructions
+        request = mock_llm_hook.create_agent.call_args[0][0]
+        assert "schema comparison expert" in request.instructions
+        assert "postgresql" in request.instructions
+        assert "aws_default" in request.instructions
 
-        mock_agent.run_sync.assert_called_once_with(
-            "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
-            usage_limits=None,
-        )
+        mock_llm_hook.run_agent.assert_called_once_with(mock_agent, request)
         assert result["compatible"] is True
         assert result["summary"] == "S3 and Postgres schemas are compatible"
 
@@ -415,18 +410,18 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_llm_hook.create_agent.return_value = mock_agent
+        mock_llm_hook.run_agent.return_value = _make_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="Schemas are compatible")
         )
-        mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
 
         with mock.patch.object(op, "_build_schema_context", return_value=schema_context):
             result = op.execute(context={})
 
-        instructions = mock_llm_hook.create_agent.call_args[1]["instructions"]
-        assert "postgresql" in instructions
-        assert "snowflake" in instructions
+        request = mock_llm_hook.create_agent.call_args[0][0]
+        assert "postgresql" in request.instructions
+        assert "snowflake" in request.instructions
         assert result["compatible"] is True
 
     def test_execute_schema_comparison_datasources_only(self):
@@ -464,22 +459,22 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_llm_hook.create_agent.return_value = mock_agent
+        mock_llm_hook.run_agent.return_value = _make_run_result(
             SchemaCompareResult(
                 compatible=False,
                 mismatches=[],
                 summary="Timestamp column type differs between Parquet and CSV",
             )
         )
-        mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
 
         with mock.patch.object(op, "_build_schema_context", return_value=schema_context):
             result = op.execute(context={})
 
-        instructions = mock_llm_hook.create_agent.call_args[1]["instructions"]
-        assert "aws_lake" in instructions
-        assert "aws_staging" in instructions
+        request = mock_llm_hook.create_agent.call_args[0][0]
+        assert "aws_lake" in request.instructions
+        assert "aws_staging" in request.instructions
         assert result["compatible"] is False
 
     def test_introspect_full_schema(self, db_hook):

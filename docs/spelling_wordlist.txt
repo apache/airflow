@@ -25,6 +25,7 @@ adsinsights
 afterall
 agentcore
 agentic
+AgentT
 ai
 aio
 aiobotocore
@@ -677,6 +678,7 @@ fsGroup
 fsspec
 fullname
 func
+functools
 ga
 Gantt
 gantt
@@ -831,6 +833,7 @@ init
 initdb
 initialisation
 initialiser
+initialises
 initialising
 initializer
 inout
