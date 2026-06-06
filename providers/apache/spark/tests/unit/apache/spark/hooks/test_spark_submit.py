@@ -1596,8 +1596,8 @@ class TestSparkSubmitHook:
         assert mock_client.read_namespaced_pod.call_count == 3
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_poll_k8s_driver_raises_on_404(self, mock_get_client):
-        """404 from read_namespaced_pod means the submitted driver cannot be tracked."""
+    def test_poll_k8s_driver_exits_cleanly_on_404(self, mock_get_client):
+        """404 from read_namespaced_pod means pod was deleted by on_kill — should return cleanly, not raise."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
         hook._kubernetes_driver_pod = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
@@ -1605,8 +1605,7 @@ class TestSparkSubmitHook:
         mock_client = mock_get_client.return_value
         mock_client.read_namespaced_pod.side_effect = kube_client.ApiException(status=404, reason="Not Found")
 
-        with pytest.raises(RuntimeError, match="was not found"):
-            hook._poll_k8s_driver_via_api()
+        hook._poll_k8s_driver_via_api()
 
         mock_client.delete_namespaced_pod.assert_not_called()
 

@@ -1144,10 +1144,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     consecutive_api_errors = 0
                 except kube_client.ApiException as e:
                     if e.status == 404:
-                        raise RuntimeError(
-                            f"K8s driver pod {pod_name} was not found while polling {app_id}; "
-                            "cannot determine Spark application status."
-                        ) from e
+                        self.log.info(
+                            "Driver pod %s not found (404); pod was likely deleted by on_kill. Exiting poll loop.",
+                            pod_name,
+                        )
+                        return
                     consecutive_api_errors += 1
                     self.log.warning(
                         "ApiException polling pod %s (%d/%d): %s",
