@@ -168,6 +168,33 @@ class TIRescheduleStatePayload(StrictBaseModel):
     end_date: UtcDateTime
 
 
+class TIAwaitingInputStatePayload(StrictBaseModel):
+    """Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger)."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.AWAITING_INPUT],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.AWAITING_INPUT],
+                "default": IntermediateTIState.AWAITING_INPUT,
+            }
+        ),
+    ]
+    timeout: timedelta | None = None
+    """Optional response deadline (relative); converted to an absolute datetime server-side."""
+    next_method: str
+    """The name of the method on the operator to call in the worker after input is received."""
+    next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
+    """
+    Kwargs to pass to the above method, either a plain dict or an encrypted string.
+
+    Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
+    """
+    rendered_map_index: str | None = None
+
+
 class TIRetryStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to up_for_retry."""
 
@@ -216,6 +243,8 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
         return "deferred"
     if state == TIState.UP_FOR_RESCHEDULE:
         return "up_for_reschedule"
+    if state == TIState.AWAITING_INPUT:
+        return "awaiting_input"
     if state == TIState.UP_FOR_RETRY:
         return "up_for_retry"
     return "_other_"
@@ -229,6 +258,7 @@ TIStateUpdate = Annotated[
     | Annotated[TITargetStatePayload, Tag("_other_")]
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
+    | Annotated[TIAwaitingInputStatePayload, Tag("awaiting_input")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
     Field(discriminator=ti_state_discriminator),
 ]

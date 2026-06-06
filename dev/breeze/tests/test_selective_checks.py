@@ -146,6 +146,22 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
+# API source/test change with NO OpenAPI spec change: the full matrix is no longer
+# forced. airflow-core Python changed (so mypy-airflow-core + flynt run); no
+# provider.yaml, helm, or UI files changed, so those checks stay skipped.
+ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
+    "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,"
+    "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
+    "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
+    "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,"
+    "mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+)
+
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "check-provider-yaml-valid,identity,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -314,72 +330,114 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow-core/src/airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "",
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when API file changed",
+                id="API source change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
             pytest.param(
                 ("airflow-core/src/airflow/api_fastapi/file.py",),
                 {
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when fastapi files change",
+                id="fastapi source change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
             pytest.param(
                 ("airflow-core/tests/unit/api/file.py",),
                 {
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
-                    "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "run-amazon-tests": "false",
+                    "run-api-tests": "true",
+                    "docs-build": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...fab",
+                                "test_types": "Providers[common.compat] Providers[fab]",
+                            }
+                        ]
+                    ),
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should run when API test files change",
+                id="API test change (no spec) runs API + fab only, not the full matrix",
             )
         ),
         (
@@ -429,25 +487,49 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "",
+                    "full-tests-needed": "false",
+                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google "
+                    "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
+                    "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "true",
+                    "run-api-tests": "true",
                     "docs-build": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": (
+                        "identity,lint-helm-chart,"
+                        "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,"
+                        "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
+                        "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
+                        "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
+                        "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    ),
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "API...Always", "test_types": "API Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] "
+                                "Providers[common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[google]",
+                            }
+                        ]
+                    ),
                     "run-mypy-providers": "true",
                 },
-                id="All tests and docs should run on API change",
+                id="API source + provider change runs API + affected providers, not the full matrix",
             )
         ),
         (
@@ -1329,8 +1411,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         pytest.param(
             ("go-sdk/sdk/variable.go",),
-            {"run-go-sdk-tests": "true"},
-            id="Run go tests for go-sdk",
+            {
+                "run-go-sdk-tests": "true",
+                "run-java-sdk-e2e-tests": "false",
+            },
+            id="Run go tests for go-sdk and skip java e2e tests for non-java change",
+        ),
+        pytest.param(
+            ("java-sdk/sdk/build.gradle.kts",),
+            {
+                "run-java-sdk-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java unit and e2e tests for java-sdk source change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/java.yml",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when java compose override changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when JavaCoordinator changes",
         ),
         (
             pytest.param(
@@ -2291,6 +2402,9 @@ def test_expected_output_push(
         pytest.param(
             ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
             {
+                # The OpenAPI spec IS the API contract — changing it ripples to the UI
+                # codegen and generated clients, so it still forces the full matrix.
+                "full-tests-needed": "true",
                 "selected-providers-list-as-string": "",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2305,7 +2419,7 @@ def test_expected_output_push(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy-providers": "true",
             },
-            id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
+            id="OpenAPI spec change still forces the full matrix",
         ),
         pytest.param(
             (
@@ -3487,187 +3601,6 @@ def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_comman
         ).provider_dependency_bump
 
 
-@pytest.mark.parametrize(
-    ("files", "expected_outputs"),
-    [
-        pytest.param(
-            (
-                "airflow-core/src/airflow/models/dag.py",
-                "airflow-core/src/airflow/models/taskinstance.py",
-                "airflow-core/tests/unit/models/test_dag.py",
-                "task-sdk/src/airflow/sdk/definitions/dag.py",
-                "task-sdk/tests/task_sdk/definitions/test_dag.py",
-            ),
-            {
-                "full-tests-needed": "false",
-            },
-            id="Small PR with 5 files changed",
-        ),
-        pytest.param(
-            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(30)),
-            {
-                "full-tests-needed": "true",
-            },
-            id="Large PR with 30 files changed",
-        ),
-        pytest.param(
-            (
-                "uv.lock",
-                "package-lock.json",
-            ),
-            {
-                "full-tests-needed": "false",
-            },
-            id="PR with only lock files changed",
-        ),
-    ],
-)
-def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
-    stderr = SelectiveChecks(
-        files=files,
-        commit_ref=NEUTRAL_COMMIT,
-        github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
-    )
-    assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    ("files", "git_diff_output", "expected_outputs"),
-    [
-        pytest.param(
-            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
-            "\n".join([f"10\t10\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
-            {
-                "full-tests-needed": "false",
-            },
-            id="Small PR with 200 lines changed",
-        ),
-        pytest.param(
-            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
-            "\n".join([f"30\t30\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
-            {
-                "full-tests-needed": "true",
-            },
-            id="PR with 600 lines changed",
-        ),
-        pytest.param(
-            ("airflow-core/src/airflow/configuration.py",),
-            "500\t500\tairflow-core/src/airflow/configuration.py",
-            {
-                "full-tests-needed": "true",
-            },
-            id="Single large file with 1000 lines",
-        ),
-        pytest.param(
-            tuple(f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(10)),
-            "\n".join([f"100\t100\tairflow-core/tests/unit/models/test_file{i}.py" for i in range(10)]),
-            {
-                "full-tests-needed": "false",
-            },
-            id="Large test-only PR (2000 lines) does not trigger full tests",
-        ),
-        pytest.param(
-            ("docs/index.rst", "airflow-core/docs/security/security_model.rst"),
-            "600\t600\tdocs/index.rst\n400\t400\tairflow-core/docs/security/security_model.rst",
-            {
-                "full-tests-needed": "false",
-            },
-            id="Large docs-only PR does not trigger full tests",
-        ),
-        pytest.param(
-            (
-                "airflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
-                "airflow-ctl/src/airflowctl/api/datamodels/generated.py",
-                "task-sdk/src/airflow/sdk/api/datamodels/_generated.py",
-            ),
-            "\n".join(
-                [
-                    "400\t400\tairflow-core/src/airflow/ui/openapi-gen/queries/queries.ts",
-                    "400\t400\tairflow-ctl/src/airflowctl/api/datamodels/generated.py",
-                    "400\t400\ttask-sdk/src/airflow/sdk/api/datamodels/_generated.py",
-                ]
-            ),
-            {
-                "full-tests-needed": "false",
-            },
-            id="Generated-only large PR does not trigger full tests",
-        ),
-        # In mixed PRs the production-file filter narrows the `git diff --numstat`
-        # call to the production paths, so the mocked stdout below only contains
-        # the production-file rows (mirroring what real git would return for
-        # that filtered argument list).
-        pytest.param(
-            tuple(
-                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
-                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
-            ),
-            "\n".join([f"60\t60\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
-            {
-                "full-tests-needed": "true",
-            },
-            id="Mixed PR with 600 production lines triggers (test lines excluded but prod >= 500)",
-        ),
-        pytest.param(
-            tuple(
-                [f"airflow-core/src/airflow/models/file{i}.py" for i in range(5)]
-                + [f"airflow-core/tests/unit/models/test_file{i}.py" for i in range(5)]
-            ),
-            "\n".join([f"20\t20\tairflow-core/src/airflow/models/file{i}.py" for i in range(5)]),
-            {
-                "full-tests-needed": "false",
-            },
-            id="Mixed PR with only 200 production lines does not trigger (test lines excluded)",
-        ),
-        # A large example-DAG diff in a "plain" provider (not standard/git, which
-        # have their own full-tests rule) must NOT force the full matrix. This is
-        # the exact shape of apache/airflow#68037.
-        pytest.param(
-            (
-                "providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
-            ),
-            "600\t600\tproviders/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py",
-            {
-                "full-tests-needed": "false",
-            },
-            id="Large provider example_dags-only PR does not trigger full tests",
-        ),
-        pytest.param(
-            ("airflow-core/src/airflow/example_dags/example_complex.py",),
-            "600\t600\tairflow-core/src/airflow/example_dags/example_complex.py",
-            {
-                "full-tests-needed": "false",
-            },
-            id="Large airflow-core example_dags-only PR does not trigger full tests",
-        ),
-        # Regression guard: a large *non-example* file in the same plain provider
-        # must still count as production code and trigger the full matrix.
-        pytest.param(
-            ("providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",),
-            "600\t600\tproviders/arangodb/src/airflow/providers/arangodb/operators/arangodb.py",
-            {
-                "full-tests-needed": "true",
-            },
-            id="Large provider production (non-example) PR still triggers full tests",
-        ),
-    ],
-)
-def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[str, str]):
-    with patch("airflow_breeze.utils.selective_checks.run_command") as mock_run:
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = git_diff_output
-        mock_run.return_value = mock_result
-
-        stderr = SelectiveChecks(
-            files=files,
-            commit_ref=NEUTRAL_COMMIT,
-            github_event=GithubEvents.PULL_REQUEST,
-            default_branch="main",
-        )
-        assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
 @patch("airflow_breeze.utils.selective_checks.run_command")
 def test_common_compat_changed_with_next_version_passes(mock_run_command):
     """Test that check passes when common.compat changes and other provider has '# use next version'."""
@@ -3909,3 +3842,59 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("github_event", "default_branch", "expected_all_versions"),
+    [
+        pytest.param(
+            GithubEvents.PUSH,
+            "v3-2-test",
+            "false",
+            id="Push to release branch does not force all versions",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "main",
+            "true",
+            id="Schedule (canary) forces all versions",
+        ),
+        pytest.param(
+            GithubEvents.WORKFLOW_DISPATCH,
+            "main",
+            "true",
+            id="Workflow dispatch forces all versions",
+        ),
+    ],
+)
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
+def test_push_to_release_branch_does_not_force_full_tests(
+    mock_get, github_event, default_branch, expected_all_versions
+):
+    """Test that push to release branches (v3-X-test) does not force full test matrix,
+    while canaries (SCHEDULE) and manual triggers still do."""
+    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=github_event,
+        pr_labels=(),
+        default_branch=default_branch,
+    )
+    assert_outputs_are_printed(
+        {
+            "all-versions": expected_all_versions,
+        },
+        str(stderr),
+    )

@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun,
+    TIAwaitingInputStatePayload,
+    TIRunContext,
+)
 
 
 class AddBundleVersionField(VersionChange):
@@ -58,4 +62,18 @@ class AddConnectionTestEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
         endpoint("/connection-tests/{connection_test_id}/connection", ["GET"]).didnt_exist,
+    )
+
+
+class AddAwaitingInputStatePayload(VersionChange):
+    """Add the awaiting_input task instance state transition payload (Human-in-the-loop, no trigger)."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIAwaitingInputStatePayload).field("state").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("timeout").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("next_method").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("next_kwargs").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("rendered_map_index").didnt_exist,
     )

@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     AssetsByAliasResult,
     AssetStoreResult,
+    AwaitInputTask,
     ClearAssetStoreByName,
     ClearAssetStoreByUri,
     ClearTaskStore,
@@ -1715,6 +1716,14 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_instances.defer",
             args=(TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+        ),
+    ),
+    RequestTestCase(
+        message=AwaitInputTask(next_method="execute_complete"),
+        test_id="patch_task_instance_to_awaiting_input",
+        client_mock=ClientMock(
+            method_path="task_instances.await_input",
+            args=(TI_ID, AwaitInputTask(next_method="execute_complete")),
         ),
     ),
     RequestTestCase(

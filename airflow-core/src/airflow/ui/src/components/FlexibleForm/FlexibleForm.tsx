@@ -71,6 +71,7 @@ export const FlexibleForm = ({
   const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
+  const [hasValidationError, setHasValidationError] = useState(false);
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -95,8 +96,8 @@ export const FlexibleForm = ({
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
     setSectionError(newSectionError);
-    setError(newSectionError.size > 0);
-  }, [params, flexibleFormDefaultSection, setError]);
+    setError(hasValidationError || newSectionError.size > 0);
+  }, [params, flexibleFormDefaultSection, setError, hasValidationError]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);
@@ -105,6 +106,7 @@ export const FlexibleForm = ({
   const onUpdate = (_value?: string, error?: unknown) => {
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
+    setHasValidationError(Boolean(error));
     setSectionError(newSectionError);
     setError(Boolean(error) || newSectionError.size > 0);
   };

@@ -229,6 +229,7 @@
   "startDate": "Start Date",
   "state": "State",
   "states": {
+    "awaiting_input": "Awaiting Input",
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
