@@ -148,14 +148,22 @@ class SSHRemoteJobTrigger(BaseTrigger):
             pass
 
     def _reconnect_delay(self, attempt: int) -> float:
-        """Exponential backoff with full jitter to desynchronise reconnecting triggers."""
+        """Exponential backoff with randomness so reconnecting triggers do not retry in lockstep."""
         base = min(2 ** (attempt - 1), 30)
         return base + random.uniform(0, base)
 
     async def _run_command(self, conn: SSHClientConnection, command: str) -> tuple[int, str, str]:
         """Run a command on an existing connection, mirroring ``SSHHookAsync.run_command``."""
         result = await conn.run(command, timeout=self.command_timeout, check=False)
-        return result.exit_status or 0, result.stdout or "", result.stderr or ""
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        # asyncssh types stdout/stderr as bytes | str; with the default text encoding they are
+        # str, but decode defensively so the helper holds if a binary connection is ever used.
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return result.exit_status or 0, stdout, stderr
 
     async def _check_completion(self, conn: SSHClientConnection) -> int | None:
         """
@@ -233,7 +241,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
         Poll the remote job status and yield a completion event.
 
         One connection is held for the whole loop. On a connection-level failure the
-        connection is dropped and re-established (with jittered backoff) up to
+        connection is dropped and re-established (with exponential backoff) up to
         ``max_reconnect_attempts`` consecutive times; any other error, or exhausting the
         reconnect budget, ends the trigger with an error event.
         """
