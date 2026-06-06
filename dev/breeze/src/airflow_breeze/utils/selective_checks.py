@@ -201,9 +201,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
             # dev tooling, and generated files within those trees. Used by
-            # `run_python_scans` (SAST/SCA target) and the line-threshold check
-            # in `_is_large_enough_pr` to decide whether a PR's diff is large
-            # enough to force the full test matrix.
+            # `run_python_scans` (SAST/SCA target) to decide whether the security
+            # scans need to run.
             r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
             r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
             r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
@@ -701,104 +700,12 @@ class SelectiveChecks:
         ):
             console_print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
-        if self._is_large_enough_pr():
-            return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             console_print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
             return True
-        return False
-
-    def _is_large_enough_pr(self) -> bool:
-        """
-        Check if PR is large enough to run full tests.
-
-        The heuristics are based on number of files changed and total lines changed,
-        while excluding generated files which can be ignored.
-
-        The line-count check (``LINE_THRESHOLD``) only counts lines in production-code
-        files — tests, docs, newsfragments, generated files, translations, dev tooling,
-        and similar low-risk paths do not contribute to the line count. A 1000-line test
-        or docs PR is not the same shape of risk as a 1000-line change to scheduler
-        code, and only the latter should trigger the full test matrix.
-        """
-        FILE_THRESHOLD = 25
-        LINE_THRESHOLD = 500
-
-        if not self._files:
-            return False
-
-        exclude_patterns = [
-            r"/newsfragments/",
-            r"^uv\.lock$",
-            r"pnpm-lock\.yaml$",
-            r"package-lock\.json$",
-        ]
-
-        relevant_files = [
-            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
-        ]
-
-        files_changed = len(relevant_files)
-        if files_changed >= FILE_THRESHOLD:
-            console_print(
-                f"[warning]Running full set of tests because PR touches {files_changed} files "
-                f"(≥25 threshold)[/]"
-            )
-            return True
-
-        if not self._commit_ref:
-            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
-            return False
-
-        # The line-count gate only counts churn in production code. We compose
-        # the existing `*_PRODUCTION_FILES` and helm groups rather than rolling
-        # a bespoke pattern set, so the definition of "production code" stays
-        # in lockstep with the rest of CI (e.g. SAST scans targeted by
-        # `run_python_scans` / `run_javascript_scans`).
-        production_files = list(
-            dict.fromkeys(
-                self._matching_files(FileGroupForCi.PYTHON_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
-                + self._matching_files(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES, CI_FILE_GROUP_MATCHES)
-                + self._matching_files(FileGroupForCi.HELM_FILES, CI_FILE_GROUP_MATCHES)
-            )
-        )
-        if not production_files:
-            return False
-
-        try:
-            result = run_command(
-                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + production_files,
-                capture_output=True,
-                text=True,
-                cwd=AIRFLOW_ROOT_PATH,
-                check=False,
-            )
-
-            if result.returncode == 0:
-                total_lines = 0
-                for line in result.stdout.strip().split("\n"):
-                    if line:
-                        parts = line.split("\t")
-                        if len(parts) >= 2:
-                            try:
-                                additions = int(parts[0])
-                                deletions = int(parts[1])
-                                total_lines += additions + deletions
-                            except ValueError:
-                                pass
-                if total_lines >= LINE_THRESHOLD:
-                    console_print(
-                        f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"of production code in {len(production_files)} file(s) "
-                        f"(of {files_changed} relevant file(s))[/]"
-                    )
-                    return True
-        except Exception:
-            pass
-
         return False
 
     @cached_property
