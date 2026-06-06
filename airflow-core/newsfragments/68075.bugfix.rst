@@ -1,0 +1,8 @@
+Fix scheduler crash when rendering ``log_filename_template`` for runs without a ``logical_date``
+
+The scheduler no longer crashes while building a task's log filename when ``ti.logical_date`` is
+``None`` (asset-triggered and partitioned runs). The log-filename renderer now falls back to
+``run_after`` (matching the log reader) and exposes ``ts``/``ts_nodash`` to Jinja templates; if a
+custom template still fails to render, it degrades to the default ``run_id``-based template instead
+of aborting the scheduling loop. Prefer ``run_id`` or ``ts`` over ``ti.logical_date`` in
+``log_filename_template``.
