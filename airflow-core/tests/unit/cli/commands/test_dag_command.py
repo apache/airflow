@@ -48,6 +48,7 @@ from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, Partit
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
 from airflow.utils.session import create_session
@@ -1200,6 +1201,15 @@ class TestCliDagsReserialize:
         assert dag_processor_parsing_result.serialized_dags[0].hash == serialized_dag_hash[0]
 
 
+class _NoTzTimetable(Timetable):
+    """Stub timetable: partitioned=True but no timezone attribute.
+
+    Used by tests that exercise the no-tz fallback branch in dag_clear.
+    """
+
+    partitioned = True
+
+
 class TestCliDagsClear:
     """Tests for the `airflow dags clear` partition-range subcommand."""
 
@@ -1521,27 +1531,31 @@ class TestCliDagsClear:
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(
-            run_id="taipei_2026_02_18",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 17, 16, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-18T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="taipei_2026_02_19",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-19T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="taipei_2026_02_20",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-20T00:00:00",
-        )
+        runs = [
+            (
+                "taipei_2026_02_18",
+                datetime(2026, 2, 17, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-18T00:00:00",
+            ),
+            (
+                "taipei_2026_02_19",
+                datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-19T00:00:00",
+            ),
+            (
+                "taipei_2026_02_20",
+                datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-20T00:00:00",
+            ),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
         dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.usefixtures("seeded_taipei_runs")
@@ -1648,27 +1662,19 @@ class TestCliDagsClear:
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(
-            run_id="ny_2026_02_18",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 18, 5, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-18T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="ny_2026_02_19",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 19, 5, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-19T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="ny_2026_02_20",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 2, 20, 5, 0, 0, tzinfo=pendulum.UTC),
-            partition_key="2026-02-20T00:00:00",
-        )
+        runs = [
+            ("ny_2026_02_18", datetime(2026, 2, 18, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-18T00:00:00"),
+            ("ny_2026_02_19", datetime(2026, 2, 19, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-19T00:00:00"),
+            ("ny_2026_02_20", datetime(2026, 2, 20, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-20T00:00:00"),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
         dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.usefixtures("seeded_ny_runs")
@@ -1700,10 +1706,6 @@ class TestCliDagsClear:
         # local 2026-02-20 is outside the half-open upper bound.
         assert states["ny_2026_02_20"] == DagRunState.SUCCESS
 
-    # ------------------------------------------------------------------
-    # No-tz fallback: partitioned=True but timetable has no timezone attr
-    # ------------------------------------------------------------------
-
     @pytest.fixture
     def seeded_no_tz_runs(self, dag_maker):
         """Seed runs with UTC midnight partition_dates for the no-tz fallback path.
@@ -1725,20 +1727,18 @@ class TestCliDagsClear:
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(
-            run_id="no_tz_2026_03_08",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 3, 8, tzinfo=pendulum.UTC),
-            partition_key="2026-03-08T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="no_tz_2026_03_09",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 3, 9, tzinfo=pendulum.UTC),
-            partition_key="2026-03-09T00:00:00",
-        )
+        runs = [
+            ("no_tz_2026_03_08", datetime(2026, 3, 8, tzinfo=pendulum.UTC), "2026-03-08T00:00:00"),
+            ("no_tz_2026_03_09", datetime(2026, 3, 9, tzinfo=pendulum.UTC), "2026-03-09T00:00:00"),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
         dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.usefixtures("seeded_no_tz_runs")
@@ -1750,10 +1750,6 @@ class TestCliDagsClear:
         run (so it is included).  Without truncation the raw-instant comparison
         would be 2026-03-08T12:00Z > 2026-03-08T00:00Z and the run would be missed.
         """
-        from airflow.timetables.base import Timetable
-
-        class _NoTzTimetable(Timetable):
-            partitioned = True
 
         def _patched(*, bundle_names, dag_id):
             dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
@@ -1789,10 +1785,6 @@ class TestCliDagsClear:
         partition_date < 2026-03-09T00Z (included).  The 2026-03-09T00Z run
         does NOT satisfy partition_date < 2026-03-09T00Z (excluded).
         """
-        from airflow.timetables.base import Timetable
-
-        class _NoTzTimetable(Timetable):
-            partitioned = True
 
         def _patched(*, bundle_names, dag_id):
             dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
@@ -1819,10 +1811,6 @@ class TestCliDagsClear:
         # 2026-03-09T00Z is NOT < 2026-03-09T00Z → excluded.
         assert states["no_tz_2026_03_09"] == DagRunState.SUCCESS
 
-    # ------------------------------------------------------------------
-    # PartitionedAssetTimetable: partitioned=True, not CronMixin → no-tz path
-    # ------------------------------------------------------------------
-
     @pytest.fixture
     def seeded_asset_partitioned_runs(self, dag_maker):
         """Seed DagRuns for a PartitionedAssetTimetable Dag.
@@ -1847,34 +1835,40 @@ class TestCliDagsClear:
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(
-            run_id="asset_2026_04_10",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 4, 10, tzinfo=pendulum.UTC),
-            partition_key="2026-04-10T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="asset_2026_04_12",
-            state=DagRunState.FAILED,
-            logical_date=None,
-            partition_date=datetime(2026, 4, 12, tzinfo=pendulum.UTC),
-            partition_key="2026-04-12T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="asset_2026_04_14",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 4, 14, tzinfo=pendulum.UTC),
-            partition_key="2026-04-14T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="asset_2026_04_15",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime(2026, 4, 15, tzinfo=pendulum.UTC),
-            partition_key="2026-04-15T00:00:00",
-        )
+        runs = [
+            (
+                "asset_2026_04_10",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 10, tzinfo=pendulum.UTC),
+                "2026-04-10T00:00:00",
+            ),
+            (
+                "asset_2026_04_12",
+                DagRunState.FAILED,
+                datetime(2026, 4, 12, tzinfo=pendulum.UTC),
+                "2026-04-12T00:00:00",
+            ),
+            (
+                "asset_2026_04_14",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 14, tzinfo=pendulum.UTC),
+                "2026-04-14T00:00:00",
+            ),
+            (
+                "asset_2026_04_15",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 15, tzinfo=pendulum.UTC),
+                "2026-04-15T00:00:00",
+            ),
+        ]
+        for run_id, state, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=state,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
         dag_maker.create_dagrun(
             run_id="asset_non_part",
             state=DagRunState.SUCCESS,

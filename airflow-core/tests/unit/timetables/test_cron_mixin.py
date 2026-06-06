@@ -45,11 +45,6 @@ def test_dom_and_dow_conflict():
     assert "Every minute, only on Monday" in desc
 
 
-# ---------------------------------------------------------------------------
-# get_partition_day_bound — CronMixin override
-# ---------------------------------------------------------------------------
-
-
 def test_cron_mixin_get_partition_day_bound_utc_tz():
     """UTC timetable: local midnight equals UTC midnight."""
     cm = CronMixin("0 0 * * *", "UTC")
