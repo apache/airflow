@@ -31,6 +31,7 @@ from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     ALL_NAMESPACES,
+    CALLBACK_POD_ANNOTATION_KEY,
     POD_EXECUTOR_DONE_KEY,
     POD_REVOKED_KEY,
     FailureDetails,
@@ -45,6 +46,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -160,16 +162,25 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             if event["type"] == "ERROR":
                 return self.process_error(event)
             annotations = task.metadata.annotations
-            task_instance_related_annotations = {
-                "dag_id": annotations["dag_id"],
-                "task_id": annotations["task_id"],
-                logical_date_key: annotations.get(logical_date_key),
-                "run_id": annotations.get("run_id"),
-                "try_number": annotations["try_number"],
-            }
-            map_index = annotations.get("map_index")
-            if map_index is not None:
-                task_instance_related_annotations["map_index"] = map_index
+            if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in annotations:
+                # Callback pod: forward only the annotations that process_watcher_task needs.
+                # Callback pods carry callback_id instead of task_id/try_number.
+                task_instance_related_annotations = {
+                    CALLBACK_POD_ANNOTATION_KEY: annotations[CALLBACK_POD_ANNOTATION_KEY],
+                    "dag_id": annotations.get("dag_id", ""),
+                    "run_id": annotations.get("run_id", ""),
+                }
+            else:
+                task_instance_related_annotations = {
+                    "dag_id": annotations["dag_id"],
+                    "task_id": annotations["task_id"],
+                    logical_date_key: annotations.get(logical_date_key),
+                    "run_id": annotations.get("run_id"),
+                    "try_number": annotations["try_number"],
+                }
+                map_index = annotations.get("map_index")
+                if map_index is not None:
+                    task_instance_related_annotations["map_index"] = map_index
 
             self.process_status(
                 pod_name=task.metadata.name,
@@ -224,8 +235,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
-            key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = _format_pod_log_key(annotations)
             self.log.warning(
                 "Event: %s failed to start with reason ProviderFailed, task: %s, annotations: %s",
                 pod_name,
@@ -268,10 +278,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                         ):
                             if waiting_reason == "ErrImagePull" and waiting_message == "pull QPS exceeded":
                                 continue
-                            key = annotations_to_key(annotations=annotations)
-                            task_key_str = (
-                                f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
-                            )
+                            task_key_str = _format_pod_log_key(annotations)
                             self.log.warning(
                                 "Event: %s has container %s with fatal reason %s, task: %s",
                                 pod_name,
@@ -303,8 +310,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     "Failed to collect pod failure details for %s/%s: %s", namespace, pod_name, e
                 )
 
-            key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = _format_pod_log_key(annotations)
             self.log.warning(
                 "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
             )
@@ -354,6 +360,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 annotations,
                 resource_version,
             )
+
+
+def _format_pod_log_key(annotations: dict[str, str]) -> str:
+    """Return a human-readable key string for pod-event logging."""
+    if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in annotations:
+        return f"callback:{annotations[CALLBACK_POD_ANNOTATION_KEY]}"
+    key = annotations_to_key(annotations=annotations)
+    return f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
 
 
 def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None:
@@ -552,12 +566,29 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 ResourceVersion().resource_version[namespace] = "0"
                 self.kube_watchers[namespace] = self._make_kube_watcher(namespace)
 
+    def _get_base_worker_pod(self, pod_template_file: str | None) -> k8s.V1Pod:
+        """Load the base worker pod from the template, raising if it is missing."""
+        base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
+        if not base_worker_pod:
+            raise AirflowException(
+                f"could not find a valid worker template yaml at {self.kube_config.pod_template_file}"
+            )
+        return base_worker_pod
+
     def run_next(self, next_job: KubernetesJob) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
         key = next_job.key
         command = next_job.command
         kube_executor_config = next_job.kube_executor_config
         pod_template_file = next_job.pod_template_file
+
+        # Callback workloads follow a separate pod-construction path.
+        if AIRFLOW_V_3_3_PLUS and len(command) == 1:
+            from airflow.executors.workloads import ExecuteCallback
+
+            if isinstance(command[0], ExecuteCallback):
+                self._run_next_callback(key, command[0], pod_template_file)
+                return
 
         dag_id, task_id, run_id, try_number, map_index = key
         if len(command) == 1:
@@ -573,12 +604,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
-        base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
-
-        if not base_worker_pod:
-            raise AirflowException(
-                f"could not find a valid worker template yaml at {self.kube_config.pod_template_file}"
-            )
+        base_worker_pod = self._get_base_worker_pod(pod_template_file)
 
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
@@ -610,6 +636,40 @@ class AirflowKubernetesScheduler(LoggingMixin):
         # the watcher will monitor pods, so we do not block.
         self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
+
+    def _run_next_callback(self, key: Any, workload: Any, pod_template_file: str | None) -> None:
+        """Build and submit a callback pod for an ExecuteCallback workload."""
+        base_worker_pod = self._get_base_worker_pod(pod_template_file)
+
+        # Extract dag_id and run_id from the standardised log_path:
+        # "executor_callbacks/<dag_id>/<run_id>/<callback_id>"
+        log_parts = (workload.log_path or "").split("/")
+        dag_id = log_parts[1] if len(log_parts) >= 4 else ""
+        run_id = log_parts[2] if len(log_parts) >= 4 else ""
+
+        args = workload_to_command_args(workload)
+
+        pod = PodGenerator.construct_callback_pod(
+            namespace=self.namespace,
+            scheduler_job_id=self.scheduler_job_id,
+            callback_id=workload.callback.id,
+            dag_id=dag_id,
+            run_id=run_id,
+            kube_image=self.kube_config.kube_image,
+            args=args,
+            base_worker_pod=base_worker_pod,
+            with_mutation_hook=True,
+        )
+
+        self.log.info(
+            "Creating kubernetes pod for callback %s, pod name %s, annotations: %s",
+            key,
+            pod.metadata.name,
+            annotations_for_logging_task_metadata(pod.metadata.annotations),
+        )
+
+        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        self.log.debug("Kubernetes callback pod created!")
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
@@ -692,7 +752,19 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task.state,
             annotations_for_logging_task_metadata(task.annotations),
         )
-        key = annotations_to_key(annotations=task.annotations)
+        if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in task.annotations:
+            from airflow.models.callback import CallbackKey
+
+            key = CallbackKey(id=task.annotations[CALLBACK_POD_ANNOTATION_KEY])
+        else:
+            try:
+                key = annotations_to_key(annotations=task.annotations)
+            except KeyError:
+                self.log.debug(
+                    "Pod %s has unrecognised annotations; skipping (no dag_id/task_id/callback_id found)",
+                    task.pod_name,
+                )
+                return
         if key:
             self.log.debug("finishing job %s - %s (%s)", key, task.state, task.pod_name)
             self.result_queue.put(
