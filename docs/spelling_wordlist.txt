@@ -1140,6 +1140,7 @@ observability
 od
 odbc
 odps
+OIDC
 ok
 oklch
 Okta

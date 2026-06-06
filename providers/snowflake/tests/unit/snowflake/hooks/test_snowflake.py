@@ -1883,3 +1883,36 @@ class TestPytestSnowflakeHook:
         widgets = SnowflakeHook.get_connection_form_widgets()
 
         assert "workload_identity_provider" in widgets
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("token", "an-oidc-jwt"), ("token_file_path", "/var/run/secrets/oidc/token")],
+    )
+    def test_get_conn_params_forwards_oidc_token(self, field, value):
+        """OIDC WIF needs a caller-supplied token; the connector raises if it is missing.
+
+        Unlike AWS/AZURE/GCP (which fetch the token from cloud metadata), OIDC requires
+        ``token`` or ``token_file_path`` to be forwarded.
+        """
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "OIDC"
+        connection_kwargs["extra"][field] = value
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["workload_identity_provider"] == "OIDC"
+        assert conn_params[field] == value
+
+    def test_get_conn_params_omits_oidc_token_when_unset(self):
+        """token/token_file_path must not appear unless explicitly configured."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "GCP"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "token" not in conn_params
+        assert "token_file_path" not in conn_params

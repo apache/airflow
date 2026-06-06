@@ -418,6 +418,15 @@ class SnowflakeHook(DbApiHook):
         # providers. See https://docs.snowflake.com/en/user-guide/workload-identity-federation.
         if workload_identity_provider:
             conn_config["workload_identity_provider"] = workload_identity_provider
+            # AWS, AZURE and GCP fetch the identity token from the cloud's metadata
+            # service. OIDC instead requires the caller to supply the token, either
+            # inline (``token``) or from a file (``token_file_path``).
+            token = self._get_field(extra_dict, "token")
+            token_file_path = self._get_field(extra_dict, "token_file_path")
+            if token:
+                conn_config["token"] = token
+            if token_file_path:
+                conn_config["token_file_path"] = token_file_path
 
         p_key = self.get_private_key()
 

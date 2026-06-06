@@ -67,7 +67,15 @@ Extra (optional)
       when ``authenticator`` is ``WORKLOAD_IDENTITY``. One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. With
       Workload Identity Federation no long-lived secret (password, key-pair or PAT) is stored; the workload's
       cloud identity is the credential. Requires ``snowflake-connector-python>=3.17.0`` and the workload to
-      run on the matching cloud.
+      run on the matching cloud. ``AWS``, ``AZURE`` and ``GCP`` fetch the identity token from the cloud's
+      metadata service. ``OIDC`` instead requires the token to be supplied via ``token`` or ``token_file_path``
+      (see below); see `custom OIDC configuration
+      <https://docs.snowflake.com/en/user-guide/workload-identity-federation#label-wif-oidc-custom-configure-custom>`_.
+    * ``token``: The OIDC ID token (JWT) used when ``workload_identity_provider`` is ``OIDC``. Prefer
+      ``token_file_path`` for tokens that rotate.
+    * ``token_file_path``: Path to a file holding the OIDC ID token used when ``workload_identity_provider``
+      is ``OIDC``. The connector reads the token from this file, which suits projected or rotated tokens
+      (for example a Kubernetes service-account token).
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
     * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
