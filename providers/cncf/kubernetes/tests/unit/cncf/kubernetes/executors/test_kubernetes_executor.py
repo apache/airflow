@@ -66,7 +66,11 @@ except ImportError:
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 try:
     # Check whether a module-level function from stats is importable.
@@ -2359,5 +2363,624 @@ class TestKubernetesExecutorMultiTeam:
 
             # Should return the team-specific namespace from the executor's conf
             assert namespace == "team-a-ns"
+        finally:
+            executor.end()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteCallback requires Airflow 3.3+")
+class TestKubernetesExecutorCallbackSupport:
+    """Tests for ExecuteCallback support in the Kubernetes executor."""
+
+    _CALLBACK_ID = "12345678-1234-5678-1234-567812345678"
+    _LOG_PATH = f"executor_callbacks/my_dag/run_id_1/{_CALLBACK_ID}"
+
+    def setup_method(self) -> None:
+        self.executor = KubernetesExecutor()
+        self.executor.job_id = 5
+        self.executor._last_completed_pod_adoption = time.monotonic()
+
+    @classmethod
+    def _make_callback_workload(cls):
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+        return ExecuteCallback(
+            callback=CallbackDTO(
+                id=cls._CALLBACK_ID,
+                fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                data={"path": "my_dag.deadline_alert", "kwargs": {}},
+            ),
+            dag_rel_path="my_dag.py",
+            bundle_info=BundleInfo(name="default", version="1"),
+            token="test_token",
+            log_path=cls._LOG_PATH,
+        )
+
+    @pytest.fixture(autouse=True)
+    def _patch_k8s_clients(self):
+        with (
+            mock.patch(
+                "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher"
+            ),
+            mock.patch(
+                "airflow.providers.cncf.kubernetes.kube_client.get_kube_client"
+            ) as mock_get_kube_client,
+        ):
+            self._mock_get_kube_client = mock_get_kube_client
+            yield
+
+    @staticmethod
+    def _make_task_workload():
+        from airflow.executors import workloads
+
+        return workloads.ExecuteTask(
+            ti=workloads.TaskInstance(
+                id="00000000-0000-0000-0000-000000000001",
+                dag_version_id="00000000-0000-0000-0000-000000000002",
+                task_id="test_task",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
+            ),
+            dag_rel_path="test_dag.py",
+            bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+            token="test-token",
+            log_path="test.log",
+        )
+
+    def test_supports_callbacks_attribute(self):
+        assert self.executor.supports_callbacks is True
+
+    def test_queue_callback_workload(self):
+        from airflow.models.callback import CallbackKey
+
+        workload = self._make_callback_workload()
+        expected_key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queue_workload(workload, session=None)
+            assert expected_key in executor.queued_callbacks
+            assert executor.queued_callbacks[expected_key] is workload
+            assert len(executor.queued_tasks) == 0
+        finally:
+            executor.end()
+
+    def test_queue_task_and_callback_are_independent(self):
+        from airflow.models.callback import CallbackKey
+
+        callback_workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+        task_key = TaskInstanceKey("dag", "task", "run_id", 1)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = mock.MagicMock()
+            executor.queue_workload(callback_workload, session=None)
+            assert len(executor.queued_tasks) == 1
+            assert len(executor.queued_callbacks) == 1
+            assert callback_key in executor.queued_callbacks
+        finally:
+            executor.end()
+
+    def test_process_workloads_callback(self):
+        from airflow.models.callback import CallbackKey
+
+        workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_callbacks[callback_key] = workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([workload])
+            mock_execute_async.assert_called_once_with(
+                key=callback_key, command=[workload], queue=None, executor_config=None
+            )
+            assert callback_key not in executor.queued_callbacks
+            assert callback_key in executor.running
+        finally:
+            executor.end()
+
+    def test_process_workloads_mixed(self):
+        """A task and a callback processed together both reach execute_async and running."""
+        from airflow.models.callback import CallbackKey
+
+        task_workload = self._make_task_workload()
+        callback_workload = self._make_callback_workload()
+        task_key = task_workload.ti.key
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = task_workload
+            executor.queued_callbacks[callback_key] = callback_workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([task_workload, callback_workload])
+            assert mock_execute_async.call_count == 2
+            assert task_key in executor.running
+            assert callback_key in executor.running
+            assert executor.queued_tasks == {}
+            assert callback_key not in executor.queued_callbacks
+        finally:
+            executor.end()
+
+    def test_execute_async_callback_command(self):
+        """execute_async enqueues the callback workload as a KubernetesJob on the task_queue.
+
+        Note: in the v3 path the *workload* (not the rendered command args) is what
+        travels on the queue; the command-args translation happens later in run_next.
+        """
+        from airflow.models.callback import CallbackKey
+
+        workload = self._make_callback_workload()
+        key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.task_queue = mock.MagicMock()
+        executor.execute_async(key=key, command=[workload], queue=None, executor_config=None)
+
+        executor.task_queue.put.assert_called_once()
+        job = executor.task_queue.put.call_args[0][0]
+        assert job.key == key
+        assert job.command == [workload]
+        assert job.command[0].callback.id == self._CALLBACK_ID
+
+    def test_queue_non_callback_non_task_raises(self):
+        executor = self.executor
+        with pytest.raises(RuntimeError, match="cannot handle workloads"):
+            executor.queue_workload(mock.MagicMock(), session=None)
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_success_explicit_state(self, mock_delete_pod):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_success_state_none(self, _mock_delete_pod):
+        """state=None (pod Succeeded) must resolve to CallbackState.SUCCESS without a DB lookup."""
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, None, "pod_name", "default", "rv", None)
+
+            with mock.patch("airflow.models.taskinstance.TaskInstance.filter_for_tis") as mock_filter:
+                executor._change_state(results)
+                mock_filter.assert_not_called()
+
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_failed(self, mock_delete_pod):
+        from airflow.models.callback import CallbackKey
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, TaskInstanceState.FAILED, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            assert executor.event_buffer[key][0] == TaskInstanceState.FAILED
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.patch_pod_executor_done"
+    )
+    def test_change_state_callback_pod_not_deleted_if_keep_pods(self, mock_patch_pod):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods = False
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            mock_patch_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_sync_drains_callback_results(self, _mock_delete_pod):
+        """sync() drains a callback KubernetesResults from result_queue and updates event_buffer."""
+        from queue import Empty
+
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+
+            executor.result_queue = mock.MagicMock()
+            executor.result_queue.get_nowait.side_effect = [results, Empty()]
+            executor.sync()
+
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    def _run_next_callback_and_get_pod(self, data_file):
+        """Helper: start executor, run a callback job, and return the pod passed to run_pod_async."""
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesJob
+
+        workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        self._mock_get_kube_client.return_value = mock_kube_client
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
+            executor = self.executor
+            executor.start()
+            try:
+                with mock.patch.object(executor.kube_scheduler, "run_pod_async") as mock_run_pod:
+                    job = KubernetesJob(callback_key, [workload], None, None)
+                    executor.kube_scheduler.run_next(job)
+                    assert mock_run_pod.called, "run_pod_async should have been called"
+                    return mock_run_pod.call_args[0][0]
+            finally:
+                executor.end()
+
+    def test_run_next_callback_creates_pod(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod is not None
+
+    def test_callback_pod_has_callback_id_annotation(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod.metadata.annotations.get("callback_id") == self._CALLBACK_ID
+
+    def test_callback_pod_has_workload_type_label(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod.metadata.labels.get("airflow-workload-type") == "callback"
+
+    def test_callback_pod_has_dag_id_and_run_id_annotations(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        annotations = pod.metadata.annotations
+        # log_path = "executor_callbacks/my_dag/run_id_1/<uuid>"
+        assert annotations.get("dag_id") == "my_dag"
+        assert annotations.get("run_id") == "run_id_1"
+
+    def test_callback_pod_does_not_have_task_annotations(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        annotations = pod.metadata.annotations
+        assert "task_id" not in annotations
+        assert "try_number" not in annotations
+        assert "map_index" not in annotations
+
+    def test_callback_pod_command_is_execute_workload(self, data_file):
+        from airflow.executors.workloads import ExecuteCallback
+
+        pod = self._run_next_callback_and_get_pod(data_file)
+        args = pod.spec.containers[0].args
+        assert "airflow.sdk.execution_time.execute_workload" in args
+        assert "--json-string" in args
+
+        json_str = args[args.index("--json-string") + 1]
+        restored = ExecuteCallback.model_validate_json(json_str)
+        assert restored.callback.id == self._CALLBACK_ID
+
+    def test_callback_pod_name_does_not_collide_with_task_pod(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        # Callback pods use a dedicated "callback-" prefix, distinct from the
+        # dag/task slug a task pod sharing the same dag would get.
+        assert pod.metadata.name.startswith("callback-")
+        assert not pod.metadata.name.startswith("my-dag")
+
+    def test_process_watcher_task_callback_succeeded(self):
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="callback-pod",
+            namespace="default",
+            state=None,
+            annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result_queue.put.assert_called_once()
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, CallbackKey)
+        assert result.key.id == self._CALLBACK_ID
+        assert result.state is None
+
+    def test_process_watcher_task_callback_failed(self):
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="callback-pod",
+            namespace="default",
+            state=TaskInstanceState.FAILED,
+            annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, CallbackKey)
+        assert result.state == TaskInstanceState.FAILED
+
+    def test_process_watcher_task_task_still_uses_task_key(self):
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="task-pod",
+            namespace="default",
+            state=None,
+            annotations={
+                "dag_id": "my_dag",
+                "task_id": "my_task",
+                "run_id": "run_id_1",
+                "try_number": "1",
+                LOGICAL_DATE_KEY: None,
+            },
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, TaskInstanceKey)
+
+    def test_process_watcher_task_unknown_annotations_dropped(self):
+        """Watch event with neither callback_id nor task annotations is silently dropped."""
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="unknown-pod",
+            namespace="default",
+            state=None,
+            annotations={},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result_queue.put.assert_not_called()
+
+    def test_process_status_callback_pod_succeeded(self):
+        """Watcher.process_status() puts the correct KubernetesWatch for a succeeded callback pod."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations={
+                    CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID,
+                    "dag_id": "my_dag",
+                    "run_id": "r1",
+                },
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Succeeded"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Succeeded"}}}
+        watcher.process_status("callback-pod", "default", "Succeeded", pod.metadata.annotations, "42", event)
+
+        watcher.watcher_queue.put.assert_called_once()
+        watch_event = watcher.watcher_queue.put.call_args[0][0]
+        assert watch_event.state is None
+        assert watch_event.annotations[CALLBACK_POD_ANNOTATION_KEY] == self._CALLBACK_ID
+
+    def test_process_status_callback_pod_running_not_queued(self):
+        """Running+MODIFIED (no deletion) does not enqueue a watcher event — same as task pods."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {}}
+        watcher.process_status("callback-pod", "default", "Running", pod.metadata.annotations, "42", event)
+        watcher.watcher_queue.put.assert_not_called()
+
+    def test_process_status_callback_pod_failed(self):
+        """Phase Failed enqueues a FAILED KubernetesWatch carrying failure details."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        annotations = {CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID, "dag_id": "my_dag", "run_id": "r1"}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations=annotations,
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Failed"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Failed"}}}
+        watcher.process_status("callback-pod", "default", "Failed", annotations, "42", event)
+
+        watcher.watcher_queue.put.assert_called_once()
+        watch_event = watcher.watcher_queue.put.call_args[0][0]
+        assert watch_event.state == TaskInstanceState.FAILED
+        assert watch_event.annotations[CALLBACK_POD_ANNOTATION_KEY] == self._CALLBACK_ID
+        assert watch_event.failure_details is not None
+        assert watch_event.failure_details["pod_status"] == "Failed"
+
+    def test_process_status_callback_pod_revoked_label_skipped(self):
+        """A revoked pod is skipped even when it carries a callback_id annotation."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+            POD_REVOKED_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        annotations = {CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations=annotations,
+                labels={POD_REVOKED_KEY: "True"},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Succeeded"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Succeeded"}}}
+        watcher.process_status("callback-pod", "default", "Succeeded", annotations, "42", event)
+        watcher.watcher_queue.put.assert_not_called()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.AIRFLOW_V_3_3_PLUS", False)
+    def test_task_execution_unaffected_on_older_airflow(self):
+        """With AIRFLOW_V_3_3_PLUS False, an ExecuteTask still flows through without callback code."""
+        task_workload = self._make_task_workload()
+        task_key = task_workload.ti.key
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = task_workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([task_workload])
+            mock_execute_async.assert_called_once()
+            assert task_key in executor.running
+            assert task_key not in executor.queued_tasks
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.AIRFLOW_V_3_3_PLUS", False)
+    def test_supports_callbacks_does_not_break_old_airflow(self):
+        """queue_workload(ExecuteTask) still stores in queued_tasks when callbacks are gated off."""
+        task_workload = self._make_task_workload()
+        task_key = task_workload.ti.key
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queue_workload(task_workload, session=None)
+            assert task_key in executor.queued_tasks
+            assert len(executor.queued_callbacks) == 0
         finally:
             executor.end()
