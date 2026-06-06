@@ -383,6 +383,7 @@
           ]},
         "ui_color": { "type": "string" },
         "ui_fgcolor": { "type": "string" },
+        "retries": { "type": "integer" },
         "upstream_group_ids": {
           "type": "array",
           "items": { "type": "string" }
