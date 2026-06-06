@@ -116,6 +116,7 @@ def _new_supervisor(pinned_version: str) -> _RecordingSupervisor:
         stdin=MagicMock(),
         process=MagicMock(spec=psutil.Process),
         process_log=structlog.get_logger(),
+        client=MagicMock(),
     )
     # In the reimplementation the field is ``_subprocess_schema_version``,
     # not ``lang_sdk_msg_schema_version``.
@@ -312,6 +313,7 @@ def test_no_migration_when_subprocess_schema_version_unset(monkeypatch):
         stdin=MagicMock(),
         process=MagicMock(spec=psutil.Process),
         process_log=structlog.get_logger(),
+        client=MagicMock(),
     )
     # ``_subprocess_schema_version`` is ``None`` by default; no version
     # negotiation has happened.
