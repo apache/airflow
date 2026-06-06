@@ -278,6 +278,7 @@ class CallbackSubprocess(WatchedSubprocess):
                 if deadline_id or deadline_time:
                     context["deadline"] = {"id": deadline_id, "deadline_time": deadline_time}
                 effective_kwargs["context"] = context
+                effective_kwargs = _render_callback_kwargs(effective_kwargs, context, _log)
 
             success, error_msg = execute_callback(
                 callback_path=callback_path,
@@ -453,6 +454,30 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="callback").bind()
 
     return logger, log_file_descriptor
+
+
+def _render_callback_kwargs(kwargs: dict, context: dict, _log) -> dict:
+    """
+    Render Jinja templates in string-valued callback kwargs using the context.
+
+    Only plain string values containing ``{{`` are rendered. Non-string values,
+    the ``context`` key itself, and strings without template markers are passed
+    through unchanged. Notifier classes handle their own rendering via
+    ``BaseNotifier.__call__``, so this targets plain function callbacks.
+    """
+    from jinja2 import Template
+
+    rendered = {}
+    for key, val in kwargs.items():
+        if key == "context" or not isinstance(val, str) or "{{" not in val:
+            rendered[key] = val
+            continue
+        try:
+            rendered[key] = Template(val).render(context)
+        except Exception:
+            _log.warning("Failed to render Jinja template in kwarg %s, using raw value", key)
+            rendered[key] = val
+    return rendered
 
 
 def _fetch_and_build_context(
