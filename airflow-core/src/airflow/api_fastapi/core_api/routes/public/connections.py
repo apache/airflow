@@ -353,8 +353,9 @@ def enqueue_connection_test(
     else:
         effective_team = test_body.team_name
 
+    auth_method = "PUT" if existing is not None and test_body.commit_on_success else "POST"
     if not get_auth_manager().is_authorized_connection(
-        method="POST",
+        method=auth_method,
         details=ConnectionDetails(conn_id=test_body.connection_id, team_name=effective_team),
         user=user,
     ):
