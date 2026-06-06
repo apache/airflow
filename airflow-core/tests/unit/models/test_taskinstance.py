@@ -33,7 +33,7 @@ import uuid6
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
@@ -1802,6 +1802,41 @@ class TestTaskInstance:
         ti = _create_task_instance(task=task, dag_version_id=mock.MagicMock())
         ti.set_duration()
         assert ti.duration is None
+
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ("start_date", "end_date", "expected_duration"),
+        [
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 1, 200000),
+                timezone.datetime(2026, 6, 7, 12, 0, 3, 500000),
+                2.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 59, 200000),
+                timezone.datetime(2026, 6, 7, 12, 1, 0, 500000),
+                1.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12),
+                timezone.datetime(2026, 6, 7, 13),
+                3600.0,
+            ),
+        ],
+    )
+    def test_duration_expression_update_sqlite(
+        self, create_task_instance, session, start_date, end_date, expected_duration
+    ):
+        ti = create_task_instance()
+        ti.start_date = start_date
+        session.flush()
+
+        query = update(TI).where(TI.id == ti.id)
+        session.execute(TI.duration_expression_update(end_date, query, session.get_bind()))
+        ti.refresh_from_db(session=session)
+
+        assert ti.end_date == end_date
+        assert ti.duration == expected_duration
 
     def test_outlet_asset_extra(self, dag_maker: DagMaker, session: Session):
         from airflow.sdk.definitions.asset import Asset
