@@ -43,6 +43,7 @@ from .validators import (
     get_validator,
     stat_name_otel_handler,
 )
+from ..exceptions import InvalidStatsNameException
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
@@ -103,8 +104,6 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-    #return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
-
     # stat_name_otel_handler() raises InvalidStatsNameException for names that
     # contain non-ASCII characters (e.g. TaskGroup IDs with ç, ã, ö, é …).
     # This function is declared -> bool, so it must NEVER raise; callers such

@@ -37,6 +37,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
     full_name,
+    name_is_otel_safe,
     get_otel_logger,
 )
 from airflow_shared.observability.metrics.validators import (
@@ -541,3 +542,30 @@ def mock_service_run_reinit():
     # Second init — simulates post-fork re-initialization
     logger = get_otel_logger(debug=True)
     logger.incr("post_fork_stat")
+
+
+class TestNameIsOtelSafe:
+    """Regression tests for name_is_otel_safe() — must never raise, only return bool."""
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "dag.lista_preços.run_pipeline.scheduled_duration",  
+            "dag.tâche.duration",                               
+            "dag.über_dag.queued_duration",                     
+        ],
+    )
+    def test_non_ascii_name_returns_false_not_raises(self, name):
+        """Non-ASCII names must return False, never raise. Regression for #68018."""
+        assert name_is_otel_safe("airflow", name) is False
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "dag.my_dag.my_task.duration",
+            "scheduler.heartbeat",
+        ],
+    )
+    def test_valid_ascii_name_returns_true(self, name):
+        """Valid ASCII names must still return True — no regression."""
+        assert name_is_otel_safe("airflow", name) is True
