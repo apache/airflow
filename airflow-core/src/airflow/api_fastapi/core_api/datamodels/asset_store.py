@@ -23,8 +23,7 @@ from pydantic import JsonValue, field_validator
 
 from airflow._shared.state import AssetStoreWriterKind
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-
-_MAX_SERIALIZED_BYTES = 65535
+from airflow.configuration import conf
 
 
 class AssetStoreLastUpdatedBy(BaseModel):
@@ -67,6 +66,10 @@ class AssetStoreBody(StrictBaseModel):
             serialized = json.dumps(v, allow_nan=False)
         except ValueError:
             raise ValueError("value contains non-finite numbers; NaN and Inf are not JSON representable")
-        if len(serialized) > _MAX_SERIALIZED_BYTES:
-            raise ValueError(f"value exceeds maximum serialized size of {_MAX_SERIALIZED_BYTES} bytes")
+        limit = conf.getint("state_store", "max_value_storage_bytes")
+        if limit > 0 and len(serialized) > limit:
+            raise ValueError(
+                f"value exceeds max_value_storage_bytes ({limit}); "
+                "for large payloads configure a custom [state_store] backend"
+            )
         return v

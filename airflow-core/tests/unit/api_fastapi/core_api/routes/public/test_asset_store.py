@@ -226,8 +226,10 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_null_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": None}).status_code == 422
 
-    def test_oversized_value_returns_422(self, test_client):
-        assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+    def test_put_value_over_limit_returns_422(self, test_client):
+        # default is 65535 bytes
+        big = "x" * 70000
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": big}).status_code == 422
 
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_non_finite_float_rejected_by_validator(self, bad_value):

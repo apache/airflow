@@ -305,6 +305,12 @@ class TestSetTaskState(TestTaskStateEndpoint):
         assert resp["value"] == "v2"
         assert resp["expires_at"] is None
 
+    def test_put_value_over_limit_returns_422(self, test_client):
+        # default is 65536 bytes
+        big = "x" * 70000
+        resp = test_client.put(f"{BASE_URL}/job_id", json={"value": big})
+        assert resp.status_code == 422
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.put(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
 
@@ -337,6 +343,12 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         _create_task_state(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
+
+    def test_patch_value_over_limit_returns_422(self, test_client):
+        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        big = "x" * 70000
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": big}).status_code == 422
 
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_patch_non_finite_float_rejected_by_validator(self, bad_value):

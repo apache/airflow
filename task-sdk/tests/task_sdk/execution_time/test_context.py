@@ -1219,6 +1219,17 @@ class TestTaskStoreAccessor:
             with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
                 TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
+    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
+        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        big = "x" * 110
+        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
+            with patch("airflow.sdk.execution_time.context.log") as mock_log:
+                TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", big)
+                mock_log.warning.assert_called_once()
+                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        mock_supervisor_comms.send.assert_called_once()
+
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
@@ -1441,6 +1452,17 @@ class TestAssetStoreAccessor:
         backend.deserialize_asset_store_from_ref.assert_called_once_with(
             "s3://bucket/assets/orders/watermark"
         )
+
+    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
+        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        big = "x" * 110
+        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
+            with patch("airflow.sdk.execution_time.context.log") as mock_log:
+                AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", big)
+                mock_log.warning.assert_called_once()
+                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        mock_supervisor_comms.send.assert_called_once()
 
 
 class TestAssetStoreAccessors:

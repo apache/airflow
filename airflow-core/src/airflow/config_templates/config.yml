@@ -3226,6 +3226,21 @@ state_store:
       type: integer
       example: "10000"
       default: "0"
+    max_value_storage_bytes:
+      description: |
+        Only applicable to MetastoreStoreBackend. Maximum size in bytes that a single task or asset store
+        value written via the core or execution API can have. Values that exceed this limit are rejected
+        at the API boundary.
+
+        Workers writing via the execution API log a warning to use custom backends when this limit
+        is exceeded but the write is allowed to avoid interrupting a task mid execution.
+
+        The default of 65535 bytes (64 KB) is appropriate for coordination state values such as
+        job IDs, cursors, and small status maps. For larger payloads, use a custom state backends.
+      version_added: 3.3.0
+      type: integer
+      example: "1048576"
+      default: "65535"
 
 profiling:
   description: |
