@@ -30,19 +30,11 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
-from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
-    ErrorResponse,
     GetConnection,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
-)
-from airflow.sdk.execution_time.request_handlers import (
-    handle_get_connection,
-    handle_get_variable,
-    handle_get_variable_keys,
-    handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
@@ -53,7 +45,6 @@ from airflow.sdk.execution_time.supervisor import (
 )
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
@@ -302,31 +293,7 @@ class CallbackSubprocess(WatchedSubprocess):
             log.debug("Received request from callback (body omitted)", msg=type(msg))
         else:
             log.debug("Received request from callback", msg=msg)
-
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
-
-        if isinstance(msg, GetConnection):
-            resp, dump_opts = handle_get_connection(self.client, msg)
-        elif isinstance(msg, GetVariable):
-            resp, dump_opts = handle_get_variable(self.client, msg)
-        elif isinstance(msg, GetVariableKeys):
-            resp, dump_opts = handle_get_variable_keys(self.client, msg)
-        elif isinstance(msg, MaskSecret):
-            handle_mask_secret(msg)
-        else:
-            log.warning("Unhandled request from callback subprocess", msg=msg)
-            self.send_msg(
-                None,
-                request_id=req_id,
-                error=ErrorResponse(
-                    error=ErrorType.API_SERVER_ERROR,
-                    detail={"status_code": 400, "message": "Unhandled request"},
-                ),
-            )
-            return
-
-        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        super()._handle_request(msg, log, req_id)
 
 
 def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
