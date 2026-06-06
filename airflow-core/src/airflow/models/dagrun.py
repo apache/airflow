@@ -298,6 +298,9 @@ class DagRun(Base, LoggingMixin):
     context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
         MutableDict.as_mutable(ExtendedJSON), nullable=True
     )
+    task_group_retries: Mapped[dict[str, int] | None] = mapped_column(
+        MutableDict.as_mutable(ExtendedJSON), nullable=True
+    )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
         ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
@@ -1198,6 +1201,61 @@ class DagRun(Base, LoggingMixin):
             span.set_status(status_code)
             span.end()
 
+    def get_task_group_retry_count(self, group_id: str) -> int:
+        """Return how many times ``group_id`` has been retried as a unit in this run."""
+        return (self.task_group_retries or {}).get(group_id, 0)
+
+    def increment_task_group_retry_count(self, group_id: str) -> int:
+        """Bump and return the unit-retry counter for ``group_id`` in this run."""
+        counters = dict(self.task_group_retries or {})
+        counters[group_id] = counters.get(group_id, 0) + 1
+        self.task_group_retries = counters
+        return counters[group_id]
+
+    def _handle_task_group_retries(self, dag: SerializedDAG, *, session: Session) -> None:
+        """Clear and re-run any retryable TaskGroup that has a failed task and still has retries left."""
+        from airflow.models.taskinstance import clear_task_instances
+
+        retryable_groups = [
+            group for group in dag.task_group.get_task_group_dict().values() if group.retries > 0
+        ]
+        if not retryable_groups:
+            return
+
+        # Not-yet-started members are skipped, since clearing them records spurious history rows.
+        clearable_states = State.finished | {TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING}
+
+        def _group_depth(group: Any) -> int:
+            depth = 0
+            parent = group.parent_group
+            while parent is not None:
+                depth += 1
+                parent = parent.parent_group
+            return depth
+
+        tis = self.get_task_instances(session=session)
+        # Innermost first, so a failure is consumed by the inner group before an outer one charges it.
+        for group in sorted(retryable_groups, key=_group_depth, reverse=True):
+            group_id = group.group_id
+            if group_id is None:  # the root group is never retryable, but narrows the type
+                continue
+            member_task_ids = {task.task_id for task in group.iter_tasks()}
+            member_tis = [ti for ti in tis if ti.task_id in member_task_ids]
+            if not any(ti.state == TaskInstanceState.FAILED for ti in member_tis):
+                continue
+            if self.get_task_group_retry_count(group_id) >= group.retries:
+                continue
+            to_clear = [ti for ti in member_tis if ti.state in clearable_states]
+            clear_task_instances(to_clear, session=session, dag_run_state=False)
+            attempt = self.increment_task_group_retry_count(group_id)
+            self.log.info(
+                "Retrying task group '%s' in %s as a unit (attempt %d of %d)",
+                group_id,
+                self,
+                attempt,
+                group.retries,
+            )
+
     @provide_session
     def update_state(
         self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
@@ -1248,6 +1306,8 @@ class DagRun(Base, LoggingMixin):
             tags=self.stats_tags,
         ):
             dag = self.get_dag()
+            # Before scheduling decisions, so a group failure is cleared before it propagates downstream.
+            self._handle_task_group_retries(dag, session=session)
             info = self.task_instance_scheduling_decisions(session=session)
 
             tis = info.tis

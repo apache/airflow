@@ -68,6 +68,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
+    TaskGroup,
     get_current_context,
     setup,
     task,
@@ -4980,3 +4981,164 @@ class TestApplyPartitionDateWindowSubDay:
             session=session,
         )
         assert cleared == 3
+
+
+class TestDagRunTaskGroupRetries:
+    """Tests for retrying a whole TaskGroup as a unit (``TaskGroup(retries=...)``)."""
+
+    @staticmethod
+    def _state(dr, task_id, session):
+        return dr.get_task_instance(task_id, session=session).state
+
+    def test_clears_and_reruns_group_on_member_failure(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_basic", serialized=True, session=session):
+            with TaskGroup("g", retries=2):
+                a = EmptyOperator(task_id="a")
+                b = EmptyOperator(task_id="b")
+                a >> b
+
+        dr = dag_maker.create_dagrun()
+        # A succeeded, B failed after exhausting its own retries.
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.SUCCESS, session=session)
+        dr.get_task_instance("g.b", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+
+        # The whole group is cleared (the succeeded member too) and the run keeps going.
+        assert dr.task_group_retries == {"g": 1}
+        assert dr.state == DagRunState.RUNNING
+        assert self._state(dr, "g.a", session) is None
+        assert self._state(dr, "g.b", session) is None
+
+    def test_exhausting_retries_fails_the_run(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_exhaust", serialized=True, session=session):
+            with TaskGroup("g", retries=1):
+                EmptyOperator(task_id="a")
+
+        dr = dag_maker.create_dagrun()
+
+        # First failure -> one retry is spent, the task is cleared.
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        session.flush()
+        dr.update_state(session=session)
+        assert dr.task_group_retries == {"g": 1}
+        assert dr.state == DagRunState.RUNNING
+        assert self._state(dr, "g.a", session) is None
+
+        # Second failure -> budget exhausted, the counter holds and the run fails.
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        session.flush()
+        dr.update_state(session=session)
+        assert dr.task_group_retries == {"g": 1}
+        assert dr.state == DagRunState.FAILED
+        assert self._state(dr, "g.a", session) == TaskInstanceState.FAILED
+
+    def test_tasks_outside_group_are_untouched(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_outside", serialized=True, session=session):
+            with TaskGroup("g", retries=2):
+                EmptyOperator(task_id="a")
+            EmptyOperator(task_id="outside")
+
+        dr = dag_maker.create_dagrun()
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        dr.get_task_instance("outside", session=session).set_state(TaskInstanceState.SUCCESS, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+
+        assert self._state(dr, "g.a", session) is None
+        # The independent task outside the group keeps its state.
+        assert self._state(dr, "outside", session) == TaskInstanceState.SUCCESS
+        assert dr.task_group_retries == {"g": 1}
+
+    def test_running_sibling_is_restarted(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_sibling", serialized=True, session=session):
+            with TaskGroup("g", retries=2):
+                EmptyOperator(task_id="a")
+                EmptyOperator(task_id="b")
+
+        dr = dag_maker.create_dagrun()
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        dr.get_task_instance("g.b", session=session).set_state(TaskInstanceState.RUNNING, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+
+        assert self._state(dr, "g.a", session) is None
+        assert self._state(dr, "g.b", session) == TaskInstanceState.RESTARTING
+        assert dr.task_group_retries == {"g": 1}
+
+    def test_nested_groups_charge_only_innermost(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_nested", serialized=True, session=session):
+            with TaskGroup("outer", retries=2):
+                with TaskGroup("inner", retries=2):
+                    EmptyOperator(task_id="a")
+
+        dr = dag_maker.create_dagrun()
+        dr.get_task_instance("outer.inner.a", session=session).set_state(
+            TaskInstanceState.FAILED, session=session
+        )
+        session.flush()
+
+        dr.update_state(session=session)
+
+        # Only the innermost retryable group consumes a retry for a failure inside it.
+        assert dr.task_group_retries == {"outer.inner": 1}
+        assert self._state(dr, "outer.inner.a", session) is None
+
+    def test_manual_clear_resets_group_retry_budget(self, dag_maker, session):
+        with dag_maker(dag_id="tg_retry_clear_reset", serialized=True, session=session):
+            with TaskGroup("g", retries=2):
+                EmptyOperator(task_id="a")
+
+        dr = dag_maker.create_dagrun()
+        # Simulate a finished run that already spent part of the group's retry budget.
+        dr.increment_task_group_retry_count("g")
+        dr.set_state(DagRunState.FAILED)
+        session.flush()
+        assert dr.task_group_retries == {"g": 1}
+
+        # Manually clearing the finished run wipes the counter so the re-run starts fresh.
+        clear_task_instances(
+            dr.get_task_instances(session=session), session=session, dag_run_state=DagRunState.QUEUED
+        )
+        session.flush()
+        assert not dr.task_group_retries
+
+    def test_downstream_of_group_not_marked_upstream_failed_on_retry(self, dag_maker, session):
+        # Regression guard for the hook placement: a task downstream of the group must not be
+        # marked upstream_failed when the group fails and retries.
+        with dag_maker(dag_id="tg_retry_downstream", serialized=True, session=session):
+            with TaskGroup("g", retries=2) as group:
+                EmptyOperator(task_id="a")
+            downstream = EmptyOperator(task_id="downstream")
+            group >> downstream
+
+        dr = dag_maker.create_dagrun()
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+
+        assert dr.task_group_retries == {"g": 1}
+        assert self._state(dr, "g.a", session) is None
+        assert self._state(dr, "downstream", session) is None
+        assert self._state(dr, "downstream", session) != TaskInstanceState.UPSTREAM_FAILED
+        assert dr.state == DagRunState.RUNNING
+
+    def test_group_without_retries_is_a_noop(self, dag_maker, session):
+        # retries=0 (the default) is a no-op, so the failed task stays failed and the run fails.
+        with dag_maker(dag_id="tg_retry_noop", serialized=True, session=session):
+            with TaskGroup("g"):
+                EmptyOperator(task_id="a")
+
+        dr = dag_maker.create_dagrun()
+        dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+
+        assert not dr.task_group_retries
+        assert self._state(dr, "g.a", session) == TaskInstanceState.FAILED
+        assert dr.state == DagRunState.FAILED
