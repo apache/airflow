@@ -1740,9 +1740,15 @@ class TestDagsOperations:
     def test_get_url_quotes_dag_id_as_single_path_segment(self):
         """Test that Dag IDs cannot escape the dags API path."""
         requests_seen = []
+        crafted_dag_id = "x/../../variables/secret_key"
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests_seen.append(request)
+            if request.url.path == "/variables/secret_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"key": "secret_key", "value": "super-secret-value"},
+                )
             return httpx.Response(
                 status_code=404,
                 json={
@@ -1755,10 +1761,12 @@ class TestDagsOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with pytest.raises(ServerResponseError):
-            client.dags.get(dag_id="x/../../variables/secret_key")
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.dags.get(dag_id=crafted_dag_id)
 
         assert requests_seen[0].url.raw_path == b"/dags/x%2F..%2F..%2Fvariables%2Fsecret_key"
+        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert "super-secret-value" not in str(exc_info.value)
 
     def test_get_not_found(self):
         """Test that getting a missing dag raises a server response error."""
