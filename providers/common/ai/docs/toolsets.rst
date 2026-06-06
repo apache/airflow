@@ -146,14 +146,39 @@ Curated toolset wrapping
 The ``DbApiHook`` is resolved lazily from ``db_conn_id`` on first tool call
 via ``BaseHook.get_connection(conn_id).get_hook()``.
 
+Multi-schema warehouses
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When an agent's tables live in several schemas of one database -- common on
+Snowflake -- list them with schema-qualified ``allowed_tables`` entries:
+
+.. code-block:: python
+
+    SQLToolset(
+        db_conn_id="snowflake_hq",
+        allowed_tables=["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS", "MODEL_CRM.SF_ASTRO_ORGS"],
+    )
+
+``list_tables`` then introspects each referenced schema and returns the matching
+tables fully qualified (e.g. ``MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS``), and
+``get_schema`` routes each qualified name to its own schema. Without this, a
+single ``schema`` only covers one namespace, and leaving ``schema`` unset made
+introspection query a literal ``"None"`` schema and fail. Unqualified entries
+fall back to ``schema``, and table-name matching is case-insensitive (databases
+reflect identifiers in their own case). For tables in a different *database*, use
+a separate toolset whose connection points at that database.
+
 Parameters
 ^^^^^^^^^^
 
 - ``db_conn_id``: Airflow connection ID for the database.
 - ``allowed_tables``: Restrict which tables the agent can discover via
-  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
+  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables in
+  ``schema``. Entries may be schema-qualified (``"SCHEMA.TABLE"``) to span
+  multiple schemas; see above. Matching is case-insensitive.
   See :ref:`allowed-tables-limitation` for an important caveat.
-- ``schema``: Database schema/namespace for table listing and introspection.
+- ``schema``: Default schema/namespace for unqualified table listing and
+  introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` — only SELECT-family statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
