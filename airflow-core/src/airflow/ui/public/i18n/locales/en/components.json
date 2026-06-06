@@ -15,6 +15,7 @@
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
     "scheduleNotBackfillable": "This Dag's schedule does not support backfills",
+    "schedulerPriorityHint": "Backfill Dag runs are ordered after non-backfill Dag runs in each scheduler cycle. Backfill runs may remain queued longer if other non-backfill runs are present.",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",

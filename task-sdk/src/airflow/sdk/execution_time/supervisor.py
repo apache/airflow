@@ -63,6 +63,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetStoreResult,
+    AwaitInputTask,
     ClearAssetStoreByName,
     ClearAssetStoreByUri,
     ClearTaskStore,
@@ -197,6 +198,7 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
     {
         TaskInstanceState.DEFERRED,
+        TaskInstanceState.AWAITING_INPUT,
         TaskInstanceState.UP_FOR_RESCHEDULE,
         TaskInstanceState.UP_FOR_RETRY,
         TaskInstanceState.SUCCESS,
@@ -1289,9 +1291,9 @@ class ActivitySubprocess(WatchedSubprocess):
     # falling back to `finish()`, which doesn't accept SUCCESS / DEFERRED /
     # SERVER_TERMINATED on the server side. Cleared (and `_terminal_state`
     # set) only after the API call returns successfully.
-    _pending_terminal_state_msg: SucceedTask | RetryTask | DeferTask | RescheduleTask | None = attrs.field(
-        default=None, init=False
-    )
+    _pending_terminal_state_msg: (
+        SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
+    ) = attrs.field(default=None, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -1455,7 +1457,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 rendered_map_index=self._rendered_map_index,
             )
 
-    def _send_terminal_state_msg(self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask) -> None:
+    def _send_terminal_state_msg(
+        self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
+    ) -> None:
         # Capture the message BEFORE the API call so the recovery dispatcher
         # in `update_task_state_if_needed` can re-issue it if the call raises
         # (network blip, transient server 5xx). Clear the pending slot and
@@ -1485,6 +1489,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RescheduleTask):
             self.client.task_instances.reschedule(self.id, msg)
             self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        elif isinstance(msg, AwaitInputTask):
+            self.client.task_instances.await_input(self.id, msg)
+            self._terminal_state = TaskInstanceState.AWAITING_INPUT
         self._pending_terminal_state_msg = None
 
     def _replay_pending_terminal_state_msg(self) -> None:
@@ -1705,6 +1712,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXComSequenceSlice):
             resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, DeferTask):
+            self._rendered_map_index = msg.rendered_map_index
+            self._send_terminal_state_msg(msg)
+        elif isinstance(msg, AwaitInputTask):
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
         elif isinstance(msg, RescheduleTask):

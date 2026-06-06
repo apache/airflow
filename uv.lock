@@ -7621,7 +7621,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
     { name = "setuptools", specifier = ">=80.0.0,<9999" },
-    { name = "snowflake-connector-python", specifier = ">=3.16.0" },
+    { name = "snowflake-connector-python", specifier = ">=3.17.0" },
     { name = "snowflake-snowpark-python", marker = "python_full_version < '3.12'", specifier = ">=1.17.0,<9999" },
     { name = "snowflake-snowpark-python", marker = "python_full_version >= '3.12' and python_full_version < '3.14'", specifier = ">=1.27.0,<9999" },
     { name = "snowflake-sqlalchemy", specifier = ">=1.7.0" },

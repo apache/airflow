@@ -2040,15 +2040,19 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     def get_num_active_task_instances(self, *, same_dagrun: bool = False, session: Session) -> int:
         """
-        Count active (running or deferred) TIs for this task from the DB.
+        Count active (running, deferred, or awaiting-input) TIs for this task from the DB.
 
-        Deferred TIs are included because they are still logically in-flight
-        and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
+        Deferred and awaiting-input TIs are included because they are still logically
+        in-flight and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
 
         :meta private:
         """
         return self._get_num_task_instances_of_state(
-            [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED],
+            [
+                TaskInstanceState.RUNNING,
+                TaskInstanceState.DEFERRED,
+                TaskInstanceState.AWAITING_INPUT,
+            ],
             same_dagrun=same_dagrun,
             session=session,
         )
