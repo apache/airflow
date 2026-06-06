@@ -145,6 +145,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
     handle_get_xcom_sequence_slice,
@@ -786,13 +787,9 @@ class WatchedSubprocess:
         target_loggers = self._get_target_loggers()
 
         self.selector.register(
-<<<<<<< HEAD
             stdout,
             selectors.EVENT_READ,
             self._create_log_forwarder(target_loggers, "task.stdout", data=data.get(stdout, b"")),
-=======
-            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
->>>>>>> 904f1ea7a9 (Address ashb review: fix ordering, simplify context manager, log close errors)
         )
         self.selector.register(
             stderr,
@@ -841,13 +838,9 @@ class WatchedSubprocess:
             for log in loggers
         )
         return make_buffered_socket_reader(
-<<<<<<< HEAD
             forward_to_log(loggers, logger=name, level=log_level),
             data=data,
             on_close=self._on_socket_closed,
-=======
-            forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
->>>>>>> 904f1ea7a9 (Address ashb review: fix ordering, simplify context manager, log close errors)
         )
 
     def _on_socket_closed(self, sock: socket):
@@ -1710,13 +1703,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
-            )
-            xcom_result = XComResult.from_xcom_response(xcom)
-            resp = xcom_result
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetXComCount):
-            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
@@ -2557,12 +2546,7 @@ def supervise_task(
 
         try:
             with _configure_logging(log_path, client) if log_path else contextlib.nullcontext(None) as logger:
-<<<<<<< HEAD
                 result = coordinator.execute_task(
-=======
-                process = ActivitySubprocess.start(
-                    dag_rel_path=dag_rel_path,
->>>>>>> 904f1ea7a9 (Address ashb review: fix ordering, simplify context manager, log close errors)
                     what=ti,
                     dag_rel_path=dag_rel_path,
                     bundle_info=bundle_info,
