@@ -274,6 +274,21 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
 
+CloudSQLNoOperationInProgressSensor
+-----------------------------------
+
+Cloud SQL allows only one administrative operation at a time per instance. Use
+:class:`~airflow.providers.google.cloud.sensors.cloud_sql.CloudSQLNoOperationInProgressSensor`
+before import, export, clone, patch, or other instance operations to wait until the
+instance has no non-terminal operation in progress. The sensor supports deferrable
+mode so it can wait without occupying a worker slot.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_cloudsql_no_operation]
+    :end-before: [END howto_sensor_cloudsql_no_operation]
+
 
 .. _howto/operator:CloudSQLImportInstanceOperator:
 
