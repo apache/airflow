@@ -58,45 +58,61 @@ class TestDayWindow:
         members = list(DayWindow().to_upstream(period_start))
         assert members == [datetime(2024, 6, 10, h) for h in range(24)]
 
-    def test_day_window_yields_24_naive_steps_regardless_of_dst(self):
-        """DayWindow always yields exactly 24 naive steps; it does not know about DST."""
-        # 2024-03-10: US Eastern spring-forward (clocks skip 02:00 → 03:00).
+    def test_day_window_tz_none_yields_24_naive_steps(self):
+        """With no timezone (UTC / naive upstream mapper) DayWindow always yields 24 naive steps."""
+        # 2024-03-10 / 2024-11-03 are US Eastern DST days, but with tz=None the window is
+        # timezone-agnostic and yields a fixed 24 naive hourly steps.
         spring_forward = datetime(2024, 3, 10)
         assert list(DayWindow().to_upstream(spring_forward)) == [datetime(2024, 3, 10, h) for h in range(24)]
 
-        # 2024-11-03: US Eastern fall-back (clocks repeat 01:00 → 01:00).
         fall_back = datetime(2024, 11, 3)
         assert list(DayWindow().to_upstream(fall_back)) == [datetime(2024, 11, 3, h) for h in range(24)]
 
-    @pytest.mark.xfail(
-        reason=(
-            "DayWindow with a local-timezone upstream mapper cannot satisfy the rollup on a "
-            "spring-forward day: the 02:00 ET gap causes one naive step to encode to "
-            "03:00 ET, which upstream producers never emit. This is an accepted limitation "
-            "of naive 24-hour stepping — the documented mitigation is to use UTC input_format "
-            "so local-clock ambiguity never arises. See DayWindow's docstring."
-        ),
-        strict=True,
-    )
-    def test_day_window_rollup_under_yields_on_spring_forward_with_local_tz(self):
+    def test_day_window_spring_forward_local_tz_yields_23_keys(self):
         """
-        Rollup with a local-timezone upstream mapper is unsatisfiable on spring-forward days.
+        On a spring-forward day a local-timezone rollup expects the 23 real local hours.
 
-        DayWindow generates 24 naive steps. StartOfDayMapper(timezone="America/New_York")
-        encodes each step into a local-time key. On 2024-03-10 (spring-forward), 02:00
-        local time does not exist — the encoder produces "2024-03-10T03" for *two*
-        consecutive steps. One expected upstream key ("2024-03-10T02") is never emitted
-        by any real producer, so to_upstream returns a frozenset of 23 *distinct* keys.
-        The rollup window requires all 24 and therefore can never be satisfied.
+        2024-03-10 US Eastern skips 02:00 → 03:00, so the day has 23 hours. DayWindow is DST-aware
+        and yields those 23 (no ``2024-03-10T02`` gap key), so the rollup can actually be satisfied
+        instead of waiting forever for a key no producer emits.
         """
         mapper = RollupMapper(
             upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H"),
             window=DayWindow(),
         )
         upstream_keys = mapper.to_upstream("2024-03-10")
-        # A correctly functioning rollup would expect exactly 24 distinct upstream keys.
-        # On spring-forward this assertion fails because only 23 distinct keys are produced.
-        assert len(upstream_keys) == 24
+        assert len(upstream_keys) == 23
+        assert "2024-03-10T02" not in upstream_keys
+
+    def test_day_window_fall_back_local_tz_does_not_hang(self):
+        """
+        On a fall-back day the local clock 01:00 repeats.
+
+        Without ``%z`` in the upstream format the two 01:00 hours share a single key, so the window
+        yields 24 distinct keys (not 25). Crucially none of them is unsatisfiable, so the rollup no
+        longer hangs (full 25-key coverage would require ``%z`` in ``input_format``).
+        """
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        assert len(mapper.to_upstream("2024-11-03")) == 24
+
+    def test_day_window_non_dst_local_day_yields_24_keys(self):
+        """A local-timezone day with no DST transition still yields exactly 24 keys."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        assert len(mapper.to_upstream("2024-06-10")) == 24
+
+    def test_day_window_utc_yields_24_keys_on_dst_day(self):
+        """A UTC upstream mapper is unaffected by local DST: 24 keys even on a spring-forward date."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="UTC", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        assert len(mapper.to_upstream("2024-03-10")) == 24
 
 
 class TestWeekWindow:
@@ -407,6 +423,17 @@ class TestRollupMapperComposition:
                 DayWindow(),
                 "2024-06-10",
                 id="day",
+            ),
+            pytest.param(
+                # The window carries no tz state - the timezone lives on the mapper and is
+                # serialized there, so the restored rollup must still reproduce the DST-correct
+                # 23-key set on a spring-forward day.
+                lambda: StartOfDayMapper(
+                    timezone="America/New_York", input_format="%Y-%m-%dT%H", output_format="%Y-%m-%d"
+                ),
+                DayWindow(),
+                "2024-03-10",
+                id="day-local-tz-dst",
             ),
             pytest.param(
                 lambda: StartOfQuarterMapper(input_format="%Y-%m"),

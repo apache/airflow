@@ -324,7 +324,9 @@ with DAG(
     ``StartOfDayMapper`` normalizes each upstream hourly timestamp (``%Y-%m-%dT%H:%M:%S``)
     to its day-start (``%Y-%m-%d``); ``DayWindow`` declares the downstream run needs
     all 24 hourly partitions before firing. Publishes ``daily_team_a`` so the
-    monthly rollup below can consume it.
+    monthly rollup below can consume it. (This mapper uses the default UTC timezone, so a
+    day is always 24 hours; with a local-timezone mapper ``DayWindow`` is DST-aware and
+    expects 23 or 25 partitions on DST-transition days.)
     """
 
     @task(outlets=[daily_team_a])
