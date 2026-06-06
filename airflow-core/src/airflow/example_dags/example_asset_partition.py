@@ -26,12 +26,14 @@ from airflow.sdk import (
     CronPartitionTimetable,
     DayWindow,
     FanOutMapper,
+    FixedKeyMapper,
     IdentityMapper,
     MonthWindow,
     PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -409,3 +411,41 @@ with DAG(
         print(dag_run.partition_key)
 
     run_inference()
+
+
+# --- Segment (categorical) rollup -------------------------------------------
+# ``multi_region_player_stats`` (defined above) emits one partition per region
+# (``us``, ``eu``, ``apac``) from a single run.  The Dag below holds a downstream
+# run until every declared region key has arrived.
+
+with DAG(
+    dag_id="segment_region_stats_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=FixedKeyMapper("all_regions"),
+            window=SegmentWindow(["us", "eu", "apac"]),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Categorical rollup: hold until all three region partitions arrive.
+
+    ``RollupMapper(upstream_mapper=FixedKeyMapper("all_regions"), window=SegmentWindow([...]))``
+    declares the fixed set of region keys required for one downstream run and collapses every
+    region key onto a single ``all_regions`` partition, so the three region events accumulate
+    into one downstream run.  The run is held until ``us``, ``eu``, and ``apac`` have all
+    arrived from ``multi_region_player_stats``; partial arrivals remain pending in the
+    next-run-assets view so operators can track progress.
+    """
+
+    @task
+    def aggregate_all_regions(dag_run=None):
+        """Produce the cross-region summary once every region partition has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_all_regions()

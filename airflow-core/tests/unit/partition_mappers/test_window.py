@@ -34,6 +34,7 @@ from airflow.partition_mappers.window import (
     HourWindow,
     MonthWindow,
     QuarterWindow,
+    SegmentWindow,
     WeekWindow,
     Window,
     YearWindow,
@@ -463,6 +464,47 @@ class TestDirectionValidation:
     def test_invalid_direction_raises_value_error(self, bad_value):
         with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
             WeekWindow(direction=bad_value)
+
+
+class TestSegmentWindow:
+    def test_to_upstream_returns_full_set_ignoring_anchor(self):
+        w = SegmentWindow(["us", "eu", "apac"])
+        result_a = frozenset(w.to_upstream("any-anchor"))
+        result_b = frozenset(w.to_upstream("different-anchor"))
+        assert result_a == frozenset({"us", "eu", "apac"})
+        assert result_a == result_b
+
+    def test_expected_decoded_type_is_str(self):
+        assert SegmentWindow.expected_decoded_type is str
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([], "at least one segment key", id="empty-list"),
+            pytest.param(iter([]), "at least one segment key", id="empty-iterator"),
+            pytest.param([1, "b"], "must be str", id="int-element"),
+            pytest.param([None, "b"], "must be str", id="none-element"),
+            pytest.param(["", "b"], "non-empty strings", id="empty-string-first"),
+            pytest.param(["a", ""], "non-empty strings", id="empty-string-second"),
+        ],
+    )
+    def test_rejects_invalid_segments(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    def test_deduplication(self):
+        w = SegmentWindow(["us", "us", "eu"])
+        assert frozenset(w.to_upstream("any")) == frozenset({"us", "eu"})
+
+    def test_serialize_uses_sorted_order(self):
+        w = SegmentWindow(["z", "a", "m"])
+        assert w.serialize() == {"segments": ["a", "m", "z"]}
+
+    def test_deserialize_round_trip(self):
+        w = SegmentWindow(["us", "eu", "apac"])
+        restored = SegmentWindow.deserialize(w.serialize())
+        assert isinstance(restored, SegmentWindow)
+        assert frozenset(restored.to_upstream("any")) == frozenset({"us", "eu", "apac"})
 
 
 class TestWindowSerializationGate:
