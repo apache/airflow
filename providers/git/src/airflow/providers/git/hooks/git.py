@@ -124,22 +124,22 @@ class GitHook(BaseHook):
         if (self.github_app_id is not None and self.github_installation_id is None) or (
             self.github_app_id is None and self.github_installation_id is not None
         ):
-            raise ValueError(
+            raise AirflowException(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
         if self.github_app_id is not None and self.github_installation_id is not None:
             if not self.key_file and not self.private_key:
-                raise ValueError("Missing inline private_key or key_file for GitHub App Auth")
+                raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
                 try:
                     with open(self.key_file, encoding="utf-8") as key_file:
                         self.private_key = key_file.read()
                 except OSError as exc:
-                    raise OSError(
+                    raise AirflowException(
                         f"Failed to read GitHub App private key file {self.key_file!r}: {exc}"
                     ) from exc
             if not (self.repo_url or "").startswith(("https://", "http://")):
-                raise ValueError(
+                raise AirflowException(
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
             # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
@@ -193,7 +193,7 @@ class GitHook(BaseHook):
         auth = Auth.AppAuth(self.github_app_id, self.github_app_private_key)
         integration = GithubIntegration(auth=auth)
         access_token = integration.get_access_token(installation_id=self.github_installation_id)
-        github_app_token_exp = access_token.expires_at + timedelta(minutes=60)
+        github_app_token_exp = access_token.expires_at
         log.info(
             "Successfully obtained GitHub App installation access token (expires at: %s)",
             github_app_token_exp,
@@ -324,7 +324,7 @@ class GitHook(BaseHook):
 
         # If a GitHub App PEM is present, it should not be treated as an SSH key
         # for configuring `GIT_SSH_COMMAND`.
-        if self.private_key and not getattr(self, "github_app_private_key", None):
+        if self.private_key and not self.github_app_private_key:
             with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                 tmp_keyfile.write(self.private_key)
                 tmp_keyfile.flush()
