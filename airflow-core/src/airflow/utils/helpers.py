@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+import logging
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
@@ -48,6 +49,8 @@ CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r"(?!^)([A-Z]+)")
 
 T = TypeVar("T")
 S = TypeVar("S")
+
+logger = logging.getLogger(__name__)
 
 
 def validate_key(k: str, max_length: int = 250):
@@ -145,22 +148,53 @@ def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None
 
 @cache
 def log_filename_template_renderer() -> Callable[..., str]:
+    import jinja2
+
     template = conf.get("logging", "log_filename_template")
+    # The default template is run_id-based and never references logical_date, so it always renders.
+    # It is the safe fallback when a user-supplied template raises (see ``render`` below).
+    default_render = jinja2.Template(conf.get_default_value("logging", "log_filename_template")).render
+    compiled = jinja2.Template(template) if "{{" in template else None
 
-    if "{{" in template:
-        import jinja2
-
-        return jinja2.Template(template).render
-
-    def f_str_format(ti: TaskInstance, try_number: int | None = None):
+    def _render(ti: TaskInstance, try_number: int | None = None) -> str:
+        # ``logical_date`` is nullable since AIP-83 (asset-triggered / partitioned runs have no
+        # logical_date), so fall back to ``run_after`` (non-nullable on DagRun). This matches the
+        # read side, ``FileTaskHandler._render_filename``, so the write and read paths agree.
+        date = ti.logical_date or ti.run_after
+        number = try_number if try_number is not None else ti.try_number
+        if compiled is not None:
+            return compiled.render(
+                ti=ti,
+                ts=date.isoformat(),
+                ts_nodash=date.strftime("%Y%m%dT%H%M%S"),
+                try_number=number,
+            )
         return template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
-            try_number=try_number or ti.try_number,
+            logical_date=date.isoformat(),
+            try_number=number,
         )
 
-    return f_str_format
+    def render(ti: TaskInstance, try_number: int | None = None) -> str:
+        try:
+            return _render(ti, try_number)
+        except Exception:
+            # A user template that, e.g., calls ``ti.logical_date.strftime(...)`` directly still
+            # blows up when logical_date is None (Jinja's ``default()`` evaluates its argument
+            # eagerly). Never let that abort the scheduler critical section: log it and fall back to
+            # the default, None-safe template instead.
+            logger.warning(
+                "Failed to render log_filename_template %r for %s; falling back to the default "
+                "template. Prefer run_id or ts (which falls back to run_after) over "
+                "ti.logical_date in log_filename_template.",
+                template,
+                ti,
+                exc_info=True,
+            )
+            return default_render(ti=ti, try_number=try_number if try_number is not None else ti.try_number)
+
+    return render
 
 
 def convert_camel_to_snake(camel_str: str) -> str:
