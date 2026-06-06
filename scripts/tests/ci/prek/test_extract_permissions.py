@@ -53,7 +53,7 @@ from extract_permissions import (  # noqa: E402
     _build_resource_label,
     _extract_method_arg,
     _extract_module_string_constants,
-    _extract_router_prefix,
+    _extract_routers,
     _resolve_string_node,
     extract_all_permissions,
     extract_from_file,
@@ -176,36 +176,44 @@ class TestExtractModuleStringConstants:
 # ===========================================================================
 
 
-class TestExtractRouterPrefix:
-    def test_extracts_prefix_from_airflow_router(self):
+class TestExtractRouters:
+    def test_extracts_prefixes_from_airflow_routers(self):
         tree = parse_module("""
-            dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
-        """)
-        assert _extract_router_prefix(tree) == "/dags"
-
-    def test_returns_empty_string_when_no_router(self):
-        tree = parse_module("x = 1")
-        assert _extract_router_prefix(tree) == ""
-
-    def test_returns_empty_string_when_no_prefix_kwarg(self):
-        tree = parse_module("""
-            router = AirflowRouter(tags=["DAG"])
-        """)
-        assert _extract_router_prefix(tree) == ""
-
-    def test_returns_first_router_prefix_found(self):
-        # Only one AirflowRouter per file in practice; take the first one
-        tree = parse_module("""
-            router_a = AirflowRouter(prefix="/first")
+            router_a = AirflowRouter(tags=["DAG"], prefix="/first")
             router_b = AirflowRouter(prefix="/second")
+            router_c = AirflowRouter()
         """)
-        assert _extract_router_prefix(tree) == "/first"
+        assert _extract_routers(tree) == {
+            "router_a": "/first",
+            "router_b": "/second",
+            "router_c": "",
+        }
+
+    def test_returns_empty_dict_when_no_routers(self):
+        tree = parse_module("x = 1")
+        assert _extract_routers(tree) == {}
 
     def test_prefix_with_path_parameter(self):
         tree = parse_module("""
             ti_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
         """)
-        assert _extract_router_prefix(tree) == "/dags/{dag_id}"
+        assert _extract_routers(tree) == {"ti_router": "/dags/{dag_id}"}
+
+    def test_router_level_permission_dependency_raises_value_error(self):
+        tree = parse_module("""
+            from fastapi import Depends
+            from airflow.api_fastapi.core_api.security import requires_access_dag
+
+            dags_router = AirflowRouter(
+                tags=["DAG"],
+                prefix="/dags",
+                dependencies=[Depends(requires_access_dag("GET"))],
+            )
+        """)
+        with pytest.raises(
+            ValueError, match="Unsupported extraction semantics: Router-level permission dependency"
+        ):
+            _extract_routers(tree)
 
 
 # ===========================================================================
@@ -308,6 +316,40 @@ class TestExtractFromFile:
         assert e.full_path == "/api/v2/dags/{dag_id}"
         assert e.resource == "DAG"
         assert e.required_permission == "GET"
+
+    def test_multiple_routers_in_same_file(self, tmp_path):
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            dag_run_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns")
+            dag_run_at_dag_router = AirflowRouter(prefix="/dags/{dag_id}")
+
+            @dag_run_router.post(
+                "/clear",
+                dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN))],
+            )
+            def clear_dag_runs(dag_id: str): ...
+
+            @dag_run_at_dag_router.post(
+                "/clearDagRuns",
+                dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN))],
+            )
+            def clear_dag_runs_at_dag(dag_id: str): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert len(entries) == 2
+        # Sort by full_path to be deterministic in assertions
+        entries_sorted = sorted(entries, key=lambda e: e.full_path)
+
+        # /api/v2/dags/{dag_id}/clearDagRuns (from dag_run_at_dag_router)
+        assert entries_sorted[0].full_path == "/api/v2/dags/{dag_id}/clearDagRuns"
+        assert entries_sorted[0].http_method == "POST"
+
+        # /api/v2/dags/{dag_id}/dagRuns/clear (from dag_run_router)
+        assert entries_sorted[1].full_path == "/api/v2/dags/{dag_id}/dagRuns/clear"
+        assert entries_sorted[1].http_method == "POST"
 
     def test_positional_method_arg(self, tmp_path):
         f = _make_route_file(
@@ -701,6 +743,23 @@ class TestExtractAllPermissions:
         bf_entries = [e for e in all_entries if e.source_file == "backfills.py"]
         assert len(bf_entries) > 0
         assert all(e.resource == "DAG.RUN" for e in bf_entries)
+
+    def test_clear_dag_runs_endpoint_prefix(self, all_entries):
+        """Verify that the clearDagRuns endpoint resolves to the correct path prefix."""
+        matches = [e for e in all_entries if e.full_path == "/api/v2/dags/{dag_id}/clearDagRuns"]
+        assert len(matches) == 1
+        e = matches[0]
+        assert e.http_method == "POST"
+        assert e.resource == "DAG.RUN"
+        assert e.required_permission == "multi"
+
+        # Also verify that other dag runs endpoints still resolve with the longer prefix /api/v2/dags/{dag_id}/dagRuns
+        dag_runs_list = [
+            e
+            for e in all_entries
+            if e.full_path == "/api/v2/dags/{dag_id}/dagRuns" and e.http_method == "GET"
+        ]
+        assert len(dag_runs_list) >= 1
 
 
 # ===========================================================================

@@ -105,14 +105,20 @@ def _extract_module_string_constants(tree: ast.Module) -> dict[str, str]:
     return consts
 
 
-def _extract_router_prefix(tree: ast.Module) -> str:
+def _extract_routers(tree: ast.Module) -> dict[str, str]:
     """
-    Find  some_router = AirflowRouter(prefix="...")  at module level.
+    Find all assignments like some_router = AirflowRouter(...) at module level.
 
-    Returns the prefix string or "" if not found.
+    Returns a mapping of router variable name to its prefix.
     """
+    routers: dict[str, str] = {}
     for node in tree.body:
-        if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+        if not (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Call)
+        ):
             continue
         call = node.value
         call_name = (
@@ -124,10 +130,24 @@ def _extract_router_prefix(tree: ast.Module) -> str:
         )
         if call_name != "AirflowRouter":
             continue
+
+        target_name = node.targets[0].id
+        prefix = ""
         for kw in call.keywords:
             if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
-                return kw.value.value
-    return ""
+                prefix = kw.value.value
+            elif kw.arg == "dependencies" and isinstance(kw.value, ast.List):
+                for dep_item in kw.value.elts:
+                    for subnode in ast.walk(dep_item):
+                        if isinstance(subnode, ast.Call):
+                            fn_name = _get_requires_access_call_name(subnode)
+                            if fn_name is not None:
+                                raise ValueError(
+                                    f"Unsupported extraction semantics: Router-level permission dependency '{fn_name}' "
+                                    f"on router '{target_name}' is not supported by the static permission extractor."
+                                )
+        routers[target_name] = prefix
+    return routers
 
 
 def _get_requires_access_call_name(call_node: ast.Call) -> str | None:
@@ -259,7 +279,7 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
 
     # Build lookup tables for this file
     module_consts = _extract_module_string_constants(tree)
-    router_prefix = _extract_router_prefix(tree)
+    routers = _extract_routers(tree)
 
     results: list[PermissionEntry] = []
 
@@ -272,7 +292,9 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 continue
 
             # Determine HTTP method from decorator attribute: @router.GET / .get / .post …
-            http_verb = decorator.func.attr.upper() if isinstance(decorator.func, ast.Attribute) else None
+            if not isinstance(decorator.func, ast.Attribute):
+                continue
+            http_verb = decorator.func.attr.upper()
             if http_verb not in {"GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"}:
                 continue
 
@@ -280,6 +302,13 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
             route_suffix = ""
             if decorator.args:
                 route_suffix = _resolve_string_node(decorator.args[0], module_consts)
+
+            # Resolve the prefix based on the router variable used in the decorator
+            router_prefix = ""
+            if isinstance(decorator.func.value, ast.Name):
+                router_var = decorator.func.value.id
+                router_prefix = routers.get(router_var, "")
+
             full_path = API_PREFIX + router_prefix + route_suffix
 
             # Extract tag (for grouping in the RST table)

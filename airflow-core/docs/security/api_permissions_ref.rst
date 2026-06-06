@@ -251,6 +251,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG``
      - ``GET``
    * - ``POST``
+     - ``/api/v2/dags/{dag_id}/clearDagRuns``
+     - ``DAG.RUN``
+     - ``multi``
+   * - ``POST``
      - ``/api/v2/dags/{dag_id}/clearTaskInstances``
      - ``DAG.TASK_INSTANCE``
      - ``PUT``
@@ -266,10 +270,6 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/dagRuns``
      - ``DAG.RUN``
      - ``POST``
-   * - ``POST``
-     - ``/api/v2/dags/{dag_id}/dagRuns/clearDagRuns``
-     - ``DAG.RUN``
-     - ``multi``
    * - ``POST``
      - ``/api/v2/dags/{dag_id}/dagRuns/list``
      - ``DAG.RUN``
