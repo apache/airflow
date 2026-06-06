@@ -64,10 +64,10 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.batchedoperator import BatchedOperator
     from airflow.sdk.definitions.iterableoperator import IterableOperator
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.sdk.definitions.partitionedoperator import PartitionedOperator
     from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
@@ -222,25 +222,23 @@ class OperatorPartial:
         strict: bool,
         register_with_dag: bool = True,
     ) -> MappedOperator:
-        return self.partition(size=0)._expand(
-            expand_input, strict=strict, register_with_dag=register_with_dag
-        )
+        return self.batch(size=0)._expand(expand_input, strict=strict, register_with_dag=register_with_dag)
 
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
-        operator = self.partition(size=0).iterate(**mapped_kwargs)
+        operator = self.batch(size=0).iterate(**mapped_kwargs)
         return cast("IterableOperator", operator)
 
     def iterate_kwargs(
         self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
     ) -> IterableOperator:
-        operator = self.partition(size=0).iterate_kwargs(kwargs, strict=strict)
+        operator = self.batch(size=0).iterate_kwargs(kwargs, strict=strict)
         return cast("IterableOperator", operator)
 
-    def partition(self, size: int) -> PartitionedOperator:
-        """Return a PartitionedOperator for partitioned mapping."""
-        from airflow.sdk.definitions.partitionedoperator import PartitionedOperator
+    def batch(self, size: int) -> BatchedOperator:
+        """Return a BatchedOperator for batched mapping."""
+        from airflow.sdk.definitions.batchedoperator import BatchedOperator
 
-        return PartitionedOperator(operator_partial=self, size=size)
+        return BatchedOperator(operator_partial=self, size=size)
 
 
 @attrs.define(
@@ -762,8 +760,8 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        # Remove partition_size as it's only used for partitioned mapping metadata, not for operator init
-        kwargs.pop("partition_size", None)
+        # Remove batch_size as it's only used for batched mapping metadata, not for operator init
+        kwargs.pop("batch_size", None)
         kwargs["task_id"] = self.task_id
         op = self.operator_class(**kwargs, _airflow_from_mapped=True)
         op.is_setup = is_setup

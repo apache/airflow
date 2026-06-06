@@ -17,10 +17,10 @@
 
 .. _sdk-dynamic-task-mapping-vs-iteration:
 
-Dynamic Task Mapping vs Dynamic Task Iteration
-================================================
+Dynamic Task Mapping vs Task Iteration
+======================================
 
-.. versionadded:: 3.2.0
+.. versionadded:: 3.3.0
 
 Airflow provides two complementary ways to process collections of data:
 
@@ -28,12 +28,12 @@ Airflow provides two complementary ways to process collections of data:
   Each item becomes a separate Task Instance that can run on a different worker,
   giving you horizontal scalability and per-item observability.
 
-- **Dynamic Task Iteration (DTI)** improves concurrency **within a single task**.
+- **Task Iteration (TI)** improves concurrency **within a single task**.
   All items are processed inside one Task Instance on one worker, eliminating
   scheduling overhead and — when combined with async operators — enabling true
   I/O multiplexing through a shared event loop.
 
-In short: **DTM spreads load across workers; DTI speeds up work within one worker.**
+In short: **DTM spreads load across workers; TI speeds up work within one worker.**
 
 While both approaches allow you to apply an operation over a collection,
 they differ significantly in execution model, scheduler impact, and observability.
@@ -62,7 +62,7 @@ difference between the two approaches:
 
 The ~60× improvement stems from eliminating per-item scheduling overhead and
 sharing a single event loop for concurrent I/O. This is the kind of workload
-where DTI excels: many small, I/O-bound operations processed within one task.
+where TI excels: many small, I/O-bound operations processed within one task.
 
 Dynamic Task Mapping (DTM)
 --------------------------
@@ -80,38 +80,45 @@ Key characteristics:
 - Fine-grained retry, logging, and observability per item.
 - Well suited for workloads where each item should be independently scheduled and tracked.
 
-The following example fetches user data from a REST API. Each user ID becomes
+The following example fetches Pokémon data from a REST API. Each Pokémon becomes
 a separate Task Instance, individually scheduled, retried, and visible in the UI:
 
 .. code-block:: python
 
-   from datetime import datetime
+    from datetime import datetime
 
-   from airflow.providers.http.operators.http import HttpOperator
-   from airflow.sdk import DAG, task
+    from airflow.providers.http.operators.http import HttpOperator
+    from airflow.sdk import DAG, task
+
+    with DAG(dag_id="dtm-http-pokemon-example", start_date=datetime(2026, 1, 1)):
+        list_pokemon_task = HttpOperator(
+            task_id="list_pokemon",
+            http_conn_id="pokeapi",
+            method="GET",
+            endpoint="api/v2/pokemon?limit=100",
+            response_filter=lambda response: [
+                pokemon["url"].replace("https://pokeapi.co/", "") for pokemon in response.json()["results"]
+            ],
+            log_response=False,
+        )
+
+        get_pokemon_task = HttpOperator.partial(
+            task_id="get_pokemon",
+            http_conn_id="pokeapi",
+            method="GET",
+        ).expand(endpoint=list_pokemon_task.output)
+
+        list_pokemon_task >> get_pokemon_task
 
 
-   @task
-   def list_user_ids():
-       return [1, 2, 3, 4, 5]
-
-
-   with DAG(dag_id="dtm-http-example", start_date=datetime(2022, 1, 1)) as dag:
-       HttpOperator(
-           task_id="fetch_user",
-           http_conn_id="api_default",
-           method="GET",
-           endpoint="/users/{{ item }}",
-       ).expand(item=list_user_ids())
-
-With five user IDs the scheduler creates five Task Instances, each occupying
+With 100 Pokémon the scheduler creates 100 Task Instances, each occupying
 a worker slot. This is fine for small lists, but for thousands of items the
 scheduler and database overhead becomes significant.
 
-Dynamic Task Iteration (DTI)
+Task Iteration (TI)
 ----------------------------
 
-Dynamic Task Iteration allows you to iterate over an iterable (typically an XCom result)
+Task Iteration allows you to iterate over an iterable (typically an XCom result)
 *within a single Task Instance*, applying an operator multiple times without creating
 separate Task Instances.
 
@@ -126,32 +133,37 @@ Key characteristics:
 - Iterations share the same execution context (e.g., memory, event loop).
 - Particularly well suited for async operators and high-throughput workloads.
 
-The same user-fetching problem can be solved with DTI. Here, a single Task
-Instance processes all user IDs sequentially using the sync
-:class:`~airflow.providers.http.hooks.http.HttpHook`:
+The same Pokémon fetching problem can be solved with TI. Here, a single Task
+Instance processes all Pokémon concurrently using the sync
+:class:`~airflow.providers.http.operators.http.HttpOperator`:
 
 .. code-block:: python
 
-   from datetime import datetime
+    from datetime import datetime
 
-   from airflow.providers.http.hooks.http import HttpHook
-   from airflow.sdk import DAG, task
+    from airflow.providers.http.operators.http import HttpOperator
+    from airflow.sdk import DAG, task
 
+    with DAG(dag_id="it-http-pokemon-example", start_date=datetime(2026, 1, 1)):
+        list_pokemon_task = HttpOperator(
+            task_id="list_pokemon",
+            http_conn_id="pokeapi",
+            method="GET",
+            endpoint="api/v2/pokemon?limit=100",
+            response_filter=lambda response: [
+                pokemon["url"].replace("https://pokeapi.co/", "") for pokemon in response.json()["results"]
+            ],
+            log_response=False,
+        )
 
-   @task
-   def list_user_ids():
-       return [1, 2, 3, 4, 5]
+        get_pokemon_task = HttpOperator.partial(
+            task_id="get_pokemon",
+            http_conn_id="pokeapi",
+            method="GET",
+        ).iterate(endpoint=list_pokemon_task.output)
 
+        list_pokemon_task >> get_pokemon_task
 
-   @task
-   def fetch_user(user_id: int):
-       hook = HttpHook(http_conn_id="api_default", method="GET")
-       response = hook.run(endpoint=f"/users/{user_id}")
-       return response.json()
-
-
-   with DAG(dag_id="dti-sync-http-example", start_date=datetime(2022, 1, 1)) as dag:
-       fetch_user.iterate(user_id=list_user_ids())
 
 The scheduler only manages a single task. With sync tasks, iterations are
 executed in a multi-threaded fashion, which eliminates scheduling overhead
@@ -165,46 +177,67 @@ To truly **multiplex** I/O-bound operations, use an async task with
 
 .. code-block:: python
 
-   from datetime import datetime
+    from datetime import datetime
 
-   from airflow.providers.http.hooks.http import HttpAsyncHook
-   from airflow.sdk import DAG, task
-
-
-   @task
-   def list_user_ids():
-       return [1, 2, 3, 4, 5]
+    from airflow.providers.http.hooks.http import HttpAsyncHook
+    from airflow.sdk import dag, task
 
 
-   @task
-   async def fetch_user(user_id: int):
-       hook = HttpAsyncHook(http_conn_id="api_default", method="GET")
-       async with hook.session() as session:
-           response = await session.run(endpoint=f"/users/{user_id}")
-           return await response.json()
+    @dag(
+        dag_id="it-async-http-pokemon-example",
+        start_date=datetime(2026, 1, 1),
+    )
+    def it_async_http_pokemon_example():
+        @task
+        def list_pokemon() -> list[str]:
+            response = HttpHook(
+                http_conn_id="pokeapi",
+                method="GET",
+            ).run(
+                endpoint="api/v2/pokemon?limit=100",
+            )
+
+            return [pokemon["url"].replace("https://pokeapi.co/", "") for pokemon in response.json()["results"]]
+
+        @task(
+            retries=3,
+            task_concurrency=2,
+            show_return_value_in_logs=False,
+        )
+        async def get_pokemon(url: str):
+            async with HttpAsyncHook(
+                http_conn_id="pokeapi",
+                method="GET",
+            ).session() as session:
+                response = await session.run(endpoint=url)
+                return await response.json()
+
+        get_pokemon.iterate(
+            url=list_pokemon(),
+        )
 
 
-   with DAG(dag_id="dti-async-http-example", start_date=datetime(2022, 1, 1)) as dag:
-       fetch_user.iterate(user_id=list_user_ids())
+    it_async_http_pokemon_example()
+
 
 When ``iterate()`` is used with an async task, all iterations share the same
 event loop, enabling true multiplexing of I/O-bound operations without any
-manual concurrency management by the DAG author. For five user IDs the
+manual concurrency management by the DAG author. For 5 Pokémon the
 difference is negligible, but for hundreds or thousands of items the
 concurrent approach is dramatically faster — see the
 :ref:`benchmarks above <sdk-dynamic-task-mapping-vs-iteration>`.
 
-Why Dynamic Task Iteration?
+Why Task Iteration?
 ---------------------------
 
-DTI is designed to address limitations of Dynamic Task Mapping in specific scenarios:
+TI is designed to address limitations of Dynamic Task Mapping in specific scenarios:
 
 - **Scheduler scalability**:
   DTM creates one Task Instance per item, which can put pressure on the scheduler
-  for very large datasets. DTI avoids this by keeping execution within a single task.
+  for very large datasets. TI avoids this by keeping execution within a single task.
 
 - **Async multiplexing**:
-  With Python-native async support in Airflow 3.2, DTI allows multiple
+  With Python-native async support in Airflow 3.2, TI allows multiple
   operations to share the same event loop within a single Task Instance.
   This enables efficient multiplexing of I/O-bound workloads.
 
@@ -217,13 +250,13 @@ DTI is designed to address limitations of Dynamic Task Mapping in specific scena
   cannot leverage a custom XCom backend to offload large payloads. This makes
   triggerers a bottleneck for sustained high-load async execution or workloads
   that return large results. Dynamic Task Mapping with deferrable operators
-  amplifies the problem further. DTI sidesteps triggerers entirely — iterations
+  amplifies the problem further. TI sidesteps triggerers entirely — iterations
   execute on workers, which scale more effectively and support custom XCom
   backends.
 
   For more on deferred vs async trade-offs, see :doc:`deferred-vs-async-operators`.
 
-DTI is especially useful for patterns such as:
+TI is especially useful for patterns such as:
 
 - API pagination
 - Bulk HTTP or database calls
@@ -233,7 +266,7 @@ DTI is especially useful for patterns such as:
 Hooks as Building Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-DTI encourages a pattern where DAG authors call **hooks** directly from
+TI encourages a pattern where DAG authors call **hooks** directly from
 ``@task``-decorated functions rather than relying on operators. Operators are
 wrappers around hooks and sometimes expose only a subset of the hook's
 capabilities. By calling hooks directly, users gain full control over
@@ -242,7 +275,7 @@ concurrency, error handling, and batching.
 For example, instead of using ``HttpOperator`` in deferrable mode (which
 delegates to the triggerer for a single request at a time), an async
 ``@task`` can call :class:`~airflow.providers.http.hooks.http.HttpAsyncHook`
-directly to perform many concurrent requests. With DTI, the framework
+directly to perform many concurrent requests. With TI, the framework
 handles the iteration, concurrency, and event-loop management
 automatically — the DAG author only writes the per-item logic.
 
@@ -261,7 +294,7 @@ Comparison
 
    * - Aspect
      - Dynamic Task Mapping (DTM)
-     - Dynamic Task Iteration (DTI)
+     - Task Iteration (TI)
    * - Task Instances
      - One per item
      - Single Task Instance
@@ -293,6 +326,24 @@ Comparison
      - Independent, trackable units of work
      - High-throughput or streaming workloads
 
+The following table illustrates these differences using the Pokémon example from above:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Pattern
+     - Task Instances
+     - Work Per Task
+   * - ``get_pokemon.expand(url=urls)``
+     - 100
+     - 1 Pokémon
+   * - ``get_pokemon.iterate(url=urls)``
+     - 1
+     - 100 Pokémon
+   * - ``get_pokemon.batch(size=2).iterate(url=urls)``
+     - 2
+     - ~50 Pokémon each
+
 When to Use Dynamic Task Mapping
 --------------------------------
 
@@ -304,10 +355,10 @@ Prefer DTM when:
 - Work should be distributed across multiple workers.
 - Scheduling decisions should be made per item.
 
-When to Use Dynamic Task Iteration
+When to Use Task Iteration
 -----------------------------------
 
-Prefer DTI when:
+Prefer TI when:
 
 - You are processing large numbers of small items.
 - Scheduler overhead becomes a concern.
@@ -315,58 +366,47 @@ Prefer DTI when:
 - Workloads are I/O-bound and benefit from multiplexing.
 - Fine-grained observability per item is not required.
 
-When **not** to use DTI
+When **not** to use TI
 -----------------------
 
-Avoid Dynamic Task Iteration when:
+Avoid Task Iteration when:
 
 - You need per-item retries or failure isolation.
 - Each item represents a long-running or heavy computation.
 - You require detailed visibility per item in the Airflow UI.
 - Work must be distributed across multiple worker nodes.
 
-Note that DTI retries the **entire task** on failure — all items are reprocessed
-from the beginning. This trade-off is generally acceptable when total processing
-time is short (e.g., minutes rather than hours), but it may be undesirable for
-workloads where individual items are expensive to reprocess.
-
 .. tip::
 
-   DTI is a **third execution option** alongside Dynamic Task Mapping and
+   TI is a **third execution option** alongside Dynamic Task Mapping and
    deferrable operators. It is not intended as a replacement for either.
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
 
-Combining DTM and DTI (Dynamic Task Partitioning)
---------------------------------------------------
+Combining DTM and TI (Dynamic Task Batching)
+---------------------------------------------
 
-.. note::
+DTM and TI are not mutually exclusive in principle. The *Dynamic Task Batching*
+pattern could use DTM to split a large dataset into coarse-grained chunks,
+where each mapped task processes it's batch using TI.
 
-   Dynamic Task Partitioning is a planned future feature that will build on
-   top of Dynamic Task Iteration once DTI is fully implemented. The pattern
-   described here is not yet available.
-
-DTM and DTI are not mutually exclusive in principle. A future *Dynamic Task
-Partitioning* pattern could use DTM to split a large dataset into
-coarse-grained chunks, where each mapped task processes its chunk using DTI.
-
-For example, downloading 17,000 files could be partitioned into 17 chunks of
-1,000 files each. DTM would create one task per chunk, and DTI would iterate
-within each chunk using a shared event loop for concurrent I/O.
+For example, downloading 17,000 files could be split into 17 batches of
+1,000 files each. DTM would create one task per batch, and TI would iterate
+within each batch using a shared event loop for concurrent I/O.
 
 This pattern would provide:
 
-- **Coarse-grained retry**: if a chunk fails, only that chunk is retried — not all 17,000 items.
+- **Coarse-grained retry**: if a batch fails, only that batch is retried — not all 17,000 items.
 - **Reduced scheduler load**: the scheduler manages chunks (e.g., 17 tasks) instead of individual items (17,000 tasks).
 - **High throughput within each chunk**: async I/O processes items concurrently inside each task.
 
 Relationship with Async Operators
 ----------------------------------
 
-DTI complements async operators introduced in Airflow 3.2.
+TI complements async operators introduced in Airflow 3.2.
 
 - Async operators allow concurrent I/O within a single task.
-- DTI allows you to *apply an operator repeatedly* over a dataset within that same task.
+- TI allows you to *apply an operator repeatedly* over a dataset within that same task.
 
 Together, they enable patterns such as:
 
@@ -375,9 +415,9 @@ Together, they enable patterns such as:
 - Streaming data processing
 
 Unlike Dynamic Task Mapping, where each mapped task runs in its own execution context,
-DTI allows all iterations to share the same event loop, enabling true multiplexing.
+TI allows all iterations to share the same event loop, enabling true multiplexing.
 
-Because DTI executes on workers rather than triggerers, it also benefits from the
+Because TI executes on workers rather than triggerers, it also benefits from the
 full worker environment: custom XCom backends, Edge Worker support, and the
 scalability of execution frameworks such as Celery.
 
@@ -386,9 +426,9 @@ For more details on async execution, see :doc:`deferred-vs-async-operators`.
 Future Outlook
 --------------
 
-As Python's async ecosystem evolves, DTI tasks will benefit from improved
+As Python's async ecosystem evolves, TI tasks will benefit from improved
 introspection and tooling. For example, Python 3.14 introduces new
 `asyncio introspection capabilities <https://docs.python.org/3/whatsnew/3.14.html#whatsnew314-asyncio-introspection>`_
 that could eventually enable structured progress reporting in the Airflow UI
-for DTI tasks — providing per-item visibility without the overhead of per-item
+for TI tasks — providing per-item visibility without the overhead of per-item
 task instances.

@@ -37,8 +37,8 @@ from airflow.sdk.execution_time.comms import (
 RunTI = Callable[[DAG, str, int], TaskInstanceState]
 
 
-class TestPartitionedOperator:
-    def test_partition_iterate(self, run_ti: RunTI, mock_supervisor_comms):
+class TestBatchedOperator:
+    def test_batch_iterate(self, run_ti: RunTI, mock_supervisor_comms):
         outputs = defaultdict(list)
         numbers = list(range(10))
 
@@ -55,7 +55,7 @@ class TestPartitionedOperator:
                 return number
 
             emit_task = emit_numbers()
-            show.partition(size=2).iterate(number=emit_task)
+            show.batch(size=2).iterate(number=emit_task)
 
         def mock_comms(msg):
             if isinstance(msg, GetXCom):
@@ -78,51 +78,51 @@ class TestPartitionedOperator:
         assert set(outputs["1"]) == {1, 3, 5, 7, 9}
 
     @pytest.mark.parametrize(
-        ("partition_size", "expand_size"),
+        ("batch_size", "expand_size"),
         [
-            (5, 10),  # Partitioned: size=5 for 10 items
-            (3, 3),  # Partitioned: size=3 for 3 items
-            (4, 20),  # Partitioned: size=4 for 20 items
-            (0, 5),  # Non-partitioned: size=0 (iterate all at once)
+            (5, 10),  # Batched: size=5 for 10 items
+            (3, 3),  # Batched: size=3 for 3 items
+            (4, 20),  # Batched: size=4 for 20 items
+            (0, 5),  # Non-batched: size=0 (iterate all at once)
         ],
     )
-    def test_partition_size_preserved_through_lifecycle(self, partition_size, expand_size):
+    def test_batch_size_preserved_through_lifecycle(self, batch_size, expand_size):
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
         from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
         from airflow.serialization.serialized_objects import OperatorSerialization
 
-        with DAG(dag_id=f"test_partition_{partition_size}") as dag:
-            op = EmptyOperator.partial(task_id="test_task", dag=dag).partition(size=partition_size)
+        with DAG(dag_id=f"test_batch_{batch_size}") as dag:
+            op = EmptyOperator.partial(task_id="test_task", dag=dag).batch(size=batch_size)
 
             expand_input = DictOfListsExpandInput({"retry_delay": list(range(expand_size))})
             iterable_op = op._iterate(expand_input, strict=False)
 
-            # Check if partitioned or non-partitioned
-            if partition_size > 0:
+            # Check if batched or non-batched
+            if batch_size > 0:
                 assert isinstance(iterable_op, MappedIterableOperator)
                 mapped_op = iterable_op.delegate
-                assert iterable_op.partition_size == partition_size
+                assert iterable_op.batch_size == batch_size
 
-                # 1. Verify partition_size is in partial_kwargs
-                assert "partition_size" in mapped_op.partial_kwargs
-                assert mapped_op.partial_kwargs["partition_size"] == partition_size
+                # 1. Verify batch_size is in partial_kwargs
+                assert "batch_size" in mapped_op.partial_kwargs
+                assert mapped_op.partial_kwargs["batch_size"] == batch_size
 
-                # 2. Verify partition_size is serialized (not excluded)
+                # 2. Verify batch_size is serialized (not excluded)
                 serialized = OperatorSerialization.serialize_mapped_operator(mapped_op)
                 assert "partial_kwargs" in serialized
-                assert "partition_size" in serialized["partial_kwargs"]
-                assert serialized["partial_kwargs"]["partition_size"] == partition_size
+                assert "batch_size" in serialized["partial_kwargs"]
+                assert serialized["partial_kwargs"]["batch_size"] == batch_size
 
-                # 3. Verify partition_size survives deserialization
+                # 3. Verify batch_size survives deserialization
                 deserialized_op = OperatorSerialization.deserialize_operator(serialized)
-                assert "partition_size" in deserialized_op.partial_kwargs
-                assert deserialized_op.partial_kwargs["partition_size"] == partition_size
+                assert "batch_size" in deserialized_op.partial_kwargs
+                assert deserialized_op.partial_kwargs["batch_size"] == batch_size
 
-                # 4. Verify partition_size is removed before operator instantiation (only for partitioned)
+                # 4. Verify batch_size is removed before operator instantiation (only for batched)
                 unmapped = iterable_op.unmap({"retry_delay": 1})
-                # Verify unmapped task doesn't have partition_size attribute
-                assert not hasattr(unmapped, "partition_size")
+                # Verify unmapped task doesn't have batch_size attribute
+                assert not hasattr(unmapped, "batch_size")
             else:
                 assert isinstance(iterable_op, IterableOperator)
 
@@ -136,7 +136,7 @@ class TestPartitionedOperator:
             expand_input = DictOfListsExpandInput({"retry_delay": [1.0, 2.0]})
             iterable_op = (
                 EmptyOperator.partial(task_id="test_task", dag=dag, retries=3)
-                .partition(size=2)
+                .batch(size=2)
                 ._iterate(expand_input, strict=False)
             )
 

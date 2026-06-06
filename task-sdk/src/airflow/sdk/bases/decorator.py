@@ -56,10 +56,10 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
-    from airflow.sdk.definitions.partitionedoperator import DecoratedPartitionedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
 
@@ -588,22 +588,22 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         strict: bool,
         register_with_dag: bool = True,
     ) -> XComArg:
-        operator = self.partition(size=0)._expand(
+        operator = self.batch(size=0)._expand(
             expand_input, strict=strict, register_with_dag=register_with_dag
         )
         return XComArg(operator=operator)
 
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> XComArg:
-        return self.partition(size=0).iterate(**mapped_kwargs)
+        return self.batch(size=0).iterate(**mapped_kwargs)
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
-        return self.partition(size=0).iterate_kwargs(kwargs, strict=strict)
+        return self.batch(size=0).iterate_kwargs(kwargs, strict=strict)
 
-    def partition(self, size: int) -> DecoratedPartitionedOperator:
-        """Return a DecoratedPartitionedOperator for partitioned mapping."""
-        from airflow.sdk.definitions.partitionedoperator import DecoratedPartitionedOperator
+    def batch(self, size: int) -> DecoratedBatchedOperator:
+        """Return a DecoratedBatchedOperator for batched mapping."""
+        from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator
 
-        return DecoratedPartitionedOperator(operator_partial=self, size=size)
+        return DecoratedBatchedOperator(operator_partial=self, size=size)
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)

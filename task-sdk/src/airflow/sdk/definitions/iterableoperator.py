@@ -34,7 +34,7 @@ except NameError:
 
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
-from airflow.sdk.definitions._internal.expandinput import PartitionedExpandInput
+from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
@@ -90,7 +90,7 @@ class IterableOperator(BaseOperator):
         each element of ``expand_input``. Each indexed runtime receives a
         deep copy/unmapped instance of this operator.
 
-    :param expand_input: Provider of the values (or partitions) to iterate
+    :param expand_input: Provider of the values (or batches) to iterate
         over. Its ``iter_values(context)`` method is used to produce the
         per-index ``mapped_kwargs`` used to unmap the operator.
 
@@ -314,15 +314,15 @@ class IterableOperator(BaseOperator):
 
             if not failed_tasks:
                 if exceptions:
-                    # If this IterableOperator is backed by a partitioned expand input
+                    # If this IterableOperator is backed by a batched expand input
                     # (created from a MappedIterableOperator), the parent mapped
                     # task should never be retried; retries are handled by the
                     # individual indexed runtime tasks. In that case raise
                     # AirflowFailException to mark failure without retrying the
-                    # parent TaskInstance. For regular (non-partitioned) IterableOperator
+                    # parent TaskInstance. For regular (non-batched) IterableOperator
                     # behavior, preserve the previous behavior and raise the
                     # BaseExceptionGroup so callers/tests that expect it keep working.
-                    if isinstance(self.expand_input, PartitionedExpandInput):
+                    if isinstance(self.expand_input, BatchedExpandInput):
                         raise AirflowFailException(f"Multiple sub-task failures: {exceptions}")
                     raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
                 if do_xcom_push:
@@ -480,10 +480,10 @@ class MappedIterableOperator(MappedOperator):
         self,
         mapped_operator: MappedOperator,
         expand_input: ExpandInput,
-        partition_size: int,
+        batch_size: int,
     ):
         self.delegate = mapped_operator
-        self.delegate.partial_kwargs["partition_size"] = partition_size
+        self.delegate.partial_kwargs["batch_size"] = batch_size
         self.expand_input = expand_input
         self._register_with_dag = True
         self.__attrs_post_init__()
@@ -497,8 +497,8 @@ class MappedIterableOperator(MappedOperator):
         return self
 
     @property
-    def partition_size(self) -> int:
-        return self.delegate.partial_kwargs.get("partition_size", 0)
+    def batch_size(self) -> int:
+        return self.delegate.partial_kwargs.get("batch_size", 0)
 
     @property
     def retries(self) -> int:
@@ -517,6 +517,6 @@ class MappedIterableOperator(MappedOperator):
     def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
         return IterableOperator(
             operator=copy.deepcopy(self.delegate),
-            expand_input=PartitionedExpandInput(self.expand_input, self.partition_size),
+            expand_input=BatchedExpandInput(self.expand_input, self.batch_size),
             _airflow_from_mapped=True,
         )

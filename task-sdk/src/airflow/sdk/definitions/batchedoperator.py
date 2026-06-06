@@ -72,16 +72,16 @@ T = TypeVar("T", bound=OperatorPartial | _TaskDecorator)
 
 
 @attrs.define(kw_only=True, repr=False)
-class PartitionableOperator(Generic[T], metaclass=ABCMeta):
+class BatchableOperator(Generic[T], metaclass=ABCMeta):
     """
-    Intermediate abstraction for partitioned mapping.
+    Intermediate abstraction for batched mapping.
 
-    This class decorates an OperatorPartial and stores partition configuration for partitioned mapping.
-    It is used to facilitate partitioned expansion of operators, allowing tasks to be mapped over partitions
-    of data and then iterate over the partitioned data.
+    This class decorates an OperatorPartial and stores configuration for batched mapping.
+    It is used to facilitate batched expansion of operators, allowing tasks to be mapped over batches
+    of data and then iterate over the batched data.
 
-    :param operator_partial: The partial operator to be partitioned.
-    :param size: The number of partitions to create.
+    :param operator_partial: The partial operator to be batched.
+    :param size: The number of batches to create.
     """
 
     operator_partial: T
@@ -125,7 +125,7 @@ class PartitionableOperator(Generic[T], metaclass=ABCMeta):
         Create an iterable operator for the given expansion input.
 
         This method calls the _expand method first to get a MappedOperator based on expansion input,
-        then wraps it in either an IterableOperator or MappedIterableOperator depending on the partition size.
+        then wraps it in either an IterableOperator or MappedIterableOperator depending on the batch size.
 
         :param expand_input: The input to iterate against.
         :param strict: Whether to enforce strict argument checking.
@@ -145,22 +145,22 @@ class PartitionableOperator(Generic[T], metaclass=ABCMeta):
 
         :param expand_input: The input to expand against.
         :param strict: Whether to enforce strict argument checking.
-        :param register_with_dag: Whether to register the mapped operator into Dag/task-group structures.
+        :param register_with_dag: Whether to apply upstream relationships.
         :return: A MappedOperator instance.
         """
 
 
 @attrs.define(kw_only=True, repr=False)
-class PartitionedOperator(PartitionableOperator[OperatorPartial]):
+class BatchedOperator(BatchableOperator[OperatorPartial]):
     """
-    Concrete implementation of PartitionableOperator for classic (non-decorated) operators.
+    Concrete implementation of BatchableOperator for classic (non-decorated) operators.
 
-    This class wraps an OperatorPartial and provides partitioned expansion and iteration logic
-    for classic Airflow operators. It enables mapping tasks over partitions of data, supporting
+    This class wraps an OperatorPartial and provides batched expansion and iteration logic
+    for classic Airflow operators. It enables mapping tasks over batches of data, supporting
     both direct expansion via keyword arguments and expansion via a list of dictionaries or XComArg.
 
-    :param operator_partial: The OperatorPartial instance to be partitioned and expanded.
-    :param size: The number of partitions to create for mapping.
+    :param operator_partial: The OperatorPartial instance to be batched and expanded.
+    :param size: The number of batches to create for mapping.
     """
 
     @property
@@ -217,7 +217,7 @@ class PartitionedOperator(PartitionableOperator[OperatorPartial]):
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=expand_input,
-                partition_size=self.size,
+                batch_size=self.size,
             )
         return IterableOperator(
             operator=operator,
@@ -293,17 +293,17 @@ class PartitionedOperator(PartitionableOperator[OperatorPartial]):
 
 
 @attrs.define(kw_only=True, repr=False)
-class DecoratedPartitionedOperator(PartitionableOperator[_TaskDecorator]):
+class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
     """
-    Concrete implementation of PartitionableOperator for decorated (TaskFlow) operators.
+    Concrete implementation of BatchableOperator for decorated (TaskFlow) operators.
 
-    This class wraps a _TaskDecorator and provides partitioned expansion and iteration logic
+    This class wraps a _TaskDecorator and provides batched expansion and iteration logic
     for TaskFlow-style decorated Airflow operators. It enables mapping decorated tasks over
-    partitions of data, returning XComArg objects for downstream dependencies and supporting
+    batches of data, returning XComArg objects for downstream dependencies and supporting
     both direct expansion via keyword arguments and expansion via a list of dictionaries or XComArg.
 
-    :param operator_partial: The _TaskDecorator instance to be partitioned and expanded.
-    :param size: The number of partitions to create for mapping.
+    :param operator_partial: The _TaskDecorator instance to be batched and expanded.
+    :param size: The number of batches to create for mapping.
     """
 
     @property
@@ -394,7 +394,7 @@ class DecoratedPartitionedOperator(PartitionableOperator[_TaskDecorator]):
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=DecoratedExpandInput(expand_input),
-                partition_size=self.size,
+                batch_size=self.size,
             )
         return IterableOperator(operator=operator, expand_input=DecoratedExpandInput(expand_input))
 

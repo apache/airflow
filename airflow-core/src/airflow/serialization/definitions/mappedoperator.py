@@ -515,10 +515,10 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
-    partition_size = task.partial_kwargs.get("partition_size")
+    batch_size = task.partial_kwargs.get("batch_size")
 
-    if partition_size is not None:
-        return partition_size
+    if batch_size is not None:
+        return batch_size
 
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.

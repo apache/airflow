@@ -118,14 +118,14 @@ class DecoratedExpandInput(ExpandInput):
         return self.delegate.resolve(context)
 
 
-class PartitionedExpandInput(DecoratedExpandInput):
+class BatchedExpandInput(DecoratedExpandInput):
     """
-    ExpandInput that partitions another ExpandInput into N chunks.
+    ExpandInput that batches another ExpandInput into N chunks.
 
     This affects mapping cardinality, NOT resolve-time behavior.
     """
 
-    EXPAND_INPUT_TYPE: ClassVar[str] = "partitioned"
+    EXPAND_INPUT_TYPE: ClassVar[str] = "batched"
 
     def __init__(self, expand_input: ExpandInput, size: int):
         super().__init__(expand_input=expand_input)
