@@ -1645,32 +1645,41 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
+            self.send_msg(None, request_id=req_id, error=None)
             return
+
         if isinstance(msg, SucceedTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, RetryTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, DeferTask):
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, RescheduleTask):
             self._send_terminal_state_msg(msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+            self.send_msg(None, request_id=req_id, error=None)
             return
         if isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
