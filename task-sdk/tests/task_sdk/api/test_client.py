@@ -1737,6 +1737,29 @@ class TestDagsOperations:
             next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
         )
 
+    def test_get_url_quotes_dag_id_as_single_path_segment(self):
+        """Test that Dag IDs cannot escape the dags API path."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=404,
+                json={
+                    "detail": {
+                        "message": "The Dag was not found",
+                        "reason": "not_found",
+                    }
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError):
+            client.dags.get(dag_id="x/../../variables/secret_key")
+
+        assert requests_seen[0].url.raw_path == b"/dags/x%2F..%2F..%2Fvariables%2Fsecret_key"
+
     def test_get_not_found(self):
         """Test that getting a missing dag raises a server response error."""
 
