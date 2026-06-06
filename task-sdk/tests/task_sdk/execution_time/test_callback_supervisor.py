@@ -705,3 +705,86 @@ class TestLoadMangledModule:
         assert mod_name in sys.modules
         assert sys.modules[mod_name].callback() == "dashed"
         sys.modules.pop(mod_name)
+
+
+class TestRenderCallbackKwargs:
+    """Tests for _render_callback_kwargs Jinja template rendering."""
+
+    def test_renders_template_in_string_value(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {"text": "DAG {{ dag_run.dag_id }} missed deadline", "context": {"dag_run": "x"}}
+        context = {"dag_run": {"dag_id": "my_dag", "run_id": "run_1"}}
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result["text"] == "DAG my_dag missed deadline"
+        assert result["context"] == {"dag_run": "x"}
+
+    def test_skips_non_string_values(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {"count": 42, "items": ["a", "b"], "flag": True}
+        context = {"dag_run": {"dag_id": "test"}}
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result == kwargs
+
+    def test_skips_strings_without_template_markers(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {"channel": "#alerts", "text": "plain message"}
+        context = {"dag_run": {"dag_id": "test"}}
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result == kwargs
+
+    def test_renders_deadline_context(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {"text": "Deadline {{ deadline.deadline_time }} missed for {{ dag_run.dag_id }}"}
+        context = {
+            "deadline": {"id": "dl-123", "deadline_time": "2026-06-01T07:00:00Z"},
+            "dag_run": {"dag_id": "production_etl"},
+        }
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result["text"] == "Deadline 2026-06-01T07:00:00Z missed for production_etl"
+
+    def test_graceful_on_invalid_template(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {"text": "{{ invalid. }}"}
+        context = {"dag_run": {"dag_id": "test"}}
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result["text"] == "{{ invalid. }}"
+
+    def test_renders_multiple_kwargs(self):
+        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
+
+        kwargs = {
+            "subject": "Alert: {{ dag_run.dag_id }}",
+            "body": "Deadline {{ deadline.id }} fired",
+            "channel": "#ops",
+        }
+        context = {
+            "dag_run": {"dag_id": "payments"},
+            "deadline": {"id": "dl-456"},
+        }
+        log = structlog.get_logger()
+
+        result = _render_callback_kwargs(kwargs, context, log)
+
+        assert result["subject"] == "Alert: payments"
+        assert result["body"] == "Deadline dl-456 fired"
+        assert result["channel"] == "#ops"
