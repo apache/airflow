@@ -272,6 +272,12 @@ Parameters
 - ``tool_prefix``: Optional prefix prepended to tool names to avoid
   collisions when using multiple MCP servers (e.g. ``"weather"`` produces
   ``"weather_get_forecast"``).
+- ``token_provider``: Optional zero-argument callable returning a bearer token.
+  When set, it overrides the connection's static ``password`` for the
+  ``Authorization`` header and is called each time the server connection is
+  established -- use it for short-lived or minted tokens (e.g. a Snowflake
+  managed MCP server authenticated with a key-pair JWT). See
+  :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
