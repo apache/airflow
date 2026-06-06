@@ -342,6 +342,80 @@
       "title": "AssetsByAliasResult",
       "type": "object"
     },
+    "AwaitInputTask": {
+      "additionalProperties": false,
+      "description": "Park a task instance awaiting human input (Human-in-the-loop), without a trigger.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "awaiting_input",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "awaiting_input",
+          "title": "State"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "next_method": {
+          "title": "Next Method",
+          "type": "string"
+        },
+        "next_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Kwargs"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "type": {
+          "const": "AwaitInputTask",
+          "default": "AwaitInputTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "next_method"
+      ],
+      "title": "AwaitInputTask",
+      "type": "object"
+    },
     "BundleInfo": {
       "description": "Schema for telling task which bundle to run with.",
       "properties": {
@@ -3989,7 +4063,8 @@
         "up_for_reschedule",
         "upstream_failed",
         "skipped",
-        "deferred"
+        "deferred",
+        "awaiting_input"
       ],
       "title": "TaskInstanceState",
       "type": "string"
