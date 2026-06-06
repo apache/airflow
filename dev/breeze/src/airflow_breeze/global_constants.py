@@ -196,6 +196,9 @@ FAB_AUTH_MANAGER = "FabAuthManager"
 
 GOLANG_WORKER = "go"
 
+JAVA_SDK = "java"
+ALLOWED_SDKS = [JAVA_SDK]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
@@ -263,7 +266,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.15"
+UV_VERSION = "0.11.17"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -806,7 +809,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.2.1",
+        "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

@@ -123,9 +123,9 @@ class JWTBearer(HTTPBearer):
 
         try:
             claims = await validator.avalidated_claims(creds.credentials, dict(self.required_claims))
-        except Exception as err:
-            log.warning("Failed to validate JWT", exc_info=True, token=creds.credentials)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+        except Exception:
+            log.warning("Failed to validate JWT", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid auth token")
 
         claims.setdefault("scope", "execution")
 
@@ -188,6 +188,13 @@ async def require_auth(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match task instance ID",
+            )
+    elif "ct:self" in security_scopes.scopes:
+        ct_self_id = str(request.path_params["connection_test_id"])
+        if str(token.id) != ct_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match connection test ID",
             )
 
     return token

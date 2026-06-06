@@ -626,7 +626,11 @@ class CloudSqlProxyRunner(LoggingMixin):
         elif keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             self.log.info("Saving credentials to %s", self.credentials_path)
-            with open(self.credentials_path, "w") as file:
+            # Explicit 0o600 — the file holds a service-account private key. The plain
+            # ``open()`` form inherits the process umask (typically 0o644), which leaves the
+            # key world-readable on shared worker hosts.
+            fd = os.open(self.credentials_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as file:
                 json.dump(keyfile_content, file)
             credential_params = ["-credential_file", self.credentials_path]
         else:

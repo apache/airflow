@@ -18,10 +18,13 @@
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
   "assetEvent_other": "資源事件",
+  "assetInactive": {
+    "tooltip": "上游資源已停用；排程器會暫停分區評估，直到資源重新啟用。"
+  },
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
-    "auditLog": "審計日誌",
+    "auditLog": "稽核日誌",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
@@ -80,8 +83,8 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagWarnings": "Dag 警告 / 錯誤",
-  "defaultToGraphView": "預設使用圖形視圖",
-  "defaultToGridView": "預設使用網格視圖",
+  "defaultToGraphView": "預設使用圖形檢視",
+  "defaultToGridView": "預設使用網格檢視",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -267,7 +270,6 @@
   },
   "task_one": "任務",
   "task_other": "任務",
-  "taskGroup": "任務群組",
   "taskGroup_one": "任務群組",
   "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
@@ -283,6 +285,7 @@
     "priorityWeight": "優先權權重",
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
+    "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
     "triggerer": {
       "assigned": "指派的觸發者",

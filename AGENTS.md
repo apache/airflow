@@ -141,15 +141,16 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
-- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes (usually coordinated during review; do not add by default). **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
+- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes. **Golden rule: never create a newsfragment unless you are certain the change is user-facing.** If you are not sure the change is visible to users — build/release tooling, CI, packaging, internal refactors with no behavior change, dev-only scripts, and test-only changes are *not* user-facing — do **not** add one. Default to omitting it; a maintainer will ask for a newsfragment during review if the change warrants one. Adding a spurious newsfragment for a non-user-facing change is a defect, not a safe default. **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 
 ## Testing Standards
 
 - Add tests for new behavior — cover success, failure, and edge cases.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
+- Prefer `@mock.patch` decorators over `with mock.patch(...)` context managers for patching. Use `conf_vars` (from `tests_common.test_utils.config`) for Airflow config overrides — as a decorator when the value is fixed, as a context manager when it varies via `@pytest.mark.parametrize`.
 - Use `time_machine` for time-dependent tests. Do not use `datetime.now()`
-- Use `@pytest.mark.parametrize` for multiple similar inputs.
+- Use `@pytest.mark.parametrize` for multiple similar inputs — consolidate tests that only differ in input/expected values into a single parametrized test.
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
@@ -164,7 +165,7 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
 
-For `airflow-core` (and `chart/`, `dev/mypy/`) user-visible changes, add a newsfragment in that distribution's `newsfragments/` directory:
+For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a newsfragment in that distribution's `newsfragments/` directory. **Golden rule: only add a newsfragment when you are certain the change is visible to users; when in doubt, do not add one** — a maintainer will request one in review if it is needed. Build/release tooling, CI, packaging, internal refactors, and dev-only scripts are not user-facing and must not get a newsfragment:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
 
 **Do not add newsfragments for `providers/` or `airflow-ctl/`** — their release managers regenerate the changelog from `git log` and do not consume newsfragments. Update the changelog directly when needed: `providers/<provider>/docs/changelog.rst` (see `providers/AGENTS.md`) or `airflow-ctl/RELEASE_NOTES.rst`. Changes to `task-sdk/` use `airflow-core/newsfragments/` since task-sdk ships in airflow-core.
@@ -225,6 +226,17 @@ If a doc, script, or command you're about to run uses the old `apache` name (or
 any other variant), **translate it to the `upstream` convention** in what you
 propose to the user, rather than perpetuating the old name. Flag the stale
 documentation so it can be fixed in a follow-up.
+
+### Before starting: check for an existing PR
+
+Before working on an issue, check for open PRs already addressing it
+(`gh pr list --search "<issue number or keywords>"`, and look for `closes:`
+/ `fixes:` references). Airflow allows parallel work — "better PR wins"
+(see `contributing-docs/04_how_to_contribute.rst`) — but it is not the
+default: prefer reviewing and building on an existing PR. Open a separate
+one only *if your approach is genuinely different*. Do not blindly open
+another near-identical PR for an issue that already has one (or several) —
+that just adds reviewer noise.
 
 ### Creating Pull Requests
 
@@ -420,17 +432,17 @@ shorten a message — attribution applies regardless of message length.
 This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-steward/` snapshot directory.
+gitignored symlinks into the `.apache-magpie/` snapshot directory.
 
 A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/setup-steward` (or follow
-[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
-it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+invocable. Run `/magpie-setup` (or follow
+[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
+it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
 [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
 
 Adopter-specific modifications to framework-skill workflows live in
-[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
 [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 

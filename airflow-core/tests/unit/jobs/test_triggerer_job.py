@@ -501,6 +501,29 @@ def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
     update_triggers.assert_not_called()
 
 
+def test_load_triggers_passes_team_name(supervisor_builder, mocker):
+    """load_triggers passes team_name to assign_unassigned and ids_for_triggerer."""
+    proc = supervisor_builder()
+    proc.team_name = "team_x"
+
+    assign_unassigned = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.assign_unassigned")
+    ids_for_triggerer = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.Trigger.ids_for_triggerer", return_value=[1, 2]
+    )
+    mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
+
+    proc.load_triggers()
+
+    assign_unassigned.assert_called_once_with(
+        proc.job.id,
+        proc.capacity,
+        proc.health_check_threshold,
+        queues=proc.queues,
+        team_name="team_x",
+    )
+    ids_for_triggerer.assert_called_once_with(proc.job.id, queues=proc.queues, team_name="team_x")
+
+
 def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mocker):
     """_create_workload() should fall back to self.id for the log filename when job is None."""
     trigger = mocker.Mock()
@@ -1126,13 +1149,19 @@ def test_trigger_runner_exception_stops_triggerer():
     import signal
 
     job_runner = TriggererJobRunner(Job())
-    time.sleep(0.1)
 
     # Wait 4 seconds for the triggerer to stop
     try:
 
         def on_timeout(signum, frame):
-            os.kill(job_runner.trigger_runner.pid, signal.SIGKILL)
+            # _execute() sets up trigger_runner asynchronously; on a slow runner the
+            # timer can fire before the subprocess exists. Re-arm and try again rather
+            # than dereferencing a not-yet-started runner.
+            runner = job_runner.trigger_runner
+            if runner is None:
+                signal.setitimer(signal.ITIMER_REAL, 0.1)
+                return
+            os.kill(runner.pid, signal.SIGKILL)
 
         signal.signal(signal.SIGALRM, on_timeout)
         signal.setitimer(signal.ITIMER_REAL, 0.1)
@@ -1904,19 +1933,19 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
-            # AIP-103 task/asset state — triggerer has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — triggerer has no task execution context.
+            "GetTaskStore",
+            "SetTaskStore",
+            "DeleteTaskStore",
+            "ClearTaskStore",
+            "GetAssetStoreByName",
+            "GetAssetStoreByUri",
+            "SetAssetStoreByName",
+            "SetAssetStoreByUri",
+            "DeleteAssetStoreByName",
+            "DeleteAssetStoreByUri",
+            "ClearAssetStoreByName",
+            "ClearAssetStoreByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1938,9 +1967,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStoreResult",
+            "AssetStoreResult",
         }
 
         supervisor_diff = (

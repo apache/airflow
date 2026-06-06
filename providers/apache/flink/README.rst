@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-flink``
 
-Release: ``1.8.4``
+Release: ``1.8.5``
 
 
 `Apache Flink <https://flink.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.flink`` provider. All classes for this p
 are in ``airflow.providers.apache.flink`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.5/>`_.
 
 Installation
 ------------
@@ -80,4 +80,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.5/changelog.html>`_.

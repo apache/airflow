@@ -27,10 +27,14 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
@@ -39,7 +43,10 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
+from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
+from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -56,6 +63,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
@@ -83,9 +91,6 @@ class CustomTimetable(CronDataIntervalTimetable):
 @pytest.fixture
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
-    from airflow import plugins_manager
-    from airflow._shared.module_loading import qualname
-
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
 
@@ -131,7 +136,7 @@ DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(request, dag_maker, session=None):
+def setup(request, dag_maker, *, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
@@ -1513,8 +1518,6 @@ class TestPatchDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
-        from unit.listeners.class_listener import ClassBasedListener
-
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
@@ -1570,7 +1573,11 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
-        with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
+        # Use PartitionAtRuntime for partitioned cases so the partition_key gate does not reject the key.
+        source_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=source_schedule, session=session
+        ):
             EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun(partition_key=partition_key)
         ti = dr.task_instances[0]
@@ -1586,13 +1593,21 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
+        trigger_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=trigger_schedule, session=session
+        ):
             pass
-        dr = dag_maker.create_dagrun(
-            run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.ASSET_TRIGGERED,
-            partition_key=partition_key,
-        )
+        create_dagrun_kwargs: dict = {
+            "run_id": "TEST_DAG_RUN_ID",
+            "run_type": DagRunType.ASSET_TRIGGERED,
+            "partition_key": partition_key,
+        }
+        if partition_key is not None:
+            # PartitionAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
+            # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
+            create_dagrun_kwargs["logical_date"] = None
+        dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
         dr.consumed_asset_events.append(event)
 
         session.commit()
@@ -1692,6 +1707,40 @@ class TestClearDagRun:
             json={"dry_run": False},
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("body", "expected_note"),
+        [
+            ({"dry_run": False, "note": "cleared by test"}, "cleared by test"),
+            ({"dry_run": False, "note": ""}, ""),
+            ({"dry_run": False, "note": None}, "test_note"),
+            ({"dry_run": False}, "test_note"),
+        ],
+        ids=["set-new-note", "set-empty-note", "explicit-null-leaves-existing", "omit-leaves-existing"],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):
+        """``note`` in the clear body writes to the Dag Run; ``None`` / unset leaves it alone."""
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
+        assert response.status_code == 200
+        assert response.json()["note"] == expected_note
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == expected_note
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_does_not_apply_note(self, test_client, session):
+        """``note`` is ignored on dry-run (no side effects)."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": True, "note": "ignored"},
+        )
+        assert response.status_code == 200
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == "test_note"
 
     @pytest.mark.parametrize(
         ("body", "dag_run_id", "expected_state"),
@@ -1846,6 +1895,218 @@ class TestClearDagRun:
             json={"dry_run": True, "only_new": True, "only_failed": True},
         )
         assert response.status_code == 422
+
+
+class TestBulkClearDagRuns:
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_specific_dag(self, test_client, session):
+        """Specific dag_id in URL, dag_run_id in body — clears both runs and queues them."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}, {"dag_run_id": DAG1_RUN2_ID}],
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        returned_run_ids = sorted(run["dag_run_id"] for run in body["dag_runs"])
+        assert returned_run_ids == sorted([DAG1_RUN1_ID, DAG1_RUN2_ID])
+        for run in body["dag_runs"]:
+            assert run["state"] == "queued"
+            assert run["dag_id"] == DAG1_ID
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_wildcard_across_dags(self, test_client, session):
+        """``~`` URL with per-entity dag_id — clears runs across Dags in one call."""
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [
+                    {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                    {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                ],
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        pairs = sorted((run["dag_id"], run["dag_run_id"]) for run in body["dag_runs"])
+        assert pairs == sorted([(DAG1_ID, DAG1_RUN1_ID), (DAG2_ID, DAG2_RUN1_ID)])
+        for run in body["dag_runs"]:
+            assert run["state"] == "queued"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_dry_run_collects_affected_tis_across_runs(self, test_client, session):
+        """Dry-run returns the union of affected TIs across the listed runs without mutating state."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": True,
+                "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}, {"dag_run_id": DAG1_RUN2_ID}],
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Both DAG1 runs have two task instances each.
+        assert body["total_entries"] == 4
+        run_ids_in_response = {ti["dag_run_id"] for ti in body["task_instances"]}
+        assert run_ids_in_response == {DAG1_RUN1_ID, DAG1_RUN2_ID}
+        # No state changes — dry_run never writes.
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.state == DAG1_RUN1_STATE
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_dry_run_only_failed_filters(self, test_client):
+        """``only_failed=True`` shrinks the dry-run preview to failed TIs only."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": True,
+                "only_failed": True,
+                "dag_runs": [{"dag_run_id": DAG1_RUN2_ID}],
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert all(ti["state"] == "failed" for ti in body["task_instances"])
+        assert body["total_entries"] == 1
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_applies_note_to_each_run(self, test_client, session):
+        """``note`` in the body is applied to every cleared run in the same transaction."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": False,
+                "note": "bulk cleared by test",
+                "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}, {"dag_run_id": DAG1_RUN2_ID}],
+            },
+        )
+        assert response.status_code == 200
+        for run_id in (DAG1_RUN1_ID, DAG1_RUN2_ID):
+            dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == run_id))
+            assert dag_run.note == "bulk cleared by test"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_wildcard_rejects_missing_dag_id(self, test_client):
+        """``~`` URL requires every entry to carry a concrete dag_id; 400 otherwise."""
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}],
+            },
+        )
+        assert response.status_code == 400
+        assert DAG1_RUN1_ID in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_specific_url_rejects_mismatched_dag_id(self, test_client):
+        """When the URL has a specific dag_id, mismatched per-entity dag_id is rejected."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [{"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID}],
+            },
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_missing_run_returns_404(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [{"dag_run_id": "does_not_exist"}],
+            },
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_rejects_only_new_with_only_failed(self, test_client):
+        """``only_new`` and ``only_failed`` are mutually exclusive at the body validator level."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={
+                "dry_run": True,
+                "only_new": True,
+                "only_failed": True,
+                "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}],
+            },
+        )
+        assert response.status_code == 422
+
+    def test_bulk_clear_unauthenticated_returns_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={"dry_run": False, "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]},
+        )
+        assert response.status_code == 401
+
+    def test_bulk_clear_unauthorized_returns_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={"dry_run": False, "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]},
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        """A 403 at the route level if any entry references a Dag the user can't access; nothing is cleared."""
+        restricted_bundle_name = "restricted-bundle-clear"
+        restricted_team_name = "restricted-team-clear"
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        # Restrict DAG2 by attaching it to a team-scoped bundle the limited user has no access to.
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG2_ID).values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        states_before = {
+            run_id: session.scalar(select(DagRun.state).where(DagRun.run_id == run_id))
+            for run_id in (DAG1_RUN1_ID, DAG2_RUN1_ID)
+        }
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.post(
+                "/dags/~/clearDagRuns",
+                json={
+                    "dry_run": False,
+                    "dag_runs": [
+                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                    ],
+                },
+            )
+
+        assert response.status_code == 403
+        # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
+        session.expire_all()
+        for run_id, state_before in states_before.items():
+            assert session.scalar(select(DagRun.state).where(DagRun.run_id == run_id)) == state_before
 
 
 class TestClearDagRunOnlyNew:
@@ -2213,8 +2474,6 @@ class TestTriggerDagRun:
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_param_validation_error_returns_400(self, mock_create_dagrun, test_client):
-        from airflow.exceptions import ParamValidationError
-
         now = timezone.utcnow().isoformat()
         error_message = "Invalid input for param x"
         mock_create_dagrun.side_effect = ParamValidationError(error_message)
@@ -2466,6 +2725,74 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
+    def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
+        """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.
+
+        The validation happens in TriggerDAGRunPostBody.validate_context(), which is now called
+        inside the try/except block that converts ValueError to HTTP 400.
+        """
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": "some-partition"},
+        )
+        assert response.status_code == 400
+        assert "not a partitioned Dag" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_partition_key_given_for_partitioned_dag(
+        self, dag_maker, test_client, session
+    ):
+        """partition_key on a genuinely partitioned Dag must not be rejected (happy-path guard).
+
+        Uses CronPartitionTimetable (partitioned=True) to confirm the reject path does not
+        fire for legitimate partitioned Dags.
+        """
+        partitioned_dag_id = "test_partitioned_dag_trigger"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "2025-01-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_partition_key_given_for_partition_at_runtime_dag(
+        self, dag_maker, test_client, session
+    ):
+        """partition_key on a PartitionAtRuntime Dag must also be accepted (deferred validation).
+
+        partitioned_at_runtime=True means the Dag accepts runtime-discovered partition keys, so
+        the REST layer must not reject it even though timetable.partitioned is False.
+        """
+        runtime_dag_id = "test_partition_at_runtime_dag_trigger"
+        with dag_maker(
+            dag_id=runtime_dag_id,
+            schedule=PartitionAtRuntime(),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{runtime_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "runtime-key"},
+        )
+        assert response.status_code == 200
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
@@ -2534,12 +2861,12 @@ class TestResolveRunOnLatestVersion:
     def test_clear_endpoint_invokes_resolver_when_field_omitted(self, test_client):
         """Clearing without run_on_latest_version triggers the server-side resolver."""
         with mock.patch(
-            "airflow.api_fastapi.core_api.routes.public.dag_run.resolve_run_on_latest_version",
+            "airflow.api_fastapi.core_api.services.public.dag_run.resolve_run_on_latest_version",
             return_value=False,
         ) as mock_resolver:
             response = test_client.post(
                 f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
-                json={"dry_run": True},
+                json={"dry_run": False},
             )
         assert response.status_code == 200
         mock_resolver.assert_called_once()
@@ -2556,8 +2883,6 @@ class TestWaitDagRun:
     # test at least makes the tests run correctly.
     @pytest.fixture(autouse=True)
     def reconfigure_async_db_engine(self):
-        from airflow.settings import _configure_async_session
-
         _configure_async_session()
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2601,8 +2926,6 @@ class TestWaitDagRun:
         assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
-        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
             autospec=True,

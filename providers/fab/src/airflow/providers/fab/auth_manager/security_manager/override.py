@@ -2469,9 +2469,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
-        # escape username to prevent LDAP injection attacks
+        # escape username to prevent LDAP filter injection
         escaped_username = ldap.filter.escape_filter_chars(username)
         if self.auth_ldap_search_filter:
+            # validate the search filter has balanced parentheses
+            _sf = self.auth_ldap_search_filter
+            if not (_sf.startswith("(") and _sf.endswith(")") and _sf.count("(") == _sf.count(")")):
+                raise ValueError(
+                    f"AUTH_LDAP_SEARCH_FILTER must be a valid LDAP filter with balanced parentheses, "
+                    f"starting with '(' and ending with ')'. Example: '(objectClass=person)'. "
+                    f"Got: {repr(_sf)[:100]}"
+                )
             filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={escaped_username}))"
         else:
             filter_str = f"({self.auth_ldap_uid_field}={escaped_username})"

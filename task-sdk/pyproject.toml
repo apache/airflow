@@ -90,6 +90,7 @@ dependencies = [
     # Start of shared observability dependencies
     "opentelemetry-api>=1.27.0",
     # End of shared observability dependencies
+    "isoduration>=20.11.0"
 ]
 
 [project.optional-dependencies]
@@ -127,7 +128,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.20.19",
+    "trove-classifiers==2026.5.22.10",
 ]
 build-backend = "hatchling.build"
 

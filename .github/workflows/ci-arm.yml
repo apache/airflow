@@ -44,6 +44,12 @@ env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # Keep these in sync:
+  # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
+  # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+  # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
+  # - java-version in .github/workflows/codeql-analysis.yml
+  JAVA_VERSION: '11'
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
@@ -116,6 +122,7 @@ jobs:
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
+      run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-mypy-providers: ${{ steps.selective-checks.outputs.run-mypy-providers }}
@@ -123,6 +130,7 @@ jobs:
       run-remote-logging-opensearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-java-sdk-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -861,6 +869,7 @@ jobs:
       run-remote-logging-opensearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -944,6 +953,68 @@ jobs:
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
 
+  tests-java-sdk:
+    name: "Java SDK tests"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-java-sdk-tests == 'true'
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: Run Java SDK tests
+        working-directory: ./java-sdk
+        run: ./gradlew test
+
+  build-java-sdk-docs:
+    name: "Java SDK docs"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-java-sdk-tests == 'true'
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build Java SDK Javadoc"
+        run: breeze build-docs --sdk-docs-only --sdk=java
+      - name: "Upload Javadoc artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/java-sdk/
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: 'true'
+
   tests-airflow-ctl:
     name: "Airflow CTL tests"
     uses: ./.github/workflows/airflow-distributions-tests.yml
@@ -997,6 +1068,8 @@ jobs:
       - tests-task-sdk
       - tests-airflow-ctl
       - tests-go-sdk
+      - tests-java-sdk
+      - build-java-sdk-docs
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
