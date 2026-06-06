@@ -39,6 +39,7 @@ Here you can find detailed documentation about each one of the core concepts of 
     operators
     sensors
     taskflow
+    resumable-tasks
     executor/index
     auth-manager/index
     multi-team
