@@ -80,8 +80,35 @@ High Availability (optional)
 Ssl (optional)
     Specify as ``True`` to enable SSL for your high availability connection.
 
+Transport Mode (optional)
+    Specify the JDBC ``transportMode`` parameter. Supported values are ``binary`` and ``http``.
+
 Zoo Keeper Namespace (optional)
     Zoo keeper namespace for high availability.
+
+Additional JDBC Parameters
+--------------------------
+
+Dag authors can pass additional Beeline JDBC URL parameters to ``HiveCliHook`` or ``HiveOperator``
+with the ``jdbc_params`` argument:
+
+.. code-block:: python
+
+   HiveCliHook(
+       jdbc_params={
+           "transportMode": "http",
+           "sslTrustStore": "/opt/hive/truststore.jks",
+           "trustStorePassword": "secret",
+       }
+   )
+
+These parameters are appended to the Beeline JDBC URL. Parameter names must start with a letter
+and contain only letters, digits, dots, underscores, or hyphens. Values must not contain semicolons.
+
+Arbitrary JDBC parameters are not read from connection extras. Only fixed connection extras with
+bounded values, such as ``transport_mode`` for JDBC ``transportMode``, are supported there. When
+``jdbc_params`` uses the same JDBC parameter name as a fixed connection extra, the ``jdbc_params``
+value is used.
 
 
 When specifying the connection in environment variable you should specify
