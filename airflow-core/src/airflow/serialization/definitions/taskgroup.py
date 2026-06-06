@@ -54,6 +54,8 @@ class SerializedTaskGroup(DAGNode):
     ui_color: str = attrs.field(default="CornflowerBlue")
     ui_fgcolor: str = attrs.field(default="#000")
 
+    retries: int = attrs.field(default=0)
+
     children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
     upstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)
     downstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)
