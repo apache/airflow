@@ -151,7 +151,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": "12345",
+                    "github_app_id": "12345",
                     "github_installation_id": "67890",
                     "private_key": "inline_pem_key",
                 },
@@ -162,7 +162,7 @@ class TestGitHook:
                 conn_id=CONN_APP_ONLY_APP_ID,
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
-                extra={"github_client_id": "12345"},
+                extra={"github_app_id": "12345"},
             )
         )
         create_connection_without_db(
@@ -178,7 +178,7 @@ class TestGitHook:
                 conn_id=CONN_APP_NO_KEY,
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
-                extra={"github_client_id": "12345", "github_installation_id": "67890"},
+                extra={"github_app_id": "12345", "github_installation_id": "67890"},
             )
         )
         create_connection_without_db(
@@ -187,7 +187,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": "not_an_int",
+                    "github_app_id": "not_an_int",
                     "github_installation_id": "67890",
                     "private_key": "inline_pem_key",
                 },
@@ -199,7 +199,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": "12345",
+                    "github_app_id": "12345",
                     "github_installation_id": "not_an_int",
                     "private_key": "inline_pem_key",
                 },
@@ -442,39 +442,25 @@ class TestGitHook:
 
     def test_only_app_id_without_installation_id_raises(self):
         with pytest.raises(
-            ValueError, match="Both 'github_client_id' and 'github_installation_id' must be provided"
+            AirflowException, match="Both 'github_app_id' and 'github_installation_id' must be provided"
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_APP_ID)
 
     def test_only_installation_id_without_app_id_raises(self):
         with pytest.raises(
-            ValueError,
-            match="Both 'github_client_id' and 'github_installation_id' must be provided",
+            AirflowException,
+            match="Both 'github_app_id' and 'github_installation_id' must be provided",
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_INSTALLATION_ID)
 
     def test_app_id_and_installation_id_without_key_raises(self):
         with pytest.raises(
-            ValueError,
+            AirflowException,
             match="Missing inline private_key or key_file for GitHub App Auth",
         ):
             GitHook(git_conn_id=CONN_APP_NO_KEY)
 
-    def test_invalid_github_app_id_raises(self):
-        with pytest.raises(
-            ValueError,
-            match="Invalid 'github_client_id' value",
-        ):
-            GitHook(git_conn_id=CONN_APP_INVALID_APP_ID)
-
-    def test_invalid_github_installation_id_raises(self):
-        with pytest.raises(
-            ValueError,
-            match="Invalid 'github_installation_id' value",
-        ):
-            GitHook(git_conn_id=CONN_APP_INVALID_INSTALLATION_ID)
-
-    def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path):
+    def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"
         key_file.write_text("file_pem_key_content")
         create_connection_without_db(
@@ -483,18 +469,20 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": "12345",
+                    "github_app_id": "12345",
                     "github_installation_id": "67890",
                     "key_file": str(key_file),
                 },
             )
         )
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
-                lambda self: ("x-access-token", "ghs_test_token"),
-            )
-            hook = GitHook(git_conn_id="git_app_key_file")
+        from datetime import datetime, timedelta, timezone
+
+        mock_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            lambda self: ("x-access-token", "ghs_test_token", mock_expiry),
+        )
+        hook = GitHook(git_conn_id="git_app_key_file")
 
         assert hook.private_key == "file_pem_key_content"
 
@@ -505,38 +493,47 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": "12345",
+                    "github_app_id": "12345",
                     "github_installation_id": "67890",
                     "key_file": "/nonexistent/path/key.pem",
                 },
             )
         )
-        with pytest.raises(OSError, match="Failed to read GitHub App private key file"):
+        with pytest.raises(AirflowException, match="Failed to read GitHub App private key file"):
             GitHook(git_conn_id="git_app_missing_key_file")
 
-    def test_app_auth_success_injects_token_into_https_url(self):
-        mock_token = "ghs_test_token"
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
-                lambda self: ("x-access-token", mock_token),
-            )
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
-            assert hook.auth_token == mock_token
+    def test_app_auth_defers_token_fetch(self, monkeypatch):
+        """GitHub App token is not fetched in __init__, only on configure_hook_env."""
+        from datetime import datetime, timedelta, timezone
+
+        mock_called = []
+
+        def mock_get_token(self):
+            mock_called.append(True)
+            return ("x-access-token", "ghs_test_token", datetime.now(timezone.utc) + timedelta(hours=1))
+
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            mock_get_token,
+        )
+        # __init__ should NOT call _get_github_app_token
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        assert len(mock_called) == 0
+        assert hook.auth_token == ""
+        assert hook.github_app_id == "12345"
+        assert hook.github_installation_id == "67890"
+
+        # First call to configure_hook_env should trigger the token fetch
+        with hook.configure_hook_env():
+            assert len(mock_called) == 1
+            assert hook.auth_token == "ghs_test_token"
             assert hook.user_name == "x-access-token"
-            assert f"x-access-token:{mock_token}@" in hook.repo_url
-            assert hook.repo_url.startswith("https://")
 
     def test_app_auth_success_stores_app_id_and_installation_id(self):
-        mock_token = "ghs_test_token"
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
-                lambda self: ("x-access-token", mock_token),
-            )
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
-            assert hook.github_client_id == 12345
-            assert hook.github_installation_id == 67890
+        """App ID and installation ID are stored at __init__ time."""
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        assert hook.github_app_id == "12345"
+        assert hook.github_installation_id == "67890"
 
     @pytest.mark.parametrize(
         ("app_id", "installation_id"),
@@ -545,26 +542,94 @@ class TestGitHook:
             (12345, 67890),
         ],
     )
-    def test_app_id_and_installation_id_parsed_as_int(
-        self, app_id, installation_id, create_connection_without_db
+    def test_app_id_and_installation_id_are_stored_as_provided(
+        self, app_id, installation_id, create_connection_without_db, monkeypatch
     ):
+        from datetime import datetime, timedelta, timezone
+
         create_connection_without_db(
             Connection(
                 conn_id="git_app_int_check",
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_client_id": app_id,
+                    "github_app_id": app_id,
                     "github_installation_id": installation_id,
                     "private_key": "inline_pem_key",
                 },
             )
         )
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
-                lambda self: ("x-access-token", "token"),
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            lambda self: ("x-access-token", "token", datetime.now(timezone.utc) + timedelta(hours=1)),
+        )
+        hook = GitHook(git_conn_id="git_app_int_check")
+        assert hook.github_app_id == app_id
+        assert hook.github_installation_id == installation_id
+
+    def test_github_app_token_refresh_near_expiry(self, monkeypatch):
+        """Token is refreshed when near expiry during configure_hook_env."""
+        from datetime import datetime, timedelta, timezone
+
+        mock_get_token_call_count = [0]
+
+        def mock_get_token(self):
+            mock_get_token_call_count[0] += 1
+            # First call returns token expiring in 3 minutes
+            if mock_get_token_call_count[0] == 1:
+                return (
+                    "x-access-token",
+                    f"token_{mock_get_token_call_count[0]}",
+                    datetime.now(timezone.utc) + timedelta(minutes=3),
+                )
+            # Second call (refresh) returns token expiring in 1 hour
+            return (
+                "x-access-token",
+                f"token_{mock_get_token_call_count[0]}",
+                datetime.now(timezone.utc) + timedelta(hours=1),
             )
-            hook = GitHook(git_conn_id="git_app_int_check")
-            assert isinstance(hook.github_client_id, int)
-            assert isinstance(hook.github_installation_id, int)
+
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            mock_get_token,
+        )
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        assert mock_get_token_call_count[0] == 0  # No call in __init__
+
+        # First configure_hook_env triggers first token fetch
+        with hook.configure_hook_env():
+            assert mock_get_token_call_count[0] == 1
+            assert hook.auth_token == "token_1"
+
+        # Second configure_hook_env triggers refresh (token near expiry)
+        with hook.configure_hook_env():
+            assert mock_get_token_call_count[0] == 2
+            assert hook.auth_token == "token_2"
+
+    def test_github_app_integration_call_shape(self, monkeypatch):
+        """Verify GithubIntegration is called with correct arguments."""
+        from datetime import datetime, timedelta, timezone
+        from unittest import mock
+
+        mock_integration = mock.MagicMock()
+        mock_access_token = mock.MagicMock()
+        mock_access_token.token = "ghs_test_token"
+        mock_access_token.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_integration.get_access_token.return_value = mock_access_token
+
+        import sys
+        from types import SimpleNamespace
+
+        fake_github = SimpleNamespace(
+            Auth=SimpleNamespace(AppAuth=lambda app_id, key: "auth"),
+            GithubIntegration=lambda auth: mock_integration,
+        )
+        monkeypatch.setitem(sys.modules, "github", fake_github)
+
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        with hook.configure_hook_env():
+            # Verify get_access_token was called with installation_id kwarg
+            assert mock_integration.get_access_token.call_count == 1
+            _, kwargs = mock_integration.get_access_token.call_args
+            assert "installation_id" in kwargs
+            assert str(kwargs["installation_id"]) == "67890"
