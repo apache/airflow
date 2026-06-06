@@ -52,6 +52,7 @@ from airflow_breeze.global_constants import (
     PUBLIC_ARM_RUNNERS,
     RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
+    TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
     SelectiveAirflowCtlTestType,
@@ -147,6 +148,9 @@ class FileGroupForCi(Enum):
     DEVEL_TOML_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
+    KERBEROS_FILES = auto()
+    OTEL_FILES = auto()
+    CELERY_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -429,8 +433,30 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
         ],
+        FileGroupForCi.KERBEROS_FILES: [
+            r"^airflow-core/src/airflow/security/kerberos\.py$",
+            r"^airflow-core/src/airflow/cli/commands/kerberos_command\.py$",
+        ],
+        FileGroupForCi.OTEL_FILES: [
+            r"^airflow-core/src/airflow/observability/.*",
+            r"^shared/observability/src/airflow_shared/observability/.*",
+            r"^airflow-core/src/airflow/utils/span_status\.py$",
+        ],
+        FileGroupForCi.CELERY_FILES: [
+            # Core executor sources - redis is celery's broker/result backend, so the
+            # core "redis" integration is exercised when the executor framework changes.
+            r"^airflow-core/src/airflow/executors/.*",
+        ],
     }
 )
+
+# Maps each testable core integration to the file group whose change should trigger it.
+# "redis" maps to celery/core-executor sources (redis is celery's broker/result backend).
+TESTABLE_CORE_INTEGRATION_FILE_GROUPS = {
+    "kerberos": FileGroupForCi.KERBEROS_FILES,
+    "otel": FileGroupForCi.OTEL_FILES,
+    "redis": FileGroupForCi.CELERY_FILES,
+}
 
 PYTHON_OPERATOR_FILES = [
     r"^providers/tests/standard/operators/test_python.py",
@@ -1754,21 +1780,41 @@ class SelectiveChecks:
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
             return []
-        return [
-            integration
-            for integration in TESTABLE_CORE_INTEGRATIONS
-            if not self._is_disabled_integration(integration)
-        ]
+        if self.full_tests_needed or self._is_canary_run():
+            # All tests are running - exercise every core integration.
+            selected = list(TESTABLE_CORE_INTEGRATIONS)
+        else:
+            # Otherwise only run a core integration when its corresponding core sources changed.
+            selected = [
+                integration
+                for integration in TESTABLE_CORE_INTEGRATIONS
+                if self._should_be_run(TESTABLE_CORE_INTEGRATION_FILE_GROUPS[integration])
+            ]
+        return [integration for integration in selected if not self._is_disabled_integration(integration)]
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
         if not self.run_unit_tests:
             return []
-        return [
-            integration
-            for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if not self._is_disabled_integration(integration)
-        ]
+        if self.full_tests_needed or self._is_canary_run():
+            # All tests are running - exercise every provider integration.
+            selected = list(TESTABLE_PROVIDERS_INTEGRATIONS)
+        else:
+            # Otherwise only run a provider integration when its owning provider is affected.
+            affected_providers = self._find_all_providers_affected(include_docs=False)
+            if isinstance(affected_providers, AllProvidersSentinel):
+                selected = list(TESTABLE_PROVIDERS_INTEGRATIONS)
+            elif affected_providers:
+                affected_set = set(affected_providers)
+                selected = [
+                    integration
+                    for integration in TESTABLE_PROVIDERS_INTEGRATIONS
+                    if TESTABLE_PROVIDERS_INTEGRATION_OWNERS.get(integration) in affected_set
+                ]
+            else:
+                # No providers affected by the change.
+                selected = []
+        return [integration for integration in selected if not self._is_disabled_integration(integration)]
 
     @cached_property
     def is_committer_build(self):
