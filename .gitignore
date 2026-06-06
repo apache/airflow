@@ -137,6 +137,7 @@ ENV/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
+!.claude/skills/airflowctl-new-command
 !.claude/skills/setup-steward
 
 # Kiro
