@@ -406,6 +406,9 @@ def example_llamaindex_10k_analysis():
         llm_conn_id=LLM_CONN_ID,
         system_prompt=DECOMPOSE_SYSTEM_PROMPT,
         output_type=DecomposedQuestion,
+        # Push the structured output to XCom as a dict so the example runs on
+        # every supported Airflow version (the model-instance form needs 3.3+).
+        serialize_output=True,
     )
     def decompose_question(question: str, tickers: str) -> str:
         return (
@@ -487,6 +490,7 @@ Cite specific data points and scores.
 
 {{ ti.xcom_pull(task_ids='collect_results') }}""",
         output_type=AnalysisReport,
+        serialize_output=True,
         usage_limits=UsageLimits(
             request_limit=10,
             input_tokens_limit=50_000,
@@ -499,7 +503,7 @@ Cite specific data points and scores.
     # ------------------------------------------------------------------
     # Step 7: Format the structured report into readable text for the
     # human reviewer.  The LLM produced a dict (via output_type=
-    # AnalysisReport); this task renders it as clean prose.
+    # AnalysisReport with serialize_output); this task renders it as clean prose.
     # ------------------------------------------------------------------
     @task
     def format_report(report: dict) -> str:

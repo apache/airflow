@@ -1401,7 +1401,7 @@ class TestDagRun:
 
         assert mock_get_by_id.call_count == len(deadline_ids)
         for deadline_id in deadline_ids:
-            mock_get_by_id.assert_any_call(deadline_id, session)
+            mock_get_by_id.assert_any_call(deadline_id, session=session)
         mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
         assert dag_run.state == DagRunState.SUCCESS
 
@@ -1431,7 +1431,7 @@ class TestDagRun:
 
         dag_run.update_state(session=session)
 
-        mock_get_by_id.assert_called_once_with(deadline_id, session)
+        mock_get_by_id.assert_called_once_with(deadline_id, session=session)
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 

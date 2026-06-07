@@ -11,6 +11,25 @@
     },
     "title": "יומן מערכת"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "שם התראה",
+      "deadlineTime": "מועד יעד",
+      "status": "סטטוס"
+    },
+    "deadline_one": "מועד",
+    "deadline_other": "מועדים",
+    "deadline_two": "מועדים",
+    "filters": {
+      "status": "סטטוס",
+      "statusOptions": {
+        "all": "הכל",
+        "missed": "פוספס",
+        "pending": "ממתין"
+      }
+    },
+    "title": "מועדים"
+  },
   "xcom": {
     "add": {
       "error": "הוספת XCom נכשלה",

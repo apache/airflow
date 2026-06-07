@@ -33,6 +33,11 @@ allprojects {
 
     repositories { mavenCentral() }
 
+    // Keep these in sync:
+    // - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
+    // - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+    // - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
+    // - java-version in .github/workflows/codeql-analysis.yml
     java {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(11))
@@ -41,7 +46,6 @@ allprojects {
     }
     kotlin {
         compilerOptions {
-            // If this is changed, also change "Setup Java" in codeql-analysis.yml.
             jvmTarget = JvmTarget.JVM_11
         }
     }

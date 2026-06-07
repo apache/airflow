@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -70,14 +71,52 @@ class AssetScope:
             raise ValueError("AssetScope requires at least one of: asset_id, name, or uri")
 
 
-StateScope = TaskScope | AssetScope
+StoreScope = TaskScope | AssetScope
 
 
-class BaseStateBackend(ABC):
+class AssetStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+    def validate_writer_fields(
+        self,
+        dag_id: str | None,
+        run_id: str | None,
+        task_id: str | None,
+        map_index: int | None,
+    ) -> None:
+        task_fields = (dag_id, run_id, task_id, map_index)
+        match self:
+            case AssetStoreWriterKind.TASK:
+                if any(f is None for f in task_fields):
+                    raise ValueError(
+                        f"kind='task' requires dag_id, run_id, task_id, and map_index to all be set; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case AssetStoreWriterKind.WATCHER | AssetStoreWriterKind.API:
+                if any(f is not None for f in task_fields):
+                    raise ValueError(
+                        f"kind={self.value!r} must not carry task fields; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case _:
+                raise AssertionError(f"Unhandled AssetStoreWriterKind: {self!r}")
+
+
+class BaseStoreBackend(ABC):
     """
     Abstract backend for reading and writing task and asset state.
 
-    Each method receives a ``StateScope`` which is either a ``TaskScope`` or an ``AssetScope``.
+    Each method receives a ``StoreScope`` which is either a ``TaskScope`` or an ``AssetScope``.
     Implementations must handle both types. The standard dispatch pattern is::
 
         match scope:
@@ -96,7 +135,7 @@ class BaseStateBackend(ABC):
     """
 
     @abstractmethod
-    def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
+    def get(self, scope: StoreScope, key: str, *, session: Session | None = None) -> str | None:
         """
         Return the stored JSON encoded value string, or None if the key does not exist.
 
@@ -107,7 +146,7 @@ class BaseStateBackend(ABC):
     @abstractmethod
     def set(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -127,7 +166,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None:
+    def delete(self, scope: StoreScope, key: str, *, session: Session | None = None) -> None:
         """
         Delete a single key. No-op if the key does not exist.
 
@@ -136,7 +175,7 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     def clear(
-        self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None
+        self, scope: StoreScope, *, all_map_indices: bool = False, session: Session | None = None
     ) -> None:
         """
         Delete all keys under the given scope.
@@ -150,7 +189,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+    async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         """
         Async variant of ``get`` which returns a JSON encoded value string or None.
 
@@ -161,7 +200,7 @@ class BaseStateBackend(ABC):
     @abstractmethod
     async def aset(
         self,
-        scope: StateScope,
+        scope: StoreScope,
         key: str,
         value: str,
         *,
@@ -176,7 +215,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+    async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
         """
         Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
 
@@ -186,7 +225,7 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     async def aclear(
-        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+        self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
@@ -208,17 +247,17 @@ class BaseStateBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
+    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
         """
-        Serialize a task state value before it is sent to the execution API for db persistence.
+        Serialize a task store value before it is sent to the execution API for db persistence.
 
-        Called by ``TaskStateAccessor.set()`` on the worker. The return value is what gets
+        Called by ``TaskStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_task_state_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_task_store_from_ref()``. Do not
         wrap the reference yourself.
 
         The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
@@ -228,27 +267,27 @@ class BaseStateBackend(ABC):
         """
         return json.dumps(value)
 
-    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored task state reference back to the actual value.
+        Resolve a stored task store reference back to the actual value.
 
-        Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
+        Called by ``TaskStoreAccessor.get()`` after the stored string is retrieved from
         the execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_task_state_to_ref`` encoding.
+        ``serialize_task_store_to_ref`` encoding.
         """
         return json.loads(stored)
 
-    def serialize_asset_state_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
+    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
         """
-        Serialize an asset state value before it is sent to the Execution API for db persistence.
+        Serialize an asset store value before it is sent to the Execution API for db persistence.
 
-        Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
+        Called by ``AssetStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_asset_state_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_asset_store_from_ref()``. Do not
         wrap the reference yourself.
 
         ``asset_ref`` is either the asset name or URI, depending on how the accessor was
@@ -261,12 +300,12 @@ class BaseStateBackend(ABC):
         """
         return json.dumps(value)
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored asset state reference back to the actual value.
+        Resolve a stored asset store reference back to the actual value.
 
-        Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
+        Called by ``AssetStoreAccessor.get()`` after the stored string is retrieved from
         the Execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_asset_state_to_ref`` encoding.
+        ``serialize_asset_store_to_ref`` encoding.
         """
         return json.loads(stored)
