@@ -30,7 +30,9 @@ from airflow.api_fastapi.common.http_metrics import (
     HttpMetricsMiddleware,
     _get_status_family,
 )
-from airflow.api_fastapi.common.http_paths import HEALTH_PATHS
+from airflow.exceptions import AirflowConfigException
+
+from tests_common.test_utils.config import conf_vars
 
 
 def _make_app(raise_exc: bool = False) -> Starlette:
@@ -45,6 +47,9 @@ def _make_app(raise_exc: bool = False) -> Starlette:
     async def ui_item(request):
         return PlainTextResponse("ok")
 
+    async def plugin_item(request):
+        return PlainTextResponse("ok")
+
     async def api_fail(request):
         raise RuntimeError("boom")
 
@@ -56,6 +61,7 @@ def _make_app(raise_exc: bool = False) -> Starlette:
             Route("/", homepage),
             Route("/api/v2/items/{item_id}", api_item),
             Route("/ui/items/{item_id}", ui_item),
+            Route("/plugin/items/{item_id}", plugin_item),
             Route("/api/v2/fail", api_fail),
             Route("/api/v2/monitor/health", health),
         ]
@@ -98,10 +104,6 @@ def test_non_http_scope_does_not_emit_metrics():
 
     mock_incr.assert_not_called()
     mock_timing.assert_not_called()
-
-
-def test_health_paths_constant():
-    assert "/api/v2/monitor/health" in HEALTH_PATHS
 
 
 @pytest.mark.parametrize(
@@ -149,20 +151,60 @@ def test_api_requests_emit_metrics(request_path, route_tag, api_surface):
     mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_duration_tags)
 
 
-def test_non_api_paths_do_not_emit_metrics():
+def test_unconfigured_plugin_path_does_not_emit_metrics():
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
         client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get("/")
+        response = client.get("/plugin/items/42")
 
     assert response.status_code == 200
     mock_incr.assert_not_called()
     mock_timing.assert_not_called()
 
 
-def test_health_path_does_not_emit_metrics():
+@conf_vars(
+    {("metrics", "api_path_prefix_to_surface"): '{"/plugin": "plugin", "/plugin/items": "plugin_items"}'}
+)
+def test_configured_api_path_prefix_emits_metrics_for_most_specific_surface():
+    with (
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
+    ):
+        client = TestClient(_make_app(), raise_server_exceptions=False)
+        response = client.get("/plugin/items/42")
+
+    assert response.status_code == 200
+    expected_tags = {
+        "api_surface": "plugin_items",
+        "method": "GET",
+        "route": "/plugin/items/{item_id}",
+        "status_family": "2xx",
+    }
+    mock_incr.assert_called_once_with("api.requests", tags=expected_tags)
+    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    "path_prefix_to_surface",
+    [
+        pytest.param("[]", id="not-an-object"),
+        pytest.param('{"plugin": "plugin"}', id="prefix-without-leading-slash"),
+        pytest.param('{"/plugin/": "plugin"}', id="prefix-with-trailing-slash"),
+        pytest.param('{"/plugin": ""}', id="empty-surface"),
+        pytest.param('{"/plugin": 1}', id="non-string-surface"),
+    ],
+)
+def test_invalid_api_path_prefix_to_surface_config(path_prefix_to_surface):
+    with (
+        conf_vars({("metrics", "api_path_prefix_to_surface"): path_prefix_to_surface}),
+        pytest.raises(AirflowConfigException, match="api_path_prefix_to_surface"),
+    ):
+        HttpMetricsMiddleware(mock.AsyncMock())
+
+
+def test_health_path_emits_metrics():
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
@@ -171,8 +213,14 @@ def test_health_path_does_not_emit_metrics():
         response = client.get("/api/v2/monitor/health")
 
     assert response.status_code == 200
-    mock_incr.assert_not_called()
-    mock_timing.assert_not_called()
+    expected_tags = {
+        "api_surface": "public",
+        "method": "GET",
+        "route": "/api/v2/monitor/health",
+        "status_family": "2xx",
+    }
+    mock_incr.assert_called_once_with("api.requests", tags=expected_tags)
+    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_tags)
 
 
 def test_failed_api_requests_emit_error_metric():
