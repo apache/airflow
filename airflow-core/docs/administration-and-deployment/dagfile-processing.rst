@@ -62,6 +62,13 @@ as the token is rotated, so a refreshed token is picked up without a restart. Mi
 re-run it before :ref:`config:dag_processor__jwt_expiration_time` elapses. The official Helm chart
 (via an init container) and the docker-compose example do this for you.
 
+The token has a finite lifetime, so a long-lived deployment must re-mint it. If the token expires
+without being rotated, the processor's API calls start failing and its ``Job`` heartbeat stops, so
+the liveness check (``airflow jobs check --job-type DagProcessorJob``) fails and the orchestrator
+restarts the processor -- on Kubernetes the init container then mints a fresh token. For an
+uninterrupted processor, rotate the token before it expires (for example a scheduled re-run of
+``airflow provision-dag-processor-token``) rather than relying on the restart.
+
 
 Fine-tuning your Dag processor performance
 ------------------------------------------

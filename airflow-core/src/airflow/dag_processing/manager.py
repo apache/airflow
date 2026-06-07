@@ -1187,13 +1187,13 @@ class DagFileProcessorManager(LoggingMixin):
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
 
-    @property
+    @functools.cached_property
     def client(self) -> Client:
         # Parse-time connection/variable/xcom reads go to the remote Execution API, so the
         # processor holds no metadata-DB connection. It carries the externally-provisioned token
-        # (see _api_token); it does not mint one, since it parses user code. Not cached: the token
-        # is re-read here so each parser process spawned later carries a token rotated on disk by
-        # the deployment, rather than a stale one baked in at manager start-up.
+        # (see _api_token); it does not mint one, since it parses user code. Cached so the httpx
+        # connection pool is reused across parses; the client refreshes its token in place from the
+        # ``Refreshed-API-Token`` response header during use.
         return Client(
             base_url=get_execution_api_server_url(),
             token=_api_token() or "",
