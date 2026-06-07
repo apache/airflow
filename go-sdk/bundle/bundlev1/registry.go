@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/apache/airflow/go-sdk/pkg/worker"
 )
@@ -32,20 +33,129 @@ type (
 	Bundle = worker.Bundle
 
 	Dag interface {
-		AddTask(fn any)
-		AddTaskWithName(taskId string, fn any)
+		// AddTask registers fn as a task in this Dag using fn's Go name as
+		// the task id. spec carries optional per-task configuration (pass
+		// TaskSpec{} for defaults). depends lists task ids in the same Dag
+		// that must run before this one; each must already be registered.
+		// Pass nil for no dependencies.
+		AddTask(fn any, spec TaskSpec, depends []string)
+		// AddTaskWithName is AddTask with an explicit task id.
+		AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string)
 	}
 
 	// Registry defines the interface that lets user code add dags and tasks, and extends Bundle for execution
 	// time
 	Registry interface {
 		Bundle
-		AddDag(dagId string) Dag
+		AddDag(dagId string, spec ...DagSpec) Dag
+	}
+
+	// TaskSpec is the optional configuration applied to a task at registration
+	// time. Every field is optional: a zero value means "unset" and the
+	// scheduler falls back to its serialization-schema default. The field
+	// names mirror the keys defined under "operator" in
+	// airflow-core/src/airflow/serialization/schema.json.
+	TaskSpec struct {
+		Queue                   string
+		Pool                    string
+		PoolSlots               int
+		Retries                 int
+		RetryDelay              time.Duration
+		MaxRetryDelay           time.Duration
+		RetryExponentialBackoff float64
+		PriorityWeight          int
+		WeightRule              string
+		TriggerRule             string
+		Owner                   string
+		ExecutionTimeout        time.Duration
+		Executor                string
+		StartDate               time.Time
+		EndDate                 time.Time
+		DependsOnPast           bool
+		WaitForDownstream       bool
+		// DoXComPush, EmailOnFailure, and EmailOnRetry default to true in the
+		// scheduler. A nil pointer means "unset" so the field is omitted from
+		// the serialized payload; pass Bool(false) to explicitly opt out.
+		DoXComPush            *bool
+		EmailOnFailure        *bool
+		EmailOnRetry          *bool
+		DocMD                 string
+		MapIndexTemplate      string
+		MaxActiveTisPerDag    int
+		MaxActiveTisPerDagrun int
+	}
+
+	// DagSpec is the optional configuration applied to a DAG at registration
+	// time. Every field is optional: a zero value means "unset" and the
+	// scheduler falls back to its serialization-schema default. The field
+	// names mirror the keys defined under "dag" in
+	// airflow-core/src/airflow/serialization/schema.json.
+	DagSpec struct {
+		// Schedule is "@once", "@continuous", a cron expression, or "" for
+		// NullTimetable (no schedule).
+		Schedule                    string
+		Description                 string
+		StartDate                   time.Time
+		EndDate                     time.Time
+		Tags                        []string
+		DagDisplayName              string
+		DocMD                       string
+		MaxActiveTasks              int
+		MaxActiveRuns               int
+		MaxConsecutiveFailedDagRuns int
+		DagrunTimeout               time.Duration
+		Catchup                     bool
+		FailFast                    bool
+		RenderTemplateAsNativeObj   bool
+		DisableBundleVersioning     bool
+		// IsPausedUponCreation has no schema default. nil means "unset"; pass
+		// Bool(true) or Bool(false) to set it explicitly.
+		IsPausedUponCreation *bool
+	}
+
+	// TaskInfo describes a registered task. Coordinator-mode DAG parsing uses
+	// it to render the per-task block of a DagFileParsingResult.
+	TaskInfo struct {
+		// ID is the user-visible task id (the function name unless overridden
+		// via AddTaskWithName).
+		ID string
+		// TypeName is the unqualified Go function name (e.g. "extract").
+		TypeName string
+		// PkgPath is the Go package path (e.g. "main", "github.com/x/y").
+		PkgPath string
+		// Spec carries the optional per-task configuration supplied at
+		// registration. The zero value means "no overrides".
+		Spec TaskSpec
+		// Downstream lists task ids that depend on this task, populated as
+		// later tasks declare this id in their AddTask `depends` argument.
+		// Order is registration order; the serializer sorts before emit.
+		Downstream []string
+	}
+
+	// DagInfo describes a registered dag together with its tasks in
+	// registration order.
+	DagInfo struct {
+		DagID string
+		// Spec carries the optional per-dag configuration supplied at
+		// registration. The zero value means "no overrides".
+		Spec  DagSpec
+		Tasks []TaskInfo
+	}
+
+	// EnumerableBundle exposes the dag/task identity recorded by
+	// RegisterDags. The default registry implements it; the coordinator-mode
+	// runtime relies on it for the DAG-parse one-shot.
+	EnumerableBundle interface {
+		OrderedDags() []DagInfo
 	}
 
 	registry struct {
 		sync.RWMutex
 		taskFuncMap map[string]map[string]Task
+		taskInfo    map[string]map[string]TaskInfo
+		dagSpec     map[string]DagSpec
+		dagOrder    []string
+		taskOrder   map[string][]string
 	}
 )
 
@@ -54,36 +164,75 @@ type dagShim struct {
 	registry *registry
 }
 
-func (d dagShim) AddTask(fn any) {
-	d.registry.registerTask(d.dagId, fn)
+func (d dagShim) AddTask(fn any, spec TaskSpec, depends []string) {
+	d.registry.registerTask(d.dagId, fn, spec, depends)
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any) {
-	d.registry.registerTaskWithName(d.dagId, taskId, fn)
+func (d dagShim) AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string) {
+	d.registry.registerTaskWithName(d.dagId, taskId, fn, spec, depends)
+}
+
+// Bool returns a pointer to b. Use it for the *bool fields on TaskSpec /
+// DagSpec where nil means "leave at schema default":
+//
+//	v1.TaskSpec{DoXComPush: v1.Bool(false)}
+func Bool(b bool) *bool {
+	return &b
+}
+
+func optionalSpec[T any](specs []T, caller string) T {
+	switch len(specs) {
+	case 0:
+		var zero T
+		return zero
+	case 1:
+		return specs[0]
+	default:
+		panic(fmt.Errorf("%s accepts at most one spec, got %d", caller, len(specs)))
+	}
 }
 
 // Function New creates a new bundle on which Dag and Tasks can be registered
 func New() Registry {
-	return &registry{taskFuncMap: make(map[string]map[string]Task)}
+	return &registry{
+		taskFuncMap: make(map[string]map[string]Task),
+		taskInfo:    make(map[string]map[string]TaskInfo),
+		dagSpec:     make(map[string]DagSpec),
+		taskOrder:   make(map[string][]string),
+	}
+}
+
+func splitFullName(fullName string) (typeName, pkgPath string) {
+	// fullName looks like "main.extract" or "github.com/x/y.MyTask"; method
+	// values get a "-fm" suffix.
+	lastDot := strings.LastIndex(fullName, ".")
+	if lastDot < 0 {
+		return strings.TrimSuffix(fullName, "-fm"), ""
+	}
+	return strings.TrimSuffix(fullName[lastDot+1:], "-fm"), fullName[:lastDot]
 }
 
 func getFnName(fn reflect.Value) string {
 	fullName := runtime.FuncForPC(fn.Pointer()).Name()
-	parts := strings.Split(fullName, ".")
-	fnName := parts[len(parts)-1]
-	// Go adds `-fm` suffix to a method names
-	return strings.TrimSuffix(fnName, "-fm")
+	name, _ := splitFullName(fullName)
+	return name
 }
 
-func (r *registry) AddDag(dagId string) Dag {
+func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
+	dagSpec := optionalSpec(spec, "AddDag")
+	r.RWMutex.Lock()
+	defer r.RWMutex.Unlock()
 	if _, exists := r.taskFuncMap[dagId]; exists {
 		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
 	}
 	r.taskFuncMap[dagId] = make(map[string]Task)
+	r.taskInfo[dagId] = make(map[string]TaskInfo)
+	r.dagSpec[dagId] = dagSpec
+	r.dagOrder = append(r.dagOrder, dagId)
 	return dagShim{dagId, r}
 }
 
-func (r *registry) registerTask(dagId string, fn any) {
+func (r *registry) registerTask(dagId string, fn any, spec TaskSpec, depends []string) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
@@ -92,30 +241,67 @@ func (r *registry) registerTask(dagId string, fn any) {
 
 	fnName := getFnName(val)
 
-	r.registerTaskWithName(dagId, fnName, fn)
+	r.registerTaskWithName(dagId, fnName, fn, spec, depends)
 }
 
-func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
+func (r *registry) registerTaskWithName(
+	dagId, taskId string,
+	fn any,
+	spec TaskSpec,
+	depends []string,
+) {
 	task, err := NewTaskFunction(fn)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}
 
+	val := reflect.ValueOf(fn)
+	fullName := runtime.FuncForPC(val.Pointer()).Name()
+	typeName, pkgPath := splitFullName(fullName)
+
+	info := TaskInfo{ID: taskId, TypeName: typeName, PkgPath: pkgPath, Spec: spec}
+
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
 
 	dagTasks, exists := r.taskFuncMap[dagId]
-
 	if !exists {
 		dagTasks = make(map[string]Task)
 		r.taskFuncMap[dagId] = dagTasks
+		r.taskInfo[dagId] = make(map[string]TaskInfo)
+		r.dagOrder = append(r.dagOrder, dagId)
 	}
 
-	_, exists = dagTasks[taskId]
-	if exists {
+	if _, exists := dagTasks[taskId]; exists {
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
+
+	// Resolve depends to upstream TaskInfo entries, validating each exists.
+	// We dedupe so a repeated id in `depends` only records one downstream
+	// edge on the parent.
+	seen := make(map[string]bool, len(depends))
+	for _, dep := range depends {
+		if dep == taskId {
+			panic(fmt.Errorf("task %q cannot depend on itself in DAG %q", taskId, dagId))
+		}
+		if seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		parent, ok := r.taskInfo[dagId][dep]
+		if !ok {
+			panic(fmt.Errorf(
+				"task %q depends on unknown task %q in DAG %q; register upstream tasks first",
+				taskId, dep, dagId,
+			))
+		}
+		parent.Downstream = append(parent.Downstream, taskId)
+		r.taskInfo[dagId][dep] = parent
+	}
+
 	dagTasks[taskId] = task
+	r.taskInfo[dagId][taskId] = info
+	r.taskOrder[dagId] = append(r.taskOrder[dagId], taskId)
 }
 
 func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
@@ -128,4 +314,23 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	}
 	task, exists = dagTasks[taskId]
 	return task, exists
+}
+
+// OrderedDags returns the registered dags in the order AddDag was called,
+// each with its tasks in the order AddTask / AddTaskWithName was called. The
+// returned slice is freshly allocated; callers may mutate it freely.
+func (r *registry) OrderedDags() []DagInfo {
+	r.RLock()
+	defer r.RUnlock()
+
+	out := make([]DagInfo, 0, len(r.dagOrder))
+	for _, dagID := range r.dagOrder {
+		taskIDs := r.taskOrder[dagID]
+		tasks := make([]TaskInfo, 0, len(taskIDs))
+		for _, tid := range taskIDs {
+			tasks = append(tasks, r.taskInfo[dagID][tid])
+		}
+		out = append(out, DagInfo{DagID: dagID, Spec: r.dagSpec[dagID], Tasks: tasks})
+	}
+	return out
 }
