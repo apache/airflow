@@ -160,6 +160,17 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
+    // Always link a mapped instance to its own detail page. Unlike start date,
+    // map index is present before the task starts, so this is the reliable
+    // navigation target for queued/scheduled mapped instances. See #68177.
+    cell: ({ row: { original } }) =>
+      original.map_index >= 0 ? (
+        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+          {original.rendered_map_index ?? original.map_index}
+        </RouterLink>
+      ) : (
+        original.rendered_map_index
+      ),
     header: translate("mapIndex"),
   },
   {
