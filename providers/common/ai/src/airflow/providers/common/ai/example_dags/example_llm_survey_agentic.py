@@ -136,7 +136,7 @@ Focus on patterns and proportions rather than raw counts."""
 
 
 # [START example_llm_survey_agentic]
-@dag
+@dag(tags=["example"])
 def example_llm_survey_agentic():
     """
     Fan-out across four survey dimensions, then synthesize into a single narrative.

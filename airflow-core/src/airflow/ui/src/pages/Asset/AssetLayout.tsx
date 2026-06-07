@@ -21,8 +21,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { useParams } from "react-router-dom";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";

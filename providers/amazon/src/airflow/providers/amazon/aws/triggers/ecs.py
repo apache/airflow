@@ -26,7 +26,7 @@ from botocore.exceptions import ClientError, WaiterError
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher, _parse_log_level
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -228,7 +228,8 @@ class TaskDoneTrigger(BaseTrigger):
 
             events = response["events"]
             for log_event in events:
-                self.log.info(AwsTaskLogFetcher.event_to_str(log_event))
+                level = _parse_log_level(log_event["message"])
+                self.log.log(level, AwsTaskLogFetcher.event_to_str(log_event))
 
             if len(events) == 0 or next_token == response["nextForwardToken"]:
                 return response["nextForwardToken"]

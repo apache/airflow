@@ -108,6 +108,28 @@ class TestPgbouncer:
 
         assert jmespath.search("spec.clusterIP", docs[0]) == "10.10.10.10"
 
+    def test_pgbouncer_service_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_pgbouncer_service_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}},
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
     @pytest.mark.parametrize(
         ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],

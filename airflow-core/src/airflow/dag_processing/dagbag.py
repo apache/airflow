@@ -25,7 +25,7 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from tabulate import tabulate
 
@@ -245,7 +245,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = NEW_SESSION):
+    def get_dag(self, dag_id, *, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -574,6 +574,7 @@ def sync_bag_to_db(
     bundle_name: str,
     bundle_version: str | None,
     *,
+    version_data: dict[str, Any] | None = None,
     session: Session = NEW_SESSION,
 ) -> None:
     """Save attributes about list of DAG to the DB."""
@@ -598,5 +599,6 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        version_data=version_data,
         files_parsed=files_parsed,
     )

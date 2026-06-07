@@ -189,7 +189,6 @@ const TriggerDAGForm = ({
                       <HStack align="stretch">
                         {dataIntervalModeOptions.map((mode) => (
                           <RadioCardItem
-                            colorPalette="brand"
                             indicatorPlacement="start"
                             key={mode.value}
                             label={translate(mode.label)}
@@ -232,12 +231,7 @@ const TriggerDAGForm = ({
         )}
         {isPaused ? (
           <>
-            <Checkbox
-              checked={unpause}
-              colorPalette="brand"
-              onChange={() => setUnpause(!unpause)}
-              wordBreak="break-all"
-            >
+            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
               {translate("components:triggerDag.unpause", { dagDisplayName })}
             </Checkbox>
             <Spacer />
@@ -257,7 +251,6 @@ const TriggerDAGForm = ({
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="brand"
             data-testid="trigger-dag-submit"
             disabled={
               Boolean(errors.conf) ||

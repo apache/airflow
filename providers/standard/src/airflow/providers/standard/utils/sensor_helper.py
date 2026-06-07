@@ -38,6 +38,7 @@ def _get_count(
     external_task_group_id,
     external_dag_id,
     states,
+    *,
     session: Session = NEW_SESSION,
 ) -> int:
     """

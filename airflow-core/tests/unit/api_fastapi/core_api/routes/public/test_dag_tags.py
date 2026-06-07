@@ -105,7 +105,7 @@ class TestDagEndpoint:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, dag_maker, session=None) -> None:
+    def setup(self, dag_maker, *, session=None) -> None:
         self._clear_db()
 
         with dag_maker(

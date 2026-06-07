@@ -93,6 +93,9 @@ labelPRBasedOnFilePath:
   provider:celery:
     - providers/celery/**
 
+  provider:clickhousedb:
+    - providers/clickhousedb/**
+
   provider:cloudant:
     - providers/cloudant/**
 
@@ -170,6 +173,9 @@ labelPRBasedOnFilePath:
 
   provider:http:
     - providers/http/**
+
+  provider:ibm-mq:
+    - providers/ibm/mq/**
 
   provider:imap:
     - providers/imap/**

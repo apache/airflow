@@ -313,5 +313,7 @@ class FTPSHook(FTPHook):
             else:
                 self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
             self.conn.set_pasv(pasv)
+            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
+            self.conn.prot_p()
 
         return self.conn

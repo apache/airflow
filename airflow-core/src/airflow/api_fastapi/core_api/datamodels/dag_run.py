@@ -35,8 +35,8 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class DAGRunPatchStates(str, Enum):
-    """Enum for Dag Run states when updating a Dag Run."""
+class DagRunMutableStates(str, Enum):
+    """Dag Run states from which the run may be mutated (patched, deleted)."""
 
     QUEUED = DagRunState.QUEUED
     SUCCESS = DagRunState.SUCCESS
@@ -46,12 +46,19 @@ class DAGRunPatchStates(str, Enum):
 class DAGRunPatchBody(StrictBaseModel):
     """Dag Run Serializer for PATCH requests."""
 
-    state: DAGRunPatchStates | None = None
+    state: DagRunMutableStates | None = None
     note: str | None = Field(None, max_length=1000)
 
 
-class DAGRunClearBody(StrictBaseModel):
-    """Dag Run serializer for clear endpoint body."""
+class BulkDAGRunBody(StrictBaseModel):
+    """Request body for bulk delete operations on Dag Runs."""
+
+    dag_run_id: str
+    dag_id: str | None = None
+
+
+class BaseDAGRunClear(StrictBaseModel):
+    """Shared options for the single-run and bulk Dag Run clear endpoints."""
 
     dry_run: bool = True
     only_failed: bool = False
@@ -59,18 +66,31 @@ class DAGRunClearBody(StrictBaseModel):
         default=False,
         description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
     )
-    run_on_latest_version: bool = Field(
-        default=False,
-        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+    run_on_latest_version: bool | None = Field(
+        default=None,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing. "
+        "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
+        "then the ``[core] rerun_with_latest_version`` config option, "
+        "and finally ``False``.",
     )
+    note: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="before")
     @classmethod
-    def validate_model(cls, data: Any) -> Any:
-        """Validate clear Dag run form."""
+    def validate_only_new_only_failed_mutually_exclusive(cls, data: Any) -> Any:
         if data.get("only_new") and data.get("only_failed"):
             raise ValueError("only_new and only_failed are mutually exclusive")
         return data
+
+
+class DAGRunClearBody(BaseDAGRunClear):
+    """Dag Run serializer for clear endpoint body."""
+
+
+class BulkDAGRunClearBody(BaseDAGRunClear):
+    """Request body for the bulk clear Dag Runs endpoint."""
+
+    dag_runs: list[BulkDAGRunBody] = Field(min_length=1)
 
 
 class DAGRunResponse(BaseModel):
@@ -151,6 +171,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
+        dag.validate_partition_key(self.partition_key)
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None

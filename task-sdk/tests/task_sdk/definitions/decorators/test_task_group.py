@@ -78,6 +78,25 @@ def test_tooltip_derived_from_function_docstring():
     _ = pipeline()
 
     assert _.task_group_dict["tg"].tooltip == "Function docstring."
+    assert _.task_group_dict["tg"].doc_md == "Function docstring."
+
+
+def test_doc_md_derived_from_function_docstring_does_not_resolve_markdown_file(tmp_path, monkeypatch):
+    """Test that docstrings ending with .md are not treated as markdown file paths."""
+    (tmp_path / "README.md").write_text("External file content.")
+    monkeypatch.chdir(tmp_path)
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg():
+            """README.md"""
+
+        tg()
+
+    _ = pipeline()
+
+    assert _.task_group_dict["tg"].doc_md == "README.md"
 
 
 def test_tooltip_not_overridden_by_function_docstring():
@@ -97,6 +116,43 @@ def test_tooltip_not_overridden_by_function_docstring():
     _ = pipeline()
 
     assert _.task_group_dict["tg"].tooltip == "tooltip for the TaskGroup"
+
+
+def test_doc_md_not_overridden_by_function_docstring():
+    """Test that explicitly set TaskGroup markdown docs are not overwritten by the function docstring."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(doc_md="TaskGroup docs.")
+        def tg():
+            """Function docstring."""
+
+        tg()
+
+    _ = pipeline()
+
+    assert _.task_group_dict["tg"].doc_md == "TaskGroup docs."
+
+
+def test_doc_md_file_resolved(tmp_path):
+    """Test that task_group reads markdown files supplied as doc_md."""
+    raw_content = """
+    ### External Markdown TaskGroup documentation
+    """
+
+    path = tmp_path / "testfile.md"
+    path.write_text(raw_content)
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(doc_md=str(path))
+        def tg(): ...
+
+        tg()
+
+    _ = pipeline()
+
+    assert _.task_group_dict["tg"].doc_md == raw_content
 
 
 def test_partial_evolves_factory():

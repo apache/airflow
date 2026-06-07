@@ -47,7 +47,6 @@ from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
-from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -76,11 +75,14 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    BulkDAGRunClearBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
+    DagRunMutableStates,
     DAGRunPatchBody,
-    DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
     TriggerDAGRunPostBody,
@@ -96,21 +98,29 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
+    requires_access_dag_run_bulk,
+    requires_access_dag_run_clear_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
+from airflow.api_fastapi.core_api.services.public.dag_run import (
+    BulkDagRunService,
+    DagRunWaiter,
+    dry_run_clear_dag_run,
+    get_dag_run_and_dag_for_clear,
+    perform_clear_dag_run,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
+dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 
 
 @dag_run_router.get(
@@ -151,7 +161,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a Dag Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
-    deletable_states = {s.value for s in DAGRunPatchStates}
+    deletable_states = {s.value for s in DagRunMutableStates}
 
     if dag_run is None:
         raise HTTPException(
@@ -219,7 +229,7 @@ def patch_dag_run(
     for attr_name, attr_value_raw in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
-            if attr_value == DAGRunPatchStates.SUCCESS:
+            if attr_value == DagRunMutableStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
@@ -228,10 +238,10 @@ def patch_dag_run(
 
             # TODO AIP-103: https://github.com/apache/airflow/issues/66755
             # Handle clearing states for all task instances in a dagrun when cleared
-            elif attr_value == DAGRunPatchStates.QUEUED:
+            elif attr_value == DagRunMutableStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
-            elif attr_value == DAGRunPatchStates.FAILED:
+            elif attr_value == DagRunMutableStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
@@ -250,6 +260,19 @@ def patch_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
     return final_dag_run
+
+
+@dag_run_router.patch(
+    "",
+    dependencies=[Depends(requires_access_dag_run_bulk()), Depends(action_logging())],
+)
+def bulk_dag_runs(
+    request: BulkBody[BulkDAGRunBody],
+    session: SessionDep,
+    dag_id: str,
+) -> BulkResponse:
+    """Bulk delete Dag Runs."""
+    return BulkDagRunService(session=session, request=request, dag_id=dag_id).handle_request()
 
 
 @dag_run_router.get(
@@ -302,74 +325,118 @@ def clear_dag_run(
     body: DAGRunClearBody,
     dag_bag: DagBagDep,
     session: SessionDep,
+    user: GetUserDep,
 ) -> ClearTaskInstanceCollectionResponse | DAGRunResponse:
-    dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+    dag_run, dag = get_dag_run_and_dag_for_clear(
+        session=session, dag_bag=dag_bag, dag_id=dag_id, dag_run_id=dag_run_id
     )
-    if dag_run is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
-        )
-
-    dag = dag_bag.get_dag_for_run(dag_run, session=session)
-
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if body.dry_run:
-        if body.only_new:
-            # Determine "new" tasks by TI existence: a task is new when the latest Dag
-            # version contains it but the current run has no TaskInstance row for it yet.
-            # This is more reliable than the version-comparison approach used by
-            # dag.clear(only_new=True, dry_run=True) which returns an empty set when
-            # created_dag_version_id is None (e.g. LocalDagBundle).
-            latest_dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-            existing_task_ids = set(
-                session.scalars(
-                    select(TaskInstance.task_id).where(
-                        TaskInstance.dag_id == dag_id,
-                        TaskInstance.run_id == dag_run_id,
-                    )
-                ).all()
-            )
-            new_task_ids = sorted(set(latest_dag.task_ids) - existing_task_ids)
-            task_instances: list[TaskInstanceResponse | NewTaskResponse] = [
-                NewTaskResponse(task_id=task_id, task_display_name=task_id) for task_id in new_task_ids
-            ]
-        else:
-            # Query task instances directly with proper eager loading so that all
-            # relationships required by TaskInstanceResponse (dag_run, dag_model,
-            # dag_version, rendered_task_instance_fields) are populated.
-            # dag.clear(dry_run=True) returns raw ORM objects without these joins.
-            ti_query = eager_load_TI_and_TIH_for_validation(select(TaskInstance))
-            ti_query = ti_query.where(
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id == dag_run_id,
-            )
-            if body.only_failed:
-                ti_query = ti_query.where(
-                    TaskInstance.state.in_([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])
-                )
-            task_instances = list(session.scalars(ti_query))
-
+        task_instances = dry_run_clear_dag_run(
+            session=session,
+            dag_bag=dag_bag,
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            only_failed=body.only_failed,
+            only_new=body.only_new,
+        )
         return ClearTaskInstanceCollectionResponse(
             task_instances=task_instances,
             total_entries=len(task_instances),
         )
 
-    dag.clear(
-        run_id=dag_run_id,
-        task_ids=None,
-        only_new=body.only_new,
-        only_failed=body.only_failed,
-        run_on_latest_version=body.run_on_latest_version,
+    return perform_clear_dag_run(
         session=session,
+        dag=dag,
+        dag_run=dag_run,
+        dag_id=dag_id,
+        only_failed=body.only_failed,
+        only_new=body.only_new,
+        run_on_latest_version=body.run_on_latest_version,
+        note=body.note,
+        user=user,
     )
-    dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-    if not dag_run_cleared:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
-    return dag_run_cleared
+
+
+@dag_run_at_dag_router.post(
+    "/clearDagRuns",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag_run_clear_bulk()), Depends(action_logging())],
+)
+def clear_dag_runs(
+    dag_id: str,
+    body: BulkDAGRunClearBody,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+    user: GetUserDep,
+) -> ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse:
+    """Clear multiple Dag Runs in a single request."""
+    url_dag_id_is_wildcard = dag_id == "~"
+
+    # No ordered set type in Python, using a dict with throwaway values as replacement.
+    runs_to_clear: dict[tuple[str, str], None] = {}
+    for run in body.dag_runs:
+        if url_dag_id_is_wildcard:
+            if not run.dag_id or run.dag_id == "~":
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"When the URL dag_id is '~', every entry must provide a concrete dag_id "
+                    f"(missing on dag_run_id: {run.dag_run_id!r}).",
+                )
+            run_to_clear = (run.dag_id, run.dag_run_id)
+        else:
+            entity_dag_id = run.dag_id or dag_id
+            if entity_dag_id != dag_id:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Entry dag_id {entity_dag_id!r} does not match the URL dag_id {dag_id!r}.",
+                )
+            run_to_clear = (dag_id, run.dag_run_id)
+        runs_to_clear[run_to_clear] = None
+
+    if body.dry_run:
+        affected: list[TaskInstanceResponse | NewTaskResponse] = []
+        for run_dag_id, run_id in runs_to_clear:
+            get_dag_run_and_dag_for_clear(
+                session=session, dag_bag=dag_bag, dag_id=run_dag_id, dag_run_id=run_id
+            )
+            affected.extend(
+                dry_run_clear_dag_run(
+                    session=session,
+                    dag_bag=dag_bag,
+                    dag_id=run_dag_id,
+                    dag_run_id=run_id,
+                    only_failed=body.only_failed,
+                    only_new=body.only_new,
+                )
+            )
+        return ClearTaskInstanceCollectionResponse(
+            task_instances=affected,
+            total_entries=len(affected),
+        )
+
+    cleared_runs: list[DagRun] = []
+    for run_dag_id, run_id in runs_to_clear:
+        dag_run, dag = get_dag_run_and_dag_for_clear(
+            session=session, dag_bag=dag_bag, dag_id=run_dag_id, dag_run_id=run_id
+        )
+        cleared_runs.append(
+            perform_clear_dag_run(
+                session=session,
+                dag=dag,
+                dag_run=dag_run,
+                dag_id=run_dag_id,
+                only_failed=body.only_failed,
+                only_new=body.only_new,
+                run_on_latest_version=body.run_on_latest_version,
+                note=body.note,
+                user=user,
+            )
+        )
+    return DAGRunCollectionResponse(
+        dag_runs=cleared_runs,
+        total_entries=len(cleared_runs),
+    )
 
 
 @dag_run_router.get(
@@ -601,9 +668,8 @@ def trigger_dag_run(
         triggered_by = DagRunTriggeredByType.REST_API
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    params = body.validate_context(dag)
-
     try:
+        params = body.validate_context(dag)
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

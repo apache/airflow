@@ -27,6 +27,74 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+.. note::
+    The new execute-callback worker support (#67679) requires Apache Airflow 3.3+, as it relies on APIs available only in Airflow 3.3 and later. The Edge provider itself continues to support Apache Airflow 3.0+; the execute-callback feature is simply inactive on older releases.
+
+Features
+~~~~~~~~
+
+* ``Fix edge executor to support handling execute callback workload (#67679)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge worker fork mode reporting supervisor failures as success (#67887)``
+
+Misc
+~~~~
+
+* ``Fix exceptions of positional session use in Edge provider (2) (#67812)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 16 updates (#67740)``
+* ``Fix exceptions of positional session use in Edge provider (#67661)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Remove dead auth code from Airflow2 times in Edge (#67374)``
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+Doc-only
+~~~~~~~~
+
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+* ``Add some more clarifications on edge roles (#67379)``
+* ``Clarify WorkerQueuesBase.team_name is an experimental hint, cross-ref workload.rst (#66718)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix test in main (#67861)``
+   * ``[main] CI: Upgrade important CI environment (#67593)``
+   * ``[main] CI: Upgrade important CI environment (#67313)``
+
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow using fresh interpreter besides fork() in Edge Worker (#65943)``
+* ``Support BaseExecutor.run_workload() for Airflow 3.3 in Edge Worker (#65847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make Edge resilient against log errors (#66995)``
+* ``Fix provider DB upgrades with existing tables (#66883)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 15 updates (#67002)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 6 updates (#66532)``
+* ``Regenerate Edge worker OpenAPI spec after #67093 env upgrade (#67188)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix hardcoded OS path in edge provider (#67039)``
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
 3.6.0
 .....
 

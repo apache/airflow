@@ -67,46 +67,6 @@ export class DagRunsTabPage extends BasePage {
     }).toPass({ intervals: [2000], timeout: 30_000 });
   }
 
-  public async markRunAs(state: "failed" | "success"): Promise<void> {
-    const stateBadge = this.page.getByTestId("state-badge").first();
-
-    await expect(stateBadge).toBeVisible();
-    const currentState = await stateBadge.textContent();
-
-    if (currentState?.toLowerCase().includes(state)) {
-      return;
-    }
-
-    await expect(this.markRunAsButton).toBeVisible();
-    await this.markRunAsButton.click();
-
-    const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
-
-    await expect(stateOption).toBeVisible({ timeout: 5000 });
-
-    if (await stateOption.isDisabled()) {
-      await this.page.keyboard.press("Escape");
-
-      return;
-    }
-
-    await stateOption.click();
-
-    const confirmButton = this.page.getByRole("button", { name: "Confirm" });
-
-    await expect(confirmButton).toBeVisible({ timeout: 5000 });
-
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("dagRuns") && response.request().method() === "PATCH",
-      { timeout: 10_000 },
-    );
-
-    await confirmButton.click();
-    await responsePromise;
-
-    await expect(confirmButton).toBeHidden();
-  }
-
   public async navigateToDag(dagId: string): Promise<void> {
     await expect(async () => {
       await this.navigateTo(`/dags/${dagId}`);
@@ -114,17 +74,6 @@ export class DagRunsTabPage extends BasePage {
         timeout: 5000,
       });
       await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
-    }).toPass({ intervals: [2000], timeout: 60_000 });
-  }
-
-  public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
-    await expect(async () => {
-      await this.navigateTo(`/dags/${dagId}/runs/${runId}`);
-      await expect(this.page).toHaveURL(
-        new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}/runs/${DagRunsTabPage.escapeRegExp(runId)}`),
-        { timeout: 15_000 },
-      );
-      await expect(this.markRunAsButton).toBeVisible({ timeout: 15_000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 

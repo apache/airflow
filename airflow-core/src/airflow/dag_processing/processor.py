@@ -69,6 +69,21 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
+    handle_get_prev_successful_dag_run,
+    handle_get_previous_dag_run,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
+    handle_get_variable_keys,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
+    handle_mask_secret,
+    handle_put_variable,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.sdk.log import mask_secret
@@ -594,20 +609,28 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
 
     def _create_log_forwarder(
-        self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
     ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
-            TaskStatesResponse,
             VariableResponse,
-            XComSequenceIndexResponse,
         )
 
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
         elif isinstance(msg, GetConnection):
@@ -633,86 +656,31 @@ class DagFileProcessorProcess(WatchedSubprocess):
             else:
                 resp = var
         elif isinstance(msg, GetVariableKeys):
-            from airflow.sdk.execution_time.request_handlers import handle_get_variable_keys
-
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
-            resp = self.client.dag_runs.get_previous(
-                dag_id=msg.dag_id,
-                logical_date=msg.logical_date,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPrevSuccessfulDagRun):
-            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
-            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
-            resp = dagrun_result
-            dump_opts = {"exclude_unset": True}
+            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
-            )
-            xcom_result = XComResult.from_xcom_response(xcom)
-            resp = xcom_result
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetXComCount):
-            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
-            )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
-            xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.start,
-                msg.stop,
-                msg.step,
-                msg.include_prior_dates,
-            )
-            resp = XComSequenceSliceResult.from_response(xcoms)
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, MaskSecret):
-            # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
         elif isinstance(msg, GetTaskStates):
-            task_states_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(task_states_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(task_states_map)
-            else:
-                resp = task_states_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
-            resp = self.client.task_instances.get_previous(
-                dag_id=msg.dag_id,
-                task_id=msg.task_id,
-                logical_date=msg.logical_date,
-                map_index=msg.map_index,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

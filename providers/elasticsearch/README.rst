@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-elasticsearch``
 
-Release: ``6.5.3``
+Release: ``6.6.0``
 
 
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
@@ -36,7 +36,7 @@ This is a provider package for ``elasticsearch`` provider. All classes for this 
 are in ``airflow.providers.elasticsearch`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.5.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.6.0/>`_.
 
 Installation
 ------------
@@ -79,5 +79,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+==========  ==================
+Extra       Dependencies
+==========  ==================
+``polars``  ``polars>=1.26.0``
+==========  ==================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.5.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.6.0/changelog.html>`_.

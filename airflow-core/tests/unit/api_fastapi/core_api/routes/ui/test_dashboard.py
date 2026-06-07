@@ -246,6 +246,7 @@ class TestHistoricalMetricsDataEndpoint:
                 {
                     "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 1},
                     "task_instance_states": {
+                        "awaiting_input": 0,
                         "deferred": 0,
                         "failed": 2,
                         "no_status": 4,
@@ -268,6 +269,7 @@ class TestHistoricalMetricsDataEndpoint:
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
                     "task_instance_states": {
+                        "awaiting_input": 0,
                         "deferred": 0,
                         "failed": 2,
                         "no_status": 0,
@@ -290,6 +292,7 @@ class TestHistoricalMetricsDataEndpoint:
                 {
                     "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 0},
                     "task_instance_states": {
+                        "awaiting_input": 0,
                         "deferred": 0,
                         "failed": 2,
                         "no_status": 4,

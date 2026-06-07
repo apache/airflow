@@ -38,3 +38,5 @@ This section contains information about deploying Dags into production and the a
     priority-weight
     web-stack
     plugins
+    task-and-asset-store
+    task-and-asset-store-cleanup

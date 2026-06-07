@@ -284,6 +284,26 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         return value
 
 
+_LIKE_ESCAPE_CHAR = "\\"
+
+
+def _escape_like_pattern(value: str) -> str:
+    r"""
+    Escape SQL ``LIKE`` / ``ILIKE`` metacharacters in a user-supplied value.
+
+    Use together with ``column.ilike(f"%{_escape_like_pattern(value)}%", escape="\\")`` on filter
+    parameters that intend literal substring matching (so a user-supplied ``%`` or ``_`` does not
+    widen the match beyond what the filter semantics promise). Search parameters that explicitly
+    expose wildcard semantics (see :class:`_SearchParam`) must not call this — they want the
+    metacharacters to pass through.
+    """
+    return (
+        value.replace(_LIKE_ESCAPE_CHAR, _LIKE_ESCAPE_CHAR * 2)
+        .replace("%", _LIKE_ESCAPE_CHAR + "%")
+        .replace("_", _LIKE_ESCAPE_CHAR + "_")
+    )
+
+
 class _SearchParam(BaseParam[str]):
     """
     Substring search on a column using ``ILIKE '%term%'`` (case-insensitive).
@@ -523,7 +543,10 @@ class SortParam(BaseParam[list[str]]):
     MAX_SORT_PARAMS = 10
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
+        self,
+        allowed_attrs: list[str],
+        model: Base,
+        to_replace: dict[str, str | Column | list[Column]] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -562,6 +585,16 @@ class SortParam(BaseParam[list[str]]):
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
                 if isinstance(replacement, str):
                     lstriped_orderby = replacement
+                elif isinstance(replacement, list):
+                    # Compound sort: expand the list into multiple sort entries.
+                    # Each column's ORM key becomes its attr_name so that
+                    # row_value() can read the corresponding attribute via
+                    # getattr(row, attr_name) without further to_replace lookups.
+                    is_desc = order_by_value.startswith("-")
+                    for col in replacement:
+                        col_attr_name = col.key
+                        resolved.append((col_attr_name, col, is_desc))
+                    continue
                 else:
                     column = replacement
 
@@ -612,7 +645,7 @@ class SortParam(BaseParam[list[str]]):
             replacement = self.to_replace.get(name)
             if isinstance(replacement, str):
                 return getattr(row, replacement, None)
-            if replacement is not None:
+            if replacement is not None and not isinstance(replacement, list):
                 # TODO: Column-form ``to_replace`` (e.g. ``{"last_run_state": DagRun.state}``)
                 # isn't supported for cursor pagination — no endpoint that uses cursor
                 # pagination needs it today. When one does, decide how the row exposes the
@@ -624,6 +657,10 @@ class SortParam(BaseParam[list[str]]):
                     f"``{name}``. Use a string alias in ``to_replace`` or sort by a primary-model "
                     f"attribute."
                 )
+            # List-form replacements are expanded in _resolve() into individual entries
+            # each using the column's own ORM key as attr_name, so ``name`` at this point
+            # is already a concrete model attribute (e.g. ``_rendered_map_index`` or
+            # ``map_index``) — fall through to the getattr below.
         return getattr(row, name, None)
 
     def get_primary_key_column(self) -> Column:
@@ -639,7 +676,10 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | Sequence[str] | None = None) -> Callable:
-        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+        # Include to_replace keys that are not already in allowed_attrs to avoid
+        # duplicate entries in the spec description.
+        allowed_set = set(self.allowed_attrs)
+        to_replace_attrs = [k for k in self.to_replace if k not in allowed_set] if self.to_replace else []
 
         all_attrs = self.allowed_attrs + to_replace_attrs
 
@@ -822,7 +862,10 @@ class _OwnersFilter(BaseParam[list[str]]):
         if not self.value:
             return select
 
-        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        conditions = [
+            DagModel.owners.ilike(f"%{_escape_like_pattern(owner)}%", escape=_LIKE_ESCAPE_CHAR)
+            for owner in self.value
+        ]
         return select.where(or_(*conditions))
 
     @classmethod
@@ -1108,13 +1151,19 @@ class _AssetDependencyFilter(BaseParam[str]):
     """Filter Dags by specific asset dependencies."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
+        if self.value is None:
             return select
 
+        escaped = _escape_like_pattern(self.value)
         asset_dag_subquery = (
             sql_select(DagScheduleAssetReference.dag_id)
             .join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id)
-            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .where(
+                or_(
+                    AssetModel.name.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                    AssetModel.uri.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                )
+            )
             .distinct()
         )
 
@@ -1138,16 +1187,17 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     """Filter Dag runs by consuming asset (name or URI)."""
 
     def to_orm(self, select: Select) -> Select:
-        if not self.value and self.skip_none:
+        if not self.value:
             return select
 
+        escaped = _escape_like_pattern(self.value)
         event_subquery = (
             sql_select(AssetEvent.id)
             .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
             .where(
                 or_(
-                    AssetModel.name.ilike(f"%{self.value}%"),
-                    AssetModel.uri.ilike(f"%{self.value}%"),
+                    AssetModel.name.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
+                    AssetModel.uri.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR),
                 )
             )
             .distinct()
@@ -1190,7 +1240,7 @@ class _PendingActionsFilter(BaseParam[bool]):
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .where(
                 HITLDetail.responded_at.is_(None),
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
@@ -1570,6 +1620,7 @@ state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.QUEUED,
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
+    TaskInstanceState.AWAITING_INPUT,
     TaskInstanceState.RUNNING,
     TaskInstanceState.RESTARTING,
     None,

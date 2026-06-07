@@ -126,6 +126,21 @@ def get_provider_info():
                         "description": "Run the command `base64 <your-keytab-path>` and use its output.",
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },
+                    "rest-scheme": {
+                        "label": "REST scheme",
+                        "description": "Scheme for the Spark standalone REST API (http or https). Default is http.",
+                        "schema": {"type": ["string", "null"], "default": "http"},
+                    },
+                    "rest-port": {
+                        "label": "REST port",
+                        "description": "Port for the Spark standalone REST API (spark.master.rest.port). Default is 6066.",
+                        "schema": {"type": ["string", "null"], "default": "6066"},
+                    },
+                    "yarn_resourcemanager_webapp_address": {
+                        "label": "YARN ResourceManager webapp address",
+                        "description": "YARN ResourceManager webapp URL (e.g. `http://rm.example.com:8088`), required when `yarn_track_via_rm_api=True` on `SparkSubmitOperator` / `SparkSubmitHook`. Mirrors Hadoop's `yarn.resourcemanager.webapp.address`.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
         ],

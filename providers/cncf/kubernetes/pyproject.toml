@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.17.0"
+version = "10.18.0"
 description = "Provider package apache-airflow-providers-cncf-kubernetes for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -61,7 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.14.1", # use next version
+    "apache-airflow-providers-common-compat>=1.15.0",
     "asgiref>=3.5.2; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
     # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
@@ -77,13 +77,17 @@ dependencies = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
-    "kubernetes>=35.0.0,<36.0.0",
+    # 36.0.0 is excluded because it shipped an in-cluster auth regression
+    # (https://github.com/kubernetes-client/python/issues/2582), fixed in 36.0.1. 35.0.0 is the only
+    # 35.x release and ignores NO_PROXY (https://github.com/kubernetes-client/python/issues/2520),
+    # fixed in the 36.x line, so a proxied install resolves to 36.0.1+.
+    "kubernetes>=35.0.0,!=36.0.0,<37.0.0",
     # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
     # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     "urllib3>=2.1.0,!=2.6.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<36.0.0",
+    "kubernetes_asyncio>=32.0.0,<37.0.0",
 ]
 
 [dependency-groups]
@@ -121,8 +125,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.17.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.17.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.18.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.18.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

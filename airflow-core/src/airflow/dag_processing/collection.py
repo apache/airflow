@@ -129,8 +129,11 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
             load_only(
                 DagRun.dag_id,
                 DagRun.logical_date,
+                DagRun.run_after,
                 DagRun.data_interval_start,
                 DagRun.data_interval_end,
+                DagRun.partition_key,
+                DagRun.partition_date,
             )
         )
     )
@@ -165,8 +168,11 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             load_only(
                 DagRun.dag_id,
                 DagRun.logical_date,
+                DagRun.run_after,
                 DagRun.data_interval_start,
                 DagRun.data_interval_end,
+                DagRun.partition_key,
+                DagRun.partition_date,
             )
         )
     )
@@ -262,6 +268,7 @@ def _serialize_dag_capturing_errors(
     bundle_name,
     session: Session,
     bundle_version: str | None,
+    version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
 ):
     """
@@ -282,6 +289,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
             _prefetched=_prefetched,
@@ -436,6 +444,7 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
+    version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
@@ -493,6 +502,7 @@ def update_dag_parsing_results_in_db(
                             dag=dag,
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
+                            version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
@@ -622,6 +632,7 @@ class DagModelOperation(NamedTuple):
             dm.timetable_description = dag.timetable.description
             dm.timetable_partitioned = dag.timetable.partitioned
             dm.timetable_periodic = dag.timetable.periodic
+            dm.partition_mapper_info = dag.timetable.partition_mapper_info
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
             allowed_types = dag.allowed_run_types
@@ -891,22 +902,30 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_assets = {assets[r.name, r.uri]: r.allow_producer_teams for r in references}
+            referenced_assets = {
+                assets[r.name, r.uri]: (
+                    r.access_control.get("producer_teams", []),
+                    r.access_control.get("allow_global", True),
+                )
+                for r in references
+            }
             referenced_asset_ids = {a.id for a in referenced_assets}
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
                     session.delete(ref)
-            for asset_model, teams in referenced_assets.items():
+            for asset_model, (teams, allow_global) in referenced_assets.items():
                 if asset_model.id in orm_refs:
                     orm_refs[asset_model.id].allow_producer_teams = teams
+                    orm_refs[asset_model.id].allow_global_producers = allow_global
             session.bulk_save_objects(
                 DagScheduleAssetReference(
                     asset_id=asset_model.id,
                     dag_id=dag_id,
                     allow_producer_teams=teams,
+                    allow_global_producers=allow_global,
                 )
-                for asset_model, teams in referenced_assets.items()
+                for asset_model, (teams, allow_global) in referenced_assets.items()
                 if asset_model.id not in orm_refs
             )
 
@@ -1009,21 +1028,39 @@ class AssetModelOperation(NamedTuple):
                 dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
-                (task_id, asset.id)
-                for task_id, asset in ((task_id, assets[d.name, d.uri]) for task_id, d in references)
+                (task_id, assets[d.name, d.uri]): (
+                    d.access_control.get("consumer_teams", []),
+                    d.access_control.get("allow_global", True),
+                )
+                for task_id, d in references
             }
+            referenced_outlet_keys = {(task_id, asset.id) for (task_id, asset) in referenced_outlets}
             orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
             for key, ref in orm_refs.items():
-                if key not in referenced_outlets:
+                if key not in referenced_outlet_keys:
                     session.delete(ref)
+            for (task_id, asset_model), (consumer_teams, allow_global) in referenced_outlets.items():
+                if (task_id, asset_model.id) in orm_refs:
+                    orm_refs[(task_id, asset_model.id)].allow_consumer_teams = consumer_teams
+                    orm_refs[(task_id, asset_model.id)].allow_global_consumers = allow_global
             session.bulk_save_objects(
-                TaskOutletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
-                for task_id, asset_id in referenced_outlets
-                if (task_id, asset_id) not in orm_refs
+                TaskOutletAssetReference(
+                    asset_id=asset_model.id,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    allow_consumer_teams=consumer_teams,
+                    allow_global_consumers=allow_global,
+                )
+                for (task_id, asset_model), (consumer_teams, allow_global) in referenced_outlets.items()
+                if (task_id, asset_model.id) not in orm_refs
             )
 
     def add_asset_trigger_references(
-        self, assets: dict[tuple[str, str], AssetModel], *, session: Session
+        self,
+        assets: dict[tuple[str, str], AssetModel],
+        *,
+        team_name: str | None = None,
+        session: Session,
     ) -> None:
         from airflow.serialization.encoders import encode_trigger
 
@@ -1095,7 +1132,9 @@ class AssetModelOperation(NamedTuple):
                 trigger
                 for trigger in [
                     Trigger(
-                        classpath=triggers[trigger_hash]["classpath"], kwargs=triggers[trigger_hash]["kwargs"]
+                        classpath=triggers[trigger_hash]["classpath"],
+                        kwargs=triggers[trigger_hash]["kwargs"],
+                        team_name=team_name,
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

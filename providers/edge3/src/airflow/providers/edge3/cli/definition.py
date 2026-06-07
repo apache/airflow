@@ -40,7 +40,13 @@ ARG_TEAM_NAME = Arg(
         "-t",
         "--team-name",
     ),
-    help="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+    help=(
+        "Team name for the experimental ``[core] multi_team`` feature. This is a "
+        "UI/REST API-level hint; the Execution API does not currently enforce "
+        "team-based access boundaries (see ``airflow-core/docs/security/workload.rst``, "
+        "section 'No team-level isolation in Execution API'). If omitted, the worker "
+        "operates as a default-team worker."
+    ),
 )
 ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),

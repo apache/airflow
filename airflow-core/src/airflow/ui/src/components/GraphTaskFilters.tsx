@@ -18,7 +18,6 @@
  */
 import {
   Button,
-  IconButton,
   type NumberInputValueChangeDetails,
   Portal,
   Separator,
@@ -34,7 +33,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
+import { IconButton, Select } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -145,6 +144,11 @@ export const GraphTaskFilters = () => {
 
   const panelTitle = translate("dag:panel.graphFilters.title");
 
+  // Return undefined if there are no filter options
+  if (allOperators.length <= 1 && allTaskGroups.length === 0 && runId === undefined) {
+    return undefined;
+  }
+
   return (
     <Menu.Root
       onOpenChange={({ open: nextOpen }) => setIsOpen(nextOpen)}
@@ -152,13 +156,7 @@ export const GraphTaskFilters = () => {
       positioning={{ placement: "bottom-end" }}
     >
       <Menu.Trigger asChild>
-        <IconButton
-          aria-label={panelTitle}
-          colorPalette="brand"
-          size="md"
-          title={panelTitle}
-          variant={hasActiveFilters ? "solid" : "ghost"}
-        >
+        <IconButton variant={hasActiveFilters ? "solid" : "ghost"}>
           <FiSearch />
         </IconButton>
       </Menu.Trigger>
@@ -207,7 +205,7 @@ export const GraphTaskFilters = () => {
                     onValueChange={({ value }) => handleMultiChange(SearchParamsKeys.GRAPH_TASK_STATE)(value)}
                     value={selectedStates}
                   >
-                    <Select.Trigger colorPalette="brand" minW="max-content">
+                    <Select.Trigger minW="max-content">
                       <Select.ValueText
                         placeholder={translate("dag:panel.graphFilters.selectStatus")}
                         width="auto"
@@ -261,7 +259,7 @@ export const GraphTaskFilters = () => {
             )}
 
             {hasActiveFilters ? (
-              <Button onClick={clearAllFilters} size="sm" variant="outline" width="100%">
+              <Button onClick={clearAllFilters} variant="outline" width="100%">
                 {translate("dag:panel.graphFilters.clearFilters")}
               </Button>
             ) : undefined}

@@ -23,7 +23,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_llm_branch_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_branch_operator():
     route = LLMBranchOperator(
         task_id="route_ticket",
@@ -53,7 +53,7 @@ example_llm_branch_operator()
 
 
 # [START howto_operator_llm_branch_multi]
-@dag
+@dag(tags=["example"])
 def example_llm_branch_multi():
     route = LLMBranchOperator(
         task_id="classify",
@@ -84,7 +84,7 @@ example_llm_branch_multi()
 
 
 # [START howto_decorator_llm_branch]
-@dag
+@dag(tags=["example"])
 def example_llm_branch_decorator():
     @task.llm_branch(
         llm_conn_id="pydanticai_default",
@@ -118,7 +118,7 @@ example_llm_branch_decorator()
 
 
 # [START howto_decorator_llm_branch_multi]
-@dag
+@dag(tags=["example"])
 def example_llm_branch_decorator_multi():
     @task.llm_branch(
         llm_conn_id="pydanticai_default",

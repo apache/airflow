@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -289,6 +290,76 @@ class TestBaseAuthManager:
         auth_manager.revoke_token(token)
 
         validator.revoke_token.assert_called_once_with(token)
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.get_signing_args",
+        return_value={"secret_key": "k", "algorithm": "HS256"},
+    )
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
+    def test_token_signer_reads_audience_from_api_auth_section(
+        self, mock_jwt_generator, mock_get_signing_args, auth_manager
+    ):
+        """Signer and validator must read `jwt_audience` from the same `[api_auth]` section.
+
+        Regression test: the signer previously read `[api] jwt_audience` while the validator read
+        `[api_auth] jwt_audience` (the documented option). Both defaults are `apache-airflow` so
+        out-of-box behaviour was correct, but a custom audience set under the documented
+        `[api_auth]` section would silently mismatch.
+        """
+        EmptyAuthManager._get_token_signer.cache_clear()
+        try:
+            with conf_vars({("api_auth", "jwt_audience"): "configured-audience"}):
+                auth_manager._get_token_signer()
+        finally:
+            EmptyAuthManager._get_token_signer.cache_clear()
+        assert mock_jwt_generator.call_args.kwargs["audience"] == "configured-audience"
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.get_signing_args",
+        return_value={"secret_key": "k", "algorithm": "HS256"},
+    )
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
+    def test_token_signer_falls_back_to_deprecated_api_section_with_warning(
+        self, mock_jwt_generator, mock_get_signing_args, auth_manager
+    ):
+        """Honour an audience set under the (deprecated) ``[api]`` section with a warning.
+
+        Deployments that hit the original bug worked around it by setting ``[api] jwt_audience``
+        so the signer would emit the configured value. Keep accepting that until the next major
+        release, but emit ``DeprecationWarning`` so operators move it to ``[api_auth]``.
+        """
+        EmptyAuthManager._get_token_signer.cache_clear()
+        try:
+            with conf_vars({("api", "jwt_audience"): "legacy-audience"}):
+                with pytest.warns(DeprecationWarning, match=r"\[api\] jwt_audience"):
+                    auth_manager._get_token_signer()
+        finally:
+            EmptyAuthManager._get_token_signer.cache_clear()
+        assert mock_jwt_generator.call_args.kwargs["audience"] == "legacy-audience"
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.get_signing_args",
+        return_value={"secret_key": "k", "algorithm": "HS256"},
+    )
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
+    def test_token_signer_prefers_api_auth_over_deprecated_api_section(
+        self, mock_jwt_generator, mock_get_signing_args, auth_manager
+    ):
+        """When both sections are set, the documented ``[api_auth]`` option wins (no warning)."""
+        EmptyAuthManager._get_token_signer.cache_clear()
+        try:
+            with conf_vars(
+                {
+                    ("api_auth", "jwt_audience"): "documented-audience",
+                    ("api", "jwt_audience"): "legacy-audience",
+                }
+            ):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", DeprecationWarning)
+                    auth_manager._get_token_signer()
+        finally:
+            EmptyAuthManager._get_token_signer.cache_clear()
+        assert mock_jwt_generator.call_args.kwargs["audience"] == "documented-audience"
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")
