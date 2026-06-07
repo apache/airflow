@@ -274,12 +274,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.17"
+AIRFLOW_UV_VERSION = "0.11.18"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
 PREK_VERSION = "0.4.3"
-HATCH_VERSION = "1.16.5"
+HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
