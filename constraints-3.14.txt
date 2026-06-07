@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-07T11:17:00.490708
+# This constraints file was automatically generated on 2026-06-07T18:43:03.397000
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -266,7 +266,7 @@ curlify==3.0.0
 databricks-sql-connector==4.2.5
 dataclasses-json==0.6.7
 datadog==0.52.1
-db-dtypes==1.6.0
+db-dtypes==1.7.0
 debugpy==1.8.21
 decorator==5.3.1
 defusedxml==0.7.1
@@ -292,7 +292,7 @@ fastavro==1.12.2
 fastcore==1.13.2
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.0
+filelock==3.29.1
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -307,51 +307,51 @@ genai-prices==0.0.62
 gevent==26.5.0
 gitdb==4.0.12
 google-ads==31.0.0
-google-analytics-admin==0.29.0
-google-api-core==2.30.3
+google-analytics-admin==0.30.0
+google-api-core==2.31.0
 google-api-python-client==2.197.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
 google-auth==2.53.0
 google-cloud-aiplatform==1.148.1
-google-cloud-alloydb==0.9.0
-google-cloud-appengine-logging==1.9.0
-google-cloud-audit-log==0.5.0
-google-cloud-automl==2.19.0
-google-cloud-batch==0.21.0
-google-cloud-bigquery-datatransfer==3.22.0
-google-cloud-bigquery-storage==2.38.0
+google-cloud-alloydb==0.10.0
+google-cloud-appengine-logging==1.10.0
+google-cloud-audit-log==0.6.0
+google-cloud-automl==2.20.0
+google-cloud-batch==0.22.0
+google-cloud-bigquery-datatransfer==3.23.0
+google-cloud-bigquery-storage==2.39.0
 google-cloud-bigquery==3.41.0
 google-cloud-bigtable==2.38.0
-google-cloud-build==3.36.0
-google-cloud-compute==1.47.0
-google-cloud-container==2.64.0
+google-cloud-build==3.37.0
+google-cloud-compute==1.48.0
+google-cloud-container==2.65.0
 google-cloud-core==2.6.0
-google-cloud-datacatalog==3.30.0
-google-cloud-dataflow-client==0.13.0
-google-cloud-dataform==0.10.0
-google-cloud-dataplex==2.19.0
-google-cloud-dataproc-metastore==1.22.0
-google-cloud-dataproc==5.27.0
-google-cloud-dlp==3.36.0
+google-cloud-datacatalog==3.31.0
+google-cloud-dataflow-client==0.14.0
+google-cloud-dataform==0.11.0
+google-cloud-dataplex==2.20.0
+google-cloud-dataproc-metastore==1.23.0
+google-cloud-dataproc==5.28.0
+google-cloud-dlp==3.37.0
 google-cloud-kms==3.13.0
 google-cloud-language==2.20.0
-google-cloud-logging==3.15.0
+google-cloud-logging==3.16.0
 google-cloud-managedkafka==0.4.0
 google-cloud-memcache==1.15.0
-google-cloud-monitoring==2.30.0
+google-cloud-monitoring==2.31.0
 google-cloud-orchestration-airflow==1.21.0
 google-cloud-os-login==2.21.0
-google-cloud-pubsub==2.38.0
+google-cloud-pubsub==2.39.0
 google-cloud-redis==2.21.0
 google-cloud-resource-manager==1.17.0
 google-cloud-run==0.16.0
-google-cloud-secret-manager==2.28.0
-google-cloud-spanner==3.66.0
-google-cloud-speech==2.39.0
-google-cloud-storage-control==1.11.0
-google-cloud-storage-transfer==1.20.0
-google-cloud-storage==3.10.1
+google-cloud-secret-manager==2.29.0
+google-cloud-spanner==3.67.0
+google-cloud-speech==2.40.0
+google-cloud-storage-control==1.12.0
+google-cloud-storage-transfer==1.21.0
+google-cloud-storage==3.11.0
 google-cloud-tasks==2.22.0
 google-cloud-texttospeech==2.36.0
 google-cloud-translate==3.26.0
@@ -360,7 +360,7 @@ google-cloud-vision==3.14.0
 google-cloud-workflows==1.22.0
 google-crc32c==1.8.0
 google-genai==1.75.0
-google-resumable-media==2.9.0
+google-resumable-media==2.10.0
 googleapis-common-protos==1.75.0
 graphviz==0.21
 greenback==1.3.0
@@ -625,7 +625,7 @@ sortedcontainers==2.4.0
 soupsieve==2.8.4
 spython==0.3.14
 sqlalchemy-bigquery==1.17.0
-sqlalchemy-spanner==1.18.0
+sqlalchemy-spanner==1.19.0
 sqlalchemy_drill==1.1.10
 sqlparse==0.5.5
 stack-data==0.6.3
@@ -651,7 +651,7 @@ tokenizers==0.23.1
 tomlkit==0.15.0
 tornado==6.5.6
 tqdm==4.67.3
-traitlets==5.15.0
+traitlets==5.15.1
 trino==0.337.0
 truststore==0.10.4
 typer==0.26.7
