@@ -489,7 +489,7 @@ def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[
         old_mysql_timeout = session.execute(text("SELECT @@SESSION.innodb_lock_wait_timeout")).scalar()
         session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {lock_timeout}"))
     else:
-        log.warning(
+        log.debug(
             "Database lock timeout is not supported for dialect '%s'. "
             "The requested timeout of %ss will not be applied.",
             dialect_name,
