@@ -31,6 +31,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,
@@ -40,17 +41,42 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
+    AssetResult,
+    AssetStoreResult,
+    ClearAssetStoreByName,
+    ClearAssetStoreByUri,
+    ClearTaskStore,
     ConnectionResult,
+    CreateHITLDetailPayload,
+    DagResult,
+    DagRunResult,
     DagRunStateResult,
+    DeleteAssetStoreByName,
+    DeleteAssetStoreByUri,
+    DeleteTaskStore,
     DeleteVariable,
     DeleteXCom,
+    ErrorResponse,
+    GetAssetByName,
+    GetAssetByUri,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStoreByName,
+    GetAssetStoreByUri,
     GetConnection,
+    GetDag,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
+    GetTaskRescheduleStartDate,
     GetTaskStates,
+    GetTaskStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -58,11 +84,21 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
+    InactiveAssetsResult,
     MaskSecret,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    SetAssetStoreByName,
+    SetAssetStoreByUri,
+    SetTaskStore,
     SetXCom,
+    TaskBreadcrumbsResult,
     TaskStatesResult,
+    TaskStoreResult,
+    TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -310,3 +346,242 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         xcom_result = XComResult.from_xcom_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
+
+
+@handles(GetAssetByName)
+def handle_get_asset_by_name(client: Client, msg: GetAssetByName) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get(name=msg.name)
+    if isinstance(asset_resp, AssetResponse):
+        asset_result = AssetResult.from_asset_response(asset_resp)
+        return asset_result, {"exclude_unset": True}
+    return asset_resp, {}
+
+
+@handles(GetAssetByUri)
+def handle_get_asset_by_uri(client: Client, msg: GetAssetByUri) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get(uri=msg.uri)
+    if isinstance(asset_resp, AssetResponse):
+        asset_result = AssetResult.from_asset_response(asset_resp)
+        return asset_result, {"exclude_unset": True}
+    return asset_resp, {}
+
+
+@handles(GetAssetsByAlias)
+def handle_get_assets_by_alias(
+    client: Client, msg: GetAssetsByAlias
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get_by_alias(alias_name=msg.alias_name)
+    if isinstance(asset_resp, AssetResponse):
+        asset_result = AssetResult.from_asset_response(asset_resp)
+        return asset_result, {"exclude_unset": True}
+    return asset_resp, {}
+
+
+@handles(GetAssetEventByAsset)
+def handle_get_asset_event_by_asset(
+    client: Client, msg: GetAssetEventByAsset
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_event_resp = client.asset_events.get(
+        uri=msg.uri,
+        name=msg.name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+    )
+    asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+    return asset_event_result, {"exclude_unset": True}
+
+
+@handles(GetAssetEventByAssetAlias)
+def handle_get_asset_event_by_asset_alias(
+    client: Client, msg: GetAssetEventByAssetAlias
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_event_resp = client.asset_events.get(
+        alias_name=msg.alias_name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+    )
+    asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+    return asset_event_result, {"exclude_unset": True}
+
+
+@handles(TriggerDagRun)
+def handle_trigger_dag_run(client: Client, msg: TriggerDagRun) -> tuple[BaseModel | None, dict[str, bool]]:
+    resp = client.dag_runs.trigger(
+        msg.dag_id,
+        msg.run_id,
+        msg.conf,
+        msg.logical_date,
+        msg.run_after,
+        bool(msg.reset_dag_run),
+        msg.note,
+    )
+    return resp, {}
+
+
+@handles(GetDagRun)
+def handle_get_dag_run(client: Client, msg: GetDagRun) -> tuple[BaseModel | None, dict[str, bool]]:
+    dr_resp = client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+    resp = DagRunResult.from_api_response(dr_resp)
+    return resp, {}
+
+
+@handles(GetDag)
+def handle_get_dag(client: Client, msg: GetDag) -> tuple[BaseModel | None, dict[str, bool]]:
+    dag = client.dags.get(
+        dag_id=msg.dag_id,
+    )
+    resp = DagResult.from_api_response(dag)
+    return resp, {}
+
+
+@handles(GetTaskRescheduleStartDate)
+def handle_get_task_reschedule_start_date(
+    client: Client, msg: GetTaskRescheduleStartDate
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    resp = client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+    return resp, {}
+
+
+@handles(GetTaskBreadcrumbs)
+def handle_get_task_breadcrumbs(
+    client: Client, msg: GetTaskBreadcrumbs
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    api_resp = client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+    resp = TaskBreadcrumbsResult.from_api_response(api_resp)
+    return resp, {}
+
+
+@handles(ValidateInletsAndOutlets)
+def handle_validate_inlets_and_outlets(
+    client: Client, msg: ValidateInletsAndOutlets
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    inactive_assets_resp = client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+    resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+    return resp, {"exclude_unset": True}
+
+
+@handles(CreateHITLDetailPayload)
+def handle_create_hitl_detail_payload(
+    client: Client, msg: CreateHITLDetailPayload
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    hitl_detail_request = client.hitl.add_response(
+        ti_id=msg.ti_id,
+        options=msg.options,
+        subject=msg.subject,
+        body=msg.body,
+        defaults=msg.defaults,
+        params=msg.params,
+        multiple=msg.multiple,
+        assigned_users=msg.assigned_users,
+    )
+    resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+    return resp, {"exclude_unset": True}
+
+
+@handles(GetTaskStore)
+def handle_get_task_store(client: Client, msg: GetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    task_store = client.task_store.get(msg.ti_id, msg.key)
+    resp = (
+        task_store
+        if isinstance(task_store, ErrorResponse)
+        else TaskStoreResult.from_task_store_response(task_store)
+    )
+    return resp, {}
+
+
+@handles(SetTaskStore)
+def handle_set_task_store(client: Client, msg: SetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteTaskStore)
+def handle_delete_task_store(
+    client: Client, msg: DeleteTaskStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.delete(msg.ti_id, msg.key)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearTaskStore)
+def handle_clear_task_store(client: Client, msg: ClearTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+    return OKResponse(ok=True), {}
+
+
+@handles(GetAssetStoreByName)
+def handle_get_asset_store_by_name(
+    client: Client, msg: GetAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_store = client.asset_store.get(msg.key, name=msg.name)
+    resp = (
+        asset_store
+        if isinstance(asset_store, ErrorResponse)
+        else AssetStoreResult.from_asset_store_response(asset_store)
+    )
+    return resp, {}
+
+
+@handles(GetAssetStoreByUri)
+def handle_get_asset_store_by_uri(
+    client: Client, msg: GetAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_store = client.asset_store.get(msg.key, uri=msg.uri)
+    resp = (
+        asset_store
+        if isinstance(asset_store, ErrorResponse)
+        else AssetStoreResult.from_asset_store_response(asset_store)
+    )
+    return resp, {}
+
+
+@handles(SetAssetStoreByName)
+def handle_set_asset_store_by_name(
+    client: Client, msg: SetAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.set(msg.key, msg.value, name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(SetAssetStoreByUri)
+def handle_set_asset_store_by_uri(
+    client: Client, msg: SetAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.set(msg.key, msg.value, uri=msg.uri)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteAssetStoreByName)
+def handle_delete_asset_store_by_name(
+    client: Client, msg: DeleteAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.delete(msg.key, name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteAssetStoreByUri)
+def handle_delete_asset_store_by_uri(
+    client: Client, msg: DeleteAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.delete(msg.key, uri=msg.uri)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearAssetStoreByName)
+def handle_clear_asset_store_by_name(
+    client: Client, msg: ClearAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.clear(name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearAssetStoreByUri)
+def handle_clear_asset_store_by_uri(
+    client: Client, msg: ClearAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.clear(uri=msg.uri)
+    return OKResponse(ok=True), {}
