@@ -24,23 +24,51 @@ from typing import TYPE_CHECKING
 import structlog
 
 from airflow._shared.observability.metrics.stats import Stats
-from airflow.api_fastapi.common.http_paths import HEALTH_PATHS
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name="http.metrics")
 
-_API_PATH_PREFIX_TO_SURFACE = (
-    ("/api/v2", "public"),
-    ("/ui", "ui"),
-)
+_DEFAULT_API_PATH_PREFIX_TO_SURFACE = {
+    "/api/v2": "public",
+    "/ui": "ui",
+}
 _ROUTE_PATHS_BY_ROUTER_ID: dict[int, dict[object, str]] = {}
 
 
-def _get_api_surface(path: str) -> str | None:
-    for prefix, surface in _API_PATH_PREFIX_TO_SURFACE:
-        if path == prefix or path.startswith(f"{prefix}/"):
+def _get_api_path_prefix_to_surface() -> tuple[tuple[str, str], ...]:
+    path_prefix_to_surface = conf.getjson(
+        "metrics",
+        "api_path_prefix_to_surface",
+        fallback=_DEFAULT_API_PATH_PREFIX_TO_SURFACE,
+    )
+    if not isinstance(path_prefix_to_surface, dict):
+        raise AirflowConfigException("[metrics] api_path_prefix_to_surface must be a JSON object")
+
+    for prefix, surface in path_prefix_to_surface.items():
+        if (
+            not isinstance(prefix, str)
+            or not prefix.startswith("/")
+            or (prefix != "/" and prefix.endswith("/"))
+        ):
+            raise AirflowConfigException(
+                "[metrics] api_path_prefix_to_surface keys must be path prefixes that start with '/' "
+                "and do not end with '/'"
+            )
+        if not isinstance(surface, str) or not surface:
+            raise AirflowConfigException(
+                "[metrics] api_path_prefix_to_surface values must be non-empty surface names"
+            )
+
+    return tuple(sorted(path_prefix_to_surface.items(), key=lambda item: len(item[0]), reverse=True))
+
+
+def _get_api_surface(path: str, path_prefix_to_surface: tuple[tuple[str, str], ...]) -> str | None:
+    for prefix, surface in path_prefix_to_surface:
+        if path.startswith(prefix):
             return surface
     return None
 
@@ -89,15 +117,16 @@ def _emit_api_metrics(
     method: str,
     status_code: int,
     duration_us: int,
+    path_prefix_to_surface: tuple[tuple[str, str], ...],
 ) -> None:
-    api_surface = _get_api_surface(path)
+    api_surface = _get_api_surface(path, path_prefix_to_surface)
     if api_surface is None:
         return
 
     # Keep tags bounded so API metrics remain usable across supported backends.
     base_tags = {
         "api_surface": api_surface,
-        "method": method or "UNKNOWN",
+        "method": method,
         "route": _get_route_tag(scope),
     }
     status_family = _get_status_family(status_code)
@@ -114,14 +143,11 @@ def _emit_api_metrics(
 
 
 class HttpMetricsMiddleware:
-    """
-    Emit REST API metrics for completed HTTP requests.
-
-    Health-check paths are excluded to avoid metric noise.
-    """
+    """Emit REST API metrics for completed HTTP requests."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
+        self.path_prefix_to_surface = _get_api_path_prefix_to_surface()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -145,24 +171,25 @@ class HttpMetricsMiddleware:
             raise
         finally:
             path = scope["path"]
-            if path not in HEALTH_PATHS:
-                duration_us = (time.monotonic_ns() - start) // 1000
-                status = response["status"] if response is not None else 0
-                method = scope.get("method", "")
+            duration_us = (time.monotonic_ns() - start) // 1000
+            status = response["status"] if response is not None else 0
+            method = scope["method"]
 
-                # Observability failures must never affect serving the request.
-                try:
-                    _emit_api_metrics(
-                        scope=scope,
-                        path=path,
-                        method=method,
-                        status_code=status,
-                        duration_us=duration_us,
-                    )
-                except Exception:
-                    logger.exception(
-                        "failed to emit API metrics",
-                        method=method,
-                        path=path,
-                        status_code=status,
-                    )
+            # Include health checks because their latency can reveal database contention before probes fail.
+            # Observability failures must never affect serving the request.
+            try:
+                _emit_api_metrics(
+                    scope=scope,
+                    path=path,
+                    method=method,
+                    status_code=status,
+                    duration_us=duration_us,
+                    path_prefix_to_surface=self.path_prefix_to_surface,
+                )
+            except Exception:
+                logger.exception(
+                    "failed to emit API metrics",
+                    method=method,
+                    path=path,
+                    status_code=status,
+                )
