@@ -54,7 +54,11 @@ type ColumnsProps = {
   readonly translate: (key: string) => string;
 };
 
-const getColumns = ({ isTaskInstancePage, open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+const getColumns = ({
+  isTaskInstancePage,
+  open,
+  translate,
+}: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     header: translate("xcom.columns.key"),
