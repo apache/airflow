@@ -49,63 +49,68 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type ColumnsProps = {
+  readonly isTaskInstancePage: boolean;
   readonly open: boolean;
   readonly translate: (key: string) => string;
 };
 
-const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+const getColumns = ({ isTaskInstancePage, open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     header: translate("xcom.columns.key"),
   },
-  {
-    accessorKey: "dag_id",
-    cell: ({ row: { original } }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
-        {original.dag_display_name}
-      </RouterLink>
-    ),
-    header: translate("xcom.columns.dag"),
-  },
-  {
-    accessorKey: "run_id",
-    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-        <TruncatedText text={original.run_id} />
-      </RouterLink>
-    ),
-    header: translate("common:dagRunId"),
-  },
-  {
-    accessorKey: "run_after",
-    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-        <Time datetime={original.run_after} />
-      </RouterLink>
-    ),
-    header: translate("common:dagRun.runAfter"),
-  },
-  {
-    accessorKey: "task_display_name",
-    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
-      <RouterLink
-        fontWeight="bold"
-        to={getTaskInstanceLink({
-          dagId: original.dag_id,
-          dagRunId: original.run_id,
-          mapIndex: original.map_index,
-          taskId: original.task_id,
-        })}
-      >
-        <TruncatedText text={original.task_display_name} />
-      </RouterLink>
-    ),
-    header: translate("common:task_one"),
-  },
-  {
-    accessorKey: "map_index",
-    header: translate("common:mapIndex"),
-  },
+  ...(!isTaskInstancePage
+    ? [
+        {
+          accessorKey: "dag_id",
+          cell: ({ row: { original } }) => (
+            <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
+              {original.dag_display_name}
+            </RouterLink>
+          ),
+          header: translate("xcom.columns.dag"),
+        },
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+            <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+              <TruncatedText text={original.run_id} />
+            </RouterLink>
+          ),
+          header: translate("common:dagRunId"),
+        },
+        {
+          accessorKey: "run_after",
+          cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+            <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+              <Time datetime={original.run_after} />
+            </RouterLink>
+          ),
+          header: translate("common:dagRun.runAfter"),
+        },
+        {
+          accessorKey: "task_display_name",
+          cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+            <RouterLink
+              fontWeight="bold"
+              to={getTaskInstanceLink({
+                dagId: original.dag_id,
+                dagRunId: original.run_id,
+                mapIndex: original.map_index,
+                taskId: original.task_id,
+              })}
+            >
+              <TruncatedText text={original.task_display_name} />
+            </RouterLink>
+          ),
+          header: translate("common:task_one"),
+        },
+        {
+          accessorKey: "map_index",
+          header: translate("common:mapIndex"),
+        },
+      ]
+    : []),
   {
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
@@ -212,12 +217,13 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
+  const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
+
   const columns = getColumns({
+    isTaskInstancePage,
     open,
     translate,
   });
-
-  const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
   return (
     <Box>
