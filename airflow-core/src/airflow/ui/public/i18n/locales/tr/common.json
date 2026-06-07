@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
+  "consumingAsset": "Tüketen Varlık",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Bu eylemi gerçekleştirme izniniz yok.",
+      "title": "Erişim Reddedildi"
+    }
+  },
   "expand": {
     "collapse": "Daralt",
     "expand": "Genişlet",
@@ -125,9 +132,11 @@
     "logicalDateTo": "Mantıksal tarih bitişi",
     "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
     "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "searchAsset": "Varlık Ara",
     "selectDateRange": "Lütfen bir tarih aralığı seçin",
     "startTime": "Başlangıç Zamanı"
   },
+  "generateToken": "Jeton Oluştur",
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
@@ -171,6 +180,7 @@
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
+    "asset_materialization": "Varlık Materyalizasyonu",
     "asset_triggered": "Varlık Tetiklemeli",
     "backfill": "Geriye Dönük Çalıştırma",
     "manual": "Manuel",
@@ -182,6 +192,12 @@
       "top": "üst"
     },
     "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
+  },
+  "search": {
+    "advanced": {
+      "description": "Değerin herhangi bir yerinde eşleştir (alt dize araması). Varsayılan B-tree indeksini kullanamadığı için büyük dağıtımlarda daha yavaştır. Ayrıntılar için özel meta veri indeksleri ile ilgili dokümantasyon bölümüne bakın.",
+      "title": "Herhangi bir yerde eşleştir"
+    }
   },
   "security": {
     "actions": "Eylemler",
@@ -259,6 +275,7 @@
     "priorityWeight": "Öncelik Ağırlığı",
     "queue": "Kuyruk",
     "queuedWhen": "Kuyruğa Alınma",
+    "renderedMapIndex": "İşlenmiş Harita İndeksi",
     "scheduledWhen": "Planlanma",
     "triggerer": {
       "assigned": "Atanmış tetikleyici",
@@ -327,10 +344,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API Jetonu",
+    "cliToken": "CLI Jetonu",
+    "errorDescription": "Jeton oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.",
+    "errorTitle": "Jeton Oluşturma Başarısız",
+    "generate": "Oluştur",
+    "selectType": "Oluşturulacak jeton türünü seçin.",
+    "title": "Jeton Oluştur",
+    "tokenExpiresIn": "Bu jeton {{duration}} içinde sona eriyor.",
+    "tokenGenerated": "Jetonunuz oluşturuldu.",
+    "tokenShownOnce": "Bu jeton yalnızca bir kez gösterilecek. Şimdi kopyalayın."
+  },
   "total": "Tümü {{state}}",
   "triggered": "Tetiklendi",
   "tryNumber": "Deneme Sayısı",
   "user": "Kullanıcı",
+  "validation": {
+    "mustBeAtLeast": "En az {{min}} olmalıdır.",
+    "mustBeValidNumber": "Geçerli bir sayı olmalıdır."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Kaydırmayı açıp kapatmak için {{hotkey}} tuşuna basın",

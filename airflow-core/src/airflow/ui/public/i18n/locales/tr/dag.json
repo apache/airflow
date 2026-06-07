@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "Gelişmiş",
       "dagDocs": "Dag Belgeleri"
+    },
+    "status": {
+      "deactivated": "Devre Dışı Bırakıldı"
     }
   },
   "logs": {
