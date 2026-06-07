@@ -47,13 +47,19 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
     AddTeamNameField,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
+    AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
     AddVariableKeysEndpoint,
 )
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2026-06-30", AddVariableKeysEndpoint, AddConnectionTestEndpoint),
+    Version(
+        "2026-06-30",
+        AddVariableKeysEndpoint,
+        AddConnectionTestEndpoint,
+        AddAwaitingInputStatePayload,
+    ),
     Version(
         "2026-06-16",
         AddRetryPolicyFields,

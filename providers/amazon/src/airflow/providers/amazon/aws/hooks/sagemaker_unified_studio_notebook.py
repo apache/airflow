@@ -247,21 +247,22 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
             error_message = execution_message
         raise RuntimeError(error_message)
 
-    def get_project_s3_path(self, domain_identifier: str, project_id: str) -> str:
+    def get_project_s3_path(self, domain_identifier: str, project_id: str) -> tuple[str, str]:
         """
-        Look up the S3 bucket path for a SageMaker Unified Studio project.
+        Look up the S3 location for a SageMaker Unified Studio project.
 
-        The bucket path is read from the ``s3BucketPath`` provisioned resource of
-        the project's default ("Tooling") environment via the DataZone APIs:
-        ``GetEnvironment(GetProjectDefaultEnvironment(...))``. This mirrors how
-        SageMaker Unified Studio resolves the project bucket, and accommodates projects
-        whose bucket name does not follow the
-        ``amazon-sagemaker-{account_id}-{region}-{project_id}`` template (for
-        example, BYOR-bucket projects).
+        The bucket and key prefix are read from the ``s3BucketPath`` provisioned
+        resource of the project's default ("Tooling") environment via the
+        DataZone APIs. This mirrors how SageMaker Unified Studio resolves the
+        project bucket and accommodates projects whose bucket name does not
+        follow the ``amazon-sagemaker-{account_id}-{region}-{project_id}``
+        template (for example, BYOR-bucket projects).
 
         :param domain_identifier: The ID of the DataZone domain.
         :param project_id: The ID of the DataZone project.
-        :return: The S3 bucket name for the project.
+        :return: A ``(bucket, prefix)`` tuple. ``bucket`` is the S3 bucket name.
+            ``prefix`` is the path component of the project's
+            ``s3BucketPath`` (with no leading or trailing ``/``).
         :raises RuntimeError: If the default tooling environment or the
             ``s3BucketPath`` provisioned resource cannot be found.
         """
@@ -277,7 +278,9 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
                         f"environment {environment_id} for project {project_id} in domain "
                         f"{domain_identifier}"
                     )
-                # value looks like "s3://<bucket>/<prefix>"; return the bucket name only.
+                # value looks like "s3://<bucket>/shared/<suffix>" (IAM) or
+                # "s3://<bucket>/<domain>/<project>/dev/<suffix>" (IDC). Return both
+                # parts so callers can construct project-scoped keys.
                 parts = urlparse(value, allow_fragments=False)
                 bucket = parts.netloc
                 if not bucket:
@@ -286,7 +289,8 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
                         f"'{value}' in default tooling environment {environment_id} for "
                         f"project {project_id} in domain {domain_identifier}"
                     )
-                return bucket
+                prefix = parts.path.strip("/")
+                return bucket, prefix
 
         raise RuntimeError(
             f"s3BucketPath provisioned resource not found in default tooling environment "
@@ -419,10 +423,10 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
         """
         log = logging.getLogger(__name__)
         try:
-            bucket = self.get_project_s3_path(domain_identifier, owning_project_identifier)
+            bucket, prefix = self.get_project_s3_path(domain_identifier, owning_project_identifier)
         except Exception:
             log.warning(
-                "Failed to resolve project S3 bucket for project %s in domain %s, "
+                "Failed to resolve project S3 location for project %s in domain %s, "
                 "skipping notebook outputs read.",
                 owning_project_identifier,
                 domain_identifier,
@@ -430,7 +434,12 @@ class SageMakerUnifiedStudioNotebookHook(AwsBaseHook):
             )
             return {}
 
-        key = f"sys/notebooks/{notebook_identifier}/runs/{notebook_run_id}/notebook_outputs.json"
+        # IDC domains have a non-empty prefix (e.g. "<domain>/<project>/<scope>")
+        # and the project role's IAM policy only allows S3 reads under that prefix.
+        # IAM domains have prefix == "" and the key is unchanged from the
+        # legacy bucket-root layout.
+        run_key = f".sys/notebooks/{notebook_identifier}/runs/{notebook_run_id}/notebook_outputs.json"
+        key = f"{prefix}/{run_key}" if prefix else run_key
 
         log.info("Reading notebook outputs from s3://%s/%s", bucket, key)
 

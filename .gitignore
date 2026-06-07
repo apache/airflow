@@ -137,7 +137,7 @@ ENV/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
-!.claude/skills/setup-steward
+!.claude/skills/magpie-setup
 
 # Kiro
 .kiro/
