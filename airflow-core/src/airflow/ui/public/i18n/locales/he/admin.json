@@ -3,6 +3,7 @@
     "description": "תיאור",
     "key": "מפתח",
     "name": "שם",
+    "team": "צוות",
     "value": "ערך"
   },
   "config": {
@@ -83,6 +84,23 @@
   "formActions": {
     "save": "שמור"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "מחלקת מְבצע",
+      "hostname": "שם מארח",
+      "id": "מזהה",
+      "jobType": "סוג עבודה",
+      "latestHeartbeat": "אות חיים אחרון",
+      "unixname": "שם Unix"
+    },
+    "filters": {
+      "allStates": "כל המצבים",
+      "allTypes": "כל הסוגים",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "מקור"
@@ -106,7 +124,8 @@
       "includeDeferred": "כלול משימות מושהות",
       "nameMaxLength": "השם יכול לכלול 256 תווים לכל היותר",
       "nameRequired": "נדרש שם",
-      "slots": "מקומות שמורים"
+      "slots": "קיבולת",
+      "slotsHelperText": "השתמש ב-1- כדי להגדיר קיבולת בלתי מוגבלת."
     },
     "noPoolsFound": "לא נמצאו מאגרי משאבים",
     "pool_one": "מאגר משאבים",

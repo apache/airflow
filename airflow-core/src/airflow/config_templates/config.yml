@@ -520,6 +520,17 @@ core:
       type: boolean
       example: ~
       default: "False"
+    team_name_cache_ttl:
+      description: |
+        Number of seconds a Dag's owning team (resolved from its bundle) is cached in memory before it
+        is looked up again. The team is read on every Dag authorization check, including the grid
+        endpoints which re-poll continuously, so caching it avoids repeated Team-table joins. A team
+        reassignment takes up to this many seconds to take effect, and different API server workers may
+        briefly disagree during that window. Set to ``0`` to disable caching.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "30"
     rerun_with_latest_version:
       description: |
         Default value for whether cleared, rerun, or backfilled tasks should use
@@ -2771,6 +2782,44 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+connection_test:
+  description: |
+    Configuration for the deferred connection-test workflow that dispatches
+    test requests to workers via the executor (instead of running them
+    in-process on the API server).
+  options:
+    timeout:
+      description: |
+        Maximum number of seconds a worker-dispatched connection test is
+        allowed to run before it is considered timed out. The scheduler
+        reaper uses this value plus a grace period to mark stale tests as
+        failed.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "60"
+    max_concurrency:
+      description: |
+        Maximum number of connection tests that can be active
+        (QUEUED + RUNNING) at the same time. Excess tests will remain in
+        PENDING state until slots become available. This cap is enforced
+        per-scheduler, not globally: with N HA schedulers the worst-case
+        per-tick dispatch is ``N * max_concurrency``. Connection tests are
+        user-initiated and rare, so the overshoot self-corrects via the
+        reaper.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "4"
+    reaper_interval:
+      description: |
+        How often (in seconds) the scheduler should check for stale
+        connection tests (QUEUED or RUNNING past their timeout + grace
+        period) and mark them as failed.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "30.0"
 triggerer:
   description: ~
   options:

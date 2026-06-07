@@ -74,6 +74,58 @@ To invoke a Claude Sonnet model using the Messages API you would use:
     :start-after: [START howto_operator_invoke_claude_model]
     :end-before: [END howto_operator_invoke_claude_model]
 
+.. _howto/operator:BedrockCreateAgentRuntimeOperator:
+
+Create an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To create an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
+
+AgentCore Runtime creation is asynchronous. The operator can wait until the runtime reaches
+``READY`` either synchronously or in deferrable mode.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_agent_runtime]
+    :end-before: [END howto_operator_bedrock_create_agent_runtime]
+
+.. _howto/operator:BedrockInvokeAgentRuntimeOperator:
+
+Invoke an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To invoke an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockInvokeAgentRuntimeOperator`.
+
+The operator waits for the runtime invocation response and returns the response body along with
+runtime response metadata such as the runtime session ID when present.
+For long-running AgentCore Runtime invocations, configure the botocore client ``read_timeout``
+through ``botocore_config``.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_invoke_agent_runtime]
+    :end-before: [END howto_operator_bedrock_invoke_agent_runtime]
+
+.. _howto/operator:BedrockDeleteAgentRuntimeOperator:
+
+Delete an Amazon Bedrock AgentCore Runtime
+==========================================
+
+To delete an Amazon Bedrock AgentCore Runtime, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockDeleteAgentRuntimeOperator`.
+
+The operator accepts the runtime ID, which can be extracted from the ARN returned by
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_delete_agent_runtime]
+    :end-before: [END howto_operator_bedrock_delete_agent_runtime]
 
 .. _howto/operator:BedrockCustomizeModelOperator:
 

@@ -27,6 +27,7 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import ipaddress
 import itertools
 import os
 import selectors
@@ -37,6 +38,7 @@ import time
 from typing import TYPE_CHECKING, TypeVar, cast
 
 import attrs
+import psutil
 import structlog
 
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -63,6 +65,83 @@ def _start_server() -> socket.socket:
     server.setblocking(True)
     server.listen(1)  # Just need to listen to the child process.
     return server
+
+
+def _socket_address(value: tuple | str) -> tuple[str, int] | None:
+    if not isinstance(value, tuple) or len(value) < 2:
+        return None
+    host, port = value[:2]
+    host = str(host)
+    # Canonicalize IPv4-mapped IPv6 ("::ffff:127.0.0.1" -> "127.0.0.1") so a dual-stack
+    # client (e.g. the JVM, shown v4-mapped in /proc/net/tcp6) matches the AF_INET
+    # supervisor socket's plain-IPv4 address in the ownership check below.
+    try:
+        parsed = ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
+            host = str(parsed.ipv4_mapped)
+    return host, int(port)
+
+
+def _connection_owned_by_process_tree(
+    peer: tuple[str, int], local: tuple[str, int], proc: subprocess.Popen
+) -> bool:
+    """
+    Return whether ``peer`` <-> ``local`` is an established connection in the child's process tree.
+
+    The launched child may itself spawn the process that connects back to the
+    supervisor — a JVM launcher, a shell wrapper, or any runtime that forks a
+    worker — so the connecting peer can legitimately belong to a *descendant* of
+    ``proc.pid`` rather than ``proc.pid`` itself. Every process in the subtree
+    rooted at ``proc.pid`` is part of the task and is trusted; a process outside
+    that subtree (e.g. an unrelated local process racing for the port) is not.
+    """
+    try:
+        root = psutil.Process(proc.pid)
+        processes = [root, *root.children(recursive=True)]
+    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess, OSError):
+        return False
+    for process in processes:
+        try:
+            connections = process.net_connections(kind="tcp")
+        except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess, OSError):
+            # A descendant may exit between enumeration and inspection — skip it
+            # rather than failing verification for the whole tree.
+            continue
+        for connection in connections:
+            if _socket_address(connection.laddr) == peer and _socket_address(connection.raddr) == local:
+                return True
+    return False
+
+
+def _is_connection_from_process(
+    conn: socket.socket,
+    proc: subprocess.Popen,
+    *,
+    verify_timeout: float = 1.0,
+    poll_interval: float = 0.05,
+) -> bool:
+    """
+    Return whether the accepted TCP connection originates from the child process tree.
+
+    The connection is trusted only if it belongs to ``proc.pid`` or one of its
+    descendants. A freshly established connection is not always visible in
+    ``/proc`` the instant it is accepted, so the lookup is retried for up to
+    *verify_timeout* seconds before the connection is rejected.
+    """
+    peer = _socket_address(conn.getpeername())
+    local = _socket_address(conn.getsockname())
+    if peer is None or local is None:
+        return False
+    deadline = time.monotonic() + verify_timeout
+    while True:
+        if _connection_owned_by_process_tree(peer, local, proc):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(poll_interval)
 
 
 def _accept_connections(
@@ -102,6 +181,15 @@ def _accept_connections(
                 else:
                     log.debug("Accepting child process connection", key=event.data)
                     conn, _ = soc.accept()
+                    if not _is_connection_from_process(conn, proc):
+                        log.warning(
+                            "Rejected connection not owned by child process",
+                            key=event.data,
+                            pid=proc.pid,
+                            peer=conn.getpeername(),
+                        )
+                        conn.close()
+                        continue
                     sel.unregister(soc)
                     accepted[soc] = conn
     return accepted, drained

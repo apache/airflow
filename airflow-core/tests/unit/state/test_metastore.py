@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import Delete, select
 
+from airflow._shared.state import AssetStoreWriterKind
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset import AssetModel
@@ -429,6 +430,130 @@ class TestMetastoreStoreBackendAssetScope:
 
         assert backend.get(scope2, "watermark", session=session) is None
 
+    def test_set_asset_store_writes_writer(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        backend.set_asset_store(
+            scope,
+            "watermark",
+            "v",
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index,
+        )
+
+        with create_session() as s:
+            row = s.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id))
+        assert row is not None
+        assert row.last_updated_by_kind == AssetStoreWriterKind.TASK.value
+        assert row.last_updated_by_dag_id == ti.dag_id
+        assert row.last_updated_by_run_id == ti.run_id
+        assert row.last_updated_by_task_id == ti.task_id
+        assert row.last_updated_by_map_index == ti.map_index
+
+    @pytest.mark.backend("postgres", "mysql", "sqlite")
+    def test_set_asset_store_upsert_updates_writer(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti1 = create_task_instance(task_id="task1", dag_id="dag1")
+        ti2 = create_task_instance(task_id="task2", dag_id="dag2")
+        scope = AssetScope(asset_id=asset_committed.id)
+        backend.set_asset_store(
+            scope,
+            "watermark",
+            "v1",
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=ti1.dag_id,
+            run_id=ti1.run_id,
+            task_id=ti1.task_id,
+            map_index=ti1.map_index,
+        )
+        backend.set_asset_store(
+            scope,
+            "watermark",
+            "v2",
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=ti2.dag_id,
+            run_id=ti2.run_id,
+            task_id=ti2.task_id,
+            map_index=ti2.map_index,
+        )
+
+        with create_session() as s:
+            row = s.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id))
+        assert row is not None
+        assert row.value == "v2"
+        assert row.last_updated_by_dag_id == ti2.dag_id
+        assert row.last_updated_by_task_id == ti2.task_id
+
+    def test_set_stores_null_writer(
+        self, session: Session, backend: MetastoreStoreBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset.id)
+        backend.set(scope, "watermark", "v", session=session)
+        session.flush()
+
+        row = session.scalar(select(AssetStoreModel).where(AssetStoreModel.asset_id == asset.id))
+        assert row is not None
+        assert row.last_updated_by_kind is None
+        assert row.last_updated_by_dag_id is None
+        assert row.last_updated_by_task_id is None
+
+    def test_set_asset_store_task_kind_requires_all_fields(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        with pytest.raises(ValueError, match="kind='task' requires"):
+            backend.set_asset_store(
+                scope,
+                "watermark",
+                "v",
+                kind=AssetStoreWriterKind.TASK,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=None,
+                map_index=ti.map_index,
+            )
+
+    def test_set_asset_store_watcher_kind_rejects_task_fields(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        with pytest.raises(ValueError, match="kind='watcher' must not carry task fields"):
+            backend.set_asset_store(
+                scope,
+                "watermark",
+                "v",
+                kind=AssetStoreWriterKind.WATCHER,
+                dag_id=ti.dag_id,
+                run_id=None,
+                task_id=None,
+                map_index=None,
+            )
+
+    def test_set_asset_store_api_kind_rejects_task_fields(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        with pytest.raises(ValueError, match="kind='api' must not carry task fields"):
+            backend.set_asset_store(
+                scope,
+                "watermark",
+                "v",
+                kind=AssetStoreWriterKind.API,
+                dag_id=ti.dag_id,
+                run_id=None,
+                task_id=None,
+                map_index=None,
+            )
+
     def test_cleanup_does_not_touch_asset_state(
         self, session: Session, backend: MetastoreStoreBackend, asset: AssetModel
     ):
@@ -509,6 +634,31 @@ class TestMetastoreStoreBackendAsync:
         await backend.aclear(scope)
         assert await backend.aget(scope, "watermark") is None
         assert await backend.aget(scope, "file_count") is None
+
+    async def test_aset_asset_store_writes_writer(
+        self, backend: MetastoreStoreBackend, asset_committed: AssetModel, create_task_instance
+    ):
+        ti = create_task_instance()
+        scope = AssetScope(asset_id=asset_committed.id)
+        await backend.aset_asset_store(
+            scope,
+            "watermark",
+            "v",
+            kind=AssetStoreWriterKind.TASK,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index,
+        )
+
+        async with create_session_async() as s:
+            row = await s.scalar(
+                select(AssetStoreModel).where(AssetStoreModel.asset_id == asset_committed.id)
+            )
+        assert row is not None
+        assert row.last_updated_by_kind == AssetStoreWriterKind.TASK.value
+        assert row.last_updated_by_dag_id == ti.dag_id
+        assert row.last_updated_by_task_id == ti.task_id
 
     async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreStoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
