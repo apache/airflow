@@ -51,7 +51,7 @@ thousands of conditions, so the rest of the worker pool stays free for other tas
 The trade-offs are:
 
 * A Triggerer component must be running. Deployments that do not include a Triggerer cannot use this pattern.
-* Writing a custom deferrable operator requires implementing a separate ``Trigger`` class in
+* Writing a custom deferrable operator requires implementing a dedicated ``Trigger`` class in
   addition to the operator itself.
 * The polling logic runs inside the Triggerer's async event loop. Blocking calls inside a
   Trigger stall the entire Triggerer process.
@@ -113,7 +113,7 @@ crash or a deliberate reschedule), it reads the checkpoint again and picks up fr
 
     process_files_dag()
 
-This pattern works without any additional work, just plain old context. The state store is just
+This pattern works without any additional work, relying only on ``context``. The state store is just
 a key-value store scoped to the task instance, and what you checkpoint is up to you.
 
 **Resumable operators for external jobs**

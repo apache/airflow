@@ -24,7 +24,7 @@ ResumableJobMixin
 
 :class:`~airflow.sdk.ResumableJobMixin` is a mixin for operators that submit long-running jobs
 to an external system and poll for its completion. It makes the operator crash-safe by persisting
-the external job identifier to the task state store before polling begins. If the worker is restarted
+the external job identifier to task state store before polling begins. If the worker is restarted
 or the host is preempted, the next retry reconnects to the already running job instead of submitting
 a duplicate.
 
