@@ -54,6 +54,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
+    from airflow.executors.workloads import ExecuteCallback
+    from airflow.models.callback import CallbackKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import WorkloadKey
 
 
@@ -588,8 +590,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         if AIRFLOW_V_3_3_PLUS and len(command) == 1:
             from airflow.executors.workloads import ExecuteCallback
 
-            if isinstance(command[0], ExecuteCallback):
-                self._run_next_callback(key, command[0], pod_template_file)
+            workload = command[0]
+            if isinstance(workload, ExecuteCallback):
+                self._run_next_callback(workload.key, workload, pod_template_file)
                 return
 
         from airflow.models.taskinstancekey import TaskInstanceKey
@@ -601,15 +604,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
-            if isinstance(command[0], ExecuteTask):
-                workload = command[0]
-                command = workload_to_command_args(workload)
+            task_workload = command[0]
+            if isinstance(task_workload, ExecuteTask):
+                args = workload_to_command_args(task_workload)
             else:
                 raise ValueError(
-                    f"KubernetesExecutor doesn't know how to handle workload of type: {type(command[0])}"
+                    f"KubernetesExecutor doesn't know how to handle workload of type: {type(task_workload)}"
                 )
-        elif command[0:3] != ["airflow", "tasks", "run"]:
-            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+        else:
+            # Legacy Airflow-2 argv path: the command is already a list of strings.
+            args = cast("list[str]", list(command))
+            if args[0:3] != ["airflow", "tasks", "run"]:
+                raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         base_worker_pod = self._get_base_worker_pod(pod_template_file)
 
@@ -624,7 +630,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             map_index=map_index,
             date=None,
             run_id=run_id,
-            args=list(command),
+            args=args,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
@@ -637,14 +643,16 @@ class AirflowKubernetesScheduler(LoggingMixin):
             pod.metadata.name,
             annotations_for_logging_task_metadata(pod.metadata.annotations),
         )
-        self.log.debug("Kubernetes running for command %s", command)
+        self.log.debug("Kubernetes running for command %s", args)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
         # the watcher will monitor pods, so we do not block.
         self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def _run_next_callback(self, key: Any, workload: Any, pod_template_file: str | None) -> None:
+    def _run_next_callback(
+        self, key: CallbackKey, workload: ExecuteCallback, pod_template_file: str | None
+    ) -> None:
         """Build and submit a callback pod for an ExecuteCallback workload."""
         base_worker_pod = self._get_base_worker_pod(pod_template_file)
 
