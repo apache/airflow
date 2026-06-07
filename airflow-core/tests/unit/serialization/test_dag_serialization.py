@@ -187,6 +187,7 @@ TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 3,
+    "client_defaults": {"tasks": {"ignore_first_depends_on_past": True}},
     "dag": {
         "default_args": {
             "__type": "dict",
