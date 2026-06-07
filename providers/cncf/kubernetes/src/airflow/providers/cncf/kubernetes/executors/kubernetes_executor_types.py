@@ -18,12 +18,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
 
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS  # noqa: TC001
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import TypeAlias
 
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
     from airflow.utils.state import TaskInstanceState
 
     # On Airflow 3.3+ a workload key/state may also be a callback (or connection
