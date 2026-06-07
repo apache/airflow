@@ -1240,7 +1240,7 @@ class TestDagRun:
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )
-            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti = dag_run.get_task_instance(dag_task.task_id, session=session)
             ti.set_state(TaskInstanceState.SUCCESS, session=session)
             session.flush()
 
@@ -1328,7 +1328,7 @@ class TestDagRun:
                 session=session,
             )
             dag_run.queued_at = queued_at
-            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti = dag_run.get_task_instance(dag_task.task_id, session=session)
             ti.set_state(TaskInstanceState.SUCCESS, session=session)
             ti.start_date = ti_start_date
             session.flush()
@@ -3219,7 +3219,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     session.commit()
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 1
-    dr1.task_instance_scheduling_decisions(session)
+    dr1.task_instance_scheduling_decisions(session=session)
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 0
 
@@ -3449,7 +3449,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
             reduce(lambda x, y: x >> y, tasks)
 
     dr = dag_maker.create_dagrun()
-    tis = dr.task_instance_scheduling_decisions(session).tis
+    tis = dr.task_instance_scheduling_decisions(session=session).tis
     tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
     assert tis_for_state == expected
 
