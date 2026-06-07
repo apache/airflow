@@ -63,11 +63,12 @@ const getColumns = ({
     accessorKey: "key",
     header: translate("xcom.columns.key"),
   },
-  ...(!isTaskInstancePage
-    ? [
+  ...(isTaskInstancePage
+    ? []
+    : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }) => (
+          cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
             <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
               {original.dag_display_name}
             </RouterLink>
@@ -113,8 +114,7 @@ const getColumns = ({
           accessorKey: "map_index",
           header: translate("common:mapIndex"),
         },
-      ]
-    : []),
+      ]),
   {
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
