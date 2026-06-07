@@ -124,7 +124,7 @@ still be running. Instead of having to handle this manually, the :class:`~airflo
 solves this by persisting the external job identifier before polling starts, and reconnecting to the
 existing job on retry instead of submitting a new one.
 
-For more details and a working example, see :doc:`task-sdk:resumable-job-mixin`.
+For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
 
 .. _concepts-resumable-tasks-async:
 
@@ -171,7 +171,7 @@ Comparison
      - No
    * - Handles crash recovery
      - Yes (via Triggerer)
-     - Yes (via task store management checkpointing)
+     - Yes (via task store checkpoint)
      - No
    * - Prevents duplicate job submission
      - Depends on operator implementation
