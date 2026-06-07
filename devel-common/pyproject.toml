@@ -28,7 +28,6 @@ classifiers = [
 ]
 
 dependencies = [
-    "aioresponses>=0.7.6",
     "black>=26.1.0",
     "filelock>=3.13.0",
     "jmespath>=0.7.0",

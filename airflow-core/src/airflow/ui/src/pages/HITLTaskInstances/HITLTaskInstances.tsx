@@ -34,7 +34,7 @@ import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
-import { getHITLState } from "src/utils/hitl";
+import { getHITLState, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { HITLFilters } from "./HITLFilters";
@@ -216,7 +216,7 @@ export const HITLTaskInstances = () => {
         Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
           ? effectiveResponseReceived === "true"
           : undefined,
-      state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+      state: effectiveResponseReceived === "false" ? ["deferred", "awaiting_input"] : undefined,
       subjectSearch,
       taskId,
       ...taskIdArg,
@@ -224,15 +224,15 @@ export const HITLTaskInstances = () => {
     undefined,
     {
       // Only continue auto-refetching when filtering for unreceived responses
-      // and at least one TaskInstance is still deferred without a response.
+      // and at least one TaskInstance is still pending (parked) without a response.
       refetchInterval: (query) => {
-        const hasDeferredWithoutResponse = Boolean(
+        const hasPendingWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) => detail.responded_at === null && detail.task_instance.state === "deferred",
+            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail.task_instance.state),
           ),
         );
 
-        return hasDeferredWithoutResponse ? baseRefetchInterval : false;
+        return hasPendingWithoutResponse ? baseRefetchInterval : false;
       },
     },
   );

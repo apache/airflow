@@ -462,7 +462,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_config_secret" -}}
-  {{- default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
+  {{- if .Values.pgbouncer.configSecretName }}
+    {{- tpl .Values.pgbouncer.configSecretName . }}
+  {{- else }}
+    {{- printf "%s-pgbouncer-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "pgbouncer_certificates_secret" -}}
@@ -1075,6 +1079,9 @@ Usage:
     {{- $bundles := list -}}
     {{- range .Values.dagProcessor.dagBundleConfigList -}}
       {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- if .team_name -}}
+      {{- $_ := set $bundle "team_name" .team_name -}}
+      {{- end -}}
       {{- $bundles = append $bundles $bundle -}}
     {{- end -}}
     {{- $bundles | toJson -}}

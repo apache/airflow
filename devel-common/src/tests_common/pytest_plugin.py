@@ -1900,6 +1900,31 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
+def reset_team_name_cache():
+    """Reset the per-process Dag team-name cache between tests.
+
+    ``DagModel.get_team_name`` caches by dag_id; tests reuse dag_ids with different team
+    setups, so a stale entry would otherwise leak a wrong team into the next case.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.models.dag import clear_team_name_cache
+    except ImportError:
+        # compat for airflow versions without the team-name cache
+        yield
+        return
+
+    clear_team_name_cache()
+    try:
+        yield
+    finally:
+        clear_team_name_cache()
+
+
+@pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
     is_system_test: bool = "tests/system/" in os.fspath(filepath)

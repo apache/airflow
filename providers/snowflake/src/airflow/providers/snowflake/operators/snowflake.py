@@ -487,7 +487,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             try:
                 statement_status = self._hook.get_sql_api_query_status(query_id)
             except Exception as e:
-                raise ValueError({"status": "error", "message": str(e)})
+                raise RuntimeError(f"Failed to get status for query {query_id}: {e}") from e
             if statement_status.get("status") == "error":
                 queries_in_progress.remove(query_id)
                 statement_error_status[query_id] = statement_status

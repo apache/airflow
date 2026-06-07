@@ -39,6 +39,7 @@ import msgspec
 import pytest
 import time_machine
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -370,15 +371,25 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
         file_1 = DagFileInfo(bundle_name="testing", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER)
-        file_2 = DagFileInfo(bundle_name="testing", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_2 = DagFileInfo(
+            bundle_name="testing", rel_path=Path("folder/file 2.py"), bundle_path=TEST_DAGS_FOLDER
+        )
         file_3 = DagFileInfo(bundle_name="testing", rel_path=Path("file_3.py"), bundle_path=TEST_DAGS_FOLDER)
         manager._file_queue = OrderedDict.fromkeys([file_1, file_2, file_3])
 
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
         # Start New Processes
-        with mock.patch.object(DagFileProcessorManager, "_create_process"):
+        with (
+            mock.patch.object(DagFileProcessorManager, "_create_process"),
+            mock.patch("airflow.dag_processing.manager.stats.incr") as stats_incr_mock,
+        ):
             manager._start_new_processes()
+
+        stats_incr_mock.assert_called_once_with(
+            "dag_processing.processes",
+            tags={"file_path": "folder_file_2.py", "action": "start"},
+        )
 
         # Because of the config: '[dag_processor] parsing_processes = 2'
         # verify that only one extra process is created
@@ -471,14 +482,19 @@ class TestDagFileProcessorManager:
 
     def test_terminate_orphan_processes_kills_processor_when_file_is_truly_absent(self):
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = _get_versioned_file_info("callbacks.py")
+        versioned_file = _get_versioned_file_info("callbacks with spaces.py")
         processor = MagicMock()
 
         manager._processors[versioned_file] = processor
 
-        manager.terminate_orphan_processes(present=set())
+        with mock.patch("airflow.dag_processing.manager.stats.decr") as stats_decr_mock:
+            manager.terminate_orphan_processes(present=set())
 
         assert manager._processors == {}
+        stats_decr_mock.assert_called_once_with(
+            "dag_processing.processes",
+            tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
+        )
         processor.kill.assert_called_once_with(signal.SIGKILL)
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
@@ -1040,6 +1056,61 @@ class TestDagFileProcessorManager:
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
 
+    @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_handles_lock_timeout(self, mock_is_lock_not_available, session, caplog):
+        """Dags deactivation should gracefully handle database lock timeouts."""
+        from sqlalchemy.exc import OperationalError
+
+        session.add(DagBundleModel(name="gone-bundle"))
+        session.flush()
+        session.execute(
+            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
+        )
+        session.add(
+            DagModel(
+                dag_id="dag_in_inactive_bundle",
+                bundle_name="gone-bundle",
+                relative_fileloc="some_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+
+        # Mock session.execute to raise OperationalError only when updating DagModel
+        original_execute = session.execute
+
+        def mock_execute(*args, **kwargs):
+            if hasattr(args[0], "table") and getattr(args[0].table, "name", "") == "dag":
+                raise OperationalError("Lock wait timeout exceeded", params={}, orig=Exception())
+            return original_execute(*args, **kwargs)
+
+        mock_is_lock_not_available.return_value = True
+
+        with mock.patch.object(session, "execute", side_effect=mock_execute):
+            manager.deactivate_stale_dags(last_parsed={})
+
+        assert "Lock not available when deactivating stale DAGs" in caplog.text
+
+    @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
+    @mock.patch("airflow.models.dag.DagModel.deactivate_deleted_dags")
+    def test_deactivate_deleted_dags_handles_lock_timeout(
+        self, mock_deactivate_deleted_dags, mock_is_lock_not_available, caplog
+    ):
+        """Dags deactivation of deleted dags should gracefully handle database lock timeouts."""
+        mock_deactivate_deleted_dags.side_effect = OperationalError(
+            "Lock wait timeout exceeded", params={}, orig=Exception()
+        )
+        mock_is_lock_not_available.return_value = True
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.deactivate_deleted_dags(bundle_name="testing_bundle", present=set())
+
+        assert "Lock not available when deactivating deleted DAGs for bundle testing_bundle" in caplog.text
+
     @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1093,12 +1164,24 @@ class TestDagFileProcessorManager:
         processor, _ = self.mock_processor(start_time=start_time)
         manager._processors = {
             DagFileInfo(
-                bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
+                bundle_name="testing", rel_path=Path("folder/abc txt.py"), bundle_path=TEST_DAGS_FOLDER
             ): processor
         }
-        with mock.patch.object(type(processor), "kill") as mock_kill:
+        with (
+            mock.patch.object(type(processor), "kill") as mock_kill,
+            mock.patch("airflow.dag_processing.manager.stats.decr") as stats_decr_mock,
+            mock.patch("airflow.dag_processing.manager.stats.incr") as stats_incr_mock,
+        ):
             manager._kill_timed_out_processors()
         mock_kill.assert_called_once_with(signal.SIGKILL)
+        stats_decr_mock.assert_called_once_with(
+            "dag_processing.processes",
+            tags={"file_path": "folder_abc_txt.py", "action": "timeout"},
+        )
+        stats_incr_mock.assert_called_once_with(
+            "dag_processing.processor_timeouts",
+            tags={"file_path": "folder_abc_txt.py"},
+        )
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
 
@@ -1118,6 +1201,23 @@ class TestDagFileProcessorManager:
         with mock.patch.object(type(processor), "kill") as mock_kill:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
+
+    def test_terminate_normalizes_file_path_stats_tag(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("folder/abc txt.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        processor = MagicMock()
+        manager._processors[dag_file] = processor
+
+        with mock.patch("airflow.dag_processing.manager.stats.decr") as stats_decr_mock:
+            manager.terminate()
+
+        stats_decr_mock.assert_called_once_with(
+            "dag_processing.processes",
+            tags={"file_path": "folder_abc_txt.py", "action": "terminate"},
+        )
+        processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)
 
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
         """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
@@ -1358,6 +1458,25 @@ class TestDagFileProcessorManager:
             "dag_processing.last_duration",
             last_runtime,
             tags={"bundle_name": bundle_name, "file_name": dag_filename[:-3]},
+        )
+
+    @mock.patch("airflow.dag_processing.manager.stats.gauge")
+    def test_log_file_processing_stats_normalizes_metric_name(self, statsd_gauge_mock):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("test_of sprak_opertaor.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+        manager._file_stats[dag_file] = DagFileStat(
+            last_finish_time=timezone.utcnow() - timedelta(seconds=5),
+        )
+
+        manager._log_file_processing_stats({"testing": {dag_file}})
+
+        statsd_gauge_mock.assert_any_call(
+            "dag_processing.last_run.seconds_ago.test_of_sprak_opertaor",
+            mock.ANY,
         )
 
     @pytest.mark.usefixtures("testing_dag_bundle")

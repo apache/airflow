@@ -21,22 +21,32 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { TbLogicOr } from "react-icons/tb";
 
+import type { NextRunAssetEventResponse } from "openapi/requests/types.gen";
+
 import { AndGateNode } from "./AndGateNode";
 import { AssetNode } from "./AssetNode";
 import { OrGateNode } from "./OrGateNode";
-import type { ExpressionType, NextRunEvent } from "./types";
+import type { ExpressionType } from "./types";
 
 export const AssetExpression = ({
   events,
   expression,
 }: {
-  readonly events?: Array<NextRunEvent>;
+  readonly events?: Array<NextRunAssetEventResponse>;
   readonly expression: ExpressionType | undefined;
 }) => {
   const { t: translate } = useTranslation("common");
 
   if (expression === undefined) {
     return undefined;
+  }
+
+  // A bare asset or alias at the top level (no all/any wrapper) — render it directly.
+  if ("asset" in expression) {
+    return <AssetNode asset={expression} event={events?.find((ev) => ev.id === expression.asset.id)} />;
+  }
+  if ("alias" in expression) {
+    return <AssetNode asset={expression} />;
   }
 
   return (

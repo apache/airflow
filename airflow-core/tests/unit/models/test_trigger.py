@@ -37,8 +37,10 @@ from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
     TaskSkippedEvent,
@@ -930,6 +932,25 @@ def test_kwargs_not_encrypted():
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
+
+
+def test_decrypt_kwargs_roundtrips_datetime():
+    """
+    A datetime kwarg encoded via BaseSerialization (the asset-watcher path) must survive
+    the encrypt/decrypt round-trip through serde without crashing, and the DAG-side and
+    DB-side trigger hashes must match so the trigger is not needlessly recreated.
+
+    Regression: serde lacked a legacy-compat mapping for the bare ``datetime`` timestamp,
+    so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
+    """
+    classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+
+    dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
+    decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))
+
+    assert decrypted["moment"].timestamp() == moment.timestamp()
+    assert BaseEventTrigger.hash(classpath, dag_kwargs) == BaseEventTrigger.hash(classpath, decrypted)
 
 
 def test_asset_trigger_unassigned_included(session):
