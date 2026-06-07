@@ -38,23 +38,35 @@ SHIM_MARKER="# Apache Airflow breeze shim — managed by scripts/tools/setup_bre
 # The shim itself. Runs breeze via 'uvx' against the dev/breeze folder of the
 # *current* git worktree, so multiple checkouts / agentic worktrees never
 # share a single global install. See ADR 0017.
+#
+# The worktree this shim is installed from (AIRFLOW_SOURCES) is baked in as a
+# fallback, so breeze still runs when invoked outside any Airflow worktree — for
+# example from an SVN release checkout (asf-dist) during a provider release.
 read -r -d '' BREEZE_SHIM_BODY <<BREEZE_SHIM || true
 #!/usr/bin/env bash
 ${SHIM_MARKER}
 # Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
 # so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
 # breeze tied to that worktree's source.
+#
+# When invoked outside any Airflow worktree (e.g. from an SVN release checkout such
+# as asf-dist during a provider release), it falls back to the dev/breeze of the
+# worktree from which this shim was installed — recorded below at install time.
 set -e
-repo_root=\$(git rev-parse --show-toplevel 2>/dev/null) || {
-    echo "breeze: not inside a git repository — cd into an Airflow worktree first" >&2
-    exit 1
-}
-if [ ! -d "\${repo_root}/dev/breeze" ]; then
-    echo "breeze: \${repo_root} is not an Airflow worktree (no dev/breeze)" >&2
+# Install-time fallback: the Airflow sources 'scripts/tools/setup_breeze' was run
+# from. Used only when the current directory is not an Airflow worktree.
+fallback_root="${AIRFLOW_SOURCES}"
+repo_root=\$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ -n "\${repo_root}" ] && [ -d "\${repo_root}/dev/breeze" ]; then
+    breeze_root="\${repo_root}"
+elif [ -d "\${fallback_root}/dev/breeze" ]; then
+    breeze_root="\${fallback_root}"
+else
+    echo "breeze: not inside an Airflow worktree and the install-time fallback '\${fallback_root}/dev/breeze' is missing — re-run scripts/tools/setup_breeze" >&2
     exit 1
 fi
-exec env AIRFLOW_ROOT_PATH="\${repo_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
-    uvx --from "\${repo_root}/dev/breeze" --quiet breeze "\$@"
+exec env AIRFLOW_ROOT_PATH="\${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
+    uvx --from "\${breeze_root}/dev/breeze" --quiet breeze "\$@"
 BREEZE_SHIM
 
 function manual_instructions() {

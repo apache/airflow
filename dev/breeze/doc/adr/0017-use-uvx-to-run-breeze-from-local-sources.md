@@ -90,17 +90,25 @@ The recommended way to run breeze is via a small **shim script** at
 # Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
 # so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
 # breeze tied to that worktree's source.
+#
+# When invoked outside any Airflow worktree (e.g. from an SVN release checkout such
+# as asf-dist during a provider release), it falls back to the dev/breeze of the
+# worktree from which this shim was installed — recorded below at install time.
 set -e
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-    echo "breeze: not inside a git repository — cd into an Airflow worktree first" >&2
-    exit 1
-}
-if [ ! -d "${repo_root}/dev/breeze" ]; then
-    echo "breeze: ${repo_root} is not an Airflow worktree (no dev/breeze)" >&2
+# Install-time fallback: the Airflow sources 'scripts/tools/setup_breeze' was run
+# from. Used only when the current directory is not an Airflow worktree.
+fallback_root="/abs/path/to/airflow"   # baked in by setup_breeze (= AIRFLOW_SOURCES)
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ -n "${repo_root}" ] && [ -d "${repo_root}/dev/breeze" ]; then
+    breeze_root="${repo_root}"
+elif [ -d "${fallback_root}/dev/breeze" ]; then
+    breeze_root="${fallback_root}"
+else
+    echo "breeze: not inside an Airflow worktree and the install-time fallback '${fallback_root}/dev/breeze' is missing — re-run scripts/tools/setup_breeze" >&2
     exit 1
 fi
-exec env AIRFLOW_ROOT_PATH="${repo_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
-    uvx --from "${repo_root}/dev/breeze" --quiet breeze "$@"
+exec env AIRFLOW_ROOT_PATH="${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
+    uvx --from "${breeze_root}/dev/breeze" --quiet breeze "$@"
 ```
 
 ``scripts/tools/setup_breeze`` writes this file (replacing any previous
@@ -160,11 +168,17 @@ behaviour, but they are no longer the recommended path.
   runs ``git rev-parse`` and ``uvx`` for every invocation. Negligible at the
   command line, but noticeable inside tight loops or shell completion that
   re-invokes ``breeze`` many times.
-* **Requires a git checkout.** ``breeze`` invoked outside a git tree errors
-  out with a clear message rather than running. This matches actual usage —
-  breeze is meaningless outside an Airflow source tree — but is a behavioural
-  change from the global install, which would silently run against whatever
-  tree it was last installed from.
+* **Resolution is current-worktree-first, install-dir-fallback.** ``breeze``
+  invoked from inside an Airflow worktree runs that worktree's breeze. Invoked
+  from anywhere else (a non-Airflow git tree, or no git tree at all — e.g. an
+  ``asf-dist`` SVN release checkout), it falls back to the ``dev/breeze`` of the
+  worktree ``setup_breeze`` was last run from, baked into the shim at install
+  time. This keeps release commands such as
+  ``breeze release-management clean-old-provider-artifacts --directory <asf-dist>``
+  working from the SVN tree. Only if both the current worktree and the baked-in
+  fallback are missing ``dev/breeze`` does the shim error out with a clear
+  message. The fallback never overrides a real worktree, so per-worktree
+  isolation is preserved wherever it matters.
 * **One-time migration.** Users who previously installed breeze with
   ``uv tool install`` need to ``uv tool uninstall apache-airflow-breeze``
   before installing the shim, otherwise both write to ``~/.local/bin/breeze``

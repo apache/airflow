@@ -46,6 +46,13 @@ worktree's sources. Because the shim is a real file on `PATH`, subprocesses (pre
 hooks, CI scripts, dev tools) see it just like a `uv tool`-installed binary. See
 [ADR 0017](doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md) for the rationale.
 
+When invoked from outside any Airflow worktree — for example from an SVN release checkout
+(`asf-dist`) during a provider release — the shim falls back to the `dev/breeze` of the
+worktree it was installed from (baked in at install time). This keeps release commands such
+as `breeze release-management clean-old-provider-artifacts --directory <asf-dist>` working
+from the SVN tree. The fallback never overrides a real worktree, so per-worktree isolation is
+preserved wherever it matters.
+
 The `scripts/tools/setup_breeze` script installs the shim for you. If you previously
 installed breeze globally via `uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`,
 remove that install first — both write to `~/.local/bin/breeze` and would conflict:
@@ -60,20 +67,25 @@ To install the shim manually, write this file to `~/.local/bin/breeze` and `chmo
 #!/usr/bin/env bash
 # Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017).
 set -e
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-    echo "breeze: not inside a git repository — cd into an Airflow worktree first" >&2
-    exit 1
-}
-if [ ! -d "${repo_root}/dev/breeze" ]; then
-    echo "breeze: ${repo_root} is not an Airflow worktree (no dev/breeze)" >&2
+# Install-time fallback: the Airflow sources 'scripts/tools/setup_breeze' was run
+# from. Used only when the current directory is not an Airflow worktree.
+fallback_root="/abs/path/to/airflow"   # baked in by setup_breeze (= the worktree it ran from)
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ -n "${repo_root}" ] && [ -d "${repo_root}/dev/breeze" ]; then
+    breeze_root="${repo_root}"
+elif [ -d "${fallback_root}/dev/breeze" ]; then
+    breeze_root="${fallback_root}"
+else
+    echo "breeze: not inside an Airflow worktree and the install-time fallback '${fallback_root}/dev/breeze' is missing — re-run scripts/tools/setup_breeze" >&2
     exit 1
 fi
-exec env AIRFLOW_ROOT_PATH="${repo_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
-    uvx --from "${repo_root}/dev/breeze" --quiet breeze "$@"
+exec env AIRFLOW_ROOT_PATH="${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
+    uvx --from "${breeze_root}/dev/breeze" --quiet breeze "$@"
 ```
 
-Then `breeze` invoked from any Airflow checkout uses that checkout's source. The first call in
-a fresh worktree pays a one-time `uvx` resolve/install; subsequent calls hit the cache.
+Then `breeze` invoked from any Airflow checkout uses that checkout's source, and from
+anywhere else it uses the baked-in fallback. The first call in a fresh worktree pays a
+one-time `uvx` resolve/install; subsequent calls hit the cache.
 
 The legacy global-install path (`uv tool install -e ./dev/breeze --force` or
 `pipx install -e ./dev/breeze --force`) still works for users who explicitly want a single
