@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     # test) key/state, not just a task one.  Widen the executor NamedTuple fields
     # accordingly while falling back to the task-only types on older Airflow.
     if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
         from airflow.executors.workloads.types import (
             WorkloadKey as _WorkloadKey,
             WorkloadState as _WorkloadState,
@@ -38,9 +39,14 @@ if TYPE_CHECKING:
 
         WorkloadKey: TypeAlias = _WorkloadKey
         WorkloadState: TypeAlias = _WorkloadState
+        # KubernetesJob.command carries either the legacy Airflow-2 argv
+        # (Sequence[str]) or, on Airflow 3, a single-element list wrapping the
+        # workload object (ExecuteTask or ExecuteCallback).
+        WorkloadCommand: TypeAlias = Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback]
     else:
         WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
         WorkloadState: TypeAlias = TaskInstanceState  # type: ignore[no-redef, misc]
+        WorkloadCommand: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 
 
 ADOPTED = "adopted"
@@ -90,7 +96,7 @@ class KubernetesJob(NamedTuple):
     """Job definition for Kubernetes execution."""
 
     key: WorkloadKey
-    command: Sequence[str]
+    command: WorkloadCommand
     kube_executor_config: Any
     pod_template_file: str | None
 
