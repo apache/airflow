@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -76,31 +75,6 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     "required": ["sql"],
 }
 
-_POSTGRES_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    import psycopg2.errors as _psycopg2_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg2_errors.UndefinedColumn,
-        _psycopg2_errors.UndefinedTable,
-    )
-
-with suppress(ImportError):
-    from psycopg import errors as _psycopg3_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg3_errors.UndefinedColumn,
-        _psycopg3_errors.UndefinedTable,
-    )
-
-_SQLALCHEMY_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    from sqlalchemy.exc import (
-        ProgrammingError as _SQLAlchemyProgrammingError,
-    )
-
-    _SQLALCHEMY_RETRYABLE_EXCEPTIONS = (_SQLAlchemyProgrammingError,)
-
 
 class SQLToolset(AbstractToolset[Any]):
     """
@@ -111,6 +85,13 @@ class SQLToolset(AbstractToolset[Any]):
 
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
+
+    When a tool fails, the database's error message is returned to the agent as a
+    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
+    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
+    failure -- exhausts the retries and fails the task for Airflow to retry. The
+    toolset does not inspect the error type or message.
 
     :param db_conn_id: Airflow connection ID for the database.
     :param allowed_tables: Restrict which tables the agent can discover via
@@ -243,15 +224,27 @@ class SQLToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name == "list_tables":
-            return self._list_tables()
-        if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
-        if name == "query":
-            return self._query(tool_args["sql"])
-        if name == "check_query":
+        if name not in ("list_tables", "get_schema", "query", "check_query"):
+            raise ValueError(f"Unknown tool: {name!r}")
+        try:
+            if name == "list_tables":
+                return self._list_tables()
+            if name == "get_schema":
+                return self._get_schema(tool_args["table_name"])
+            if name == "query":
+                return self._query(tool_args["sql"])
             return self._check_query(tool_args["sql"])
-        raise ValueError(f"Unknown tool: {name!r}")
+        except Exception as e:
+            # Hand the database's own error back to the agent as a retry so it can
+            # read the message and fix its SQL within the run. pydantic-ai bounds
+            # this by the tool's max_retries, so an unrecoverable error (a bad
+            # connection, an auth failure) exhausts the budget and fails the task
+            # for Airflow to retry, rather than being silently worked around.
+            raise ModelRetry(
+                f"The {name} tool failed: {e}\n"
+                "Use the list_tables and get_schema tools to inspect the database, "
+                "then fix the query and try again."
+            ) from e
 
     # ------------------------------------------------------------------
     # Tool implementations
@@ -317,14 +310,7 @@ class SQLToolset(AbstractToolset[Any]):
                 allow_read_only_metadata=True,
             )
 
-        try:
-            rows = hook.get_records(sql)
-        except Exception as e:
-            if self._is_retryable_query_error(hook, e):
-                raise ModelRetry(
-                    f"error: {e!s}, Use get_schema and list_tables tools for more details."
-                ) from e
-            raise
+        rows = hook.get_records(sql)
         # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
@@ -342,24 +328,6 @@ class SQLToolset(AbstractToolset[Any]):
             output["truncated"] = True
             output["max_rows"] = self._max_rows
         return json.dumps(output, default=str)
-
-    @staticmethod
-    def _is_retryable_query_error(hook: DbApiHook, error: Exception) -> bool:
-        check_error = getattr(error, "orig", error)
-        conn_type = getattr(hook, "conn_type", None)
-        if conn_type == "postgres":
-            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(
-                check_error, _POSTGRES_RETRYABLE_EXCEPTIONS
-            )
-        if conn_type == "sqlite":
-            if isinstance(check_error, sqlite3.OperationalError):
-                message = str(check_error).lower()
-                return "no such column" in message or "no such table" in message
-            return False
-        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
-            return True
-        # TODO: Add support for other databases.
-        return False
 
     def _check_query(self, sql: str) -> str:
         # Resolve the dialect best-effort: if the connection can't be reached we
