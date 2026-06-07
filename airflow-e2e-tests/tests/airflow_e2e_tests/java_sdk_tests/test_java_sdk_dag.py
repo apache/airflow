@@ -64,6 +64,9 @@ class TestJavaSDKAnnotationExample:
     airflow_client = AirflowClient()
 
     @pytest.mark.parametrize("dag_id", ["java_annotation_example"])
+    @pytest.mark.xfail(
+        reason="Test is instable and needs fixing: https://github.com/apache/airflow/issues/68160"
+    )
     def test_java_tasks_execute_successfully(self, dag_id: str):
         """Both Java stubs in the annotation example must succeed."""
         resp = self.airflow_client.trigger_dag(
@@ -99,6 +102,9 @@ class TestJavaSDKAnnotationExample:
             f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
         )
 
+    @pytest.mark.xfail(
+        reason="Test is instable and needs fixing: https://github.com/apache/airflow/issues/68160"
+    )
     def test_transform_xcom_is_numeric_timestamp(self):
         """The value returned by the Java 'transform' task must be a positive integer."""
         resp = self.airflow_client.trigger_dag(
