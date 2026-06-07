@@ -132,11 +132,13 @@ ENV/
 *.iml
 
 # Claude Code — ignore local config/caches/worktrees, but keep the
-# tracked symlinks in .claude/skills/ that point at .github/skills/.
+# tracked symlinks in .claude/skills/ that point at .agents/skills/.
 .claude/*
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
+!.claude/skills/airflow-translations
+!.claude/skills/prepare-providers-documentation
 !.claude/skills/magpie-setup
 
 # Kiro
@@ -332,6 +334,8 @@ dev/registry/providers.json
 # (every framework skill is namespaced under the magpie- prefix).
 # The committed magpie-setup bootstrap is kept tracked by the
 # negation lines (the magpie-* glob would otherwise ignore it).
+/.agents/skills/magpie-*
+!/.agents/skills/magpie-setup
 /.claude/skills/magpie-*
 !/.claude/skills/magpie-setup
 /.github/skills/magpie-*
