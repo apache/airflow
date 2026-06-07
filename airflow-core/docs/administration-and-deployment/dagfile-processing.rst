@@ -45,6 +45,31 @@ The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a stand
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
+Communicating with the API server
+----------------------------------
+
+The Dag processor does not connect to the metadata database directly. It persists parse results and
+reads metadata (including parse-time ``Connection``, ``Variable`` and ``XCom`` values) through the
+API server, so an API server running the ``dag-processing`` app must be reachable. Start it with
+``airflow api-server --apps all`` or include ``dag-processing`` explicitly; a subset such as
+``--apps core,execution`` omits it and the Dag processor cannot run.
+
+Because the Dag processor parses user code, it must not hold the signing key or mint its own token.
+A trusted component mints a bearer token and writes it to the file named by
+:ref:`config:dag_processor__api_token_path`; the Dag processor only reads that file, re-reading it
+as the token is rotated, so a refreshed token is picked up without a restart. Mint the token with
+``airflow provision-dag-processor-token`` from a trusted context that holds the signing key, and
+re-run it before :ref:`config:dag_processor__jwt_expiration_time` elapses. The official Helm chart
+(via an init container) and the docker-compose example do this for you.
+
+The token has a finite lifetime, so a long-lived deployment must re-mint it. If the token expires
+without being rotated, the processor's API calls start failing and its ``Job`` heartbeat stops, so
+the liveness check (``airflow jobs check --job-type DagProcessorJob``) fails and the orchestrator
+restarts the processor -- on Kubernetes the init container then mints a fresh token. For an
+uninterrupted processor, rotate the token before it expires (for example a scheduled re-run of
+``airflow provision-dag-processor-token``) rather than relying on the restart.
+
+
 Fine-tuning your Dag processor performance
 ------------------------------------------
 

@@ -23,7 +23,6 @@ import logging
 import os
 import random
 import re
-import shutil
 import signal
 import textwrap
 import time
@@ -38,14 +37,13 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import select, update
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     BundleState,
     DagFileInfo,
@@ -53,19 +51,13 @@ from airflow.dag_processing.manager import (
     DagFileStat,
 )
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.models import DagModel, DbCallbackRequest
-from airflow.models.asset import TaskOutletAssetReference
-from airflow.models.dag_version import DagVersion
+from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dagcode import DagCode
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
@@ -162,6 +154,52 @@ class TestDagFileProcessorManager:
         with conf_vars({("core", "load_examples"): "False"}):
             yield
 
+    @pytest.fixture(autouse=True)
+    def mock_dag_processing_client(self):
+        """Patch the DAG Processing API client so managers don't hit a real API server.
+
+        ``DagFileProcessorManager`` now always holds a ``DagProcessingApiClient`` and routes
+        every persistence/metadata operation through it; in unit tests there is no API server,
+        so the real client raises ``httpx.ConnectError``. This replaces it with a mock whose
+        bundle-state read/write still round-trips through the metadata DB (so refresh-mechanic
+        tests behave as before), while persistence/reconcile/claim calls are inert.
+
+        ``get_bundle_state`` falls back to a stale state when no ``DagBundleModel`` row exists.
+        In production the server creates that row during ``sync_bundles`` before parsing; here
+        ``sync_bundles`` is inert, so without the fallback every bundle would be skipped with
+        "Bundle model not found" and no files would ever be scanned.
+
+        The mock is yielded so individual tests can override return values (e.g.
+        ``client.get_bundle_state.return_value = {"last_refreshed": ..., "version": ...}``).
+        """
+        # A "stale" timestamp so bundles with refresh_interval=0 always refresh by default.
+        stale_last_refreshed = timezone.datetime(2000, 1, 1)
+
+        def _db_get_bundle_state(bundle_name):
+            with create_session() as session:
+                row = session.scalar(select(DagBundleModel).where(DagBundleModel.name == bundle_name))
+                if row is None:
+                    return {"last_refreshed": stale_last_refreshed, "version": None}
+                return {"last_refreshed": row.last_refreshed, "version": row.version}
+
+        def _db_update_bundle_state(bundle_name, *, last_refreshed, version):
+            values: dict = {"last_refreshed": last_refreshed}
+            if version is not None:
+                values["version"] = version
+            with create_session() as session:
+                session.execute(
+                    update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values)
+                )
+                session.commit()
+
+        with mock.patch("airflow.dag_processing.manager.DagProcessingApiClient") as mock_client_cls:
+            client = mock_client_cls.return_value
+            client.get_bundle_state.side_effect = _db_get_bundle_state
+            client.update_bundle_state.side_effect = _db_update_bundle_state
+            client.claim_priority_files.return_value = []
+            client.fetch_callbacks.return_value = []
+            yield client
+
     def setup_method(self):
         clear_db_teams()
         clear_db_assets()
@@ -204,76 +242,6 @@ class TestDagFileProcessorManager:
         ret._open_sockets.clear()
         return ret, read_end
 
-    @pytest.fixture
-    def clear_parse_import_errors(self):
-        clear_db_import_errors()
-
-    @pytest.mark.usefixtures("clear_parse_import_errors")
-    @conf_vars({("core", "load_examples"): "False"})
-    def test_remove_file_clears_import_error(self, tmp_path, configure_testing_dag_bundle):
-        path_to_parse = tmp_path / "temp_dag.py"
-
-        # Generate original import error
-        path_to_parse.write_text("an invalid airflow DAG")
-
-        with configure_testing_dag_bundle(path_to_parse):
-            manager = DagFileProcessorManager(
-                max_runs=1,
-                processor_timeout=365 * 86_400,
-            )
-
-            manager.run()
-
-            with create_session() as session:
-                import_errors = session.scalars(select(ParseImportError)).all()
-                assert len(import_errors) == 1
-
-                path_to_parse.unlink()
-
-            # Rerun the parser once the dag file has been removed
-            manager.run()
-
-            with create_session() as session:
-                import_errors = session.scalars(select(ParseImportError)).all()
-
-                assert len(import_errors) == 0
-                session.rollback()
-
-    @pytest.mark.usefixtures("clear_parse_import_errors")
-    def test_clear_orphaned_import_errors_keeps_zip_inner_file_errors(self, session, tmp_path):
-        zip_path = tmp_path / "test_zip.zip"
-        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
-
-        session.add(
-            ParseImportError(
-                filename="test_zip.zip/broken_dag.py",
-                bundle_name="testing",
-                timestamp=timezone.utcnow(),
-                stacktrace="zip import error",
-            )
-        )
-        session.flush()
-
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.clear_orphaned_import_errors(
-            bundle_name="testing",
-            observed_filelocs=manager._get_observed_filelocs(
-                {
-                    DagFileInfo(
-                        bundle_name="testing",
-                        rel_path=Path("test_zip.zip"),
-                        bundle_path=tmp_path,
-                    )
-                }
-            ),
-            session=session,
-        )
-        session.flush()
-
-        import_errors = session.scalars(select(ParseImportError)).all()
-        assert len(import_errors) == 1
-        assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
-
     def test_get_observed_filelocs_expands_zip_inner_paths(self, tmp_path):
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_valid_and_broken_dags(zip_path)
@@ -294,22 +262,13 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
-    @pytest.mark.usefixtures("clear_parse_import_errors")
-    def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
+    def test_refresh_dag_bundles_reconciles_via_client(
+        self, tmp_path, configure_dag_bundles, mock_dag_processing_client
+    ):
         bundle_path = tmp_path / "bundleone"
         bundle_path.mkdir()
-        zip_path = bundle_path / "test_zip.zip"
-        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
-
-        session.add(
-            ParseImportError(
-                filename="test_zip.zip/broken_dag.py",
-                bundle_name="bundleone",
-                timestamp=timezone.utcnow(),
-                stacktrace="zip import error",
-            )
-        )
-        session.flush()
+        dag_path = bundle_path / "test_dag.py"
+        dag_path.write_text("from airflow.sdk import DAG\n")
 
         with configure_dag_bundles({"bundleone": bundle_path}):
             DagBundlesManager().sync_bundles_to_db()
@@ -317,40 +276,10 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
             manager._refresh_dag_bundles({})
 
-        import_errors = session.scalars(select(ParseImportError)).all()
-        assert len(import_errors) == 1
-        assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
-
-    def test_refresh_dag_bundles_calls_legacy_deactivate_deleted_dags_override(
-        self, tmp_path, configure_dag_bundles
-    ):
-        bundle_path = tmp_path / "bundleone"
-        bundle_path.mkdir()
-        dag_path = bundle_path / "test_dag.py"
-        dag_path.write_text("from airflow.sdk import DAG\n")
-
-        class BackwardCompatibleManager(DagFileProcessorManager):
-            seen_bundle_name: str | None = None
-            seen_present: set[DagFileInfo] | None = None
-
-            def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-                self.seen_bundle_name = bundle_name
-                self.seen_present = present
-
-        with configure_dag_bundles({"bundleone": bundle_path}):
-            DagBundlesManager().sync_bundles_to_db()
-            manager = BackwardCompatibleManager(max_runs=1)
-            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-            manager._refresh_dag_bundles({})
-
-        assert manager.seen_bundle_name == "bundleone"
-        assert manager.seen_present == {
-            DagFileInfo(
-                bundle_name="bundleone",
-                rel_path=Path("test_dag.py"),
-                bundle_path=bundle_path,
-            )
-        }
+        mock_dag_processing_client.reconcile.assert_called_once_with(
+            bundle_name="bundleone",
+            observed_filelocs={"test_dag.py"},
+        )
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_max_runs_when_no_files(self, tmp_path):
@@ -847,53 +776,6 @@ class TestDagFileProcessorManager:
         assert known_file not in manager._file_stats
         assert versioned_file in manager._file_stats
 
-    def test_file_paths_in_queue_sorted_by_priority(self):
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
-        parsing_request = DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder")
-        with create_session() as session:
-            session.add(parsing_request)
-            session.commit()
-
-        file1 = DagFileInfo(
-            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
-        )
-        file2 = DagFileInfo(
-            bundle_name="dags-folder", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER
-        )
-
-        manager = DagFileProcessorManager(max_runs=1)
-        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-        manager._file_queue = OrderedDict.fromkeys([file2, file1])
-        manager._queue_requested_files_for_parsing()
-        assert manager._file_queue == OrderedDict.fromkeys([file1, file2])
-        assert manager._force_refresh_bundles == {"dags-folder"}
-        with create_session() as session2:
-            parsing_request_after = session2.get(DagPriorityParsingRequest, parsing_request.id)
-        assert parsing_request_after is None
-
-    def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
-        """Ensure the manager only handles parsing requests for bundles being parsed in this manager"""
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
-        with create_session() as session:
-            session.add(DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder"))
-            session.add(DagPriorityParsingRequest(relative_fileloc="file_x.py", bundle_name="testing"))
-            session.commit()
-
-        file1 = DagFileInfo(
-            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
-        )
-
-        manager = DagFileProcessorManager(max_runs=1)
-        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-        manager._queue_requested_files_for_parsing()
-        assert manager._file_queue == OrderedDict.fromkeys([file1])
-        with create_session() as session2:
-            parsing_request_after = session2.scalars(select(DagPriorityParsingRequest)).all()
-        assert len(parsing_request_after) == 1
-        assert parsing_request_after[0].relative_fileloc == "file_x.py"
-
     def test_queue_requested_files_for_parsing_uses_public_claim_hook(self):
         file1 = DagFileInfo(
             bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
@@ -933,10 +815,11 @@ class TestDagFileProcessorManager:
         assert manager._force_refresh_bundles == {"bundleone"}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_scan_stale_dags(self, session):
+    def test_scan_stale_dags(self, mock_dag_processing_client):
         """
-        Ensure that DAGs are marked inactive when the file is parsed but the
-        DagModel.last_parsed_time is not updated.
+        Ensure ``_scan_stale_dags`` forwards the parsed files to the DAG Processing API so the
+        server can deactivate DAGs whose files are no longer present. The actual stale-marking
+        now happens server-side.
         """
         manager = DagFileProcessorManager(
             max_runs=1,
@@ -951,21 +834,13 @@ class TestDagFileProcessorManager:
             rel_path=Path("test_example_bash_operator.py"),
             bundle_path=TEST_DAGS_FOLDER,
         )
-        dagbag = DagBag(
-            test_dag_path.absolute_path,
-            include_examples=False,
-            bundle_path=test_dag_path.bundle_path,
-        )
-
-        # Add stale DAG to the DB
-        dag = dagbag.get_dag("test_example_bash_operator")
-        sync_dag_to_db(dag, session=session)
 
         # Add DAG to the file_parsing_stats
+        finish_time = timezone.utcnow() + timedelta(hours=1)
         stat = DagFileStat(
             num_dags=1,
             import_errors=0,
-            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_finish_time=finish_time,
             last_duration=1,
             run_count=1,
             last_num_of_db_queries=1,
@@ -973,72 +848,19 @@ class TestDagFileProcessorManager:
         manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
-        active_dag_count = session.scalar(
-            select(func.count(DagModel.dag_id)).where(
-                ~DagModel.is_stale,
-                DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                DagModel.bundle_name == test_dag_path.bundle_name,
-            )
-        )
-        assert active_dag_count == 1
-
+        # Force the cleanup interval so the scan actually runs this cycle.
+        manager._last_deactivate_stale_dags_time = time.monotonic() - (manager.parsing_cleanup_interval + 1)
         manager._scan_stale_dags()
 
-        active_dag_count = session.scalar(
-            select(func.count(DagModel.dag_id)).where(
-                ~DagModel.is_stale,
-                DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                DagModel.bundle_name == test_dag_path.bundle_name,
-            )
-        )
-        assert active_dag_count == 0
-
-        serialized_dag_count = session.scalar(
-            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
-        )
-        # Deactivating the DagModel should not delete the SerializedDagModel
-        # SerializedDagModel gives history about Dags
-        assert serialized_dag_count == 1
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
-        """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
-        session.add(DagBundleModel(name="gone-bundle"))
-        session.flush()
-        session.execute(
-            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
-        )
-        session.add(
-            DagModel(
-                dag_id="dag_in_inactive_bundle",
-                bundle_name="gone-bundle",
-                relative_fileloc="some_file.py",
-                last_parsed_time=timezone.utcnow(),
-                is_stale=False,
-            )
-        )
-        session.add(
-            DagModel(
-                dag_id="dag_in_active_bundle",
-                bundle_name="testing",
-                relative_fileloc="other_file.py",
-                last_parsed_time=timezone.utcnow(),
-                is_stale=False,
-            )
-        )
-        session.flush()
-
-        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
-        manager.deactivate_stale_dags(last_parsed={})
-
-        is_stale_by_dag = dict(
-            session.execute(
-                select(DagModel.dag_id, DagModel.is_stale).where(
-                    DagModel.dag_id.in_(["dag_in_inactive_bundle", "dag_in_active_bundle"])
-                )
-            ).all()
-        )
-        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+        mock_dag_processing_client.deactivate_stale_dags.assert_called_once()
+        call_kwargs = mock_dag_processing_client.deactivate_stale_dags.call_args.kwargs
+        assert call_kwargs["last_parsed"] == [
+            {
+                "bundle_name": "testing",
+                "relative_fileloc": "test_example_bash_operator.py",
+                "last_finish_time": finish_time.isoformat(),
+            }
+        ]
 
     @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
@@ -1119,24 +941,7 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
-    def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
-        """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
-        manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
-        manager._file_stats[file] = DagFileStat()
-        manager._bundle_versions["testing"] = "v1"
-
-        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
-        processor.had_callbacks = False
-        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
-
-        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
-            manager.handle_parsing_result(file, processor)
-
-        mock_persist.assert_called_once()
-        assert mock_persist.call_args.kwargs["session"] is not None
-
-    def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self, session):
+    def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self):
         """Persist errors should throttle retries without claiming persistence succeeded."""
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
@@ -1150,7 +955,7 @@ class TestDagFileProcessorManager:
         processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
 
         with mock.patch.object(manager, "persist_parsing_result", side_effect=RuntimeError("boom")):
-            manager.handle_parsing_result(file, processor, session=session)
+            manager.handle_parsing_result(file, processor)
 
         assert manager._file_stats[file] is not original_stat
         assert manager._file_stats[file].num_dags == 0
@@ -1160,7 +965,7 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_duration is not None
         assert manager.processed_recently(timezone.utcnow(), file) is True
 
-    def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
+    def test_handle_parsing_result_updates_stats_after_successful_persist(self):
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         original_stat = DagFileStat(
@@ -1179,7 +984,7 @@ class TestDagFileProcessorManager:
         processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
 
         with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
-            manager.handle_parsing_result(file, processor, session=session)
+            manager.handle_parsing_result(file, processor)
 
         mock_persist.assert_called_once_with(
             bundle_name="testing",
@@ -1188,7 +993,6 @@ class TestDagFileProcessorManager:
             parsing_result=processor.parsing_result,
             run_duration=mock.ANY,
             relative_fileloc="abc.txt",
-            session=session,
         )
         assert manager._file_stats[file] is not original_stat
         assert manager._file_stats[file].run_count == 4
@@ -1311,22 +1115,14 @@ class TestDagFileProcessorManager:
         """
         Test to check that a DAG with a system.exit() doesn't break the scheduler.
         """
-        dag_id = "exit_test_dag"
         dag_directory = TEST_DAG_FOLDER.parent / "dags_with_system_exit"
-
-        # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
-        clear_db_dags()
-        clear_db_serialized_dags()
 
         with configure_testing_dag_bundle(dag_directory):
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
-        # Three files in folder should be processed
+        # The system-exit DAG must not abort the loop: all three files still get processed.
         assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
-
-        with create_session() as session:
-            assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.stats.timing")
@@ -1361,84 +1157,6 @@ class TestDagFileProcessorManager:
         )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_refresh_dags_dir_doesnt_delete_zipped_dags(
-        self, tmp_path, session, configure_testing_dag_bundle, test_zip_path
-    ):
-        """Test DagFileProcessorManager._refresh_dag_dir method"""
-        dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-        dagbag.process_file(test_zip_path)
-        dag = dagbag.get_dag("test_zip_dag")
-        sync_dag_to_db(dag)
-
-        with configure_testing_dag_bundle(test_zip_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager.run()
-
-        # Assert dag not deleted in SDM
-        assert SerializedDagModel.has_dag("test_zip_dag")
-        # assert code not deleted
-        assert DagCode.has_dag(dag.dag_id)
-        # assert dag still active
-        assert session.get(DagModel, dag.dag_id).is_stale is False
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
-        self, session, tmp_path, configure_testing_dag_bundle, test_zip_path
-    ):
-        """Test DagFileProcessorManager._refresh_dag_dir method"""
-        dag_id = "test_zip_dag"
-        filename = "test_zip.zip"
-        source_location = test_zip_path
-        bundle_path = Path(tmp_path, "test_refresh_dags_dir_deactivates_deleted_zipped_dags")
-        bundle_path.mkdir(exist_ok=True)
-        zip_dag_path = bundle_path / filename
-        shutil.copy(source_location, zip_dag_path)
-
-        with configure_testing_dag_bundle(bundle_path):
-            session.commit()
-            manager = DagFileProcessorManager(max_runs=1)
-            manager.run()
-
-            assert SerializedDagModel.has_dag(dag_id)
-            assert DagCode.has_dag(dag_id)
-            assert DagVersion.get_latest_version(dag_id)
-            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-            assert dag.is_stale is False
-
-            os.remove(zip_dag_path)
-
-            manager.run()
-
-            assert SerializedDagModel.has_dag(dag_id)
-            assert DagCode.has_dag(dag_id)
-            assert DagVersion.get_latest_version(dag_id)
-            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-            assert dag.is_stale is True
-
-    def test_deactivate_deleted_dags(self, dag_maker, session):
-        with dag_maker("test_dag1") as dag1:
-            dag1.relative_fileloc = "test_dag1.py"
-        with dag_maker("test_dag2") as dag2:
-            dag2.relative_fileloc = "test_dag2.py"
-        dag_maker.sync_dagbag_to_db()
-
-        active_files = [
-            DagFileInfo(
-                bundle_name="dag_maker",
-                rel_path=Path("test_dag1.py"),
-                bundle_path=TEST_DAGS_FOLDER,
-            ),
-            # Mimic that the test_dag2.py file is deleted
-        ]
-
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", set(active_files))
-
-        # The DAG from test_dag1.py is still active
-        assert session.get(DagModel, "test_dag1").is_stale is False
-        # and the DAG from test_dag2.py is deactivated
-        assert session.get(DagModel, "test_dag2").is_stale is True
-
     @pytest.mark.parametrize(
         ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
         [
@@ -1477,231 +1195,6 @@ class TestDagFileProcessorManager:
         assert any_deactivated is expected_return
         assert session.get(DagModel, "test_dag1").is_stale is expected_dag1_stale
         assert session.get(DagModel, "test_dag2").is_stale is expected_dag2_stale
-
-    @pytest.mark.parametrize(
-        ("active_files", "should_call_cleanup"),
-        [
-            pytest.param(
-                [
-                    DagFileInfo(
-                        bundle_name="dag_maker",
-                        rel_path=Path("test_dag1.py"),
-                        bundle_path=TEST_DAGS_FOLDER,
-                    ),
-                    # test_dag2.py is deleted
-                ],
-                True,  # Should call cleanup
-                id="dags_deactivated",
-            ),
-            pytest.param(
-                [
-                    DagFileInfo(
-                        bundle_name="dag_maker",
-                        rel_path=Path("test_dag1.py"),
-                        bundle_path=TEST_DAGS_FOLDER,
-                    ),
-                    DagFileInfo(
-                        bundle_name="dag_maker",
-                        rel_path=Path("test_dag2.py"),
-                        bundle_path=TEST_DAGS_FOLDER,
-                    ),
-                ],
-                False,  # Should NOT call cleanup
-                id="no_dags_deactivated",
-            ),
-        ],
-    )
-    @mock.patch("airflow.dag_processing.manager.remove_references_to_deleted_dags")
-    def test_manager_deactivate_deleted_dags_cleanup_behavior(
-        self, mock_remove_references, dag_maker, session, active_files, should_call_cleanup
-    ):
-        """Test that manager conditionally calls remove_references_to_deleted_dags based on whether DAGs were deactivated."""
-        with dag_maker("test_dag1") as dag1:
-            dag1.relative_fileloc = "test_dag1.py"
-        with dag_maker("test_dag2") as dag2:
-            dag2.relative_fileloc = "test_dag2.py"
-        dag_maker.sync_dagbag_to_db()
-
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", set(active_files))
-
-        if should_call_cleanup:
-            mock_remove_references.assert_called_once()
-        else:
-            mock_remove_references.assert_not_called()
-
-    @conf_vars({("core", "load_examples"): "False"})
-    def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
-        """Test _fetch_callbacks_from_db returns callbacks ordered by priority_weight desc."""
-
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        callback1 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="testing",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="123",
-        )
-        callback2 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="testing",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="456",
-        )
-
-        with create_session() as session:
-            session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
-            session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
-
-        with configure_testing_dag_bundle(dag_filepath):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-
-            with create_session() as session:
-                callbacks = manager._fetch_callbacks_from_db(session=session)
-
-                # Should return callbacks ordered by priority_weight desc (highest first)
-                assert callbacks[0].run_id == "123"
-                assert callbacks[1].run_id == "456"
-
-                assert len(session.scalars(select(DbCallbackRequest)).all()) == 0
-
-    @conf_vars(
-        {
-            ("dag_processor", "max_callbacks_per_loop"): "2",
-            ("core", "load_examples"): "False",
-        }
-    )
-    def test_fetch_callbacks_from_database_max_per_loop(self, tmp_path, configure_testing_dag_bundle):
-        """Test DagFileProcessorManager.fetch_callbacks method."""
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        with create_session() as session:
-            for i in range(5):
-                callback = DagCallbackRequest(
-                    dag_id="test_start_date_scheduling",
-                    bundle_name="testing",
-                    bundle_version=None,
-                    filepath="test_on_failure_callback_dag.py",
-                    is_failure_callback=True,
-                    run_id=str(i),
-                )
-                session.add(DbCallbackRequest(callback=callback, priority_weight=i))
-
-        with configure_testing_dag_bundle(dag_filepath):
-            manager = DagFileProcessorManager(max_runs=1)
-
-            with create_session() as session:
-                manager.run()
-                assert len(session.scalars(select(DbCallbackRequest)).all()) == 3
-
-            with create_session() as session:
-                manager.run()
-                assert len(session.scalars(select(DbCallbackRequest)).all()) == 1
-
-    @conf_vars({("core", "load_examples"): "False"})
-    def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
-        """Ensure callbacks for bundles not owned by current dag processor manager are ignored and not deleted."""
-
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        # Create two callbacks: one for the active 'testing' bundle and one for a different bundle
-        matching = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="testing",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="match",
-        )
-        non_matching = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="other-bundle",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="no-match",
-        )
-
-        with create_session() as session:
-            session.add(DbCallbackRequest(callback=matching, priority_weight=100))
-            session.add(DbCallbackRequest(callback=non_matching, priority_weight=200))
-
-        with configure_testing_dag_bundle(dag_filepath):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-
-            with create_session() as session:
-                callbacks = manager._fetch_callbacks_from_db(session=session)
-
-                # Only the matching callback should be returned
-                assert [c.run_id for c in callbacks] == ["match"]
-
-                # The non-matching callback should remain in the DB
-                remaining = session.scalars(select(DbCallbackRequest)).all()
-                assert len(remaining) == 1
-                # Decode remaining request and verify it's for the other bundle
-                remaining_req = remaining[0].get_callback_request()
-                assert remaining_req.bundle_name == "other-bundle"
-
-    @conf_vars(
-        {
-            ("dag_processor", "max_callbacks_per_loop"): "2",
-            ("core", "load_examples"): "False",
-        }
-    )
-    def test_fetch_callbacks_filters_by_bundle_before_limit(self, configure_testing_dag_bundle):
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        matching = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="testing",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="match",
-        )
-        non_matching_1 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="other-bundle-a",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="no-match-1",
-        )
-        non_matching_2 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            bundle_name="other-bundle-b",
-            bundle_version=None,
-            filepath="test_on_failure_callback_dag.py",
-            is_failure_callback=True,
-            run_id="no-match-2",
-        )
-
-        with create_session() as session:
-            session.add(DbCallbackRequest(callback=non_matching_1, priority_weight=300))
-            session.add(DbCallbackRequest(callback=non_matching_2, priority_weight=200))
-            session.add(DbCallbackRequest(callback=matching, priority_weight=100))
-
-        with configure_testing_dag_bundle(dag_filepath):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-
-            with create_session() as session:
-                callbacks = manager._fetch_callbacks_from_db(session=session)
-
-                assert [c.run_id for c in callbacks] == ["match"]
-
-                remaining = session.scalars(select(DbCallbackRequest)).all()
-                assert len(remaining) == 2
-                assert {callback.bundle_name for callback in remaining} == {
-                    "other-bundle-a",
-                    "other-bundle-b",
-                }
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
@@ -1981,29 +1474,6 @@ class TestDagFileProcessorManager:
 
         assert not manager._callback_to_execute
 
-    def test_fetch_callbacks_delegates_to_private_method(self):
-        manager = DagFileProcessorManager(max_runs=1)
-        expected: list = [mock.sentinel.callback]
-        with mock.patch.object(manager, "_fetch_callbacks_from_db", return_value=expected) as private:
-            assert manager.fetch_callbacks() is expected
-        private.assert_called_once_with()
-
-    def test_dag_with_assets(self, session, configure_testing_dag_bundle):
-        """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
-        test_dag_path = str(TEST_DAG_FOLDER / "test_assets.py")
-
-        with configure_testing_dag_bundle(test_dag_path):
-            manager = DagFileProcessorManager(
-                max_runs=1,
-                processor_timeout=365 * 86_400,
-            )
-            manager.run()
-
-        dag_model = session.get(DagModel, ("dag_with_skip_task"))
-        assert dag_model.task_outlet_asset_references == [
-            TaskOutletAssetReference(asset_id=mock.ANY, dag_id="dag_with_skip_task", task_id="skip_task")
-        ]
-
     def test_bundles_are_refreshed(self):
         """
         Ensure bundles are refreshed by the manager, when necessary.
@@ -2174,7 +1644,7 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 2  # forced refresh
 
-    def test_bundles_versions_are_stored(self, session):
+    def test_bundles_versions_are_stored(self, mock_dag_processing_client):
         config = [
             {
                 "name": "bundleone",
@@ -2198,9 +1668,10 @@ class TestDagFileProcessorManager:
                 manager = DagFileProcessorManager(max_runs=1)
                 manager.run()
 
-        with create_session() as session:
-            model = session.get(DagBundleModel, "bundleone")
-            assert model.version == "123"
+        # The refreshed bundle version is persisted via the DAG Processing API.
+        mock_dag_processing_client.update_bundle_state.assert_any_call(
+            "bundleone", last_refreshed=mock.ANY, version="123"
+        )
 
     def test_non_versioned_bundle_get_version_not_called(self):
         config = [
@@ -2408,15 +1879,6 @@ class TestDagFileProcessorManager:
                 manager.run()
             after_run_mock.assert_called_once_with()
 
-    def test_prepare_server_process_context_can_be_skipped(self, tmp_path, configure_testing_dag_bundle):
-        """API-backed subclasses can skip server-context setup without losing selector/stats init."""
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            with mock.patch.object(manager, "prepare_server_process_context") as server_ctx_mock:
-                manager.run()
-            server_ctx_mock.assert_called_once_with()
-            assert manager.selector is not None
-
     def test_prepare_bundles_can_be_overridden_without_sync(self, tmp_path, configure_testing_dag_bundle):
         """Subclasses can override `prepare_bundles` to skip `sync_bundles` (AIP-92 seam)."""
         with configure_testing_dag_bundle(tmp_path):
@@ -2429,29 +1891,19 @@ class TestDagFileProcessorManager:
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
 
-    def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
-        """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
-        manager = DagFileProcessorManager(max_runs=1)
-        with mock.patch(
-            "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-        ) as purge_mock:
-            manager.purge_inactive_dag_warnings()
-        purge_mock.assert_called_once_with()
-
     def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
         """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
-            with (
-                mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock,
-                mock.patch(
-                    "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-                ) as direct_mock,
-            ):
+            with mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock:
                 manager.run()
             purge_mock.assert_called()
-            direct_mock.assert_not_called()
 
+    # min_file_process_interval=0 makes each file unconditionally eligible for re-parsing, so the
+    # three successive runs below don't hinge on the file's mtime exceeding its last-parsed time
+    # (a filesystem-granularity race that, under load, left a run waiting out the default 30s
+    # interval and blew the per-test timeout).
+    @conf_vars({("dag_processor", "min_file_process_interval"): "0"})
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
         key = "dag_processing.total_parse_time"
@@ -2478,79 +1930,7 @@ class TestDagFileProcessorManager:
                 assert len(gauge_values[key]) == 1
                 assert gauge_values[key][0] >= 1e-4
 
-                dag_path.touch()  # make the loop run faster
                 gauge_values.clear()
-
-    # --- get_bundle_state / update_bundle_state ---
-
-    def test_get_bundle_state_returns_none_for_missing_bundle(self):
-        manager = DagFileProcessorManager(max_runs=1)
-        assert manager.get_bundle_state("nonexistent_bundle") is None
-
-    def test_get_bundle_state_returns_correct_state(self, session):
-        bundle_name = "test_state_bundle"
-        refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
-        model = DagBundleModel(name=bundle_name, version="v1")
-        model.last_refreshed = refreshed_at
-        session.add(model)
-        session.commit()
-
-        manager = DagFileProcessorManager(max_runs=1)
-        state = manager.get_bundle_state(bundle_name)
-
-        assert state == BundleState(last_refreshed=refreshed_at, version="v1")
-
-    def test_get_bundle_state_null_fields(self, session):
-        bundle_name = "test_null_state_bundle"
-        session.add(DagBundleModel(name=bundle_name))
-        session.commit()
-
-        manager = DagFileProcessorManager(max_runs=1)
-        state = manager.get_bundle_state(bundle_name)
-
-        assert state == BundleState(last_refreshed=None, version=None)
-
-    def test_update_bundle_state_sets_last_refreshed(self, session):
-        bundle_name = "test_update_bundle"
-        session.add(DagBundleModel(name=bundle_name))
-        session.commit()
-
-        refreshed_at = timezone.datetime(2024, 6, 1, 8, 0, 0)
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.update_bundle_state(bundle_name, last_refreshed=refreshed_at, version=None)
-
-        session.expire_all()
-        model = session.get(DagBundleModel, bundle_name)
-        assert model.last_refreshed == refreshed_at
-        assert model.version is None
-
-    def test_update_bundle_state_sets_version(self, session):
-        bundle_name = "test_update_version_bundle"
-        session.add(DagBundleModel(name=bundle_name))
-        session.commit()
-
-        refreshed_at = timezone.datetime(2024, 6, 1, 8, 0, 0)
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.update_bundle_state(bundle_name, last_refreshed=refreshed_at, version="abc123")
-
-        session.expire_all()
-        model = session.get(DagBundleModel, bundle_name)
-        assert model.last_refreshed == refreshed_at
-        assert model.version == "abc123"
-
-    def test_update_bundle_state_does_not_overwrite_version_when_none(self, session):
-        bundle_name = "test_preserve_version_bundle"
-        session.add(DagBundleModel(name=bundle_name, version="keep_me"))
-        session.commit()
-
-        refreshed_at = timezone.datetime(2024, 6, 1, 8, 0, 0)
-        manager = DagFileProcessorManager(max_runs=1)
-        manager.update_bundle_state(bundle_name, last_refreshed=refreshed_at, version=None)
-
-        session.expire_all()
-        model = session.get(DagBundleModel, bundle_name)
-        assert model.last_refreshed == refreshed_at
-        assert model.version == "keep_me"
 
     def _make_refresh_bundle(self, *, supports_versioning=False, current_version=None):
         bundle = MagicMock(spec=BaseDagBundle)
@@ -2572,14 +1952,13 @@ class TestDagFileProcessorManager:
         """
         manager._dag_bundles = [bundle]
         manager._force_refresh_bundles = set()
+        manager._dag_processing_client = mock.MagicMock()
         mock_get = mock.patch.object(manager, "get_bundle_state", return_value=initial_state)
         mock_update = mock.patch.object(manager, "update_bundle_state")
         with (
             mock_get as patched_get,
             mock_update as patched_update,
             mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
@@ -2640,6 +2019,7 @@ class TestDagFileProcessorManager:
         manager._bundle_versions["mock_bundle"] = "v1"
         manager._dag_bundles = [bundle]
         manager._force_refresh_bundles = set()
+        manager._dag_processing_client = mock.MagicMock()
 
         known_files: dict[str, set[DagFileInfo]] = {}
         with (
@@ -2648,8 +2028,6 @@ class TestDagFileProcessorManager:
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("DB error")),
             mock.patch.object(manager, "_find_files_in_bundle", return_value=[]) as mock_find,
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
@@ -2703,6 +2081,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         bundle = self._make_refresh_bundle()
         manager._dag_bundles = [bundle]
+        manager._dag_processing_client = mock.MagicMock()
 
         known_files: dict[str, set[DagFileInfo]] = {}
         with (
@@ -2711,8 +2090,6 @@ class TestDagFileProcessorManager:
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("API error")),
             mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),

@@ -34,6 +34,7 @@ from airflow.api_fastapi.core_api.app import (
     init_middlewares,
     init_views,
 )
+from airflow.api_fastapi.dag_processing.app import create_dag_processing_api_app
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -61,7 +62,7 @@ def get_cookie_path() -> str:
 
 
 # Fast API apps mounted under these prefixes are not allowed
-RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2", "/dag-processing"]
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +107,9 @@ def create_app(apps: str = "all") -> FastAPI:
         task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
+
+    if "all" in apps_list or "dag-processing" in apps_list:
+        app.mount("/dag-processing", create_dag_processing_api_app())
 
     if "all" in apps_list or "core" in apps_list:
         app.state.dag_bag = dag_bag

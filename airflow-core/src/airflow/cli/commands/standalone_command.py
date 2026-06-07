@@ -20,6 +20,7 @@ import logging
 import os
 import socket
 import subprocess
+import tempfile
 import threading
 import time
 from collections import deque
@@ -28,6 +29,8 @@ from typing import TYPE_CHECKING
 from termcolor import colored
 
 from airflow.api_fastapi.app import create_auth_manager
+from airflow.api_fastapi.auth.dag_processor_token import provision_dag_processor_token_file
+from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
@@ -189,7 +192,36 @@ class StandaloneCommand:
             env["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
             os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath  # also in this process!
 
+        self._provision_dag_processor_token(env)
+
         return env
+
+    def _provision_dag_processor_token(self, env: dict[str, str]) -> None:
+        """
+        Mint the API token the DAG processor presents and point it at a file via env.
+
+        The DAG processor parses user code, so it must not hold the signing key or mint its own
+        token. Standalone runs in a trusted context (it already holds the signing key the
+        scheduler uses to mint task tokens), so it mints the processor's token here and provisions
+        it through ``[dag_processor] api_token_path``. The token carries both the Execution and DAG
+        Processing audiences (the processor calls both APIs) and a sentinel subject, since the
+        Execution API is task-instance scoped.
+        """
+        try:
+            # Materialise a signing key shared by every standalone subprocess, so the api-server
+            # validates the token with the same key it is minted with here.
+            secret = get_signing_key("api_auth", "jwt_secret", make_secret_key_if_needed=True)
+            env["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
+            os.environ["AIRFLOW__API_AUTH__JWT_SECRET"] = secret
+
+            # Standalone is the trusted launcher, so it mints the processor's token here (the
+            # processor never mints its own); the same minting is used by real deployments.
+            fd, path = tempfile.mkstemp(prefix="airflow-standalone-", suffix=".token")
+            os.close(fd)
+            provision_dag_processor_token_file(path, make_secret_key_if_needed=True)
+            env["AIRFLOW__DAG_PROCESSOR__API_TOKEN_PATH"] = path
+        except Exception as e:
+            self.print_output("standalone", f"Could not provision the DAG processor API token: {e}")
 
     def find_user_info(self):
         if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":

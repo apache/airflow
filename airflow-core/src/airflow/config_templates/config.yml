@@ -511,6 +511,17 @@ core:
       type: string
       example: ~
       default: ~
+    dag_processing_api_server_url:
+      description: |
+        The url of the DAG processing api server. The DAG processor never accesses the metadata
+        database directly; it persists parse results and reads metadata through this api server.
+        Defaults to ``{BASE_URL}/dag-processing`` (a sibling of ``execution_api_server_url``),
+        where ``{BASE_URL}`` is the base url of the API server. Set this to point the DAG
+        processor at a different host.
+      version_added: 3.3.0
+      type: string
+      example: "http://localhost:8080/dag-processing"
+      default: ~
     multi_team:
       description: |
         Whether to run the Airflow environment in multi-team mode.
@@ -2984,6 +2995,40 @@ dag_processor:
       type: string
       example: "/tmp/some-place"
       default: ~
+
+    jwt_audience:
+      version_added: 3.3.0
+      description: |
+        The audience claim the DAG Processing API validates on tokens the DAG processor presents.
+        Can be a single value or a comma-separated string (all are accepted at validation time).
+        The token itself is minted by the deployment, not the processor; see ``api_token_path``.
+      example: "my-unique-airflow-id"
+      default: "urn:airflow.apache.org:dag-processing"
+      type: string
+
+    api_token_path:
+      version_added: 3.3.0
+      description: |
+        Path to a file containing the bearer token the DAG processor presents to the API server
+        (for both the DAG Processing and Execution APIs). The DAG processor parses user code, so
+        it must not hold the signing key or mint its own token; the deployment (or control plane)
+        provisions this token and writes it to the file. The processor re-reads this file as it is
+        rotated, so a refreshed token is picked up without a restart. If unset, the processor sends
+        no token.
+      example: "/var/run/airflow/dag-processor-token"
+      default: ~
+      type: string
+
+    jwt_expiration_time:
+      version_added: 3.3.0
+      description: |
+        Lifetime, in seconds, of the token a trusted component (the deployment's token-provisioning
+        step, or ``airflow standalone``) mints for the DAG processor and writes to ``api_token_path``.
+        The provisioning step should re-mint before this elapses so the long-running processor keeps
+        a valid token. The processor itself never mints a token; this only configures the minter.
+      default: "86400"
+      type: integer
+      example: ~
 
     dag_bundle_config_list:
       description: |

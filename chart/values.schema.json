@@ -5742,6 +5742,23 @@
                     "type": "boolean",
                     "default": true
                 },
+                "apiToken": {
+                    "description": "Provisioning of the bearer token the DAG processor presents to the API server. The processor never mints its own token (it parses user code); a trusted init container mints it instead.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "provisionViaInitContainer": {
+                            "description": "Mint the token in an init container (which holds the signing key) into a shared volume the processor reads. Set false to provision the token yourself via ``extraInitContainers``/``extraVolumes`` and ``config.dag_processor.api_token_path``.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "path": {
+                            "description": "Path of the token file, shared between the init container and the processor.",
+                            "type": "string",
+                            "default": "/opt/airflow/dag-processor-token/token"
+                        }
+                    }
+                },
                 "dagBundleConfigList": {
                     "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
                     "type": "array",

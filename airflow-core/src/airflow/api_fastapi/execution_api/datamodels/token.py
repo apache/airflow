@@ -41,7 +41,14 @@ class TIClaims(BaseModel):
 
 
 class TIToken(BaseModel):
-    """Task Identity Token."""
+    """
+    Identity token presented to the Execution API.
 
-    id: UUID
+    ``id`` is the task-instance UUID for the common case (worker/task tokens). It is ``None`` for a
+    non-task principal -- e.g. the DAG processor reading connections/variables at parse time, whose
+    ``sub`` is not a task-instance id. Routes that act on a specific task instance (xcom, dag_runs,
+    the workload-scoped task_instance ops) require ``id``; the connection/variable reads do not.
+    """
+
+    id: UUID | None = None
     claims: TIClaims

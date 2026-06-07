@@ -31,6 +31,8 @@
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.dagProcessor.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.dagProcessor.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $provisionApiToken := .Values.dagProcessor.apiToken.provisionViaInitContainer }}
+{{- $apiTokenDir := dir .Values.dagProcessor.apiToken.path }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -137,6 +139,35 @@ spec:
               {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
+        {{- if $provisionApiToken }}
+        - name: provision-api-token
+          # The DAG processor parses user code, so it must not hold the signing key. This trusted
+          # init container holds it (IncludeJwtSecret true), mints the processor's token into a
+          # shared volume, and exits; the dag-processor container below reads that file without the
+          # signing key. Re-created on every pod start, so the token is fresh per restart.
+          resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          args:
+            - "bash"
+            - "-c"
+            - "exec airflow provision-dag-processor-token"
+          volumeMounts:
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.dagProcessor.extraVolumeMounts }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            - name: dag-processor-api-token
+              mountPath: {{ $apiTokenDir | quote }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" true) .) | indent 10 }}
+        {{- end }}
         {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
@@ -170,6 +201,11 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
+            {{- if $provisionApiToken }}
+            - name: dag-processor-api-token
+              mountPath: {{ $apiTokenDir | quote }}
+              readOnly: true
+            {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
@@ -277,4 +313,8 @@ spec:
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
 {{- end }}
+        {{- if $provisionApiToken }}
+        - name: dag-processor-api-token
+          emptyDir: {}
+        {{- end }}
 {{- end }}
