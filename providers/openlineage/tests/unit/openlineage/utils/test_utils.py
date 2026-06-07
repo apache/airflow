@@ -3197,7 +3197,7 @@ def test_task_info_af3():
         "execution_timeout": None,
         "executor_config": {},
         "hitl_summary": "hitl_summary",
-        "ignore_first_depends_on_past": False,
+        "ignore_first_depends_on_past": True,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
         "mapped": False,
         "max_active_tis_per_dag": None,
