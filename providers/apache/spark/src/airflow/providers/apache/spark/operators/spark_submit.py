@@ -247,10 +247,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
-    # Generic key used across all Spark deployment modes (standalone driver ID,
-    # YARN application ID, K8s driver pod name).
-    external_id_key = "spark_job_id"
-
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
         self.conf = self.conf or {}
@@ -272,6 +268,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
+        if hook._should_track_driver_via_k8s_api():
+            # TODO: Wire into execute_resumable() via ResumableJobMixin
+            # (fill submit_job / poll_until_complete K8s stubs) to enable crash recovery.
+            hook.submit(self.application)
+            hook._poll_k8s_driver_via_api()
+            return
         if hook._is_yarn_cluster_mode:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
