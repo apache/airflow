@@ -1329,7 +1329,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def query_yarn_application_status(self, application_id: str) -> str:
         """
-        Return a normalised single string status for the ResumableJobMixin interface.
+        Return a normalized single string status for the ResumableJobMixin interface.
 
         - Active states (NEW, NEW_SAVING, SUBMITTED, ACCEPTED, RUNNING) are returned as-is.
         - Terminal states are collapsed to "SUCCEEDED" or "FAILED" with the following rules:
@@ -1343,19 +1343,3 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if state == "FINISHED" and final_status == self._YARN_FINAL_SUCCESS:
             return "SUCCEEDED"
         return "FAILED"
-
-    def kill_yarn_application(self, application_id: str) -> None:
-        """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
-        import requests
-
-        try:
-            url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
-        except ValueError as exc:
-            self.log.warning("Cannot send YARN kill for %s: %s", application_id, exc)
-            return
-        try:
-            resp = requests.put(url, json={"state": "KILLED"}, timeout=self._HTTP_TIMEOUT)
-        except requests.exceptions.RequestException as exc:
-            self.log.warning("YARN kill request for %s failed: %s", application_id, exc)
-            return
-        self.log.info("YARN kill request for %s returned HTTP %s", application_id, resp.status_code)

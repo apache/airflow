@@ -382,8 +382,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         if self._hook._is_yarn_cluster_mode:
-            self._hook._start_yarn_application_status_tracking(external_id)
-            self._hook._run_post_submit_commands()
+            try:
+                self._hook._start_yarn_application_status_tracking(external_id)
+            finally:
+                self._hook._run_post_submit_commands()
             return
         if self._hook._is_kubernetes:
             # TODO: poll K8s pod phase until terminal
@@ -407,7 +409,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook._is_yarn_cluster_mode and self._hook._yarn_application_id:
             # spark-submit has already exited (waitAppCompletion=false), so the hook's
             # CLI-based kill has nothing to terminate. Kill the YARN app via REST API instead.
-            self._hook.kill_yarn_application(self._hook._yarn_application_id)
+            self._hook._kill_yarn_application(self._hook._yarn_application_id)
         else:
             self._hook.on_kill()
 

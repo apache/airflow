@@ -748,7 +748,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook = self._make_hook(is_yarn_cluster=True)
         task_store = FakeTaskState({"spark_job_id": "application_1234_0001"})
 
-        operator.get_job_status = lambda external_id: "RUNNING"
+        operator.get_job_status = lambda external_id, context: "RUNNING"
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
@@ -762,7 +762,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook = self._make_hook(is_yarn_cluster=True)
         task_store = FakeTaskState({"spark_job_id": "application_1234_0001"})
 
-        operator.get_job_status = lambda external_id: "SUCCEEDED"
+        operator.get_job_status = lambda external_id, context: "SUCCEEDED"
 
         operator.execute(context={"task_store": task_store})
 
@@ -776,7 +776,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.return_value = None
         task_store = FakeTaskState({"spark_job_id": "application_1234_0001"})
 
-        operator.get_job_status = lambda external_id: "FAILED"
+        operator.get_job_status = lambda external_id, context: "FAILED"
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
@@ -845,6 +845,18 @@ class TestSparkSubmitOperatorResumable:
         with pytest.raises(RuntimeError, match="FAILED"):
             operator.poll_until_complete("driver-001", {})
 
+    def test_on_kill_sends_authenticated_kill_to_yarn_rm(self):
+        """operator.on_kill() must call _kill_yarn_application so Kerberos auth is applied."""
+        operator = self._make_operator()
+        hook = self._make_hook(is_yarn_cluster=True)
+        hook._is_yarn_cluster_mode = True
+        hook._yarn_application_id = "application_1234_0001"
+        operator._hook = hook
+
+        operator.on_kill()
+
+        hook._kill_yarn_application.assert_called_once_with("application_1234_0001")
+
 
 class TestSparkSubmitOperatorK8sTracking:
     def setup_method(self):
@@ -858,6 +870,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook = MagicMock()
         hook._should_track_driver_status = False
         hook._should_track_driver_via_k8s_api.return_value = True
+        hook._is_yarn_cluster_mode = False
         return hook
 
     def test_execute_calls_submit_then_poll_when_flag_set(self):
