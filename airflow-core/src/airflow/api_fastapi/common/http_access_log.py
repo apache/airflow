@@ -26,12 +26,13 @@ from urllib.parse import parse_qsl, urlencode
 import structlog
 
 from airflow._shared.secrets_masker import secrets_masker
-from airflow.api_fastapi.common.http_paths import HEALTH_PATHS
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name="http.access")
+
+_HEALTH_PATHS = frozenset(("/api/v2/monitor/health",))
 
 
 def _redact_query_string(query: str) -> str:
@@ -112,7 +113,7 @@ class HttpAccessLogMiddleware:
                 raise
             finally:
                 path = scope["path"]
-                if path not in HEALTH_PATHS:
+                if path not in _HEALTH_PATHS:
                     duration_us = (time.monotonic_ns() - start) // 1000
                     status = response["status"] if response is not None else 0
                     method = scope.get("method", "")
