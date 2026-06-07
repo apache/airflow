@@ -210,7 +210,7 @@ class TestDagRun:
                 ti = dag_run.get_task_instance(task_id)
                 if TYPE_CHECKING:
                     assert ti
-                ti.set_state(task_state, session)
+                ti.set_state(task_state, session=session)
             session.flush()
 
         return dag_run
@@ -814,7 +814,7 @@ class TestDagRun:
             ...
         self.create_dag_run(dag, logical_date=timezone.datetime(2015, 1, 1), session=session)
         self.create_dag_run(dag, logical_date=timezone.datetime(2015, 1, 2), session=session)
-        dagruns = DagRun.get_latest_runs(session)
+        dagruns = DagRun.get_latest_runs(session=session)
         session.close()
         for dagrun in dagruns:
             if dagrun.dag_id == "test_latest_runs_1":
@@ -1241,7 +1241,7 @@ class TestDagRun:
                 session=session,
             )
             ti = dag_run.get_task_instance(dag_task.task_id, session)
-            ti.set_state(TaskInstanceState.SUCCESS, session)
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
@@ -1329,7 +1329,7 @@ class TestDagRun:
             )
             dag_run.queued_at = queued_at
             ti = dag_run.get_task_instance(dag_task.task_id, session)
-            ti.set_state(TaskInstanceState.SUCCESS, session)
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
             ti.start_date = ti_start_date
             session.flush()
 
