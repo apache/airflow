@@ -565,7 +565,7 @@ class WatchedSubprocess:
     No migration is attempted if this is set to *None* (default).
     """
 
-    client: Client
+    _client: Client | None = attrs.field(default=None, alias="client", repr=False)
 
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
@@ -584,6 +584,14 @@ class WatchedSubprocess:
 
     start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
+
+    @property
+    def client(self) -> Client | None:
+        return self._client
+
+    @client.setter
+    def client(self, value: Client | None) -> None:
+        self._client = value
 
     @classmethod
     def start(
