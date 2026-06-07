@@ -36,7 +36,7 @@ except ImportError:
     kube_client = None  # type: ignore[assignment]
 
 try:
-    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+    from airflow.sdk import ResumableJobMixin
 except ImportError:
     # Airflow 2 compat.
     # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it

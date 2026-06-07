@@ -164,19 +164,6 @@ _TRIGGER_PARAMS = [
     ),
 ]
 
-# datetime_kwarg can't round-trip via Trigger.encrypt_kwargs / _decrypt_kwargs yet:
-# serde lacks the "datetime" qualname mapping. xfail strict=True auto-detects the fix.
-_DB_ROUND_TRIP_PARAMS = [
-    pytest.param(
-        *p.values,
-        id=p.id,
-        marks=pytest.mark.xfail(strict=True, reason="serde missing datetime classname mapping"),
-    )
-    if p.id == "datetime_kwarg"
-    else p
-    for p in _TRIGGER_PARAMS
-]
-
 
 def _assert_fully_serialized(encoded_kwargs: dict[str, Any]) -> None:
     """Assert encoded kwargs are fully JSON-safe and not immediately re-wrapped.
@@ -308,7 +295,7 @@ class TestTriggerHashConsistency:
         session.execute(delete(Trigger))
         session.commit()
 
-    @pytest.mark.parametrize("trigger", _DB_ROUND_TRIP_PARAMS)
+    @pytest.mark.parametrize("trigger", _TRIGGER_PARAMS)
     def test_hash_matches_after_db_round_trip(self, trigger, session):
         """Hash from DAG-parsed kwargs equals hash from a DB-persisted Trigger."""
         encoded = encode_trigger(trigger)
@@ -335,7 +322,7 @@ class TestTriggerHashConsistency:
 
         assert dag_hash == db_hash
 
-    @pytest.mark.parametrize("trigger", _DB_ROUND_TRIP_PARAMS)
+    @pytest.mark.parametrize("trigger", _TRIGGER_PARAMS)
     def test_hash_matches_after_re_encode_and_db_round_trip(self, trigger, session):
         """Hash stays consistent when encode_trigger output is re-encoded
         (deserialized-DAG re-serialization path) before DB storage.

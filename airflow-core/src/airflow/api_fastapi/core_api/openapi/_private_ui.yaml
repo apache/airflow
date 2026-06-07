@@ -3758,6 +3758,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -3804,6 +3805,9 @@ components:
         deferred:
           type: integer
           title: Deferred
+        awaiting_input:
+          type: integer
+          title: Awaiting Input
       type: object
       required:
       - no_status
@@ -3819,6 +3823,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
     TeamCollectionResponse:

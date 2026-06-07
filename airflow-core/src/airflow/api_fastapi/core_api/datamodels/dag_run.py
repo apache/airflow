@@ -171,6 +171,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
+        dag.validate_partition_key(self.partition_key)
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None

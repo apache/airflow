@@ -1907,6 +1907,7 @@ class TestTriggererMessageTypes:
         trigger_runner_types = get_type_names(ToTriggerRunner)
 
         in_supervisor_but_not_in_trigger_supervisor = {
+            "AwaitInputTask",
             "DeferTask",
             "GetAssetByName",
             "GetAssetByUri",

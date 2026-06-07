@@ -54,6 +54,12 @@ If you want to use pre-written deferrable operators that come with Airflow, such
 
 Airflow automatically handles and implements the deferral processes for you.
 
+.. note::
+
+    :doc:`Human-in-the-loop <../tutorial/hitl>` operators do **not** use deferral or the triggerer.
+    They wait in the scheduler-managed ``awaiting_input`` task state, so a deployment that waits only
+    on human input rather than deferrable operators does not need a running triggerer.
+
 If you're upgrading existing Dags to use deferrable operators, Airflow contains API-compatible sensor variants. Add these variants into your Dag to use deferrable operators with no other changes required.
 
 Note that you can't use the deferral ability from inside custom PythonOperator or TaskFlow Python functions. Deferral is only available to traditional, class-based operators.

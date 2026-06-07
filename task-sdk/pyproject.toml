@@ -90,6 +90,7 @@ dependencies = [
     # Start of shared observability dependencies
     "opentelemetry-api>=1.27.0",
     # End of shared observability dependencies
+    "isoduration>=20.11.0"
 ]
 
 [project.optional-dependencies]

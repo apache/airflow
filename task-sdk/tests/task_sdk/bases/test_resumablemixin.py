@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.bases.resumablemixin import ResumableJobMixin
 
 if TYPE_CHECKING:
     from pydantic import JsonValue

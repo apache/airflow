@@ -1220,7 +1220,7 @@ class _PendingActionsFilter(BaseParam[bool]):
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .where(
                 HITLDetail.responded_at.is_(None),
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
@@ -1600,6 +1600,7 @@ state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.QUEUED,
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
+    TaskInstanceState.AWAITING_INPUT,
     TaskInstanceState.RUNNING,
     TaskInstanceState.RESTARTING,
     None,
