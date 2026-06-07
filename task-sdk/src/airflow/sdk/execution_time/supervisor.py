@@ -51,7 +51,6 @@ from pydantic import BaseModel, TypeAdapter
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
-    AssetResponse,
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
@@ -60,55 +59,21 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
-    AssetEventsResult,
-    AssetResult,
-    AssetStoreResult,
     AwaitInputTask,
-    ClearAssetStoreByName,
-    ClearAssetStoreByUri,
-    ClearTaskStore,
     ConnectionResult,
-    CreateHITLDetailPayload,
-    DagResult,
-    DagRunResult,
     DeferTask,
-    DeleteAssetStoreByName,
-    DeleteAssetStoreByUri,
-    DeleteTaskStore,
     ErrorResponse,
-    GetAssetByName,
-    GetAssetByUri,
-    GetAssetEventByAsset,
-    GetAssetEventByAssetAlias,
-    GetAssetsByAlias,
-    GetAssetStoreByName,
-    GetAssetStoreByUri,
-    GetDag,
-    GetDagRun,
-    GetTaskBreadcrumbs,
-    GetTaskRescheduleStartDate,
-    GetTaskStore,
-    HITLDetailRequestResult,
-    InactiveAssetsResult,
-    OKResponse,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStoreByName,
-    SetAssetStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskStore,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
-    TaskBreadcrumbsResult,
     TaskState,
-    TaskStoreResult,
     ToSupervisor,
-    TriggerDagRun,
-    ValidateInletsAndOutlets,
     _RequestFrame,
     _ResponseFrame,
 )
@@ -1643,8 +1608,6 @@ class ActivitySubprocess(WatchedSubprocess):
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             # No direct API call here — the recovery path in
             # `update_task_state_if_needed` will call `finish()` for
@@ -1693,174 +1656,12 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
             self.send_msg(None, request_id=req_id, error=None)
             return
-        if isinstance(msg, GetAssetByName):
-            asset_resp = self.client.assets.get(name=msg.name)
-            if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = asset_resp
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, GetAssetByUri):
-            asset_resp = self.client.assets.get(uri=msg.uri)
-            if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = asset_resp
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, GetAssetsByAlias):
-            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(
-                uri=msg.uri,
-                name=msg.name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(
-                alias_name=msg.alias_name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, TriggerDagRun):
-            resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
-            )
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetDagRun):
-            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
-            resp = DagRunResult.from_api_response(dr_resp)
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetTaskRescheduleStartDate):
-            resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetTaskBreadcrumbs):
-            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
-            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, ValidateInletsAndOutlets):
-            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
-            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
-            dump_opts = {"exclude_unset": True}
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
         if isinstance(msg, ResendLoggingFD):
             # We need special handling here!
             if send_fds is not None:
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
-            return
-        if isinstance(msg, CreateHITLDetailPayload):
-            hitl_detail_request = self.client.hitl.add_response(
-                ti_id=msg.ti_id,
-                options=msg.options,
-                subject=msg.subject,
-                body=msg.body,
-                defaults=msg.defaults,
-                params=msg.params,
-                multiple=msg.multiple,
-                assigned_users=msg.assigned_users,
-            )
-            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
-            dump_opts = {"exclude_unset": True}
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
-            return
-        if isinstance(msg, GetDag):
-            dag = self.client.dags.get(
-                dag_id=msg.dag_id,
-            )
-            resp = DagResult.from_api_response(dag)
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetTaskStore):
-            task_store = self.client.task_store.get(msg.ti_id, msg.key)
-            resp = (
-                task_store
-                if isinstance(task_store, ErrorResponse)
-                else TaskStoreResult.from_task_store_response(task_store)
-            )
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, SetTaskStore):
-            self.client.task_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, DeleteTaskStore):
-            self.client.task_store.delete(msg.ti_id, msg.key)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, ClearTaskStore):
-            self.client.task_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetAssetStoreByName):
-            asset_store = self.client.asset_store.get(msg.key, name=msg.name)
-            resp = (
-                asset_store
-                if isinstance(asset_store, ErrorResponse)
-                else AssetStoreResult.from_asset_store_response(asset_store)
-            )
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, GetAssetStoreByUri):
-            asset_store = self.client.asset_store.get(msg.key, uri=msg.uri)
-            resp = (
-                asset_store
-                if isinstance(asset_store, ErrorResponse)
-                else AssetStoreResult.from_asset_store_response(asset_store)
-            )
-            self.send_msg(resp, request_id=req_id, error=None)
-            return
-        if isinstance(msg, SetAssetStoreByName):
-            self.client.asset_store.set(msg.key, msg.value, name=msg.name)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, SetAssetStoreByUri):
-            self.client.asset_store.set(msg.key, msg.value, uri=msg.uri)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, DeleteAssetStoreByName):
-            self.client.asset_store.delete(msg.key, name=msg.name)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, DeleteAssetStoreByUri):
-            self.client.asset_store.delete(msg.key, uri=msg.uri)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, ClearAssetStoreByName):
-            self.client.asset_store.clear(name=msg.name)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
-            return
-        if isinstance(msg, ClearAssetStoreByUri):
-            self.client.asset_store.clear(uri=msg.uri)
-            self.send_msg(OKResponse(ok=True), request_id=req_id, error=None)
             return
 
         super()._handle_request(msg, log, req_id)
