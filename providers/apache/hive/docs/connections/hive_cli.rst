@@ -80,9 +80,6 @@ High Availability (optional)
 Ssl (optional)
     Specify as ``True`` to enable SSL for your high availability connection.
 
-Transport Mode (optional)
-    Specify the JDBC ``transportMode`` parameter. Supported values are ``binary`` and ``http``.
-
 Zoo Keeper Namespace (optional)
     Zoo keeper namespace for high availability.
 
@@ -102,13 +99,12 @@ with the ``jdbc_params`` argument:
        }
    )
 
-These parameters are appended to the Beeline JDBC URL. Parameter names must start with a letter
-and contain only letters, digits, dots, underscores, or hyphens. Values must not contain semicolons.
+These parameters are appended to the Beeline JDBC URL. Parameter names must match
+``^[A-Za-z]([A-Za-z0-9._-]*[A-Za-z0-9])?$`` (start with a letter, contain only letters, digits,
+dots, underscores, or hyphens, and not end in a separator). Values must not contain semicolons.
 
-Arbitrary JDBC parameters are not read from connection extras. Only fixed connection extras with
-bounded values, such as ``transport_mode`` for JDBC ``transportMode``, are supported there. When
-``jdbc_params`` uses the same JDBC parameter name as a fixed connection extra, the ``jdbc_params``
-value is used.
+``jdbc_params`` can only be set through ``HiveCliHook`` or ``HiveOperator``; arbitrary JDBC
+parameters are not read from connection extras.
 
 
 When specifying the connection in environment variable you should specify
