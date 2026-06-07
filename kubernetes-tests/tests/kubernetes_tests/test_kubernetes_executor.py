@@ -246,110 +246,6 @@ class TestKubernetesExecutor(BaseK8STest):
         executor.kube_client.read_namespaced_pod.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# Helpers shared by callback tests
-# ---------------------------------------------------------------------------
-
-_CALLBACK_LABEL = "airflow-workload-type=callback"
-_CALLBACK_ANNOTATION_KEY = "callback_id"
-
-
-def _get_callback_pods(namespace: str = "airflow") -> list[dict]:
-    """Return all callback-pod objects in the namespace as a list of dicts."""
-    raw = check_output(
-        [
-            "kubectl",
-            "get",
-            "pods",
-            "-n",
-            namespace,
-            "-l",
-            _CALLBACK_LABEL,
-            "-o",
-            "json",
-        ]
-    )
-    return json.loads(raw)["items"]
-
-
-def _wait_for_callback_pod(run_id: str, namespace: str = "airflow", timeout: int = 120) -> dict:
-    """Block until a callback pod annotated with *run_id* appears; return the pod dict."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        for pod in _get_callback_pods(namespace):
-            annotations = pod.get("metadata", {}).get("annotations", {})
-            if annotations.get("run_id") == run_id:
-                return pod
-        time.sleep(1)
-    raise AssertionError(f"No callback pod for run_id={run_id!r} appeared within {timeout}s")
-
-
-def _wait_for_pod_phase(
-    pod_name: str,
-    phases: list[str],
-    namespace: str = "airflow",
-    timeout: int = 120,
-) -> str:
-    """Block until *pod_name* reaches one of *phases*; return the reached phase.
-
-    Returns ``"Deleted"`` if the pod is not found (404). Callers that want to
-    treat executor-driven pod deletion as a success should include ``"Deleted"``
-    in *phases* — the executor only removes pods after they have succeeded
-    (``delete_worker_pods=True`` and ``delete_worker_pods_on_failure=False``
-    by default).
-    """
-    deadline = time.monotonic() + timeout
-    phase = ""
-    while time.monotonic() < deadline:
-        result = subprocess.run(
-            [
-                "kubectl",
-                "get",
-                "pod",
-                pod_name,
-                "-n",
-                namespace,
-                "-o",
-                "jsonpath={.status.phase}",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0 and ("NotFound" in result.stderr or "not found" in result.stderr.lower()):
-            phase = "Deleted"
-        else:
-            phase = result.stdout.strip()
-        if phase in phases:
-            return phase
-        time.sleep(2)
-    raise AssertionError(
-        f"Pod {pod_name!r} did not reach {phases} within {timeout}s (last seen phase: {phase!r})"
-    )
-
-
-def _wait_for_pod_gone(pod_name: str, namespace: str = "airflow", timeout: int = 60) -> None:
-    """Block until the named pod no longer exists in the namespace."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        result = subprocess.run(
-            ["kubectl", "get", "pod", pod_name, "-n", namespace],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        # kubectl exits non-zero and prints "NotFound" when the pod is gone
-        if result.returncode != 0 and "NotFound" in result.stderr:
-            return
-        time.sleep(5)
-    raise AssertionError(f"Pod {pod_name!r} was not deleted within {timeout}s")
-
-
-# ---------------------------------------------------------------------------
-# Integration tests for ExecutorCallback on the Kubernetes executor
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutorCallbackSupport(BaseK8STest):
     """
@@ -363,25 +259,109 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
       - The executor must be KubernetesExecutor.
     """
 
-    # The DAG that fires a fast callback immediately on trigger.
     _FAST_DAG_ID = "example_deadline_callback"
-    # The DAG that fires a slow (40-second) callback – used for scheduler-restart test.
     _SLOW_DAG_ID = "example_deadline_callback_slow"
-    # The DAG whose callback always raises RuntimeError – used for failure path test.
     _FAILING_DAG_ID = "example_deadline_callback_failing"
 
+    _CALLBACK_LABEL = "airflow-workload-type=callback"
+    _CALLBACK_ANNOTATION_KEY = "callback_id"
+
+    @classmethod
+    def _get_callback_pods(cls, namespace: str = "airflow") -> list[dict]:
+        raw = check_output(
+            [
+                "kubectl",
+                "get",
+                "pods",
+                "-n",
+                namespace,
+                "-l",
+                cls._CALLBACK_LABEL,
+                "-o",
+                "json",
+            ]
+        )
+        return json.loads(raw)["items"]
+
+    @classmethod
+    def _wait_for_callback_pod(cls, run_id: str, namespace: str = "airflow", timeout: int = 120) -> dict:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for pod in cls._get_callback_pods(namespace):
+                annotations = pod.get("metadata", {}).get("annotations", {})
+                if annotations.get("run_id") == run_id:
+                    return pod
+            time.sleep(1)
+        raise AssertionError(f"No callback pod for run_id={run_id!r} appeared within {timeout}s")
+
+    @staticmethod
+    def _wait_for_pod_phase(
+        pod_name: str,
+        phases: list[str],
+        namespace: str = "airflow",
+        timeout: int = 120,
+    ) -> str:
+        """
+        Block until *pod_name* reaches one of *phases*; return the reached phase.
+
+        Returns ``"Deleted"`` if the pod is not found. Include ``"Deleted"`` in *phases*
+        when executor-driven deletion counts as success — pods are only removed after they
+        succeed (``delete_worker_pods=True`` default).
+        """
+        deadline = time.monotonic() + timeout
+        phase = ""
+        while time.monotonic() < deadline:
+            result = subprocess.run(
+                [
+                    "kubectl",
+                    "get",
+                    "pod",
+                    pod_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "jsonpath={.status.phase}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0 and (
+                "NotFound" in result.stderr or "not found" in result.stderr.lower()
+            ):
+                phase = "Deleted"
+            else:
+                phase = result.stdout.strip()
+            if phase in phases:
+                return phase
+            time.sleep(2)
+        raise AssertionError(
+            f"Pod {pod_name!r} did not reach {phases} within {timeout}s (last seen phase: {phase!r})"
+        )
+
+    @staticmethod
+    def _wait_for_pod_gone(pod_name: str, namespace: str = "airflow", timeout: int = 60) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            result = subprocess.run(
+                ["kubectl", "get", "pod", pod_name, "-n", namespace],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            # kubectl exits non-zero and prints "NotFound" when the pod is gone
+            if result.returncode != 0 and "NotFound" in result.stderr:
+                return
+            time.sleep(5)
+        raise AssertionError(f"Pod {pod_name!r} was not deleted within {timeout}s")
+
     def _trigger_dag_run(self, dag_id: str) -> str:
-        """Trigger a new DAG run and return its run_id (the most recently queued one)."""
         result_json = self.start_dag(dag_id=dag_id, host=self.host)
         dag_runs = result_json.get("dag_runs", [])
         matching = [r for r in dag_runs if r["dag_id"] == dag_id]
         assert matching, f"No dag runs returned for dag_id={dag_id!r}"
         newest = max(matching, key=lambda r: r["queued_at"])
         return newest["dag_run_id"]
-
-    # -----------------------------------------------------------------------
-    # 8.1  Happy path: callback pod appears, runs and succeeds
-    # -----------------------------------------------------------------------
 
     @pytest.mark.execution_timeout(300)
     def test_deadline_callback_executes_on_kubernetes(self):
@@ -393,23 +373,16 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         dag_run_id = self._trigger_dag_run(dag_id)
         print(f"[{dag_id}] dag_run_id={dag_run_id}")
 
-        # Wait for the callback pod to appear.
-        pod = _wait_for_callback_pod(dag_run_id, timeout=120)
+        pod = self._wait_for_callback_pod(dag_run_id, timeout=120)
         pod_name = pod["metadata"]["name"]
         print(f"[{dag_id}] callback pod appeared: {pod_name}")
 
-        # Wait for the pod to complete successfully.  The executor deletes pods
-        # immediately after they succeed (delete_worker_pods=True default), so
-        # the pod may already be gone by the time we poll — "Deleted" is equally
-        # valid evidence of success.
-        phase = _wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=120)
+        # The executor deletes pods immediately after they succeed (delete_worker_pods=True
+        # default), so "Deleted" is equally valid evidence of success.
+        phase = self._wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=120)
         assert phase in ("Succeeded", "Deleted"), (
             f"Callback pod {pod_name!r} reached phase {phase!r} instead of Succeeded/Deleted"
         )
-
-    # -----------------------------------------------------------------------
-    # 8.3  Correct annotations and labels on the callback pod
-    # -----------------------------------------------------------------------
 
     @pytest.mark.execution_timeout(300)
     def test_callback_pod_annotations_and_labels(self):
@@ -421,21 +394,18 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         dag_id = self._FAST_DAG_ID
         dag_run_id = self._trigger_dag_run(dag_id)
 
-        pod = _wait_for_callback_pod(dag_run_id, timeout=120)
+        pod = self._wait_for_callback_pod(dag_run_id, timeout=120)
         annotations = pod["metadata"]["annotations"]
         labels = pod["metadata"]["labels"]
         containers = pod["spec"]["containers"]
 
-        # --- annotations ---
-        assert _CALLBACK_ANNOTATION_KEY in annotations, (
-            f"Annotation {_CALLBACK_ANNOTATION_KEY!r} missing from pod. Got: {annotations}"
+        assert self._CALLBACK_ANNOTATION_KEY in annotations, (
+            f"Annotation {self._CALLBACK_ANNOTATION_KEY!r} missing from pod. Got: {annotations}"
         )
-        callback_id = annotations[_CALLBACK_ANNOTATION_KEY]
-        # callback_id must look like a UUID (32 hex chars + 4 dashes)
+        callback_id = annotations[self._CALLBACK_ANNOTATION_KEY]
         assert re.fullmatch(r"[0-9a-f-]{36}", callback_id), (
             f"callback_id {callback_id!r} does not look like a UUID"
         )
-
         assert annotations.get("dag_id") == dag_id, (
             f"Expected dag_id annotation {dag_id!r}, got {annotations.get('dag_id')!r}"
         )
@@ -446,7 +416,6 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         for forbidden in ("task_id", "try_number", "map_index"):
             assert forbidden not in annotations, f"Unexpected annotation {forbidden!r} found on callback pod"
 
-        # --- labels ---
         assert labels.get("airflow-workload-type") == "callback", (
             f"Expected label airflow-workload-type=callback, got: {labels}"
         )
@@ -455,7 +424,6 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         )
         assert "airflow-worker" in labels, f"airflow-worker label missing. Got: {labels}"
 
-        # --- container command ---
         assert containers, "No containers found in callback pod spec"
         args = containers[0].get("args", []) or []
         cmd = containers[0].get("command", []) or []
@@ -466,10 +434,6 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         assert any("--json-string" in part for part in full_cmd), (
             f"Container command does not include '--json-string'. Full command: {full_cmd}"
         )
-
-    # -----------------------------------------------------------------------
-    # 8.2  Callback pod failure marks the callback as failed
-    # -----------------------------------------------------------------------
 
     @pytest.mark.execution_timeout(300)
     def test_deadline_callback_pod_failure(self):
@@ -486,13 +450,13 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         dag_run_id = self._trigger_dag_run(dag_id)
         print(f"[{dag_id}] dag_run_id={dag_run_id}")
 
-        pod = _wait_for_callback_pod(dag_run_id, timeout=120)
+        pod = self._wait_for_callback_pod(dag_run_id, timeout=120)
         pod_name = pod["metadata"]["name"]
         print(f"[{dag_id}] callback pod appeared: {pod_name}")
 
         try:
             # Failed pods are NOT auto-deleted (delete_worker_pods_on_failure=False default).
-            phase = _wait_for_pod_phase(pod_name, ["Failed"], timeout=120)
+            phase = self._wait_for_pod_phase(pod_name, ["Failed"], timeout=120)
             assert phase == "Failed", f"Expected Failed phase, got {phase!r}"
 
             # Executor must not have crashed — scheduler pod must still be Running.
@@ -524,10 +488,6 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
                 check=False,
             )
 
-    # -----------------------------------------------------------------------
-    # 8.5  Callback pod is cleaned up after success
-    # -----------------------------------------------------------------------
-
     @pytest.mark.execution_timeout(300)
     def test_callback_pod_is_cleaned_up_after_success(self):
         """
@@ -537,20 +497,14 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         dag_id = self._FAST_DAG_ID
         dag_run_id = self._trigger_dag_run(dag_id)
 
-        pod = _wait_for_callback_pod(dag_run_id, timeout=120)
+        pod = self._wait_for_callback_pod(dag_run_id, timeout=120)
         pod_name = pod["metadata"]["name"]
 
-        # Wait for the pod to finish.  If the pod is already gone ("Deleted"),
-        # that itself is proof of executor-driven cleanup — skip the explicit
-        # deletion wait in that case.
-        phase = _wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=120)
+        # If the pod is already gone ("Deleted"), that itself is proof of executor-driven
+        # cleanup — skip the explicit deletion wait in that case.
+        phase = self._wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=120)
         if phase != "Deleted":
-            # The executor's delete_worker_pods=True (default) must delete the pod.
-            _wait_for_pod_gone(pod_name, timeout=60)
-
-    # -----------------------------------------------------------------------
-    # 8.4  Scheduler restart with an in-flight callback pod
-    # -----------------------------------------------------------------------
+            self._wait_for_pod_gone(pod_name, timeout=60)
 
     @pytest.mark.execution_timeout(400)
     def test_callback_pod_survives_scheduler_restart(self):
@@ -563,24 +517,23 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         dag_run_id = self._trigger_dag_run(dag_id)
 
         # Wait until the callback pod is actually Running before killing the scheduler.
-        pod = _wait_for_callback_pod(dag_run_id, timeout=120)
+        pod = self._wait_for_callback_pod(dag_run_id, timeout=120)
         pod_name = pod["metadata"]["name"]
-        pre_restart_phase = _wait_for_pod_phase(
+        pre_restart_phase = self._wait_for_pod_phase(
             pod_name, ["Running", "Succeeded", "Failed", "Deleted"], timeout=60
         )
 
-        # Restart the scheduler.
         self._delete_airflow_pod("scheduler")
         self.ensure_resource_health("airflow-scheduler")
         print(f"[{dag_id}] Scheduler restarted; waiting for callback pod to complete.")
 
         if pre_restart_phase in ("Succeeded", "Deleted"):
-            # Pod already completed before the restart — the test goal (pod
-            # completion despite scheduler lifecycle) is still met.
+            # Pod already completed before the restart — the test goal (pod completion
+            # despite scheduler lifecycle) is still met.
             return
 
-        # The slow callback sleeps for 40 s; allow plenty of time for completion.
-        phase = _wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=180)
+        # The slow callback sleeps for 30s; allow plenty of time for completion.
+        phase = self._wait_for_pod_phase(pod_name, ["Succeeded", "Failed", "Deleted"], timeout=180)
         assert phase in ("Succeeded", "Deleted"), (
             f"Callback pod {pod_name!r} reached {phase!r} after scheduler restart (expected Succeeded/Deleted)"
         )

@@ -54,6 +54,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import WorkloadKey
+
 
 class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
@@ -590,6 +592,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 self._run_next_callback(key, command[0], pod_template_file)
                 return
 
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        if not isinstance(key, TaskInstanceKey):
+            raise ValueError(f"KubernetesExecutor doesn't know how to handle workload key: {type(key)}")
+
         dag_id, task_id, run_id, try_number, map_index = key
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
@@ -752,6 +759,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task.state,
             annotations_for_logging_task_metadata(task.annotations),
         )
+        key: WorkloadKey
         if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in task.annotations:
             from airflow.models.callback import CallbackKey
 
