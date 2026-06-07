@@ -63,6 +63,7 @@ from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRun
 
 
 access_token = generate_access_token("admin", "admin", "localhost:8080")
+print(access_token2)
 configuration = airflow_client.client.Configuration(host="http://localhost:8080", access_token=access_token)
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
