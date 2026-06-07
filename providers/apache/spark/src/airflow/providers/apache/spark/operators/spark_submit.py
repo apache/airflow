@@ -324,12 +324,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             if task_store is not None:
                 cached = task_store.get(self._K8S_DRIVER_STATUS_KEY)
                 if cached:
+                    if TYPE_CHECKING:
+                        assert isinstance(cached, str)
                     return cached
             if kube_client is None:
                 raise RuntimeError(
                     "apache-airflow-providers-cncf-kubernetes is required to query K8s pod status"
                 )
-            namespace, pod_name = external_id.split(":", 1)
             parts = external_id.split(":", 1)
             if len(parts) != 2:
                 raise ValueError(

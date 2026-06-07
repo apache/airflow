@@ -906,6 +906,10 @@ class TestSparkSubmitOperatorK8sTracking:
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {})
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
+    )
     def test_k8s_execute_persists_pod_id_to_task_store_when_reconnect_on_retry(self):
         """execute() with reconnect_on_retry=True stores the pod ID in task_store before polling."""
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=True)
@@ -925,6 +929,10 @@ class TestSparkSubmitOperatorK8sTracking:
 
         assert persisted_before_poll == ["mynamespace:spark-abc-driver"]
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
+    )
     def test_k8s_execute_reconnect_on_retry_false_does_not_persist_pod_id(self):
         """execute() with reconnect_on_retry=False does not write spark_job_id to task_store."""
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
