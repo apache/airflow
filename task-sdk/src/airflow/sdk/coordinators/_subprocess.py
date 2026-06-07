@@ -27,6 +27,7 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import ipaddress
 import itertools
 import os
 import selectors
@@ -70,7 +71,18 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
     if not isinstance(value, tuple) or len(value) < 2:
         return None
     host, port = value[:2]
-    return str(host), int(port)
+    host = str(host)
+    # Canonicalize IPv4-mapped IPv6 ("::ffff:127.0.0.1" -> "127.0.0.1") so a dual-stack
+    # client (e.g. the JVM, shown v4-mapped in /proc/net/tcp6) matches the AF_INET
+    # supervisor socket's plain-IPv4 address in the ownership check below.
+    try:
+        parsed = ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
+            host = str(parsed.ipv4_mapped)
+    return host, int(port)
 
 
 def _connection_owned_by_process_tree(
