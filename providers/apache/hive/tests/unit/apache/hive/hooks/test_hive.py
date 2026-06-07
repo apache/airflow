@@ -667,8 +667,8 @@ class TestHiveCliHookJdbcParams:
         ]
 
     @mock.patch.object(HiveCliHook, "get_connection")
-    def test_connection_extra_and_hook_jdbc_params_compose_predictably(self, mock_get_connection):
-        mock_get_connection.return_value = get_hive_cli_connection(extra_dejson={"transport_mode": "binary"})
+    def test_hook_jdbc_params_append_in_order(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
 
         hook = HiveCliHook(
             jdbc_params={
@@ -686,11 +686,14 @@ class TestHiveCliHookJdbcParams:
     @pytest.mark.parametrize(
         ("jdbc_params", "message"),
         [
-            ({"transportMode;ssl": "http"}, "JDBC parameter names"),
-            ({"transportMode=ssl": "http"}, "JDBC parameter names"),
-            ({"transport Mode": "http"}, "JDBC parameter names"),
-            ({"transportMode": "http;ssl=true"}, "JDBC parameter 'transportMode' value"),
-            ({"transportMode": None}, "JDBC parameter 'transportMode' value"),
+            ({"transportMode;ssl": "http"}, "Invalid JDBC parameter name"),
+            ({"transportMode=ssl": "http"}, "Invalid JDBC parameter name"),
+            ({"transport Mode": "http"}, "Invalid JDBC parameter name"),
+            ({"transportMode-": "http"}, "Invalid JDBC parameter name"),
+            ({"foo.": "x"}, "Invalid JDBC parameter name"),
+            ({"bar_": "x"}, "Invalid JDBC parameter name"),
+            ({"transportMode": "http;ssl=true"}, "Invalid JDBC parameter value"),
+            ({"transportMode": None}, "Invalid JDBC parameter value"),
         ],
     )
     @mock.patch.object(HiveCliHook, "get_connection")
@@ -699,17 +702,6 @@ class TestHiveCliHookJdbcParams:
         hook = HiveCliHook(jdbc_params=jdbc_params)
 
         with pytest.raises(ValueError, match=message):
-            hook._prepare_cli_cmd()
-
-    @pytest.mark.parametrize("transport_mode", ["invalid", "http;ssl=true"])
-    @mock.patch.object(HiveCliHook, "get_connection")
-    def test_invalid_transport_mode_connection_extra_is_rejected(self, mock_get_connection, transport_mode):
-        mock_get_connection.return_value = get_hive_cli_connection(
-            extra_dejson={"transport_mode": transport_mode}
-        )
-        hook = HiveCliHook()
-
-        with pytest.raises(ValueError, match="transport_mode connection extra"):
             hook._prepare_cli_cmd()
 
 

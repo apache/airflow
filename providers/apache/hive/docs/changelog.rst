@@ -33,7 +33,6 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add Beeline JDBC parameters to HiveCliHook (#45049)``
 * ``Add uri sanitizers and asset factories for new schemes (#66426)``
 
 .. Below changes are excluded from the changelog. Move them to

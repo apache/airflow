@@ -50,8 +50,7 @@ if TYPE_CHECKING:
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
-HIVE_CLI_TRANSPORT_MODES = {"binary", "http"}
-JDBC_PARAMETER_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._-]*$")
+JDBC_PARAMETER_NAME_PATTERN = re.compile(r"^[A-Za-z]([A-Za-z0-9._-]*[A-Za-z0-9])?$")
 
 
 def get_context_from_env_var() -> dict[Any, Any]:
@@ -91,8 +90,9 @@ class HiveCliHook(BaseHook):
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
     :param jdbc_params: Additional JDBC parameters to append to the Beeline URL.
-        Parameter names must start with a letter and contain only letters, digits,
-        dots, underscores, or hyphens. Values must not contain semicolons.
+        Parameter names must start with a letter, contain only letters, digits,
+        dots, underscores, or hyphens, and not end in a separator. Values must
+        not contain semicolons.
     :param proxy_user: Run HQL code as this user.
     """
 
@@ -148,9 +148,6 @@ class HiveCliHook(BaseHook):
             ),
             "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
             "ssl": BooleanField(lazy_gettext("Ssl"), default=True),
-            "transport_mode": StringField(
-                lazy_gettext("Transport Mode"), widget=BS3TextFieldWidget(), default=""
-            ),
             "zoo_keeper_namespace": StringField(
                 lazy_gettext("Zoo Keeper Namespace"), widget=BS3TextFieldWidget(), default="hiveserver2"
             ),
@@ -210,7 +207,7 @@ class HiveCliHook(BaseHook):
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
-            jdbc_url = self._append_jdbc_url_parameters(jdbc_url, self._get_jdbc_url_parameters())
+            jdbc_url = self._append_jdbc_params(jdbc_url)
             jdbc_url = f'"{jdbc_url}"'
 
             cmd_extra += ["-u", jdbc_url]
@@ -223,54 +220,22 @@ class HiveCliHook(BaseHook):
 
         return [hive_bin, *cmd_extra, *hive_params_list]
 
-    def _get_jdbc_url_parameters(self) -> dict[str, str]:
-        jdbc_params = self._get_connection_jdbc_url_parameters()
-        jdbc_params.update(self._validate_jdbc_url_parameters(self.jdbc_params))
-        return jdbc_params
-
-    def _get_connection_jdbc_url_parameters(self) -> dict[str, str]:
-        extra_dejson = getattr(self.conn, "extra_dejson", {})
-        transport_mode = extra_dejson.get("transport_mode")
-        if not transport_mode:
-            return {}
-        transport_mode = str(transport_mode).lower()
-        if transport_mode not in HIVE_CLI_TRANSPORT_MODES:
-            allowed_modes = ", ".join(sorted(HIVE_CLI_TRANSPORT_MODES))
-            raise ValueError(f"The transport_mode connection extra should be one of: {allowed_modes}")
-        return {"transportMode": transport_mode}
-
-    @classmethod
-    def _validate_jdbc_url_parameters(cls, jdbc_params: Mapping[str, Any]) -> dict[str, str]:
-        return {
-            cls._validate_jdbc_url_parameter_name(name): cls._validate_jdbc_url_parameter_value(name, value)
-            for name, value in jdbc_params.items()
-        }
-
-    @staticmethod
-    def _validate_jdbc_url_parameter_name(name: str) -> str:
-        if not isinstance(name, str) or not JDBC_PARAMETER_NAME_PATTERN.fullmatch(name):
-            raise ValueError(
-                "JDBC parameter names must be non-empty strings that start with a letter and contain "
-                "only letters, digits, dots, underscores, or hyphens"
-            )
-        return name
-
-    @staticmethod
-    def _validate_jdbc_url_parameter_value(name: str, value: Any) -> str:
-        if value is None:
-            raise ValueError(f"JDBC parameter {name!r} value should not be None")
-        value = str(value)
-        if ";" in value:
-            raise ValueError(f"JDBC parameter {name!r} value should not contain the ';' character")
-        return value
-
-    @staticmethod
-    def _append_jdbc_url_parameters(jdbc_url: str, jdbc_params: Mapping[str, str]) -> str:
-        if not jdbc_params:
+    def _append_jdbc_params(self, jdbc_url: str) -> str:
+        if not self.jdbc_params:
             return jdbc_url
-        jdbc_url_params = ";".join(f"{name}={value}" for name, value in jdbc_params.items())
+        segments = []
+        for name, value in self.jdbc_params.items():
+            if not isinstance(name, str) or not JDBC_PARAMETER_NAME_PATTERN.fullmatch(name):
+                raise ValueError(
+                    f"Invalid JDBC parameter name {name!r}: must match {JDBC_PARAMETER_NAME_PATTERN.pattern}"
+                )
+            if value is None or ";" in str(value):
+                raise ValueError(
+                    f"Invalid JDBC parameter value for {name!r}: must not be None or contain ';'"
+                )
+            segments.append(f"{name}={value}")
         separator = "" if jdbc_url.endswith(";") else ";"
-        return f"{jdbc_url}{separator}{jdbc_url_params}"
+        return f"{jdbc_url}{separator}" + ";".join(segments)
 
     def _validate_beeline_parameters(self, conn):
         if self.high_availability:
