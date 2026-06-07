@@ -3197,7 +3197,10 @@ def test_task_info_af3():
         "execution_timeout": None,
         "executor_config": {},
         "hitl_summary": "hitl_summary",
-        "ignore_first_depends_on_past": True,
+        # Default comes from the installed core's [scheduler]
+        # ignore_first_depends_on_past_by_default, so derive it rather than
+        # hardcoding (True on Airflow 3.2+, False on older 3.x).
+        "ignore_first_depends_on_past": task_10.ignore_first_depends_on_past,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
         "mapped": False,
         "max_active_tis_per_dag": None,
