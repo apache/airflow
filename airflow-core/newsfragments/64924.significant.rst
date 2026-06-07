@@ -1,35 +1,14 @@
 Airflow CLI commands are moving to talk to the API server
 
-The Airflow CLI is being migrated to interact with Airflow through the API server using the
-same typed client that ``airflowctl`` uses, instead of writing to the metadata database
-directly.
+The CLI is being migrated to reach Airflow through the API server (via the ``airflowctl``
+client) instead of the metadata database directly. Migrated so far: ``dags trigger``,
+``dags delete``, ``pools`` (list/get/set/delete/import/export), and ``assets materialize``;
+this fragment is updated as more commands migrate rather than adding new ones.
 
-This is an ongoing migration. As more CLI commands are moved to the API client they all
-share the same behaviour described here, so this single news fragment is updated to list
-them rather than adding a new news fragment for each migrated command.
-
-Commands migrated so far: ``airflow dags trigger``, ``airflow dags delete``,
-``airflow pools`` (list/get/set/delete/import/export), and ``airflow assets materialize``.
-
-This is an internal change and **requires no action for typical users**: the command
-syntax, arguments and output are unchanged, and a short-lived authentication token is
-minted in memory for each invocation (no credentials are stored). With the default
-``SimpleAuthManager`` (and with the FAB or Keycloak auth managers) the token is generated
-automatically on the local host.
-
-**Behaviour changes:**
-
-- These commands now require a reachable API server (resolved from ``[api] base_url`` or
-  ``[api] host``/``[api] port``, defaulting to ``http://localhost:8080``).
-- The triggering user recorded for ``dags trigger`` / ``assets materialize`` is the CLI's
-  authenticated API user, not the local OS user.
-- For auth managers whose tokens cannot be minted locally, or when targeting a remote API
-  server, set the ``AIRFLOW_CLI_TOKEN`` environment variable to a valid API token.
-
-**Code interface changes:**
-
-- ``airflow.api.client`` (``get_current_api_client`` and the local client) has been
-  removed. Use ``airflow.cli.api_client.get_cli_api_client`` instead.
+No action is needed for typical users. These commands now require a reachable API server
+and mint a short-lived token in memory (set ``AIRFLOW_CLI_TOKEN`` for auth managers that
+cannot mint locally, or for remote servers). ``airflow.api.client`` is removed — use
+``airflow.cli.api_client.get_cli_api_client``.
 
 * Types of change
 
