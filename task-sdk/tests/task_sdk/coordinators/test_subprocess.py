@@ -27,6 +27,7 @@ import time
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
+import psutil
 import pytest
 from uuid6 import uuid7
 
@@ -34,6 +35,7 @@ from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
+    _connection_owned_by_process_tree,
     _is_connection_from_process,
     _PopenActivitySubprocess,
     _ResourceTracker,
@@ -350,12 +352,86 @@ class TestConnectionFromProcess:
 
         try:
             with patch("airflow.sdk.coordinators._subprocess.psutil.Process") as mock_process:
+                mock_process.return_value.children.return_value = []
                 mock_process.return_value.net_connections.return_value = []
-                assert _is_connection_from_process(conn, mock_proc) is False
+                assert _is_connection_from_process(conn, mock_proc, verify_timeout=0.0) is False
         finally:
             conn.close()
             client.close()
             server.close()
+
+    def test_matches_descendant_process_tcp_connection(self):
+        """A connection owned by a *descendant* of the child process is accepted.
+
+        Regression test for the Java coordinator (#67781): the launched process
+        may itself spawn the runtime that connects back, so the peer can belong
+        to a descendant of ``proc.pid`` rather than ``proc.pid`` directly.
+        """
+        server = _start_server()
+        host, port = server.getsockname()
+        # A real subprocess — a descendant of this test process — opens the connection.
+        connector = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import socket, sys, time; s = socket.socket(); "
+                "s.connect((sys.argv[1], int(sys.argv[2]))); time.sleep(30)",
+                host,
+                str(port),
+            ],
+        )
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()  # connector is a descendant of this process
+
+        try:
+            conn, _ = server.accept()
+            try:
+                assert _is_connection_from_process(conn, mock_proc) is True
+            finally:
+                conn.close()
+        finally:
+            connector.terminate()
+            connector.wait(timeout=5)
+            server.close()
+
+    def test_retries_until_ownership_is_confirmed(self):
+        """The lookup is retried while the connection is not yet visible in /proc."""
+        conn = MagicMock()
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999
+
+        with patch(
+            "airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree",
+            side_effect=[False, False, True],
+        ) as mock_owned:
+            assert _is_connection_from_process(conn, mock_proc, poll_interval=0.0) is True
+        assert mock_owned.call_count == 3
+
+    def test_rejects_when_ownership_never_confirmed(self):
+        conn = MagicMock()
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999
+
+        with patch(
+            "airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree",
+            return_value=False,
+        ):
+            assert (
+                _is_connection_from_process(conn, mock_proc, verify_timeout=0.0, poll_interval=0.0) is False
+            )
+
+    def test_owned_by_tree_returns_false_when_process_gone(self):
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999999
+        with patch(
+            "airflow.sdk.coordinators._subprocess.psutil.Process",
+            side_effect=psutil.NoSuchProcess(999999),
+        ):
+            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), mock_proc) is False
 
 
 class TestResourceTracker:
