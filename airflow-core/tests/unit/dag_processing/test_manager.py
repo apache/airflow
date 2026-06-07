@@ -1360,7 +1360,7 @@ class TestDagFileProcessorManager:
         )
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
-    def test_log_file_processing_stats_sanitizes_last_run_seconds_ago_metric_name(self, statsd_gauge_mock):
+    def test_log_file_processing_stats_normalizes_metric_name(self, statsd_gauge_mock):
         manager = DagFileProcessorManager(max_runs=1)
         dag_file = DagFileInfo(
             bundle_name="testing",
