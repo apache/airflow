@@ -91,7 +91,7 @@ class TestLivyDbHook:
         create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
         create_connection_without_db(
             Connection(
-                conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
+                conn_id="with_credentials", login="login", password=os.environ.get("PASSWORD", ""), conn_type="http", host="host"
             )
         )
 
