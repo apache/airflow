@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import logging
 import math
 import os
@@ -33,7 +32,6 @@ from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
-from urllib import response
 from uuid import uuid4
 
 import anyio
@@ -476,9 +474,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc.send_msg(msg, request_id=0)
         return proc
 
-    @functools.cached_property
+    @property
     def client(self) -> Client:
-        return self.make_client()
+        if self._client is None:
+            self._client = self.make_client()
+        return self._client
+
+    @client.setter
+    def client(self, value: Client | None) -> None:
+        self._client = value
 
     def make_client(self) -> Client:
         """
@@ -498,8 +502,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-
-        resp: BaseModel | None = None
         self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
@@ -516,19 +518,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     except Exception:
                         log.exception("Failed to upload trigger logs to remote", trigger_id=id)
                     finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
                         factory.close()
-
-            # Pull out of these dequeues in a thread-safe manner
+            sync = messages.TriggerStateSync(to_create=[], to_cancel=set())
+            sync.to_cancel = self.cancelling_triggers.copy()
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
-                response.to_create.append(workload)
-            self.running_triggers.update(m.id for m in response.to_create)
-            resp = response
-
-            self.send_msg(response, request_id=req_id, error=None)
+                sync.to_create.append(workload)
+            self.running_triggers.update(m.id for m in sync.to_create)
+            self.send_msg(sync, request_id=req_id, error=None)
             return
+
         if isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
@@ -538,11 +537,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
             self.send_msg(resp, request_id=req_id, error=None)
             return
+
         if isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
             self.send_msg(resp, request_id=req_id, error=None)
             return
+
         super()._handle_request(msg, log, req_id)
 
     def run(self) -> None:
