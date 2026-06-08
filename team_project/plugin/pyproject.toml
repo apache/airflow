@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "airflow-dag-triage-plugin"
+version = "0.1.0"
+description = "AI-assisted DAG failure triage plugin for Apache Airflow 3.x"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+keywords = ["airflow", "plugin", "triage", "observability"]
+dependencies = [
+    "apache-airflow>=3.0",
+    "fastapi>=0.100",
+    "pyyaml>=6.0",
+]
+
+[project.entry-points."airflow.plugins"]
+dag_triage = "dag_triage_plugin:DagTriagePlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dag_triage_plugin"]
