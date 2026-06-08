@@ -94,7 +94,6 @@ __all__ = [
     "TriggerRule",
     "Variable",
     "WaitForAll",
-    "WaitPolicy",
     "WeekWindow",
     "WeightRule",
     "Window",
@@ -177,7 +176,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.wait_policy import (
         MinimumCount,
         WaitForAll,
-        WaitPolicy,
     )
     from airflow.sdk.definitions.partition_mappers.window import (
         DayWindow,
@@ -298,7 +296,6 @@ __lazy_imports: dict[str, str] = {
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WaitForAll": ".definitions.partition_mappers.wait_policy",
-    "WaitPolicy": ".definitions.partition_mappers.wait_policy",
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
     "Window": ".definitions.partition_mappers.window",

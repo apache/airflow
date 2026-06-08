@@ -66,7 +66,6 @@ from airflow.sdk import (
     StartOfWeekMapper,
     StartOfYearMapper,
     WaitForAll,
-    WaitPolicy,
     WeekWindow,
     Window,
     YearWindow,
@@ -110,6 +109,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
     from airflow.sdk.definitions.deadline import DeadlineAlert
+    from airflow.sdk.definitions.partition_mappers.wait_policy import WaitPolicy
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
