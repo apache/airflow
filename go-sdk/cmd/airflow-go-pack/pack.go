@@ -155,7 +155,7 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return fmt.Errorf("executable %s: %w", execPath, err)
 	}
 
-	if err := rejectOutputAlias(output, execPath, sourcePath); err != nil {
+	if err := rejectOutputAlias(output, execPath, sourcePath, opts.airflowMetadata); err != nil {
 		return err
 	}
 
@@ -544,18 +544,23 @@ func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
 }
 
-// rejectOutputAlias fails if output resolves to the same file as the
-// executable or the source. Packing copies the executable to output with
-// O_TRUNC, so an aliased output would be truncated before it is read,
-// destroying the input.
-func rejectOutputAlias(output, execPath, sourcePath string) error {
+// rejectOutputAlias fails if output resolves to the same file as any pack
+// input: the executable, the source, or a supplied --airflow-metadata file.
+// Packing copies the executable to output with O_TRUNC and renames it into
+// place, so an aliased output would clobber the input. metadataPath is empty
+// when --airflow-metadata is not used and is skipped in that case.
+func rejectOutputAlias(output, execPath, sourcePath, metadataPath string) error {
 	for _, in := range []struct {
 		path string
 		kind string
 	}{
 		{execPath, "executable"},
 		{sourcePath, "source"},
+		{metadataPath, "--airflow-metadata file"},
 	} {
+		if in.path == "" {
+			continue
+		}
 		alias, err := sameFile(output, in.path)
 		if err != nil {
 			return fmt.Errorf("resolving output path %s: %w", output, err)

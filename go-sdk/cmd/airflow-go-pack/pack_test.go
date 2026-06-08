@@ -224,6 +224,37 @@ func TestRunPack_RejectsOutputAliasingExecutable(t *testing.T) {
 	assert.Equal(t, original, got, "executable must not be truncated when output aliases it")
 }
 
+// When --output resolves to the same file as --airflow-metadata, runPack must
+// refuse before the bundle is renamed onto it; the manifest file survives.
+func TestRunPack_RejectsOutputAliasingMetadataFile(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "foreign")
+	require.NoError(t, os.WriteFile(exe, []byte("foreign-arch-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	original := []byte(
+		`{"airflow_bundle_metadata_version":"1.0",` +
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},` +
+			`"dags":{"my_dag":{"tasks":["t1"]}}}`,
+	)
+	require.NoError(t, os.WriteFile(meta, original, 0o644))
+
+	err := runPack(io.Discard, io.Discard, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          meta,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same file as the --airflow-metadata file")
+
+	// The guard must fire before any write: the manifest file is intact.
+	got, readErr := os.ReadFile(meta)
+	require.NoError(t, readErr)
+	assert.Equal(t, original, got, "metadata file must not be clobbered when output aliases it")
+}
+
 // When the default output path names an existing directory, the packer must
 // reject it with --output guidance, not a bare os.Rename "file exists".
 func TestRunPack_RejectsDirectoryOutput(t *testing.T) {
