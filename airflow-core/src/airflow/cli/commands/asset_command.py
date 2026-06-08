@@ -24,6 +24,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasResponse, AssetResponse
 from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.models.asset import AssetAliasModel, AssetModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -117,6 +118,7 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl assets materialize")
 @provide_api_client
 def asset_materialize(args, api_client: Client = NEW_API_CLIENT) -> None:
     """

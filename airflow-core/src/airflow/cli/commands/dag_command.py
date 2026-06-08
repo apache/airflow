@@ -37,7 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBod
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
@@ -77,6 +77,7 @@ log = logging.getLogger(__name__)
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags trigger")
 @providers_configuration_loaded
 @provide_api_client
 def dag_trigger(args, api_client: Client = NEW_API_CLIENT) -> None:
@@ -99,6 +100,7 @@ def dag_trigger(args, api_client: Client = NEW_API_CLIENT) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags delete")
 @providers_configuration_loaded
 @provide_api_client
 def dag_delete(args, api_client: Client = NEW_API_CLIENT) -> None:

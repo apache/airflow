@@ -28,6 +28,7 @@ from airflowctl.api.operations import ServerResponseError
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -47,6 +48,7 @@ def _show_pools(pools, output):
     )
 
 
+@deprecated_for_airflowctl("airflowctl pools list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_api_client
@@ -56,6 +58,7 @@ def pool_list(args, api_client: Client = NEW_API_CLIENT):
     _show_pools(pools=pools, output=args.output)
 
 
+@deprecated_for_airflowctl("airflowctl pools get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_api_client
@@ -71,6 +74,7 @@ def pool_get(args, api_client: Client = NEW_API_CLIENT):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools create")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_api_client
@@ -90,6 +94,7 @@ def pool_set(args, api_client: Client = NEW_API_CLIENT):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools delete")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_api_client
@@ -105,6 +110,7 @@ def pool_delete(args, api_client: Client = NEW_API_CLIENT):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools import")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def pool_import(args):
@@ -117,6 +123,7 @@ def pool_import(args):
     print(f"Uploaded {len(pools)} pool(s)")
 
 
+@deprecated_for_airflowctl("airflowctl pools export")
 @providers_configuration_loaded
 def pool_export(args):
     """Export all the pools to the file."""

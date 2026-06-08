@@ -17,8 +17,13 @@
 
 from __future__ import annotations
 
+import functools
 import sys
-from typing import TYPE_CHECKING
+import warnings
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar
+
+from airflow.exceptions import RemovedInAirflow4Warning
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
@@ -31,6 +36,35 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
+
+F = TypeVar("F", bound=Callable[..., object])
+
+
+def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
+    """
+    Mark an ``airflow`` CLI command as deprecated in favour of an ``airflowctl`` equivalent.
+
+    These commands now reach Airflow through the API server via the ``airflowctl`` client. They
+    are kept for backwards compatibility but will become thin aliases for their ``airflowctl``
+    counterparts in a future Airflow release; users should switch to ``airflowctl`` directly.
+
+    :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
+    """
+
+    def decorator(func: F) -> F:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.warn(
+                f"This `airflow` CLI command is deprecated and will become an alias for "
+                f"`{replacement}` in a future Airflow release. Use `{replacement}` instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            return func(*args, **kwargs)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorator
 
 
 class CliConflictError(Exception):
