@@ -146,7 +146,7 @@ class RollupMapper(PartitionMapper):
         *,
         upstream_mapper: PartitionMapper,
         window: Window,
-        wait_policy: WaitPolicy = WaitForAll(),  # noqa: B008
+        wait_policy: WaitPolicy | None = None,
         max_downstream_keys: int | None = None,
     ) -> None:
         decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
@@ -160,6 +160,8 @@ class RollupMapper(PartitionMapper):
                 f"{window.expected_decoded_type.__name__}, or use a window whose "
                 f"'expected_decoded_type' accepts str."
             )
+        if wait_policy is None:
+            wait_policy = WaitForAll()
         super().__init__(max_downstream_keys=max_downstream_keys)
         self.upstream_mapper = upstream_mapper
         self.window = window
