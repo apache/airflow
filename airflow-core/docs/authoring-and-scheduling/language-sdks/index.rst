@@ -40,11 +40,16 @@ in a non-Python implementation.
      - :class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator`
      - JRE 17
      - :doc:`java`
+   * - Go
+     - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
+     - None (native binary)
+     - :doc:`go`
 
 .. toctree::
    :hidden:
 
    java
+   go
 
 How it works
 ------------
