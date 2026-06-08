@@ -33,6 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.task_store import (
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state import get_state_backend
+from airflow.utils.session import create_session_async
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -45,8 +46,7 @@ router = VersionedAPIRouter(
 )
 
 
-def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
-    ti = session.get(TI, task_instance_id)
+def _build_task_scope(ti: TI | None, task_instance_id: UUID) -> TaskScope:
     if ti is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,15 +58,20 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
     return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
 
 
+def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
+    return _build_task_scope(session.get(TI, task_instance_id), task_instance_id)
+
+
 @router.get("/{task_instance_id}/{key}")
-def get_task_store(
+async def get_task_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
-    session: SessionDep,
 ) -> TaskStoreResponse:
     """Get value for a task store key."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    value = get_state_backend().get(scope, key, session=session)
+    # Open the session in-handler (not via a dependency) so it stays on the request loop.
+    async with create_session_async() as session:
+        scope = _build_task_scope(await session.get(TI, task_instance_id), task_instance_id)
+        value = await get_state_backend().aget(scope, key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -79,15 +84,17 @@ def get_task_store(
 
 
 @router.put("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
-def set_task_store(
+async def set_task_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
     body: TaskStorePutBody,
-    session: SessionDep,
 ) -> None:
     """Set a task store key, creating or updating the row."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
+    async with create_session_async() as session:
+        scope = _build_task_scope(await session.get(TI, task_instance_id), task_instance_id)
+        await get_state_backend().aset(
+            scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session
+        )
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
