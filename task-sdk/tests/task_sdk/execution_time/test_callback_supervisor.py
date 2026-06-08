@@ -683,3 +683,25 @@ class TestLoadMangledModule:
 
         assert sys.modules[mod_name].fn() == "cached"
         sys.modules.pop(mod_name)
+
+    def test_finds_file_with_dashes_and_dots_in_name(self, tmp_path, mocker):
+        """File with dashes/dots (my-dag.file.py) is found despite sanitized stem."""
+        import sys
+
+        from airflow.sdk.execution_time.callback_supervisor import _register_unusual_prefix_module
+        from airflow.utils.file import get_unique_dag_module_name
+
+        # File with dashes and dots: stem "my-dag.file" sanitizes to "my_dag_file"
+        dag_file = tmp_path / "my-dag.file.py"
+        dag_file.write_text("def callback(): return 'dashed'\n")
+        mod_name = get_unique_dag_module_name(str(dag_file))
+
+        # Verify the stem was sanitized
+        assert "my_dag_file" in mod_name
+
+        log = mocker.Mock()
+        _register_unusual_prefix_module(f"{mod_name}.callback", tmp_path, log)
+
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].callback() == "dashed"
+        sys.modules.pop(mod_name)

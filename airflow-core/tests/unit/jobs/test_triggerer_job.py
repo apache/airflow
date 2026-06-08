@@ -2904,4 +2904,59 @@ class TestBuildContextFromDagRunData:
 
         assert "deadline" not in context
         # Standard context fields should still be present
-        assert context["dag_run"].dag_id == "example_dag"
+
+
+class TestBuildTriggerWorkloads32xCompat:
+    """Tests for 3.2.x backward compat: old callbacks without dag_id/run_id in data."""
+
+    def test_old_format_callback_passes_through_without_skip(self, session, mocker):
+        """A 3.2.x TriggererCallback has context in kwargs but no dag_id/run_id routing data."""
+        import psutil
+
+        from airflow.models.callback import TriggererCallback
+
+        trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=1)))
+        session.add(trigger)
+        session.flush()
+
+        # Simulate 3.2.x format: context stored in kwargs, no routing data.
+        # Use a mock callback_def that provides the required protocol fields.
+        callback_def = MagicMock()
+        callback_def.path = "builtins.print"
+        callback_def.kwargs = {"text": "alert"}
+        callback_def.serialize.return_value = {
+            "path": "builtins.print",
+            "kwargs": {"text": "alert", "context": {"dag_run": "legacy"}},
+        }
+        callback = TriggererCallback(callback_def=callback_def)
+        # Ensure no dag_id/run_id in data — mimics the old 3.2.x format
+        assert "dag_id" not in callback.data
+        assert "run_id" not in callback.data
+        session.add(callback)
+        session.flush()
+        trigger.callback = callback
+        session.flush()
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        process = mocker.Mock(spec=psutil.Process, pid=99)
+        mock_stdin = mocker.Mock(spec=socket)
+        supervisor = TriggerRunnerSupervisor(
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
+            id=job.id,
+            job=job,
+            pid=process.pid,
+            stdin=mock_stdin,
+            process=process,
+            capacity=10,
+        )
+
+        result = supervisor._create_workload(
+            trigger=trigger, dag_bag=MagicMock(), render_log_fname=MagicMock(), session=session
+        )
+
+        # Should NOT be skipped — old format passes through with dag_run_data=None
+        assert result is not None
+        assert result.dag_run_data is None

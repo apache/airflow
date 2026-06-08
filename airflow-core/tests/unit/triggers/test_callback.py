@@ -294,6 +294,32 @@ class TestEnsureBundleModuleRegistered:
         assert sys.modules[mod_name].NESTED is True
         sys.modules.pop(mod_name)
 
+    def test_registers_module_with_dashes_and_dots_in_filename(self, tmp_path):
+        """DAG file with dashes/dots (my-dag.with-dots.py) is found despite sanitized stem."""
+        from airflow.triggers.callback import _ensure_bundle_module_registered
+        from airflow.utils.file import get_unique_dag_module_name
+
+        # File has dashes and dots — stem is "my-dag.with-dots", sanitized to "my_dag_with_dots"
+        dag_file = tmp_path / "my-dag.with-dots.py"
+        dag_file.write_text("DASHED = True\n")
+
+        mod_name = get_unique_dag_module_name(str(dag_file))
+        # Verify the stem was sanitized (dashes/dots replaced with underscores)
+        assert "my_dag_with_dots" in mod_name
+
+        fake_bundle = mock.Mock()
+        fake_bundle.name = "test-bundle"
+        fake_bundle.path = tmp_path
+
+        with mock.patch("airflow.triggers.callback.DagBundlesManager") as mock_mgr:
+            mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
+            _ensure_bundle_module_registered(f"{mod_name}.my_func")
+
+        # The module should be found via rglob("*.py") and hash matching
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].DASHED is True
+        sys.modules.pop(mod_name)
+
     def test_noop_for_non_mangled_path(self):
         from airflow.triggers.callback import _ensure_bundle_module_registered
 

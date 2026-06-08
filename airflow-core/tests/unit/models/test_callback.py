@@ -114,7 +114,6 @@ class TestCallback:
             "result": "0",
             "path": TEST_ASYNC_CALLBACK.path,
             "kwargs": '{"email": "test@example.com"}',
-            "dag_id": TEST_DAG_ID,
         }
 
     def test_get_metric_info_dict_values_are_stringified(self):
@@ -221,6 +220,25 @@ class TestTriggererCallback:
         self, session, testing_dag_bundle, testing_team
     ):
         callback = self._queue_callback(session, has_bundle=True, has_team=True)
+        assert callback.trigger.team_name is None
+
+    def test_queue_with_dag_id_and_no_bundle_does_not_crash(self, session):
+        """When dag_id is in data but bundle_name is absent, queue() should not crash.
+
+        This verifies the session=session fix on DagModel.get_team_name (Fix 4).
+        """
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.data["dag_id"] = "nonexistent_dag"
+        callback.data["run_id"] = "manual__2024-01-01"
+        callback.bundle_name = None  # no bundle — falls into the elif branch
+
+        # Should not raise — previously could fail with session-not-provided error
+        callback.queue(session=session)
+
+        # Callback was queued successfully
+        assert callback.state == CallbackState.QUEUED
+        assert callback.trigger is not None
+        # team_name is None because the dag doesn't exist
         assert callback.trigger.team_name is None
 
     @pytest.mark.parametrize(

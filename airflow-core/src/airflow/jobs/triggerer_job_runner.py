@@ -790,13 +790,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self._fetch_callback_dag_run_data(trigger, session=session) if trigger.callback else None
             )
             if trigger.callback and dag_run_data is None:
-                # DagRun not found — skip this trigger so it retries on the next loop
-                # rather than running the callback without context.
-                log.warning(
-                    "Skipping callback trigger — DagRun not found for context",
-                    trigger_id=trigger.id,
-                )
-                return None
+                # Only skip when routing data was present but the DagRun lookup failed
+                # (transient DB/API issue). Old 3.2.x callbacks without dag_id/run_id
+                # pass through — their trigger's run() falls back to stored kwargs["context"].
+                callback_data = trigger.callback.data or {}
+                if callback_data.get("dag_id") and callback_data.get("run_id"):
+                    log.warning(
+                        "Skipping callback trigger — DagRun not found for context",
+                        trigger_id=trigger.id,
+                    )
+                    return None
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
