@@ -50,6 +50,7 @@ from airflow._shared.observability.traces import (
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import (
     DAG,
     BaseOperator,
@@ -76,6 +77,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
+from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -5075,6 +5077,105 @@ class TestTriggerDagRunOperator:
             state, _, _ = run(ti, ti.get_template_context(), log)
 
         assert state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_fail(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A retry_policy returning FAIL fails the task even when retries are still available.
+
+        This mirrors the deferrable path, where DagStateTrigger -> execute_complete raises
+        AirflowException and the configured retry_policy is consulted via run()'s handler.
+        """
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+            retry_policy=ExceptionRetryPolicy(
+                rules=[
+                    RetryRule(exception=AirflowException, action=RetryAction.FAIL, reason="not retryable")
+                ],
+            ),
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_fail",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.FAILED
+
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_delay(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A retry_policy returning RETRY forwards its custom delay and reason on the RetryTask."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+            retry_policy=ExceptionRetryPolicy(
+                rules=[
+                    RetryRule(
+                        exception=AirflowException,
+                        action=RetryAction.RETRY,
+                        retry_delay=timedelta(minutes=7),
+                        reason="backing off",
+                    ),
+                ],
+            ),
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_delay",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        assert msg.retry_delay_seconds == timedelta(minutes=7).total_seconds()
+        assert msg.retry_reason == "backing off"
 
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
