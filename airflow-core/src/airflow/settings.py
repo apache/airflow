@@ -204,8 +204,10 @@ def dag_policy(dag):
     return get_policy_plugin_manager().hook.dag_policy(dag=dag)
 
 
-def task_instance_mutation_hook(task_instance):
-    return get_policy_plugin_manager().hook.task_instance_mutation_hook(task_instance=task_instance)
+def task_instance_mutation_hook(task_instance, dag_run=None):
+    return get_policy_plugin_manager().hook.task_instance_mutation_hook(
+        task_instance=task_instance, dag_run=dag_run
+    )
 
 
 task_instance_mutation_hook.is_noop = True  # type: ignore
