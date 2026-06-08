@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import attrs
+
 
 class WaitPolicy:
     """
@@ -39,6 +41,7 @@ class WaitPolicy:
         raise NotImplementedError
 
 
+@attrs.define(frozen=True)
 class WaitForAll(WaitPolicy):
     """
     Fires only when every expected upstream key has arrived.
@@ -59,16 +62,8 @@ class WaitForAll(WaitPolicy):
     def deserialize(cls, data: dict[str, Any]) -> WaitForAll:
         return cls()
 
-    def __repr__(self) -> str:
-        return "WaitForAll()"
 
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, WaitForAll)
-
-    def __hash__(self) -> int:
-        return hash(type(self))
-
-
+@attrs.define(frozen=True)
 class MinimumCount(WaitPolicy):
     """
     Fires once a minimum number of upstream keys have arrived.
@@ -89,13 +84,15 @@ class MinimumCount(WaitPolicy):
     after the clamp, so it is never unreachable.
     """
 
-    def __init__(self, n: int) -> None:
-        if n == 0:
+    n: int = attrs.field()
+
+    @n.validator
+    def _validate_n(self, attribute: attrs.Attribute, value: int) -> None:
+        if value == 0:
             raise ValueError(
                 "MinimumCount(0) is degenerate: n=0 would always fire, even on empty windows. "
                 "Use WaitForAll() to require every key, or MinimumCount(n) with n != 0."
             )
-        self.n = n
 
     def is_satisfied(self, matched: int, expected: int) -> bool:
         if self.n > 0:
@@ -110,12 +107,3 @@ class MinimumCount(WaitPolicy):
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> MinimumCount:
         return cls(data["n"])
-
-    def __repr__(self) -> str:
-        return f"MinimumCount(n={self.n})"
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, MinimumCount) and self.n == other.n
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.n))
