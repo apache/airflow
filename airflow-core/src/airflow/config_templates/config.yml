@@ -2550,6 +2550,18 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced ``trigger`` rows the scheduler removes per transaction
+        when running its periodic trigger cleanup (see ``parsing_cleanup_interval``).
+        Batching avoids holding row locks on the ``trigger`` table for the duration of a
+        single large delete, which would otherwise block the triggerer's writers and stall
+        the scheduler main loop. Set to ``0`` to disable batching and delete all matching
+        rows in a single statement.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "500"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)

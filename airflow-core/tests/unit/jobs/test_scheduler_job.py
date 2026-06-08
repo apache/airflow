@@ -8071,6 +8071,36 @@ class TestSchedulerJob:
         self.job_runner._remove_unreferenced_triggers(session=session)
         assert session.scalar(select(func.count()).select_from(Trigger)) == 0
 
+    @pytest.mark.need_serialized_dag(False)
+    @conf_vars({("scheduler", "unreferenced_triggers_cleanup_batch_size"): "2"})
+    def test_remove_unreferenced_triggers_batches_deletes(self, session, monkeypatch):
+        """Cleanup splits into LIMIT-bounded batches and commits between them."""
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        for _ in range(5):
+            session.add(
+                Trigger(
+                    classpath="airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                    kwargs={},
+                )
+            )
+        session.flush()
+
+        commit_calls = 0
+        original_commit = session.commit
+
+        def _counting_commit():
+            nonlocal commit_calls
+            commit_calls += 1
+            original_commit()
+
+        monkeypatch.setattr(session, "commit", _counting_commit)
+        self.job_runner._remove_unreferenced_triggers(session=session)
+
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+        # 5 rows / batch of 2 -> 3 delete batches -> 3 commits
+        assert commit_calls == 3
+
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
     def test_misconfigured_dags_doesnt_crash_scheduler(self, mock_create, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
