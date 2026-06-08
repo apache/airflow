@@ -1,0 +1,60 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Team Project CI
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    paths:
+      - team_project/**
+      - .github/workflows/team-project-ci.yml
+  push:
+    branches:
+      - main
+    paths:
+      - team_project/**
+      - .github/workflows/team-project-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  classifier-tests:
+    name: Classifier unit tests (>=80% coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af2be863a4cc32277884e9a13dedcab22f899  # v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest pytest-cov
+
+      - name: Run classifier test suite with coverage gate
+        working-directory: team_project
+        run: >
+          pytest tests/test_classifier.py
+          --cov=dag_triage.classifier
+          --cov-report=term-missing
+          --cov-fail-under=80
