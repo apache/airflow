@@ -108,14 +108,6 @@ class StartOfYearMapper(_BaseTemporalMapper):
     default_output_format = "%Y"
 
 
-# Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
-# the core copy in
-# ``airflow-core/src/airflow/partition_mappers/temporal.py`` —
-# the SDK and core class hierarchies are independent (the SDK cannot import
-# core), so both sides carry the same defaults and the lookup is by class
-# name. When adding a new ``Window`` subclass, extend the table on both
-# sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
-# (see ``FanOutMapper._resolve_default_downstream_mapper``).
 class FanOutMapper(PartitionMapper):
     """
     Partition mapper that fans one upstream key out into multiple downstream keys.
@@ -141,6 +133,14 @@ class FanOutMapper(PartitionMapper):
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
     """
 
+    # Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
+    # the core copy in
+    # ``airflow-core/src/airflow/partition_mappers/temporal.py`` —
+    # the SDK and core class hierarchies are independent (the SDK cannot import
+    # core), so both sides carry the same defaults and the lookup is by class
+    # name. When adding a new ``Window`` subclass, extend the table on both
+    # sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
+    # (see ``FanOutMapper._resolve_default_downstream_mapper``).
     default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
         "DayWindow": StartOfHourMapper,
         "WeekWindow": StartOfDayMapper,
