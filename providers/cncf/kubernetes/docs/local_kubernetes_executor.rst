@@ -41,3 +41,7 @@ An executor is chosen to run a task based on the task's queue.
 ``LocalKubernetesExecutor`` provides the capability of running tasks with either ``LocalExecutor``,
 which runs tasks within the scheduler service, or with ``KubernetesExecutor``, which runs each task
 in its own pod on a kubernetes cluster.
+
+Tasks routed to ``KubernetesExecutor`` need the same Kubernetes API permissions
+as a standalone KubernetesExecutor deployment. See :ref:`kubernetes:rbac` for
+example RBAC rules.
