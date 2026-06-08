@@ -34,6 +34,7 @@ from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
+from ..exceptions import InvalidStatsNameException
 from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
@@ -103,7 +104,11 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-    return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    try:
+        return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    except InvalidStatsNameException:
+        log.warning("Invalid stat name: %s.%s.", prefix, name)
+        return False
 
 
 def _type_as_str(obj: Instrument) -> str:

@@ -735,7 +735,7 @@ def is_selective_lineage_enabled(obj: DAG | SerializedDAG | AnyOperator) -> bool
 if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
-    def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+    def is_ti_rescheduled_already(ti: TaskInstance, *, session=NEW_SESSION):
         try:
             from sqlalchemy import exists, select
         except ImportError:

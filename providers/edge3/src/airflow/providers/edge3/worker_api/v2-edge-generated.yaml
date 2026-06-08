@@ -65,6 +65,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -964,6 +970,32 @@ components:
       - name
       title: BundleInfo
       description: Schema for telling task which bundle to run with.
+    CallbackDTO:
+      properties:
+        id:
+          type: string
+          title: Id
+        fetch_method:
+          $ref: '#/components/schemas/CallbackFetchMethod'
+        data:
+          additionalProperties: true
+          type: object
+          title: Data
+      type: object
+      required:
+      - id
+      - fetch_method
+      - data
+      title: CallbackDTO
+      description: Schema for Callback with minimal required fields needed for Executors
+        and Task SDK.
+    CallbackFetchMethod:
+      type: string
+      enum:
+      - dag_attribute
+      - import_path
+      title: CallbackFetchMethod
+      description: Methods used to fetch callback at runtime.
     ConcurrencyRequest:
       properties:
         concurrency:
@@ -1000,9 +1032,18 @@ components:
           title: Try Number
           description: The number of attempt to execute this task.
         command:
-          $ref: '#/components/schemas/ExecuteTask'
+          oneOf:
+          - $ref: '#/components/schemas/ExecuteTask'
+          - $ref: '#/components/schemas/ExecuteCallback'
+          - $ref: '#/components/schemas/TestConnection'
           title: Command
           description: Command line to use to execute the job in Airflow
+          discriminator:
+            propertyName: type
+            mapping:
+              ExecuteCallback: '#/components/schemas/ExecuteCallback'
+              ExecuteTask: '#/components/schemas/ExecuteTask'
+              TestConnection: '#/components/schemas/TestConnection'
         concurrency_slots:
           type: integer
           title: Concurrency Slots
@@ -1035,6 +1076,38 @@ components:
       - offline maintenance
       title: EdgeWorkerState
       description: Status of a Edge Worker instance.
+    ExecuteCallback:
+      properties:
+        token:
+          type: string
+          title: Token
+        dag_rel_path:
+          type: string
+          format: path
+          title: Dag Rel Path
+        bundle_info:
+          $ref: '#/components/schemas/BundleInfo'
+        log_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Log Path
+        callback:
+          $ref: '#/components/schemas/CallbackDTO'
+        type:
+          type: string
+          const: ExecuteCallback
+          title: Type
+          default: ExecuteCallback
+      type: object
+      required:
+      - token
+      - dag_rel_path
+      - bundle_info
+      - log_path
+      - callback
+      title: ExecuteCallback
+      description: Execute the given Callback.
     ExecuteTask:
       properties:
         token:
@@ -1274,11 +1347,45 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
 
         Note that None is also allowed, so always use this in a type hint with Optional.'
+    TestConnection:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_test_id:
+          type: string
+          format: uuid
+          title: Connection Test Id
+        connection_id:
+          type: string
+          title: Connection Id
+        timeout:
+          type: integer
+          title: Timeout
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        type:
+          type: string
+          const: TestConnection
+          title: Type
+          default: TestConnection
+      type: object
+      required:
+      - token
+      - connection_test_id
+      - connection_id
+      - timeout
+      title: TestConnection
+      description: Execute a connection test on a worker.
     ValidationError:
       properties:
         loc:

@@ -26,7 +26,7 @@ Your First Airflow Pull Request — 15-Minute Guide
 Purpose
 -------
 This page walks **new contributors** through opening their first
-Apache Airflow pull request (PR) in about five minutes.  We present *one*
+Apache Airflow pull request (PR) in about 15 minutes.  We present *one*
 local option (Breeze) and *one* fully-hosted option (GitHub Codespaces).
 Everything else lives in the advanced guides.
 
@@ -91,10 +91,18 @@ Option A – Breeze on Your Laptop
 
     breeze start-airflow
 
-The command starts a shell and launches multiple terminals using tmux
-and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
-of the tmux panes and hit Enter
+The command starts a shell and launches multiple terminals using ``mprocs`` by default
+and launches all Airflow necessary components in those terminals.
+You can also choose to use ``tmux`` via the ``--terminal-multiplexer tmux`` option.
+If you are using tmux, check out this cheat sheet to learn more about its commands: https://tmuxcheatsheet.com/.
+
+Now you can also access the Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``.
+
+To exit breeze, press ``q`` in the ``mprocs`` interface (or in any of the tmux panes) and clean up the resources by running the following command:
+
+.. code-block:: bash
+
+    breeze down
 
 **Working with Dags in Breeze:**
 
@@ -108,15 +116,19 @@ of the tmux panes and hit Enter
 
 This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-5.  **Make a tiny change** – e.g. fix a typo in docs
+5. **Set up virtual environment and install dependencies**  - To run prek locally
 
-6.  **Run local checks**
+Install airflow dependencies from this `guide <03_contributors_quick_start.rst#setting-up-virtual-env>`__.
+
+6.  **Make a tiny change** – e.g. fix a typo in docs
+
+7.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-7.  **Run tests**
+8.  **Run tests**
 
 Run tests related to your change **before** pushing:
 
@@ -128,14 +140,14 @@ Run tests related to your change **before** pushing:
 Run ``breeze testing --help`` to see all available test groups.
 For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
-8.  **Commit & push**
+9.  **Commit & push**
 
 .. code-block:: bash
 
     git commit -am "fix typo in README"
     git push -u origin <your-branch-name>
 
-9.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+10.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 

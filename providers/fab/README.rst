@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``3.6.4``
+Release: ``3.6.5``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.5/>`_.
 
 Installation
 ------------
@@ -72,7 +72,7 @@ PIP package                                 Version required
 ``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
 ``marshmallow``                             ``>=3``
-``flask_limiter``                           ``>3,!=3.13``
+``flask_limiter``                           ``>3``
 ==========================================  =====================================
 
 Cross provider package dependencies
@@ -105,4 +105,4 @@ Extra         Dependencies
 ============  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.5/changelog.html>`_.

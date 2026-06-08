@@ -184,3 +184,30 @@ class TestGetAirflowConfig:
         env = {"AIRFLOW_HOME": "$CUSTOM_DIR/airflow", "CUSTOM_DIR": "/resolved"}
         with mock.patch.dict("os.environ", env, clear=True):
             assert get_airflow_config() == "/resolved/airflow/airflow.cfg"
+
+
+class TestAirflowSDKConfigParser:
+    @mock.patch("airflow.sdk._shared.secrets_masker.mask_secret")
+    def test_mask_secrets(self, mock_mask_secret):
+        from airflow.sdk.configuration import AirflowSDKConfigParser
+
+        parser = AirflowSDKConfigParser()
+
+        # Set a sensitive value
+        parser.sensitive_config_values.add(("test_section", "secret_key"))
+        if not parser.has_section("test_section"):
+            parser.add_section("test_section")
+        parser.set("test_section", "secret_key", "super_secret_value")
+
+        with (
+            mock.patch.dict(
+                "os.environ", {"AIRFLOW__SECRETS__BACKEND_KWARG__SOME_KEY": "secret_kwarg_value"}
+            ),
+            mock.patch("airflow._shared.secrets_masker.mask_secret") as mock_core_mask_secret,
+        ):
+            parser.mask_secrets()
+
+        mock_mask_secret.assert_any_call("super_secret_value")
+        mock_mask_secret.assert_any_call("secret_kwarg_value")
+        mock_core_mask_secret.assert_any_call("super_secret_value")
+        mock_core_mask_secret.assert_any_call("secret_kwarg_value")

@@ -94,8 +94,12 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
 
     def _create_task_group(self, tg_factory: Callable[..., TaskGroup], *args: Any, **kwargs: Any) -> DAGNode:
         with tg_factory(add_suffix_on_collision=True, **self.tg_kwargs) as task_group:
-            if self.function.__doc__ and not task_group.tooltip:
-                task_group.tooltip = self.function.__doc__
+            if doc := self.function.__doc__:
+                if not task_group.tooltip:
+                    task_group.tooltip = doc
+                if not task_group.doc_md:
+                    # Function docstrings are documentation text, not file paths for the doc_md converter.
+                    object.__setattr__(task_group, "doc_md", doc)
 
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)
@@ -194,6 +198,7 @@ def task_group(
     dag: DAG | None = None,
     default_args: dict[str, Any] | None = None,
     tooltip: str = "",
+    doc_md: str | None = None,
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
