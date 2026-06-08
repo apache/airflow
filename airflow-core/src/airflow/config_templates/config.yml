@@ -2688,6 +2688,19 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
+    partition_mapper_max_downstream_keys:
+      description: |
+        Maximum number of downstream partition keys a single ``PartitionMapper``
+        invocation may produce. When any partition mapper (built-in or custom)
+        expands one upstream key into more keys than this limit, the scheduler
+        skips queuing the runs for that asset event and logs an error against
+        the source task instance. This guards against a misconfigured
+        ``PartitionMapper`` from queuing an unbounded number of Dag runs per
+        upstream event.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1000"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.

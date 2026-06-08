@@ -19,9 +19,9 @@
 
 package org.apache.airflow.example;
 
+import java.util.List;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
-import java.util.List;
 
 public class ExampleBundleBuilder implements BundleBuilder {
   @NotNull

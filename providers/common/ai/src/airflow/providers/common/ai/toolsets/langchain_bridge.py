@@ -85,6 +85,11 @@ def airflow_toolset_to_langchain_tools(
     works regardless of how the agent handles tool errors. Raising instead would
     abort the run under ``create_agent``'s default tool-error handling.
 
+    The retry message is bounded by the tool's ``max_retries``: a tool that keeps
+    raising ``ModelRetry`` (for example an unrecoverable connection error) stops
+    being fed back and propagates once the budget is exhausted, so the run fails
+    instead of looping forever. The count resets after a successful call.
+
     The toolset's ``get_tools`` is invoked eagerly here to enumerate the tools.
 
     .. warning::
@@ -148,20 +153,39 @@ def _build_structured_tool(
         # the args unchanged; a typed one coerces them (e.g. "5" -> 5).
         return toolset_tool.args_validator.validate_python(kwargs)
 
+    # ModelRetry is a "feed this back to the model and retry" signal, so the bridge
+    # returns its message as the tool output instead of raising (see docstring).
+    # Bound it the way native pydantic-ai does, via the tool's max_retries: a tool
+    # that keeps raising ModelRetry (e.g. an unrecoverable connection error) must
+    # eventually propagate so the run fails rather than looping forever. The count
+    # resets on the first successful call.
+    max_retries = toolset_tool.max_retries if toolset_tool.max_retries is not None else 1
+    retries = {"count": 0}
+
+    def _handle_retry(error: ModelRetry) -> str:
+        retries["count"] += 1
+        if retries["count"] > max_retries:
+            # Reset before propagating so a reused tool starts the next run with a
+            # fresh budget instead of staying permanently exhausted.
+            retries["count"] = 0
+            raise error
+        return str(error)
+
     def _sync_call(**kwargs: Any) -> Any:
         try:
-            return _run_coro_sync(toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool))
+            result = _run_coro_sync(toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool))
         except ModelRetry as e:
-            # ModelRetry is a "feed this back to the model and retry" signal, not a
-            # failure. Return the message as the tool output so the model self-corrects
-            # (see docstring); raising would abort under create_agent's default handling.
-            return str(e)
+            return _handle_retry(e)
+        retries["count"] = 0
+        return result
 
     async def _async_call(**kwargs: Any) -> Any:
         try:
-            return await toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool)
+            result = await toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool)
         except ModelRetry as e:
-            return str(e)
+            return _handle_retry(e)
+        retries["count"] = 0
+        return result
 
     return structured_tool_cls.from_function(
         func=_sync_call,

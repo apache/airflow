@@ -153,6 +153,40 @@ class TestAirflowToolsetToLangChainTools:
 
         assert boom.invoke({}) == "fix your input and try again"
 
+    def test_repeated_model_retry_propagates_then_resets(self):
+        # A tool that keeps raising ModelRetry must not loop forever: once the tool's
+        # max_retries (1 here) is exhausted, the error propagates so the run fails
+        # instead of the bridge feeding the message back indefinitely. The budget then
+        # resets so a reused tool is not poisoned for the next run.
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
+
+        assert boom.invoke({}) == "fix your input and try again"  # fed back
+        with pytest.raises(ModelRetry, match="fix your input"):  # budget exhausted -> propagates
+            boom.invoke({})
+        assert boom.invoke({}) == "fix your input and try again"  # reset -> fed back again
+
+    def test_model_retry_count_resets_after_success(self):
+        # The retry budget resets on a successful call: fail (fed back), succeed
+        # (reset), fail again (fed back rather than immediately propagating).
+        class FlakyToolset(FakeToolset):
+            def __init__(self) -> None:
+                super().__init__()
+                self._outcomes = iter([ModelRetry("retry 1"), "ok", ModelRetry("retry 2")])
+
+            async def call_tool(self, name, tool_args, ctx, tool) -> Any:
+                if name == "boom":
+                    outcome = next(self._outcomes)
+                    if isinstance(outcome, ModelRetry):
+                        raise outcome
+                    return outcome
+                return await super().call_tool(name, tool_args, ctx, tool)
+
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FlakyToolset())}["boom"]
+
+        assert boom.invoke({}) == "retry 1"  # count 0 -> 1, returned
+        assert boom.invoke({}) == "ok"  # success, count reset to 0
+        assert boom.invoke({}) == "retry 2"  # count 0 -> 1 again, returned (not propagated)
+
     def test_model_retry_returned_as_tool_output_async(self):
         boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
 

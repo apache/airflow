@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   push:
-    branches: [main]
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   schedule:
     - cron: '0 2 * * *'
 
@@ -48,18 +48,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
           REPOSITORY: ${{ github.repository }}
-        # On `pull_request` we only scan the languages whose files actually changed in the PR.
-        # On `push` (to main) and `schedule` we always scan every language to keep full main coverage.
+        # On `pull_request` and `push` we only scan the languages whose files actually changed.
+        # On `schedule` we always scan every language to keep full periodic coverage.
         run: |
           set -euo pipefail
           all_languages='["python","javascript","actions","go","java"]'
-          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
             echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          pr_files_path="repos/${REPOSITORY}/pulls/${PR_NUMBER}/files"
-          changed_files="$(gh api --paginate "${pr_files_path}" --jq '.[].filename')"
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            changed_files="$(gh api "repos/${REPOSITORY}/compare/${BEFORE_SHA}...${AFTER_SHA}" \
+              --jq '.files[].filename')" || true
+            num_files="$(printf '%s\n' "${changed_files}" | grep -c . || true)"
+            # Fall back to a full scan if the compare call failed, returned nothing, or hit the
+            # API's 300-file cap. The compare API does not paginate files (only commits), so a
+            # merge of >300 files truncates the list and could under-detect a changed language;
+            # release branches have no daily schedule full-scan to back them up. Empty also covers
+            # a force-push or a newly created branch whose before SHA is all zeros (no base commit).
+            if [[ -z "${changed_files}" || "${num_files}" -ge 300 ]]; then
+              echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          else
+            # pull_request
+            changed_files="$(gh api --paginate \
+              "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+          fi
           languages=()
           grep -Eiq '\.(py|pyi)$'                        <<< "${changed_files}" && languages+=("python")
           grep -Eiq '\.(js|jsx|mjs|cjs|ts|tsx|vue)$'     <<< "${changed_files}" && languages+=("javascript")
