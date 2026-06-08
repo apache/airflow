@@ -12,8 +12,11 @@ default — surfaces gaps and remediation commands.
 ## Inputs
 
 - `--auto-fix-symlinks` — *exception to read-only*. If the
-  snapshot is present but symlinks are missing or dangling,
-  recreate them. Used by the post-checkout hook
+  snapshot is present but symlinks are missing or dangling
+  in **any active target dir** ([`agents.md`](agents.md) —
+  `.agents/skills/`, `.claude/skills/`, `.github/skills/`, plus
+  any present holdout), recreate them across all of them. Used
+  by the post-checkout hook
   ([`adopt.md` Step 10](adopt.md)) on a fresh worktree
   where the gitignored symlinks didn't follow the
   checkout.
@@ -46,21 +49,28 @@ adoption state.
 1. **Marker lock.** `.apache-magpie.lock` parses and records
    `method: local`. ✓ when present; ✗ with a pointer at
    `/magpie-setup` otherwise.
-2. **Symlinks resolve into `skills/`.** In **both**
-   `.claude/skills/` and `.github/skills/`, every `magpie-<n>` is
-   a symlink whose target (`../../skills/<n>/`) resolves to a
-   directory containing `SKILL.md`. ✗ list any dangling or
-   non-symlink entry; remediation: re-run `/magpie-setup`
-   (idempotent).
+2. **Symlinks resolve (canonical → source, relays → canonical).**
+   In the canonical dir `.agents/skills/`, every `magpie-<n>` is a
+   symlink whose target (`../../skills/<n>/`) resolves to a
+   directory containing `SKILL.md`. In every **relay** target dir
+   ([`agents.md`](agents.md) — `.claude/skills/`, `.github/skills/`,
+   plus any present holdout), every `magpie-<n>` is a symlink whose
+   target (`../../.agents/skills/magpie-<n>`) resolves through the
+   canonical entry to the same `SKILL.md`. ✗ list any dangling or
+   non-symlink entry — or any relay that points straight at the
+   snapshot/source instead of at `.agents/skills/` — naming the
+   target dir; remediation: re-run `/magpie-setup` (idempotent).
 3. **Coverage.** Every `skills/<n>/` with a `SKILL.md` has a
-   matching `magpie-<n>` symlink in **both** dirs (unless a
-   `skill-families:` filter was deliberately applied). ⚠ list any
-   source skill with no link; remediation: `/magpie-setup`.
-4. **`.gitignore`.** `.claude/skills/*` and `.github/skills/*` are
-   ignored, with `!/.claude/skills/magpie-*` and
-   `!/.github/skills/magpie-*` un-ignoring the committed symlinks.
-   ✗ if either un-ignore line is missing (those symlinks would not
-   be tracked).
+   canonical `magpie-<n>` symlink in `.agents/skills/` and a
+   matching relay in **every other active target dir**
+   (unless a `skill-families:` filter was deliberately applied).
+   ⚠ list any source skill with no link, per target; remediation:
+   `/magpie-setup`.
+4. **`.gitignore`.** Each active target dir's `<dir>/*` is
+   ignored, with `!/<dir>/magpie-*` un-ignoring the committed
+   symlinks — `.agents/skills/`, `.claude/skills/`,
+   `.github/skills/`, and any present holdout. ✗ if any un-ignore
+   line is missing (those symlinks would not be tracked).
 5. **No remote leftovers.** No `.apache-magpie/` snapshot dir and
    no `.apache-magpie.local.lock` — local self-adoption uses
    neither. ⚠ surface either if found (a stale remote adoption was
@@ -150,21 +160,19 @@ Check that the entries from
   must never be committed since the content is machine-specific
   absolute paths)
 
-Recommended (the family patterns the adopter's
-[skills-dir convention](conventions.md) requires):
+Recommended (a **uniform** `magpie-*` glob block per **active
+target dir** — [`agents.md`](agents.md) — with no per-layout
+variation):
 
-- **Pattern A** — framework-skill symlink patterns
-  (`security-*`, `pr-management-*`, `issue-*`,
-  `setup-isolated-setup-*`, `setup-shared-config-sync`,
-  `list-*`) under `.claude/skills/` only.
-- **Pattern B** — same patterns under **both**
-  `.claude/skills/` and `.github/skills/` (one ignore line
-  per physical symlink).
-- **Pattern D** — same patterns under the **canonical side
-  only** (`.github/skills/` for D.1; `.claude/skills/` for
-  D.2). The symlinked side does not need its own ignore
-  lines because git does not descend into a directory
-  symlink.
+- **Canonical target (`.agents/skills/`)** — always present:
+  `/.agents/skills/magpie-*` with `!/.agents/skills/magpie-setup`.
+- **Relay targets (`.claude/skills/`, `.github/skills/`)** — the
+  same two-line block keyed on each dir
+  (`/.claude/skills/magpie-*` with `!/.claude/skills/magpie-setup`,
+  and likewise for `.github/skills/`).
+- **Any present holdout** (`.windsurf/skills/`,
+  `.goose/skills/`, …) — the same two-line block keyed on its own
+  dir.
 
 - ✗ if `/.apache-magpie/` is not gitignored — the snapshot
   is at risk of being accidentally committed.
@@ -180,16 +188,27 @@ Recommended (the family patterns the adopter's
 
 ### 5. Symlinks point at live framework skills
 
-For each symlink under `<adopter-skills-dir>` that resolves
-into `.apache-magpie/skills/<name>/`:
+Run this check across **every active target dir**
+([`agents.md`](agents.md) — `.agents/skills/`, `.claude/skills/`,
+`.github/skills/`, plus any present holdout), not just the
+`.claude/`/`.github/` pair.
 
-- ✓ if the target exists.
-- ✗ if dangling (target deleted or snapshot missing).
-  Remediation: `/magpie-setup adopt` (idempotent re-run)
-  or this same skill with `--auto-fix-symlinks`.
+For each `magpie-*` symlink under any active target dir —
+canonical ones resolving (via `.agents/skills/`) into
+`.apache-magpie/skills/<name>/`, relays resolving through
+`../../.agents/skills/magpie-<name>` to the same:
+
+- ✓ if it resolves to a live skill.
+- ✗ if dangling (target deleted or snapshot missing), or a relay
+  pointing straight at the snapshot instead of at the canonical
+  `.agents/skills/` entry, naming the target dir. Remediation:
+  `/magpie-setup adopt` (idempotent re-run) or this same skill
+  with `--auto-fix-symlinks`.
 
 For each framework skill in the snapshot **not** symlinked
-in the adopter, classify it:
+in a given active target dir, classify it (a skill missing
+from `.agents/skills/` is as much a gap as one missing from
+`.claude/skills/`):
 
 - **Always-on family** (every `setup-*` *except*
   `setup` itself, and every `list-*` — per
@@ -208,9 +227,9 @@ in the adopter, classify it:
   family; the warning prompts a decision.
 
 The `--auto-fix-symlinks` path repairs the first two
-classes in place without prompting; the ⚠ class needs an
-explicit `/magpie-setup adopt` re-run with the family
-added to the pick.
+classes in place — in **every active target dir** — without
+prompting; the ⚠ class needs an explicit `/magpie-setup adopt`
+re-run with the family added to the pick.
 
 ### 6. `.apache-magpie-overrides/` exists + has the README
 
@@ -226,8 +245,8 @@ with the `README.md` scaffold from
 
 ### 7. The `setup` skill itself is up to date
 
-Compare the adopter-side committed `setup` skill
-(at `<adopter-skills-dir>/magpie-setup/`) against the
+Compare the canonical committed `setup` skill
+(at `.agents/skills/magpie-setup/`) against the
 snapshot's `.apache-magpie/skills/setup/`.
 
 - ✓ if same content.
@@ -311,13 +330,13 @@ For the current worktree (resolved via
   pass.
 - ⚠ if missing from either array **and** the helper script is
   absent — the operator has not run
-  `/setup-isolated-setup-install` yet. Suggest that skill.
+  `/magpie-setup-isolated-setup-install` yet. Suggest that skill.
   Not ✗ because secure-agent isolation is independent of
   framework adoption, and an adopter who runs without the
   sandbox enabled has nothing to lose by the missing entry.
 - ⚠ if `<worktree>/.claude/settings.local.json` is absent
   entirely — same remediation (re-run the helper or
-  `/setup-isolated-setup-install`). The file is auto-created
+  `/magpie-setup-isolated-setup-install`). The file is auto-created
   by the helper on first run.
 - ✗ if `<worktree>/.claude/settings.local.json` exists AND
   is **not** gitignored (cross-check via `git check-ignore`).
@@ -550,7 +569,7 @@ which holds a POSIX `fcntl.flock` advisory exclusive lock on
 the target file, re-parses under the lock, mutates
 `.permissions.allow[]` in place, writes to a sibling temp
 file, and `os.replace`s into place — so concurrent
-`/setup-isolated-setup-install` (which also writes to the same
+`/magpie-setup-isolated-setup-install` (which also writes to the same
 file's `sandbox.filesystem.*` arrays) does not silently
 clobber the diff. When the target file lives at a path the
 agent's sandbox marks as `denyWithinAllow` (the per-machine
@@ -559,7 +578,7 @@ operator to authorise the sandbox bypass for that single write
 — it does not silently skip the file. ⚠ if either file is
 absent (most adopters will have at least
 `settings.local.json` after the first
-`/setup-isolated-setup-install` pass; absence is a soft signal
+`/magpie-setup-isolated-setup-install` pass; absence is a soft signal
 not a hard fault).
 
 **Why we propose, never auto-apply.** The allow-list is

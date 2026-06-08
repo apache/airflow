@@ -7884,16 +7884,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            run_after, logical_date, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, run_after, logical_date,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -9046,16 +9044,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            logical_date, run_after, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, logical_date, run_after,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response

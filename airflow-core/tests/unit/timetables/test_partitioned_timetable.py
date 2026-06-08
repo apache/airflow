@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import datetime
 from collections.abc import Callable, Iterable
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
@@ -255,3 +257,19 @@ class TestPartitionedAssetTimetable:
         assert timetable.asset_condition == ser_asset
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
+
+    def test_partitioned_asset_timetable_resolve_day_bound_returns_midnight_utc(self):
+        """PartitionedAssetTimetable has no local timezone; resolve_day_bound uses the base default.
+
+        Non-regression: verifies the timetable walks the base-default code path
+        (midnight UTC) rather than any CronMixin path.
+        """
+        tt = PartitionedAssetTimetable(
+            assets=Asset(name="asset-a"),
+            default_partition_mapper=IdentityMapper(),
+        )
+        result = tt.resolve_day_bound(datetime.date(2026, 4, 10))
+
+        expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
+        assert result == expected
+        assert result.timezone_name == "UTC"

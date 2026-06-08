@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import calendar
 
+# NOTE: Keep in sync with CRON_PRESETS in task-sdk/src/airflow/sdk/definitions/timetables/_cron.py
+# The SDK cannot import from core, so both dicts must be updated together.
 cron_presets: dict[str, str] = {
     "@hourly": "0 * * * *",
     "@daily": "0 0 * * *",

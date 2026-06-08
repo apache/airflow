@@ -1443,6 +1443,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             },
             id="Run java e2e tests when JavaCoordinator changes",
         ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {
+                "run-go-sdk-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go unit and e2e tests for go-sdk source change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/go.yml",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go e2e tests when go compose override changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go e2e tests when ExecutableCoordinator changes",
+        ),
         (
             pytest.param(
                 ("devel-common/pyproject.toml",),
@@ -3223,8 +3249,13 @@ def test_testable_core_integrations_excludes_disabled():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
         )
-        with patch.object(
-            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        with (
+            patch.object(
+                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+            ),
+            patch.object(
+                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
+            ),
         ):
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
@@ -3242,8 +3273,15 @@ def test_testable_core_integrations_excludes_arm_disabled_on_arm():
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
         )
-        with patch.object(
-            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        with (
+            patch.object(
+                SelectiveChecks,
+                "runner_type",
+                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
+            ),
+            patch.object(
+                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
+            ),
         ):
             result = selective_checks_arm.testable_core_integrations
             assert "postgres" in result
@@ -3263,8 +3301,13 @@ def test_testable_providers_integrations_excludes_disabled():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
         )
-        with patch.object(
-            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        with (
+            patch.object(
+                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+            ),
+            patch.object(
+                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
+            ),
         ):
             result = selective_checks_amd.testable_providers_integrations
             assert "postgres" in result
@@ -3283,13 +3326,72 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
         )
-        with patch.object(
-            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        with (
+            patch.object(
+                SelectiveChecks,
+                "runner_type",
+                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
+            ),
+            patch.object(
+                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
+            ),
         ):
             result = selective_checks_arm.testable_providers_integrations
             assert "postgres" in result
             assert "trino" not in result
             assert "ydb" not in result
+
+
+@pytest.mark.parametrize(
+    ("changed_file", "expected_integration"),
+    [
+        pytest.param("airflow-core/src/airflow/security/kerberos.py", "kerberos", id="kerberos-source"),
+        pytest.param("airflow-core/src/airflow/observability/stats.py", "otel", id="otel-source"),
+        pytest.param("airflow-core/src/airflow/executors/executor_loader.py", "redis", id="celery-source"),
+    ],
+)
+def test_testable_core_integrations_gated_by_source(changed_file, expected_integration):
+    """A core integration is only emitted when its corresponding core source group changed."""
+    selective_checks = SelectiveChecks(
+        files=(changed_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+    )
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+    ):
+        result = selective_checks.testable_core_integrations
+        assert result == [expected_integration]
+
+
+def test_testable_core_integrations_empty_when_unrelated_source():
+    """Unrelated core changes emit no core integrations (no full-tests / canary trigger)."""
+    selective_checks = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/taskinstance.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+    )
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+    ):
+        assert selective_checks.testable_core_integrations == []
+
+
+def test_testable_providers_integrations_gated_by_affected_provider():
+    """A provider integration is only emitted when its owning provider is affected."""
+    selective_checks = SelectiveChecks(
+        files=("providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+    )
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+    ):
+        result = selective_checks.testable_providers_integrations
+        assert "cassandra" in result
+        # Unrelated integrations whose providers are not affected must be absent.
+        assert "mongo" not in result
+        assert "ydb" not in result
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
@@ -3842,59 +3944,3 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    ("github_event", "default_branch", "expected_all_versions"),
-    [
-        pytest.param(
-            GithubEvents.PUSH,
-            "v3-2-test",
-            "false",
-            id="Push to release branch does not force all versions",
-        ),
-        pytest.param(
-            GithubEvents.SCHEDULE,
-            "main",
-            "true",
-            id="Schedule (canary) forces all versions",
-        ),
-        pytest.param(
-            GithubEvents.WORKFLOW_DISPATCH,
-            "main",
-            "true",
-            id="Workflow dispatch forces all versions",
-        ),
-    ],
-)
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
-def test_push_to_release_branch_does_not_force_full_tests(
-    mock_get, github_event, default_branch, expected_all_versions
-):
-    """Test that push to release branches (v3-X-test) does not force full test matrix,
-    while canaries (SCHEDULE) and manual triggers still do."""
-    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    stderr = SelectiveChecks(
-        files=("airflow-core/src/airflow/models/dag.py",),
-        commit_ref=NEUTRAL_COMMIT,
-        github_event=github_event,
-        pr_labels=(),
-        default_branch=default_branch,
-    )
-    assert_outputs_are_printed(
-        {
-            "all-versions": expected_all_versions,
-        },
-        str(stderr),
-    )
