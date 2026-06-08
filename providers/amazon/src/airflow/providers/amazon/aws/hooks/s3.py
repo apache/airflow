@@ -1243,9 +1243,10 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
-        get_hook_lineage_collector().add_input_asset(
-            context=self, scheme="file", asset_kwargs={"path": filename}
-        )
+        if self.enable_hook_level_lineage:
+            get_hook_lineage_collector().add_input_asset(
+                context=self, scheme="file", asset_kwargs={"path": filename}
+            )
         if self.enable_hook_level_lineage:
             get_hook_lineage_collector().add_output_asset(
                 context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
@@ -1393,7 +1394,7 @@ class S3Hook(AwsBaseHook):
             Config=self.transfer_config,
         )
         # No input because file_obj can be anything - handle in calling function if possible
-        if getattr(self, "enable_hook_level_lineage", True):
+        if self.enable_hook_level_lineage:
             get_hook_lineage_collector().add_output_asset(
                 context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
             )
@@ -1482,16 +1483,17 @@ class S3Hook(AwsBaseHook):
             CopySource=copy_source,
             **kwargs,
         )
-        get_hook_lineage_collector().add_input_asset(
-            context=self,
-            scheme="s3",
-            asset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key},
-        )
-        get_hook_lineage_collector().add_output_asset(
-            context=self,
-            scheme="s3",
-            asset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key},
-        )
+        if self.enable_hook_level_lineage:
+            get_hook_lineage_collector().add_input_asset(
+                context=self,
+                scheme="s3",
+                asset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key},
+            )
+            get_hook_lineage_collector().add_output_asset(
+                context=self,
+                scheme="s3",
+                asset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key},
+            )
         return response
 
     @provide_bucket_name
@@ -1618,13 +1620,14 @@ class S3Hook(AwsBaseHook):
 
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
-            get_hook_lineage_collector().add_output_asset(
-                context=self,
-                scheme="file",
-                asset_kwargs={
-                    "path": str(file_path) if file_path.is_absolute() else str(file_path.absolute())
-                },
-            )
+            if self.enable_hook_level_lineage:
+                get_hook_lineage_collector().add_output_asset(
+                    context=self,
+                    scheme="file",
+                    asset_kwargs={
+                        "path": str(file_path) if file_path.is_absolute() else str(file_path.absolute())
+                    },
+                )
             file = open(file_path, "wb")
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
@@ -1638,9 +1641,10 @@ class S3Hook(AwsBaseHook):
             Config=self.transfer_config,
         )
         file.flush()
-        get_hook_lineage_collector().add_input_asset(
-            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
-        )
+        if self.enable_hook_level_lineage:
+            get_hook_lineage_collector().add_input_asset(
+                context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
+            )
         return file.name
 
     def generate_presigned_url(
