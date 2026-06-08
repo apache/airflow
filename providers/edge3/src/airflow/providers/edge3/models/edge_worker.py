@@ -179,10 +179,11 @@ def set_metrics(
         "concurrency",
         "free_concurrency",
     }
+    status = sysinfo.get("status", logging.NOTSET)
+    if not isinstance(status, (int, float)):
+        status = logging.NOTSET
 
-    Stats.gauge(
-        "edge_worker.status", sysinfo.get("status", logging.NOTSET), tags={"worker_name": worker_name}
-    )  # type: ignore
+    Stats.gauge("edge_worker.status", status, tags={"worker_name": worker_name})
     Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
     Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
@@ -201,7 +202,7 @@ def set_metrics(
 
     if not AIRFLOW_V_3_3_PLUS:
         # Airflow < 3.3: export legacy per-worker metrics (no auto-tag expansion).
-        Stats.gauge(f"edge_worker.status.{worker_name}", sysinfo.get("status", logging.NOTSET))  # type: ignore
+        Stats.gauge(f"edge_worker.status.{worker_name}", int(status))
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
         Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
         Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
