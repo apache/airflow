@@ -310,6 +310,25 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "connection_test.success"
+    description: "Number of worker-dispatched connection tests that completed successfully."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.failed"
+    description: "Number of worker-dispatched connection tests that completed with a failure."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.reaped"
+    description: "Number of stale connection tests marked failed by the scheduler reaper.
+    Metric with prior_state tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
@@ -321,6 +340,20 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.active"
+    description: "Number of connection tests currently in flight (``queued`` + ``running``), sampled by the
+    scheduler each tick."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.pending"
+    description: "Number of connection tests waiting in the ``pending`` backlog (queue depth), sampled by the
+    scheduler each tick."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -468,11 +501,17 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
-  - name: "ol.event.size.{event_type}.{operator_name}"
+  - name: "ol.event.size"
     description: "Size in bytes of an OpenLineage event by event type and operator."
     type: "gauge"
-    legacy_name: "-"
+    legacy_name: "ol.event.size.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
+
+  - name: "edge_worker.status"
+    description: "Edge worker status (expressed as Python logging level)."
+    type: "gauge"
+    legacy_name: "edge_worker.status.{worker_name}"
+    name_variables: ["worker_name"]
 
   - name: "edge_worker.connected"
     description: "Edge worker in state connected."
@@ -528,6 +567,28 @@ metrics:
     legacy_name: "edge_worker.ti.finish.{queue}.{state}.{dag_id}.{task_id}"
     name_variables: ["queue", "state", "dag_id", "task_id"]
 
+  - name: "kubernetes_executor.pod_creation_status"
+    description: "Number of Kubernetes create_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on
+    failure, ``error`` for non-API exceptions)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
+  - name: "kubernetes_executor.pod_deletion_status"
+    description: "Number of Kubernetes delete_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on failure)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
+  - name: "kubernetes_executor.pod_patching_status"
+    description: "Number of Kubernetes patch_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on failure)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
   # ==========
   # Timers
   # ==========
@@ -558,8 +619,8 @@ metrics:
   - name: "dag_processing.last_duration"
     description: "Milliseconds taken to load the given Dag file"
     type: "timer"
-    legacy_name: "dag_processing.last_duration.{dag_file}"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_duration.{bundle_name}.{file_name}"
+    name_variables: ["bundle_name", "file_name"]
 
   - name: "dagrun.duration.success"
     description: "Milliseconds taken for a DagRun to reach success state"
@@ -598,11 +659,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.executor_heartbeat_duration"
+    description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
+      by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.first_task_scheduling_delay"
     description: "Milliseconds elapsed between first task start_date and dagrun expected start"
     type: "timer"
     legacy_name: "dagrun.{dag_id}.first_task_scheduling_delay"
     name_variables: ["dag_id"]
+
+  - name: "dagrun.first_task_start_delay"
+    description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
 
   - name: "collect_db_dags"
     description: "Milliseconds taken for fetching all Serialized Dags from DB"
@@ -618,6 +692,24 @@ metrics:
 
   - name: "kubernetes_executor.adopt_task_instances.duration"
     description: "Milliseconds taken to adopt the task instances in Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation"
+    description: "Milliseconds taken for a Kubernetes create_namespaced_pod call from the Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_deletion"
+    description: "Milliseconds taken for a Kubernetes delete_namespaced_pod call from the Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_patching"
+    description: "Milliseconds taken for a Kubernetes patch_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []
@@ -652,10 +744,10 @@ metrics:
     legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
     name_variables: ["event_type", "transport_type"]
 
-  - name: "ol.extract.{event_type}.{operator_name}"
+  - name: "ol.extract"
     description: "Milliseconds taken to extract an OpenLineage event by event type and operator."
     type: "timer"
-    legacy_name: "-"
+    legacy_name: "ol.extract.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
 
   - name: "airflow.io.load_filesystems"
@@ -666,6 +758,20 @@ metrics:
 
   - name: "serde.load_serializers"
     description: "Milliseconds taken to load all serializer modules"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.dispatch_duration"
+    description: "Milliseconds the scheduler spends dispatching pending connection tests to executors
+    in a single tick."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.hook_duration"
+    description: "Milliseconds a worker spends running the hook's ``test_connection`` for a
+    worker-dispatched connection test."
     type: "timer"
     legacy_name: "-"
     name_variables: []

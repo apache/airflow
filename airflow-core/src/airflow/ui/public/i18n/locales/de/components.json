@@ -10,6 +10,7 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
@@ -87,12 +88,13 @@
     "directionRight": "Von Links nach Rechts",
     "directionUp": "Von Unten nach Oben",
     "downloadImage": "Graph-Bild herunterladen",
-    "downloadImageError": "Herunterladn des Graph-Bild fehlgeschlagen.",
+    "downloadImageError": "Herunterladen des Graph-Bildes fehlgeschlagen.",
     "downloadImageErrorTitle": "Herunterladen fehlgeschlagen",
     "otherDagRuns": "+Weitere Dag Läufe",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Gruppe"
+    "taskGroup": "Task Gruppe",
+    "zoomToTask": "Zum ausgewählten Task zoomen"
   },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",

@@ -48,6 +48,7 @@ else:
 
 __all__ = [
     "Asset",
+    "AssetAccessControl",
     "Dataset",
     "Model",
     "AssetAlias",
@@ -60,6 +61,7 @@ __all__ = [
 ]
 
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl
 
 log = logging.getLogger(__name__)
 
@@ -278,6 +280,9 @@ class Asset(os.PathLike, BaseAsset):
     watchers: list[AssetWatcher] = attrs.field(
         factory=list,
     )
+    access_control: AssetAccessControl = attrs.field(
+        factory=AssetAccessControl,
+    )
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
@@ -291,6 +296,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -302,6 +308,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -313,6 +320,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -324,6 +332,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str | None = None,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] | None = None,
+        access_control: AssetAccessControl | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -345,6 +354,8 @@ class Asset(os.PathLike, BaseAsset):
             kwargs["extra"] = extra
         if watchers is not None:
             kwargs["watchers"] = watchers
+        if access_control is not None:
+            kwargs["access_control"] = access_control
 
         self.__attrs_init__(name=name, uri=uri, **kwargs)
 

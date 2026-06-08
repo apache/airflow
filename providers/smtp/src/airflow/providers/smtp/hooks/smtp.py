@@ -299,9 +299,10 @@ class SmtpHook(BaseHook):
         """Test SMTP connectivity from UI."""
         try:
             smtp_client = self.get_conn()._smtp_client
-            if smtp_client:
+            if smtp_client is not None:
+                smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", smtp_client)
                 status = smtp_client.noop()
-                if status == 250:
+                if status[0] == 250:
                     return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

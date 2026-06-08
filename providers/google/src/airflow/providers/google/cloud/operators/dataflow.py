@@ -288,7 +288,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     templated, so you can use variables in them.
 
     Note that ``dataflow_default_options`` is expected to save high-level options
-    for project information, which apply to all dataflow operators in the DAG.
+    for project information, which apply to all dataflow operators in the Dag.
 
         .. seealso::
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3

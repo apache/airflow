@@ -94,6 +94,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.operator_resources import Resources
+    from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import WeightRuleParam
@@ -261,6 +262,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": 0,
+    "retry_policy": None,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
@@ -870,6 +872,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
+    retry_policy: RetryPolicy | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     depends_on_past: bool = False
@@ -926,6 +929,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
 
+    # Names of constructor fields whose values may contain Pydantic model classes
+    # this operator can emit to XCom (e.g. ``("output_type",)``). The worker
+    # registers those classes in the deserialization allow-list before running
+    # tasks, so downstream consumers can deserialize the instances without an
+    # ``[core] allowed_deserialization_classes`` edit. Empty by default.
+    deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ()
+
     operator_extra_links: Collection[BaseOperatorLink] = ()
 
     # Defines the color in the UI
@@ -963,6 +973,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "has_on_success_callback",
         "has_on_retry_callback",
         "has_on_skipped_callback",
+        "has_retry_policy",
         "do_xcom_push",
         "multiple_outputs",
         "allow_nested_operators",
@@ -1027,6 +1038,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
+        retry_policy: RetryPolicy | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         depends_on_past: bool = False,
@@ -1175,6 +1187,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.retry_exponential_backoff = retry_exponential_backoff
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
+        self.retry_policy = retry_policy
 
         self.resources = resources
 
@@ -1538,6 +1551,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_success_callback",
                     "on_retry_callback",
                     "on_skipped_callback",
+                    "retry_policy",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
@@ -1562,6 +1576,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "has_on_success_callback",
                     "has_on_retry_callback",
                     "has_on_skipped_callback",
+                    "has_retry_policy",
                 }
             )
             DagContext.pop()
@@ -1722,6 +1737,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def has_on_skipped_callback(self) -> bool:
         """Return True if the task has skipped callbacks."""
         return bool(self.on_skipped_callback)
+
+    @property
+    def has_retry_policy(self) -> bool:
+        """Return True if the task has a retry policy configured."""
+        return bool(self.retry_policy)
 
 
 class BaseAsyncOperator(BaseOperator):

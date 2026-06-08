@@ -38,6 +38,8 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagDeadlines } from "./DagDeadlines";
+
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
 const defaultHour = "24";
@@ -63,6 +65,7 @@ export const Overview = () => {
   const failedTaskCount = failedTasks?.total_entries ?? 0;
 
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
+
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit,
@@ -148,6 +151,7 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
+      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>

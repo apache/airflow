@@ -47,8 +47,9 @@ class ReadyToRescheduleDep(BaseTIDep):
     def _get_dep_statuses(
         self,
         ti: TaskInstance,
-        session: Session,
         dep_context: DepContext,
+        *,
+        session: Session,
     ) -> Iterator[TIDepStatus]:
         """
         Determine whether a task is ready to be rescheduled.

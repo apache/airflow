@@ -1,0 +1,14 @@
+Tighten ``[core] allowed_deserialization_classes_regexp`` to require full-string matches
+
+Patterns in ``[core] allowed_deserialization_classes_regexp`` are now matched
+against the entire classname using ``re.fullmatch()`` instead of ``re.match()``.
+Previously a pattern such as ``airflow\.models\.Variable`` admitted not only
+the intended class but also names that started with it
+(e.g. ``airflow.models.Variable_Malicious``), because ``re.match`` only anchors
+at the start of the string.
+
+The default value of this option is empty, so out-of-the-box deployments are
+unaffected. Deployments that configured this option with patterns relying on
+prefix-match semantics — for example ``airflow\.models\.`` to mean "any class
+under ``airflow.models``" — must add ``.*`` to the pattern
+(``airflow\.models\..*``) to retain the previous behaviour.

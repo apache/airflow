@@ -84,3 +84,41 @@ class TestDagVersion:
 
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version == f"{dag.dag_id}-1"
+
+    @pytest.mark.db_test
+    def test_write_dag_with_version_data(self, dag_maker, session):
+        """Test that version_data is stored and retrievable."""
+        with dag_maker("test_version_data"):
+            pass
+
+        manifest = {"schema_version": 1, "files": {"dags/my_dag.py": "S3VersionId123"}}
+        DagVersion.write_dag(
+            dag_id="test_version_data",
+            bundle_name="testing",
+            bundle_version="sha256abc",
+            version_data=manifest,
+            session=session,
+        )
+        session.flush()
+
+        retrieved = DagVersion.get_latest_version("test_version_data", session=session)
+        assert retrieved.version_data == manifest
+        assert retrieved.bundle_version == "sha256abc"
+
+    @pytest.mark.db_test
+    def test_write_dag_without_version_data(self, dag_maker, session):
+        """Test that version_data defaults to None for bundles that don't use it."""
+        with dag_maker("test_no_version_data"):
+            pass
+
+        DagVersion.write_dag(
+            dag_id="test_no_version_data",
+            bundle_name="testing",
+            bundle_version="abc123",
+            session=session,
+        )
+        session.flush()
+
+        retrieved = DagVersion.get_latest_version("test_no_version_data", session=session)
+        assert retrieved.version_data is None
+        assert retrieved.bundle_version == "abc123"

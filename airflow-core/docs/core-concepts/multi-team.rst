@@ -65,6 +65,7 @@ Teams are associated with Dags through **Dag Bundles**. A Dag bundle can be owne
 - All Dags within that bundle belong to that team
 - Tasks in those Dags inherit the team association
 - All Callbacks associated with those Dags also inherit the team association
+- Triggers created by those Dags' tasks inherit the team association
 - The scheduler uses this relationship to determine which executor to use
 
 .. note::
@@ -503,16 +504,207 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
     teams share the same metadata database and common Airflow infrastructure. For absolutely strict security
     requirements, consider separate Airflow deployments.
 
-Architecture
-------------
+.. _multi-team-triggerer:
 
-The following diagram shows a Multi-Team Airflow deployment with resource isolation between teams.
+Team-scoped Triggerer
+---------------------
 
-The components in blue are the shared components and those in green are the team components (note the green shadow box
-indicating more than one team is present in the architecture).
+When Multi-Team mode is enabled, a triggerer should be scoped to each specific team using the ``--team-name`` CLI argument. A team-scoped triggerer processes deferred tasks (triggers) belonging to that team's Dags. This allows teams to run isolated triggerer instances with independent capacity and failure domains.
 
-.. image:: /img/multi_team_arch_diagram.png
-   :alt: Multi-Team Airflow Architecture showing resource isolation between teams
+Configuration
+^^^^^^^^^^^^^
+
+Start a team-scoped triggerer by passing ``--team-name``:
+
+.. code-block:: bash
+
+    # Triggerer for team_a only
+    airflow triggerer --team-name team_a
+
+    # Triggerer for team_b only
+    airflow triggerer --team-name team_b
+
+    # Global triggerer — processes triggers from Dags with no team association
+    airflow triggerer
+
+Startup validation ensures that ``core.multi_team`` is enabled and the specified team exists in the database.
+
+Behavior
+^^^^^^^^
+
+- **Team-scoped triggerer** (``--team-name team_x``): Only picks up triggers whose originating Dag belongs to a bundle mapped to ``team_x``.
+- **Global triggerer** (no ``--team-name``): Only picks up triggers whose originating Dag belongs to a bundle with no team assignment.
+- **Multi-Team disabled** (``core.multi_team = False``): ``--team-name`` is rejected. No filtering occurs and all triggerers process all triggers (existing behavior).
+
+Interaction with ``--queues``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Team filtering and queue filtering are orthogonal — they combine as AND conditions. For example, a triggerer started with ``--team-name team_a --queues q1,q2`` only processes triggers that both belong to ``team_a`` and were deferred from tasks in queues ``q1`` or ``q2``.
+
+.. note::
+
+    Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
+    remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
+    combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
+
+.. _multi-team-asset-event-filtering:
+
+Team-Based Asset Event Filtering
+---------------------------------
+
+When Multi-Team mode is enabled, asset events are filtered by team membership before they trigger
+downstream Dag runs. This prevents asset events produced by one team's Dags from unintentionally
+triggering Dag runs for a different team.
+
+Default Behavior
+^^^^^^^^^^^^^^^^
+
+By default, a consuming Dag only receives asset events from producers within the same team or from Dags with no team association, i.e. global Dags.
+
+Cross-Team Opt-In with ``access_control``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To allow specific teams to produce events that trigger consumers on a given asset from another team, use the
+``access_control`` parameter on the ``Asset`` definition with an ``AssetAccessControl`` instance:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    shared_data = Asset(
+        name="shared_data",
+        uri="s3://bucket/shared/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
+    )
+
+With this configuration, asset events from ``team_analytics`` or ``team_ml`` will be accepted by any
+consuming Dag that schedules on ``shared_data``, in addition to events from the consumer's own team.
+
+To block global (teamless) Dag producers from triggering consumers, set ``allow_global=False``:
+
+.. code-block:: python
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+See :ref:`Cross-team asset event filtering with access_control <asset_access_control>` in the Assets
+documentation for usage details and validation rules.
+
+Behavioral Rules
+^^^^^^^^^^^^^^^^
+
+The following table describes the complete filtering logic:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 18 14 13 25
+
+   * - Producer
+     - Consumer
+     - ``producer_teams``
+     - ``allow_global``
+     - Result
+     - Reason
+   * - Team A (DAG)
+     - Team A
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Same team
+   * - Team A (DAG)
+     - Team B
+     - ``[]``
+     - (any)
+     - ❌ Blocked
+     - Different team, no opt-in
+   * - Team A (DAG)
+     - Team B
+     - ``["team_a"]``
+     - (any)
+     - ✅ Allowed
+     - Cross-team opt-in
+   * - (no team, DAG)
+     - Team B
+     - (any)
+     - ``True``
+     - ✅ Allowed
+     - Global producer, allow_global is True
+   * - (no team, DAG)
+     - Team B
+     - (any)
+     - ``False``
+     - ❌ Blocked
+     - Global producer blocked by allow_global=False
+   * - Team A (DAG)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Teamless consumer accepts events from any DAG producer
+   * - (no team, DAG)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Both global
+   * - Team A (API)
+     - Team A
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Same team
+   * - Team A (API)
+     - Team B
+     - ``["team_a"]``
+     - (any)
+     - ✅ Allowed
+     - Cross-team opt-in
+   * - Team A (API)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Teamless consumer accepts events from any source
+   * - (no team, API)
+     - Team B
+     - (any)
+     - (any)
+     - ❌ Blocked
+     - Teamless API user cannot trigger team-bound consumer
+   * - (no team, API)
+     - (no team)
+     - (any)
+     - (any)
+     - ✅ Allowed
+     - Both global
+
+Key rules:
+
+- **Same team**: Always allowed.
+- **Global (teamless) DAG producer with** ``allow_global=True``: Triggers all consumers regardless of team.
+- **Global (teamless) DAG producer with** ``allow_global=False``: Blocked from triggering team-bound consumers.
+- **Teamless API user**: Can only trigger teamless consumers. Unlike a teamless DAG — which is
+  deployed by a platform operator and intentionally shared — an API user without a team has no
+  verified team affiliation, so their events are restricted to teamless consumers to
+  prevent unscoped access to team-bound pipelines.
+- **Teamless consumer**: Accepts events from any source (DAG or API), regardless of team.
+- **Cross-team via** ``producer_teams``: Allowed when the producer's team is listed in the asset's ``producer_teams``.
+- **Multi-Team disabled**: All filtering is skipped; existing behavior is preserved.
+
+API-Triggered Events
+^^^^^^^^^^^^^^^^^^^^
+
+When a user creates an asset event via the REST API, the user's team is resolved from the auth manager.
+The same filtering rules apply, with one distinction: a teamless API user can only trigger teamless
+consumers, whereas a teamless DAG producer is treated as global and can trigger any consumer.
 
 Important Considerations
 ------------------------
@@ -525,7 +717,6 @@ Work in Progress
 Multi-Team mode is currently an experimental feature in preview. It is not yet fully complete and may be subject to changes without warning based on user feedback. Some missing functionality includes:
 
 - Dimensional metrics by team
-- Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
 - Some UI elements may not be fully team-aware
 - Full provider support for executors and secrets backends
 - Command and Secrets based lookup for team based configuration
@@ -535,3 +726,14 @@ Global Uniqueness of Identifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Dag IDs, Variable keys, and Connection IDs must be unique across the entire Airflow deployment**, regardless of which team owns them. This is similar to how S3 bucket names are globally unique across all AWS accounts. You should establish naming conventions within your organization to avoid naming conflicts (e.g. prefix identifiers with the team name)
+
+Architecture
+------------
+
+The following diagram shows a Multi-Team Airflow deployment with resource isolation between teams.
+
+The components in blue are the shared components and those in green are the team components (note the green shadow box
+indicating more than one team is present in the architecture).
+
+.. image:: /img/multi_team_arch_diagram.png
+   :alt: Multi-Team Airflow Architecture showing resource isolation between teams

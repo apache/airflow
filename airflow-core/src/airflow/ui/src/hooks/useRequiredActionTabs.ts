@@ -71,7 +71,7 @@ export const useRequiredActionTabs = (
       dagId,
       dagRunId: dagRunId ?? "~",
       taskId,
-      taskIdPattern,
+      taskIdPrefixPattern: taskIdPattern,
     },
     undefined,
     {
@@ -83,7 +83,9 @@ export const useRequiredActionTabs = (
   const hasHitlData = (hitlData?.total_entries ?? 0) > 0;
   const pendingActionsCount =
     hitlData?.hitl_details.filter(
-      (hitl) => hitl.task_instance.state === "deferred" && !hitl.response_received,
+      (hitl) =>
+        (hitl.task_instance.state === "deferred" || hitl.task_instance.state === "awaiting_input") &&
+        !hitl.response_received,
     ).length ?? 0;
 
   const processedTabs = tabs

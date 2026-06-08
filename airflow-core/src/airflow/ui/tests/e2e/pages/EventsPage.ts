@@ -127,7 +127,7 @@ export class EventsPage extends BasePage {
         timeout: 10_000,
         waitUntil: "domcontentloaded",
       });
-      await expect(this.eventsTable).toBeVisible({ timeout: 10_000 });
+      await expect(this.eventsTable).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForTableLoad();
   }

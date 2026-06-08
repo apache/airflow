@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Apache Beam operators
+Example Airflow Dag for Apache Beam operators
 """
 
 from __future__ import annotations
@@ -105,5 +105,5 @@ with models.DAG(
 
 from tests_common.test_utils.system_tests import get_test_run
 
-# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

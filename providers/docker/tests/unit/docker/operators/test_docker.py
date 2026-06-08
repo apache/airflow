@@ -121,6 +121,52 @@ def test_on_kill_client_created(docker_api_client_patcher, container_exists):
         docker_api_client_patcher.return_value.stop.assert_not_called()
 
 
+def test_on_kill_auto_remove_force(docker_api_client_patcher):
+    """Test that on_kill removes the container when auto_remove='force'."""
+    op = DockerOperator(
+        image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill", auto_remove="force"
+    )
+    op.container = {"Id": "some_id"}
+
+    op.hook.get_conn()
+    op.on_kill()
+
+    docker_api_client_patcher.return_value.stop.assert_called_once_with("some_id")
+    docker_api_client_patcher.return_value.remove_container.assert_called_once_with("some_id", force=True)
+
+
+@pytest.mark.parametrize("auto_remove", ["success", "never"])
+def test_on_kill_auto_remove_not_force(docker_api_client_patcher, auto_remove):
+    """Test that on_kill does NOT remove the container when auto_remove is not 'force'."""
+    op = DockerOperator(
+        image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill", auto_remove=auto_remove
+    )
+    op.container = {"Id": "some_id"}
+
+    op.hook.get_conn()
+    op.on_kill()
+
+    docker_api_client_patcher.return_value.stop.assert_called_once_with("some_id")
+    docker_api_client_patcher.return_value.remove_container.assert_not_called()
+
+
+def test_on_kill_auto_remove_force_api_error(docker_api_client_patcher):
+    """Test that on_kill logs and swallows APIError when remove_container fails."""
+    docker_api_client_patcher.return_value.remove_container.side_effect = APIError("container already gone")
+
+    op = DockerOperator(
+        image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill", auto_remove="force"
+    )
+    op.container = {"Id": "some_id"}
+
+    op.hook.get_conn()
+    # Must not raise — on_kill is best-effort
+    op.on_kill()
+
+    docker_api_client_patcher.return_value.stop.assert_called_once_with("some_id")
+    docker_api_client_patcher.return_value.remove_container.assert_called_once_with("some_id", force=True)
+
+
 def test_on_kill_client_not_created(docker_api_client_patcher):
     """Test operator on_kill method if APIClient not created in case of error."""
     docker_api_client_patcher.side_effect = APIError("Fake Client Error")
@@ -817,4 +863,34 @@ class TestDockerOperator:
         )
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{ti.dag_id}"
+        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
+
+    def test_dict_mounts_are_normalized_to_mount_objects(self):
+        op = DockerOperator(
+            task_id="test",
+            image="test",
+            mounts=[
+                {"target": "/data", "source": "workspace", "type": "volume", "read_only": False},
+                Mount(target="/logs", source="logs", type="volume"),
+            ],
+        )
+        assert all(isinstance(m, Mount) for m in op.mounts)
+        assert op.mounts[0]["Target"] == "/data"
+        assert op.mounts[0]["Source"] == "workspace"
+        assert op.mounts[0]["Type"] == "volume"
+        assert op.mounts[0]["ReadOnly"] is False
+        assert op.mounts[1]["Target"] == "/logs"
+
+    @pytest.mark.db_test
+    def test_dict_mounts_are_templated(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            operator_class=DockerOperator,
+            dag_id="test",
+            task_id="test",
+            image="test",
+            mounts=[
+                {"target": "/{{task_instance.run_id}}", "source": "workspace", "type": "volume"},
+            ],
+        )
+        rendered = ti.render_templates()
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"

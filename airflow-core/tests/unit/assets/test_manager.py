@@ -40,8 +40,15 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DAG, DagModel
+from airflow.models.log import Log
+from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+from airflow.partition_mappers.window import WeekWindow
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
 from unit.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -70,6 +77,12 @@ def create_mock_dag():
         mock_dag = mock.Mock(spec=DAG)
         mock_dag.dag_id = dag_id
         yield mock_dag
+
+
+def _clear_partition_db() -> None:
+    clear_db_apdr()
+    clear_db_pakl()
+    clear_db_logs()
 
 
 class TestAssetManager:
@@ -228,6 +241,8 @@ class TestAssetManager:
         session.flush()
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
 
+        rollup_fingerprint = {"asset-1|test://asset1/": {"__type": "RollupMapper", "__var": {}}}
+
         def _get_or_create_apdr():
             if TYPE_CHECKING:
                 assert settings.Session
@@ -239,6 +254,7 @@ class TestAssetManager:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
                     target_dag=testing_dag,
+                    rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
                     session=_session,
                 ).id
@@ -258,6 +274,80 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_queue_partitioned_dags_stamps_rollup_fingerprint(self, session, dag_maker):
+        """APDR created by _queue_partitioned_dags is stamped with the correct rollup fingerprint."""
+        from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
+        from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+        from airflow.timetables.base import compute_rollup_fingerprint
+        from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
+
+        asset_1 = Asset(name="asset-stamp-test")
+        # sdk version — dag_maker serializes this to a core timetable.
+        rollup_schedule = PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        )
+        # core version — compute_rollup_fingerprint requires ``.partitioned = True``.
+        core_rollup_schedule = CorePartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+            ),
+        )
+        with dag_maker(
+            dag_id="rollup-consumer-stamp",
+            schedule=rollup_schedule,
+            session=session,
+        ):
+            from airflow.providers.standard.operators.empty import EmptyOperator
+
+            EmptyOperator(task_id="t1")
+        session.commit()
+
+        expected_fp = compute_rollup_fingerprint(core_rollup_schedule)
+
+        # Produce an asset event to trigger APDR creation. The producer is a
+        # partition-at-runtime Dag so its run can carry a ``partition_key`` that
+        # the emitted ``AssetEvent`` inherits.
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.sdk import PartitionAtRuntime
+
+        with dag_maker(
+            dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session
+        ) as producer_dag:
+            from airflow.providers.standard.operators.empty import EmptyOperator
+
+            EmptyOperator(task_id="hi", outlets=[asset_1])
+
+        dr = dag_maker.create_dagrun(partition_key="2024-01-01T00:00:00", session=session)
+        [ti] = dr.get_task_instances(session=session)
+        session.commit()
+
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[o.asprofile() for o in producer_dag.get_task("hi").outlets],
+            outlet_events=[],
+            session=session,
+        )
+        session.commit()
+
+        apdr = session.scalar(
+            select(AssetPartitionDagRun).where(
+                AssetPartitionDagRun.target_dag_id == "rollup-consumer-stamp",
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+            )
+        )
+        assert apdr is not None, "APDR should have been created"
+        assert apdr.rollup_fingerprint == expected_fp, (
+            "APDR rollup_fingerprint must match compute_rollup_fingerprint(timetable)"
+        )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):
@@ -317,3 +407,444 @@ class TestAssetManager:
         session.flush()
 
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    @pytest.mark.parametrize(
+        ("cap", "expect_trip"),
+        [
+            # WeekWindow always fans a weekly upstream out into 7 daily keys.
+            pytest.param(2, True, id="way_over_cap"),
+            # at-cap (cap == 7) and one-over (cap == 6) pin the boundary at
+            # ``>`` not ``>=``; a flipped comparison would still pass way_over.
+            pytest.param(7, False, id="at_cap_allowed"),
+            pytest.param(6, True, id="one_over_cap_trips"),
+        ],
+    )
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partition_fan_out_cap(self, session, dag_maker, mock_task_instance, cap, expect_trip):
+        """The ``[scheduler] partition_mapper_max_downstream_keys`` cap gates fan-out.
+
+        A WeekWindow fan-out of 7 daily keys is either queued in full (cap >= 7)
+        or skipped entirely — no APDR queued, ``log.error`` fired, and a Log row
+        written — when it exceeds the cap.
+        """
+        _clear_partition_db()
+
+        asset_def = Asset(uri=f"s3://bucket/weekly_{cap}", name=f"weekly_{cap}")
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        dag_id = f"fan_out_dag_cap_{cap}"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=PartitionedAssetTimetable(assets=asset_def, partition_mapper_config={asset_def: mapper}),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        with (
+            conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): str(cap)}),
+            mock.patch("airflow.assets.manager.log") as mock_log,
+        ):
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2024-06-03T00:00:00",
+            )
+            session.flush()
+
+        apdr_count = session.scalar(select(func.count()).select_from(AssetPartitionDagRun))
+        log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
+        if not expect_trip:
+            assert apdr_count == 7
+            assert log_extras == []
+            mock_log.error.assert_not_called()
+            return
+
+        assert apdr_count == 0
+        assert len(log_extras) == 1
+        assert dag_id in log_extras[0]
+        assert f"partition_mapper_max_downstream_keys={cap}" in log_extras[0]
+        # The scheduler-log `log.error` line is a separate observable from the
+        # DB Log row; pin its keyword fields so a rename / level flip is caught.
+        mock_log.error.assert_called_once()
+        error_call = mock_log.error.call_args
+        assert error_call.kwargs["target_dag"] == dag_id
+        assert error_call.kwargs["source_partition_key"] == "2024-06-03T00:00:00"
+        assert error_call.kwargs["produced_keys"] == 7
+        assert error_call.kwargs["max_downstream_keys"] == cap
+
+
+def _make_dag(dag_id: str) -> DagModel:
+    dag = mock.Mock(spec=DagModel)
+    dag.dag_id = dag_id
+    return dag
+
+
+def _make_asset_model(
+    scheduled_dags: dict[str, list[str]] | None = None,
+    allow_global: dict[str, bool] | None = None,
+) -> AssetModel:
+    """Create a mock AssetModel.
+
+    :param scheduled_dags: mapping of dag_id -> allow_producer_teams for each consumer reference.
+    :param allow_global: mapping of dag_id -> allow_global_producers for each consumer reference.
+    """
+    allow_global = allow_global or {}
+    model = mock.Mock(spec=AssetModel)
+    model.scheduled_dags = [
+        mock.Mock(
+            dag_id=dag_id,
+            allow_producer_teams=teams,
+            allow_global_producers=allow_global.get(dag_id, True),
+        )
+        for dag_id, teams in (scheduled_dags or {}).items()
+    ]
+    return model
+
+
+class TestFilterDagsByTeam:
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_multi_team_disabled_returns_all_dags(self):
+        """When multi_team is disabled, all DAGs are returned unchanged."""
+        dags = {_make_dag("dag1"), _make_dag("dag2")}
+        asset_model = _make_asset_model()
+
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue=dags,
+            source_teams={"team_a"},
+            asset_model=asset_model,
+            source_is_api=False,
+            session=mock.Mock(),
+        )
+
+        assert result == dags
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_empty_dags_returns_empty(self):
+        """Empty input returns empty output."""
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue=set(),
+            source_teams={"team_a"},
+            asset_model=_make_asset_model(),
+            source_is_api=False,
+            session=mock.Mock(),
+        )
+
+        assert result == set()
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_same_team_allowed(self):
+        """Producer Team A -> Consumer Team A: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_a"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_cross_team_blocked_without_allow(self):
+        """Producer Team A -> Consumer Team B with empty allow_producer_teams: blocked."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_cross_team_allowed_via_allow_producer_teams(self):
+        """Producer Team A -> Consumer Team B with allow_producer_teams=["team_a"]: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(scheduled_dags={"dag1": ["team_a"]}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_triggers_all(self):
+        """Teamless DAG producer (not API) triggers all consumers including team-bound."""
+        dag_team_b = _make_dag("dag1")
+        dag_teamless = _make_dag("dag2")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_team_b, dag_teamless},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag_team_b in result
+        assert dag_teamless in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_consumer_accepts_any_source(self):
+        """Teamless consumer accepts events from any source."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_api_user_triggers_only_teamless_consumers(self):
+        """Teamless API user can only trigger teamless consumers."""
+        dag_with_team = _make_dag("dag1")
+        dag_teamless = _make_dag("dag2")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_with_team, dag_teamless},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag_with_team not in result
+        assert dag_teamless in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_api_user_same_team_allowed(self):
+        """API user Team A -> Consumer Team A: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_a"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_api_user_cross_team_via_allow_producer_teams(self):
+        """API user Team A -> Consumer Team B with allow_producer_teams=["team_a"]: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(scheduled_dags={"dag1": ["team_a"]}),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_batch_team_resolution_called_once(self):
+        """Batch team resolution is called once for N consumers, not N times."""
+        dags = {_make_dag(f"dag{i}") for i in range(5)}
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}) as mock_mapping:
+            AssetManager._filter_dags_by_team(
+                dags_to_queue=dags,
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        mock_mapping.assert_called_once()
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_both_teamless_allowed(self):
+        """Both producer and consumer teamless: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_blocked_when_allow_global_false(self):
+        """Teamless DAG producer is blocked when consumer's allow_global_producers=False."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": False}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_allowed_when_allow_global_true(self):
+        """Teamless DAG producer allowed when consumer's allow_global_producers=True (default)."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": True}),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_api_user_not_affected_by_allow_global(self):
+        """Teamless API user behavior unchanged by allow_global — still blocked from team-bound consumers."""
+        dag_with_team = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_with_team},
+                source_teams=set(),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}, allow_global={"dag1": True}),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag_with_team not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @pytest.mark.parametrize(
+        (
+            "team_mapping",
+            "source_teams",
+            "scheduled_dags",
+            "allow_consumer_teams",
+            "allow_global_consumers",
+            "expected_in",
+        ),
+        [
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                ["team_a"],
+                True,
+                False,
+                id="consumer_blocked_when_team_not_in_allow_consumer_teams",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                ["team_a", "team_b"],
+                True,
+                True,
+                id="consumer_allowed_when_team_in_allow_consumer_teams",
+            ),
+            pytest.param(
+                {},
+                {"team_a"},
+                {},
+                ["team_b"],
+                True,
+                True,
+                id="teamless_consumer_passes_when_allow_global_consumers_true",
+            ),
+            pytest.param(
+                {},
+                {"team_a"},
+                {},
+                ["team_b"],
+                False,
+                False,
+                id="teamless_consumer_blocked_when_allow_global_consumers_false",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": []},
+                ["team_b"],
+                True,
+                False,
+                id="both_filters_must_pass_and_logic",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                [],
+                True,
+                True,
+                id="empty_allow_consumer_teams_means_no_consumer_filtering",
+            ),
+            pytest.param(
+                {"dag1": "team_b"},
+                {"team_a"},
+                {"dag1": ["team_a"]},
+                None,
+                True,
+                True,
+                id="none_allow_consumer_teams_means_no_consumer_filtering",
+            ),
+        ],
+    )
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
+    def test_consumer_team_filtering(
+        self,
+        mock_mapping,
+        team_mapping,
+        source_teams,
+        scheduled_dags,
+        allow_consumer_teams,
+        allow_global_consumers,
+        expected_in,
+    ):
+        dag = _make_dag("dag1")
+        mock_mapping.return_value = team_mapping
+
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue={dag},
+            source_teams=source_teams,
+            asset_model=_make_asset_model(scheduled_dags=scheduled_dags)
+            if scheduled_dags
+            else _make_asset_model(),
+            source_is_api=False,
+            session=mock.Mock(),
+            allow_consumer_teams=allow_consumer_teams,
+            allow_global_consumers=allow_global_consumers,
+        )
+
+        assert (dag in result) == expected_in

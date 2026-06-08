@@ -37,6 +37,14 @@ from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 PYPROJECT_TOML_FILE = "pyproject.toml"
 
+# Location and markers of the breeze shim installed by scripts/tools/setup_breeze
+# (ADR 0017). Used to detect a stale installed shim and tell the user to re-run
+# the setup script.
+BREEZE_SHIM_PATH = Path.home() / ".local" / "bin" / "breeze"
+BREEZE_SHIM_MARKER = "Apache Airflow breeze shim — managed by scripts/tools/setup_breeze"
+BREEZE_SHIM_VERSION_PREFIX = "# breeze-shim-version:"
+SETUP_BREEZE_SHIM_VERSION_PREFIX = "SHIM_VERSION="
+
 
 def search_upwards_for_airflow_root_path(start_from: Path) -> Path | None:
     root = Path(start_from.root)
@@ -131,17 +139,19 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
-        inform_about_self_upgrade()
-        return True
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if res.returncode == 0 and "Modified" in res.stderr:
+            inform_about_self_upgrade()
+            return True
+    except FileNotFoundError:
+        pass
     return False
 
 
@@ -181,6 +191,139 @@ def get_used_airflow_sources() -> Path:
     return current_sources
 
 
+def _parse_shim_version(shim_text: str) -> int | None:
+    """Read the ``# breeze-shim-version: N`` marker from an installed shim, if present."""
+    for line in shim_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(BREEZE_SHIM_VERSION_PREFIX):
+            value = stripped[len(BREEZE_SHIM_VERSION_PREFIX) :].strip()
+            try:
+                return int(value)
+            except ValueError:
+                return None
+    return None
+
+
+def get_expected_shim_version(airflow_sources: Path) -> int | None:
+    """Read ``SHIM_VERSION`` that the current sources' ``setup_breeze`` would install."""
+    setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
+    try:
+        for line in setup_script.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith(SETUP_BREEZE_SHIM_VERSION_PREFIX):
+                value = stripped[len(SETUP_BREEZE_SHIM_VERSION_PREFIX) :].strip().strip("\"'")
+                try:
+                    return int(value)
+                except ValueError:
+                    return None
+    except OSError:
+        return None
+    return None
+
+
+def warn_if_shim_outdated(airflow_sources: Path, shim_text: str | None = None) -> bool:
+    """
+    Warn if the installed breeze shim is older than the one the current sources would install.
+
+    The shim at ``~/.local/bin/breeze`` (see ADR 0017) carries a ``# breeze-shim-version: N``
+    marker. When the shim body changes, ``scripts/tools/setup_breeze`` bumps that version, so an
+    installed shim with a lower (or missing) version means the user is running a stale shim and
+    should re-run the setup script. Only our own managed shim is inspected — a ``uv tool`` / ``pipx``
+    install or a user's own script at that path is left alone.
+
+    :param airflow_sources: Airflow sources breeze is operating on.
+    :param shim_text: contents of the installed shim, if already read by the caller.
+    :return: True if a warning was printed.
+    """
+    if shim_text is None:
+        try:
+            shim_text = BREEZE_SHIM_PATH.read_text() if BREEZE_SHIM_PATH.is_file() else ""
+        except OSError:
+            return False
+    if BREEZE_SHIM_MARKER not in shim_text:
+        # Not our managed shim (uv tool / pipx install, or the user's own script).
+        return False
+    expected_version = get_expected_shim_version(airflow_sources)
+    if expected_version is None:
+        return False
+    installed_version = _parse_shim_version(shim_text)
+    if installed_version is not None and installed_version >= expected_version:
+        return False
+    setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
+    installed_text = installed_version if installed_version is not None else "unknown (pre-versioning)"
+    console_print(
+        f"\n[warning]Your breeze shim at {BREEZE_SHIM_PATH} is out of date "
+        f"(installed: {installed_text}, current: {expected_version}).[/]\n"
+        "[warning]Re-run the setup script to refresh it:[/]\n\n"
+        f"     {setup_script}\n"
+    )
+    return True
+
+
+def detect_legacy_global_breeze_install() -> str | None:
+    """
+    Detect a legacy global breeze install superseded by the shim (ADR 0017).
+
+    :return: ``"uv"`` or ``"pipx"`` if breeze is installed as a global ``uv tool`` / ``pipx``
+        install, otherwise ``None``.
+    """
+    try:
+        result = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
+        if result.returncode == 0 and "apache-airflow-breeze" in result.stdout:
+            return "uv"
+    except FileNotFoundError:
+        pass
+    try:
+        result = subprocess.run(["pipx", "list", "--short"], text=True, capture_output=True, check=False)
+        if result.returncode == 0 and "apache-airflow-breeze" in result.stdout:
+            return "pipx"
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def warn_if_breeze_launcher_outdated(airflow_sources: Path) -> bool:
+    """
+    Warn when the breeze launcher in use is not the current recommended shim (ADR 0017).
+
+    Covers both ways an installation can be out of date:
+
+    * the managed shim at ``~/.local/bin/breeze`` exists but is older than the one the current
+      sources would install (e.g. ``$AIRFLOW_REPO_ROOT`` support was added) — re-run the setup
+      script to refresh it;
+    * breeze is still installed as a legacy global ``uv tool`` / ``pipx`` install (no shim) — that
+      install keeps working but is no longer recommended; point the user at migrating to the shim.
+
+    :param airflow_sources: Airflow sources breeze is operating on.
+    :return: True if a warning was printed.
+    """
+    try:
+        shim_text = BREEZE_SHIM_PATH.read_text() if BREEZE_SHIM_PATH.is_file() else ""
+    except OSError:
+        shim_text = ""
+    if BREEZE_SHIM_MARKER in shim_text:
+        # Our managed shim is installed — only check that it is current.
+        return warn_if_shim_outdated(airflow_sources, shim_text=shim_text)
+    legacy = detect_legacy_global_breeze_install()
+    if legacy is None:
+        return False
+    uninstall_cmd = (
+        "uv tool uninstall apache-airflow-breeze"
+        if legacy == "uv"
+        else "pipx uninstall apache-airflow-breeze"
+    )
+    setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
+    console_print(
+        f"\n[warning]Breeze is installed as a legacy global '{legacy}' install, which still works "
+        "but is no longer the recommended setup (see ADR 0017).[/]\n"
+        "[warning]Migrate to the per-worktree uvx shim by uninstalling the global install and "
+        "running the setup script:[/]\n\n"
+        f"     {uninstall_cmd}\n"
+        f"     {setup_script}\n"
+    )
+    return True
+
+
 @clearable_cache
 def find_airflow_root_path_to_operate_on() -> Path:
     """
@@ -207,7 +350,13 @@ def find_airflow_root_path_to_operate_on() -> Path:
     """
     sources_root_from_env = os.getenv("AIRFLOW_ROOT_PATH", None)
     if sources_root_from_env:
-        return Path(sources_root_from_env)
+        # Set by the shim (ADR 0017) — the global self-upgrade checks below are skipped in this
+        # path (the shim also exports SKIP_BREEZE_SELF_UPGRADE_CHECK), so check here that the
+        # installed shim itself is not stale. Ignore SKIP here on purpose: the shim always sets it.
+        airflow_sources_from_env = Path(sources_root_from_env)
+        if not in_autocomplete() and not in_help() and not hasattr(sys, "_called_from_test"):
+            warn_if_breeze_launcher_outdated(airflow_sources_from_env)
+        return airflow_sources_from_env
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         console_print(
@@ -224,6 +373,9 @@ def find_airflow_root_path_to_operate_on() -> Path:
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
+        # Not invoked via the shim (no AIRFLOW_ROOT_PATH). If breeze is still on a legacy global
+        # uv tool / pipx install, nudge the user to migrate to the recommended shim (ADR 0017).
+        warn_if_breeze_launcher_outdated(airflow_sources)
     os.chdir(airflow_sources.as_posix())
     airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
     if airflow_sources.resolve() == airflow_home_dir.resolve():
@@ -259,6 +411,10 @@ TASK_SDK_SOURCES_PATH = TASK_SDK_ROOT_PATH / "src"
 AIRFLOW_CTL_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl"
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 AIRFLOW_CTL_DIST_PATH = AIRFLOW_CTL_ROOT_PATH / "dist"
+
+MYPY_ROOT_PATH = AIRFLOW_ROOT_PATH / "dev" / "mypy"
+MYPY_SOURCES_PATH = MYPY_ROOT_PATH / "src"
+MYPY_DIST_PATH = MYPY_ROOT_PATH / "dist"
 
 # Same here - do not remove those this is used for past commit retrieval
 PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "src"

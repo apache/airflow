@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +18,8 @@
  */
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -34,6 +34,8 @@ import type {
 } from "./types";
 
 dayjs.extend(isSameOrBefore);
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
@@ -55,11 +57,16 @@ const FAILURE_COLOR_INTENSITIES = [
   { _dark: "red.300", _light: "red.800" },
 ];
 
-const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
+  viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
+
+const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
+
+const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const dateStr = run.date.slice(0, 10); // "YYYY-MM-DD"
+    const dateStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DD");
     const dailyRuns = dailyDataMap.get(dateStr);
 
     if (dailyRuns) {
@@ -72,11 +79,11 @@ const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   return dailyDataMap;
 };
 
-const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const hourlyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const hourStr = run.date.slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DDTHH");
     const hourlyRuns = hourlyDataMap.get(hourStr);
 
     if (hourlyRuns) {
@@ -108,18 +115,19 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
     counts.total += count;
   });
 
-  return counts as RunCounts;
+  return counts;
 };
 
 export const generateDailyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
   selectedYear: number,
+  timezone: string,
 ): DailyCalendarData => {
-  const dailyDataMap = createDailyDataMap(data);
+  const dailyDataMap = createDailyDataMap(data, timezone);
 
   const weeks = [];
-  const startOfYear = dayjs().year(selectedYear).startOf("year");
-  const endOfYear = dayjs().year(selectedYear).endOf("year");
+  const startOfYear = dayjs().tz(timezone).year(selectedYear).startOf("year");
+  const endOfYear = dayjs().tz(timezone).year(selectedYear).endOf("year");
 
   let currentDate = startOfYear.startOf("week");
   const endDate = endOfYear.endOf("week");
@@ -141,15 +149,21 @@ export const generateDailyCalendarData = (
   return weeks;
 };
 
+type HourlyOptions = {
+  selectedMonth: number;
+  selectedYear: number;
+  timezone: string;
+};
+
 export const generateHourlyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  selectedMonth: number,
+  options: HourlyOptions,
 ): HourlyCalendarData => {
-  const hourlyDataMap = createHourlyDataMap(data);
+  const { selectedMonth, selectedYear, timezone } = options;
+  const hourlyDataMap = createHourlyDataMap(data, timezone);
 
-  const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
-  const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
+  const monthStart = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).startOf("month");
+  const monthEnd = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).endOf("month");
   const monthData = [];
 
   let currentDate = monthStart;
@@ -171,29 +185,50 @@ export const generateHourlyCalendarData = (
   return { days: monthData, month: monthStart.format("MMM YYYY") };
 };
 
+type BoundsOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const calculateDataBounds = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: BoundsOptions,
 ): { maxCount: number; minCount: number } => {
+  const { granularity, timezone, viewMode } = options;
+
   if (data.length === 0) {
     return { maxCount: 0, minCount: 0 };
   }
 
   const counts: Array<number> = [];
+  const pendingCounts: Array<number> = [];
   const mapCreator = granularity === "daily" ? createDailyDataMap : createHourlyDataMap;
-  const dataMap = mapCreator(data);
+  const dataMap = mapCreator(data, timezone);
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
-    const targetCount = viewMode === "total" ? runCounts.total : runCounts.failed;
+    const targetCount = getActualRunCount(runCounts, viewMode);
 
     if (targetCount > 0) {
       counts.push(targetCount);
+    } else {
+      const pendingCount = getPendingRunCount(runCounts);
+
+      if (pendingCount > 0) {
+        pendingCounts.push(pendingCount);
+      }
     }
   });
 
   if (counts.length === 0) {
+    if (pendingCounts.length > 0) {
+      return {
+        maxCount: Math.max(...pendingCounts),
+        minCount: Math.min(...pendingCounts),
+      };
+    }
+
     return { maxCount: 0, minCount: 0 };
   }
 
@@ -203,12 +238,18 @@ export const calculateDataBounds = (
   };
 };
 
+type ScaleOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const createCalendarScale = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: ScaleOptions,
 ): CalendarScale => {
-  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity);
+  const { granularity, timezone, viewMode } = options;
+  const { maxCount, minCount } = calculateDataBounds(data, { granularity, timezone, viewMode });
 
   // Handle empty data case
   if (maxCount === 0) {
@@ -226,18 +267,18 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
-        const hasPlanned = counts.planned > 0;
+        const actualCount = getActualRunCount(counts, viewMode);
+        const hasPending = getPendingRunCount(counts) > 0;
         const hasActual = actualCount > 0;
 
-        if (hasPlanned && hasActual) {
+        if (hasPending && hasActual) {
           return {
             actual: singleColor,
             planned: PLANNED_COLOR,
           };
         }
 
-        if (hasPlanned && !hasActual) {
+        if (hasPending && !hasActual) {
           return PLANNED_COLOR;
         }
 
@@ -274,11 +315,11 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
-    const hasPlanned = counts.planned > 0;
+    const actualCount = getActualRunCount(counts, viewMode);
+    const hasPending = getPendingRunCount(counts) > 0;
     const hasActual = actualCount > 0;
 
-    if (hasPlanned && hasActual) {
+    if (hasPending && hasActual) {
       let actualColor = colorScheme[0] ?? EMPTY_COLOR;
 
       for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
@@ -300,7 +341,7 @@ export const createCalendarScale = (
       };
     }
 
-    if (hasPlanned && !hasActual) {
+    if (hasPending && !hasActual) {
       return PLANNED_COLOR;
     }
 

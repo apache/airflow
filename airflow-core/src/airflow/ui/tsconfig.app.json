@@ -22,12 +22,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "src/*": ["./src/*"],
       "openapi/*": ["./openapi-gen/*"],
-      "tests/*": ["./tests/*"],
-      "playwright.config": ["./playwright.config.ts"]
-    }
+      "tests/*": ["./tests/*"]
+    },
+    "types": ["node"]
   },
-  "include": ["src", "tests/**/*.ts", "playwright.config.ts"]
+  "include": ["src", "tests/**/*.ts"]
 }

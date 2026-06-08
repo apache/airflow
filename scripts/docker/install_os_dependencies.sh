@@ -344,7 +344,7 @@ function install_python() {
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
         echo "Using GPG key ${gpg_key}"
-        gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
         gpg --batch --verify python.tar.xz.asc python.tar.xz
         gpgconf --kill all
         rm -rf "${GNUPGHOME}" python.tar.xz.asc

@@ -59,20 +59,20 @@ describe("Task log source", () => {
 
     await waitForLogs();
 
-    let logLine = screen.getByTestId("virtualized-item-2");
-
     // Source should be hidden by default
-    expect(logLine.querySelector('[data-key="logger"]')).toBeNull();
-    expect(logLine.querySelector('[data-key="loc"]')).toBeNull();
+    expect(document.querySelector('[data-key="logger"]')).toBeNull();
+    expect(document.querySelector('[data-key="loc"]')).toBeNull();
 
     // Toggle source on
     fireEvent.keyDown(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
     fireEvent.keyPress(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
     fireEvent.keyUp(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
 
-    logLine = screen.getByTestId("virtualized-item-2");
-    const source = logLine.querySelector('[data-key="logger"]');
-    const loc = logLine.querySelector('[data-key="loc"]');
+    const dagBagRow = (await screen.findByText(/Filling up the DagBag/iu)).closest(
+      '[data-testid^="virtualized-item-"]',
+    );
+    const source = dagBagRow?.querySelector('[data-key="logger"]') ?? undefined;
+    const loc = dagBagRow?.querySelector('[data-key="loc"]') ?? undefined;
 
     // Source should now be visible
     expect(source).toBeVisible();
@@ -91,9 +91,7 @@ describe("Task log grouping", () => {
     await waitForLogs();
 
     // Group headers use the summary-{name} testid pattern and are always visible
-    const summarySource = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
-    );
+    const summarySource = screen.getByTestId("summary-Log message source details");
 
     expect(summarySource).toBeVisible();
 
@@ -136,7 +134,7 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeNull());
 
     // Test Expand All / Collapse All via settings menu
-    const settingsBtn = screen.getByRole("button", { name: /settings/iu });
+    const settingsBtn = screen.getByTestId("log-settings-button");
 
     fireEvent.click(settingsBtn);
 
@@ -180,6 +178,60 @@ describe("Task log grouping", () => {
     fireEvent.click(screen.getByTestId("summary-Dependency check details"));
     await waitFor(() => expect(screen.getByText(/dep_context=non-requeueable/iu)).toBeInTheDocument());
   }, 10_000);
+});
+
+describe("Task Identity preamble", () => {
+  it("renders Task Identity preamble after the 'Pre Execute' group header as first group element", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+
+    await waitForLogs();
+
+    const sourceGroup = screen.getByTestId("summary-Log message source details");
+
+    expect(sourceGroup).toBeInTheDocument();
+
+    // Expand the Pre Execute group to reveal the preamble
+    const groupHeader = screen.getByTestId("summary-Pre Execute");
+
+    fireEvent.click(groupHeader);
+
+    // Task Identity preamble should be visible after expanding the group
+    await waitFor(() => expect(screen.getByText("Task Identity")).toBeInTheDocument());
+    expect(screen.getByText("ti_id")).toBeInTheDocument();
+    // Value is a text node adjacent to =; match via partial text
+    expect(screen.getByText(/01951900-16f6-7c1c-ae66-91bdfe9e0cfd/u)).toBeInTheDocument();
+    expect(screen.getByText("Done. Returned value was: None")).toBeInTheDocument();
+
+    // Preamble should come after the "Pre Execute" group header in DOM order.
+    const preamble = screen.getByText("Task Identity");
+
+    expect(preamble).toBeInTheDocument();
+    expect(groupHeader).toBeInTheDocument();
+
+    // DOCUMENT_POSITION_FOLLOWING (4) is set when preamble comes after groupHeader
+    // eslint-disable-next-line no-bitwise
+    expect(groupHeader.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not render TI context fields on individual log lines", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+
+    await waitForLogs();
+
+    const taskStarted = screen.getByText("Task started").closest('[data-testid^="virtualized-item-"]');
+
+    expect(taskStarted).toBeInTheDocument();
+
+    if (taskStarted !== null) {
+      expect(taskStarted.querySelector('[data-key="ti_id"]')).toBeNull();
+      expect(taskStarted.querySelector('[data-key="dag_id"]')).toBeNull();
+      expect(taskStarted.querySelector('[data-key="run_id"]')).toBeNull();
+    }
+  });
 });
 
 describe("Task log search", () => {
@@ -381,8 +433,8 @@ describe("Task log search", () => {
 
     fireEvent.click(summaryDependency);
 
-    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
-    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
-    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 1);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 2);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 3);
   }, 10_000);
 });

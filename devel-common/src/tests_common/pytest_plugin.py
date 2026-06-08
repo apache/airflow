@@ -161,7 +161,7 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
@@ -225,6 +225,15 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+# PyJWT 2.12.0 (2026-03-12) added strict type validation that rejects iss=None.
+# Current main's airflow-core deletes iss from the claims when the configured
+# `[api_auth] jwt_issuer` is falsy (commit a440d1db93, 2026-01-31), but the
+# `Compat 3.0.x` matrix tests install older airflow-core releases (e.g. 3.0.6,
+# 2025-08-25) that predate that fix. Setting a default test issuer here keeps
+# every JWT-generating test path safe across all supported airflow-core versions
+# without leaking the upper bound to user-facing dependencies. Tests that need
+# to override this still can via `conf_vars(...)`.
+os.environ.setdefault("AIRFLOW__API_AUTH__JWT_ISSUER", "test-airflow-issuer")
 
 
 @pytest.fixture
@@ -1878,7 +1887,7 @@ def clear_lru_cache():
         return
 
     try:
-        from airflow._shared.module_loading import _get_grouped_entry_points
+        from airflow_shared.module_loading import _get_grouped_entry_points
     except ImportError:
         # compat for airflow < 3.2
         from airflow.utils.entry_points import _get_grouped_entry_points
@@ -1888,6 +1897,31 @@ def clear_lru_cache():
         yield
     finally:
         _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_team_name_cache():
+    """Reset the per-process Dag team-name cache between tests.
+
+    ``DagModel.get_team_name`` caches by dag_id; tests reuse dag_ids with different team
+    setups, so a stale entry would otherwise leak a wrong team into the next case.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.models.dag import clear_team_name_cache
+    except ImportError:
+        # compat for airflow versions without the team-name cache
+        yield
+        return
+
+    clear_team_name_cache()
+    try:
+        yield
+    finally:
+        clear_team_name_cache()
 
 
 @pytest.fixture(autouse=True)
@@ -2510,7 +2544,6 @@ def create_runtime_ti(mocked_parse):
     from uuid6 import uuid7
 
     from airflow.sdk import DAG
-    from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
 
@@ -2538,6 +2571,15 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+        else:
+            from airflow.sdk.api.datamodels._generated import (  # type: ignore[no-redef,assignment]
+                TaskInstance as TaskInstanceDTO,
+            )
+
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
@@ -2615,14 +2657,17 @@ def create_runtime_ti(mocked_parse):
         }
 
         startup_details = StartupDetails(
-            ti=TaskInstance(
+            ti=TaskInstanceDTO(
                 id=ti_id,
                 task_id=task.task_id,
                 dag_id=dag_id,
                 run_id=run_id,
                 try_number=try_number,
-                map_index=map_index,
+                map_index=map_index,  # type: ignore[arg-type]
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),

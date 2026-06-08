@@ -562,12 +562,17 @@ class TestGcpComputeHookNoDefaultProjectId:
         ):
             self.gce_hook_no_project_id = ComputeEngineHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.compute.build")
-    def test_gce_client_creation(self, mock_build, mock_authorize):
+    def test_gce_client_creation(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.gce_hook_no_project_id.get_conn()
         mock_build.assert_called_once_with(
-            "compute", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "compute",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 

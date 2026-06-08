@@ -240,11 +240,13 @@ def upgrade():
         op.execute(mysql_uuid7_fn)
 
         # Migrate existing rows with UUID v7
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance
             SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, NOW(3)))
             WHERE id IS NULL
-        """)
+        """
+        )
 
         # Drop this function as it is no longer needed
         op.execute(mysql_uuid7_fn_drop)

@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -95,6 +96,13 @@ TAGS = {
     "cost-center": "engineering",
     "team": "jobs",
 }
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 TASKS = [
     {
         "task_key": "Sessionize",
@@ -277,6 +285,7 @@ ACCESS_CONTROL_LIST = [
         "permission_level": "CAN_MANAGE",
     }
 ]
+JOB_PARAMS = [{"name": "param1", "default": "value1"}]
 
 
 def mock_dict(d: dict):
@@ -602,8 +611,74 @@ class TestDatabricksCreateJobsOperator:
 
         db_mock.update_job_permission.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("found_job_id", "hook_method"),
+        [
+            pytest.param(None, "create_job", id="create-path"),
+            pytest.param(JOB_ID, "reset_job", id="reset-path"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_injects_airflow_params_when_parameters_missing(self, db_mock_class, found_job_id, hook_method):
+        """
+        When ``parameters`` is not set in ``json`` and the operator's ``params`` dict is
+        non-empty, the operator's ``params`` should be forwarded as job-level
+        ``parameters`` on both the create and reset paths (regression test for
+        GH-39002).
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            json={"name": JOB_NAME, "tasks": TASKS},
+            params={"env": "prod", "batch_size": 100},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = found_job_id
+
+        op.execute({})
+
+        # The create-path passes the settings dict directly; the reset-path passes
+        # (job_id, settings) — pull the settings out in either case.
+        call_args = getattr(db_mock, hook_method).call_args.args
+        settings = call_args[0] if hook_method == "create_job" else call_args[1]
+        assert settings["parameters"] == [
+            {"name": "env", "default": "prod"},
+            {"name": "batch_size", "default": 100},
+        ]
+
+    @pytest.mark.parametrize(
+        ("found_job_id", "hook_method"),
+        [
+            pytest.param(None, "create_job", id="create-path"),
+            pytest.param(JOB_ID, "reset_job", id="reset-path"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_does_not_override_existing_parameters(self, db_mock_class, found_job_id, hook_method):
+        """
+        When ``parameters`` is already set in ``json``, the operator's ``params`` must
+        not override it on either the create or reset paths.
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            json={"name": JOB_NAME, "tasks": TASKS, "parameters": JOB_PARAMS},
+            params={"env": "prod"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = found_job_id
+
+        op.execute({})
+
+        call_args = getattr(db_mock, hook_method).call_args.args
+        settings = call_args[0] if hook_method == "create_job" else call_args[1]
+        assert settings["parameters"] == JOB_PARAMS
+
 
 class TestDatabricksSubmitRunOperator:
+    @staticmethod
+    def _configure_running_deferrable_hook(db_mock):
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
+
     def test_init_with_notebook_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -1027,6 +1102,21 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
 
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
+        op = DatabricksSubmitRunOperator(
+            deferrable=True,
+            task_id=TASK_ID,
+            json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK},
+            databricks_retry_args=retry_args,
+        )
+        db_mock = db_mock_class.return_value
+        self._configure_running_deferrable_hook(db_mock)
+
+        with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+            op.execute(None)
+
     def test_execute_complete_success(self):
         """
         Test `execute_complete` function in case the Trigger has returned a successful completion event.
@@ -1044,6 +1134,48 @@ class TestDatabricksSubmitRunOperator:
 
         op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         assert op.execute_complete(context=None, event=event) is None
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks._handle_deferrable_databricks_operator_execution"
+    )
+    def test_execute_complete_repair_includes_job_parameters(self, mock_handle_exec, mock_hook_class):
+        mock_hook_instance = mock_hook_class.return_value
+        mock_hook_instance.get_job_id.return_value = 42
+        mock_hook_instance.get_latest_repair_id.return_value = None
+        mock_hook_instance.repair_run.return_value = "new_repair_id"
+
+        operator = DatabricksRunNowOperator(
+            task_id="test_task",
+            job_id=42,
+            json={"job_parameters": {"key1": "value1"}},
+            repair_run=True,
+            databricks_conn_id="test_conn",
+        )
+
+        context = {}
+        event = {
+            "run_id": 12345,
+            "run_page_url": "https://databricks-instance/#job/42/run/12345",
+            "run_state": RunState(
+                life_cycle_state="TERMINATED", result_state="FAILED", state_message="Some error occurred"
+            ).to_json(),
+            "repair_run": True,
+            "errors": ["Error detail"],
+        }
+
+        operator.execute_complete(context=context, event=event)
+
+        assert mock_hook_instance.repair_run.called, "hook.repair_run should have been called"
+
+        call_args = mock_hook_instance.repair_run.call_args
+        repair_json_passed = call_args[0][0]
+
+        assert "job_parameters" in repair_json_passed
+        assert repair_json_passed["job_parameters"] == {"key1": "value1"}
+        assert repair_json_passed["run_id"] == 12345
+        assert repair_json_passed["rerun_all_failed_tasks"] is True
+        assert mock_handle_exec.called
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_complete_failure(self, db_mock_class):
@@ -1140,6 +1272,76 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
         assert not mock_defer.called
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_submit_run_injects_airflow_params_into_notebook_task(self, db_mock_class):
+        """
+        For a single notebook_task, ``self.params`` should be injected into
+        ``notebook_task.base_parameters`` (regression test for GH-39002).
+        """
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            notebook_task={"notebook_path": "/Users/me/notebook"},
+            new_cluster=NEW_CLUSTER,
+            params={"env": "prod", "batch_size": "100"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.submit_run.call_args.args[0]
+        assert actual["notebook_task"]["base_parameters"] == {"env": "prod", "batch_size": "100"}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_submit_run_injects_airflow_params_into_each_task_in_tasks_list(self, db_mock_class):
+        """
+        For multiple ``tasks``, dict-shaped per-task params should be filled in for
+        each task that supports them.
+        """
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            tasks=[
+                {"task_key": "t1", "notebook_task": {"notebook_path": "/n1"}},
+                {"task_key": "t2", "spark_jar_task": {"main_class_name": "Foo"}},
+            ],
+            params={"env": "prod"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.submit_run.call_args.args[0]
+        assert actual["tasks"][0]["notebook_task"]["base_parameters"] == {"env": "prod"}
+        # spark_jar_task only accepts List[str] parameters; skip auto-injection.
+        assert "parameters" not in actual["tasks"][1]["spark_jar_task"]
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_submit_run_does_not_override_existing_task_parameters(self, db_mock_class):
+        """
+        If a dict-shaped per-task parameter field is already populated, ``self.params``
+        should not override it.
+        """
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            notebook_task={
+                "notebook_path": "/Users/me/notebook",
+                "base_parameters": {"explicit": "value"},
+            },
+            new_cluster=NEW_CLUSTER,
+            params={"env": "prod"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.submit_run.call_args.args[0]
+        assert actual["notebook_task"]["base_parameters"] == {"explicit": "value"}
 
 
 class TestDatabricksRunNowOperator:
@@ -1957,6 +2159,48 @@ class TestDatabricksRunNowOperator:
         assert op.run_id == RUN_ID
         assert not mock_defer.called
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_injects_airflow_params_when_job_parameters_missing(self, db_mock_class):
+        """
+        When ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
+        non-empty, the operator's ``params`` should be forwarded as ``job_parameters``
+        (regression test for GH-39002).
+        """
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            params={"env": "prod", "batch_size": 100},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert actual["job_parameters"] == {"env": "prod", "batch_size": 100}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_does_not_override_existing_job_parameters(self, db_mock_class):
+        """
+        When ``job_parameters`` is already set in ``json``, the operator's ``params`` should
+        not override it.
+        """
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            json={"job_parameters": {"explicit": "value"}},
+            params={"env": "prod"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert actual["job_parameters"] == {"explicit": "value"}
+
 
 class TestDatabricksSQLStatementsOperator:
     def test_init(self):
@@ -2534,15 +2778,22 @@ class TestDatabricksNotebookOperator:
         operator.task_group = databricks_workflow_task_group
         operator.task_id = "test_task"
         operator.upstream_task_ids = ["upstream_task"]
-        relevant_upstreams = [MagicMock(task_id="upstream_task")]
-        task_dict = {"upstream_task": MagicMock(task_id="upstream_task")}
+        upstream_task = DatabricksNotebookOperator(
+            notebook_path="/path/to/upstream",
+            source="WORKSPACE",
+            task_id="upstream_task",
+            dag=dag,
+        )
+        relevant_upstreams = ["upstream_task"]
+        task_dict = {"upstream_task": upstream_task}
 
         task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
 
         task_key = hashlib.md5(b"example_dag__test_task").hexdigest()
+        upstream_task_key = hashlib.md5(b"example_dag__upstream_task").hexdigest()
         expected_json = {
             "task_key": task_key,
-            "depends_on": [],
+            "depends_on": [{"task_key": upstream_task_key}],
             "timeout_seconds": 0,
             "email_notifications": {},
             "notebook_task": {
@@ -2712,6 +2963,19 @@ class TestDatabricksTaskOperator:
         task_key = f"{operator.dag_id}__{operator.task_id}".encode()
         expected_task_key = hashlib.md5(task_key).hexdigest()
         assert expected_task_key == operator.databricks_task_key
+
+    def test_generate_databricks_task_key_requires_task_dict_when_task_id_passed(self):
+        """Looking up a parent task's key without a ``task_dict`` is a programmer error."""
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config={},
+        )
+        with pytest.raises(
+            ValueError,
+            match="Must pass task_dict if task_id is provided in _generate_databricks_task_key.",
+        ):
+            operator._generate_databricks_task_key(task_id="upstream_task")
 
     def test_user_databricks_task_key(self):
         task_config = {}

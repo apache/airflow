@@ -58,7 +58,9 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
     def get_conn(self) -> AnalyticsAdminServiceClient:
         if not self._conn:
             self._conn = AnalyticsAdminServiceClient(
-                credentials=self.get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._conn
 

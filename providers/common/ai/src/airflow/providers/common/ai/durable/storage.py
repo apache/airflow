@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from functools import lru_cache
 from typing import Any
@@ -150,9 +151,8 @@ class DurableStorage:
 
     def cleanup(self) -> None:
         """Delete the cache file after successful execution."""
-        try:
+        # Best-effort cleanup
+        with contextlib.suppress(FileNotFoundError, OSError):
             self._get_path().unlink()
-        except (FileNotFoundError, OSError):
-            pass  # Best-effort cleanup
         self._cache = None
         log.debug("Durable cache cleaned up")

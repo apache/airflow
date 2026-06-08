@@ -38,6 +38,10 @@ import re
 from typing import Any
 
 import yaml
+from airflow_breeze.global_constants import (
+    ALLOWED_KUBERNETES_VERSIONS,
+    HELM_VERSION,
+)
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -299,6 +303,11 @@ jinja_contexts = {
         "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/helm-chart",
         "package_name": PACKAGE_NAME,
         "package_version": PACKAGE_VERSION,
+    },
+    "global_ctx": {
+        "package_version": PACKAGE_VERSION,
+        "min_k8s_version": ALLOWED_KUBERNETES_VERSIONS[0],
+        "helm_version": HELM_VERSION,
     },
 }
 

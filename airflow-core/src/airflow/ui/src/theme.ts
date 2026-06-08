@@ -18,13 +18,12 @@
  */
 
 /* eslint-disable perfectionist/sort-objects */
-
-/* eslint-disable max-lines */
 import {
   createSystem,
   defaultConfig,
   defineConfig,
   mergeConfigs,
+  type ThemingConfig,
   type SystemStyleObject,
 } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
@@ -41,7 +40,7 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
 
-const defaultAirflowTheme = {
+const defaultAirflowTheme: ThemingConfig = {
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
   tokens: {
     colors: {
@@ -352,6 +351,45 @@ const defaultAirflowTheme = {
       },
     },
   },
+  recipes: {
+    // IconButton in Chakra v3 uses the button recipe (it is a Button with px/py:0).
+    // Overriding defaultVariants here sets the default size for both Button and IconButton.
+    button: {
+      base: {
+        colorPalette: "brand",
+      },
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+  },
+  slotRecipes: {
+    // Nearly all dialogs in the app use size="xl"; make it the default.
+    dialog: {
+      slots: [],
+      defaultVariants: { size: "xl" } as Record<string, string>,
+    },
+    checkbox: {
+      slots: [],
+      base: {
+        root: {
+          colorPalette: "brand",
+        },
+      },
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+    select: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+    switch: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+    // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".
+    table: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+  },
   semanticTokens: {
     colors: {
       // Brand colors for consistent theming
@@ -369,12 +407,14 @@ const defaultAirflowTheme = {
       skipped: generateSemanticTokens("pink"),
       up_for_reschedule: generateSemanticTokens("sky"),
       up_for_retry: generateSemanticTokens("yellow"),
-      upstream_failed: generateSemanticTokens("orange"),
+      upstream_failed: generateSemanticTokens("amber"),
       running: generateSemanticTokens("cyan"),
       restarting: generateSemanticTokens("violet"),
       deferred: generateSemanticTokens("purple"),
+      awaiting_input: generateSemanticTokens("orange"),
       scheduled: generateSemanticTokens("zinc"),
       none: generateSemanticTokens("gray"),
+      no_status: generateSemanticTokens("gray"),
       removed: generateSemanticTokens("slate"),
       // TAILWIND 4.0 COLORS
       red: generateSemanticTokens("red"),

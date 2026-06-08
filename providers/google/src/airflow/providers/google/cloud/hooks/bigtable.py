@@ -66,6 +66,7 @@ class BigtableHook(GoogleBaseHook):
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
                 admin=True,
+                client_options=self.get_client_options(),
             )
         return self._client
 

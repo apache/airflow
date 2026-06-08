@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -36,9 +34,11 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -50,7 +50,10 @@ import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
-const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+// Matches the identifier the bulk task-instance endpoint echoes back in its
+// ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
+const getRowKey = (ti: TaskInstanceResponse) =>
+  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -65,6 +68,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
+  RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -94,7 +98,6 @@ const taskInstanceColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(getRowKey(row.original))}
-        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
       />
     ),
@@ -104,7 +107,6 @@ const taskInstanceColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),
@@ -118,11 +120,9 @@ const taskInstanceColumns = ({
         {
           accessorKey: "dag_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink to={`/dags/${original.dag_id}`}>
+              <TruncatedText text={original.dag_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("dagId"),
@@ -135,11 +135,9 @@ const taskInstanceColumns = ({
           accessorKey: "run_after",
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original)}>
-                  <Time datetime={original.run_after} />
-                </RouterLink>
-              </Link>
+              <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+                <Time datetime={original.run_after} />
+              </RouterLink>
             ) : (
               <Time datetime={original.run_after} />
             ),
@@ -152,11 +150,9 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original)}>
-                <TruncatedText text={original.task_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+              <TruncatedText text={original.task_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("taskId"),
@@ -183,11 +179,9 @@ const taskInstanceColumns = ({
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
-        <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={getTaskInstanceLink(original)}>
-            <Time datetime={original.start_date} />
-          </RouterLink>
-        </Link>
+        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+          <Time datetime={original.start_date} />
+        </RouterLink>
       ) : (
         <Time datetime={original.start_date} />
       ),
@@ -260,6 +254,7 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       dag_version: false,
@@ -270,7 +265,7 @@ export const TaskInstances = () => {
       queue: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-id"];
 
@@ -287,6 +282,7 @@ export const TaskInstances = () => {
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
   const queueNamePattern = searchParams.get(QUEUE_NAME_PATTERN_PARAM);
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
+  const renderedMapIndexFilter = searchParams.get(RENDERED_MAP_INDEX_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
@@ -294,10 +290,54 @@ export const TaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
+  const dagIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PATTERN_PARAM,
+    value: filteredDagIdPattern,
+  });
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunId,
+  });
+  const taskDisplayNameArg = useAdvancedSearchArg({
+    patternApiKey: "taskDisplayNamePattern",
+    prefixApiKey: "taskDisplayNamePrefixPattern",
+    storageKey: NAME_PATTERN_PARAM,
+    value: taskDisplayNamePattern,
+  });
+  const operatorNameArg = useAdvancedSearchArg({
+    patternApiKey: "operatorNamePattern",
+    prefixApiKey: "operatorNamePrefixPattern",
+    storageKey: OPERATOR_NAME_PATTERN_PARAM,
+    value: operatorNamePattern,
+  });
+  const poolNameArg = useAdvancedSearchArg({
+    patternApiKey: "poolNamePattern",
+    prefixApiKey: "poolNamePrefixPattern",
+    storageKey: POOL_NAME_PATTERN_PARAM,
+    value: poolNamePattern,
+  });
+  const queueNameArg = useAdvancedSearchArg({
+    patternApiKey: "queueNamePattern",
+    prefixApiKey: "queueNamePrefixPattern",
+    storageKey: QUEUE_NAME_PATTERN_PARAM,
+    value: queueNamePattern,
+  });
+  const renderedMapIndexArg = useAdvancedSearchArg({
+    patternApiKey: "renderedMapIndexPattern",
+    prefixApiKey: "renderedMapIndexPrefixPattern",
+    storageKey: RENDERED_MAP_INDEX_PARAM,
+    value: renderedMapIndexFilter,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      ...dagIdPatternArg,
       dagRunId: runId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
@@ -306,15 +346,15 @@ export const TaskInstances = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
-      offset: pagination.pageIndex * pagination.pageSize,
-      operatorNamePattern: operatorNamePattern ?? undefined,
+      ...operatorNameArg,
       orderBy,
-      poolNamePattern: poolNamePattern ?? undefined,
-      queueNamePattern: queueNamePattern ?? undefined,
-      runIdPattern: filteredRunId ?? undefined,
+      ...poolNameArg,
+      ...queueNameArg,
+      ...renderedMapIndexArg,
+      ...runIdPatternArg,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: taskDisplayNamePattern ?? undefined,
+      ...taskDisplayNameArg,
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
@@ -329,7 +369,10 @@ export const TaskInstances = () => {
     },
   );
 
-  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
+
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.task_instances,
       getKey: getRowKey,
@@ -359,8 +402,9 @@ export const TaskInstances = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries ?? undefined}
+        previousCursor={previousCursor}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
@@ -373,11 +417,11 @@ export const TaskInstances = () => {
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkMarkTaskInstancesAsButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkDeleteTaskInstancesButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <ActionBar.CloseTrigger onClick={clearSelections} />

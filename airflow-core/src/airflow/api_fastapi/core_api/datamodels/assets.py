@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 class DagScheduleAssetReference(StrictBaseModel):
-    """DAG schedule reference serializer for assets."""
+    """Dag schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime

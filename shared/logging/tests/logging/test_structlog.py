@@ -25,6 +25,7 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -35,7 +36,7 @@ from structlog.processors import CallsiteParameter
 from airflow_shared.logging import structlog as structlog_module
 from airflow_shared.logging.structlog import configure_logging
 
-# We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
 
 PY_3_11 = sys.version_info >= (3, 11)
@@ -512,6 +513,14 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
         sys.excepthook = original
 
 
+def test_init_log_folder_does_not_raise_on_permission_error():
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        # Must not raise — CLI commands like `airflow db migrate` rely on this.
+        init_log_folder("/tmp/blocked", 0o775)
+
+
 class TestWarningsInterceptor:
     @pytest.fixture(autouse=True)
     def reset(self):
@@ -698,3 +707,24 @@ def test_dict_positional_arg_formatting(structlog_config, get_logger, message, a
 
     written = json.load(bio)
     assert written["event"] == expected_event
+
+
+def test_named_bytes_logger_preserves_name():
+    """
+    structlog 26.1.0 (hynek/structlog#786) gives ``BytesLogger`` its own ``name``
+    slot and sets ``self.name`` in ``__init__``; older releases do not. This test
+    runs against whichever version is installed and pins the contract that the
+    supplied name survives construction on both.
+    """
+    from airflow_shared.logging.structlog import NamedBytesLogger
+
+    assert NamedBytesLogger("my.logger").name == "my.logger"
+    assert NamedBytesLogger().name is None
+
+
+def test_named_write_logger_preserves_name():
+    """Same contract for NamedWriteLogger in case structlog mirrors #786 for WriteLogger."""
+    from airflow_shared.logging.structlog import NamedWriteLogger
+
+    assert NamedWriteLogger("my.logger").name == "my.logger"
+    assert NamedWriteLogger().name is None

@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, ClassVar
 
-from airflow.providers.amazon.aws.hooks.dms import DmsHook
+from airflow.providers.amazon.aws.hooks.dms import DMS_MODIFIABLE_STATES, DmsHook, DmsTaskState
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationCompleteTrigger,
@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationStoppedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTaskModifyCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -116,6 +117,172 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         self.log.info("DMS replication task(%s) is ready.", self.replication_task_id)
 
         return task_arn
+
+
+class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
+    """
+    Modifies an existing AWS DMS replication task.
+
+    The task must already be in a modifiable state before modification.
+    Use :class:`DmsStopTaskOperator` upstream in the Dag to stop it, and
+    :class:`DmsStartTaskOperator` downstream to restart it afterwards if needed.
+
+    Valid modifiable states are ``stopped``, ``ready``, and ``failed``.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsModifyTaskOperator`
+
+    :param replication_task_arn: Replication task ARN
+    :param table_mappings: New table mappings. If not provided, existing mappings are kept.
+    :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc').
+        If not provided, existing type is kept.
+    :param replication_task_settings: Task settings dict. If not provided, existing settings are kept.
+    :param cdc_start_time: Start time for CDC.
+    :param cdc_start_position: Indicates when to start CDC (checkpoint or LSN/SCN format).
+        Mutually exclusive with cdc_start_time.
+    :param cdc_stop_position: Indicates when to stop CDC.
+    :param wait_for_completion: If True, wait for the modification to finish before returning.
+        In deferrable mode the operator defers rather than blocking. Defaults to True.
+    :param deferrable: Run the operator in deferrable mode. Defaults to False.
+    :param waiter_delay: Seconds between waiter polls (default: 30).
+    :param waiter_max_attempts: Maximum waiter poll attempts (default: 60).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    MODIFIABLE_STATES = DMS_MODIFIABLE_STATES
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "replication_task_arn",
+        "table_mappings",
+        "migration_type",
+        "replication_task_settings",
+        "cdc_start_time",
+        "cdc_start_position",
+        "cdc_stop_position",
+    )
+    template_fields_renderers: ClassVar[dict] = {
+        "table_mappings": "json",
+        "replication_task_settings": "json",
+    }
+
+    def __init__(
+        self,
+        *,
+        replication_task_arn: str,
+        table_mappings: dict | None = None,
+        migration_type: str | None = None,
+        replication_task_settings: dict | None = None,
+        cdc_start_time: datetime | None = None,
+        cdc_start_position: str | None = None,
+        cdc_stop_position: str | None = None,
+        wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        if cdc_start_time and cdc_start_position:
+            raise ValueError("Only one of cdc_start_time or cdc_start_position can be provided.")
+        self.replication_task_arn = replication_task_arn
+        self.table_mappings = table_mappings
+        self.migration_type = migration_type
+        self.replication_task_settings = replication_task_settings
+        self.cdc_start_time = cdc_start_time
+        self.cdc_start_position = cdc_start_position
+        self.cdc_stop_position = cdc_stop_position
+        self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def _wait_for_modification_completion(self) -> None:
+        self.hook.get_waiter("replication_task_modified").wait(
+            Filters=[{"Name": "replication-task-arn", "Values": [self.replication_task_arn]}],
+            WithoutSettings=True,
+            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+        )
+
+    def execute(self, context: Context) -> dict:
+        tasks = self.hook.find_replication_tasks_by_arn(
+            replication_task_arn=self.replication_task_arn, without_settings=True
+        )
+        if not tasks:
+            raise ValueError(f"Replication task {self.replication_task_arn} not found.")
+
+        current_status = tasks[0].get("Status", "").lower()
+        self.log.info(
+            "Current status of replication task(%s) is '%s'.", self.replication_task_arn, current_status
+        )
+
+        if current_status == DmsTaskState.MODIFYING:
+            self._wait_for_modification_completion()
+            tasks = self.hook.find_replication_tasks_by_arn(
+                replication_task_arn=self.replication_task_arn, without_settings=True
+            )
+            if not tasks:
+                raise ValueError(f"Replication task {self.replication_task_arn} not found.")
+            current_status = tasks[0].get("Status", "").lower()
+
+        if current_status not in self.MODIFIABLE_STATES:
+            raise RuntimeError(
+                f"Replication task {self.replication_task_arn} is in state '{current_status}' "
+                f"and must be in a modifiable state (stopped, ready, or failed) before modification. "
+                f"Use DmsStopTaskOperator to stop it first."
+            )
+
+        result = self.hook.modify_replication_task(
+            replication_task_arn=self.replication_task_arn,
+            table_mappings=self.table_mappings,
+            migration_type=self.migration_type,
+            replication_task_settings=self.replication_task_settings,
+            cdc_start_time=self.cdc_start_time,
+            cdc_start_position=self.cdc_start_position,
+            cdc_stop_position=self.cdc_stop_position,
+        )
+        self.log.info("DMS replication task(%s) has been modified.", self.replication_task_arn)
+
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    trigger=DmsTaskModifyCompleteTrigger(
+                        replication_task_arn=self.replication_task_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_complete",
+                    kwargs={"result": result},
+                )
+            else:
+                self._wait_for_modification_completion()
+
+        return result
+
+    def execute_complete(
+        self, context: Context, event: dict | None = None, result: dict | None = None
+    ) -> dict:
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error waiting for DMS task modification to complete: {validated_event}")
+        replication_task_arn = validated_event["replication_task_arn"]
+        self.log.info(
+            "DMS replication task(%s) modification complete.",
+            replication_task_arn,
+        )
+        return result or {}
 
 
 class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):

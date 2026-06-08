@@ -21,7 +21,7 @@ Helm Unit Tests
 
 On the Apache Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
-add them under ``helm-tests/tests/helm_tests`` directory.
+add them under ``chart/tests/helm_tests`` directory.
 
 .. code-block:: python
 
@@ -56,14 +56,14 @@ following command (it takes quite a long time even on a multi-processor machine)
 
     breeze testing helm-tests
 
-You can also execute tests from a selected package only. Tests in ``helm-tests/tests/helm_tests`` are grouped
+You can also execute tests from a selected package only. Tests in ``chart/tests/helm_tests`` are grouped
 by packages so rather than running all tests, you can run only tests from a selected package. For example:
 
 .. code-block:: bash
 
     breeze testing helm-tests --test-type airflow_aux
 
-Will run all tests from ``helm-tests/tests/helm_tests/airflow_aux`` package.
+Will run all tests from ``chart/tests/helm_tests/airflow_aux`` package.
 
 
 You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
@@ -80,19 +80,19 @@ This enters breeze container.
 
 .. code-block:: bash
 
-    pytest helm-tests -n auto
+    pytest chart/tests -n auto
 
 This runs all chart tests using all processors you have available.
 
 .. code-block:: bash
 
-    pytest helm-tests/tests/helm_tests/airflow_aux/test_airflow_common.py -n auto
+    pytest chart/tests/helm_tests/airflow_aux/test_airflow_common.py -n auto
 
 This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
 
 .. code-block:: bash
 
-    pytest helm-tests/tests/helm_tests/airflow_aux/test_airflow_common.py
+    pytest chart/tests/helm_tests/airflow_aux/test_airflow_common.py
 
 This will run all tests from ``tests_airflow_common.py`` file sequentially.
 

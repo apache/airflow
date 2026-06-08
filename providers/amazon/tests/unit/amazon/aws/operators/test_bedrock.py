@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Generator
+from io import BytesIO
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,17 +27,32 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentCoreHook,
+    BedrockAgentHook,
+    BedrockHook,
+    BedrockRuntimeHook,
+)
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockBatchInferenceOperator,
+    BedrockCreateAgentRuntimeOperator,
     BedrockCreateDataSourceOperator,
+    BedrockCreateEvaluationJobOperator,
+    BedrockCreateGuardrailOperator,
+    BedrockCreateGuardrailVersionOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
+    BedrockDeleteAgentRuntimeOperator,
+    BedrockDeleteGuardrailOperator,
     BedrockIngestDataOperator,
+    BedrockInvokeAgentRuntimeOperator,
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
+    BedrockUpdateGuardrailOperator,
 )
+from airflow.providers.amazon.aws.triggers.bedrock import BedrockAgentRuntimeDeletedTrigger
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -77,6 +93,306 @@ class TestBedrockInvokeModelOperator:
         response = operator.execute({})
 
         assert response["generation"] == self.GENERATED_RESPONSE
+
+
+class TestBedrockCreateAgentRuntimeOperator:
+    AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test"
+    AGENT_RUNTIME_ID = "runtime_id"
+    AGENT_RUNTIME_VERSION = "1"
+
+    def setup_method(self):
+        self.operator = BedrockCreateAgentRuntimeOperator(
+            task_id="create_agent_runtime",
+            agent_runtime_name="test-runtime",
+            agent_runtime_artifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            role_arn="role_arn",
+            network_configuration={"networkMode": "PUBLIC"},
+            create_agent_runtime_kwargs={"description": "test runtime"},
+        )
+        self.operator.defer = mock.MagicMock()
+
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer_takes_precedence"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
+    @mock.patch.object(BedrockAgentCoreControlHook, "conn", new_callable=mock.PropertyMock)
+    def test_create_agent_runtime_wait_combinations(
+        self,
+        mock_conn,
+        mock_get_waiter,
+        wait_for_completion,
+        deferrable,
+    ):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.create_agent_runtime.return_value = {
+            "agentRuntimeArn": self.AGENT_RUNTIME_ARN,
+            "agentRuntimeId": self.AGENT_RUNTIME_ID,
+            "agentRuntimeVersion": self.AGENT_RUNTIME_VERSION,
+            "status": "CREATING",
+        }
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.AGENT_RUNTIME_ARN
+        mock_client.create_agent_runtime.assert_called_once_with(
+            agentRuntimeName="test-runtime",
+            agentRuntimeArtifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            roleArn="role_arn",
+            networkConfiguration={"networkMode": "PUBLIC"},
+            description="test runtime",
+        )
+        assert self.operator.defer.call_count == deferrable
+
+        if wait_for_completion and not deferrable:
+            mock_get_waiter.assert_called_once_with("agent_runtime_ready")
+            mock_get_waiter.return_value.wait.assert_called_once_with(
+                agentRuntimeId=self.AGENT_RUNTIME_ID,
+                agentRuntimeVersion=self.AGENT_RUNTIME_VERSION,
+                WaiterConfig={"Delay": 60, "MaxAttempts": 20},
+            )
+        else:
+            mock_get_waiter.assert_not_called()
+
+    @mock.patch.object(BedrockAgentCoreControlHook, "conn", new_callable=mock.PropertyMock)
+    def test_create_agent_runtime_no_extra_kwargs(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.create_agent_runtime.return_value = {
+            "agentRuntimeArn": self.AGENT_RUNTIME_ARN,
+            "agentRuntimeId": self.AGENT_RUNTIME_ID,
+            "agentRuntimeVersion": self.AGENT_RUNTIME_VERSION,
+            "status": "CREATING",
+        }
+        operator = BedrockCreateAgentRuntimeOperator(
+            task_id="create_agent_runtime",
+            agent_runtime_name="test-runtime",
+            agent_runtime_artifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            role_arn="role_arn",
+            network_configuration={"networkMode": "PUBLIC"},
+            wait_for_completion=False,
+        )
+
+        operator.execute({})
+
+        mock_client.create_agent_runtime.assert_called_once_with(
+            agentRuntimeName="test-runtime",
+            agentRuntimeArtifact={"containerConfiguration": {"containerUri": "image_uri"}},
+            roleArn="role_arn",
+            networkConfiguration={"networkMode": "PUBLIC"},
+        )
+
+    def test_execute_complete_success(self):
+        result = self.operator.execute_complete(
+            {},
+            {"status": "success", "agent_runtime_arn": self.AGENT_RUNTIME_ARN},
+        )
+
+        assert result == self.AGENT_RUNTIME_ARN
+
+    def test_execute_complete_error(self):
+        with pytest.raises(RuntimeError):
+            self.operator.execute_complete(
+                {},
+                {"status": "error", "message": "failed", "agent_runtime_arn": self.AGENT_RUNTIME_ARN},
+            )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockInvokeAgentRuntimeOperator:
+    AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test"
+
+    @mock.patch.object(BedrockAgentCoreHook, "conn", new_callable=mock.PropertyMock)
+    def test_invoke_agent_runtime_json_response(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.invoke_agent_runtime.return_value = {
+            "runtimeSessionId": "session_id",
+            "contentType": "application/json",
+            "statusCode": 200,
+            "response": BytesIO(b'{"answer": "hello"}'),
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload={"prompt": "hello"},
+            invoke_agent_runtime_kwargs={"runtimeSessionId": "session_id"},
+        )
+
+        response = operator.execute({})
+
+        assert response == {
+            "runtimeSessionId": "session_id",
+            "contentType": "application/json",
+            "statusCode": 200,
+            "response": {"answer": "hello"},
+        }
+        mock_client.invoke_agent_runtime.assert_called_once_with(
+            agentRuntimeArn=self.AGENT_RUNTIME_ARN,
+            payload=b'{"prompt": "hello"}',
+            contentType="application/json",
+            accept="application/json",
+            runtimeSessionId="session_id",
+        )
+
+    @mock.patch.object(BedrockAgentCoreHook, "conn", new_callable=mock.PropertyMock)
+    def test_invoke_agent_runtime_text_response(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.invoke_agent_runtime.return_value = {
+            "contentType": "text/plain",
+            "statusCode": 200,
+            "response": BytesIO(b"hello"),
+        }
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload="hello",
+            content_type="text/plain",
+            accept="text/plain",
+        )
+
+        response = operator.execute({})
+
+        assert response["response"] == "hello"
+        mock_client.invoke_agent_runtime.assert_called_once_with(
+            agentRuntimeArn=self.AGENT_RUNTIME_ARN,
+            payload=b"hello",
+            contentType="text/plain",
+            accept="text/plain",
+        )
+
+    @mock.patch.object(BedrockAgentCoreHook, "conn", new_callable=mock.PropertyMock)
+    def test_invoke_agent_runtime_prunes_none_content_type_and_accept(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.invoke_agent_runtime.return_value = {
+            "statusCode": 200,
+            "response": BytesIO(b"hello"),
+        }
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload="hello",
+            content_type=None,
+            accept=None,
+        )
+
+        operator.execute({})
+
+        mock_client.invoke_agent_runtime.assert_called_once_with(
+            agentRuntimeArn=self.AGENT_RUNTIME_ARN,
+            payload=b"hello",
+        )
+
+    def test_template_fields(self):
+        operator = BedrockInvokeAgentRuntimeOperator(
+            task_id="invoke_agent_runtime",
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+            payload={"prompt": "hello"},
+        )
+
+        validate_template_fields(operator)
+
+
+class TestBedrockDeleteAgentRuntimeOperator:
+    AGENT_RUNTIME_ID = "runtime_id"
+
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer_takes_precedence"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
+    @mock.patch.object(BedrockAgentCoreControlHook, "conn", new_callable=mock.PropertyMock)
+    def test_delete_agent_runtime_wait_combinations(
+        self,
+        mock_conn,
+        mock_get_waiter,
+        wait_for_completion,
+        deferrable,
+    ):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+        mock_client.delete_agent_runtime.return_value = {}
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+            wait_for_completion=wait_for_completion,
+            deferrable=deferrable,
+        )
+        operator.defer = mock.MagicMock()
+
+        operator.execute({})
+
+        mock_client.delete_agent_runtime.assert_called_once_with(agentRuntimeId=self.AGENT_RUNTIME_ID)
+        assert operator.defer.call_count == deferrable
+
+        if wait_for_completion and not deferrable:
+            mock_get_waiter.assert_called_once_with("agent_runtime_deleted")
+            mock_get_waiter.return_value.wait.assert_called_once_with(
+                agentRuntimeId=self.AGENT_RUNTIME_ID,
+                WaiterConfig={"Delay": 60, "MaxAttempts": 20},
+            )
+        else:
+            mock_get_waiter.assert_not_called()
+
+        if deferrable:
+            trigger = operator.defer.call_args.kwargs["trigger"]
+            assert isinstance(trigger, BedrockAgentRuntimeDeletedTrigger)
+            assert operator.defer.call_args.kwargs["method_name"] == "execute_complete"
+            _, trigger_kwargs = trigger.serialize()
+            assert trigger_kwargs["agent_runtime_id"] == self.AGENT_RUNTIME_ID
+            assert trigger_kwargs["waiter_delay"] == 60
+            assert trigger_kwargs["waiter_max_attempts"] == 20
+
+    def test_execute_complete_success(self):
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+        )
+
+        result = operator.execute_complete(
+            {},
+            {"status": "success", "agent_runtime_id": self.AGENT_RUNTIME_ID},
+        )
+
+        assert result is None
+
+    def test_execute_complete_error(self):
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+        )
+
+        with pytest.raises(RuntimeError):
+            operator.execute_complete(
+                {},
+                {"status": "error", "message": "failed", "agent_runtime_id": self.AGENT_RUNTIME_ID},
+            )
+
+    def test_template_fields(self):
+        validate_template_fields(
+            BedrockDeleteAgentRuntimeOperator(
+                task_id="delete_agent_runtime",
+                agent_runtime_id=self.AGENT_RUNTIME_ID,
+            )
+        )
 
 
 class TestBedrockCustomizeModelOperator:
@@ -170,13 +486,20 @@ class TestBedrockCustomizeModelOperator:
     @mock.patch.object(BedrockHook, "get_waiter")
     def test_ensure_unique_job_name(self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook):
         mock_conn.create_model_customization_job.side_effect = side_effect
-        expected_call_count = len(side_effect) if ensure_unique_name else 1
+        self.operator.ensure_unique_job_name = ensure_unique_name
         self.operator.wait_for_completion = False
+        expected_call_count = len(side_effect) if ensure_unique_name else 1
+
+        if not ensure_unique_name and any(isinstance(e, ClientError) for e in side_effect):
+            with pytest.raises(ClientError):
+                self.operator.execute({})
+            assert mock_conn.create_model_customization_job.call_count == expected_call_count
+            return
 
         response = self.operator.execute({})
 
         assert response == self.CUSTOMIZE_JOB_ARN
-        mock_conn.create_model_customization_job.call_count == expected_call_count
+        assert mock_conn.create_model_customization_job.call_count == expected_call_count
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
 
@@ -762,6 +1085,289 @@ class TestBedrockBatchInferenceOperator:
         assert response == self.JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+GUARDRAIL_NAME = "test-guardrail"
+GUARDRAIL_ID = "abc123"
+
+
+class TestBedrockCreateGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "guardrailArn": "arn:aws:bedrock:us-east-1:123456789012:guardrail/abc123",
+            "version": "DRAFT",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_guardrail.assert_called_once_with(
+            name=GUARDRAIL_NAME,
+            blockedInputMessaging="Input blocked.",
+            blockedOutputsMessaging="Output blocked.",
+        )
+        assert result == GUARDRAIL_ID
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_policies(self, mock_conn):
+        op = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+            description="Test guardrail",
+            content_policy_config={
+                "filtersConfig": [{"type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH"}]
+            },
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.return_value = {"guardrailId": GUARDRAIL_ID}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        call_kwargs = mock_client.create_guardrail.call_args[1]
+        assert call_kwargs["name"] == GUARDRAIL_NAME
+        assert call_kwargs["description"] == "Test guardrail"
+        assert "contentPolicyConfig" in call_kwargs
+        assert result == GUARDRAIL_ID
+
+    @mock.patch.object(BedrockHook, "get_guardrail_id_by_name", return_value=GUARDRAIL_ID)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn, mock_get_id):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == GUARDRAIL_ID
+        mock_get_id.assert_called_once_with(GUARDRAIL_NAME)
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+    @mock.patch.object(BedrockHook, "get_guardrail_id_by_name", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing_not_found(self, mock_conn, mock_get_id):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+GUARDRAIL_ID = "abc123"
+
+
+class TestBedrockDeleteGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_guardrail.assert_called_once_with(guardrailIdentifier=GUARDRAIL_ID)
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_version(self, mock_conn):
+        op = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_version="1",
+        )
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        op.execute({})
+
+        mock_client.delete_guardrail.assert_called_once_with(
+            guardrailIdentifier=GUARDRAIL_ID, guardrailVersion="1"
+        )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockCreateGuardrailVersionOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "version": "1",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_guardrail_version.assert_called_once_with(guardrailIdentifier=GUARDRAIL_ID)
+        assert result == "1"
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn):
+        op = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+            description="Production version",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "version": "2",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_guardrail_version.assert_called_once_with(
+            guardrailIdentifier=GUARDRAIL_ID, description="Production version"
+        )
+        assert result == "2"
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockUpdateGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.update_guardrail.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "guardrailArn": "arn",
+            "version": "DRAFT",
+            "updatedAt": "now",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == GUARDRAIL_ID
+        mock_client.update_guardrail.assert_called_once()
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+EVAL_JOB_NAME = "test-eval-job"
+EVAL_JOB_ARN = "arn:aws:bedrock:us-east-1:123456789012:evaluation-job/test-eval-job"
+ROLE_ARN = "arn:aws:iam::123456789012:role/test-role"
+EVAL_CONFIG = {"automated": {"datasetMetricConfigs": [{"taskType": "Summarization"}]}}
+INFERENCE_CONFIG = {"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-v2"}}]}
+OUTPUT_CONFIG = {"s3Uri": "s3://bucket/output/"}
+
+
+class TestBedrockCreateEvaluationJobOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateEvaluationJobOperator(
+            task_id="create_eval_job",
+            job_name=EVAL_JOB_NAME,
+            role_arn=ROLE_ARN,
+            evaluation_config=EVAL_CONFIG,
+            inference_config=INFERENCE_CONFIG,
+            output_data_config=OUTPUT_CONFIG,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_evaluation_job.return_value = {"jobArn": EVAL_JOB_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_evaluation_job.assert_called_once_with(
+            jobName=EVAL_JOB_NAME,
+            roleArn=ROLE_ARN,
+            evaluationConfig=EVAL_CONFIG,
+            inferenceConfig=INFERENCE_CONFIG,
+            outputDataConfig=OUTPUT_CONFIG,
+        )
+        assert result == EVAL_JOB_ARN
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_evaluation_job.return_value = {"jobArn": EVAL_JOB_ARN}
+        mock_conn.return_value = mock_client
+
+        op = BedrockCreateEvaluationJobOperator(
+            task_id="create_eval_job",
+            job_name=EVAL_JOB_NAME,
+            role_arn=ROLE_ARN,
+            evaluation_config=EVAL_CONFIG,
+            inference_config=INFERENCE_CONFIG,
+            output_data_config=OUTPUT_CONFIG,
+            job_description="Test evaluation",
+        )
+        result = op.execute({})
+
+        call_kwargs = mock_client.create_evaluation_job.call_args[1]
+        assert call_kwargs["jobDescription"] == "Test evaluation"
+        assert result == EVAL_JOB_ARN
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

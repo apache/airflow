@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetModel, expand_alias_to_assets
 
 router = APIRouter(
     responses={
@@ -56,6 +56,15 @@ def get_asset_by_uri(
     _raise_if_not_found(asset, f"Asset with URI {uri} not found")
 
     return AssetResponse.model_validate(asset)
+
+
+@router.get("/by-alias")
+def get_assets_by_alias(
+    alias_name: Annotated[str, Query(description="The name of the AssetAlias")],
+    session: SessionDep,
+) -> list[AssetResponse]:
+    """Get all Airflow Assets resolved from an AssetAlias by `alias_name`."""
+    return [AssetResponse.model_validate(a) for a in expand_alias_to_assets(alias_name, session=session)]
 
 
 def _raise_if_not_found(asset, msg):

@@ -43,17 +43,6 @@ export class LoginPage extends BasePage {
     this.errorMessage = page.getByText("Invalid credentials");
   }
 
-  public async expectLoginSuccess(): Promise<void> {
-    const currentUrl: string = this.page.url();
-
-    if (currentUrl.includes("/login")) {
-      throw new Error(`Expected to be redirected after login, but still on: ${currentUrl}`);
-    }
-
-    const isLoggedIn: boolean = await this.isLoggedIn();
-
-    expect(isLoggedIn).toBe(true);
-  }
   public async login(username: string, password: string): Promise<void> {
     await this.usernameInput.fill(username);
     await this.passwordInput.fill(password);
@@ -84,7 +73,7 @@ export class LoginPage extends BasePage {
 
     await expect(async () => {
       await this.navigateTo(LoginPage.loginUrl);
-      await expect(this.loginButton).toBeVisible({ timeout: 10_000 });
+      await expect(this.loginButton).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
