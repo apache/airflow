@@ -296,6 +296,25 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
 
         return (dag_id, dag_run_id)
 
+    def _categorize_dag_runs(
+        self, keys: set[tuple[str, str]]
+    ) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]], set[tuple[str, str]]]:
+        """
+        Split the requested ``(dag_id, dag_run_id)`` keys into existing and missing ones.
+
+        :return: tuple of (dag_run_map, matched_keys, not_found_keys). Shared by the bulk
+            update and delete handlers.
+        """
+        dag_run_map = {
+            (dr.dag_id, dr.run_id): dr
+            for dr in self.session.scalars(
+                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
+            )
+        }
+        matched_keys = set(dag_run_map.keys())
+        not_found_keys = keys - matched_keys
+        return dag_run_map, matched_keys, not_found_keys
+
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
@@ -320,33 +339,34 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         if not entities_by_key:
             return
 
-        dag_run_map = {
-            (dr.dag_id, dr.run_id): dr
-            for dr in self.session.scalars(
-                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(entities_by_key.keys())))
+        to_update_keys = set(entities_by_key.keys())
+        dag_run_map, matched_keys, not_found_keys = self._categorize_dag_runs(to_update_keys)
+
+        try:
+            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    f"The DagRuns with these identifiers: {sorted(not_found_keys)} were not found",
+                )
+            update_keys = (
+                matched_keys
+                if action.action_on_non_existence == BulkActionNotOnExistence.SKIP
+                else to_update_keys
             )
-        }
 
-        for (dag_id, run_id), entity in entities_by_key.items():
-            try:
-                dag_run = dag_run_map.get((dag_id, run_id))
-                if dag_run is None:
-                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-                        raise HTTPException(
-                            status.HTTP_404_NOT_FOUND,
-                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
-                        )
+            for key, entity in entities_by_key.items():
+                if key not in update_keys:
                     continue
-
+                dag_id, run_id = key
+                dag_run = dag_run_map[key]
                 if entity.state is not None:
                     dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
                     _patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 if entity.note is not None:
                     _patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
-
                 results.success.append(f"{dag_id}.{run_id}")
-            except HTTPException as e:
-                results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+        except HTTPException as e:
+            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
     def handle_bulk_delete(
         self, action: BulkDeleteAction[BulkDAGRunBody], results: BulkActionResponse
@@ -361,33 +381,33 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         if not keys:
             return
 
-        dag_run_map = {
-            (dr.dag_id, dr.run_id): dr
-            for dr in self.session.scalars(
-                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
-            )
-        }
+        dag_run_map, matched_keys, not_found_keys = self._categorize_dag_runs(keys)
         deletable_states = {s.value for s in DagRunMutableStates}
 
-        for dag_id, run_id in sorted(keys):
-            try:
-                dag_run = dag_run_map.get((dag_id, run_id))
-                if dag_run is None:
-                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-                        raise HTTPException(
-                            status.HTTP_404_NOT_FOUND,
-                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
-                        )
-                    continue
+        try:
+            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    f"The DagRuns with these identifiers: {sorted(not_found_keys)} were not found",
+                )
+            delete_keys = (
+                matched_keys if action.action_on_non_existence == BulkActionNotOnExistence.SKIP else keys
+            )
 
+            for dag_id, run_id in sorted(delete_keys):
+                dag_run = dag_run_map[(dag_id, run_id)]
                 if dag_run.state not in deletable_states:
-                    raise HTTPException(
-                        status.HTTP_409_CONFLICT,
-                        f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` "
-                        f"cannot be deleted in {dag_run.state} state",
+                    results.errors.append(
+                        {
+                            "error": (
+                                f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` "
+                                f"cannot be deleted in {dag_run.state} state"
+                            ),
+                            "status_code": status.HTTP_409_CONFLICT,
+                        }
                     )
-
+                    continue
                 self.session.delete(dag_run)
                 results.success.append(f"{dag_id}.{run_id}")
-            except HTTPException as e:
-                results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+        except HTTPException as e:
+            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
