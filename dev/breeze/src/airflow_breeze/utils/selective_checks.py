@@ -1562,6 +1562,11 @@ class SelectiveChecks:
             CI_FILE_GROUP_MATCHES,
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
+        if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
+            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
+            # depend on that (intermittently failing) download.
+            prek_hooks_to_skip.add("ktlint")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockHook,
 )
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeDeletedTrigger,
     BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
     BedrockBatchInferenceScheduledTrigger,
@@ -215,6 +216,34 @@ class TestBedrockAgentRuntimeReadyTrigger(TestBaseBedrockTrigger):
 
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         assert response == TriggerEvent({"status": "success", "agent_runtime_arn": self.AGENT_RUNTIME_ARN})
+        mock_get_waiter().wait.assert_called_once()
+
+
+class TestBedrockAgentRuntimeDeletedTrigger(TestBaseBedrockTrigger):
+    EXPECTED_WAITER_NAME = "agent_runtime_deleted"
+
+    AGENT_RUNTIME_ID = "runtime_id"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockAgentRuntimeDeletedTrigger(agent_runtime_id=self.AGENT_RUNTIME_ID)
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockAgentRuntimeDeletedTrigger"
+        assert kwargs.get("agent_runtime_id") == self.AGENT_RUNTIME_ID
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockAgentRuntimeDeletedTrigger(agent_runtime_id=self.AGENT_RUNTIME_ID)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
+        assert response == TriggerEvent({"status": "success", "agent_runtime_id": self.AGENT_RUNTIME_ID})
         mock_get_waiter().wait.assert_called_once()
 
 

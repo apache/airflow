@@ -49,6 +49,18 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetEventAccessControl(BaseModel):
+    """
+    Access control settings for asset event consumer team filtering.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    consumer_teams: Annotated[list[str] | None, Field(title="Consumer Teams")] = None
+    allow_global: Annotated[bool | None, Field(title="Allow Global")] = True
+
+
 class AssetStoreWriterKind(str, Enum):
     """
     Identifies what kind of writer last updated an asset store entry.
@@ -415,6 +427,7 @@ class CreateAssetEventsBody(BaseModel):
     asset_id: Annotated[int, Field(title="Asset Id")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    access_control: AssetEventAccessControl | None = None
 
 
 class DAGPatchBody(BaseModel):
