@@ -26,6 +26,16 @@ layer, and surfaces ranked remediation candidates to the on-call engineer.
 A local-only execution mode ensures the plugin can run without sending log data
 to an external API, satisfying data-residency requirements.
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [`docs/prfaq/README.md`](docs/prfaq/README.md) | PRFAQ working folder — index of problem framing and related docs |
+| [`docs/PRODUCT_PROBLEM.md`](docs/PRODUCT_PROBLEM.md) | Canonical problem framing (issue #17) |
+| [`docs/PERSONAS.md`](docs/PERSONAS.md) | Target personas and upstream issue evidence |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Plugin architecture |
+| [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) | Sprint plan |
+
 ## Links
 
 | Resource | URL |
