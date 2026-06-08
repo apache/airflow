@@ -1012,8 +1012,8 @@ class TestPostgresHookPPG2(_BasePostgresHookRuntimeTests):
         assert call_kw["sql"] == f"INSERT INTO {table}  VALUES (%s)"
         assert call_kw["row_count"] == 2
 
-    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
-    def test_insert_rows_fast_executemany(self, mock_execute_batch):
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_values")
+    def test_insert_rows_fast_executemany(self, mock_execute_values):
         table = "table"
         rows = [("hello",), ("world",)]
 
@@ -1025,9 +1025,9 @@ class TestPostgresHookPPG2(_BasePostgresHookRuntimeTests):
         commit_count = 2  # The first and last commit
         assert self.conn.commit.call_count == commit_count
 
-        mock_execute_batch.assert_called_once_with(
+        mock_execute_values.assert_called_once_with(
             self.cur,
-            f"INSERT INTO {table}  VALUES (%s)",  # expected SQL
+            f"INSERT INTO {table}  VALUES %s",  # expected SQL
             [("hello",), ("world",)],  # expected values
             page_size=1000,
         )
@@ -1036,9 +1036,8 @@ class TestPostgresHookPPG2(_BasePostgresHookRuntimeTests):
         self.cur.executemany.assert_not_called()
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
-    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
-    def test_insert_rows_fast_executemany_hook_lineage(self, mock_execute_batch, mock_send_lineage):
-
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_values")
+    def test_insert_rows_fast_executemany_hook_lineage(self, mock_execute_values, mock_send_lineage):
         table = "table"
         rows = [("hello",), ("world",)]
 
@@ -1047,8 +1046,27 @@ class TestPostgresHookPPG2(_BasePostgresHookRuntimeTests):
         mock_send_lineage.assert_called_once()
         call_kw = mock_send_lineage.call_args.kwargs
         assert call_kw["context"] is self.db_hook
-        assert call_kw["sql"] == f"INSERT INTO {table}  VALUES (%s)"
+        assert call_kw["sql"] == f"INSERT INTO {table}  VALUES %s"
         assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.USE_PSYCOPG3", True)
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
+    def test_insert_rows_fast_executemany_psycopg3_fallback(self, mock_super_insert_rows):
+        """Verify psycopg3 falls back to default implementation even with fast_executemany=True."""
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, fast_executemany=True)
+
+        mock_super_insert_rows.assert_called_once_with(
+            table,
+            rows,
+            target_fields=None,
+            commit_every=1000,
+            replace=False,
+            executemany=False,
+            autocommit=False,
+        )
 
     @pytest.mark.usefixtures("reset_logging_config")
     def test_get_all_db_log_messages(self, mocker):
