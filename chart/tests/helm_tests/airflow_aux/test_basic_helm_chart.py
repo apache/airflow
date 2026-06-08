@@ -227,7 +227,7 @@ class TestBaseChartTest:
             },
             "pgbouncer": {"enabled": True},
             "redis": {"enabled": True},
-            "ingress": {"flower": {"enabled": True}},
+            "ingress": {"flower": {"enabled": True}, "apiServer": {"enabled": True},
             "networkPolicies": {"enabled": True},
             "cleanup": {"enabled": True},
             "databaseCleanup": {"enabled": True},
