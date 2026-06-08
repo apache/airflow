@@ -1334,6 +1334,109 @@ class TestTaskStateStoreAccessor:
         assert result == {"rows": 123}
         backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
 
+    @pytest.mark.asyncio
+    async def test_aget_returns_value(self, mock_supervisor_comms):
+        """aget awaits asend and returns the stored value, without touching sync send."""
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value="app_001")
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == "app_001"
+        mock_supervisor_comms.asend.assert_called_once_with(GetTaskStateStore(ti_id=self.TI_ID, key="job_id"))
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aget_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}
+        )
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget(
+            "job_id", default="default-id"
+        )
+
+        assert result == "default-id"
+
+    @pytest.mark.asyncio
+    async def test_aget_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("some_key")
+
+    @pytest.mark.asyncio
+    async def test_aget_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
+        """aget unwraps the external Store marker and resolves the ref via the backend."""
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(
+            value=_wrap_external_ref("s3://bucket/ti_123/job_id")
+        )
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_task_state_store_from_ref.return_value = {"rows": 123}
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == {"rows": 123}
+        backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
+
+    @pytest.mark.asyncio
+    async def test_aset_with_global_retention(self, mock_supervisor_comms, time_machine):
+        """aset awaits asend with the message built from the global retention config."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(now, tick=False)
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "app_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value="app_001",
+                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            )
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", None)
+
+        mock_supervisor_comms.asend.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
+        """aset wraps the custom backend ref in the external Store marker before sending."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_task_state_store_to_ref.return_value = "s3://bucket/ti_123/job_id"
+
+        with (
+            patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+            conf_vars({("state_store", "default_retention_days"): "0"}),
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "spark_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value=_wrap_external_ref("s3://bucket/ti_123/job_id"),
+                expires_at=None,
+            )
+        )
+
 
 class TestAssetStateStoreAccessor:
     ASSET_NAME = "debug_watcher_asset"

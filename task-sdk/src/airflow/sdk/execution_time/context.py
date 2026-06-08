@@ -72,6 +72,7 @@ if TYPE_CHECKING:
         OKResponse,
         PrevSuccessfulDagRunResponse,
         ReceiveMsgType,
+        SetTaskStateStore,
         VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
@@ -544,10 +545,22 @@ class TaskStateStoreAccessor:
         ``datetime`` is not JSON-serializable; store it as ``value.isoformat()`` and
         parse it back with ``datetime.fromisoformat(result)``.
         """
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskStateStore, TaskStateStoreResult
+        from airflow.sdk.execution_time.comms import GetTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = SUPERVISOR_COMMS.send(GetTaskStateStore(ti_id=self._ti_id, key=key))
+        return self._extract_get_response(resp, key, default)
+
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of :meth:`get` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.comms import GetTaskStateStore
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        resp = await SUPERVISOR_COMMS.asend(GetTaskStateStore(ti_id=self._ti_id, key=key))
+        return self._extract_get_response(resp, key, default)
+
+    def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
+        from airflow.sdk.execution_time.comms import ErrorResponse, TaskStateStoreResult
 
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
@@ -579,8 +592,20 @@ class TaskStateStoreAccessor:
         - ``NEVER_EXPIRE`` — key never expires, regardless of the global config and is skipped by garbage collection.
         - ``None`` (default) — use the global ``[state_store] default_retention_days`` config.
         """
-        from airflow.sdk.execution_time.comms import SetTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(self._build_set_message(key, value, retention))
+
+    async def aset(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
+        """Async version of :meth:`set` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_set_message(key, value, retention))
+
+    def _build_set_message(
+        self, key: str, value: JsonValue, retention: timedelta | None
+    ) -> SetTaskStateStore:
+        from airflow.sdk.execution_time.comms import SetTaskStateStore
 
         if value is None:
             raise ValueError("Cannot set value as None")
@@ -622,7 +647,7 @@ class TaskStateStoreAccessor:
                     limit,
                 )
 
-        SUPERVISOR_COMMS.send(msg)
+        return msg
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
