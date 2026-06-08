@@ -78,6 +78,7 @@ LABEL_TASK_ID = "task_id"
 LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
+LABEL_RUN_ID = "run_id"
 
 
 @attrs.define(kw_only=True)
@@ -209,8 +210,20 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 shutil.rmtree(parent, ignore_errors=True)
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
-        """Read logs from Stackdriver Logging using task instance labels."""
-        ti_labels = _task_instance_to_labels(ti)
+        """Read logs from Stackdriver Logging using task instance labels.
+
+        Filters on ``run_id`` instead of ``logical_date`` because the supervisor
+        process that hosts ``REMOTE_TASK_LOG`` has no DB connection to convert
+        ``run_id`` → ``logical_date``.  The write path (Bug 1 / #68246) already
+        writes ``run_id`` as a label, so the read filter matches what was actually
+        written.
+        """
+        ti_labels = {
+            LABEL_DAG_ID: ti.dag_id,
+            LABEL_TASK_ID: ti.task_id,
+            LABEL_RUN_ID: ti.run_id,
+            LABEL_TRY_NUMBER: str(ti.try_number),
+        }
         log_filter = self.prepare_log_filter(ti_labels)
         messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)
         return [f"Reading remote log from Stackdriver for {relative_path}"], [messages] if messages else []
