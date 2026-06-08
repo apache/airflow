@@ -251,6 +251,29 @@ class TestIterableOperator:
             assert iterable_op.max_workers == 4
 
     @pytest.mark.db_test
+    @pytest.mark.parametrize("invalid_value", [0, -1, -10])
+    def test_task_concurrency_validation_rejects_non_positive_values(self, dag_maker, session, invalid_value):
+        """Test that IterableOperator raises ValueError for task_concurrency < 1."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            with pytest.raises(ValueError, match=f"task_concurrency must be at least 1, got {invalid_value}"):
+                self.create_iterable_operator(dag, expand_input, task_concurrency=invalid_value)
+
+    @pytest.mark.db_test
+    def test_partial_kwargs_not_mutated(self, dag_maker, session):
+        """Test that creating IterableOperator does not mutate the original MappedOperator's partial_kwargs."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            mapped_op = self.create_mapped_operator(dag, expand_input, task_concurrency=4)
+            original_partial_kwargs = mapped_op.partial_kwargs.copy()
+
+            IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            # Verify that mapped_op.partial_kwargs was not mutated
+            assert mapped_op.partial_kwargs == original_partial_kwargs
+            assert "task_concurrency" in mapped_op.partial_kwargs
+
+    @pytest.mark.db_test
     def test_expand_input_stored(self, dag_maker, session):
         """Test that IterableOperator stores expand_input correctly."""
         with dag_maker(session=session) as dag:

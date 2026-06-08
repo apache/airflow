@@ -166,8 +166,11 @@ class IterableOperator(BaseOperator):
         )
         self._operator = operator
         self.expand_input = expand_input
-        self.partial_kwargs = operator.partial_kwargs or {}
-        self.max_workers = self.partial_kwargs.pop("task_concurrency", None) or os.cpu_count() or 1
+        self.partial_kwargs = dict(operator.partial_kwargs) if operator.partial_kwargs else {}
+        task_concurrency = self.partial_kwargs.pop("task_concurrency", None)
+        if task_concurrency is not None and task_concurrency < 1:
+            raise ValueError(f"task_concurrency must be at least 1, got {task_concurrency}")
+        self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
