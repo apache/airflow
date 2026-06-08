@@ -15,14 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Security
-========
-
-.. note::
-    If you find a security issue, please follow the `Apache Airflow Security Policy <https://airflow.apache.org/docs/apache-airflow/stable/security/index.html>`__.
-
-Releasing security patches
---------------------------
-
-This provider package follows the same security policy as the main Apache Airflow project.
-For details, see `Releasing security patches <https://github.com/apache/airflow/blob/main/contributing-docs/12_airflow_security.rst>`__.
+.. include:: /../../../devel-common/src/sphinx_exts/includes/security.rst

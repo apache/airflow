@@ -19,7 +19,7 @@
 Example DAG demonstrating the Db2 Provider
 
 This DAG shows how to use the Db2 provider for common database operations:
-- Using Db2Operator for SQL execution
+- Using SQLExecuteQueryOperator with Db2Hook for SQL execution
 - Using Db2Hook for programmatic queries
 - Creating tables and inserting data
 - Querying and processing results
@@ -35,8 +35,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
-from airflow.providers.ibm.db2.operators.db2 import Db2Operator
 
 # Default arguments for the DAG
 default_args = {
@@ -79,9 +79,10 @@ def db2_example_dag() -> None:
                 else:
                     raise
 
-    # Task 1: Create a sample table using Db2Operator
-    create_table = Db2Operator(
+    # Task 1: Create a sample table using SQLExecuteQueryOperator
+    create_table = SQLExecuteQueryOperator(
         task_id="create_sample_table",
+        conn_id="db2_default",
         sql="""
             CREATE TABLE employees (
                 employee_id INTEGER NOT NULL PRIMARY KEY,
@@ -94,11 +95,13 @@ def db2_example_dag() -> None:
             )
         """,
         autocommit=True,  # Required for DDL statements in Db2
+        hook_params={"schema": None},
     )
 
-    # Task 2: Insert sample data using Db2Operator with parameters
-    insert_data = Db2Operator(
+    # Task 2: Insert sample data using SQLExecuteQueryOperator with parameters
+    insert_data = SQLExecuteQueryOperator(
         task_id="insert_sample_data",
+        conn_id="db2_default",
         sql="""
             INSERT INTO employees (employee_id, first_name, last_name, department, salary, hire_date, updated_at)
             VALUES
@@ -107,6 +110,7 @@ def db2_example_dag() -> None:
                 (3, 'Bob', 'Johnson', 'Sales', 70000.00, '2023-03-10', CURRENT TIMESTAMP)
         """,
         autocommit=True,  # Ensure data is committed
+        hook_params={"schema": None},
     )
 
     # Task 3: Query data using Db2Hook
@@ -127,9 +131,10 @@ def db2_example_dag() -> None:
 
         return len(records)
 
-    # Task 4: Update employee salary using Db2Operator with parameters
-    update_salary = Db2Operator(
+    # Task 4: Update employee salary using SQLExecuteQueryOperator with parameters
+    update_salary = SQLExecuteQueryOperator(
         task_id="update_employee_salary",
+        conn_id="db2_default",
         sql="""
             UPDATE employees
             SET salary = salary * 1.10,
@@ -137,11 +142,13 @@ def db2_example_dag() -> None:
             WHERE department = 'Engineering'
         """,
         autocommit=True,  # Ensure updates are committed
+        hook_params={"schema": None},
     )
 
-    # Task 5: Calculate department statistics using Db2Operator
-    calculate_stats = Db2Operator(
+    # Task 5: Calculate department statistics using SQLExecuteQueryOperator
+    calculate_stats = SQLExecuteQueryOperator(
         task_id="calculate_department_stats",
+        conn_id="db2_default",
         sql="""
             SELECT
                 department,
@@ -153,6 +160,7 @@ def db2_example_dag() -> None:
             GROUP BY department
             ORDER BY department
         """,
+        hook_params={"schema": None},
     )
 
     # Task 6: Query and display statistics using Db2Hook
@@ -186,15 +194,17 @@ def db2_example_dag() -> None:
             print(f"  Max Salary: ${max_sal:,.2f}")
             print()
 
-    # Task 7: Create a backup table using Db2Operator
-    create_backup = Db2Operator(
+    # Task 7: Create a backup table using SQLExecuteQueryOperator
+    create_backup = SQLExecuteQueryOperator(
         task_id="create_backup_table",
+        conn_id="db2_default",
         sql="""
             CREATE TABLE employees_backup AS
             (SELECT * FROM TESTUSER1.employees)
             WITH DATA
         """,
         autocommit=True,  # Required for DDL statements in Db2
+        hook_params={"schema": None},
     )
 
     # Task 8: Verify backup using Db2Hook
@@ -216,13 +226,15 @@ def db2_example_dag() -> None:
             raise ValueError(f"Backup verification failed: {original_count} != {backup_count}")
 
     # Task 9: Cleanup (optional - commented out by default)
-    # cleanup = Db2Operator(
+    # cleanup = SQLExecuteQueryOperator(
     #     task_id="cleanup_tables",
+    #     conn_id="db2_default",
     #     sql="""
     #         DROP TABLE employees;
     #         DROP TABLE employees_backup;
     #     """,
     #     split_statements=True,
+    #     hook_params={"schema": None},
     # )
 
     # Define task dependencies
