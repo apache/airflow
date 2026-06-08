@@ -83,9 +83,15 @@ def _mint_cli_token() -> str:
     if token := os.environ.get("AIRFLOW_CLI_TOKEN"):
         return token
 
-    from airflow.api_fastapi.app import get_auth_manager
+    from airflow.api_fastapi.app import get_auth_manager, init_auth_manager
 
-    auth_manager: BaseAuthManager = get_auth_manager()
+    # The CLI runs outside the API server, so the auth manager singleton is usually not
+    # initialized yet; initialize it on demand. ``init_auth_manager`` reuses the cached
+    # instance when one already exists, so this is safe to call here.
+    try:
+        auth_manager: BaseAuthManager = get_auth_manager()
+    except RuntimeError:
+        auth_manager = init_auth_manager()
     return auth_manager.generate_jwt(
         auth_manager.get_cli_user(),
         expiration_time_in_seconds=_CLI_TOKEN_VALID_FOR_SECONDS,

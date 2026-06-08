@@ -67,6 +67,27 @@ class TestMintCliToken:
         # Token must be short-lived.
         assert auth_manager.generate_jwt.call_args.kwargs["expiration_time_in_seconds"] > 0
 
+    def test_initializes_auth_manager_when_not_initialized(self, monkeypatch):
+        # In the CLI the auth manager singleton is usually not initialized yet, so
+        # ``get_auth_manager`` raises and we must initialize it on demand.
+        monkeypatch.delenv("AIRFLOW_CLI_TOKEN", raising=False)
+        auth_manager = mock.MagicMock()
+        auth_manager.get_cli_user.return_value = "cli-user"
+        auth_manager.generate_jwt.return_value = "signed-jwt"
+        with (
+            mock.patch(
+                "airflow.api_fastapi.app.get_auth_manager",
+                side_effect=RuntimeError("Auth Manager has not been initialized yet."),
+            ),
+            mock.patch(
+                "airflow.api_fastapi.app.init_auth_manager", return_value=auth_manager
+            ) as init_auth_manager,
+        ):
+            assert cli_api_client._mint_cli_token() == "signed-jwt"
+
+        init_auth_manager.assert_called_once()
+        auth_manager.generate_jwt.assert_called_once()
+
 
 class TestGetCliApiClient:
     def test_builds_singleton(self):
