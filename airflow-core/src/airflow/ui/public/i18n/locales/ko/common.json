@@ -18,6 +18,9 @@
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
   "assetEvent_other": "에셋 이벤트들",
+  "assetInactive": {
+    "tooltip": "상위 에셋이 비활성화되어 있습니다. 다시 활성화될 때까지 스케줄러가 파티션 평가를 보류합니다."
+  },
   "backfill_one": "백필",
   "backfill_other": "백필들",
   "browse": {
@@ -226,6 +229,7 @@
   "startDate": "시작일",
   "state": "상태",
   "states": {
+    "awaiting_input": "입력 대기 중",
     "deferred": "연기됨",
     "failed": "실패",
     "no_status": "상태 없음",
@@ -268,6 +272,9 @@
   },
   "task_one": "태스크",
   "task_other": "태스크",
+  "taskGroup": {
+    "documentation": "태스크 그룹 문서"
+  },
   "taskGroup_one": "태스크 그룹",
   "taskGroup_other": "태스크 그룹",
   "taskId": "태스크 ID",
