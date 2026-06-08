@@ -11,8 +11,8 @@ These commands now require a reachable API server and mint a short-lived token i
 
 Each migrated command now emits a ``RemovedInAirflow4Warning`` pointing at its ``airflowctl``
 equivalent (for example ``airflow dags trigger`` → ``airflowctl dags trigger``). The ``airflow``
-commands continue to work for now but will become thin aliases for their ``airflowctl``
-counterparts in a future Airflow release; switch to ``airflowctl`` when convenient.
+commands continue to work for now but will be removed in a future Airflow release; switch to
+``airflowctl`` when convenient.
 
 * Types of change
 

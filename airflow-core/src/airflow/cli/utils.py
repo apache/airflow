@@ -45,8 +45,8 @@ def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
     Mark an ``airflow`` CLI command as deprecated in favour of an ``airflowctl`` equivalent.
 
     These commands now reach Airflow through the API server via the ``airflowctl`` client. They
-    are kept for backwards compatibility but will become thin aliases for their ``airflowctl``
-    counterparts in a future Airflow release; users should switch to ``airflowctl`` directly.
+    are kept for backwards compatibility but will be removed in a future Airflow release; users
+    should switch to ``airflowctl`` directly.
 
     :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
     """
@@ -55,8 +55,8 @@ def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             warnings.warn(
-                f"This `airflow` CLI command is deprecated and will become an alias for "
-                f"`{replacement}` in a future Airflow release. Use `{replacement}` instead.",
+                f"This `airflow` CLI command is deprecated and will be removed in a future "
+                f"Airflow release. Use `{replacement}` instead.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
