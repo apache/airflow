@@ -157,7 +157,152 @@ class TestDb2Hook:
         """Test hook class attributes."""
         assert Db2Hook.conn_name_attr == "db2_conn_id"
         assert Db2Hook.default_conn_name == "db2_default"
-        assert Db2Hook.conn_type == "db2"
+        assert Db2Hook.conn_type == "Db2"
         assert Db2Hook.hook_name == "IBM Db2"
         assert Db2Hook.supports_autocommit is True
         assert Db2Hook.supports_executemany is True
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_column_names_excludes_identity_columns(self, mock_engine, mock_get_conn, mock_connection):
+        """Test that get_column_names() excludes identity columns (autoincrement=True)."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        # Mock inspector to return columns with autoincrement flag
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "ID", "autoincrement": True},  # Identity column - should be excluded
+            {"name": "NAME", "autoincrement": False},
+            {"name": "VALUE", "autoincrement": False},
+        ]
+
+        with patch.object(hook, "inspector", mock_inspector):
+            columns = hook.get_column_names("TEST_TABLE")
+
+        # Verify identity column is excluded
+        assert columns == ["NAME", "VALUE"]
+        assert "ID" not in columns
+        mock_inspector.get_columns.assert_called_once_with("TEST_TABLE", schema=None)
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_column_names_includes_all_when_no_identity(
+        self, mock_engine, mock_get_conn, mock_connection
+    ):
+        """Test that get_column_names() includes all columns when none are identity columns."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        # Mock inspector to return columns without autoincrement
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "ID", "autoincrement": False},
+            {"name": "NAME", "autoincrement": False},
+            {"name": "VALUE", "autoincrement": False},
+        ]
+
+        with patch.object(hook, "inspector", mock_inspector):
+            columns = hook.get_column_names("TEST_TABLE")
+
+        # Verify all columns are included
+        assert columns == ["ID", "NAME", "VALUE"]
+        mock_inspector.get_columns.assert_called_once_with("TEST_TABLE", schema=None)
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_column_names_with_schema(self, mock_engine, mock_get_conn, mock_connection):
+        """Test that get_column_names() passes schema parameter correctly."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "COL1", "autoincrement": False},
+            {"name": "COL2", "autoincrement": False},
+        ]
+
+        with patch.object(hook, "inspector", mock_inspector):
+            columns = hook.get_column_names("TEST_TABLE", schema="MY_SCHEMA")
+
+        assert columns == ["COL1", "COL2"]
+        mock_inspector.get_columns.assert_called_once_with("TEST_TABLE", schema="MY_SCHEMA")
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_primary_keys_single(self, mock_engine, mock_get_conn, mock_connection):
+        """Test get_primary_keys() with single primary key."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        # Mock inspector to return single primary key
+        mock_inspector = MagicMock()
+        mock_inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
+
+        with patch.object(hook, "inspector", mock_inspector):
+            pk_columns = hook.get_primary_keys("TEST_TABLE")
+
+        assert pk_columns == ["ID"]
+        mock_inspector.get_pk_constraint.assert_called_once_with("TEST_TABLE", schema=None)
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_primary_keys_composite(self, mock_engine, mock_get_conn, mock_connection):
+        """Test get_primary_keys() with composite primary key."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        # Mock inspector to return composite primary key
+        mock_inspector = MagicMock()
+        mock_inspector.get_pk_constraint.return_value = {"constrained_columns": ["DEPT_ID", "EMP_ID"]}
+
+        with patch.object(hook, "inspector", mock_inspector):
+            pk_columns = hook.get_primary_keys("TEST_TABLE")
+
+        assert pk_columns == ["DEPT_ID", "EMP_ID"]
+        assert len(pk_columns) == 2
+        mock_inspector.get_pk_constraint.assert_called_once_with("TEST_TABLE", schema=None)
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_primary_keys_with_schema(self, mock_engine, mock_get_conn, mock_connection):
+        """Test that get_primary_keys() passes schema parameter correctly."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        mock_inspector = MagicMock()
+        mock_inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
+
+        with patch.object(hook, "inspector", mock_inspector):
+            pk_columns = hook.get_primary_keys("TEST_TABLE", schema="MY_SCHEMA")
+
+        assert pk_columns == ["ID"]
+        mock_inspector.get_pk_constraint.assert_called_once_with("TEST_TABLE", schema="MY_SCHEMA")
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_sqlalchemy_engine")
+    def test_get_primary_keys_no_pk(self, mock_engine, mock_get_conn, mock_connection):
+        """Test get_primary_keys() when table has no primary key."""
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        # Mock inspector to return empty primary key
+        mock_inspector = MagicMock()
+        mock_inspector.get_pk_constraint.return_value = {"constrained_columns": []}
+
+        with patch.object(hook, "inspector", mock_inspector):
+            pk_columns = hook.get_primary_keys("TEST_TABLE")
+
+        assert pk_columns == []
+        mock_inspector.get_pk_constraint.assert_called_once_with("TEST_TABLE", schema=None)
+
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    def test_dialect_property(self, mock_get_conn, mock_connection):
+        """Test that hook has Db2Dialect."""
+        from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
+
+        mock_get_conn.return_value = mock_connection
+        hook = Db2Hook(db2_conn_id="db2_default")
+
+        assert hook.dialect_name == "db2"
+        assert isinstance(hook.dialect, Db2Dialect)

@@ -18,8 +18,6 @@
 Example DAGs
 ============
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
+You can learn how to use IBM Db2 integration by analyzing the source code of the example DAG:
 
-    *
+* `IBM Db2 <https://github.com/apache/airflow/tree/providers-ibm-db2/|version|/providers/ibm/db2/example_dags>`__

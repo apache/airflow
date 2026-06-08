@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,11 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""IBM Db2 operators."""
+"""Configuration of Providers docs building."""
 
 from __future__ import annotations
 
-__all__ = ["Db2Operator"]
+import os
 
-from airflow.providers.ibm.db2.operators.db2 import Db2Operator
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-ibm-db2"
+
+from docs.provider_conf import *  # noqa: F403
