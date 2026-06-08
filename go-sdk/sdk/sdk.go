@@ -23,14 +23,16 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/api"
 )
 
-// Environment-variable prefixes used as a local fallback for object lookups.
-// GetVariable first checks the process environment for VariableEnvPrefix plus
-// the uppercased key (so key "my_var" is read from AIRFLOW_VAR_MY_VAR) before
-// asking the API server, mirroring the Python SDK and making local development
-// and tests easy. ConnectionEnvPrefix is the matching prefix for Connections;
-// the connection env fallback is not wired up yet, so it is currently unused.
 const (
-	VariableEnvPrefix   = "AIRFLOW_VAR_"
+	// VariableEnvPrefix is the environment-variable prefix used as a local
+	// fallback for Variable lookups. GetVariable first checks the process
+	// environment for VariableEnvPrefix plus the uppercased key (so key
+	// "my_var" is read from AIRFLOW_VAR_MY_VAR) before asking the API server,
+	// mirroring the Python SDK and making local development and tests easy.
+	VariableEnvPrefix = "AIRFLOW_VAR_"
+
+	// ConnectionEnvPrefix is the matching prefix for Connections. The
+	// connection env fallback is not wired up yet, so it is currently unused.
 	ConnectionEnvPrefix = "AIRFLOW_CONN_"
 )
 

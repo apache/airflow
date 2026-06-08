@@ -41,7 +41,7 @@ test:
 # Build and serve Go package documentation locally
 docs port="6060":
   @echo "Serving Go docs at http://localhost:{{port}}/github.com/apache/airflow/go-sdk"
-  go run golang.org/x/pkgsite/cmd/pkgsite@latest -http=localhost:{{port}} .
+  go run golang.org/x/pkgsite/cmd/pkgsite@v0.1.0 -http=localhost:{{port}} .
 
 # Generate protocol buffers
 protoc:

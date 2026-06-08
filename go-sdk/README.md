@@ -200,8 +200,9 @@ still missing (see [Known limitations](#known-limitations)).
   > [!IMPORTANT]
   > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the bundle files in
   > `executables_root`) only need to be present wherever tasks actually execute. With `CeleryExecutor`,
-  > set it on the Celery workers only will be sufficient. With `LocalExecutor`, tasks run inside the scheduler process, so it
-  > must be set where the scheduler can read it. The API server and Dag processor do not need it.
+  > setting it on the Celery workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler
+  > process, so it must be set where the scheduler can read it. The API server and Dag processor do not
+  > need it.
 
 - Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
   Airflow worker forks the bundle binary once per task instance.
@@ -250,7 +251,7 @@ with no Python in the data path. This path runs end-to-end today, but is missing
     secret_key: "u0ZDb2ccINAbhzNmvYzclw=="
   ```
 
-  You can also set these options via environment variables of `AIRFLOW__${section}_${key}`, for example
+  You can also set these options via environment variables of `AIRFLOW__${SECTION}__${KEY}`, for example
   `AIRFLOW__API_AUTH__SECRET_KEY`.
 
 - Install the worker:
@@ -329,6 +330,11 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
   binary speaks both go-plugin gRPC (Edge Worker) and msgpack-over-IPC (Python coordinator).
 - [ADR 0004](./adr/0004-self-contained-executable-bundle.md): the self-contained executable bundle, where
   the executable *is* the bundle.
+
+The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
+`ExecutableCoordinator` reads) is specified in
+[`executable-bundle-spec.rst`](../task-sdk/docs/executable-bundle-spec.rst). `airflow-go-pack` produces
+bundles conforming to that spec.
 
 ## Future Direction
 
