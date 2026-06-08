@@ -34,6 +34,9 @@ This is where *Deferrable Operators* can be used. When it has nothing to do but 
 
    For guidance on when to use deferred operators versus async tasks,
    see `Deferred vs Async Operators <https://airflow.apache.org/docs/task-sdk/stable/deferred-vs-async-operators.html>`__.
+   For guidance on when to use deferrable operators versus resumable tasks
+   (crash-safe synchronous operators that use the task state store), see
+   :ref:`Resumable Tasks <concepts-resumable-tasks>`.
 
 An overview of how this process works:
 
