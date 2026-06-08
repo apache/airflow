@@ -130,18 +130,21 @@ def execute_callback(
         # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
         # Attempt to import it using the path of the Dag file.
         if module_path.startswith(UNUSUAL_MODULE_PREFIX):
-            if not dag_rel_path:
+            if module_path in sys.modules:
+                module = sys.modules[module_path]
+            elif not dag_rel_path:
                 return False, "Dag relative path not found."
-            if not bundle_path:
+            elif not bundle_path:
                 return False, "Bundle path not found."
-            abs_path = Path(bundle_path) / Path(dag_rel_path)
-            spec = spec_from_file_location(module_path, abs_path)
-            if spec is None:
-                return False, f"Could not create module spec for {module_path}"
-            if spec.loader is None:
-                return False, f"Module spec has no loader for {module_path}"
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
+            else:
+                abs_path = Path(bundle_path) / Path(dag_rel_path)
+                spec = spec_from_file_location(module_path, abs_path)
+                if spec is None:
+                    return False, f"Could not create module spec for {module_path}"
+                if spec.loader is None:
+                    return False, f"Module spec has no loader for {module_path}"
+                module = module_from_spec(spec)
+                spec.loader.exec_module(module)
         else:
             module = import_module(module_path)
         callback_callable = getattr(module, function_name)
@@ -267,7 +270,7 @@ class CallbackSubprocess(WatchedSubprocess):
                 context = _fetch_and_build_context(task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log)
                 if context is None:
                     _log.error(
-                        "Cannot execute callback without context — failing so it can be retried",
+                        "Cannot execute callback without context — failing to surface the error rather than running degraded",
                         dag_id=dag_id,
                         run_id=run_id,
                     )

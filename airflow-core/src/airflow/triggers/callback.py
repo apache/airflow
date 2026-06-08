@@ -59,8 +59,9 @@ def _ensure_bundle_module_registered(callback_path: str) -> None:
         for bundle in DagBundlesManager().get_all_dag_bundles():
             try:
                 bundle.initialize()
-                # Walk the bundle tree to handle nested DAG files (e.g. dags/team_a/my_dag.py)
-                for file_path in Path(bundle.path).rglob(f"{stem}.py"):
+                # Walk all .py files — stem may differ from filename due to sanitization
+                # (get_unique_dag_module_name replaces . and - with _ in the stem)
+                for file_path in Path(bundle.path).rglob("*.py"):
                     if get_unique_dag_module_name(str(file_path)) == mod_name:
                         if load_mangled_dag_module(mod_name, str(file_path)):
                             return
