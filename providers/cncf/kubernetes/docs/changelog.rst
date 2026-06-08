@@ -48,6 +48,7 @@ Misc
 ~~~~
 
 * ``Remove further findings from positional session check (#67712)``
+* ``Allow kubernetes and kubernetes_asyncio client 36.x in cncf.kubernetes (#68041)``
 
 Doc-only
 ~~~~~~~~
