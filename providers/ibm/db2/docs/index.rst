@@ -18,6 +18,7 @@
 ``apache-airflow-providers-ibm-db2``
 =====================================
 
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -32,8 +33,15 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections>
+    Connection types <connections/db2>
     Operators <operators>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: References
+
+    Python API <_api/airflow/providers/ibm/db2/index>
 
 .. toctree::
     :hidden:
@@ -44,12 +52,8 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ibm-db2/>
     Installing from sources <installing-providers-from-sources>
 
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: System tests
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
-    System Tests <_api/tests/system/providers/ibm/db2/index>
 
 .. toctree::
     :hidden:
@@ -76,19 +80,19 @@ All classes for this package are in the ``airflow.providers.ibm.db2`` python pac
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 3.0+ installation via
+You can install this package on top of an existing Airflow 2.11+ installation via
 ``pip install apache-airflow-providers-ibm-db2``
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``3.0.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.11.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=3.0.0``
-``apache-airflow-providers-common-sql``  ``>=1.18.0``
+``apache-airflow``                       ``>=2.11.0``
+``apache-airflow-providers-common-sql``  ``>=1.32.0``
 ``ibm-db``                               ``>=3.0.0``
 ``ibm-db-sa``                            ``>=0.4.0``
 =======================================  ==================
