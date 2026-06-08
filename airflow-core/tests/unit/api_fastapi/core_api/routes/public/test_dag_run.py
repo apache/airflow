@@ -3112,24 +3112,29 @@ class TestBulkDagRuns:
         for run_id in (DAG1_RUN1_ID, DAG2_RUN1_ID):
             assert session.scalar(select(DagRun).where(DagRun.run_id == run_id)).state == DagRunState.SUCCESS
 
-    def test_bulk_update_requires_state(self, test_client):
-        """An entity without a target state is reported as a 400 error rather than silently skipped."""
+    def test_bulk_update_note_only(self, test_client, session):
+        """A bulk update may set only the note, without a target state."""
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={
                 "actions": [
                     {
                         "action": "update",
-                        "entities": [{"dag_run_id": DAG1_RUN1_ID}],
+                        "entities": [{"dag_run_id": DAG1_RUN1_ID, "note": "bulk note"}],
                     }
                 ]
             },
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["update"]["success"] == []
-        assert len(body["update"]["errors"]) == 1
-        assert body["update"]["errors"][0]["status_code"] == 400
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == "bulk note"
+        assert dag_run.state == DAG1_RUN1_STATE
 
     def test_bulk_update_not_found_fails(self, test_client, session):
         """When FAIL semantics, a missing run is reported and matched runs still get updated."""

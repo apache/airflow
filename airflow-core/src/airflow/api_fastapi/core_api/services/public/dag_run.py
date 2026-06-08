@@ -146,12 +146,44 @@ def perform_clear_dag_run(
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
     if note is not None:
-        if dag_run_cleared.dag_run_note is None:
-            dag_run_cleared.note = (note, user.get_id())
-        else:
-            dag_run_cleared.dag_run_note.content = note
-            dag_run_cleared.dag_run_note.user_id = user.get_id()
+        _patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
     return dag_run_cleared
+
+
+def _patch_dag_run_state(
+    *,
+    dag: SerializedDAG,
+    dag_run: DagRun,
+    state: DagRunMutableStates,
+    session: Session,
+) -> None:
+    """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
+    if state == DagRunMutableStates.SUCCESS:
+        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        try:
+            get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+        except Exception:
+            log.exception("error calling listener")
+    elif state == DagRunMutableStates.QUEUED:
+        # TODO AIP-103: https://github.com/apache/airflow/issues/66755
+        # Handle clearing states for all task instances in a dagrun when cleared.
+        # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
+        set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+    elif state == DagRunMutableStates.FAILED:
+        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        try:
+            get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+        except Exception:
+            log.exception("error calling listener")
+
+
+def _patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
+    """Set or update a Dag Run's note."""
+    if dag_run.dag_run_note is None:
+        dag_run.note = (note, user.get_id())
+    else:
+        dag_run.dag_run_note.content = note
+        dag_run.dag_run_note.user_id = user.get_id()
 
 
 @attrs.define
@@ -233,159 +265,129 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
             }
         )
 
+    def _resolve_entity_key(
+        self, entity: str | BulkDAGRunBody, results: BulkActionResponse
+    ) -> tuple[str, str] | None:
+        """
+        Resolve the ``(dag_id, dag_run_id)`` for an entity.
+
+        Records a 400 error and returns ``None`` when a wildcard ``~`` leaves the
+        dag_id unresolved. Shared by the bulk update and delete handlers.
+        """
+        if isinstance(entity, str):
+            dag_id, dag_run_id = self.dag_id, entity
+        else:
+            dag_id = entity.dag_id or self.dag_id
+            dag_run_id = entity.dag_run_id
+
+        if dag_id == "~" or dag_run_id == "~":
+            if isinstance(entity, str):
+                error_msg = (
+                    "When using wildcard in path, dag_id must be specified in BulkDAGRunBody"
+                    f" object, not as string for dag_run_id: {entity}"
+                )
+            else:
+                error_msg = (
+                    "When using wildcard in path, dag_id must be specified in request body for"
+                    f" dag_run_id: {entity.dag_run_id}"
+                )
+            results.errors.append({"error": error_msg, "status_code": status.HTTP_400_BAD_REQUEST})
+            return None
+
+        return (dag_id, dag_run_id)
+
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
-        """Bulk update Dag Runs (e.g. mark as success/failed/queued)."""
+        """Bulk update Dag Runs (mark as success/failed/queued and/or set a note)."""
         entities_by_key: dict[tuple[str, str], BulkDAGRunBody] = {}
-
         for entity in action.entities:
             if isinstance(entity, str):
                 results.errors.append(
                     {
                         "error": (
-                            "Bulk update requires a BulkDAGRunBody object carrying the target state,"
+                            "Bulk update requires a BulkDAGRunBody object,"
                             f" not a string for dag_run_id: {entity}"
                         ),
                         "status_code": status.HTTP_400_BAD_REQUEST,
                     }
                 )
                 continue
-
-            dag_id = entity.dag_id or self.dag_id
-            dag_run_id = entity.dag_run_id
-
-            if dag_id == "~" or dag_run_id == "~":
-                results.errors.append(
-                    {
-                        "error": (
-                            "When using wildcard in path, dag_id must be specified in request body for"
-                            f" dag_run_id: {entity.dag_run_id}"
-                        ),
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                    }
-                )
-                continue
-
-            if entity.state is None:
-                results.errors.append(
-                    {
-                        "error": f"A target state is required to update dag_run_id: {dag_run_id}",
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                    }
-                )
-                continue
-
-            entities_by_key[(dag_id, dag_run_id)] = entity
+            key = self._resolve_entity_key(entity, results)
+            if key is not None:
+                entities_by_key[key] = entity
 
         if not entities_by_key:
             return
 
-        dag_runs = self.session.scalars(
-            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(entities_by_key.keys())))
-        ).all()
-        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
-        not_found = entities_by_key.keys() - dag_run_map.keys()
+        dag_run_map = {
+            (dr.dag_id, dr.run_id): dr
+            for dr in self.session.scalars(
+                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(entities_by_key.keys())))
+            )
+        }
 
-        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-            for dag_id, run_id in sorted(not_found):
-                results.errors.append(
-                    {
-                        "error": (f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found"),
-                        "status_code": status.HTTP_404_NOT_FOUND,
-                    }
-                )
+        for (dag_id, run_id), entity in entities_by_key.items():
+            try:
+                dag_run = dag_run_map.get((dag_id, run_id))
+                if dag_run is None:
+                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                        raise HTTPException(
+                            status.HTTP_404_NOT_FOUND,
+                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+                        )
+                    continue
 
-        for (dag_id, run_id), dag_run in dag_run_map.items():
-            entity = entities_by_key[(dag_id, run_id)]
-            dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
+                if entity.state is not None:
+                    dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
+                    _patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
+                if entity.note is not None:
+                    _patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
 
-            if entity.state == DagRunMutableStates.SUCCESS:
-                set_dag_run_state_to_success(dag=dag, run_id=run_id, commit=True, session=self.session)
-                try:
-                    get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
-                except Exception:
-                    log.exception("error calling listener")
-            elif entity.state == DagRunMutableStates.QUEUED:
-                set_dag_run_state_to_queued(dag=dag, run_id=run_id, commit=True, session=self.session)
-            elif entity.state == DagRunMutableStates.FAILED:
-                set_dag_run_state_to_failed(dag=dag, run_id=run_id, commit=True, session=self.session)
-                try:
-                    get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
-                except Exception:
-                    log.exception("error calling listener")
-
-            if entity.note is not None:
-                updated_dag_run = self.session.get(DagRun, dag_run.id)
-                if updated_dag_run and updated_dag_run.dag_run_note is None:
-                    updated_dag_run.note = (entity.note, self.user.get_id())
-                elif updated_dag_run:
-                    updated_dag_run.dag_run_note.content = entity.note
-                    updated_dag_run.dag_run_note.user_id = self.user.get_id()
-
-            results.success.append(f"{dag_id}.{run_id}")
+                results.success.append(f"{dag_id}.{run_id}")
+            except HTTPException as e:
+                results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
     def handle_bulk_delete(
         self, action: BulkDeleteAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete Dag Runs."""
         keys: set[tuple[str, str]] = set()
-
         for entity in action.entities:
-            if isinstance(entity, str):
-                dag_id, dag_run_id = self.dag_id, entity
-            else:
-                dag_id = entity.dag_id or self.dag_id
-                dag_run_id = entity.dag_run_id
-
-            if dag_id == "~" or dag_run_id == "~":
-                if isinstance(entity, str):
-                    error_msg = (
-                        "When using wildcard in path, dag_id must be specified in BulkDAGRunBody"
-                        f" object, not as string for dag_run_id: {entity}"
-                    )
-                else:
-                    error_msg = (
-                        "When using wildcard in path, dag_id must be specified in request body for"
-                        f" dag_run_id: {entity.dag_run_id}"
-                    )
-                results.errors.append(
-                    {"error": error_msg, "status_code": status.HTTP_400_BAD_REQUEST},
-                )
-                continue
-
-            keys.add((dag_id, dag_run_id))
+            key = self._resolve_entity_key(entity, results)
+            if key is not None:
+                keys.add(key)
 
         if not keys:
             return
 
-        dag_runs = self.session.scalars(
-            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
-        ).all()
-        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
-        not_found = keys - dag_run_map.keys()
-
-        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-            for dag_id, run_id in sorted(not_found):
-                results.errors.append(
-                    {
-                        "error": (f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found"),
-                        "status_code": status.HTTP_404_NOT_FOUND,
-                    }
-                )
-
+        dag_run_map = {
+            (dr.dag_id, dr.run_id): dr
+            for dr in self.session.scalars(
+                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
+            )
+        }
         deletable_states = {s.value for s in DagRunMutableStates}
-        for (dag_id, run_id), dag_run in dag_run_map.items():
-            if dag_run.state not in deletable_states:
-                results.errors.append(
-                    {
-                        "error": (
-                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` "
-                            f"cannot be deleted in {dag_run.state} state"
-                        ),
-                        "status_code": status.HTTP_409_CONFLICT,
-                    }
-                )
-                continue
-            self.session.delete(dag_run)
-            results.success.append(f"{dag_id}.{run_id}")
+
+        for dag_id, run_id in sorted(keys):
+            try:
+                dag_run = dag_run_map.get((dag_id, run_id))
+                if dag_run is None:
+                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                        raise HTTPException(
+                            status.HTTP_404_NOT_FOUND,
+                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+                        )
+                    continue
+
+                if dag_run.state not in deletable_states:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` "
+                        f"cannot be deleted in {dag_run.state} state",
+                    )
+
+                self.session.delete(dag_run)
+                results.success.append(f"{dag_id}.{run_id}")
+            except HTTPException as e:
+                results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
