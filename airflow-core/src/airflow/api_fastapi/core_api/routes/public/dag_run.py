@@ -98,10 +98,10 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
-    _patch_dag_run_note,
-    _patch_dag_run_state,
     dry_run_clear_dag_run,
     get_dag_run_and_dag_for_clear,
+    patch_dag_run_note,
+    patch_dag_run_state,
     perform_clear_dag_run,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -221,11 +221,11 @@ def patch_dag_run(
 
     for attr_name, attr_value_raw in data.items():
         if attr_name == "state" and patch_body.state is not None:
-            _patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
+            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
         elif attr_name == "note":
             updated_dag_run = session.get(DagRun, dag_run.id)
             if updated_dag_run is not None:
-                _patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
+                patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:

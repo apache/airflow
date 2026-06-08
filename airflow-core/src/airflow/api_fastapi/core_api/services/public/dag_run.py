@@ -146,11 +146,11 @@ def perform_clear_dag_run(
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
     if note is not None:
-        _patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
+        patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
     return dag_run_cleared
 
 
-def _patch_dag_run_state(
+def patch_dag_run_state(
     *,
     dag: SerializedDAG,
     dag_run: DagRun,
@@ -177,7 +177,7 @@ def _patch_dag_run_state(
             log.exception("error calling listener")
 
 
-def _patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
+def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
     """Set or update a Dag Run's note."""
     if dag_run.dag_run_note is None:
         dag_run.note = (note, user.get_id())
@@ -361,9 +361,9 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                 dag_run = dag_run_map[key]
                 if entity.state is not None:
                     dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
-                    _patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
+                    patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 if entity.note is not None:
-                    _patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
+                    patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
                 results.success.append(f"{dag_id}.{run_id}")
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
@@ -372,16 +372,16 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         self, action: BulkDeleteAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete Dag Runs."""
-        keys: set[tuple[str, str]] = set()
+        to_delete_keys: set[tuple[str, str]] = set()
         for entity in action.entities:
             key = self._resolve_entity_key(entity, results)
             if key is not None:
-                keys.add(key)
+                to_delete_keys.add(key)
 
-        if not keys:
+        if not to_delete_keys:
             return
 
-        dag_run_map, matched_keys, not_found_keys = self._categorize_dag_runs(keys)
+        dag_run_map, matched_keys, not_found_keys = self._categorize_dag_runs(to_delete_keys)
         deletable_states = {s.value for s in DagRunMutableStates}
 
         try:
@@ -391,7 +391,9 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                     f"The DagRuns with these identifiers: {sorted(not_found_keys)} were not found",
                 )
             delete_keys = (
-                matched_keys if action.action_on_non_existence == BulkActionNotOnExistence.SKIP else keys
+                matched_keys
+                if action.action_on_non_existence == BulkActionNotOnExistence.SKIP
+                else to_delete_keys
             )
 
             for dag_id, run_id in sorted(delete_keys):
