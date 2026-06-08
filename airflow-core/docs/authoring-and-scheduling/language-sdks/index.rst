@@ -182,7 +182,7 @@ coordinator; JVM languages, for example, compile to bytecode that requires a JRE
 To support a new such language, produce a *bundle* in the shared on-disk format the coordinator consumes and
 speak the coordinator IPC protocol (the ``--comm`` / ``--logs`` socket arguments). That format - the
 ``AFBNDL01`` footer appended to the executable, the binary integrity hash, and the ``airflow-metadata.yaml``
-manifest of ``dag_id`` s and ``task_id`` s - is specified, together with the reader algorithm and the
+manifest of ``dag_id``\ s and ``task_id``\ s - is specified, together with the reader algorithm and the
 compatibility/versioning rules, in :doc:`task-sdk:executable-bundle-spec`. That page also publishes a
 machine-readable JSON Schema for the manifest, for use by build tooling and validators. Follow the spec to
 make a new language's bundles discoverable by Airflow with no change to the scheduler, worker, or UI; the

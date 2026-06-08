@@ -306,7 +306,7 @@ Building and packaging
 
 A plain ``go build`` produces a runnable binary, but a *deployable* bundle (binary + embedded source +
 manifest) must be produced with ``airflow-go-pack``. The packer compiles the bundle and appends the embedded
-metadata footer, so the coordinator can read its ``dag_id`` s without executing the binary, producing a
+metadata footer, so the coordinator can read its ``dag_id``\ s without executing the binary, producing a
 single runnable file. The on-disk format the packer emits (the ``AFBNDL01`` footer and the
 ``airflow-metadata.yaml`` manifest) is the bundle format shared by all native-executable SDKs, specified in
 :doc:`task-sdk:executable-bundle-spec`.
