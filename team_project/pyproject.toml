@@ -9,6 +9,13 @@ description = "AI-assisted DAG failure triage plugin for Apache Airflow"
 readme = "README.md"
 requires-python = ">=3.10"
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pyyaml>=6.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+
 [project.entry-points."airflow.plugins"]
 dag_triage = "dag_triage.plugin:DagTriagePlugin"
 
