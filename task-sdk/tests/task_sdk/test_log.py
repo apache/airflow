@@ -40,10 +40,13 @@ def _make_logger():
 
 
 class TestUploadToRemote:
-    def test_warns_when_handler_unavailable(self):
+    def test_warns_when_handler_unavailable_and_logging_enabled(self):
         ti = _make_ti()
+        mock_conf = mock.MagicMock()
+        mock_conf.getboolean.return_value = True
         with (
             mock.patch.object(sdk_log, "load_remote_log_handler", return_value=None),
+            mock.patch("airflow.sdk.configuration.conf", mock_conf),
             structlog.testing.capture_logs() as captured,
         ):
             sdk_log.upload_to_remote(_make_logger(), ti)
@@ -52,6 +55,20 @@ class TestUploadToRemote:
         assert len(events) == 1
         assert events[0]["log_level"] == "warning"
         assert events[0]["ti_id"] == str(ti.id)
+
+    def test_silent_when_handler_unavailable_and_logging_disabled(self):
+        ti = _make_ti()
+        mock_conf = mock.MagicMock()
+        mock_conf.getboolean.return_value = False
+        with (
+            mock.patch.object(sdk_log, "load_remote_log_handler", return_value=None),
+            mock.patch("airflow.sdk.configuration.conf", mock_conf),
+            structlog.testing.capture_logs() as captured,
+        ):
+            sdk_log.upload_to_remote(_make_logger(), ti)
+
+        events = [e for e in captured if e["event"] == "remote_log_handler_unavailable"]
+        assert len(events) == 0
 
     def test_warns_when_path_resolution_fails(self):
         ti = _make_ti()

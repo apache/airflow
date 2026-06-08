@@ -232,11 +232,14 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
 
     handler = load_remote_log_handler()
     if not handler:
-        upload_log.warning(
-            "remote_log_handler_unavailable",
-            ti_id=str(ti.id),
-            note="Remote log handler could not be loaded; logs will be available locally only.",
-        )
+        from airflow.sdk.configuration import conf
+
+        if conf.getboolean("logging", "remote_logging", fallback=False):
+            upload_log.warning(
+                "remote_log_handler_unavailable",
+                ti_id=str(ti.id),
+                note="Remote log handler could not be loaded; logs will be available locally only.",
+            )
         return
 
     try:
