@@ -1460,6 +1460,13 @@ class TestPostAssetEventsTeamResolution(TestAssets):
                 id="multi_team_enabled_no_access_control",
             ),
             pytest.param(
+                "True",
+                {"consumer_teams": []},
+                [],
+                True,
+                id="multi_team_enabled_empty_consumer_teams",
+            ),
+            pytest.param(
                 "False",
                 {"consumer_teams": ["team_ml"], "allow_global": False},
                 None,
