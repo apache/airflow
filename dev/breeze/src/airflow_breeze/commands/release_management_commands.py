@@ -812,6 +812,115 @@ def provider_action_summary(description: str, message_type: MessageType, package
 
 
 @release_management_group.command(
+    name="classify-provider-changes",
+    help="Classify each provider's unreleased changes with hard-coded, high-confidence rules, "
+    "flagging ambiguous commits as 'needs_llm' for an agent/skill to assess. Outputs JSON - a "
+    "deterministic alternative to the random '--non-interactive' run used purely for discovery.",
+)
+@click.option(
+    "--base-branch",
+    type=str,
+    default="main",
+    help="Base branch to diff the provider changes against.",
+)
+@click.option(
+    "--skip-git-fetch",
+    is_flag=True,
+    help="Skip recreating/fetching the 'apache-https-for-providers' remote; use the local state as-is.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    help="Write the JSON result here instead of stdout (keeps stdout free of progress output).",
+)
+@option_github_repository
+@option_include_not_ready_providers
+@option_include_removed_providers
+@argument_provider_distributions
+@option_verbose
+@option_dry_run
+def classify_provider_changes(
+    base_branch: str,
+    skip_git_fetch: bool,
+    output_file: Path | None,
+    github_repository: str,
+    include_not_ready_providers: bool,
+    include_removed_providers: bool,
+    provider_distributions: tuple[str, ...],
+):
+    import json
+
+    from airflow_breeze.prepare_providers.provider_documentation import (
+        NEEDS_LLM_CLASSIFICATION,
+        _get_all_changes_for_package,
+        classify_change_deterministically,
+    )
+
+    perform_environment_checks()
+    cleanup_python_generated_files()
+    if not provider_distributions:
+        provider_distributions = get_available_distributions(
+            include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
+        )
+    if not skip_git_fetch:
+        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
+
+    result: dict[str, Any] = {"base_branch": base_branch, "providers": {}}
+    needs_llm_total = 0
+    for provider_id in provider_distributions:
+        try:
+            basic_provider_checks(provider_id)
+            _, list_of_list_of_changes, _ = _get_all_changes_for_package(
+                provider_id,
+                base_branch,
+                reapply_templates_only=False,
+                only_min_version_update=False,
+            )
+        except Exception as e:
+            # Typically a brand-new provider with no prior release tag, or a suspended provider.
+            result["providers"][provider_id] = {
+                "pending": True,
+                "needs_llm": True,
+                "note": f"could not compute diff (new provider or missing release tag): {e}",
+            }
+            continue
+        changes = list_of_list_of_changes[0] if list_of_list_of_changes else []
+        if not changes:
+            continue
+        commits = []
+        for change in changes:
+            classification, reason = classify_change_deterministically(provider_id, change)
+            if classification == NEEDS_LLM_CLASSIFICATION:
+                needs_llm_total += 1
+            commits.append(
+                {
+                    "hash": change.short_hash,
+                    "pr": change.pr,
+                    "subject": change.message_without_backticks,
+                    "classification": classification,
+                    "reason": reason,
+                }
+            )
+        result["providers"][provider_id] = {
+            "current_version": get_provider_details(provider_id).versions[0],
+            "commits": commits,
+        }
+
+    payload = json.dumps(result, indent=2)
+    if output_file:
+        output_file.write_text(payload + "\n")
+        console_print(
+            f"[success]Wrote classification for {len(result['providers'])} provider(s) "
+            f"to {output_file}[/]\n"
+            f"[info]{needs_llm_total} commit(s) flagged 'needs_llm' for LLM assessment.[/]"
+        )
+    else:
+        # Plain stdout (not via the rich console) so the JSON is machine-parsable.
+        print(payload)
+
+
+@release_management_group.command(
     name="prepare-provider-documentation",
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
