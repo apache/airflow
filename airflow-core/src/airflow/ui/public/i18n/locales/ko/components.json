@@ -15,6 +15,7 @@
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
     "scheduleNotBackfillable": "이 Dag의 스케줄은 백필을 지원하지 않습니다.",
+    "schedulerPriorityHint": "백필 Dag 실행은 각 스케줄러 주기에서 백필이 아닌 Dag 실행보다 나중에 처리됩니다. 백필이 아닌 실행이 있으면 백필 실행은 대기열에서 더 오래 기다릴 수 있습니다.",
     "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
     "selectLabel": "백필",
     "title": "백필 실행",
