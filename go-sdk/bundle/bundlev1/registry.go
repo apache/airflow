@@ -43,9 +43,30 @@ type (
 		AddDag(dagId string) Dag
 	}
 
+	// TaskInfo describes a registered task by its user-visible id.
+	TaskInfo struct {
+		ID string
+	}
+
+	// DagInfo describes a registered dag together with its tasks in
+	// registration order.
+	DagInfo struct {
+		DagID string
+		Tasks []TaskInfo
+	}
+
+	// EnumerableBundle exposes the dag/task identity recorded by RegisterDags.
+	// The default registry implements it; airflow-go-pack relies on it to read
+	// a bundle's dag/task ids without executing any task.
+	EnumerableBundle interface {
+		OrderedDags() []DagInfo
+	}
+
 	registry struct {
 		sync.RWMutex
 		taskFuncMap map[string]map[string]Task
+		dagOrder    []string
+		taskOrder   map[string][]string
 	}
 )
 
@@ -64,7 +85,10 @@ func (d dagShim) AddTaskWithName(taskId string, fn any) {
 
 // Function New creates a new bundle on which Dag and Tasks can be registered
 func New() Registry {
-	return &registry{taskFuncMap: make(map[string]map[string]Task)}
+	return &registry{
+		taskFuncMap: make(map[string]map[string]Task),
+		taskOrder:   make(map[string][]string),
+	}
 }
 
 func getFnName(fn reflect.Value) string {
@@ -76,10 +100,14 @@ func getFnName(fn reflect.Value) string {
 }
 
 func (r *registry) AddDag(dagId string) Dag {
+	r.Lock()
+	defer r.Unlock()
+
 	if _, exists := r.taskFuncMap[dagId]; exists {
 		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
 	}
 	r.taskFuncMap[dagId] = make(map[string]Task)
+	r.dagOrder = append(r.dagOrder, dagId)
 	return dagShim{dagId, r}
 }
 
@@ -109,6 +137,7 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 	if !exists {
 		dagTasks = make(map[string]Task)
 		r.taskFuncMap[dagId] = dagTasks
+		r.dagOrder = append(r.dagOrder, dagId)
 	}
 
 	_, exists = dagTasks[taskId]
@@ -116,6 +145,7 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
 	dagTasks[taskId] = task
+	r.taskOrder[dagId] = append(r.taskOrder[dagId], taskId)
 }
 
 func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
@@ -128,4 +158,23 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	}
 	task, exists = dagTasks[taskId]
 	return task, exists
+}
+
+// OrderedDags returns the registered dags in AddDag order, each with its tasks
+// in registration order. The returned slice is freshly allocated; callers may
+// mutate it freely.
+func (r *registry) OrderedDags() []DagInfo {
+	r.RLock()
+	defer r.RUnlock()
+
+	out := make([]DagInfo, 0, len(r.dagOrder))
+	for _, dagID := range r.dagOrder {
+		taskIDs := r.taskOrder[dagID]
+		tasks := make([]TaskInfo, 0, len(taskIDs))
+		for _, tid := range taskIDs {
+			tasks = append(tasks, TaskInfo{ID: tid})
+		}
+		out = append(out, DagInfo{DagID: dagID, Tasks: tasks})
+	}
+	return out
 }
