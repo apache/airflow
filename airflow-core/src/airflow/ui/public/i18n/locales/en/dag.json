@@ -237,5 +237,14 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "triage": {
+    "documentationLink": "Documentation",
+    "failureCategory": "Failure category",
+    "partialDataTitle": "Partial triage data",
+    "remediationChecklist": "Remediation checklist",
+    "rootCauseSummary": "Root cause summary",
+    "title": "Failure triage",
+    "unavailable": "Triage summary is not available for this task."
   }
 }

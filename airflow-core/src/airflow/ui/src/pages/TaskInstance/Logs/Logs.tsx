@@ -29,10 +29,12 @@ import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/c
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
+import { useTriagePluginEnabled } from "src/queries/useTriageSummary";
 
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
+import { TriagePanel } from "../TriagePanel/TriagePanel";
 import { getDownloadText } from "./utils";
 
 export const Logs = () => {
@@ -173,6 +175,9 @@ export const Logs = () => {
 
   const externalLogName = useConfig("external_log_name") as string;
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
+  const triagePluginEnabled = useTriagePluginEnabled();
+  const showTriagePanel =
+    triagePluginEnabled && taskInstance?.state === "failed" && !isNaN(parsedMapIndex);
 
   const logHeaderProps: TaskLogHeaderProps = {
     downloadLogs,
@@ -215,6 +220,9 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader {...logHeaderProps} />
+      {showTriagePanel ? (
+        <TriagePanel dagId={dagId} mapIndex={parsedMapIndex} runId={runId} taskId={taskId} />
+      ) : undefined}
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (
           <p>{translate("logs.noTryNumber")}</p>
