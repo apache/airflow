@@ -16,8 +16,11 @@ data engineers to apply fixes.
 - Repeated transient failures are indistinguishable from real failures without
   log context
 
-**Upstream evidence:** apache/airflow issues referencing manual log triage
-overhead in production operator workflows.
+**Upstream evidence:**
+
+| Issue | Pain point | Summary |
+|-------|------------|---------|
+| [apache/airflow#28116](https://github.com/apache/airflow/issues/28116) | No built-in failure categorization; repeated transient failures indistinguishable from real failures without log context | Scheduler-detected failures (for example zombie jobs) are marked failed in the UI with no reason in the Task Instance Logs tab, so platform operators must hunt through scheduler logs to learn whether the root cause is infrastructure or task logic. |
 
 ---
 
@@ -38,8 +41,11 @@ own code failures.
 - No structured root-cause output means escalation to platform team is the
   default, adding latency
 
-**Upstream evidence:** apache/airflow community posts referencing confusion
-over failure attribution in multi-team DAG environments.
+**Upstream evidence:**
+
+| Issue | Pain point | Summary |
+|-------|------------|---------|
+| [apache/airflow#43171](https://github.com/apache/airflow/issues/43171) | Cannot tell data quality vs. resource constraint without deep log inspection; escalation to platform team is the default | The Airflow Debugging Survey 2024 found 41.7% of respondents do not consider native error messages actionable, leaving DAG consumers without Airflow expertise unable to attribute failures on their own. |
 
 ---
 
@@ -60,5 +66,8 @@ escalate, or fix.
 - Time-to-first-diagnosis extends beyond acceptable incident SLA without
   structured triage
 
-**Upstream evidence:** apache/airflow operator community discussions on
-improving Task Instance failure visibility for non-expert operators.
+**Upstream evidence:**
+
+| Issue | Pain point | Summary |
+|-------|------------|---------|
+| [apache/airflow#63736](https://github.com/apache/airflow/issues/63736) | Raw traceback text is not actionable; time-to-first-diagnosis extends beyond incident SLA | Exception stack traces stored in Elasticsearch were silently dropped from the Task Instance logs tab, leaving on-call engineers with only "Task failed with exception" and no traceback to act on. |
