@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers import PartitionMapper
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
