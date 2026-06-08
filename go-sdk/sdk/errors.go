@@ -33,4 +33,8 @@ var VariableNotFound = errors.New("variable not found")
 // See the “GetConnection“ method of [ConnectionClient] for an example
 var ConnectionNotFound = errors.New("connection not found")
 
+// XComNotFound is an error value used to signal that an XCom value could not be found (and that there were
+// no communication issues to the API server).
+//
+// See the “GetXCom“ method of [XComClient] for an example
 var XComNotFound = errors.New("xcom not found")
