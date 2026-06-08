@@ -1105,6 +1105,74 @@ def test_decode_product_mapper():
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
+def test_encode_fan_out_mapper():
+    from airflow.sdk import FanOutMapper, StartOfDayMapper, StartOfWeekMapper, WeekWindow
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = FanOutMapper(
+        upstream_mapper=StartOfWeekMapper(),
+        window=WeekWindow(),
+        downstream_mapper=StartOfDayMapper(),
+    )
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.temporal.FanOutMapper",
+        Encoding.VAR: {
+            "upstream_mapper": {
+                Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+                Encoding.VAR: {
+                    "timezone": "UTC",
+                    "input_format": "%Y-%m-%dT%H:%M:%S",
+                    "output_format": "%Y-%m-%d (W%V)",
+                },
+            },
+            "window": {
+                Encoding.TYPE: "airflow.partition_mappers.window.WeekWindow",
+                Encoding.VAR: {},
+            },
+            "downstream_mapper": {
+                Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
+                Encoding.VAR: {
+                    "timezone": "UTC",
+                    "input_format": "%Y-%m-%dT%H:%M:%S",
+                    "output_format": "%Y-%m-%d",
+                },
+            },
+        },
+    }
+
+
+def test_decode_fan_out_mapper():
+    from airflow.partition_mappers.temporal import (
+        FanOutMapper as CoreFanOutMapper,
+        StartOfDayMapper as CoreStartOfDayMapper,
+        StartOfWeekMapper as CoreStartOfWeekMapper,
+    )
+    from airflow.partition_mappers.window import WeekWindow as CoreWeekWindow
+    from airflow.sdk import FanOutMapper, StartOfWeekMapper, WeekWindow
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreFanOutMapper)
+    assert isinstance(core_pm.upstream_mapper, CoreStartOfWeekMapper)
+    assert isinstance(core_pm.window, CoreWeekWindow)
+    # downstream_mapper is auto-resolved to StartOfDayMapper for WeekWindow.
+    assert isinstance(core_pm.downstream_mapper, CoreStartOfDayMapper)
+    assert list(core_pm.to_downstream("2024-01-15T00:00:00")) == [
+        "2024-01-15",
+        "2024-01-16",
+        "2024-01-17",
+        "2024-01-18",
+        "2024-01-19",
+        "2024-01-20",
+        "2024-01-21",
+    ]
+
+
 def test_encode_chain_mapper():
     from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.encoders import encode_partition_mapper
