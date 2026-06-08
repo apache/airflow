@@ -474,6 +474,37 @@ class TestCliVariables:
             )
             assert session.scalar(select(Variable.description).where(Variable.key == "var3")) is None
 
+    @pytest.mark.parametrize(
+        ("value", "deserialize_json"),
+        [
+            ("", False),
+            (0, True),
+            (False, True),
+            (None, True),
+        ],
+        ids=["empty_string", "zero", "false", "null"],
+    )
+    def test_variables_import_with_structured_falsy_values(
+        self, create_variable_file, value, deserialize_json
+    ):
+        """Test variables_import preserves structured falsy values and descriptions."""
+        file = create_variable_file(
+            {"falsy_key": {"value": value, "description": "Falsy value description"}},
+            format="json",
+        )
+
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
+            )
+
+        assert Variable.get("falsy_key", deserialize_json=deserialize_json) == value
+        with create_session() as session:
+            assert (
+                session.scalar(select(Variable.description).where(Variable.key == "falsy_key"))
+                == "Falsy value description"
+            )
+
     def test_variables_import_env(self, create_variable_file, env_variable_data):
         """Test variables_import with ENV format"""
         env_file = create_variable_file(env_variable_data, format="env")
