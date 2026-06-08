@@ -315,38 +315,34 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the API server Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for API server Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the API server Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the API server Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for API server Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the API server Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -400,38 +396,34 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -485,38 +477,34 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -560,38 +548,34 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -635,38 +619,34 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
