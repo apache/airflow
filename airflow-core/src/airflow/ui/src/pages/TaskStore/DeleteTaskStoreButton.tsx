@@ -17,14 +17,17 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { useTaskStoreServiceDeleteTaskStore, useTaskStoreServiceListTaskStoreKey } from "openapi/queries";
+import {
+  useTaskStoreServiceDeleteTaskStore,
+  useTaskStoreServiceGetTaskStoreKey,
+  useTaskStoreServiceListTaskStoreKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton, toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
+import { IconButton } from "src/components/ui";
+import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
   readonly dagId: string;
@@ -35,32 +38,17 @@ type Props = {
 };
 
 export const DeleteTaskStoreButton = ({ dagId, mapIndex, runId, storeKey, taskId }: Props) => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+  const { t: translate } = useTranslation("dag");
   const { onClose, onOpen, open } = useDisclosure();
-  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useTaskStoreServiceDeleteTaskStore({
-    onError: (error) => {
-      createErrorToaster(
-        error,
-        { params: { resourceName: translate("taskStore.title") }, titleKey: "common:toaster.delete.error" },
-        translate,
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [useTaskStoreServiceListTaskStoreKey] });
-      onClose();
-      toaster.create({
-        description: translate("common:toaster.delete.success.description", {
-          resourceName: translate("taskStore.title"),
-        }),
-        title: translate("common:toaster.delete.success.title", {
-          resourceName: translate("taskStore.title"),
-        }),
-        type: "success",
-      });
-    },
-  });
+  const { isPending, mutate } = useTaskStoreServiceDeleteTaskStore(
+    useStoreMutation({
+      invalidationKeys: [useTaskStoreServiceListTaskStoreKey, useTaskStoreServiceGetTaskStoreKey],
+      onSuccessConfirm: onClose,
+      operation: "delete",
+      resourceName: translate("taskStore.title"),
+    }),
+  );
 
   return (
     <>

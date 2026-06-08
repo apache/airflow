@@ -17,49 +17,33 @@
  * under the License.
  */
 import { Button, useDisclosure } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { useAssetStoreServiceClearAssetStore, useAssetStoreServiceListAssetStoreKey } from "openapi/queries";
+import {
+  useAssetStoreServiceClearAssetStore,
+  useAssetStoreServiceGetAssetStoreKey,
+  useAssetStoreServiceListAssetStoreKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
-import { toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
+import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type ClearAllAssetStoreButtonProps = {
   readonly assetId: number;
 };
 
 export const ClearAllAssetStoreButton = ({ assetId }: ClearAllAssetStoreButtonProps) => {
-  const { t: translate } = useTranslation(["assets", "common"]);
+  const { t: translate } = useTranslation("assets");
   const { onClose, onOpen, open } = useDisclosure();
-  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useAssetStoreServiceClearAssetStore({
-    onError: (error) => {
-      createErrorToaster(
-        error,
-        {
-          params: { resourceName: translate("assetStore.clearAll.resource") },
-          titleKey: "common:toaster.delete.error",
-        },
-        translate,
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [useAssetStoreServiceListAssetStoreKey] });
-      onClose();
-      toaster.create({
-        description: translate("common:toaster.delete.success.description", {
-          resourceName: translate("assetStore.clearAll.resource"),
-        }),
-        title: translate("common:toaster.delete.success.title", {
-          resourceName: translate("assetStore.clearAll.resource"),
-        }),
-        type: "success",
-      });
-    },
-  });
+  const { isPending, mutate } = useAssetStoreServiceClearAssetStore(
+    useStoreMutation({
+      invalidationKeys: [useAssetStoreServiceListAssetStoreKey, useAssetStoreServiceGetAssetStoreKey],
+      onSuccessConfirm: onClose,
+      operation: "delete",
+      resourceName: translate("assetStore.clearAll.resource"),
+    }),
+  );
 
   return (
     <>

@@ -17,18 +17,18 @@
  * under the License.
  */
 import { Box, Button, Heading, Input, Text, VStack } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   useAssetStoreServiceGetAssetStore,
+  useAssetStoreServiceGetAssetStoreKey,
   useAssetStoreServiceListAssetStoreKey,
   useAssetStoreServiceSetAssetStore,
 } from "openapi/queries";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, ProgressBar, toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
+import { Dialog, ProgressBar } from "src/components/ui";
+import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
   readonly assetId: number;
@@ -54,11 +54,9 @@ const isJsonValid = (val: string) => {
 
 export const AssetStoreModal = ({ assetId, isOpen, mode, onClose, storeKey }: Props) => {
   const { t: translate } = useTranslation(["assets", "common"]);
-  const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const isEditMode = mode === "edit";
-  const op = isEditMode ? "update" : "create";
   const isValueValid = isJsonValid(value);
 
   const { data: existingState, isLoading: isFetchingExisting } = useAssetStoreServiceGetAssetStore(
@@ -73,28 +71,14 @@ export const AssetStoreModal = ({ assetId, isOpen, mode, onClose, storeKey }: Pr
     }
   }, [existingState, isEditMode]);
 
-  const { isPending, mutate: setAssetStore } = useAssetStoreServiceSetAssetStore({
-    onError: (error) => {
-      createErrorToaster(
-        error,
-        { params: { resourceName: translate("assetStore.title") }, titleKey: `common:toaster.${op}.error` },
-        translate,
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [useAssetStoreServiceListAssetStoreKey] });
-      onClose();
-      toaster.create({
-        description: translate(`common:toaster.${op}.success.description`, {
-          resourceName: translate("assetStore.title"),
-        }),
-        title: translate(`common:toaster.${op}.success.title`, {
-          resourceName: translate("assetStore.title"),
-        }),
-        type: "success",
-      });
-    },
-  });
+  const { isPending, mutate: setAssetStore } = useAssetStoreServiceSetAssetStore(
+    useStoreMutation({
+      invalidationKeys: [useAssetStoreServiceListAssetStoreKey, useAssetStoreServiceGetAssetStoreKey],
+      onSuccessConfirm: onClose,
+      operation: isEditMode ? "update" : "create",
+      resourceName: translate("assetStore.title"),
+    }),
+  );
 
   const onSave = () => {
     setAssetStore({

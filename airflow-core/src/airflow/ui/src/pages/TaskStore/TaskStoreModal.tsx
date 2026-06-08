@@ -17,18 +17,18 @@
  * under the License.
  */
 import { Box, Button, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   useTaskStoreServiceGetTaskStore,
+  useTaskStoreServiceGetTaskStoreKey,
   useTaskStoreServiceListTaskStoreKey,
   useTaskStoreServiceSetTaskStore,
 } from "openapi/queries";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, ProgressBar, toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
+import { Dialog, ProgressBar } from "src/components/ui";
+import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
   readonly dagId: string;
@@ -66,12 +66,10 @@ export const TaskStoreModal = ({
   taskId,
 }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
-  const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const [expiresAt, setExpiresAt] = useState<"default" | "never">("default");
   const isEditMode = mode === "edit";
-  const op = isEditMode ? "update" : "create";
   const isValueValid = isJsonValid(value);
 
   const { data: existingState, isLoading: isFetchingExisting } = useTaskStoreServiceGetTaskStore(
@@ -87,28 +85,14 @@ export const TaskStoreModal = ({
     }
   }, [existingState, isEditMode]);
 
-  const { isPending, mutate: setTaskStore } = useTaskStoreServiceSetTaskStore({
-    onError: (error) => {
-      createErrorToaster(
-        error,
-        { params: { resourceName: translate("taskStore.title") }, titleKey: `common:toaster.${op}.error` },
-        translate,
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [useTaskStoreServiceListTaskStoreKey] });
-      onClose();
-      toaster.create({
-        description: translate(`common:toaster.${op}.success.description`, {
-          resourceName: translate("taskStore.title"),
-        }),
-        title: translate(`common:toaster.${op}.success.title`, {
-          resourceName: translate("taskStore.title"),
-        }),
-        type: "success",
-      });
-    },
-  });
+  const { isPending, mutate: setTaskStore } = useTaskStoreServiceSetTaskStore(
+    useStoreMutation({
+      invalidationKeys: [useTaskStoreServiceListTaskStoreKey, useTaskStoreServiceGetTaskStoreKey],
+      onSuccessConfirm: onClose,
+      operation: isEditMode ? "update" : "create",
+      resourceName: translate("taskStore.title"),
+    }),
+  );
 
   const onSave = () => {
     setTaskStore({
