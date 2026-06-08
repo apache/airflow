@@ -43,7 +43,13 @@ def _list_asset_aliases(args, *, session: Session) -> tuple[Any, type[BaseModel]
 
 
 def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
-    assets = session.scalars(select(AssetModel).order_by(AssetModel.name))
+    assets = session.scalars(select(AssetModel).order_by(AssetModel.name)).all()
+    for asset in assets:
+        for watcher in asset.watchers:
+            # ``AssetWatcherModel`` has no ``created_date`` column; like the public API
+            # serializer, derive it from the watcher's trigger so ``AssetResponse`` validation
+            # succeeds. Set on the instance so ``model_validate`` reads it via ``from_attributes``.
+            watcher.created_date = watcher.trigger.created_date
     return assets, AssetResponse
 
 

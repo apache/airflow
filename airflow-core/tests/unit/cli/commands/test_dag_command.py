@@ -486,21 +486,19 @@ class TestCliDags:
         assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
-    def test_cli_list_dag_runs(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                ]
-            )
-        )
+    def test_cli_list_dag_runs(self, dag_maker):
+        # Seed a run directly in the DB; ``dags trigger`` now goes through the API server
+        # (airflowctl client) and cannot be used as an in-process fixture here.
+        with dag_maker("test_list_dag_runs", start_date=DEFAULT_DATE, serialized=True):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, logical_date=DEFAULT_DATE)
+        dag_maker.sync_dagbag_to_db()
+
         args = self.parser.parse_args(
             [
                 "dags",
                 "list-runs",
-                "example_bash_operator",
+                "test_list_dag_runs",
                 "--no-backfill",
                 "--start-date",
                 DEFAULT_DATE.isoformat(),
