@@ -26,9 +26,8 @@ import type { AssetStoreResponse } from "openapi/requests";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import RenderedJsonField from "src/components/RenderedJsonField";
+import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
 
 import { AddAssetStoreButton } from "./AddAssetStoreButton";
 import { ClearAllAssetStoreButton } from "./ClearAllAssetStoreButton";
@@ -48,16 +47,7 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
   },
   {
     accessorKey: "value",
-    cell: ({ row: { original } }) => {
-      const isJsonObject =
-        original.value !== null && original.value !== undefined && typeof original.value === "object";
-
-      return isJsonObject ? (
-        <RenderedJsonField collapsed content={original.value as object} enableClipboard={false} />
-      ) : (
-        <TruncatedText text={String(original.value)} />
-      );
-    },
+    cell: ({ row: { original } }) => <StoreValueCell value={original.value} />,
     enableSorting: false,
     header: translate("common:value"),
   },
