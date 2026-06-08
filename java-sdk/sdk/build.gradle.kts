@@ -326,7 +326,7 @@ publishing {
 }
 
 signing {
-    if (providers.gradleProperty("skipSigning").map { it.toBoolean() }.orNull ?: false) {
+    if (!providers.gradleProperty("skipSigning").map { it.toBoolean() }.getOrElse(false)) {
         val signingKey = getProperty("signing.key", "SIGNING_KEY")
         val signingPassword = getProperty("signing.password", "SIGNING_PASSWORD")
         useInMemoryPgpKeys(signingKey, signingPassword)
