@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.definitions.deadline import VariableInterval
+
 logger = logging.getLogger(__name__)
 
 
@@ -366,6 +368,6 @@ class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta
+    interval: timedelta | VariableInterval
     callback: Any
     name: str | None = None

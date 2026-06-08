@@ -45,7 +45,9 @@ Host
     Examples: ``http://localhost:3001/mcp``, ``https://mcp.example.com/v1``
 
 Auth Token (Password field)
-    Optional authentication token for the MCP server.
+    Optional authentication token for the MCP server. Sent as a static
+    ``Authorization: Bearer <token>`` header on HTTP/SSE transports. For
+    short-lived or minted tokens, use a ``token_provider`` instead (see below).
 
 Command (Extra field)
     The command to run for ``stdio`` transport. Required when transport is ``stdio``.
@@ -96,3 +98,39 @@ Examples
         "conn_type": "mcp",
         "extra": "{\"transport\": \"stdio\", \"command\": \"python\", \"args\": [\"-m\", \"my_server\"], \"timeout\": 30}"
     }
+
+Short-lived or minted tokens
+----------------------------
+
+Some MCP endpoints require a freshly minted, short-lived token rather than a
+static one. For example, `Snowflake managed MCP servers
+<https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp>`__
+are best authenticated with a `key-pair JWT
+<https://docs.snowflake.com/en/user-guide/key-pair-auth>`__: the private key never
+leaves your environment and the signed JWT expires after about an hour, so it
+cannot be stored as a static connection ``password``. The same applies to OAuth /
+refresh tokens, Workload Identity Federation, and GitHub App installation tokens.
+
+For these, pass a ``token_provider`` callable to ``MCPHook`` or ``MCPToolset``
+instead of a static token. It is called each time the connection is established
+and its return value is used as the bearer token, so a fresh token is minted (and
+registered with secret masking so it does not leak into task logs):
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+
+
+    def mint_snowflake_jwt() -> str:
+        # Sign a short-lived JWT from the Snowflake connection's key-pair.
+        ...
+
+
+    toolset = MCPToolset(
+        mcp_conn_id="snowflake_managed_mcp",
+        token_provider=mint_snowflake_jwt,
+    )
+
+``token_provider`` is resolved in DAG code (it is a Python callable, not a stored
+connection field), so the signing key stays in your environment and is never baked
+into the serialized DAG.

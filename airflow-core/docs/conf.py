@@ -24,7 +24,6 @@ import logging
 import os
 import pathlib
 import re
-from pathlib import Path
 from typing import Any
 
 from docs.utils.conf_constants import (
@@ -37,12 +36,14 @@ from docs.utils.conf_constants import (
     AUTOAPI_OPTIONS,
     BASIC_AUTOAPI_IGNORE_PATTERNS,
     BASIC_SPHINX_EXTENSIONS,
-    REDOC_SCRIPT_URL,
     SMARTQUOTES_EXCLUDES,
     SPELLING_WORDLIST_PATH,
     SPHINX_DESIGN_STATIC_PATH,
-    SPHINX_REDOC_EXTENSIONS,
+    SPHINX_SWAGGER_EXTENSION,
     SUPPRESS_WARNINGS,
+    SWAGGER_BUNDLE_URI,
+    SWAGGER_CSS_URI,
+    SWAGGER_PRESENT_URI,
     filter_autoapi_ignore_entries,
     get_autodoc_mock_imports,
     get_configs_and_deprecations,
@@ -58,8 +59,6 @@ from docs.utils.conf_constants import (
 from packaging.version import Version, parse as parse_version
 
 import airflow
-from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
-from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
 from airflow.configuration import retrieve_configuration_description
 
 PACKAGE_NAME = "apache-airflow"
@@ -91,11 +90,12 @@ smartquotes_excludes = SMARTQUOTES_EXCLUDES
 # ones.
 extensions = BASIC_SPHINX_EXTENSIONS
 
-# -- Options for sphinxcontrib.redoc -------------------------------------------
-# See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+extensions.append(SPHINX_SWAGGER_EXTENSION)
 
-extensions.extend(SPHINX_REDOC_EXTENSIONS)
-redoc_script_url = REDOC_SCRIPT_URL
+swagger_present_uri = SWAGGER_PRESENT_URI
+swagger_bundle_uri = SWAGGER_BUNDLE_URI
+swagger_css_uri = SWAGGER_CSS_URI
+swagger_mirror_external_resources = True  # Ensure we embed external resources prevent tracking
 
 extensions.extend(
     [
@@ -350,33 +350,16 @@ redirects_file = "redirects.txt"
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
 spelling_word_list_filename = [SPELLING_WORDLIST_PATH.as_posix()]
-spelling_exclude_patterns = ["project.rst", "changelog.rst"]
+# ``stable-rest-api-ref.rst`` renders the OpenAPI spec via the ``swagger-plugin``
+# directive. Its content is machine-generated (camelCase URL path segments,
+# operationIds, JSON-Schema keywords such as ``oneOf``), not prose, so spell-checking
+# it only produces false positives that re-break the build on every new endpoint.
+spelling_exclude_patterns = ["project.rst", "changelog.rst", "stable-rest-api-ref.rst"]
 
 spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
-
-main_openapi_path = Path(main_openapi_file).parent.joinpath("v2-rest-api-generated.yaml")
-sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v2-simple-auth-manager-generated.yaml")
-redoc = [
-    {
-        "name": "Simple auth manager token API",
-        "page": "core-concepts/auth-manager/simple/sam-token-api-ref",
-        "spec": sam_openapi_path.as_posix(),
-        "opts": {
-            "hide-hostname": True,
-        },
-    },
-    {
-        "name": "Airflow REST API",
-        "page": "stable-rest-api-ref",
-        "spec": main_openapi_path.as_posix(),
-        "opts": {
-            "hide-hostname": True,
-        },
-    },
-]
 
 
 def setup(sphinx):

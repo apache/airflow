@@ -21,8 +21,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentHook,
+    BedrockHook,
+)
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
     BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
@@ -170,6 +175,46 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
 
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         assert response == TriggerEvent({"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID})
+        mock_get_waiter().wait.assert_called_once()
+
+
+class TestBedrockAgentRuntimeReadyTrigger(TestBaseBedrockTrigger):
+    EXPECTED_WAITER_NAME = "agent_runtime_ready"
+
+    AGENT_RUNTIME_ID = "runtime_id"
+    AGENT_RUNTIME_VERSION = "1"
+    AGENT_RUNTIME_ARN = "runtime_arn"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockAgentRuntimeReadyTrigger(
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+            agent_runtime_version=self.AGENT_RUNTIME_VERSION,
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockAgentRuntimeReadyTrigger"
+        assert kwargs.get("agent_runtime_id") == self.AGENT_RUNTIME_ID
+        assert kwargs.get("agent_runtime_version") == self.AGENT_RUNTIME_VERSION
+        assert kwargs.get("agent_runtime_arn") == self.AGENT_RUNTIME_ARN
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockAgentRuntimeReadyTrigger(
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+            agent_runtime_version=self.AGENT_RUNTIME_VERSION,
+            agent_runtime_arn=self.AGENT_RUNTIME_ARN,
+        )
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
+        assert response == TriggerEvent({"status": "success", "agent_runtime_arn": self.AGENT_RUNTIME_ARN})
         mock_get_waiter().wait.assert_called_once()
 
 
