@@ -249,6 +249,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
