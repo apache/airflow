@@ -160,6 +160,15 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
+    // Map index remains visible before a mapped task instance starts.
+    cell: ({ row: { original } }) =>
+      original.map_index >= 0 ? (
+        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+          {original.rendered_map_index ?? original.map_index}
+        </RouterLink>
+      ) : (
+        original.rendered_map_index
+      ),
     header: translate("mapIndex"),
   },
   {
