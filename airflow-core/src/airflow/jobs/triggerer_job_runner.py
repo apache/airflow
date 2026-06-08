@@ -43,7 +43,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, Field, TypeAdapter
-from sqlalchemy import func, select
+from sqlalchemy import exc, func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
 from airflow._shared.module_loading import import_string
@@ -692,7 +692,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def clean_unused(self) -> None:
         """Remove triggers that are no longer needed."""
-        Trigger.clean_unused()
+        try:
+            Trigger.clean_unused()
+        except exc.OperationalError as e:
+            self.log.warning(
+                "Trigger.clean_unused() failed with a database error and will be retried "
+                "on the next heartbeat. error=%s",
+                e,
+            )
 
     def handle_failed_triggers(self):
         """
