@@ -21,6 +21,7 @@ import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
 
@@ -61,3 +62,24 @@ def test_get_previous_dag_run_redirect(ver_client, session, dag_maker):
     assert result["dag_id"] == "test_dag_id"
     assert result["run_id"] == "run2"  # Most recent before 2025-01-10
     assert result["state"] == "failed"
+
+
+def test_get_dag_run_includes_bundle_version(client, session, dag_maker):
+    """The GET /{dag_id}/{run_id} endpoint added in 2026-04-06 exposes bundle_version."""
+    dag_id = "test_dag_id_bundle"
+    run_id = "test_run_bundle"
+
+    with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+        pass
+
+    dag_maker.create_dagrun(
+        run_id=run_id,
+        logical_date=None,
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.SUCCESS,
+    )
+    session.commit()
+
+    response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
+    assert response.status_code == 200
+    assert "bundle_version" in response.json()

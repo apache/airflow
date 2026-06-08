@@ -82,6 +82,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -451,8 +452,27 @@ def materialize_asset(
             f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
+    resolved_body = body or MaterializeAssetBody()
+
+    resolved_dag_version = None
+    if resolved_body.bundle_version is not None:
+        if dag.disable_bundle_versioning:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
+            )
+        resolved_dag_version = DagVersion.get_latest_version(
+            dag.dag_id, bundle_version=resolved_body.bundle_version, load_serialized_dag=True, session=session
+        )
+        if resolved_dag_version is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{resolved_body.bundle_version}'",
+            )
+        dag = resolved_dag_version.serialized_dag.dag
+
     try:
-        params = (body or MaterializeAssetBody()).validate_context(dag)
+        params = (resolved_body or MaterializeAssetBody()).validate_context(dag)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -466,6 +486,8 @@ def materialize_asset(
             partition_key=params["partition_key"],
             note=params["note"],
             session=session,
+            bundle_version=resolved_body.bundle_version,
+            dag_version=resolved_dag_version,
         )
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

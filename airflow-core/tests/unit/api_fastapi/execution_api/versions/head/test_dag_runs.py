@@ -403,6 +403,7 @@ class TestDagRunDetail:
             "state": "success",
             "triggering_user_name": None,
             "note": None,
+            "bundle_version": None,
             "team_name": None,
         }
 

@@ -161,6 +161,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None
     partition_key: str | None = None
+    bundle_version: str | None = None
 
     @model_validator(mode="after")
     def check_data_intervals(self):
@@ -197,6 +198,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
+            "bundle_version": self.bundle_version,
         }
 
 

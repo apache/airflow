@@ -1289,6 +1289,18 @@
           "default": null,
           "title": "Note"
         },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
+        },
         "team_name": {
           "anyOf": [
             {
@@ -4809,6 +4821,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
         },
         "team_name": {
           "anyOf": [
