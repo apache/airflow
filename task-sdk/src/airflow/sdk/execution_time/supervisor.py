@@ -565,8 +565,6 @@ class WatchedSubprocess:
     No migration is attempted if this is set to *None* (default).
     """
 
-    _client: Client | None = attrs.field(default=None, alias="client", repr=False)
-
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
     _open_sockets: weakref.WeakKeyDictionary[socket, str] = attrs.field(
@@ -585,13 +583,7 @@ class WatchedSubprocess:
     start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
 
-    @property
-    def client(self) -> Client | None:
-        return self._client
-
-    @client.setter
-    def client(self, value: Client | None) -> None:
-        self._client = value
+    client: Client = attrs.field(repr=False)
 
     @classmethod
     def start(
@@ -1216,8 +1208,6 @@ def _remote_logging_conn(client: Client):
 
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
-    """The HTTP client to use for communication with the API server."""
-
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
     # The terminal-state message currently being processed by `_handle_request`,
