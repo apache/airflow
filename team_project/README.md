@@ -1,5 +1,8 @@
 # Milestone Mavericks — Team Workspace
 
+> **DAG Triage Assistant Plugin** — an AI-assisted failure triage plugin for Apache Airflow that automatically classifies task-instance logs into failure categories (transient, resource, code, data quality, external dependency), scores confidence, and returns actionable remediation steps — all without an external LLM call.
+> See [`plugin/README.md`](plugin/README.md) for installation, API reference, and the standalone demo.
+
 ## Team
 
 | Name | Role |

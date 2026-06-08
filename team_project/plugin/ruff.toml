@@ -1,0 +1,2 @@
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]  # assert is idiomatic in pytest tests
