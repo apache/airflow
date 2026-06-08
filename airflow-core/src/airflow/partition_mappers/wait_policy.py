@@ -28,6 +28,8 @@ class WaitPolicy:
     Concrete policies are ``WaitForAll`` and ``MinimumCount``. Each implements
     ``is_satisfied(matched, expected)`` and ``is_unreachable(expected)``; the
     scheduler calls these methods directly in the hot path on every tick.
+
+    :meta private:
     """
 
     def is_satisfied(self, matched: int, expected: int) -> bool:
@@ -44,12 +46,9 @@ class WaitPolicy:
 @attrs.define(frozen=True)
 class WaitForAll(WaitPolicy):
     """
-    Fires only when every expected upstream key has arrived.
+    Fires only when every expected upstream key has arrived (``matched == expected``).
 
-    ``matched == expected`` is the satisfaction condition, including the
-    vacuously-true case where both are zero (empty window).
-    ``is_unreachable`` always returns ``False`` — even an empty window
-    satisfies vacuously.
+    An empty window (both zero) is vacuously satisfied and never unreachable.
     """
 
     def is_satisfied(self, matched: int, expected: int) -> bool:

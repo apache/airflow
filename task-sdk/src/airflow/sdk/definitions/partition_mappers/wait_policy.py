@@ -27,6 +27,8 @@ class WaitPolicy:
     calls ``is_satisfied(matched, expected)`` and ``is_unreachable(expected)``
     on the core-side counterparts; this SDK class is the author-facing type
     for Dag file declarations.
+
+    :meta private:
     """
 
 

@@ -184,15 +184,10 @@ class RollupMapper(PartitionMapper):
         return self.upstream_mapper.to_partition_date(downstream_key)
 
     def serialize(self) -> dict[str, Any]:
-        # NOTE: For builtin ``RollupMapper`` instances the *live* serialization
-        # path is ``_Serializer.serialize_partition_mapper`` registered in
-        # ``airflow.serialization.encoders`` — ``encode_partition_mapper`` hits
-        # ``BUILTIN_PARTITION_MAPPERS`` first and dispatches there, never
-        # reaching this method. This body exists only as the extension-point
-        # fallback for non-builtin subclasses that are not registered. **When
-        # adding a new field, edit ``encoders.py`` (including
-        # ``encode_wait_policy``) too** or the change will be silently
-        # ignored for the builtin class.
+        # Builtin RollupMappers serialize through ``encode_partition_mapper``
+        # (encoders.py), not this method. Keep the two in sync: a new field must
+        # be added there (and to ``encode_wait_policy``) too, or it is silently
+        # dropped for builtin instances.
         from airflow.serialization.encoders import (
             encode_partition_mapper,
             encode_wait_policy,
