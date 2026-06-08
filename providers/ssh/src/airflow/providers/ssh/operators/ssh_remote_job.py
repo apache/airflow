@@ -284,7 +284,22 @@ class SSHRemoteJobOperator(BaseOperator):
         # operator opens one SSH handshake per task instead of two. Under a large fan-out
         # this halves the connection burst that triggers sshd MaxStartups throttling.
         self.log.info("Connecting to %s", self.ssh_hook.remote_host)
-        with self.ssh_hook.get_conn() as ssh_client:
+        try:
+            ssh_conn = self.ssh_hook.get_conn()
+        except Exception:
+            self.log.error(
+                "Failed to connect to %s to submit the remote job. When many SSH connections reach "
+                "the same host at once, the server can start refusing new ones before the handshake "
+                "(for example sshd MaxStartups). This is not limited to mapped tasks: parallel DAG "
+                "runs or high concurrency can cause it too. Try raising MaxStartups/MaxSessions on "
+                "the server, increasing conn_retry_attempts (currently %d), or reducing concurrency "
+                "with a pool (or max_active_tis_per_dag for mapped tasks). See the "
+                "SSHRemoteJobOperator 'High Fan-out' docs.",
+                self.ssh_hook.remote_host,
+                self.conn_retry_attempts,
+            )
+            raise
+        with ssh_conn as ssh_client:
             self._detected_os = self._detect_remote_os(ssh_client)
             self.log.info("Remote OS: %s", self._detected_os)
 

@@ -173,6 +173,22 @@ class TestSSHRemoteJobOperator:
         assert trigger.command_timeout == 7.0
         assert trigger.max_reconnect_attempts == 4
 
+    def test_execute_connect_failure_is_reraised(self):
+        """A connection failure during submit is re-raised unchanged (advisory is log-only)."""
+        self.mock_hook.get_conn.side_effect = OSError("Error reading SSH protocol banner")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_os="posix",
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id, mock_ti.task_id, mock_ti.run_id, mock_ti.try_number = "d", "t", "r", 1
+
+        with pytest.raises(OSError, match="Error reading SSH protocol banner"):
+            op.execute({"ti": mock_ti})
+
     def test_execute_raises_if_no_command(self):
         """Test that execute raises if command is not specified."""
         op = SSHRemoteJobOperator(

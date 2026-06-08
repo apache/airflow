@@ -249,7 +249,8 @@ reaper (for example ``systemd-tmpfiles`` or a cron job) for the base directory.
 High Fan-out (Many Concurrent Tasks)
 -------------------------------------
 
-A large ``.expand()`` fan-out points many tasks at the same SSH server at once. Each remote
+Many tasks targeting the same SSH server at once (a large ``.expand()`` fan-out, parallel DAG
+runs, or just high concurrency) can overwhelm it. Each remote
 command opens a new SSH connection, and the remote ``sshd`` throttles concurrent
 *unauthenticated* connections via ``MaxStartups`` (default ``10:30:100``: start randomly
 dropping at 10 concurrent, reaching 100% at 100). A dropped connection surfaces on the client
@@ -266,8 +267,9 @@ poll loop instead of reconnecting on every status check. To push a high fan-out 
 
 * Raise ``MaxStartups`` (and ``MaxSessions``) on the remote ``sshd`` -- this is the direct fix.
 * Increase ``conn_retry_attempts`` so transient refusals during the initial burst are retried.
-* Spread submissions out (for example with a pool or ``max_active_tis_per_dag``) rather than
-  releasing the entire fan-out simultaneously.
+* Cap how many mapped tasks run at once with ``max_active_tis_per_dag`` (or a pool) instead of
+  releasing the entire fan-out simultaneously. See the "Placing Limits on Mapped Tasks" section of
+  :doc:`apache-airflow:authoring-and-scheduling/dynamic-task-mapping` for the available limits.
 
 Comparison with SSHOperator
 ----------------------------
