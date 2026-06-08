@@ -17,12 +17,12 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import ClearRunDialog from "./ClearRunDialog";
 
@@ -35,13 +35,15 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
-  useHotkeys(
-    "shift+c",
-    () => {
+  useShortcut({
+    callback: () => {
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    category: "runActions",
+    description: translate("common:shortcuts.descriptions.clearRun"),
+    keys: "shift+c",
+    options: { enabled: isHotkeyEnabled },
+  });
 
   return (
     <>

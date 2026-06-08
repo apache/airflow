@@ -18,7 +18,6 @@
  */
 import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -27,6 +26,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -160,12 +160,42 @@ export const Logs = () => {
   const toggleFullscreen = () => setFullscreen(!fullscreen);
   const toggleExpanded = () => setExpanded((act) => !act);
 
-  useHotkeys("w", toggleWrap);
-  useHotkeys("f", toggleFullscreen);
-  useHotkeys("e", toggleExpanded);
-  useHotkeys("t", toggleTimestamp);
-  useHotkeys("s", toggleSource);
-  useHotkeys("d", downloadLogs);
+  useShortcut({
+    callback: toggleWrap,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleWrap"),
+    keys: "w",
+  });
+  useShortcut({
+    callback: toggleFullscreen,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleFullscreen"),
+    keys: "f",
+  });
+  useShortcut({
+    callback: toggleExpanded,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleExpand"),
+    keys: "e",
+  });
+  useShortcut({
+    callback: toggleTimestamp,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleTimestamp"),
+    keys: "t",
+  });
+  useShortcut({
+    callback: toggleSource,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleSource"),
+    keys: "s",
+  });
+  useShortcut({
+    callback: downloadLogs,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.downloadLogs"),
+    keys: "d",
+  });
 
   const onOpenChange = () => {
     setFullscreen(false);

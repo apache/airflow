@@ -29,7 +29,6 @@ import {
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt, LuKeyboard } from "react-icons/lu";
@@ -46,6 +45,7 @@ import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/But
 import type { DagView } from "src/constants/dagView";
 import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -187,17 +187,19 @@ export const PanelButtons = ({
     }
   };
 
-  useHotkeys(
-    "g",
-    () => {
+  useShortcut({
+    callback: () => {
       const newView = dagView === "graph" ? "grid" : "graph";
 
       setDagView(newView);
       handleFocus(newView);
     },
-    [dagView],
-    { preventDefault: true },
-  );
+    category: "dagView",
+    dependencies: [dagView],
+    description: translate("common:shortcuts.descriptions.toggleGraphGrid"),
+    keys: "g",
+    options: { preventDefault: true },
+  });
 
   return (
     <Box bg="bg" pr={4} ref={containerRef} width="100%" zIndex={1}>

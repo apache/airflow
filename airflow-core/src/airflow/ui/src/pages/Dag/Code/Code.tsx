@@ -38,6 +38,7 @@ import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardButton, Dialog, IconButton, Tooltip, ProgressBar } from "src/components/ui";
 import { useMonacoTheme } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
 
@@ -117,8 +118,14 @@ export const Code = () => {
 
   const { beforeMount, theme } = useMonacoTheme();
 
-  useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
+
+  useShortcut({
+    callback: toggleWrap,
+    category: "code",
+    description: translate("common:shortcuts.descriptions.toggleWrap"),
+    keys: "w",
+  });
 
   const editorOptions: EditorProps["options"] = {
     automaticLayout: true,

@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
+
+import { useShortcut } from "src/hooks/useShortcut";
 
 import type { ArrowKey, NavigationDirection } from "./types";
 
@@ -44,6 +46,8 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
 };
 
 export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGroup }: Props) => {
+  const { t: translate } = useTranslation("common");
+
   const handleNormalKeyPress = (event: KeyboardEvent) => {
     const direction = mapKeyToDirection(event.key as ArrowKey);
 
@@ -55,7 +59,21 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGrou
 
   const hotkeyOptions = { enabled, preventDefault: true };
 
-  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, hotkeyOptions, [onNavigate]);
+  useShortcut({
+    callback: handleNormalKeyPress,
+    category: "navigation",
+    dependencies: [onNavigate],
+    description: translate("shortcuts.descriptions.navigateTasks"),
+    keys: [...ARROW_KEYS],
+    options: hotkeyOptions,
+  });
 
-  useHotkeys("space", () => onToggleGroup?.(), hotkeyOptions, [onToggleGroup]);
+  useShortcut({
+    callback: () => onToggleGroup?.(),
+    category: "navigation",
+    dependencies: [onToggleGroup],
+    description: translate("shortcuts.descriptions.toggleTaskGroup"),
+    keys: "space",
+    options: hotkeyOptions,
+  });
 };
