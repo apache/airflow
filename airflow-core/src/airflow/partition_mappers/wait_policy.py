@@ -38,6 +38,9 @@ class WaitPolicy:
     def is_unreachable(self, expected: int) -> bool:
         raise NotImplementedError
 
+    def serialize(self) -> dict[str, Any]:
+        raise NotImplementedError
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> WaitPolicy:
         raise NotImplementedError
@@ -56,6 +59,9 @@ class WaitForAll(WaitPolicy):
 
     def is_unreachable(self, expected: int) -> bool:
         return False
+
+    def serialize(self) -> dict[str, Any]:
+        return {}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> WaitForAll:
@@ -102,6 +108,9 @@ class MinimumCount(WaitPolicy):
         if self.n > 0:
             return self.n > expected
         return False
+
+    def serialize(self) -> dict[str, Any]:
+        return {"n": self.n}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> MinimumCount:

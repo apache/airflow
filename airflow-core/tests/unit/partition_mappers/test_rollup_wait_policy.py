@@ -26,7 +26,7 @@ from airflow.partition_mappers.temporal import StartOfHourMapper
 from airflow.partition_mappers.wait_policy import MinimumCount, WaitForAll, WaitPolicy
 from airflow.partition_mappers.window import HourWindow
 from airflow.serialization.decoders import decode_partition_mapper
-from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper, encode_wait_policy
 from airflow.serialization.enums import Encoding
 from airflow.serialization.helpers import WaitPolicyNotSupported
 
@@ -149,6 +149,20 @@ class TestSerializeRoundTrip:
         mapper = _mapper(wait_policy=Custom())
         with pytest.raises(WaitPolicyNotSupported):
             encode_partition_mapper(mapper)
+
+    # Regression: before the singledispatch default delegated to policy.serialize(),
+    # re-encoding a core-class instance (what decode_wait_policy produces) would hit
+    # the bare `return {}` fallback and silently drop the payload (e.g. MinimumCount.n).
+    @pytest.mark.parametrize(
+        ("policy", "expected_var"),
+        [
+            pytest.param(MinimumCount(3), {"n": 3}, id="minimum-count-positive"),
+            pytest.param(MinimumCount(-2), {"n": -2}, id="minimum-count-negative"),
+            pytest.param(WaitForAll(), {}, id="wait-for-all"),
+        ],
+    )
+    def test_core_wait_policy_re_encode_preserves_wire_shape(self, policy, expected_var):
+        assert encode_wait_policy(policy)[Encoding.VAR] == expected_var
 
     def test_round_trip_fast_path_uses_core_wait_for_all(self):
         """After deserialization the wait_policy is a core-side WaitForAll."""

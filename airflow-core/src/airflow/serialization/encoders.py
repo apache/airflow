@@ -27,11 +27,7 @@ import pendulum
 
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
-from airflow.partition_mappers.wait_policy import (
-    MinimumCount as CoreMinimumCount,
-    WaitForAll as CoreWaitForAll,
-    WaitPolicy as CoreWaitPolicy,
-)
+from airflow.partition_mappers.wait_policy import WaitPolicy as CoreWaitPolicy
 from airflow.partition_mappers.window import Window as CoreWindow
 from airflow.sdk import (
     AllowedKeyMapper,
@@ -594,16 +590,14 @@ class _Serializer:
     def serialize_wait_policy(self, policy: WaitPolicy | CoreWaitPolicy) -> dict[str, Any]:
         if not isinstance(policy, CoreWaitPolicy):
             raise NotImplementedError(f"can not serialize wait policy {type(policy).__name__!r}")
-        return {}
+        return policy.serialize()
 
     @serialize_wait_policy.register(WaitForAll)
-    @serialize_wait_policy.register(CoreWaitForAll)
-    def _(self, policy: WaitForAll | CoreWaitForAll) -> dict[str, Any]:
+    def _(self, policy: WaitForAll) -> dict[str, Any]:
         return {}
 
     @serialize_wait_policy.register(MinimumCount)
-    @serialize_wait_policy.register(CoreMinimumCount)
-    def _(self, policy: MinimumCount | CoreMinimumCount) -> dict[str, Any]:
+    def _(self, policy: MinimumCount) -> dict[str, Any]:
         return {"n": policy.n}
 
 
