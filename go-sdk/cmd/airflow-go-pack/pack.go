@@ -462,9 +462,10 @@ func runIntrospect(execPath string, flag string) ([]byte, error) {
 }
 
 // renderManifest serialises the airflow-metadata manifest as deterministic,
-// sorted-key YAML matching airflow-metadata.schema.json. The metadata's name
-// field is intentionally omitted: it is not part of the persisted manifest,
-// only an introspection hint for the default output filename.
+// sorted-key YAML matching airflow-metadata.schema.json. It injects the schema's
+// source field (the filename the manifest is built from), which the producer's
+// Manifest omits because only the packer knows it; every other field is copied
+// from the introspected manifest verbatim.
 func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, error) {
 	version := meta.AirflowBundleMetadataVersion
 	if version == "" {

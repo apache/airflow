@@ -202,9 +202,11 @@ convention so authors can forward arbitrary flags to the underlying
    recording registry, then enumerating the recorded dags and their
    tasks. `--airflow-metadata` today prints only `BundleInfo`
    (`server.go`); it is extended to emit this full document, so the
-   shipped `decideMode` switch needs only one metadata mode. The bundle's
-   `BundleInfo.Name` (used by the packer for the default output
-   filename) is carried in the same output.
+   shipped `decideMode` switch needs only one metadata mode. The packer
+   derives the default output filename from the bundle's main package
+   directory name (what `go build` itself names the binary), resolved
+   before the build so a bad `--output` fails fast; it does not come from
+   `BundleInfo.Name`, and no name field is carried in this output.
 
    A `--format yaml|json` flag selects the encoding and is only valid with
    `--airflow-metadata` (misuse is a hard error). The default is YAML,
