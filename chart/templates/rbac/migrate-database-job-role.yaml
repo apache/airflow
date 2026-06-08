@@ -23,8 +23,6 @@
 ## Grants pods + pods/exec in the release namespace so the migrate-database-job
 ## can exec ``airflow db downgrade`` inside the still-running api-server pod on
 ## a chart downgrade. The forward-migrate branch never uses these permissions.
-##
-## Tracked in https://github.com/apache/airflow/issues/68072.
 #######################################
 {{- if and .Values.rbac.create .Values.migrateDatabaseJob.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1

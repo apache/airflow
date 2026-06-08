@@ -41,7 +41,11 @@ Required env:
 * ``RELEASE_NAME`` - the helm release name, used to scope the scale-down to
   only the workloads owned by this release.
 
-Reference: https://github.com/apache/airflow/issues/68072
+Optional env:
+
+* ``MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS`` - how long to wait for DB-touching
+  pods to terminate after scale-to-zero on a downgrade. Defaults to 300.
+  Increase when long-running worker tasks need more time to wind down.
 """
 
 from __future__ import annotations
@@ -51,25 +55,44 @@ import subprocess
 import sys
 import time
 
-from alembic.config import Config
 from alembic.migration import MigrationContext
-from alembic.script import ScriptDirectory
 from kubernetes import client, config as k8s_config
 from kubernetes.stream import stream
+from packaging.version import Version
 from sqlalchemy.exc import OperationalError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-import airflow
 from airflow.settings import engine
 
-# NOTE: _REVISION_HEADS_MAP is a private symbol in airflow.utils.db. Tracked in
-# #68072 to expose a public accessor; using the private name is the only way
-# today to map a target version string to an alembic revision.
+# ``_REVISION_HEADS_MAP`` is private today; a public accessor is being tracked
+# upstream so the chart can drop the leading underscore in a future release.
 from airflow.utils.db import _REVISION_HEADS_MAP
+
+
+def _resolve_target_rev(target: str) -> str | None:
+    """Return the alembic head for *target*, falling back to the nearest lower mapped version.
+
+    ``_REVISION_HEADS_MAP`` does not list every patch release — patches often
+    share the head of their minor's first release. Mirror Airflow's own CLI
+    behaviour by picking the highest mapped version that is ``<= target``.
+    """
+    if target in _REVISION_HEADS_MAP:
+        return _REVISION_HEADS_MAP[target]
+    target_v = Version(target)
+    candidates = [(Version(v), rev) for v, rev in _REVISION_HEADS_MAP.items() if Version(v) <= target_v]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda pair: pair[0])[1]
 
 
 def decide_action(target: str) -> str:
     """Return one of ``noop``, ``forward``, ``downgrade``, ``fresh``."""
-    target_rev = _REVISION_HEADS_MAP.get(target)
+    target_rev = _resolve_target_rev(target)
     if target_rev is None:
         # Unknown target version (e.g. dev build). Be conservative: forward only.
         return "forward"
@@ -87,27 +110,31 @@ def decide_action(target: str) -> str:
     if current_rev == target_rev:
         return "noop"
 
-    # Walk the TARGET image's revision graph from base to target_rev. Target's
-    # ScriptDirectory only contains revisions up to target's heads, so we
-    # cannot walk from an unknown current_rev (the downgrade case): the call
-    # would raise ``RevisionError``. Instead, build the ancestor set of target
-    # and check membership.
-    cfg = Config()
-    cfg.set_main_option(
-        "script_location",
-        os.path.join(os.path.dirname(airflow.__file__), "migrations"),
-    )
-    script = ScriptDirectory.from_config(cfg)
-    ancestors_of_target = {rev.revision for rev in script.walk_revisions("base", target_rev)}
-    if current_rev in ancestors_of_target:
-        # current is an ancestor of target -> moving forward.
+    # Reverse-lookup current_rev to determine which version it belongs to,
+    # then compare versions. If current_rev isn't mapped (dev/intermediate
+    # alembic revision) be conservative and forward-migrate rather than risk
+    # an incorrect downgrade.
+    rev_to_version = {rev: ver for ver, rev in _REVISION_HEADS_MAP.items()}
+    current_version = rev_to_version.get(current_rev)
+    if current_version is None:
         return "forward"
-    # current is not in target's history -> must be newer than target.
-    return "downgrade"
+    if Version(current_version) > Version(target):
+        return "downgrade"
+    return "forward"
 
 
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
+    retry=retry_if_exception_type(RuntimeError),
+    reraise=True,
+)
 def discover_api_server_pod(namespace: str) -> str:
-    """Return the name of a Running api-server pod in *namespace*."""
+    """Return the name of a Running api-server pod in *namespace*.
+
+    Retries on ``RuntimeError`` so a rolling restart of the api-server
+    deployment (no Running pod for a few seconds) does not fail the job.
+    """
     k8s_config.load_incluster_config()
     api = client.CoreV1Api()
     pods = api.list_namespaced_pod(
@@ -173,13 +200,19 @@ _DB_TOUCHING_COMPONENTS = (
 )
 
 
-def scale_release_workloads_to_zero(namespace: str, release_name: str, timeout_seconds: int = 300) -> None:
+def scale_release_workloads_to_zero(namespace: str, release_name: str, timeout_seconds: int | None = None) -> None:
     """Scale all DB-touching workloads of this release to 0 and wait for drain.
 
     Helm will patch the same Deployments/StatefulSets back to ``replicas: N``
     when it applies the post-hook manifests, so we deliberately do NOT scale
     them up again here.
+
+    The drain deadline defaults to ``MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS`` (or
+    300s if unset). Operators with long-running worker tasks can raise this
+    via the ``migrateDatabaseJob.drainTimeoutSeconds`` chart value.
     """
+    if timeout_seconds is None:
+        timeout_seconds = int(os.environ.get("MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS", "300"))
     k8s_config.load_incluster_config()
     apps = client.AppsV1Api()
     core = client.CoreV1Api()

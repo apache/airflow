@@ -103,13 +103,13 @@ spec:
           {{- if .Values.migrateDatabaseJob.command }}
           command: {{- tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.migrateDatabaseJob.args }}
+          {{- if not (kindIs "invalid" .Values.migrateDatabaseJob.args) }}
           args: {{- tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
           {{- else }}
-          # Bidirectional metadata DB reconciliation: forward migrate, no-op, or
-          # exec downgrade in the still-running api-server pod depending on the
-          # relationship between the chart's target version and the DB's current
-          # alembic head. See https://github.com/apache/airflow/issues/68072.
+          # Bidirectional metadata DB reconciliation: forward migrate, no-op,
+          # fresh install, or exec downgrade in the still-running api-server
+          # pod depending on the relationship between the chart's target
+          # version and the DB's current alembic head.
           args:
             - "python3"
             - "-c"
@@ -132,6 +132,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: RELEASE_NAME
               value: {{ .Release.Name | quote }}
+            - name: MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS
+              value: {{ .Values.migrateDatabaseJob.drainTimeoutSeconds | default 300 | quote }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- if .Values.migrateDatabaseJob.env }}
               {{- tpl (toYaml .Values.migrateDatabaseJob.env) $ | nindent 12 }}

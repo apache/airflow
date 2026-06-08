@@ -6741,6 +6741,12 @@
                     },
                     "default": null
                 },
+                "drainTimeoutSeconds": {
+                    "description": "Maximum number of seconds the downgrade branch of the reconciler waits for DB-touching pods (api-server, scheduler, triggerer, dag-processor, worker) to terminate after they are scaled to 0. Raise this when workers may be running long tasks that need time to finish.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 300
+                },
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod (templated).",
                     "type": "object",

@@ -2128,11 +2128,18 @@ migrateDatabaseJob:
   command: ~
 
   # Args to use when running the migrate database job (templated).
-  # When unset, the chart runs a bidirectional reconciliation script
-  # (forward migrate, no-op, or exec downgrade against the running api-server)
-  # depending on whether the chart is being upgraded or downgraded.
-  # See https://github.com/apache/airflow/issues/68072.
+  # When unset (the default), the chart runs a bidirectional reconciliation
+  # script that picks one of fresh install, forward migrate, no-op, or exec
+  # downgrade against the running api-server, depending on whether the chart
+  # is being installed, upgraded, or downgraded. Set to an explicit list
+  # (including ``[]``) to override.
   args: ~
+
+  # Maximum number of seconds the downgrade branch of the reconciler waits
+  # for DB-touching pods (api-server, scheduler, triggerer, dag-processor,
+  # worker) to terminate after they are scaled to 0. Raise this when workers
+  # may be running long tasks that need time to finish.
+  drainTimeoutSeconds: 300
 
   # Annotations on the database migration pod (templated)
   annotations: {}
