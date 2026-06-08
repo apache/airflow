@@ -18,11 +18,11 @@
  */
 import { Flex, Heading, Button } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 
 import { TaskLogPreview } from "./TaskLogPreview";
@@ -40,7 +40,12 @@ const FailedLogs = ({
 
   const toggleWrap = () => setWrap(!wrap);
 
-  useHotkeys("w", toggleWrap);
+  useShortcut({
+    callback: toggleWrap,
+    category: "logs",
+    description: translate("common:shortcuts.descriptions.toggleWrap"),
+    keys: "w",
+  });
 
   if (taskLogs === undefined || taskLogs.length <= 0) {
     return undefined;

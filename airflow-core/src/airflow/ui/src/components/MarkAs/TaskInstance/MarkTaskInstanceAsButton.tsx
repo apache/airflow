@@ -18,7 +18,6 @@
  */
 import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
@@ -26,6 +25,7 @@ import { LuCheck } from "react-icons/lu";
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { IconButton, Menu, Tooltip } from "src/components/ui";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
@@ -41,23 +41,27 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
 
   const [state, setState] = useState<TaskInstanceState>("success");
 
-  useHotkeys(
-    "shift+f",
-    () => {
+  useShortcut({
+    callback: () => {
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    category: "runActions",
+    description: translate("common:shortcuts.descriptions.markTaskFailed"),
+    keys: "shift+f",
+    options: { enabled: isHotkeyEnabled },
+  });
 
-  useHotkeys(
-    "shift+s",
-    () => {
+  useShortcut({
+    callback: () => {
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    category: "runActions",
+    description: translate("common:shortcuts.descriptions.markTaskSuccess"),
+    keys: "shift+s",
+    options: { enabled: isHotkeyEnabled },
+  });
 
   const label = translate("dags:runAndTaskActions.markAs.button", {
     type: translate("taskInstance_one"),

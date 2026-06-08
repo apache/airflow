@@ -18,11 +18,12 @@
  */
 import { HStack } from "@chakra-ui/react";
 import { useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
 import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
@@ -30,6 +31,7 @@ import type { FilterPluginProps } from "../types";
 import { isValidFilterValue } from "../utils";
 
 export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
+  const { t: translate } = useTranslation("common");
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const advanced = useAdvancedSearch(filter.config.key);
   const showAdvancedToggle = filter.config.supportsAdvancedSearch === true;
@@ -42,15 +44,17 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
     onChange(newValue || undefined);
   };
 
-  useHotkeys(
-    "mod+k",
-    () => {
+  useShortcut({
+    callback: () => {
       if (!filter.config.hotkeyDisabled) {
         hotkeyInputRef.current?.focus();
       }
     },
-    { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
-  );
+    category: "search",
+    description: translate("shortcuts.descriptions.focusFilterSearch"),
+    keys: "mod+k",
+    options: { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
+  });
 
   const isAdvanced = showAdvancedToggle && advanced.enabled;
   const stringValue = hasValue && typeof filter.value === "string" ? filter.value : "";
