@@ -738,10 +738,13 @@ def _build_dag_run_access_requests(
 
     ``entity_methods`` is a list of ``(dag_id, method)`` pairs with unresolvable
     entries (no dag_id or the ``~`` wildcard) already filtered out by the caller.
-    The team for each dag is resolved once and shared across that dag's requests.
+    Teams for all dags are resolved in a single batched query and shared across each
+    dag's requests.
     """
-    resolved_dag_ids = {dag_id for dag_id, _ in entity_methods}
-    dag_id_to_team = {dag_id: DagModel.get_team_name(dag_id) for dag_id in resolved_dag_ids}
+    if not entity_methods:
+        return []
+    resolved_dag_ids = list({dag_id for dag_id, _ in entity_methods})
+    dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(resolved_dag_ids)
     return [
         {
             "method": method,
