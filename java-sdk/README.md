@@ -119,49 +119,6 @@ cat ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
 Check that the coordinates, description, license, SCM, and organization fields
 look correct.
 
-### Export your signing key
-
-The build expects an ASCII-armored PGP private key.  Export it with:
-
-```bash
-gpg --armor --export-secret-keys <your-key-id>
-```
-
-Copy the full output (including the header and footer) for use in the next step.
-
-### Publish to ASF Nexus staging
-
-Store the four credentials in `~/.gradle/gradle.properties` so they are not
-exposed in your shell history:
-
-```properties
-mavenUsername=<your-asf-id>
-mavenPassword=<your-asf-nexus-token>
-signing.key=<ascii-armored-pgp-key>
-signing.password=<key-passphrase>
-```
-
-Then run the publish task:
-
-```bash
-./gradlew :sdk:publish
-```
-
-Alternatively, pass them on the command line (note the single quotes around
-properties whose values contain newlines or special characters):
-
-```bash
-./gradlew :sdk:publish \
-  -PmavenUsername=<your-asf-id> \
-  -PmavenPassword=<your-asf-nexus-token> \
-  -P'signing.key=<ascii-armored-pgp-key>' \
-  -P'signing.password=<key-passphrase>'
-```
-
-### Release
-
-The process from now on should be the same as releasing other Airflow components.
-
 ### Dry-run against a local repository
 
 To test the full publish flow without touching ASF infrastructure, override the
@@ -169,9 +126,33 @@ repository URL to a local directory (no signing key required since nothing goes
 to Maven Central):
 
 ```bash
-./gradlew :sdk:publish -PmavenUrl=file:///tmp/local-maven-repo
+./gradlew :sdk:publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning
 ls /tmp/local-maven-repo/org/apache/airflow/airflow-sdk/
 ```
+
+### Publish to ASF Nexus staging
+
+Store the credentials in `~/.gradle/gradle.properties` so they are not exposed
+in your shell history:
+
+```properties
+mavenUsername=your-asf-nexus-token-username
+mavenPassword=your-asf-nexus-token-password
+signing.password=your-gpg-key-passphrase
+```
+
+Then run the publish task.
+
+```bash
+./gradlew :sdk:publish -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
+```
+
+*NOTE:* The signing key is supplied through the command line since it contains
+newlines, which does not work well in a Gradle properties file.
+
+*NOTE:* You can also use the following environment variables to provide the
+credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
+and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
 
 ## Technical Details
 

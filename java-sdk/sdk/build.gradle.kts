@@ -303,19 +303,22 @@ publishing {
     repositories {
         maven {
             name = "mavenRepo"
-            url =
-                uri(
-                    getProperty("mavenUrl")
-                        ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
-                            "https://repository.apache.org/content/repositories/snapshots/"
-                        } else {
-                            "https://repository.apache.org/service/local/staging/deploy/maven2/"
-                        },
-                )
-            getProperty("mavenUsername", "ASF_NEXUS_USERNAME").let { user ->
-                credentials {
-                    username = user
-                    password = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+            val repoPath =
+                getProperty("mavenUrl")
+                    ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
+                        "https://repository.apache.org/content/repositories/snapshots/"
+                    } else {
+                        "https://repository.apache.org/service/local/staging/deploy/maven2/"
+                    }
+            url = uri(repoPath)
+            if (!repoPath.startsWith("file:")) {
+                val user = getProperty("mavenUsername", "ASF_NEXUS_USERNAME")
+                val pass = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+                if (user != null && pass != null) {
+                    credentials {
+                        username = user
+                        password = pass
+                    }
                 }
             }
         }
@@ -323,9 +326,10 @@ publishing {
 }
 
 signing {
-    getProperty("signing.key", "SIGNING_KEY").let { secretKey ->
-        val password = getProperty("signing.password", "SIGNING_PASSWORD")
-        useInMemoryPgpKeys(secretKey, password)
+    if (providers.gradleProperty("skipSigning").map { it.toBoolean() }.orNull ?: false) {
+        val signingKey = getProperty("signing.key", "SIGNING_KEY")
+        val signingPassword = getProperty("signing.password", "SIGNING_PASSWORD")
+        useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications["mavenJava"])
     }
 }
