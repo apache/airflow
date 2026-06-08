@@ -116,7 +116,7 @@ def task_instance_mutation_hook(task_instance: TaskInstance, dag_run: DagRun | N
         task_instance.queue = "retry_queue"
     # Route on the run configuration. ``dag_run`` may be None during early task-instance construction,
     # so guard for it; read ``dag_run.conf`` directly rather than opening a new database session.
-    if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+    if dag_run is not None and dag_run.conf.get("route") == "high":
         task_instance.queue = "high_priority_queue"
 
 

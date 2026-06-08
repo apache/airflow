@@ -183,6 +183,8 @@ class TaskMap(TaskInstanceDependencies):
             if TYPE_CHECKING:
                 assert task.dag is None
 
+            dr = unmapped_ti.dag_run
+
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
@@ -214,7 +216,7 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
                     # execute hook for task instance map index 0
-                    task_instance_mutation_hook(unmapped_ti, dag_run=unmapped_ti.dag_run)
+                    task_instance_mutation_hook(unmapped_ti, dag_run=dr)
                     session.flush()
                 else:
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
@@ -245,9 +247,7 @@ class TaskMap(TaskInstanceDependencies):
         else:
             dag_version_id = None
 
-        if unmapped_ti:
-            dr = unmapped_ti.dag_run
-        else:
+        if not unmapped_ti:
             from airflow.models import DagRun
 
             dr = session.scalar(

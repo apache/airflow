@@ -43,7 +43,8 @@ There are three main types of cluster policy:
   reconciled (not in the Dag file processor, and not on the worker). The policy is only applied to the
   currently executed run (i.e. instance) of that task. The ``dag_run`` argument lets the policy route on
   run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and a hook
-  that only declares ``task_instance`` keeps working unchanged.
+  that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only populated
+  for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
 
 .. warning::
 

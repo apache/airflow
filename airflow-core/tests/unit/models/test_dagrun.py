@@ -918,7 +918,7 @@ class TestDagRun:
 
         def mutate_task_instance(task_instance, dag_run=None):
             observed_confs.append(None if dag_run is None else dag_run.conf)
-            if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+            if dag_run is not None and dag_run.conf.get("route") == "high":
                 task_instance.queue = "high_queue"
 
         with mock.patch.object(

@@ -84,7 +84,8 @@ def task_instance_mutation_hook(task_instance: TaskInstance, dag_run: DagRun | N
     ``dag_run`` is provided wherever it is available without extra database access. It may be ``None`` in
     early task-instance construction (for example when the hook is re-applied from
     ``TaskInstance.refresh_from_task`` before the instance is bound to a run); implementations must handle
-    that case.
+    that case. Note that ``dag_run.conf`` is only populated for manually triggered or API-triggered runs;
+    scheduled runs carry an empty ``conf``.
 
     :param task_instance: task instance to be mutated
     :param dag_run: the DagRun the task instance belongs to, or ``None`` when not yet available
@@ -185,8 +186,7 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
         # The target is called positionally, so we forward only as many of the hookspec's parameters as
         # the target declares (in hookspec order). This lets a misnamed function still receive the leading
         # hookspec arguments without breaking when the hookspec grows additional trailing parameters.
-        target_arity = len(inspect.signature(target).parameters)
-        forwarded = list(desired_sig.parameters)[:target_arity]
+        forwarded = list(desired_sig.parameters)[: len(inspect.signature(target).parameters)]
         codestr = textwrap.dedent(
             f"""
             def {name}_name_mismatch_shim{desired_sig}:
@@ -231,11 +231,11 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
         # forwards positionally, so it transparently handles renames, defaulted parameters, and signatures
         # that declare fewer parameters than the hookspec.
         names_are_subset = local_sig.parameters.keys() <= policy_sig.parameters.keys()
-        defaults_a_spec_param = any(
+        has_defaulted_spec_param = any(
             param.default is not inspect.Parameter.empty and param_name in policy_sig.parameters
             for param_name, param in local_sig.parameters.items()
         )
-        if not names_are_subset or defaults_a_spec_param:
+        if not names_are_subset or has_defaulted_spec_param:
             policy = _make_shim_fn(name, policy_sig, target=policy)
 
         setattr(AirflowLocalSettingsPolicy, name, staticmethod(hookimpl(policy, specname=name)))

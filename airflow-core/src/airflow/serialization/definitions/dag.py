@@ -618,7 +618,7 @@ class SerializedDAG:
             data_interval=data_interval,
             run_after=coerce_datetime(run_after),
             start_date=coerce_datetime(start_date),
-            conf=conf if conf is not None else dict(copied_params),
+            conf=conf,
             state=state,
             run_type=run_type,
             creating_job_id=creating_job_id,

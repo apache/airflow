@@ -73,6 +73,8 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
     from airflow.api_fastapi.common.types import UIAlert
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 log = logging.getLogger(__name__)
 
@@ -204,7 +206,7 @@ def dag_policy(dag):
     return get_policy_plugin_manager().hook.dag_policy(dag=dag)
 
 
-def task_instance_mutation_hook(task_instance, dag_run=None):
+def task_instance_mutation_hook(task_instance: TaskInstance, dag_run: DagRun | None = None):
     return get_policy_plugin_manager().hook.task_instance_mutation_hook(
         task_instance=task_instance, dag_run=dag_run
     )
