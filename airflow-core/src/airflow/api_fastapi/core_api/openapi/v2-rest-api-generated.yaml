@@ -2153,7 +2153,7 @@ paths:
       tags:
       - DagRun
       summary: Bulk Dag Runs
-      description: Bulk delete Dag Runs.
+      description: Bulk update or delete Dag Runs.
       operationId: bulk_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -12122,12 +12122,22 @@ components:
           - type: string
           - type: 'null'
           title: Dag Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunMutableStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       additionalProperties: false
       type: object
       required:
       - dag_run_id
       title: BulkDAGRunBody
-      description: Request body for bulk delete operations on Dag Runs.
+      description: Request body for bulk operations on Dag Runs.
     BulkDAGRunClearBody:
       properties:
         dry_run:
