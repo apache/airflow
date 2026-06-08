@@ -18,11 +18,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from opentelemetry import trace
+
+from airflow.sdk.observability.stats import incr
+
 if TYPE_CHECKING:
     from pydantic import JsonValue
 
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import Logger
+
+tracer = trace.get_tracer(__name__)
 
 
 class ResumableJobMixin:
@@ -101,29 +107,56 @@ class ResumableJobMixin:
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
-        task_store = context.get("task_store")
+        operator_tag = {"operator": type(self).__name__}
 
-        if task_store is not None:
-            external_id = task_store.get(self.external_id_key)
-            if external_id:
-                status = self.get_job_status(external_id, context)
-                if self.is_job_active(status):
+        with tracer.start_as_current_span("resumable_job.resume_decision") as span:
+            span.set_attribute("operator", type(self).__name__)
+            span.set_attribute("resumable.external_id_key", self.external_id_key)
+
+            task_store = context.get("task_store")
+
+            if task_store is None:
+                span.set_attribute("resumable.decision", "no_task_store")
+            else:
+                external_id = task_store.get(self.external_id_key)
+                if external_id:
+                    incr("resumable_job.reconnect_attempt", tags=operator_tag)
+
+                    status = self.get_job_status(external_id, context)
+
+                    span.set_attribute("resumable.external_id", str(external_id))
+                    span.set_attribute("resumable.prior_status", status)
+
+                    if self.is_job_active(status):
+                        span.set_attribute("resumable.decision", "reconnect")
+                        incr("resumable_job.reconnect_success", tags=operator_tag)
+
+                        self.log.info(
+                            "Reconnecting to existing job identified by: %s (status: %s)",
+                            external_id,
+                            status,
+                        )
+
+                        return self.poll_until_complete(external_id, context)
+                    if self.is_job_succeeded(status):
+                        span.set_attribute("resumable.decision", "already_succeeded")
+
+                        self.log.info(
+                            "Job with identifier: %s already completed successfully, skipping resubmission",
+                            external_id,
+                        )
+                        return self.get_job_result(external_id, context)
+                    span.set_attribute("resumable.decision", "terminal_resubmit")
+
                     self.log.info(
-                        "Reconnecting to existing job identified by: %s (status: %s)", external_id, status
-                    )
-                    return self.poll_until_complete(external_id, context)
-                if self.is_job_succeeded(status):
-                    self.log.info(
-                        "Job with identifier: %s already completed successfully, skipping resubmission",
+                        "Prior job with identifier: %s in terminal state %s, resubmitting fresh",
                         external_id,
+                        status,
                     )
-                    return self.get_job_result(external_id, context)
-                self.log.info(
-                    "Prior job with identifier: %s in terminal state %s, resubmitting fresh",
-                    external_id,
-                    status,
-                )
+                else:
+                    span.set_attribute("resumable.decision", "fresh_submit")
 
+        incr("resumable_job.fresh_submit", tags=operator_tag)
         external_id = self.submit_job(context)
 
         if task_store is not None and external_id is not None:
