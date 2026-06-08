@@ -76,6 +76,19 @@ class TestIngressAPIServer:
         docs = render_chart(values=values, show_only=["templates/api-server/api-server-ingress.yaml"])
         assert expected == (len(docs) == 1)
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"apiServer": {"enabled": True}},
+                "apiServer": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
     def test_can_ingress_hosts_be_templated(self):
         docs = render_chart(
             values={
