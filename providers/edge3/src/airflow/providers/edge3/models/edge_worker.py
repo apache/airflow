@@ -185,13 +185,13 @@ def set_metrics(
         "free_concurrency",
     }
     metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
+    status = sysinfo.get("status", logging.NOTSET)
+    if not isinstance(status, (int, float)):
+        status = logging.NOTSET
 
     Stats.gauge(
-<<<<<<< HEAD
-        "edge_worker.status",
-        sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags=metric_tags,
-    )
+        "edge_worker.status", status, tags=metric_tags
+    )  # type: ignore
     Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
     Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
@@ -201,19 +201,6 @@ def set_metrics(
         "edge_worker.num_queues",
         len(queues),
         tags={**metric_tags, "queues": ",".join(queues)},
-=======
-        "edge_worker.status", sysinfo.get("status", logging.NOTSET), tags={"worker_name": worker_name}
-    )  # type: ignore
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
-    Stats.gauge(
-        "edge_worker.num_queues",
-        len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
->>>>>>> 366552b881 (Reworked statsd taging for pre airflow 3.3 versions)
     )
 
     for key in additional_keys:
@@ -223,7 +210,7 @@ def set_metrics(
 
     if not AIRFLOW_V_3_3_PLUS:
         # Airflow < 3.3: export legacy per-worker metrics (no auto-tag expansion).
-        Stats.gauge(f"edge_worker.status.{worker_name}", sysinfo.get("status", logging.NOTSET))  # type: ignore
+        Stats.gauge(f"edge_worker.status.{worker_name}", int(status))
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
         Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
         Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
