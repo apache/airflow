@@ -1302,7 +1302,7 @@ class TestKubernetesImportAvoidance:
     def test_serialize_v1pod_attempts_import_before_serializing(self, monkeypatch):
         """Regression test: V1Pod serialization must call _has_kubernetes(attempt_import=True)."""
         k8s = pytest.importorskip("kubernetes.client.models")
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         calls = []
 
@@ -1312,7 +1312,7 @@ class TestKubernetesImportAvoidance:
 
         monkeypatch.setattr(serialized_objects, "_has_kubernetes", fake_has_kubernetes)
         monkeypatch.setattr(serialized_objects, "k8s", k8s, raising=False)
-        monkeypatch.setattr(serialized_objects, "PodGenerator", PodGenerator, raising=False)
+        monkeypatch.setattr(serialized_objects, "ApiClient", ApiClient, raising=False)
 
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
         result = BaseSerialization.serialize(pod)
@@ -1320,6 +1320,37 @@ class TestKubernetesImportAvoidance:
         assert isinstance(result, dict), "V1Pod should serialize to a dict, not a string"
         assert result.get(Encoding.TYPE) == DAT.POD, "V1Pod should have type DAT.POD"
         assert True in calls
+
+    def test_v1pod_serde_without_cncf_kubernetes_provider(self, monkeypatch):
+        """V1Pod ser/deser must work when the cncf.kubernetes provider is not installed.
+
+        Regression test for the K8s executor ``pod_override`` getting stringified during DAG
+        serialization on deployments that install ``kubernetes`` but not
+        ``apache-airflow-providers-cncf-kubernetes``.
+        """
+        k8s = pytest.importorskip("kubernetes.client.models")
+
+        # Simulate the cncf.kubernetes provider being unimportable. Setting a module to ``None``
+        # in ``sys.modules`` makes importing it raise ``ModuleNotFoundError``. We must block the
+        # exact module the old code imported (``...pod_generator``) and not just the parent
+        # package: if the submodule is already cached in ``sys.modules`` from an earlier test,
+        # ``from ...pod_generator import PodGenerator`` resolves the cached leaf without ever
+        # touching the parent, so blocking only the parent would not exercise the regression.
+        monkeypatch.setitem(sys.modules, "airflow.providers.cncf.kubernetes", None)
+        monkeypatch.setitem(sys.modules, "airflow.providers.cncf.kubernetes.pod_generator", None)
+        _has_kubernetes.cache_clear()
+
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
+        encoded = BaseSerialization.serialize(pod)
+
+        assert isinstance(encoded, dict), "V1Pod should serialize to a dict, not a string"
+        assert encoded[Encoding.TYPE] == DAT.POD
+
+        decoded = BaseSerialization.deserialize(encoded)
+        assert isinstance(decoded, k8s.V1Pod)
+        assert decoded.metadata.name == "test-pod"
+
+        _has_kubernetes.cache_clear()
 
 
 @pytest.mark.db_test

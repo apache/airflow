@@ -18,13 +18,19 @@
  */
 import type { TFunction } from "i18next";
 
-import type { HITLDetail, HITLDetailHistory } from "openapi/requests/types.gen";
+import type { HITLDetail, HITLDetailHistory, TaskInstanceState } from "openapi/requests/types.gen";
 import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
 };
+
+// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
+// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
+// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
+export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
+  state === "deferred" || state === "awaiting_input";
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
@@ -211,11 +217,9 @@ export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
     task_instance: { state: taskInstanceState },
   } = hitlDetail;
 
-  const isNotDeferred = taskInstanceState !== "deferred";
-
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
 
-  if (!responseReceived && isNotDeferred) {
+  if (!responseReceived && !isHITLPending(taskInstanceState)) {
     return translate("state.noResponseReceived");
   }
 

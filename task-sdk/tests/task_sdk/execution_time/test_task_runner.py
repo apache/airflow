@@ -4904,6 +4904,43 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        When an ``except`` handler in ``run()`` raises before binding ``state``,
+        the original exception must propagate
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        class _TriggerSendError(Exception):
+            pass
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="missing_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_reraises_original_error",
+            run_id="test_run",
+            task=task,
+        )
+
+        def _send(msg=None, **kwargs):
+            # Fail only the TriggerDagRun comms (the call that would 404 for a
+            # missing DAG); let every earlier send behave as the default mock.
+            if isinstance(msg, TriggerDagRun):
+                raise _TriggerSendError("simulated 404 for missing target DAG")
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        log = mock.MagicMock()
+
+        # The original error must surface, not UnboundLocalError on ``state``.
+        with pytest.raises(_TriggerSendError):
+            run(ti, ti.get_template_context(), log)
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [

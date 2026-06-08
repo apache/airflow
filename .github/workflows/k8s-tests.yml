@@ -72,7 +72,7 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Prepare PYTHON_MAJOR_MINOR_VERSION and KUBERNETES_VERSION"
         id: prepare-versions
         env:

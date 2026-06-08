@@ -1222,6 +1222,10 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__GO_WORKER=True
     fi
 
+    if [[ ${INSTALL_SDK_JAVA=} == "true" ]]; then
+        "${AIRFLOW_SOURCES}/scripts/docker/install_jdk.sh"
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
@@ -1396,11 +1400,11 @@ function check_boto_upgrade() {
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
 
-    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
-    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Urllib 2.6.0 broke kubernetes client by removing getheaders() (restored in 2.6.1+).
+    # Exclude exactly 2.6.0; any other version is fine.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3" "botocore" "urllib3!=2.6.0"
 }
 
 function check_upgrade_sqlalchemy() {
@@ -1760,7 +1764,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.9.5"
+ARG MPROCS_VERSION="0.9.6"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -1852,9 +1856,9 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.1
+ARG AIRFLOW_PIP_VERSION=26.1.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.17
+ARG AIRFLOW_UV_VERSION=0.11.18
 ARG AIRFLOW_PREK_VERSION="0.4.3"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host

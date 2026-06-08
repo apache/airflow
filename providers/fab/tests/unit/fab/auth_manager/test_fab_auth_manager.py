@@ -831,6 +831,17 @@ class TestFabAuthManager:
                 [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
                 [MenuItem.AUDIT_LOG],
             ),
+            *(
+                [
+                    (
+                        [MenuItem.DEADLINES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
+                        [MenuItem.DEADLINES],
+                    )
+                ]
+                if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
             (
                 [],
                 [],

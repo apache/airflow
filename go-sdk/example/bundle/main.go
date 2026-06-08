@@ -90,6 +90,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 
 	ret := map[string]any{
 		"go_version": runtime.Version(),
+		"timestamp":  time.Now().UnixNano(),
 	}
 
 	return ret, nil

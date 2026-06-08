@@ -668,9 +668,8 @@ def trigger_dag_run(
         triggered_by = DagRunTriggeredByType.REST_API
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    params = body.validate_context(dag)
-
     try:
+        params = body.validate_context(dag)
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
