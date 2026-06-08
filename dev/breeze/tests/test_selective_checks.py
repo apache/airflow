@@ -1443,6 +1443,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             },
             id="Run java e2e tests when JavaCoordinator changes",
         ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {
+                "run-go-sdk-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go unit and e2e tests for go-sdk source change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/go.yml",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go e2e tests when go compose override changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go e2e tests when ExecutableCoordinator changes",
+        ),
         (
             pytest.param(
                 ("devel-common/pyproject.toml",),
