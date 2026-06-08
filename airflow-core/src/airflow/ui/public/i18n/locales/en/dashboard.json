@@ -1,4 +1,10 @@
 {
+  "alerts": {
+    "seeLessContext": "See less",
+    "seeMoreContext": "See more",
+    "showMoreAlerts_one": "+{{count}} more alert",
+    "showMoreAlerts_other": "+{{count}} more alerts"
+  },
   "deferredSlotsNotCounted": "Deferred not counted in slots: {{count}}",
   "deferredSlotsNotCountedTooltip": "Deferred tasks shown in the bar are counted against pool slots. Deferred tasks shown below the bar are from pools that do not count deferred tasks against slots.",
   "favorite": {
