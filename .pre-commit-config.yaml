@@ -1229,3 +1229,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^java-sdk/.*$
+      - id: spotless
+        name: Run spotless apply
+        description: "Use spotless (via Gradle) to format Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk spotlessApply
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*\.java$
