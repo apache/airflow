@@ -15,11 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _installing-providers-from-sources:ibm.db2:
-
-Installing from sources
------------------------
-
-.. include:: ../../../contributing-docs/12_provider_distributions.rst
-    :start-after: START PROVIDER PACKAGE DETAILS
-    :end-before: END PROVIDER PACKAGE DETAILS
+.. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst

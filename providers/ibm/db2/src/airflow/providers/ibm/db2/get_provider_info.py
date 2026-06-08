@@ -17,7 +17,7 @@
 
 
 def get_provider_info():
-    """Return provider information for Db2."""
+    """Return provider information for IBM Db2."""
     return {
         "package-name": "apache-airflow-providers-ibm-db2",
         "name": "IBM Db2",
@@ -26,8 +26,14 @@ def get_provider_info():
             {
                 "integration-name": "IBM Db2",
                 "external-doc-url": "https://www.ibm.com/products/db2",
-                "logo": "/docs/integration-logos/DB2.png",
+                "logo": "/docs/integration-logos/Db2.png",
                 "tags": ["software"],
+            }
+        ],
+        "dialects": [
+            {
+                "dialect-type": "db2",
+                "dialect-class-name": "airflow.providers.ibm.db2.dialects.db2.Db2Dialect",
             }
         ],
         "hooks": [
@@ -40,6 +46,62 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.ibm.db2.hooks.db2.Db2Hook",
                 "connection-type": "Db2",
+                "hook-name": "IBM Db2",
+                "ui-field-behaviour": {
+                    "hidden-fields": [],
+                    "relabeling": {
+                        "schema": "Database",
+                        "login": "Username",
+                        "password": "Password",
+                    },
+                    "placeholders": {
+                        "host": "localhost",
+                        "port": "50000",
+                        "schema": "database_name",
+                        "login": "db2_user",
+                        "password": "db2_password",
+                        "extra": '{"SECURITY": "SSL", "SSLServerCertificate": "/path/to/cert.crt", "CurrentSchema": "MY_SCHEMA"}',
+                    },
+                },
+                "conn-fields": {
+                    "SECURITY": {
+                        "label": "Security Protocol",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "enum": ["", "SSL"],
+                        },
+                        "description": "Security protocol for the connection (leave empty for no SSL, or set to SSL for encrypted connections)",
+                    },
+                    "SSLServerCertificate": {
+                        "label": "SSL Server Certificate Path",
+                        "schema": {
+                            "type": ["string", "null"],
+                        },
+                        "description": "Path to the SSL server certificate file (required when SECURITY is SSL)",
+                    },
+                    "CurrentSchema": {
+                        "label": "Current Schema",
+                        "schema": {
+                            "type": ["string", "null"],
+                        },
+                        "description": "Default schema to use for unqualified table names",
+                    },
+                    "ConnectTimeout": {
+                        "label": "Connection Timeout",
+                        "schema": {
+                            "type": ["integer", "null"],
+                        },
+                        "description": "Connection timeout in seconds (0 means no timeout)",
+                    },
+                    "Authentication": {
+                        "label": "Authentication Type",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "enum": ["", "SERVER", "KERBEROS", "GSSPLUGIN"],
+                        },
+                        "description": "Authentication method (leave empty for default SERVER authentication)",
+                    },
+                },
             }
         ],
     }
