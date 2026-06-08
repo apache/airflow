@@ -333,8 +333,8 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
 
 The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
 `ExecutableCoordinator` reads) is specified in
-[`executable-bundle-spec.rst`](../task-sdk/docs/executable-bundle-spec.rst). `airflow-go-pack` produces
-bundles conforming to that spec.
+[`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/main/task-sdk/docs/executable-bundle-spec.rst).
+`airflow-go-pack` produces bundles conforming to that spec.
 
 ## Future Direction
 
