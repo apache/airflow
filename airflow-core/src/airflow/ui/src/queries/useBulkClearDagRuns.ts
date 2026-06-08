@@ -17,10 +17,10 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  useDagRunServiceClearDagRuns,
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseGanttServiceGetGanttDataKeyFn,
@@ -28,8 +28,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import { DagRunService } from "openapi/requests/services.gen";
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { ClearDagRunsResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
@@ -47,22 +46,16 @@ export type BulkClearDagRunsOptions = {
   onlyNew: boolean;
 };
 
-// Mirrors the bulk-endpoint success key (``{dag_id}.{run_id}``) so callers can pass
-// the result straight into ``deselectKeys`` without an extra mapping.
-const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}.${dagRun.dag_run_id}`;
-
 export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<unknown>(undefined);
-  const [isPending, setIsPending] = useState(false);
   const { t: translate } = useTranslation(["common", "dags"]);
 
-  const reset = () => {
-    setError(undefined);
-  };
+  const onSuccess = async (responseData: ClearDagRunsResponse) => {
+    // A non-dry-run clear returns the cleared runs; derive invalidation and
+    // selection keys from the response rather than the request.
+    const clearedRuns = "dag_runs" in responseData ? [...responseData.dag_runs] : [];
+    const dagIds = new Set(clearedRuns.map((dagRun) => dagRun.dag_id));
 
-  const invalidateQueries = async (dagRuns: ReadonlyArray<DAGRunResponse>) => {
-    const dagIds = new Set(dagRuns.map((dagRun) => dagRun.dag_id));
     const keys = [
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
@@ -71,59 +64,45 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
       [useBulkClearDagRunsDryRunKey],
       ...tiPerAttemptQueryKeys,
       ...[...dagIds].flatMap((dagId) => [...gridQueryKeys(dagId), [useClearDagRunDryRunKey, dagId]]),
-      ...dagRuns.flatMap((dagRun) => [
+      ...clearedRuns.flatMap((dagRun) => [
         UseDagRunServiceGetDagRunKeyFn({ dagId: dagRun.dag_id, dagRunId: dagRun.dag_run_id }),
         UseGanttServiceGetGanttDataKeyFn({ dagId: dagRun.dag_id, runId: dagRun.dag_run_id }),
       ]),
     ];
 
     await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+
+    toaster.create({
+      description: translate("toaster.bulkClear.success.description", {
+        count: clearedRuns.length,
+        keys: clearedRuns.map((dagRun) => dagRun.dag_run_id).join(", "),
+        resourceName: translate("dagRun_other"),
+      }),
+      title: translate("toaster.bulkClear.success.title", {
+        resourceName: translate("dagRun_other"),
+      }),
+      type: "success",
+    });
+    deselectKeys(clearedRuns.map((dagRun) => `${dagRun.dag_id}.${dagRun.dag_run_id}`));
+    onSuccessConfirm();
   };
 
-  const bulkClear = async (dagRuns: Array<DAGRunResponse>, options: BulkClearDagRunsOptions) => {
-    reset();
-    setIsPending(true);
+  const clearDagRuns = useDagRunServiceClearDagRuns({ onSuccess });
 
-    try {
-      // ``~`` clears runs across Dags atomically in a single request; every entry
-      // carries its own dag_id. The whole request succeeds or fails together.
-      await DagRunService.clearDagRuns({
-        dagId: "~",
-        requestBody: {
-          dag_runs: dagRuns.map((dagRun) => ({
-            dag_id: dagRun.dag_id,
-            dag_run_id: dagRun.dag_run_id,
-          })),
-          dry_run: false,
-          note: options.note ?? undefined,
-          only_failed: options.onlyFailed,
-          only_new: options.onlyNew,
-        },
-      });
-
-      await invalidateQueries(dagRuns);
-
-      toaster.create({
-        description: translate("toaster.bulkClear.success.description", {
-          count: dagRuns.length,
-          keys: dagRuns.map((dagRun) => dagRun.dag_run_id).join(", "),
-          resourceName: translate("dagRun_other"),
-        }),
-        title: translate("toaster.bulkClear.success.title", {
-          resourceName: translate("dagRun_other"),
-        }),
-        type: "success",
-      });
-      deselectKeys(dagRuns.map(getRowKey));
-      setIsPending(false);
-      onSuccessConfirm();
-    } catch (clearError) {
-      // Atomic clear: on failure nothing was cleared. Surface the raw error so
-      // ErrorAlert can render the response detail, and keep the dialog open.
-      setError(clearError);
-      setIsPending(false);
-    }
+  const bulkClear = (dagRuns: Array<DAGRunResponse>, options: BulkClearDagRunsOptions) => {
+    clearDagRuns.reset();
+    // ``~`` clears runs across Dags in a single atomic request; each entry carries its own dag_id.
+    clearDagRuns.mutate({
+      dagId: "~",
+      requestBody: {
+        dag_runs: dagRuns.map((dagRun) => ({ dag_id: dagRun.dag_id, dag_run_id: dagRun.dag_run_id })),
+        dry_run: false,
+        note: options.note ?? undefined,
+        only_failed: options.onlyFailed,
+        only_new: options.onlyNew,
+      },
+    });
   };
 
-  return { bulkClear, error, isPending, reset };
+  return { bulkClear, error: clearDagRuns.error, isPending: clearDagRuns.isPending, reset: clearDagRuns.reset };
 };

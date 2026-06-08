@@ -20,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DagRunService } from "openapi/requests/services.gen";
 import type {
-  ClearTaskInstanceCollectionResponse,
   DAGRunResponse,
   TaskInstanceCollectionResponse,
   TaskInstanceResponse,
@@ -55,7 +54,7 @@ export const useBulkClearDagRunsDryRun = (
           only_failed: options.onlyFailed,
           only_new: options.onlyNew,
         },
-      }) as Promise<ClearTaskInstanceCollectionResponse>,
+      }),
     queryKey: [
       useBulkClearDagRunsDryRunKey,
       selectedDagRuns.map((dagRun) => `${dagRun.dag_id}.${dagRun.dag_run_id}`).sort(),
@@ -64,14 +63,16 @@ export const useBulkClearDagRunsDryRun = (
     refetchOnMount: "always" as const,
   });
 
-  // ``only_new=true`` yields ``NewTaskResponse`` placeholders, ``false`` yields real
-  // ``TaskInstanceResponse``; the OpenAPI type widens to a union, so narrow it here.
-  const data: TaskInstanceCollectionResponse = response
-    ? {
-        task_instances: response.task_instances as Array<TaskInstanceResponse>,
-        total_entries: response.total_entries,
-      }
-    : EMPTY;
+  // ``clearDagRuns`` returns a union; ``dry_run`` always yields the task-instance
+  // collection arm, so narrow on its shape. ``only_new=true`` yields
+  // ``NewTaskResponse`` placeholders that render in the same affected-tasks table.
+  const data: TaskInstanceCollectionResponse =
+    response && "task_instances" in response
+      ? {
+          task_instances: response.task_instances as Array<TaskInstanceResponse>,
+          total_entries: response.total_entries,
+        }
+      : EMPTY;
 
   return { data, isFetching };
 };

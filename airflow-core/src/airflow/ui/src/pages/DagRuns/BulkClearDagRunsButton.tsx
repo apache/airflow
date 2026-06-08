@@ -103,7 +103,7 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isFetching}
                 onClick={() => {
-                  void bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
+                  bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
                 }}
               >
                 <CgRedo />
