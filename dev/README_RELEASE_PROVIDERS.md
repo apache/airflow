@@ -764,7 +764,7 @@ breeze release-management generate-issue-content-providers --only-available-in-d
     --output-file files/provider_issue.md --answer no
 ```
 
-#### Always carry over checkmarks from the previous wave's testing issue
+### Always carry over checkmarks from the previous wave's testing issue
 
 Whenever a provider in this wave is a **re-cut** of one that already appeared in
 an earlier wave's testing issue — providers held back from the previous wave and
