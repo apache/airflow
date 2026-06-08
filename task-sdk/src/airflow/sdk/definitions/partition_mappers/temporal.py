@@ -140,7 +140,9 @@ class FanOutMapper(PartitionMapper):
     # core), so both sides carry the same defaults and the lookup is by class
     # name. When adding a new ``Window`` subclass, extend the table on both
     # sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
-    # (see ``FanOutMapper._resolve_default_downstream_mapper``).
+    # (see ``FanOutMapper._resolve_default_downstream_mapper``). The
+    # ``check-partition-mapper-defaults-in-sync`` prek hook enforces that the
+    # two tables stay identical.
     default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
         "DayWindow": StartOfHourMapper,
         "WeekWindow": StartOfDayMapper,
