@@ -107,12 +107,15 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
+from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.base import compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -140,6 +143,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads.types import SchedulerWorkload
+    from airflow.partition_mappers.base import RollupMapper
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -149,6 +153,13 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+# Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
+# Bounds the per-tick transaction so executor heartbeats and regular scheduling
+# aren't starved; remaining APDRs drain across subsequent ticks.
+# Internal constant rather than a user setting — this is a performance
+# safety bound, not a behavioural knob operators need to tune.
+MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -239,9 +250,10 @@ class ConcurrencyMap:
             # max_active_tis_per_dagrun), including DEFERRED.
             self.task_concurrency_map[(dag_id, task_id)] += count
             self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
-            # Only count non-deferred states towards DAG-run active tasks
-            # (max_active_tasks / worker slot accounting).
-            if state != TaskInstanceState.DEFERRED:
+            # Only count states that hold a worker slot towards DAG-run active tasks
+            # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
+            # are in-flight but parked, holding no worker slot.
+            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
                 self.dag_run_active_tasks_map[dag_id, run_id] += count
 
 
@@ -322,6 +334,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -1634,6 +1647,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
+            self.check_awaiting_input_timeouts,
+        )
+
+        timers.call_regular_interval(
             30,
             self._mark_backfills_complete,
         )
@@ -1879,40 +1897,242 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
+    def _check_rollup_asset_status(
+        self,
+        *,
+        asset_id: int,
+        apdr: AssetPartitionDagRun,
+        mapper: RollupMapper,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        expected = mapper.to_upstream(apdr.partition_key)
+        return expected.issubset(actual_by_asset.get(asset_id, set()))
+
+    def _resolve_asset_partition_status(
+        self,
+        *,
+        session: Session,
+        asset_id: int,
+        name: str,
+        uri: str,
+        apdr: AssetPartitionDagRun,
+        timetable: PartitionedAssetTimetable,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        """
+        Return whether *asset_id* has been satisfied for *apdr*.
+
+        Non-rollup assets resolve to ``True`` because the caller only invokes
+        this for assets that already have at least one logged event for *APDR*
+        (see :class:`~airflow.models.asset.PartitionedAssetKeyLog`), which is
+        the non-rollup contract for "received". Rollup assets defer to
+        :meth:`_check_rollup_asset_status` for the upstream-window check.
+
+        A misconfigured mapper that raises returns ``False`` (treated as
+        not-yet-satisfied); the exception is logged at ``ERROR`` level in the
+        scheduler log so operators can diagnose the misconfiguration.
+        """
+        try:
+            mapper = timetable.get_partition_mapper(name=name, uri=uri)
+            if not is_rollup(mapper):
+                return True
+            return self._check_rollup_asset_status(
+                asset_id=asset_id,
+                apdr=apdr,
+                mapper=mapper,
+                actual_by_asset=actual_by_asset,
+            )
+        except Exception:
+            self.log.exception(
+                "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "
+                "This likely indicates a misconfigured partition mapper.",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                asset_name=name,
+                asset_uri=uri,
+            )
+            return False
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+        """
+        Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
+
+        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
+        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
+        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
+        gets two Dag runs for the same tick when it appears in more than one creation path. We
+        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
+        use is membership lookup, and a heavier return type would just be discarded.
+
+        Asset deactivation freezes pending APDRs: when an asset becomes inactive
+        (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
+        stop contributing to the rollup. If the consumer Dag still depends on that
+        asset, firing on stale history would conflict with the declared topology,
+        so the APDR waits. Reactivating the asset resumes evaluation automatically.
+        This matches the UI's progress view (``_fetch_active_assets_per_dag``).
+        """
+        # Cap per-tick work so the scheduler transaction stays bounded and other
+        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
+        # FIFO is intentional: the oldest pending APDR fires first. A persistently
+        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
+        # never arrive) blocks newer ones until an operator removes it or fixes
+        # the underlying mapper. We surface the stuck state rather than silently
+        # rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
+        # in HA two schedulers can otherwise both grab the same satisfied APDR
+        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
+        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
+        # two APDRs share a `created_at` under bulk asset-event ingestion.
+        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs = session.scalars(
+            with_row_locks(
+                select(AssetPartitionDagRun)
+                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                .where(
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    DagModel.is_stale.is_(False),
+                )
+                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .limit(self._max_partition_dag_runs_per_loop),
+                of=AssetPartitionDagRun,
+                skip_locked=True,
+                key_share=False,
+                session=session,
+            )
+        ).all()
+        if not pending_apdrs:
+            return set()
+
+        # Pre-fetch all required serialized Dags in one query. The same map
+        # serves the stale-version cleanup below and the downstream rollup
+        # evaluation, so the table is only hit once per tick.
+        dag_ids = list({apdr.target_dag_id for apdr in pending_apdrs})
+        serdags_by_dag_id: dict[str, SerializedDagModel] = {
+            sd.dag_id: sd
+            for sd in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
+        }
+
+        # Stale-fingerprint cleanup. An APDR stamped with a ``rollup_fingerprint``
+        # that no longer matches the latest timetable's fingerprint was queued
+        # under a mapper / window definition that may not apply any more.
+        # Firing on partial data — or holding forever because the new mapper
+        # demands keys that will never arrive — would both be wrong, so the
+        # APDR + its PartitionedAssetKeyLog rows are dropped in the same
+        # transaction. Rows stamped ``NULL`` (legacy, pre-column) are likewise
+        # treated as stale on the first tick after upgrade. Unlike a Dag version
+        # UUID, this fingerprint captures only the rollup definition, so unrelated
+        # Dag edits (task changes, description updates) do not trigger cleanup.
+        #
+        # The fingerprint per dag is computed once and cached to avoid redundant
+        # serialization when multiple APDRs share the same target dag.
+        latest_fp_by_dag: dict[str, dict] = {}
+        for dag_id, serdag in serdags_by_dag_id.items():
+            try:
+                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(serdag.dag.timetable)
+            except Exception:
+                # If deserialization fails, skip rather than treating as stale —
+                # a broken serdag should not silently wipe pending progress.
+                self.log.exception("Failed to compute rollup fingerprint for Dag '%s'; skipping", dag_id)
+
+        stale_apdrs = [
+            apdr
+            for apdr in pending_apdrs
+            if serdags_by_dag_id.get(apdr.target_dag_id) is not None
+            and apdr.target_dag_id in latest_fp_by_dag  # fingerprint failed to compute → skip
+            and (
+                apdr.rollup_fingerprint is None
+                or apdr.rollup_fingerprint != latest_fp_by_dag[apdr.target_dag_id]
+            )
+        ]
+        if stale_apdrs:
+            stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
+            cleared_by_dag: dict[str, int] = defaultdict(int)
+            for apdr in stale_apdrs:
+                cleared_by_dag[apdr.target_dag_id] += 1
+            for target_dag_id, cleared_count in cleared_by_dag.items():
+                self.log.info(
+                    "Cleared provisional partition Dag run(s) because the rollup definition "
+                    "(mapper / window) has changed since they were queued. "
+                    "The next scheduler tick will rebuild evaluation from fresh asset events.",
+                    target_dag_id=target_dag_id,
+                    cleared_count=cleared_count,
+                )
+            session.execute(
+                delete(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(stale_apdr_ids)
+                )
+            )
+            session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(stale_apdr_ids)))
+            stale_apdr_id_set = set(stale_apdr_ids)
+            pending_apdrs = [apdr for apdr in pending_apdrs if apdr.id not in stale_apdr_id_set]
+            if not pending_apdrs:
+                return set()
+
         partition_dag_ids: set[str] = set()
+        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
+
+        # {"dag_id": Serialized Dag}
+        serialized_dags: dict[str, SerializedDAG] = {}
+        for serdag in serdags_by_dag_id.values():
+            try:
+                serdag.load_op_links = False
+                serialized_dags[serdag.dag_id] = serdag.dag
+            except Exception:
+                self.log.exception("Failed to deserialize Dag '%s'", serdag.dag_id)
+
+        # {apdr_id: {asset_id: set(source_key, ...)}
+        source_key_by_asset_per_apdr: dict[int, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+        # {apdr_id: {asset_id: (asset_name, asset_uri)}
+        asset_info_per_apdr: dict[int, dict[int, tuple[str, str]]] = defaultdict(dict)
+        for apdr_id, asset_id, source_key, name, uri in session.execute(
+            select(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id,
+                PartitionedAssetKeyLog.asset_id,
+                PartitionedAssetKeyLog.source_partition_key,
+                AssetModel.name,
+                AssetModel.uri,
+            )
+            .join(AssetModel, AssetModel.id == PartitionedAssetKeyLog.asset_id)
+            .where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(pending_apdr_ids),
+                # Skip PartitionedAssetKeyLog rows for assets that are no longer
+                # active (orphaned / no declaring Dag). If the consumer Dag still
+                # depends on an inactive asset, firing on stale history would
+                # conflict with the declared topology — so we freeze evaluation
+                # until the asset reactivates. Matches the UI's progress view
+                # (see ``_fetch_active_assets_per_dag``).
+                AssetModel.active.has(),
+            )
+        ):
+            source_key_by_asset_per_apdr[apdr_id][asset_id].add(source_key)
+            asset_info_per_apdr[apdr_id][asset_id] = (name, uri)
 
         evaluator = AssetEvaluator(session)
-        for apdr in session.scalars(
-            select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        ):
-            if TYPE_CHECKING:
-                assert apdr.target_dag_id
-
-            if not (dag := self._get_current_dag(dag_id=apdr.target_dag_id, session=session)):
+        for apdr in pending_apdrs:
+            if not (dag := serialized_dags.get(apdr.target_dag_id)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            asset_models = session.scalars(
-                select(AssetModel).where(
-                    exists(
-                        select(1).where(
-                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
-                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                            PartitionedAssetKeyLog.target_partition_key == apdr.partition_key,
-                        )
+            source_key_by_asset = source_key_by_asset_per_apdr[apdr.id]
+            timetable = dag.timetable
+            statuses: dict[SerializedAssetUniqueKey, bool] = {}
+            for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
+                key = SerializedAssetUniqueKey(name=name, uri=uri)
+                if timetable.partitioned:
+                    if TYPE_CHECKING:
+                        assert isinstance(timetable, PartitionedAssetTimetable)
+                    statuses[key] = self._resolve_asset_partition_status(
+                        session=session,
+                        asset_id=asset_id,
+                        name=name,
+                        uri=uri,
+                        apdr=apdr,
+                        timetable=timetable,
+                        actual_by_asset=source_key_by_asset,
                     )
-                )
-            )
-            statuses: dict[SerializedAssetUniqueKey, bool] = {
-                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
-            }
-            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
-            #  but, we ultimately need rollup ability
-            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
-            #  that all the required keys are there
-            #  one way to do this would be just to figure out what the count should be
-            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                else:
+                    statuses[key] = True
+            if not evaluator.run(timetable.asset_condition, statuses=statuses):
                 continue
 
             partition_dag_ids.add(apdr.target_dag_id)
@@ -2743,7 +2963,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
-        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
         stmt = (
             select(
                 TaskInstance.state,
@@ -2960,6 +3180,95 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 num_timed_out_tasks = getattr(result, "rowcount", 0)
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def check_awaiting_input_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Resolve Human-in-the-loop tasks parked in AWAITING_INPUT whose response deadline has passed.
+
+        This is the scheduler-side liveness guarantee for HITL and runs independently of the
+        triggerer. For each timed-out task instance: if a response arrived just before the deadline,
+        resume with it; otherwise, if the request defines defaults, write the defaults as the
+        response and resume to success; otherwise fail the task (mirroring ``check_trigger_timeouts``).
+        """
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                now = timezone.utcnow()
+                query = (
+                    select(TI)
+                    .where(
+                        TI.state == TaskInstanceState.AWAITING_INPUT,
+                        TI.trigger_timeout < now,
+                    )
+                    .options(joinedload(TI.hitl_detail))
+                    # Bound the batch so a single scheduler tick cannot lock/process an unbounded
+                    # backlog of timed-out tasks (which would block concurrent responses/clears);
+                    # any remaining rows are handled on subsequent ticks.
+                    .limit(100)
+                )
+                # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
+                # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_tis = session.scalars(query).all()
+                if not timed_out_tis:
+                    return
+
+                num_resolved = 0
+                num_failed = 0
+                for ti in timed_out_tis:
+                    hitl_detail = ti.hitl_detail
+                    if hitl_detail is not None and hitl_detail.responded_at is not None:
+                        # A response landed just before the deadline; resume with it.
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    elif hitl_detail is not None and hitl_detail.defaults is not None:
+                        # Apply the configured defaults as the response, then resume to success.
+                        hitl_detail.chosen_options = list(hitl_detail.defaults)
+                        hitl_detail.params_input = {
+                            key: value["value"] if isinstance(value, dict) and "value" in value else value
+                            for key, value in (hitl_detail.params or {}).items()
+                        }
+                        hitl_detail.responded_by = None
+                        hitl_detail.responded_at = now
+                        session.add(hitl_detail)
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    else:
+                        # No defaults and no response: resume into execute_complete with a timeout
+                        # failure event so the operator raises HITLTimeoutError (matching the old
+                        # trigger path), rather than a generic deferral-timeout failure.
+                        handle_event_submit(
+                            TriggerEvent(
+                                {
+                                    "error": "The Human-in-the-loop response timeout has passed "
+                                    "without a response.",
+                                    "error_type": "timeout",
+                                }
+                            ),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_failed += 1
+
+                # Flush within the retry block so both branches persist consistently (the defaults
+                # branch already flushes via handle_event_submit; the fail branch relies on this).
+                session.flush()
+                if num_resolved or num_failed:
+                    self.log.info(
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        num_resolved,
+                        num_failed,
+                    )
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:

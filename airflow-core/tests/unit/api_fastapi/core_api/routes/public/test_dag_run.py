@@ -27,10 +27,14 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
@@ -39,7 +43,10 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
+from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
+from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -56,6 +63,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
@@ -83,9 +91,6 @@ class CustomTimetable(CronDataIntervalTimetable):
 @pytest.fixture
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
-    from airflow import plugins_manager
-    from airflow._shared.module_loading import qualname
-
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
 
@@ -1513,8 +1518,6 @@ class TestPatchDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
-        from unit.listeners.class_listener import ClassBasedListener
-
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
@@ -1570,7 +1573,11 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
-        with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
+        # Use PartitionAtRuntime for partitioned cases so the partition_key gate does not reject the key.
+        source_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=source_schedule, session=session
+        ):
             EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun(partition_key=partition_key)
         ti = dr.task_instances[0]
@@ -1586,13 +1593,21 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
+        trigger_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=trigger_schedule, session=session
+        ):
             pass
-        dr = dag_maker.create_dagrun(
-            run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.ASSET_TRIGGERED,
-            partition_key=partition_key,
-        )
+        create_dagrun_kwargs: dict = {
+            "run_id": "TEST_DAG_RUN_ID",
+            "run_type": DagRunType.ASSET_TRIGGERED,
+            "partition_key": partition_key,
+        }
+        if partition_key is not None:
+            # PartitionAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
+            # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
+            create_dagrun_kwargs["logical_date"] = None
+        dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
         dr.consumed_asset_events.append(event)
 
         session.commit()
@@ -2459,8 +2474,6 @@ class TestTriggerDagRun:
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_param_validation_error_returns_400(self, mock_create_dagrun, test_client):
-        from airflow.exceptions import ParamValidationError
-
         now = timezone.utcnow().isoformat()
         error_message = "Invalid input for param x"
         mock_create_dagrun.side_effect = ParamValidationError(error_message)
@@ -2712,6 +2725,74 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
+    def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
+        """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.
+
+        The validation happens in TriggerDAGRunPostBody.validate_context(), which is now called
+        inside the try/except block that converts ValueError to HTTP 400.
+        """
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": "some-partition"},
+        )
+        assert response.status_code == 400
+        assert "not a partitioned Dag" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_partition_key_given_for_partitioned_dag(
+        self, dag_maker, test_client, session
+    ):
+        """partition_key on a genuinely partitioned Dag must not be rejected (happy-path guard).
+
+        Uses CronPartitionTimetable (partitioned=True) to confirm the reject path does not
+        fire for legitimate partitioned Dags.
+        """
+        partitioned_dag_id = "test_partitioned_dag_trigger"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "2025-01-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_partition_key_given_for_partition_at_runtime_dag(
+        self, dag_maker, test_client, session
+    ):
+        """partition_key on a PartitionAtRuntime Dag must also be accepted (deferred validation).
+
+        partitioned_at_runtime=True means the Dag accepts runtime-discovered partition keys, so
+        the REST layer must not reject it even though timetable.partitioned is False.
+        """
+        runtime_dag_id = "test_partition_at_runtime_dag_trigger"
+        with dag_maker(
+            dag_id=runtime_dag_id,
+            schedule=PartitionAtRuntime(),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{runtime_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "runtime-key"},
+        )
+        assert response.status_code == 200
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
@@ -2802,8 +2883,6 @@ class TestWaitDagRun:
     # test at least makes the tests run correctly.
     @pytest.fixture(autouse=True)
     def reconfigure_async_db_engine(self):
-        from airflow.settings import _configure_async_session
-
         _configure_async_session()
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2847,8 +2926,6 @@ class TestWaitDagRun:
         assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
-        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
             autospec=True,

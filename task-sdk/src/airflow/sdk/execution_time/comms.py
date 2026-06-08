@@ -83,6 +83,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TaskStatesResponse,
     TaskStoreResponse,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -837,6 +838,12 @@ class DeferTask(TIDeferredStatePayload):
     type: Literal["DeferTask"] = "DeferTask"
 
 
+class AwaitInputTask(TIAwaitingInputStatePayload):
+    """Park a task instance awaiting human input (Human-in-the-loop), without a trigger."""
+
+    type: Literal["AwaitInputTask"] = "AwaitInputTask"
+
+
 class RetryTask(TIRetryStatePayload):
     """Update a task instance state to up_for_retry."""
 
@@ -1193,7 +1200,8 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    ClearAssetStoreByName
+    AwaitInputTask
+    | ClearAssetStoreByName
     | ClearAssetStoreByUri
     | ClearTaskStore
     | DeferTask

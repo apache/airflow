@@ -233,7 +233,7 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout current version first to clean-up stuff"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -411,7 +411,7 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
         # We are checking repo for both - breeze and docs from the "workflow' branch
         # This will take longer as we need to rebuild CI image and it will not use cache
         # but it will build the CI image from the version of Airflow that is used to check out things

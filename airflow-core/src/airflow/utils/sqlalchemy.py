@@ -24,7 +24,7 @@ import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst
+from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
@@ -299,11 +299,12 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
-        return PodGenerator.deserialize_model_dict(pod_dict)
+        # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
+        return ApiClient()._ApiClient__deserialize_model(pod_dict, V1Pod)
     except Exception:
         return None
 
@@ -459,6 +460,48 @@ def lock_rows(query: Select, session: Session) -> Generator[None, None, None]:
     locked_rows = with_row_locks(query, session)
     yield
     del locked_rows
+
+
+@contextlib.contextmanager
+def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[None, None, None]:
+    """
+    Context manager to set the database lock timeout for the current session.
+
+    This prevents long-running operations from blocking indefinitely if they encounter
+    lock contention. Only supported on PostgreSQL and MySQL.
+
+    :param session: ORM Session
+    :param lock_timeout: Lock timeout in seconds.
+    """
+    if lock_timeout <= 0:
+        raise ValueError("lock_timeout must be a positive integer number of seconds")
+
+    try:
+        dialect_name = get_dialect_name(session)
+    except ValueError:
+        dialect_name = None
+
+    old_mysql_timeout = None
+
+    if dialect_name == "postgresql":
+        # SET LOCAL applies only to the current transaction and resets on COMMIT/ROLLBACK.
+        session.execute(text(f"SET LOCAL lock_timeout = '{lock_timeout}s'"))
+    elif dialect_name == "mysql":
+        old_mysql_timeout = session.execute(text("SELECT @@SESSION.innodb_lock_wait_timeout")).scalar()
+        session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {lock_timeout}"))
+    else:
+        log.debug(
+            "Database lock timeout is not supported for dialect '%s'. "
+            "The requested timeout of %ss will not be applied.",
+            dialect_name,
+            lock_timeout,
+        )
+
+    try:
+        yield
+    finally:
+        if dialect_name == "mysql" and old_mysql_timeout is not None:
+            session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
 class CommitProhibitorGuard:
