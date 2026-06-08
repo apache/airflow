@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
 import json
 import time
 from contextlib import AsyncExitStack
@@ -250,28 +250,13 @@ async def _extract_w3c_trace_context(
         yield
         return
     ctx = otel_propagate.extract(request.headers)
+    attached_in = asyncio.current_task()
     token = otel_context.attach(ctx)
     try:
         yield
-    except GeneratorExit:
-        # Cross-task force-close (client disconnect / request cancellation): the
-        # finalizer runs in a different asyncio Task — and thus a different
-        # contextvars.Context — than attach did, so detaching the token would raise
-        # "Token was created in a different Context" (which OTel logs at ERROR before
-        # any suppression here could see it). The attached Context is being discarded
-        # with the dying task, so detaching is unnecessary; skip it and re-raise.
-        raise
-    except BaseException:
-        # A route handler raised: FastAPI throws the exception into this generator at
-        # the yield, in the SAME task that attach ran in. Detach so the upstream trace
-        # context does not stay attached for the exception handler, the error response,
-        # and any spans/logs emitted while unwinding. Suppress any detach error so it
-        # cannot mask the original exception being propagated.
-        with contextlib.suppress(Exception):
+    finally:
+        if asyncio.current_task() is attached_in:
             otel_context.detach(token)
-        raise
-    else:
-        otel_context.detach(token)
 
 
 def _inject_trace_context_dep(routes, mode: str) -> None:
