@@ -388,9 +388,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Resolve team names for DAG IDs via the DAG → Bundle → Team relationship.
 
-        Results are cached for the lifetime of the scheduler process since this is called
-        on every heartbeat (for metrics tagging) with largely overlapping dag_id sets, and
-        the underlying team assignment only changes on bundle redeployment.
+        Results are cached for the current scheduler loop iteration. The cache is cleared
+        at the start of each loop so all injection points within one heartbeat share
+        a single query, but changes are picked up on the next iteration.
 
         :param dag_ids: Collection of DAG IDs to resolve team names for
         :param session: Database session for queries
@@ -418,7 +418,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Cache all results, including None for dag_ids with no team
                 for dag_id in missing:
                     self._dag_id_to_team_name[dag_id] = queried.get(dag_id)
-                self.log.debug("Cached team names for %d new dag_ids", len(missing))
+                    self.log.debug("Cached team names for %d new dag_ids", len(missing))
 
             except Exception:
                 # Log the error, explicitly don't fail the scheduling loop
@@ -1729,6 +1729,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
+            self._dag_id_to_team_name = {}
             with stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
