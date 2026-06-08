@@ -308,9 +308,7 @@ def test_run_downgrade_treats_missing_returncode_as_failure(db_migrate, monkeypa
 # --------------------------------------------------------------------------
 
 
-def test_scale_release_workloads_patches_all_and_returns_when_drained(
-    db_migrate, monkeypatch, make_workload
-):
+def test_scale_release_workloads_patches_all_and_returns_when_drained(db_migrate, monkeypatch, make_workload):
     apps = mock.MagicMock(spec=k8s_client.AppsV1Api)
     core = mock.MagicMock(spec=k8s_client.CoreV1Api)
     apps.list_namespaced_deployment.return_value.items = [

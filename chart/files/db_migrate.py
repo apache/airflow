@@ -200,7 +200,9 @@ _DB_TOUCHING_COMPONENTS = (
 )
 
 
-def scale_release_workloads_to_zero(namespace: str, release_name: str, timeout_seconds: int | None = None) -> None:
+def scale_release_workloads_to_zero(
+    namespace: str, release_name: str, timeout_seconds: int | None = None
+) -> None:
     """Scale all DB-touching workloads of this release to 0 and wait for drain.
 
     Helm will patch the same Deployments/StatefulSets back to ``replicas: N``
