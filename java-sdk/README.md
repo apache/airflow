@@ -122,13 +122,16 @@ look correct.
 ### Dry-run against a local repository
 
 To test the full publish flow without touching ASF infrastructure, override the
-repository URL to a local directory (no signing key required since nothing goes
-to Maven Central):
+repository URL to a local directory
 
 ```bash
 ./gradlew :sdk:publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning
 ls /tmp/local-maven-repo/org/apache/airflow/airflow-sdk/
 ```
+
+*NOTE:* Signing is not required since nothing goes to Maven Central. If you want
+to test signing, set the GPG private key and passphrase as described in the next
+section, and remove `-PskipSigning` from the above command.
 
 ### Publish to ASF Nexus staging
 
