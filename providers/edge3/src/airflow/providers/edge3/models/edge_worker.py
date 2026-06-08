@@ -28,16 +28,15 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+<<<<<<< HEAD
 from airflow.utils.helpers import prune_dict
+=======
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
+>>>>>>> 366552b881 (Reworked statsd taging for pre airflow 3.3 versions)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -188,6 +187,7 @@ def set_metrics(
     metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
 
     Stats.gauge(
+<<<<<<< HEAD
         "edge_worker.status",
         sysinfo.get("status", logging.NOTSET),  # type: ignore
         tags=metric_tags,
@@ -201,12 +201,40 @@ def set_metrics(
         "edge_worker.num_queues",
         len(queues),
         tags={**metric_tags, "queues": ",".join(queues)},
+=======
+        "edge_worker.status", sysinfo.get("status", logging.NOTSET), tags={"worker_name": worker_name}
+    )  # type: ignore
+    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+    Stats.gauge(
+        "edge_worker.num_queues",
+        len(queues),
+        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+>>>>>>> 366552b881 (Reworked statsd taging for pre airflow 3.3 versions)
     )
 
     for key in additional_keys:
         value = sysinfo.get(key)
         if isinstance(value, (int, float)):
             Stats.gauge(f"edge_worker.{key}", value, tags=metric_tags)
+
+    if not AIRFLOW_V_3_3_PLUS:
+        # Airflow < 3.3: export legacy per-worker metrics (no auto-tag expansion).
+        Stats.gauge(f"edge_worker.status.{worker_name}", sysinfo.get("status", logging.NOTSET))  # type: ignore
+        Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
+        Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
+        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
+
+        for key in additional_keys:
+            value = sysinfo.get(key)
+            if isinstance(value, (int, float)):
+                Stats.gauge(f"edge_worker.{key}.{worker_name}", value)
 
 
 def reset_metrics(worker_name: str, team_name: str | None = None) -> None:
