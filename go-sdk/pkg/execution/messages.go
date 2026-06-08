@@ -22,6 +22,13 @@ import (
 	"time"
 )
 
+// SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
+// this SDK's coordinator protocol is compiled against, in YYYY-MM-DD form. It
+// is reported in a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version so the supervisor can downgrade outbound
+// messages / upgrade inbound messages to a shape the bundle understands.
+const SupervisorSchemaVersion = "2026-06-16"
+
 // Inbound messages (Supervisor -> Runtime).
 
 // TaskInstanceInfo holds task instance details from StartupDetails.
