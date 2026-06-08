@@ -81,7 +81,7 @@
     "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
     "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
     "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",
-    "validationErrorDuration": "Ungültiges ISO 8601 Format für die Angabe einer Dauer",
+    "validationErrorDuration": "Angegebene Dauer erfüllt das ISO-8601-Format nicht",
     "validationErrorRequired": "Dieses Feld ist ein Pflichtfeld und muss gefüllt werden"
   },
   "graph": {
