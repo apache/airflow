@@ -51,8 +51,6 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
   const { t: translate } = useTranslation(["common", "dags"]);
 
   const onSuccess = async (responseData: ClearDagRunsResponse) => {
-    // A non-dry-run clear returns the cleared runs; derive invalidation and
-    // selection keys from the response rather than the request.
     const clearedRuns = "dag_runs" in responseData ? [...responseData.dag_runs] : [];
     const dagIds = new Set(clearedRuns.map((dagRun) => dagRun.dag_id));
 
@@ -91,7 +89,6 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
 
   const bulkClear = (dagRuns: Array<DAGRunResponse>, options: BulkClearDagRunsOptions) => {
     clearDagRuns.reset();
-    // ``~`` clears runs across Dags in a single atomic request; each entry carries its own dag_id.
     clearDagRuns.mutate({
       dagId: "~",
       requestBody: {
@@ -104,5 +101,10 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
     });
   };
 
-  return { bulkClear, error: clearDagRuns.error, isPending: clearDagRuns.isPending, reset: clearDagRuns.reset };
+  return {
+    bulkClear,
+    error: clearDagRuns.error,
+    isPending: clearDagRuns.isPending,
+    reset: clearDagRuns.reset,
+  };
 };

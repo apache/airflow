@@ -43,7 +43,6 @@ export const useBulkClearDagRunsDryRun = (
     enabled: enabled && selectedDagRuns.length > 0,
     queryFn: () =>
       DagRunService.clearDagRuns({
-        // ``~`` clears across Dags in a single call; every entry carries its own dag_id.
         dagId: "~",
         requestBody: {
           dag_runs: selectedDagRuns.map((dagRun) => ({
@@ -60,7 +59,7 @@ export const useBulkClearDagRunsDryRun = (
       selectedDagRuns.map((dagRun) => `${dagRun.dag_id}.${dagRun.dag_run_id}`).sort(),
       { only_failed: options.onlyFailed, only_new: options.onlyNew },
     ],
-    refetchOnMount: "always" as const,
+    refetchOnMount: "always",
   });
 
   // ``clearDagRuns`` returns a union; ``dry_run`` always yields the task-instance
