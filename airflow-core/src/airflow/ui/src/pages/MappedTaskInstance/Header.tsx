@@ -34,9 +34,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
-      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
       value: count,
     });
     taskCount += count;

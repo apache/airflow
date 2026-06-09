@@ -54,12 +54,17 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
+from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper
+from airflow.partition_mappers.window import DayWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.timetables.simple import PartitionAtRuntime
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
@@ -131,7 +136,7 @@ def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
 
 @pytest.mark.db_test
 def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
-    with dag_maker("fake-dag", schedule=None):
+    with dag_maker("fake-dag", schedule=PartitionAtRuntime()):
         pass
     dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
@@ -278,7 +283,7 @@ class TestAssetModelOperation:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_task_outlet_asset_references_defaults_when_no_access_control(self, dag_maker, session):
-        """Outlet references default to empty consumer_teams and allow_global_consumers=True."""
+        """Outlet references default to None consumer_teams and allow_global_consumers=True."""
         from airflow.models.asset import TaskOutletAssetReference
 
         asset = Asset("plain_asset")
@@ -298,7 +303,7 @@ class TestAssetModelOperation:
             select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "plain_producer_dag")
         )
         assert ref is not None
-        assert ref.allow_consumer_teams == []
+        assert ref.allow_consumer_teams is None
         assert ref.allow_global_consumers is True
 
     @pytest.mark.parametrize(
@@ -1378,3 +1383,90 @@ class TestUpdateDagTags:
         session.commit()
 
         assert {t.name for t in dag_model.tags} == expected_tags
+
+
+@pytest.mark.db_test
+class TestPartitionMapperInfoSync:
+    """Verify partition_mapper_info is populated on DagModel during Dag sync."""
+
+    @pytest.fixture(autouse=True)
+    def clean_db_around_test(self) -> Generator:
+        def reset() -> None:
+            clear_db_dags()
+            clear_db_assets()
+            clear_db_serialized_dags()
+
+        reset()
+        yield
+        reset()
+
+    def test_partitioned_dag_with_rollup_mapper(self, dag_maker, session):
+        """Cover regular Asset, name ref, and uri ref entries in partition_mapper_info."""
+        rollup_asset = Asset(uri="s3://bucket/rollup", name="rollup")
+        name_ref = Asset.ref(name="ref_by_name")
+        uri_ref = Asset.ref(uri="s3://ref")
+        rollup_mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+
+        with dag_maker(
+            dag_id="partitioned_with_rollup",
+            schedule=PartitionedAssetTimetable(
+                assets=AssetAll(rollup_asset, name_ref, uri_ref),
+                partition_mapper_config={
+                    rollup_asset: rollup_mapper,
+                    name_ref: rollup_mapper,
+                    uri_ref: rollup_mapper,
+                },
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "partitioned_with_rollup")
+        assert dag_model.partition_mapper_info == [
+            {"name": "rollup", "uri": "s3://bucket/rollup", "is_rollup": True},
+            {"name": "ref_by_name", "is_rollup": True},
+            {"uri": "s3://ref", "is_rollup": True},
+        ]
+        assert dag_model.has_rollup_mappers is True
+        assert dag_model.is_rollup_asset(name="rollup", uri="s3://bucket/rollup") is True
+        assert dag_model.is_rollup_asset(name="ref_by_name", uri="") is True
+        assert dag_model.is_rollup_asset(name="", uri="s3://ref") is True
+
+    def test_partitioned_dag_with_default_rollup_mapper(self, dag_maker, session):
+        """
+        Using only ``default_partition_mapper=RollupMapper(...)`` (the primary
+        documented pattern, see ``example_asset_partition.py``) must still
+        produce a non-empty ``partition_mapper_info`` with ``is_rollup=True``,
+        so the UI's ``has_rollup_mappers`` / ``is_rollup_asset`` checks return
+        the right values without inspecting ``partition_mapper_config``.
+        """
+        rollup_asset = Asset(uri="s3://bucket/rollup", name="rollup")
+
+        with dag_maker(
+            dag_id="partitioned_with_default_rollup",
+            schedule=PartitionedAssetTimetable(
+                assets=rollup_asset,
+                default_partition_mapper=RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()),
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "partitioned_with_default_rollup")
+        assert dag_model.partition_mapper_info == [
+            {"name": "rollup", "uri": "s3://bucket/rollup", "is_rollup": True},
+        ]
+        assert dag_model.has_rollup_mappers is True
+        assert dag_model.is_rollup_asset(name="rollup", uri="s3://bucket/rollup") is True
+
+    def test_non_partitioned_dag_leaves_info_empty(self, dag_maker, session):
+        with dag_maker(
+            dag_id="non_partitioned_dag",
+            schedule=[Asset(uri="s3://bucket/A", name="A")],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "non_partitioned_dag")
+        assert dag_model.partition_mapper_info == []
+        assert dag_model.has_rollup_mappers is False

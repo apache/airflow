@@ -18,6 +18,9 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
@@ -143,6 +146,7 @@
     "startTime": "Start Time"
   },
   "generateToken": "Generate Token",
+  "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -226,6 +230,7 @@
   "startDate": "Start Date",
   "state": "State",
   "states": {
+    "awaiting_input": "Awaiting Input",
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
@@ -258,7 +263,8 @@
       "any": "Any"
     },
     "tagPlaceholder": "Filter by tag",
-    "to": "To"
+    "to": "To",
+    "updatedAt": "Updated at"
   },
   "task": {
     "documentation": "Task Documentation",
@@ -389,6 +395,7 @@
     "mustBeAtLeast": "Must be at least {{min}}.",
     "mustBeValidNumber": "Must be a valid number."
   },
+  "value": "Value",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
