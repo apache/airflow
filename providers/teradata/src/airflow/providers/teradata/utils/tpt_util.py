@@ -436,7 +436,7 @@ def prepare_tpt_ddl_script(
             (
                 TdpId = '{host}',
                 UserName = '{login}',
-                UserPassword = '{password}',
+                UserPassword = os.environ.get("PASSWORD", ""),
                 {error_list_stmt}
             )
         );
