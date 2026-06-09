@@ -43,13 +43,12 @@ import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
-  readonly isPartitioned: boolean;
   readonly onClose: () => void;
 };
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 const today = new Date().toISOString().slice(0, 16);
 
-const RunBackfillForm = ({ dag, isPartitioned, onClose }: RunBackfillFormProps) => {
+const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
@@ -66,14 +65,10 @@ const RunBackfillForm = ({ dag, isPartitioned, onClose }: RunBackfillFormProps) 
     mode: "onBlur",
     resetOptions: { keepDirtyValues: true },
     values: {
-      // All four date fields are initialised so the form type stays consistent;
-      // only the relevant pair is rendered and submitted.
       conf,
       dag_id: dag.dag_id,
       from_date: "",
       max_active_runs: 1,
-      partition_date_end: "",
-      partition_date_start: "",
       reprocess_behavior: "none",
       run_backwards: false,
       run_on_latest_version: resolvedRunOnLatest,
@@ -88,25 +83,21 @@ const RunBackfillForm = ({ dag, isPartitioned, onClose }: RunBackfillFormProps) 
     error: dryRunError,
     isPending: isPendingDryRun,
   } = useCreateBackfillDryRun({
-    isPartitioned,
     requestBody: {
       requestBody: {
         dag_id: dag.dag_id,
         dag_run_conf: undefined,
-        from_date: isPartitioned ? undefined : (values.from_date ?? ""),
+        from_date: values.from_date ?? "",
         max_active_runs: values.max_active_runs ?? 1,
-        partition_date_end: isPartitioned ? (values.partition_date_end ?? "") : undefined,
-        partition_date_start: isPartitioned ? (values.partition_date_start ?? "") : undefined,
         reprocess_behavior: values.reprocess_behavior,
         run_backwards: values.run_backwards ?? false,
         run_on_latest_version: values.run_on_latest_version,
-        to_date: isPartitioned ? undefined : (values.to_date ?? ""),
+        to_date: values.to_date ?? "",
       },
     },
   });
   const { mutate: togglePause } = useTogglePause({ dagId: dag.dag_id });
   const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
-    isPartitioned,
     onSuccessConfirm: onClose,
   });
 
@@ -122,17 +113,8 @@ const RunBackfillForm = ({ dag, isPartitioned, onClose }: RunBackfillFormProps) 
   }, [conf, reset]);
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
-  const partitionDateStart = watch("partition_date_start");
-  const partitionDateEnd = watch("partition_date_end");
-
-  const noDataInterval = isPartitioned
-    ? !Boolean(partitionDateStart) || !Boolean(partitionDateEnd)
-    : !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
-  const dataIntervalInvalid = isPartitioned
-    ? Boolean(partitionDateStart) &&
-      Boolean(partitionDateEnd) &&
-      dayjs(partitionDateStart).isAfter(dayjs(partitionDateEnd))
-    : dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
+  const noDataInterval = !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
+  const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (fdata: BackfillFormProps) => {
     if (unpause && dag.is_paused) {
@@ -179,55 +161,27 @@ const RunBackfillForm = ({ dag, isPartitioned, onClose }: RunBackfillFormProps) 
             {translate("backfill.dateRange")}
           </Text>
           <HStack alignItems="flex-start" w="full">
-            {isPartitioned ? (
-              <>
-                <Controller
-                  control={control}
-                  name="partition_date_start"
-                  render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("backfill.partitionDateStart")}</Field.Label>
-                      <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                      <Field.ErrorText>{translate("backfill.errorPartitionStartBeforeEnd")}</Field.ErrorText>
-                    </Field.Root>
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="partition_date_end"
-                  render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("backfill.partitionDateEnd")}</Field.Label>
-                      <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                    </Field.Root>
-                  )}
-                />
-              </>
-            ) : (
-              <>
-                <Controller
-                  control={control}
-                  name="from_date"
-                  render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("common:table.from")}</Field.Label>
-                      <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                      <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
-                    </Field.Root>
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="to_date"
-                  render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("common:table.to")}</Field.Label>
-                      <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                    </Field.Root>
-                  )}
-                />
-              </>
-            )}
+            <Controller
+              control={control}
+              name="from_date"
+              render={({ field }) => (
+                <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
+                  <Field.Label>{translate("common:table.from")}</Field.Label>
+                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
+                </Field.Root>
+              )}
+            />
+            <Controller
+              control={control}
+              name="to_date"
+              render={({ field }) => (
+                <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
+                  <Field.Label>{translate("common:table.to")}</Field.Label>
+                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                </Field.Root>
+              )}
+            />
           </HStack>
         </Box>
         {noDataInterval || dataIntervalInvalid || isPermissionError ? undefined : <Box>{inlineMessage}</Box>}

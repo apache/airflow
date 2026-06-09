@@ -92,24 +92,16 @@ Partitioned Dag backfills
 -------------------------
 
 For Dags that use a partition-based timetable (e.g. ``CronPartitionTimetable``),
-use ``--partition-date-start`` and ``--partition-date-end`` to specify the
-inclusive date range of partitions to backfill. Both flags are required.
-
-``--from-date`` / ``--to-date`` are **not** valid for partitioned Dags and
-will raise an error. Conversely, passing ``--partition-date-start`` or
-``--partition-date-end`` against a non-partitioned Dag also raises an error.
-The two selector groups are mutually exclusive.
+the same ``--from-date`` / ``--to-date`` flags are used for all backfills.
+Airflow automatically detects whether the Dag is partitioned and interprets
+the date range as a partition-date range accordingly — one Dag run is created
+per partition within the window.
 
 Example: backfill the partitions from 2026-02-18 to 2026-02-20::
 
     airflow backfill create --dag-id my_partitioned_dag \
-        --partition-date-start 2026-02-18 \
-        --partition-date-end 2026-02-20
+        --from-date 2026-02-18 \
+        --to-date 2026-02-20
 
 Concurrency is controlled by the same ``--max-active-runs`` option used for
 all backfills.
-
-.. note::
-   Reprocessing existing partition runs is not supported in the current
-   backfill implementation (see `#61464 <https://github.com/apache/airflow/issues/61464>`_
-   for tracking).

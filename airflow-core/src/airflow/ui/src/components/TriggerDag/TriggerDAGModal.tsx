@@ -151,9 +151,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   prefillConfig={prefillConfig}
                 />
               ) : (
-                isBackfillable && dag && (
-                  <RunBackfillForm dag={dag} isPartitioned={isPartitioned} onClose={onClose} />
-                )
+                isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}
             </>
           )}

@@ -6,14 +6,11 @@
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
-    "errorPartitionStartBeforeEnd": "Partition Start Date must be before or equal to the Partition End Date",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
     "overrideExistingParams": "Override parameters on existing runs",
-    "partitionDateEnd": "Partition End Date",
-    "partitionDateStart": "Partition Start Date",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
@@ -31,8 +28,6 @@
     "unpause": "Unpause {{dag_display_name}} on trigger",
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
-      "partitionDatesRequired": "Both Partition Start Date and End Date must be provided.",
-      "partitionStartBeforeEnd": "Partition Start Date must be less than or equal to Partition End Date.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
     }
   },
