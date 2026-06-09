@@ -78,6 +78,7 @@ LABEL_TASK_ID = "task_id"
 LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
+LABEL_TASK_INSTANCE_ID = "task_instance_id"
 
 
 @attrs.define(kw_only=True)
@@ -232,8 +233,24 @@ class StackdriverRemoteLogIO(LoggingMixin):
         for key, value in self.resource.labels.items():
             log_filters.append(f"resource.labels.{escape_label_key(key)}={escape_label_value(value)}")
 
-        for key, value in ti_labels.items():
-            log_filters.append(f"labels.{escape_label_key(key)}={escape_label_value(value)}")
+        ti_id_val = ti_labels.get(LABEL_TASK_INSTANCE_ID)
+        legacy_filters = [
+            f"labels.{escape_label_key(k)}={escape_label_value(v)}"
+            for k, v in ti_labels.items()
+            if k != LABEL_TASK_INSTANCE_ID
+        ]
+
+        if ti_id_val:
+            ti_id_filter = (
+                f"labels.{escape_label_key(LABEL_TASK_INSTANCE_ID)}={escape_label_value(ti_id_val)}"
+            )
+            if legacy_filters:
+                log_filters.append(f"({ti_id_filter} OR ({' AND '.join(legacy_filters)}))")
+            else:
+                log_filters.append(ti_id_filter)
+        else:
+            log_filters.extend(legacy_filters)
+
         return "\n".join(log_filters)
 
     def read_logs(
@@ -280,14 +297,17 @@ class StackdriverRemoteLogIO(LoggingMixin):
 
 def _task_instance_to_labels(ti) -> dict[str, str]:
     """Convert a task instance to Stackdriver labels."""
-    return {
-        LABEL_TASK_ID: ti.task_id,
-        LABEL_DAG_ID: ti.dag_id,
+    labels = {
+        LABEL_TASK_ID: str(ti.task_id),
+        LABEL_DAG_ID: str(ti.dag_id),
         LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
         if AIRFLOW_V_3_0_PLUS
         else str(ti.execution_date.isoformat()),
         LABEL_TRY_NUMBER: str(ti.try_number),
     }
+    if getattr(ti, "id", None):
+        labels[LABEL_TASK_INSTANCE_ID] = str(ti.id)
+    return labels
 
 
 class StackdriverTaskHandler(logging.Handler):
@@ -326,6 +346,7 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_DAG_ID = LABEL_DAG_ID
     LABEL_LOGICAL_DATE = LABEL_LOGICAL_DATE
     LABEL_TRY_NUMBER = LABEL_TRY_NUMBER
+    LABEL_TASK_INSTANCE_ID = LABEL_TASK_INSTANCE_ID
     LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
     LOG_NAME = "Google Stackdriver"
 
@@ -463,14 +484,17 @@ class StackdriverTaskHandler(logging.Handler):
 
     @classmethod
     def _task_instance_to_labels(cls, ti: TaskInstance) -> dict[str, str]:
-        return {
-            cls.LABEL_TASK_ID: ti.task_id,
-            cls.LABEL_DAG_ID: ti.dag_id,
+        labels = {
+            cls.LABEL_TASK_ID: str(ti.task_id),
+            cls.LABEL_DAG_ID: str(ti.dag_id),
             cls.LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
             if AIRFLOW_V_3_0_PLUS
             else str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
+        if getattr(ti, "id", None):
+            labels[cls.LABEL_TASK_INSTANCE_ID] = str(ti.id)
+        return labels
 
     @property
     def log_name(self):
