@@ -1066,6 +1066,13 @@ class TestCliDagsClear:
                 for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
             }
 
+    def _get_run_clear_numbers(self):
+        with create_session() as session:
+            return {
+                row.run_id: row.clear_number
+                for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
+            }
+
     def test_requires_a_selector(self, parser):
         args = parser.parse_args(["dags", "clear", self.DAG_ID, "--yes"])
         with pytest.raises(SystemExit, match="One of --run-id, --partition-key"):
@@ -1757,6 +1764,87 @@ class TestCliDagsClear:
         assert states["asset_2026_04_14"] == DagRunState.SUCCESS
         assert states["asset_2026_04_15"] == DagRunState.SUCCESS
         assert states["asset_non_part"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_clears_multiple_runs_in_one_batch(self, parser):
+        """3 runs fit in one chunk, so clear_task_instances is called once (not N times)."""
+        from airflow.models.taskinstance import clear_task_instances
+
+        call_count = 0
+
+        def counting_clear(tis, session, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return clear_task_instances(tis, session, **kwargs)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        with mock.patch(
+            "airflow.cli.commands.dag_command.clear_task_instances",
+            side_effect=counting_clear,
+        ):
+            dag_command.dag_clear(args)
+
+        # 3 partitioned runs all fit in a single run-id chunk.
+        assert call_count == 1
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.QUEUED
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.QUEUED
+        assert states["non_partitioned"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_chunks_on_run_boundaries_clears_each_run_once(self, parser):
+        """Across multiple chunks, each run is cleared once"""
+        from airflow.models.taskinstance import clear_task_instances
+
+        call_count = 0
+
+        def counting_clear(tis, session, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return clear_task_instances(tis, session, **kwargs)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        with (
+            mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", 2),
+            mock.patch(
+                "airflow.cli.commands.dag_command.clear_task_instances",
+                side_effect=counting_clear,
+            ),
+        ):
+            dag_command.dag_clear(args)
+
+        # 3 runs with chunk size 2 → 2 calls.
+        assert call_count == 2
+
+        clear_numbers = self._get_run_clear_numbers()
+        assert clear_numbers["part_2026_03_08"] == 1
+        assert clear_numbers["part_2026_03_10"] == 1
+        assert clear_numbers["part_2026_03_14"] == 1
+        assert clear_numbers["non_partitioned"] == 0
 
 
 class TestDagDetailsIsBackfillable:
