@@ -109,6 +109,10 @@ Callbacks
 
 .. autoclass:: airflow.sdk.SyncCallback
 
+.. autoclass:: airflow.sdk.CallbackSource
+
+.. autoclass:: airflow.sdk.CallbackMeta
+
 Deadline Alerts
 ---------------
 .. autoclass:: airflow.sdk.DeadlineAlert
