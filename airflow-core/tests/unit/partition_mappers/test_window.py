@@ -484,8 +484,8 @@ class TestSegmentWindow:
             pytest.param(iter([]), "at least one segment key", id="empty-iterator"),
             pytest.param([1, "b"], "must be str", id="int-element"),
             pytest.param([None, "b"], "must be str", id="none-element"),
-            pytest.param(["", "b"], "non-empty strings", id="empty-string-first"),
-            pytest.param(["a", ""], "non-empty strings", id="empty-string-second"),
+            pytest.param(["", "b"], "non-empty", id="empty-string-first"),
+            pytest.param(["a", ""], "non-empty", id="empty-string-second"),
         ],
     )
     def test_rejects_invalid_segments(self, segments, match):

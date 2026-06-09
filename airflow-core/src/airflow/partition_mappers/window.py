@@ -270,24 +270,25 @@ class SegmentWindow(Window):
     expected_decoded_type: ClassVar[type] = str
 
     def __init__(self, segments: Iterable[str]) -> None:
-        collected: list[str] = list(segments)
-        if not collected:
-            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
-        for i, item in enumerate(collected):
+        def _check_one(i: int, item: str) -> str:
             if not isinstance(item, str):
                 raise ValueError(
                     f"SegmentWindow segment keys must be str; "
                     f"got {type(item).__name__!r} at index {i}: {item!r}"
                 )
-            if item == "":
+            if not item:
                 raise ValueError(
-                    f"SegmentWindow segment keys must be non-empty strings; got an empty string at index {i}."
+                    f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
                 )
-        self._segments: frozenset[str] = frozenset(collected)
+            return item
+
+        self._segments: frozenset[str] = frozenset(_check_one(i, item) for i, item in enumerate(segments))
+        if not self._segments:
+            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
 
     def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
         """Return the full declared segment set, ignoring the downstream anchor."""
-        return frozenset(self._segments)
+        return self._segments
 
     def serialize(self) -> dict[str, Any]:
         return {"segments": sorted(self._segments)}
