@@ -191,8 +191,8 @@ code is never executed in the context of the *scheduler*.
 
     When using the default local disk *Dag bundle* backend, which does not support
     versioning, there can be cases where the *Dag processor* and *workers* see different
-    versions of a DAG until both catch up to the latest files. Versioned *Dag bundle*
-    backends (such as git) address this by allowing the *scheduler* to pin a specific
+    versions of a Dag until both catch up to the latest files. Versioned *Dag bundle*
+    backends (such as Git) address this by allowing the *scheduler* to pin a specific
     bundle version when dispatching each task. If needed, the cadence of sync and scan
     of the *Dag bundle* can be configured.
 
