@@ -55,7 +55,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     role_arn = test_context[ROLE_ARN_KEY]
-    bucket_name = "airflow-system-test-bedrock-eval"
+    bucket_name = f"{env_id}-bedrock-eval"
 
     # TEST SETUP
     create_bucket = S3CreateBucketOperator(
