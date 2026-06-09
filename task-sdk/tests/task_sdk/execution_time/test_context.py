@@ -1262,7 +1262,7 @@ class TestTaskStoreAccessor:
         backend.serialize_task_store_to_ref.return_value = "s3://bucket/ti_123/job_id"
 
         with (
-            patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend),
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
             conf_vars({("state_store", "default_retention_days"): "0"}),
         ):
             TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "spark_001")
@@ -1285,7 +1285,9 @@ class TestTaskStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.deserialize_task_store_from_ref.return_value = {"rows": 123}
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
 
         assert result == {"rows": 123}
@@ -1414,7 +1416,9 @@ class TestAssetStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.serialize_asset_store_to_ref.return_value = "s3://bucket/assets/orders/watermark"
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
 
         mock_supervisor_comms.send.assert_called_once_with(
@@ -1434,7 +1438,9 @@ class TestAssetStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.deserialize_asset_store_from_ref.return_value = "2026-05-01"
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             result = AssetStoreAccessor(name=self.ASSET_NAME).get("watermark")
 
         assert result == "2026-05-01"
@@ -1658,7 +1664,7 @@ class TestTaskStoreAccessorWithCustomBackend:
     def backend(self):
         b = InMemoryStoreBackend()
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
             return_value=b,
         ):
             yield b
@@ -1727,7 +1733,7 @@ class TestAssetStoreAccessorWithCustomBackend:
     def backend(self):
         b = InMemoryStoreBackend()
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
             return_value=b,
         ):
             yield b
