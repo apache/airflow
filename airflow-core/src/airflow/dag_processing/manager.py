@@ -452,9 +452,13 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 to_deactivate.add(dag.dag_id)
                 continue
-            # Legacy 0082-migration row the startup repair could not route.
-            # Path(None) would crash the file-based check below; skip and count
-            # so it can be surfaced after the loop.
+            # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
+            # the 0082 migration adds the column as nullable, and the startup repair
+            # in DagBundlesManager only backfills it when the Dag's fileloc resolves to
+            # a configured bundle. Rows whose fileloc matches no bundle stay NULL, so
+            # the time-based stale check below would build Path(None) and crash. Skip
+            # them here and count them so the total is surfaced after the loop.
+            # See https://github.com/apache/airflow/issues/63323.
             if dag.relative_fileloc is None:
                 stuck_legacy_rows += 1
                 continue
