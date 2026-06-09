@@ -23,9 +23,11 @@ from unittest import mock
 
 import pytest
 import time_machine
+from fastapi import FastAPI
+from fastapi.routing import Mount
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.app import create_app, create_auth_manager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import Connection
@@ -54,8 +56,16 @@ def get_api_path(request):
     return API_PATHS.get(subdirectory_name, "/")
 
 
-@pytest.fixture
-def test_client(request):
+@pytest.fixture(scope="session")
+def _shared_api_app():
+    """
+    Build the FastAPI app once per test session.
+
+    ``create_app()`` rebuilds two full FastAPI apps (core + execution), registers every route and
+    builds the OpenAPI schema -- ~0.5s. The default ``test_client`` always uses the same config
+    (SimpleAuthManager), so the app structure is identical across tests; only per-test DB state and
+    request data differ. Building it once and reusing it removes that per-test rebuild cost.
+    """
     with conf_vars(
         {
             (
@@ -64,54 +74,76 @@ def test_client(request):
             ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
-        app = create_app()
-        auth_manager: SimpleAuthManager = app.state.auth_manager
-        # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
-        # to make the JWT token always valid for all test cases with time_machine
-        time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
-        time_after = datetime.datetime.now() + datetime.timedelta(days=1)
-        with time_machine.travel(time_very_before, tick=False):
-            token = auth_manager._get_token_signer(
-                expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
-            ).generate(
-                auth_manager.serialize_user(
-                    SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
-                ),
-            )
-        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-            yield TestClient(
-                app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=f"{BASE_URL}{get_api_path(request)}",
-            )
+        return create_app()
+
+
+def _reset_shared_app(app: FastAPI) -> None:
+    """
+    Reset mutable state on the session-shared app before each test.
+
+    The app object is reused for the whole session, so any per-test mutation of its ``state`` or
+    ``dependency_overrides`` would leak into later tests. Two such mutations exist today and were
+    harmless only because each test used to build its own app:
+
+    * the auth endpoint tests swap ``app.state.auth_manager`` for a mock without restoring it;
+    * several route tests (extra links, tasks, logs) install a ``dag_bag_from_app`` dependency
+      override in their per-test setup and never pop it.
+
+    Restore the canonical auth manager and drop any leftover overrides (including on mounted
+    sub-apps) so each test starts from the pristine app and re-applies its own overrides.
+    """
+    app.state.auth_manager = create_auth_manager()
+    app.dependency_overrides.clear()
+    for route in app.routes:
+        if isinstance(route, Mount) and isinstance(route.app, FastAPI):
+            route.app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def unauthenticated_test_client(request):
-    return TestClient(create_app(), base_url=f"{BASE_URL}{get_api_path(request)}")
-
-
-@pytest.fixture
-def unauthorized_test_client(request):
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
-        }
-    ):
-        app = create_app()
-        auth_manager: SimpleAuthManager = app.state.auth_manager
-        token = auth_manager._get_token_signer().generate(
-            auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
+def test_client(request, _shared_api_app):
+    app = _shared_api_app
+    _reset_shared_app(app)
+    auth_manager: SimpleAuthManager = app.state.auth_manager
+    # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
+    # to make the JWT token always valid for all test cases with time_machine
+    time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
+    time_after = datetime.datetime.now() + datetime.timedelta(days=1)
+    with time_machine.travel(time_very_before, tick=False):
+        token = auth_manager._get_token_signer(
+            expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
+        ).generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
+            ),
         )
-        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-            yield TestClient(
-                app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=f"{BASE_URL}{get_api_path(request)}",
-            )
+    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+        yield TestClient(
+            app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=f"{BASE_URL}{get_api_path(request)}",
+        )
+
+
+@pytest.fixture
+def unauthenticated_test_client(request, _shared_api_app):
+    _reset_shared_app(_shared_api_app)
+    return TestClient(_shared_api_app, base_url=f"{BASE_URL}{get_api_path(request)}")
+
+
+@pytest.fixture
+def unauthorized_test_client(request, _shared_api_app):
+    app = _shared_api_app
+    _reset_shared_app(app)
+    auth_manager: SimpleAuthManager = app.state.auth_manager
+    token = auth_manager._get_token_signer().generate(
+        auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
+    )
+    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+        yield TestClient(
+            app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=f"{BASE_URL}{get_api_path(request)}",
+        )
 
 
 @pytest.fixture
