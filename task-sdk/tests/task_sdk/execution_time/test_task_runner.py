@@ -2321,6 +2321,113 @@ class TestRuntimeTaskInstance:
                         ),
                     )
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "map_indexes",
+        [
+            pytest.param(-1, id="not_mapped_index"),
+            pytest.param(1, id="single_map_index"),
+            pytest.param([0, 1], id="multiple_map_indexes"),
+            pytest.param((0, 1), id="any_iterable_multi_indexes"),
+            pytest.param(None, id="index_none"),
+            pytest.param(NOTSET, id="index_not_set"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "task_ids",
+        [
+            pytest.param("push_task", id="single_task"),
+            pytest.param(["push_task1", "push_task2"], id="tid_multiple_tasks"),
+            pytest.param({"push_task1", "push_task2"}, id="tid_any_iterable"),
+            pytest.param(None, id="tid_none"),
+            pytest.param(NOTSET, id="tid_not_set"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "xcom_values",
+        [
+            pytest.param("hello", id="string_value"),
+            pytest.param("'hello'", id="quoted_string_value"),
+            pytest.param({"key": "value"}, id="json_value"),
+            pytest.param([], id="empty_list_no_xcoms_found"),
+            pytest.param((1, 2, 3), id="tuple_int_value"),
+            pytest.param([1, 2, 3], id="list_int_value"),
+            pytest.param(42, id="int_value"),
+            pytest.param(True, id="boolean_value"),
+            pytest.param(pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}), id="dataframe_value"),
+        ],
+    )
+    async def test_axcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+        xcom_values,
+        task_ids,
+        map_indexes,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull XCom values asynchronously
+        based on various task_ids, map_indexes, and xcom_values configurations.
+        """
+        map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
+        task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
+        spy_agency.spy_on(deserialize)
+
+        test_task_id = "pull_task"
+        task = BaseOperator(task_id=test_task_id)
+
+        extra_for_ti = {"map_index": map_indexes} if isinstance(map_indexes, int) else {}
+        runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
+
+        ser_value = BaseXCom.serialize_value(xcom_values)
+
+        def mock_asend_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="key", value=ser_value)
+
+        mock_supervisor_comms.asend.side_effect = mock_asend_side_effect
+
+        value = await runtime_ti.axcom_pull(key="key", **task_ids_kwarg, **map_indexes_kwarg)
+        assert value is not None  # Basic sanity check that we got a result
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
+
+        if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
+            task_ids = [task_ids]
+
+        if not isinstance(map_indexes, Iterable):
+            map_indexes = [map_indexes]
+
+        for task_id_raw in task_ids:
+            task_id = task_id_raw if is_arg_set(task_id_raw) and task_id_raw is not None else test_task_id
+
+            for map_index in map_indexes:
+                if map_index == NOTSET:
+                    mock_supervisor_comms.asend.assert_any_call(
+                        msg=GetXComSequenceSlice(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            start=None,
+                            stop=None,
+                            step=None,
+                        ),
+                    )
+                else:
+                    expected_map_index = map_index if map_index is not None else None
+                    mock_supervisor_comms.asend.assert_any_call(
+                        GetXCom(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            map_index=expected_map_index,
+                        ),
+                    )
+
     @pytest.mark.parametrize(
         ("task_ids", "map_indexes", "expected_value"),
         [
