@@ -596,6 +596,7 @@ ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
 ARG_POOL_INCLUDE_DEFERRED = Arg(
     ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
 )
+ARG_POOL_TEAM_NAME = Arg(("--team-name",), help="Team name to assign the pool to (requires multi_team mode)")
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -605,7 +606,7 @@ ARG_POOL_IMPORT = Arg(
             """
             {
                 "pool_1": {"slots": 5, "description": "", "include_deferred": true},
-                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false, "team_name": "my_team"}
             }"""
         ),
         " " * 4,
@@ -1575,6 +1576,7 @@ POOLS_COMMANDS = (
             ARG_POOL_SLOTS,
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
+            ARG_POOL_TEAM_NAME,
             ARG_OUTPUT,
             ARG_VERBOSE,
         ),

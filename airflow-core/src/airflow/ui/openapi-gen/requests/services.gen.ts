@@ -985,7 +985,7 @@ export class DagRunService {
     
     /**
      * Bulk Dag Runs
-     * Bulk delete Dag Runs.
+     * Bulk update or delete Dag Runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
