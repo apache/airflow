@@ -102,8 +102,8 @@ environment - where various components can run on different machines, with diffe
 and can be scaled by running multiple instances of the components above.
 
 The separation of components also allow for increased security, by isolating the components from each other
-and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler*
-in Airflow 3 makes sure that the *scheduler* does not have access to the *Dag bundles* and cannot execute
+and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler* 
+makes sure that the *scheduler* does not have access to the *Dag bundles* and cannot execute
 code provided by *Dag author*.
 
 Also while single person can run and manage Airflow installation, Airflow Deployment in more complex
