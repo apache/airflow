@@ -133,6 +133,7 @@ class ResumableJobMixin:
                     span.set_attribute("resumable.prior_status", status)
 
                     if self.is_job_active(status):
+                        # Job is still running, skip submission and reconnect to it.
                         span.set_attribute("resumable.decision", "reconnect")
                         stats.incr("resumable_job.reconnect_success", tags=operator_tag)
                         self.log.info(
@@ -143,7 +144,9 @@ class ResumableJobMixin:
                         )
                         reconnect_to = external_id
                     elif self.is_job_succeeded(status):
+                        # Job already finished successfully, skip polling and return result directly.
                         span.set_attribute("resumable.decision", "already_succeeded")
+                        stats.incr("resumable_job.already_succeeded", tags=operator_tag)
                         self.log.info(
                             "Job already completed successfully, skipping resubmission",
                             external_id_key=self.external_id_key,
@@ -151,7 +154,9 @@ class ResumableJobMixin:
                         )
                         already_succeeded_id = external_id
                     else:
+                        # Job is in a terminal failed state, fall through and submit a new job.
                         span.set_attribute("resumable.decision", "terminal_resubmit")
+                        stats.incr("resumable_job.terminal_resubmit", tags=operator_tag)
                         self.log.warning(
                             "Prior job in terminal state, resubmitting fresh",
                             external_id_key=self.external_id_key,
@@ -160,6 +165,7 @@ class ResumableJobMixin:
                         )
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
+                    stats.incr("resumable_job.fresh_submit", tags=operator_tag)
                     self.log.debug(
                         "No stored external ID found; submitting fresh job",
                         external_id_key=self.external_id_key,
@@ -169,8 +175,6 @@ class ResumableJobMixin:
             return self.poll_until_complete(reconnect_to, context)
         if already_succeeded_id is not None:
             return self.get_job_result(already_succeeded_id, context)
-
-        stats.incr("resumable_job.fresh_submit", tags=operator_tag)
         external_id = self.submit_job(context)
 
         if task_store is not None and external_id is not None:

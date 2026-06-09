@@ -61,7 +61,21 @@ metrics:
 
   - name: "resumable_job.fresh_submit"
     description: "Number of times a ResumableJobMixin operator submitted a fresh job
-    (no prior run ID found). Metric with operator tagging."
+    with no prior run ID stored (first run). Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.already_succeeded"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    whose job had already completed successfully and skipped resubmission. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.terminal_resubmit"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    whose job was in a terminal (failed) state and submitted a fresh job. Metric with operator tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []

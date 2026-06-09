@@ -229,16 +229,29 @@ class TestMetrics:
         assert "resumable_job.reconnect_success" in called_names
         assert "resumable_job.fresh_submit" not in called_names
 
-    @pytest.mark.parametrize("status", ["SUCCEEDED", "FAILED"])
-    def test_reconnect_attempt_without_success_when_job_not_active(self, status):
+    def test_already_succeeded_fires_when_job_succeeded(self):
         op = ConcreteResumableOperator(task_id="test_task")
-        op._status_map["job-001"] = status
+        op._status_map["job-001"] = "SUCCEEDED"
         mock_incr = MagicMock()
         with patch(self._PATCH, mock_incr):
             op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
         called_names = [call.args[0] for call in mock_incr.call_args_list]
         assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.already_succeeded" in called_names
         assert "resumable_job.reconnect_success" not in called_names
+        assert "resumable_job.fresh_submit" not in called_names
+
+    def test_terminal_resubmit_fires_when_job_failed(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "FAILED"
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.terminal_resubmit" in called_names
+        assert "resumable_job.reconnect_success" not in called_names
+        assert "resumable_job.fresh_submit" not in called_names
 
 
 class TestTracing:
