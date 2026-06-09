@@ -1939,9 +1939,9 @@ workers:
       sensitive: true
       example: ~
       default: ""
-    state_backend:
+    state_store_backend:
       description: |
-        Full class name of a custom worker-side state backend. When set, task state values are
+        Full class name of a custom worker-side store backend. When set, task store values are
         routed through this backend so large payloads or credentialed storage stay on worker
         infrastructure. The Execution API still records a reference string in the database.
 

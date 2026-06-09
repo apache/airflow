@@ -4293,7 +4293,7 @@ class TestSchedulerJob:
 
         Noted: the DagRun state could be still in running state during CI.
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         sync_bag_to_db(dagbag, "testing", None)
         dag_id = "test_dagrun_states_root_future"
 
@@ -4311,7 +4311,7 @@ class TestSchedulerJob:
         """
         Test that the scheduler respects start_dates, even when DAGs have run
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         with create_session() as session:
             dag_id = "test_start_date_scheduling"
             dag = dagbag.get_dag(dag_id)
@@ -4368,7 +4368,6 @@ class TestSchedulerJob:
         """
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
-            include_examples=False,
         )
         dag_id = "test_task_start_date_scheduling"
         dag = dagbag.get_dag(dag_id)
@@ -4409,7 +4408,6 @@ class TestSchedulerJob:
         """
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
-            include_examples=False,
         )
         dag_id = "test_task_start_date_scheduling"
         dag = dagbag.get_dag(dag_id)
@@ -4453,7 +4451,7 @@ class TestSchedulerJob:
         """
         Test that the scheduler can successfully queue multiple dags in parallel
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         dag_ids = [
             "test_start_date_scheduling",
             "test_task_start_date_scheduling",
@@ -7693,7 +7691,7 @@ class TestSchedulerJob:
     def test_mapped_dag(self, dag_id, session, testing_dag_bundle):
         """End-to-end test of a simple mapped dag"""
 
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER)
         sync_bag_to_db(dagbag, "testing", None)
         dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
         dag = dagbag.get_dag(dag_id)
@@ -7726,7 +7724,7 @@ class TestSchedulerJob:
         dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file)
         sync_bag_to_db(dagbag, "testing", None)
 
         scheduler_job = Job()
@@ -9484,7 +9482,7 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagruns = []
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE)
             sync_bag_to_db(dagbag, "testing", None)
 
             for i, dag in enumerate(dagbag.dags.values()):
@@ -9576,7 +9574,7 @@ class TestSchedulerJobQueriesCount:
                 }
             ),
         ):
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE)
             sync_bag_to_db(dagbag, "testing", None)
 
             scheduler_job = Job(job_type=SchedulerJobRunner.job_type)

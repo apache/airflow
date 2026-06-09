@@ -772,7 +772,6 @@ def test_encode_asset_with_access_control():
     encoded = encode_asset_like(asset)
     assert encoded["access_control"] == {
         "producer_teams": ["team_a"],
-        "consumer_teams": [],
         "allow_global": False,
     }
 
