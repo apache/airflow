@@ -190,11 +190,11 @@
       "direction": "Direcció",
       "label": "Filtrar",
       "mode": "Mode",
-      "modeTooltip": "El mode Estàtic manté la vista actual mentre es navega per diferents tasques, mentre que el mode Recórrer actualitza automàticament el filtre actiu amb la tasca seleccionada per a facilitar la navegació pel Dag.",
       "modes": {
         "static": "Estàtic",
         "traverse": "Recórrer"
       },
+      "modeTooltip": "El mode Estàtic manté la vista actual mentre es navega per diferents tasques, mentre que el mode Recórrer actualitza automàticament el filtre actiu amb la tasca seleccionada per a facilitar la navegació pel Dag.",
       "options": {
         "both": "Aigües amunt i aigües avall",
         "downstream": "Aigües avall",
@@ -230,12 +230,34 @@
     "renderedTemplates": "Plantilles renderitzades",
     "requiredActions": "Accions requerides",
     "runs": "Execucions",
+    "storage": "Emmagatzematge",
     "taskInstances": "Instàncies de tasca",
+    "taskStore": "Magatzem de tasca",
     "tasks": "Tasques",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Col·lapsar tots els grups de tasques",
     "expandAll": "Expandir tots els grups de tasques"
+  },
+  "taskStore": {
+    "add": "Afegir magatzem de tasca",
+    "clearAll": {
+      "resource": "tot el magatzem de tasca",
+      "title": "Netejar tot el magatzem de tasca",
+      "warning": "S'esborrarà tot el magatzem de tasca. Les tasques que utilitzen aquest magatzem per fer seguiment de feina externa no podran reprendre-la sense tornar a executar-se des de zero."
+    },
+    "delete": "Eliminar magatzem de tasca",
+    "deleteWarning": "La tasca perdrà aquesta memòria persistent. Si la tasca utilitza aquesta clau per fer seguiment de feina externa (p. ex., un ID de treball extern), no podrà reprendre-la.",
+    "edit": "Editar magatzem de tasca",
+    "emptyStore": "El magatzem de tasca emmagatzema valors que persisteixen entre reintents. Els workers poden escriure al magatzem de tasca mitjançant el Task SDK.",
+    "expiresAt": {
+      "column": "Caduca a",
+      "custom": "Personalitzat",
+      "default": "Per defecte ({{interval}})",
+      "label": "Caducitat",
+      "never": "Mai"
+    },
+    "title": "Magatzem de tasca"
   }
 }
