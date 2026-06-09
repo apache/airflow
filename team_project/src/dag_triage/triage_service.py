@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from dag_triage.classifier import FailureClassifier
+from dag_triage.llm_provider import LLMProvider, get_llm_provider
 from dag_triage.log_tail_store import get_task_log_tail
 from dag_triage.remediation_kb import Remediation, RemediationKB
 
@@ -88,10 +89,19 @@ def build_triage_summary(
     *,
     classifier: FailureClassifier | None = None,
     kb: RemediationKB | None = None,
+    llm_provider: LLMProvider | None = None,
 ) -> TriageSummary:
-    """Build a triage summary for a task instance from cached or fresh log tail."""
+    """
+    Build a triage summary for a task instance from cached or fresh log tail.
+
+    The ``llm_provider`` parameter accepts any ``LLMProvider`` implementation.
+    When omitted, the provider configured in ``[triage] llm_provider`` is used
+    (default: ``local``).  No provider-specific code exists in this module —
+    the abstraction is resolved externally.
+    """
     classifier = classifier or FailureClassifier()
     kb = kb or RemediationKB()
+    provider = llm_provider or get_llm_provider()
 
     log_result = get_task_log_tail(task_instance)
     log_text = log_result.text
@@ -106,13 +116,24 @@ def build_triage_summary(
         signature = log_text[:2000] if log_text else ""
         remediations = _to_remediation_items(kb.lookup(top_category, signature))
 
+    # Generate root-cause summary via the configured LLM provider.
+    # Falls back to the rule-based summary if the provider is unavailable
+    # or if no category was matched.
+    if categories:
+        top = categories[0]
+        last_error = _extract_last_error_line(log_text)
+        llm_response = provider.summarize(log_text, top.name, last_error)
+        root_cause_summary = llm_response.text
+    else:
+        root_cause_summary = _build_root_cause_summary(categories, log_text)
+
     summary_error = log_result.error
     if not log_available and summary_error is None:
         summary_error = "No log content available for this task instance."
 
     return TriageSummary(
         categories=categories,
-        root_cause_summary=_build_root_cause_summary(categories, log_text),
+        root_cause_summary=root_cause_summary,
         remediations=remediations,
         log_available=log_available,
         error=summary_error,
