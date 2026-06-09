@@ -5670,7 +5670,7 @@ class TestTaskInstanceStateOperations:
         mock_backend.serialize_asset_store_to_ref.return_value = "mem://my_asset/watermark"
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
@@ -5705,7 +5705,7 @@ class TestTaskInstanceStateOperations:
         mock_backend.serialize_task_store_to_ref.return_value = ref
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
@@ -5736,7 +5736,7 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
