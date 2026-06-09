@@ -27,7 +27,7 @@ from unittest.mock import MagicMock, call, mock_open, patch
 import kubernetes
 import pytest
 import requests
-from kubernetes.client import V1Pod, V1PodStatus
+from kubernetes.client import V1Pod, V1PodSpec, V1PodStatus
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -1503,8 +1503,8 @@ class TestSparkSubmitHook:
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
-        running_pod = V1Pod(status=V1PodStatus(phase="Running"))
-        succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        running_pod = V1Pod(spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Running"))
+        succeeded_pod = V1Pod(spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Succeeded"))
         mock_client.read_namespaced_pod.side_effect = [running_pod, succeeded_pod]
 
         with patch.object(hook, "_run_post_submit_commands"):
@@ -1519,7 +1519,7 @@ class TestSparkSubmitHook:
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
-        failed_pod = V1Pod(status=V1PodStatus(phase="Failed"))
+        failed_pod = V1Pod(spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Failed"))
         mock_client.read_namespaced_pod.return_value = failed_pod
 
         with pytest.raises(RuntimeError, match="phase=Failed"):
@@ -1532,7 +1532,9 @@ class TestSparkSubmitHook:
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
-        mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Unknown"))
+        mock_client.read_namespaced_pod.return_value = V1Pod(
+            spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Unknown")
+        )
 
         with patch("time.sleep"), pytest.raises(RuntimeError, match="Unknown phase"):
             hook._poll_k8s_driver_via_api()
@@ -1549,7 +1551,7 @@ class TestSparkSubmitHook:
 
         mock_client = mock_get_client.return_value
         api_error = kube_client.ApiException(status=500, reason="Internal Server Error")
-        succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        succeeded_pod = V1Pod(spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Succeeded"))
         mock_client.read_namespaced_pod.side_effect = [api_error, api_error, succeeded_pod]
 
         with patch.object(hook, "_run_post_submit_commands"):
@@ -1565,7 +1567,9 @@ class TestSparkSubmitHook:
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
-        mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Succeeded"))
+        mock_client.read_namespaced_pod.return_value = V1Pod(
+            spec=V1PodSpec(containers=[]), status=V1PodStatus(phase="Succeeded")
+        )
 
         with patch.object(hook, "_run_post_submit_commands") as mock_cmd:
             hook._poll_k8s_driver_via_api()

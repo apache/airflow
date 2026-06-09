@@ -1130,6 +1130,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         consecutive_api_errors = 0
         max_consecutive_api_errors = 3
         consecutive_pending = 0
+        consecutive_waiting = 0
         waiting_or_pending_warn_threshold = 10
 
         try:
@@ -1161,6 +1162,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         ) from e
                     time.sleep(poll_interval)
                     continue
+                driver_container = None
 
                 for container in pod.spec.containers:
                     if "spark" in container.name.lower() or "driver" in container.name.lower():
@@ -1168,8 +1170,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         break
                     if len(pod.spec.containers) == 1:
                         driver_container = container
-                    else:
-                        driver_container = None
 
                 if driver_container:
                     for status in pod.status.container_statuses or []:
