@@ -216,8 +216,8 @@
     "roles": "Rols",
     "users": "Usuaris"
   },
-  "selected": "Seleccionat",
   "selectLanguage": "Seleccionar idioma",
+  "selected": "Seleccionat",
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {

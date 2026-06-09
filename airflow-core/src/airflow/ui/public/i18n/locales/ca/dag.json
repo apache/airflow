@@ -190,11 +190,11 @@
       "direction": "Direcció",
       "label": "Filtrar",
       "mode": "Mode",
+      "modeTooltip": "El mode Estàtic manté la vista actual mentre es navega per diferents tasques, mentre que el mode Recórrer actualitza automàticament el filtre actiu amb la tasca seleccionada per a facilitar la navegació pel Dag.",
       "modes": {
         "static": "Estàtic",
         "traverse": "Recórrer"
       },
-      "modeTooltip": "El mode Estàtic manté la vista actual mentre es navega per diferents tasques, mentre que el mode Recórrer actualitza automàticament el filtre actiu amb la tasca seleccionada per a facilitar la navegació pel Dag.",
       "options": {
         "both": "Aigües amunt i aigües avall",
         "downstream": "Aigües avall",
