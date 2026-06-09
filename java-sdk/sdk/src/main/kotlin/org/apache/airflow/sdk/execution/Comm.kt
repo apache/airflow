@@ -29,7 +29,6 @@ import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.system.exitProcess
 
 data class IncomingFrame(
   val id: Int,
@@ -101,12 +100,9 @@ class CoordinatorComm(
   suspend fun handleIncoming(frame: IncomingFrame) {
     when (val request = frame.body) {
       null -> {}
-      is ErrorResponse -> {
-        println("Error!! id=${frame.id} [${request.error}] ${request.detail}") // TODO: Handle error.
-        exitProcess(1)
-      }
+      is ErrorResponse -> throw ApiError("[${request.error}] ${request.detail}")
       is StartupDetails -> {
-        sendMessage(frame.id, runTask(bundle, request, this))
+        communicate<Unit>(runTask(bundle, request, this))
         shutDownRequested = true
       }
     }

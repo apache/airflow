@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -112,13 +120,34 @@ export type AssetStoreCollectionResponse = {
 };
 
 /**
+ * Writer info for the last write to an asset store entry.
+ */
+export type AssetStoreLastUpdatedBy = {
+    kind: AssetStoreWriterKind;
+    dag_id?: string | null;
+    run_id?: string | null;
+    task_id?: string | null;
+    map_index?: number | null;
+};
+
+/**
  * A single asset store key/value pair with metadata.
  */
 export type AssetStoreResponse = {
     key: string;
     value: JsonValue;
     updated_at: string;
+    last_updated_by?: AssetStoreLastUpdatedBy | null;
 };
+
+/**
+ * Identifies what kind of writer last updated an asset store entry.
+ *
+ * ``TASK`` — written by a task via the execution API.
+ * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+ * ``API`` — written directly through the Core API (e.g. manual admin write).
+ */
+export type AssetStoreWriterKind = 'task' | 'watcher' | 'api';
 
 /**
  * Asset watcher serializer for responses.
@@ -305,11 +334,13 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
- * Request body for bulk delete operations on Dag Runs.
+ * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
     dag_run_id: string;
     dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
 };
 
 /**
@@ -670,6 +701,7 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
@@ -1688,7 +1720,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -2389,7 +2421,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2397,6 +2429,34 @@ export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 
 export type MenuItemCollectionResponse = {
     authorized_menu_items: Array<MenuItem>;
     extra_menu_items: Array<ExtraMenuItem>;
+};
+
+/**
+ * One asset event in the ``next_run_assets`` payload.
+ */
+export type NextRunAssetEventResponse = {
+    id: number;
+    name: string | null;
+    uri: string;
+    last_update?: string | null;
+    received_count?: number;
+    required_count?: number;
+    received_keys?: Array<(string)>;
+    required_keys?: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
+};
+
+/**
+ * Response for the ``next_run_assets`` endpoint.
+ */
+export type NextRunAssetsResponse = {
+    asset_expression?: {
+    [key: string]: unknown;
+} | null;
+    events: Array<NextRunAssetEventResponse>;
+    pending_partition_count?: number | null;
 };
 
 /**
@@ -2424,6 +2484,13 @@ export type PartitionedDagRunAssetResponse = {
     asset_name: string;
     asset_uri: string;
     received: boolean;
+    received_count: number;
+    required_count: number;
+    received_keys: Array<(string)>;
+    required_keys: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
 };
 
 /**
@@ -2508,6 +2575,7 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+    awaiting_input: number;
 };
 
 /**
@@ -2735,9 +2803,7 @@ export type NextRunAssetsData = {
     dagId: string;
 };
 
-export type NextRunAssetsResponse = {
-    [key: string]: unknown;
-};
+export type NextRunAssetsResponse2 = NextRunAssetsResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -3449,7 +3515,7 @@ export type GetMappedTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3605,7 +3671,7 @@ export type GetTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -4852,9 +4918,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: {
-                    [key: string]: unknown;
-                };
+                200: NextRunAssetsResponse;
                 /**
                  * Validation Error
                  */

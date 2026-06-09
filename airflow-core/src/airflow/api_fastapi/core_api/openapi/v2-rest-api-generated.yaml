@@ -2153,7 +2153,7 @@ paths:
       tags:
       - DagRun
       summary: Bulk Dag Runs
-      description: Bulk delete Dag Runs.
+      description: Bulk update or delete Dag Runs.
       operationId: bulk_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -7884,16 +7884,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            run_after, logical_date, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, run_after, logical_date,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -9046,16 +9044,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            logical_date, run_after, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, logical_date, run_after,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -11434,6 +11430,23 @@ components:
       - total_entries
       title: AssetCollectionResponse
       description: Asset collection response.
+    AssetEventAccessControl:
+      properties:
+        consumer_teams:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Consumer Teams
+        allow_global:
+          type: boolean
+          title: Allow Global
+          default: true
+      additionalProperties: false
+      type: object
+      title: AssetEventAccessControl
+      description: Access control settings for asset event consumer team filtering.
     AssetEventCollectionResponse:
       properties:
         asset_events:
@@ -11620,6 +11633,35 @@ components:
       - total_entries
       title: AssetStoreCollectionResponse
       description: All asset store entries for an asset.
+    AssetStoreLastUpdatedBy:
+      properties:
+        kind:
+          $ref: '#/components/schemas/AssetStoreWriterKind'
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      type: object
+      required:
+      - kind
+      title: AssetStoreLastUpdatedBy
+      description: Writer info for the last write to an asset store entry.
     AssetStoreResponse:
       properties:
         key:
@@ -11631,6 +11673,10 @@ components:
           type: string
           format: date-time
           title: Updated At
+        last_updated_by:
+          anyOf:
+          - $ref: '#/components/schemas/AssetStoreLastUpdatedBy'
+          - type: 'null'
       type: object
       required:
       - key
@@ -11638,6 +11684,17 @@ components:
       - updated_at
       title: AssetStoreResponse
       description: A single asset store key/value pair with metadata.
+    AssetStoreWriterKind:
+      type: string
+      enum:
+      - task
+      - watcher
+      - api
+      title: AssetStoreWriterKind
+      description: "Identifies what kind of writer last updated an asset store entry.\n\
+        \n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER`` \u2014\
+        \ written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014 written\
+        \ directly through the Core API (e.g. manual admin write)."
     AssetWatcherResponse:
       properties:
         name:
@@ -12065,12 +12122,22 @@ components:
           - type: string
           - type: 'null'
           title: Dag Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunMutableStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       additionalProperties: false
       type: object
       required:
       - dag_run_id
       title: BulkDAGRunBody
-      description: Request body for bulk delete operations on Dag Runs.
+      description: Request body for bulk operations on Dag Runs.
     BulkDAGRunClearBody:
       properties:
         dry_run:
@@ -12907,6 +12974,10 @@ components:
           additionalProperties: true
           type: object
           title: Extra
+        access_control:
+          anyOf:
+          - $ref: '#/components/schemas/AssetEventAccessControl'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:
@@ -15823,6 +15894,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 

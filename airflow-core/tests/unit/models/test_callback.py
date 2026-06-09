@@ -37,6 +37,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_callbacks
 
 pytestmark = [pytest.mark.db_test]
@@ -165,11 +166,47 @@ class TestTriggererCallback:
         assert callback.state == CallbackState.SCHEDULED
         assert callback.trigger is None
 
-        callback.queue()
+        callback.queue(session=session)
         assert isinstance(callback.trigger, Trigger)
         assert callback.trigger.kwargs["callback_path"] == TEST_ASYNC_CALLBACK.path
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
         assert callback.state == CallbackState.QUEUED
+
+    @staticmethod
+    def _queue_callback(session, *, has_bundle, has_team):
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        bundle = session.get(DagBundleModel, "testing")
+        bundle.teams = [session.get(Team, "testing")] if has_team else []
+        session.flush()
+
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.bundle_name = "testing" if has_bundle else None
+        callback.queue(session=session)
+        return callback
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        ("has_bundle", "has_team", "expected_team_name"),
+        [
+            pytest.param(True, True, "testing", id="bundle-mapped-to-team"),
+            pytest.param(True, False, None, id="bundle-without-team"),
+            pytest.param(False, False, None, id="no-bundle"),
+        ],
+    )
+    def test_queue_populates_trigger_team_name(
+        self, session, testing_dag_bundle, testing_team, has_bundle, has_team, expected_team_name
+    ):
+        callback = self._queue_callback(session, has_bundle=has_bundle, has_team=has_team)
+        assert callback.trigger.team_name == expected_team_name
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_queue_skips_trigger_team_name_when_multi_team_disabled(
+        self, session, testing_dag_bundle, testing_team
+    ):
+        callback = self._queue_callback(session, has_bundle=True, has_team=True)
+        assert callback.trigger.team_name is None
 
     @pytest.mark.parametrize(
         ("event", "terminal_state"),
@@ -199,7 +236,7 @@ class TestTriggererCallback:
     )
     def test_handle_event(self, session, event, terminal_state):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
-        callback.queue()
+        callback.queue(session=session)
         callback.handle_event(event, session)
 
         status = event.payload[PAYLOAD_STATUS_KEY]
@@ -230,11 +267,11 @@ class TestExecutorCallback:
         assert retrieved.created_at is not None
         assert retrieved.trigger_id is None
 
-    def test_queue(self):
+    def test_queue(self, session):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
         assert callback.state == CallbackState.SCHEDULED
 
-        callback.queue()
+        callback.queue(session=session)
         assert callback.state == CallbackState.QUEUED
 
     def test_session_get_requires_uuid_not_str(self, session):

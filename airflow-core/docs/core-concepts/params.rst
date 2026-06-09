@@ -242,6 +242,9 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
+            * | ``format="duration"``: Generate a duration
+              | input field accepting ISO 8601 duration
+              | strings (e.g. ``P1D``, ``PT15M``, ``PT2H``)
             * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.

@@ -118,3 +118,38 @@ func (s *RegistrySuite) TestAddTask_ErrorReturnType() {
 	_, exists := s.reg.LookupTask("dag1", "errorTask")
 	s.True(exists)
 }
+
+func (s *RegistrySuite) TestOrderedDags_Empty() {
+	enum, ok := New().(EnumerableBundle)
+	s.Require().True(ok)
+	s.Empty(enum.OrderedDags())
+}
+
+func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
+	reg := New()
+	// Register dags out of alphabetical order so the test fails if OrderedDags
+	// ever sorts instead of preserving AddDag order.
+	zeta := reg.AddDag("zeta")
+	zeta.AddTaskWithName("z1", myTask)
+	zeta.AddTaskWithName("z2", myTask)
+
+	alpha := reg.AddDag("alpha")
+	alpha.AddTaskWithName("a1", myTask)
+
+	reg.AddDag("mid") // dag with no tasks
+
+	enum, ok := reg.(EnumerableBundle)
+	s.Require().True(ok)
+
+	got := enum.OrderedDags()
+	s.Require().Len(got, 3)
+
+	s.Equal("zeta", got[0].DagID)
+	s.Equal([]TaskInfo{{ID: "z1"}, {ID: "z2"}}, got[0].Tasks)
+
+	s.Equal("alpha", got[1].DagID)
+	s.Equal([]TaskInfo{{ID: "a1"}}, got[1].Tasks)
+
+	s.Equal("mid", got[2].DagID)
+	s.Empty(got[2].Tasks)
+}

@@ -2784,6 +2784,28 @@ class TestWorkerService:
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
 
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor"},
+            show_only=["templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
 
 class TestWorkerCeleryServiceAccount:
     @pytest.mark.parametrize(

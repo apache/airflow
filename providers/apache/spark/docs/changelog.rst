@@ -36,6 +36,14 @@ Features
 ~~~~~~~~
 
 * ``Add 'ResumableJobMixin' with 'SparkSubmitOperator' as a case study for surviving worker failures (standalone) (#67118)``
+* ``Track Spark job status for YARN cluster mode via RM REST API to free JVM (#65991)``
+* ``Use K8s API to track Spark on K8s instead of JVM based spark-submit (#67715)``
+* ``Enhance 'ResumableJobMixin.get_job_status' with context for better job status tracking (#68009)``
+
+Misc
+~~~~
+
+* ``Rename resumablemixin file to match class name (#68137)``
 
 Doc-only
 ~~~~~~~~

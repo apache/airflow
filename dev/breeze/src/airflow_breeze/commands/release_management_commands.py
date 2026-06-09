@@ -197,7 +197,12 @@ from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_venv
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    from github import Issue, PullRequest
     from packaging.version import Version
+
+    PullRequestOrIssue: TypeAlias = PullRequest.PullRequest | Issue.Issue
 
 argument_provider_distributions = click.argument(
     "provider_distributions",
@@ -268,13 +273,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.1"
-AIRFLOW_UV_VERSION = "0.11.17"
+AIRFLOW_PIP_VERSION = "26.1.2"
+AIRFLOW_UV_VERSION = "0.11.19"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.3"
-HATCH_VERSION = "1.16.5"
+PREK_VERSION = "0.4.4"
+HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -2642,7 +2647,7 @@ def generate_issue_content_providers(
     provider_distributions: list[str],
 ):
     import jinja2
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
     class ProviderPRInfo(NamedTuple):
         provider_id: str
@@ -4468,9 +4473,8 @@ def generate_issue_content(
     is_helm_chart: bool,
     is_airflow_ctl: bool = False,
 ):
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
-    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
     verbose = get_verbose()
 
     previous = previous_release
@@ -4488,7 +4492,7 @@ def generate_issue_content(
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
-    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(list)
     users: dict[int, set[str]] = defaultdict(lambda: set())
     count_prs = limit_pr_count or len(prs)
 
