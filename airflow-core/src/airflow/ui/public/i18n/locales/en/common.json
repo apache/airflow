@@ -16,8 +16,8 @@
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
+  "assetEvent_one": "$t(asset_one) Event",
+  "assetEvent_other": "$t(asset_one) Events",
   "assetInactive": {
     "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
   },
@@ -33,8 +33,8 @@
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",
-  "createdAssetEvent_one": "Created Asset Event",
-  "createdAssetEvent_other": "Created Asset Events",
+  "createdAssetEvent_one": "Created $t(assetEvent_one)",
+  "createdAssetEvent_other": "Created $t(assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -59,7 +59,7 @@
     "schedule": "Schedule",
     "tags": "Tags"
   },
-  "dagId": "Dag ID",
+  "dagId": "$t(dag_one) ID",
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Dag Version(s)",
@@ -80,9 +80,9 @@
     "triggeredBy": "Triggered By",
     "triggeringUser": "Triggering User"
   },
-  "dagRun_one": "Dag Run",
-  "dagRun_other": "Dag Runs",
-  "dagRunId": "Dag Run ID",
+  "dagRun_one": "$t(dag_one) Run",
+  "dagRun_other": "$t(dag_one) Runs",
+  "dagRunId": "$t(dagRun_one) ID",
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
@@ -180,13 +180,13 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
-  "partitionedDagRun_one": "Partitioned Dag Run",
-  "partitionedDagRun_other": "Partitioned Dag Runs",
+  "partitionedDagRun_one": "Partitioned $t(dagRun_one)",
+  "partitionedDagRun_other": "Partitioned $t(dagRun_other)",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Received Asset Events"
   },
-  "pendingDagRun_one": "{{count}} Pending Dag Run",
-  "pendingDagRun_other": "{{count}} Pending Dag Runs",
+  "pendingDagRun_one": "{{count}} Pending $t(dagRun_one)",
+  "pendingDagRun_other": "{{count}} Pending $t(dagRun_other)",
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -225,8 +225,8 @@
     "hotkey": "s",
     "show": "Show Source"
   },
-  "sourceAssetEvent_one": "Source Asset Event",
-  "sourceAssetEvent_other": "Source Asset Events",
+  "sourceAssetEvent_one": "Source $t(assetEvent_one)",
+  "sourceAssetEvent_other": "Source $t(assetEvent_other)",
   "startDate": "Start Date",
   "state": "State",
   "states": {
@@ -277,9 +277,9 @@
   "taskGroup": {
     "documentation": "Task Group Documentation"
   },
-  "taskGroup_one": "Task Group",
-  "taskGroup_other": "Task Groups",
-  "taskId": "Task ID",
+  "taskGroup_one": "$t(task_one) Group",
+  "taskGroup_other": "$t(task_one) Groups",
+  "taskId": "$t(task_one) ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
     "executor": "Executor",
@@ -304,8 +304,8 @@
     },
     "unixname": "Unix Name"
   },
-  "taskInstance_one": "Task Instance",
-  "taskInstance_other": "Task Instances",
+  "taskInstance_one": "$t(task_one) Instance",
+  "taskInstance_other": "$t(task_one) Instances",
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
