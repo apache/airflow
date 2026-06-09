@@ -56,7 +56,7 @@ A minimal Airflow installation consists of the following components:
 * A *Dag bundle*, which is configured for the *Dag processor* to parse Dag files from and allow *workers* to access the correct version of the Dag file. By default, this is a local folder on disk. More about Dag bundles can be found in
   :doc:`/administration-and-deployment/dag-bundles`
 
-* An *API Server*, which serves the REST API and presents a handy user interface to inspect, trigger and debug the behaviour of
+* An *API Server*, which serves the REST API and presents a user interface to inspect, trigger and debug the behaviour of
   Dags and tasks. The API server is also used by *workers* to communicate state back to Airflow, without requiring direct access
   to the *metadata database*.
 
