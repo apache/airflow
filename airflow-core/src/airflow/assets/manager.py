@@ -621,6 +621,7 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag.dag_id,
                     produced_keys=len(target_keys),
                     max_downstream_keys=max_downstream_keys,
+                    cap_source=cap_source,
                 )
                 session.add(
                     Log(

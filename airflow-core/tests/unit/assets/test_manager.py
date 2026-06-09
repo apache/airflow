@@ -473,6 +473,7 @@ class TestAssetManager:
         assert error_call.kwargs["source_partition_key"] == "2024-06-03T00:00:00"
         assert error_call.kwargs["produced_keys"] == 7
         assert error_call.kwargs["max_downstream_keys"] == cap
+        assert error_call.kwargs["cap_source"] == f"[scheduler] partition_mapper_max_downstream_keys={cap}"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "100"})
     @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
@@ -501,19 +502,25 @@ class TestAssetManager:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        AssetManager.register_asset_change(
-            task_instance=mock_task_instance,
-            asset=asset_def,
-            session=session,
-            partition_key="2024-06-03T00:00:00",
-        )
-        session.flush()
+        with mock.patch("airflow.assets.manager.log") as mock_log:
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2024-06-03T00:00:00",
+            )
+            session.flush()
 
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
         log_extras = session.scalars(select(Log.extra).where(Log.event == "partition fan-out exceeded")).all()
         assert len(log_extras) == 1
         assert "max_downstream_keys=3" in log_extras[0]
         assert "partition_mapper_max_downstream_keys" not in log_extras[0]
+        # Pin the scheduler-log error kwargs for the per-mapper path symmetrically
+        # with the global-cap path in test_partition_fan_out_cap.
+        mock_log.error.assert_called_once()
+        error_call = mock_log.error.call_args
+        assert error_call.kwargs["cap_source"] == "max_downstream_keys=3"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "3"})
     @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
