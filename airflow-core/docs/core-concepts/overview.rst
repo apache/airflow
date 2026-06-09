@@ -141,8 +141,7 @@ Basic Airflow deployment
 This is the simplest deployment of Airflow, usually operated and managed on a single
 machine. Such a deployment usually uses the LocalExecutor, where the *scheduler* and the *workers* are in
 the same Python process. The *Dag processor* runs on the same machine, reads Dag files from the *Dag bundle* and serializes them into the *metadata database*
-for the *scheduler* to read. The *API server* runs on the same machine as the *scheduler*. There is no *triggerer* component, which
-means that task deferral is not possible.
+for the *scheduler* to read. The *API server* runs on the same machine as the *scheduler*.
 
 Such an installation typically does not separate user roles - deployment, configuration, operation, authoring
 and maintenance are all done by the same person and there are no security perimeters between the components.
