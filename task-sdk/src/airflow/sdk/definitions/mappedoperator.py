@@ -760,8 +760,10 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        # Remove batch_size as it's only used for batched mapping metadata, not for operator init
+        # Remove batch_size and task_concurrency as they are only used for batched/iterable
+        # mapping metadata, not for operator init
         kwargs.pop("batch_size", None)
+        kwargs.pop("task_concurrency", None)
         kwargs["task_id"] = self.task_id
         op = self.operator_class(**kwargs, _airflow_from_mapped=True)
         op.is_setup = is_setup
