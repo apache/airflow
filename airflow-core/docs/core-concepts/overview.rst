@@ -179,8 +179,7 @@ Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 Separate Dag processing architecture
 ....................................
 
-The *Dag processor* is a required component in all Airflow 3 deployments. In distributed
-deployments it runs as a standalone process, ensuring the *scheduler* never has direct access
+The *Dag processor* is a required component in all Airflow 3 deployments. It always runs as a standalone process, ensuring the *scheduler* never has direct access
 to *Dag bundles* and cannot execute code provided by a **Dag author**. While Airflow does not
 yet support full multi-tenant features, this separation ensures that **Dag author** provided
 code is never executed in the context of the *scheduler*.
