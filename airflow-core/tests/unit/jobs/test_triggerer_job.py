@@ -2615,7 +2615,10 @@ async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
 
     mock_trigger.run = fake_run
 
-    await runner.run_trigger(1, mock_trigger)
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
 
     assert any(log["event"] == "Trigger fired event" for log in cap_structlog), (
         "Expected a 'Trigger fired event' log entry"
@@ -2655,7 +2658,10 @@ async def test_trigger_event_payload_available_at_debug(cap_structlog):
     mock_log.isEnabledFor = MagicMock(return_value=True)
     runner.log = mock_log
 
-    await runner.run_trigger(1, mock_trigger)
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
 
     # ainfo must not be called with result
     for call in mock_log.ainfo.call_args_list:
