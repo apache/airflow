@@ -36,6 +36,10 @@ type taskFunction struct {
 
 var _ Task = (*taskFunction)(nil)
 
+// NewTaskFunction wraps a plain Go function as a Task, validating its signature
+// (injectable parameters, and a return of error or (result, error)). Bundle
+// authors normally use Dag.AddTask, which calls this for them; use it directly
+// only when building a Task outside the registry.
 func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
@@ -45,7 +49,12 @@ func NewTaskFunction(fn any) (Task, error) {
 
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 	fnType := f.fn.Type()
-	sdkClient := sdk.NewClient()
+	var sdkClient sdk.Client
+	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
+		sdkClient = injected
+	} else {
+		sdkClient = sdk.NewClient()
+	}
 
 	reflectArgs := make([]reflect.Value, fnType.NumIn())
 	for i := range reflectArgs {

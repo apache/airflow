@@ -67,16 +67,16 @@ class SafeStatsdLogger:
     def __init__(
         self,
         statsd_client: StatsClient,
-        metrics_validator: ListValidator = PatternAllowListValidator(),
+        metrics_validator: ListValidator | None = None,
         influxdb_tags_enabled: bool = False,
-        metric_tags_validator: ListValidator = PatternAllowListValidator(),
+        metric_tags_validator: ListValidator | None = None,
         stat_name_handler: Callable[[str], str] | None = None,
         statsd_influxdb_enabled: bool = False,
     ) -> None:
         self.statsd = statsd_client
-        self.metrics_validator = metrics_validator
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.influxdb_tags_enabled = influxdb_tags_enabled
-        self.metric_tags_validator = metric_tags_validator
+        self.metric_tags_validator = metric_tags_validator or PatternAllowListValidator()
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
 

@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-from http.client import HTTPException
 from typing import Annotated
 
-from fastapi import Depends, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import defaultload
 
@@ -234,7 +233,7 @@ def get_dags(
             )
             .where(
                 HITLDetail.responded_at.is_(None),
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
             .order_by(TaskInstance.dag_id)

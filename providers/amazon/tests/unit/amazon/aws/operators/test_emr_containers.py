@@ -209,3 +209,231 @@ class TestEmrEksCreateClusterOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.emr_container)
+
+
+class TestEmrContainerOperatorOpenLineageInjection:
+    """Tests for OpenLineage parent job info and transport info injection in EmrContainerOperator."""
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_called_when_enabled(
+        self, mock_inject_parent, mock_check_status, mock_submit_job
+    ):
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.parentJobNamespace": "ns"},
+                }
+            ]
+        }
+        mock_submit_job.return_value = "job123"
+
+        operator = EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+            client_request_token=GENERATED_UUID,
+            openlineage_inject_parent_job_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_called_once()
+        call_args = mock_submit_job.call_args.args
+        config_overrides = call_args[4]
+        assert (
+            config_overrides["applicationConfiguration"][0]["properties"][
+                "spark.openlineage.parentJobNamespace"
+            ]
+            == "ns"
+        )
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_not_called_when_disabled(
+        self, mock_inject_parent, mock_check_status, mock_submit_job
+    ):
+        mock_submit_job.return_value = "job123"
+
+        operator = EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+            client_request_token=GENERATED_UUID,
+            openlineage_inject_parent_job_info=False,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_not_called()
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_transport_information_into_emr_serverless_properties"
+    )
+    def test_inject_transport_info_called_when_enabled(
+        self, mock_inject_transport, mock_check_status, mock_submit_job
+    ):
+        mock_inject_transport.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.transport.type": "http"},
+                }
+            ]
+        }
+        mock_submit_job.return_value = "job123"
+
+        operator = EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+            client_request_token=GENERATED_UUID,
+            openlineage_inject_transport_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_transport.assert_called_once()
+        call_args = mock_submit_job.call_args.args
+        config_overrides = call_args[4]
+        assert (
+            config_overrides["applicationConfiguration"][0]["properties"]["spark.openlineage.transport.type"]
+            == "http"
+        )
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_transport_information_into_emr_serverless_properties"
+    )
+    def test_inject_both_parent_and_transport_info(
+        self, mock_inject_transport, mock_inject_parent, mock_check_status, mock_submit_job
+    ):
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.parentJobNamespace": "ns"},
+                }
+            ]
+        }
+        mock_inject_transport.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {
+                        **overrides.get("applicationConfiguration", [{}])[0].get("properties", {}),
+                        "spark.openlineage.transport.type": "http",
+                    },
+                }
+            ]
+        }
+        mock_submit_job.return_value = "job123"
+
+        operator = EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+            client_request_token=GENERATED_UUID,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_called_once()
+        mock_inject_transport.assert_called_once()
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_preserves_existing_config(
+        self, mock_inject_parent, mock_check_status, mock_submit_job
+    ):
+        """Existing configuration_overrides (e.g. monitoringConfiguration) are preserved."""
+        existing_config = {
+            "monitoringConfiguration": {
+                "cloudWatchMonitoringConfiguration": {
+                    "logGroupName": "/aws/emr-eks/jobs",
+                    "logStreamNamePrefix": "test",
+                }
+            },
+            "applicationConfiguration": [
+                {"classification": "spark-defaults", "properties": {"spark.driver.memory": "8G"}}
+            ],
+        }
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            **overrides,
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {
+                        **overrides["applicationConfiguration"][0]["properties"],
+                        "spark.openlineage.parentJobNamespace": "ns",
+                    },
+                }
+            ],
+        }
+        mock_submit_job.return_value = "job123"
+
+        operator = EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides=existing_config,
+            poll_interval=0,
+            client_request_token=GENERATED_UUID,
+            openlineage_inject_parent_job_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        call_args = mock_submit_job.call_args.args
+        config_overrides = call_args[4]
+        # Monitoring config preserved
+        assert (
+            config_overrides["monitoringConfiguration"]["cloudWatchMonitoringConfiguration"]["logGroupName"]
+            == "/aws/emr-eks/jobs"
+        )
+        # OL parent info injected
+        props = config_overrides["applicationConfiguration"][0]["properties"]
+        assert props["spark.openlineage.parentJobNamespace"] == "ns"
+        assert props["spark.driver.memory"] == "8G"

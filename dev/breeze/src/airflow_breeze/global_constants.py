@@ -101,6 +101,25 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "trino",
     "ydb",
 ]
+# Maps each testable provider integration to the provider distribution (dotted id)
+# that "owns" it. Used by selective checks to only run a provider integration when
+# its owning provider is among the affected providers of a change.
+TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
+    "celery": "celery",
+    "cassandra": "apache.cassandra",
+    "drill": "apache.drill",
+    "elasticsearch": "elasticsearch",
+    "tinkerpop": "apache.tinkerpop",
+    "kafka": "apache.kafka",
+    "localstack": "amazon",
+    "mongo": "mongo",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qdrant": "qdrant",
+    "redis": "redis",
+    "trino": "trino",
+    "ydb": "ydb",
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -145,7 +164,15 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = [
+    "breeze",
+    "breeze-prek",
+    "breeze-quick-start",
+    "breeze-task-sdk-test",
+    "breeze-airflowctl-test",
+    "breeze-e2e-test",
+    "docker-compose",
+]
 
 # Every docker compose project name that any breeze command, prek hook, or
 # CI workflow uses. `breeze down` discovers running compose projects via the
@@ -156,17 +183,9 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 # step), update this list so `breeze down` stays a one-shot cleanup.
 KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
     "breeze",  # default `breeze shell` / `breeze start-airflow`
-    "prek",  # prek hooks (see scripts/ci/prek/common_prek_utils.py)
-    "docker-compose",  # legacy name kept for migration_tests CI
-    "docs",  # `breeze build-docs`
-    "db",  # `breeze db ...`
-    "providers",  # release-management providers builds
 ]
 KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
     "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
-    "airflow-test",  # airflow-test, airflow-test-<test-type>
-    "constraints-",  # constraints-<python-version>
-    "providers-",  # providers-<index> (parallel provider builds)
 ]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
@@ -195,6 +214,9 @@ SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
 GOLANG_WORKER = "go"
+
+JAVA_SDK = "java"
+ALLOWED_SDKS = [JAVA_SDK]
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
@@ -262,8 +284,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.11"
+PIP_VERSION = "26.1.2"
+UV_VERSION = "0.11.19"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -806,7 +828,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.2.1",
+        "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

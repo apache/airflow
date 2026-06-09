@@ -28,7 +28,6 @@ from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
 from airflow_shared.observability.common import get_otel_data_exporter
-from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
@@ -98,15 +97,29 @@ class TestOtelMetrics:
             ],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, invalid_stat_combo):
+    def test_invalid_stat_names_are_skipped(self, invalid_stat_combo):
         prefix = invalid_stat_combo[0]
         name = invalid_stat_combo[1]
         self.stats.prefix = prefix
 
-        with pytest.raises(InvalidStatsNameException):
-            self.stats.incr(name)
+        result = self.stats.incr(name)
 
-        self.meter.assert_not_called()
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.scheduled_duration",
+            "dag.my_dag.tâche_principale.duration",
+            "dag.my_dag.aufgäbe.duration",
+        ],
+    )
+    def test_non_ascii_stat_names_are_skipped_without_raising(self, stat):
+        result = self.stats.incr(stat)
+
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
@@ -190,7 +203,7 @@ class TestOtelMetrics:
         assert mock_random.call_count == 2
         # add() is called once in the initial stats.incr and once for the decr that passed the rate check.
         self.map[full_name(name)].add.assert_has_calls(expected_calls)
-        self.map[full_name(name)].add.call_count == 2
+        assert self.map[full_name(name)].add.call_count == 2
 
     def test_gauge_new_metric(self, name):
         self.stats.gauge(name, value=1)
@@ -205,7 +218,7 @@ class TestOtelMetrics:
         self.stats.gauge(name, value=1, tags=tags)
 
         self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        self.map[key].attributes == tags
+        assert self.map[key].attributes == tags
 
     def test_gauge_existing_metric(self, name):
         self.stats.gauge(name, value=1)

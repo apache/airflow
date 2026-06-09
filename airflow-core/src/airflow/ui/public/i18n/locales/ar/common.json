@@ -79,6 +79,11 @@
     "dagVersions": "إصدار(ات) Dag",
     "dataIntervalEnd": "نهاية فترة البيانات",
     "dataIntervalStart": "بداية فترة البيانات",
+    "durationStats": {
+      "mean": "المتوسط",
+      "mode": "المنوال"
+    },
+    "expectedDuration": "المدة المتوقعة",
     "lastSchedulingDecision": "آخر قرار جدولة",
     "partitionKey": "مفتاح التقسيم",
     "queuedAt": "في الطابور في",
@@ -272,7 +277,6 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
-  "taskGroup": "مجموعة المهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",

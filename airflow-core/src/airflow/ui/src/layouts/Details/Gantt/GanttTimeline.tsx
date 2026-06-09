@@ -342,7 +342,7 @@ export const GanttTimeline = ({
 
                     return (
                       <TaskInstanceTooltip
-                        key={`${taskId}-${tryNumber ?? -1}-${x[0]}`}
+                        key={`${taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
                         openDelay={500}
                         positioning={{
                           offset: { crossAxis: 0, mainAxis: 5 },

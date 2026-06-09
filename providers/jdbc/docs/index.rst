@@ -78,7 +78,7 @@ apache-airflow-providers-jdbc package
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 5.4.4
+Release: 5.5.0
 
 Provider package
 ----------------
@@ -134,6 +134,7 @@ Dependent package                                                               
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
 
 Downloading official packages
@@ -142,5 +143,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-jdbc 5.4.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-jdbc 5.4.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.4.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-jdbc 5.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-jdbc 5.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.5.0-py3-none-any.whl.sha512>`__)

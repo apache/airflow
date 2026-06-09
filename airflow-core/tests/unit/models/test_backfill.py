@@ -34,6 +34,7 @@ from airflow.models.backfill import (
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
     InvalidBackfillConf,
+    InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
@@ -550,6 +551,30 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
+def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
+    """Dry run with invalid conf should fail validation."""
+    from airflow.sdk import Param
+
+    with dag_maker(
+        schedule="@daily",
+        params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
+        list(
+            _do_dry_run(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                reverse=False,
+                reprocess_behavior=ReprocessBehavior.NONE,
+                dag_run_conf={"validated_number": 99},
+                session=session,
+            )
+        )
+
+
 def test_params_stored_correctly(dag_maker, session):
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
@@ -813,4 +838,21 @@ def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_mak
                 reprocess_behavior=ReprocessBehavior.NONE,
                 session=session,
             )
+        )
+
+
+def test_create_backfill_from_date_after_to_date_raises(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(InvalidBackfillDateRange, match="must not be after to_date"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2026-05-13"),
+            to_date=pendulum.parse("2026-05-12"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
         )

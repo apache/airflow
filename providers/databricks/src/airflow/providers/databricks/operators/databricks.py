@@ -139,6 +139,8 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
+                    if "job_parameters" in operator.json:
+                        repair_json["job_parameters"] = operator.json["job_parameters"]
                     operator.json["latest_repair_id"] = hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
@@ -258,6 +260,27 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     raise AirflowException(error_message)
 
 
+# Mapping of task definition keys (in the runs/submit JSON) to the dict-shaped
+# parameter sub-key into which Airflow ``self.params`` will be auto-injected.
+# Tasks whose only parameter field is ``List[str]`` (e.g. spark_python_task,
+# spark_jar_task, spark_submit_task) are intentionally omitted because there is
+# no canonical way to convert a key/value dict to positional/CLI arguments.
+_DICT_PARAM_FIELD_BY_TASK = {
+    "notebook_task": "base_parameters",
+    "python_wheel_task": "named_parameters",
+    "sql_task": "parameters",
+    "run_job_task": "job_parameters",
+}
+
+
+def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
+    """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
+    for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
+        task_def = task.get(task_key)
+        if isinstance(task_def, dict) and not task_def.get(field):
+            task_def[field] = dict(params)
+
+
 class DatabricksJobRunLink(BaseOperatorLink):
     """Constructs a link to monitor a Databricks Job Run."""
 
@@ -320,6 +343,12 @@ class DatabricksCreateJobsOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+
+    .. note::
+        If ``parameters`` is not set in ``json`` and the operator's ``params`` dict is non-empty,
+        the operator's ``params`` are automatically converted to job-level ``parameters`` (a list
+        of ``{"name": k, "default": v}`` entries) so that Airflow Dag params can be forwarded as
+        Databricks job parameters without hardcoding them in ``json``.
 
     """
 
@@ -404,6 +433,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if "name" not in self.json:
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(self.json["name"])
+        if not self.json.get("parameters") and self.params:
+            self.json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
@@ -529,6 +560,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
+
+    .. note::
+        If the operator's ``params`` dict is non-empty, it is automatically forwarded into the
+        dict-shaped parameter slot of every task in ``json`` whose corresponding field is empty:
+        ``notebook_task.base_parameters``, ``python_wheel_task.named_parameters``,
+        ``sql_task.parameters``, ``run_job_task.job_parameters``. Tasks whose only parameter
+        field is ``List[str]`` (``spark_jar_task``, ``spark_python_task``, ``spark_submit_task``)
+        are skipped because there is no canonical mapping from a key/value dict to a positional
+        argument list.
     """
 
     # Used in airflow.models.BaseOperator
@@ -643,6 +683,17 @@ class DatabricksSubmitRunOperator(BaseOperator):
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
             self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
+
+        if self.params:
+            params_dump = dict(self.params)
+            tasks = self.json.get("tasks")
+            if isinstance(tasks, list):
+                for task in tasks:
+                    if isinstance(task, dict):
+                        _inject_airflow_params_into_task(task, params_dump)
+            else:
+                _inject_airflow_params_into_task(self.json, params_dump)
+
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
@@ -842,6 +893,12 @@ class DatabricksRunNowOperator(BaseOperator):
             (https://docs.databricks.com/api/workspace/jobs/update). If nothing is matched, then repair
             will not get triggered.
     :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
+
+    .. note::
+        If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
+        non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
+        so that Airflow Dag params can be passed dynamically to Databricks runs without
+        hardcoding them in ``json``.
     """
 
     # Used in airflow.models.BaseOperator
@@ -951,6 +1008,9 @@ class DatabricksRunNowOperator(BaseOperator):
 
             hook.cancel_all_runs(job_id)
 
+        if not self.json.get("job_parameters") and self.params:
+            self.json["job_parameters"] = dict(self.params)
+
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
@@ -976,6 +1036,8 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
+                if "job_parameters" in self.json:
+                    repair_json["job_parameters"] = self.json["job_parameters"]
                 self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
@@ -1363,7 +1425,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def _convert_to_databricks_workflow_task(
         self,
-        relevant_upstreams: list[BaseOperator],
+        relevant_upstreams: list[str],
         task_dict: dict[str, BaseOperator],
         context: Context | None = None,
     ) -> dict[str, object]:
@@ -1617,7 +1679,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
 
     def _convert_to_databricks_workflow_task(
         self,
-        relevant_upstreams: list[BaseOperator],
+        relevant_upstreams: list[str],
         task_dict: dict[str, BaseOperator],
         context: Context | None = None,
     ) -> dict[str, object]:

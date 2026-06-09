@@ -60,6 +60,11 @@
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "数据区间结束",
     "dataIntervalStart": "数据区间起始",
+    "durationStats": {
+      "mean": "平均值",
+      "mode": "众数"
+    },
+    "expectedDuration": "预计耗时",
     "lastSchedulingDecision": "最后调度决策",
     "mappedPartitionKey": "映射分区键",
     "partitionKey": "分区键",
@@ -245,7 +250,6 @@
   },
   "task_one": "任务",
   "task_other": "任务",
-  "taskGroup": "任务分组",
   "taskId": "任务 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",

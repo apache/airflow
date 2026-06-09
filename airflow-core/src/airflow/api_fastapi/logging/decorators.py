@@ -33,6 +33,18 @@ from airflow.models import Log
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_stdlib_log(value: str) -> str:
+    """
+    Strip CR/LF from a user-supplied value before passing it to stdlib's ``%s``-style logging.
+
+    Defends against log injection when the deployment is configured with a non-JSON
+    (plain-text) log formatter: a newline in the value would otherwise let an attacker forge
+    log lines. ``structlog``-style formatters are unaffected, but the access-log path uses
+    the stdlib logger here, so the sanitisation is unconditional.
+    """
+    return value.replace("\r", " ").replace("\n", " ")
+
+
 def _mask_connection_fields(extra_fields):
     """Mask connection fields."""
     result = {}
@@ -163,7 +175,10 @@ def action_logging(event: str | None = None):
                         raise ParserError
                     log.logical_date = logical_date
                 except ParserError:
-                    logger.exception("Failed to parse logical_date from the request: %s", logical_date_value)
+                    logger.exception(
+                        "Failed to parse logical_date from the request: %s",
+                        _sanitize_for_stdlib_log(logical_date_value),
+                    )
             else:
                 logger.warning("Logical date is missing or empty")
         session.add(log)

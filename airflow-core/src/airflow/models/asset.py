@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    JSON,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -592,6 +593,9 @@ class DagScheduleAssetReference(Base):
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
     allow_producer_teams: Mapped[list | None] = mapped_column(sa.JSON(), nullable=True)
+    allow_global_producers: Mapped[bool] = mapped_column(
+        sa.Boolean(), nullable=False, server_default=sa.true()
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
@@ -646,6 +650,10 @@ class TaskOutletAssetReference(Base):
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
     task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    allow_consumer_teams: Mapped[list | None] = mapped_column(sa.JSON(), nullable=True)
+    allow_global_consumers: Mapped[bool] = mapped_column(
+        sa.Boolean(), nullable=False, server_default=sa.true()
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
@@ -910,9 +918,19 @@ class AssetPartitionDagRun(Base):
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
-    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    # Serialized snapshot of the rollup definition (mapper + window for every
+    # partitioned asset in the timetable) at the time this APDR was created.
+    # The scheduler discards APDRs whose stored fingerprint no longer matches
+    # the current timetable's fingerprint, because the mapper or window that
+    # drove the APDR's required upstream key set may have changed. Only
+    # mapper / window edits invalidate the fingerprint; unrelated Dag changes
+    # (task additions, description updates) do not. Nullable to tolerate
+    # legacy rows that pre-date the column; they are treated as stale on the
+    # next scheduler tick.
+    rollup_fingerprint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
@@ -941,12 +959,17 @@ class PartitionedAssetKeyLog(Base):
     asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
     asset_event_id: Mapped[int] = mapped_column(Integer, nullable=False)
     asset_partition_dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    source_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    source_partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    target_partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "partitioned_asset_key_log"
+    __table_args__ = (
+        # Filter column for the stale-APDR cleanup bulk DELETE in
+        # ``SchedulerJobRunner._create_dagruns_for_partitioned_asset_dags``.
+        Index("idx_pakl_apdr_id", "asset_partition_dag_run_id"),
+    )
 
     def __repr__(self):
         args = (f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key)

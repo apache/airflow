@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+5.8.1
+.....
+
+Misc
+~~~~
+
+* ``Use compat timezone helpers in sensor and trigger of SFTP provider (#65442)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+5.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP: add async retrieve_file / store_file / mkdir to SFTPHookAsync and introduce SFTPClientPool (#64465)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Some nits in asset normalization (#66710)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add uri sanitizers and asset factories for new schemes (#66426)``
+   * ``Fix SFTPHookAsync test fixture to return async context managers (#66678)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 5.7.5
 .....
 

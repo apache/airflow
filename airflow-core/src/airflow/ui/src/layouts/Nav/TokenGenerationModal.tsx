@@ -78,7 +78,7 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
   }, [generateToken, tokenType]);
 
   return (
-    <Dialog.Root lazyMount onOpenChange={handleClose} open={isOpen} size="xl">
+    <Dialog.Root lazyMount onOpenChange={handleClose} open={isOpen}>
       <Dialog.Content backdrop>
         <Dialog.Header>{translate("tokenGeneration.title")}</Dialog.Header>
         <Dialog.CloseTrigger />
