@@ -270,12 +270,16 @@ class SafeOtelLogger:
         if _skip_due_to_rate(rate):
             return
 
-        if back_compat_name and self.metrics_validator.test(back_compat_name):
+        if (
+            back_compat_name
+            and self.metrics_validator.test(back_compat_name)
+            and name_is_otel_safe(self.prefix, back_compat_name)
+        ):
             self.metrics_map.set_gauge_value(
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
-        if self.metrics_validator.test(stat):
+        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
     def timing(
@@ -299,7 +303,12 @@ class SafeOtelLogger:
         **kwargs,
     ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
-        return _OtelTimer(self, stat, tags)
+        safe_stat = (
+            stat
+            if stat is not None and self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat)
+            else None
+        )
+        return _OtelTimer(self, safe_stat, tags)
 
 
 class InternalGauge:
