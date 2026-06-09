@@ -279,16 +279,19 @@ class TestMigrateDatabaseJob:
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations["helm.sh/hook-weight"] == "1"
 
-    def test_default_hooks_run_pre_install_pre_upgrade(self):
-        # The job must run before pods roll so that on a downgrade it can
-        # exec into the still-running OLD api-server pod and execute reverse
-        # alembic scripts which are not shipped in the target image.
+    def test_default_hooks_run_post_install_pre_upgrade(self):
+        # post-install: the chart's bundled postgres is created as a regular
+        # release resource, so the job needs the DB to exist before it runs.
+        # pre-upgrade: the reconciler must run *before* helm rolls the new
+        # image, so on a downgrade it can exec ``airflow db downgrade`` in the
+        # still-running OLD api-server pod (the OLD image still ships the
+        # reverse alembic scripts; the new one does not).
         # Tracked in https://github.com/apache/airflow/issues/68072.
         docs = render_chart(
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations["helm.sh/hook"] == "pre-install,pre-upgrade"
+        assert annotations["helm.sh/hook"] == "post-install,pre-upgrade"
 
     def test_default_args_contain_bidirectional_migrate_script(self):
         docs = render_chart(

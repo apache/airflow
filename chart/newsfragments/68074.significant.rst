@@ -1,6 +1,6 @@
 Helm chart now reconciles the Airflow metadata DB bidirectionally on ``helm upgrade``
 
-The ``migrate-database-job`` is now run as a ``pre-install,pre-upgrade`` hook
+The ``migrate-database-job`` is now run as a ``post-install,pre-upgrade`` hook
 (was ``post-install,post-upgrade``) and its default args run a reconciliation
 script that picks one of four actions depending on the relationship between
 the chart's ``airflowVersion`` and the alembic head currently in the database:
