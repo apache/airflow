@@ -376,20 +376,20 @@ ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", require
 ARG_BACKFILL_FROM_DATE = Arg(
     ("--from-date",),
     help=(
-        "Backfill window start for non-partitioned Dags. "
-        "Required together with --to-date. "
-        "Use --partition-date-start / --partition-date-end for partitioned Dags."
+        "Backfill window start (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
     ),
     type=parsedate,
+    required=True,
 )
 ARG_BACKFILL_TO_DATE = Arg(
     ("--to-date",),
     help=(
-        "Backfill window end for non-partitioned Dags. "
-        "Required together with --from-date. "
-        "Use --partition-date-start / --partition-date-end for partitioned Dags."
+        "Backfill window end (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
     ),
     type=parsedate,
+    required=True,
 )
 ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
@@ -429,26 +429,6 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     action=argparse.BooleanOptionalAction,
     default=None,
 )
-ARG_BACKFILL_PARTITION_DATE_START = Arg(
-    ("--partition-date-start",),
-    help=(
-        "Backfill window start for partitioned Dags (inclusive calendar date). "
-        "Required together with --partition-date-end. "
-        "Use --from-date / --to-date for non-partitioned Dags."
-    ),
-    type=parsedate,
-)
-ARG_BACKFILL_PARTITION_DATE_END = Arg(
-    ("--partition-date-end",),
-    help=(
-        "Backfill window end for partitioned Dags (inclusive calendar date). "
-        "Required together with --partition-date-start. "
-        "Use --from-date / --to-date for non-partitioned Dags."
-    ),
-    type=parsedate,
-)
-
-
 # misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
@@ -1207,8 +1187,6 @@ BACKFILL_COMMANDS = (
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
             ARG_BACKFILL_RUN_ON_LATEST_VERSION,
-            ARG_BACKFILL_PARTITION_DATE_START,
-            ARG_BACKFILL_PARTITION_DATE_END,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),

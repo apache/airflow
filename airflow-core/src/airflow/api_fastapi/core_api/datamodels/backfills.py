@@ -30,10 +30,8 @@ class BackfillPostBody(StrictBaseModel):
     """Object used for create backfill request."""
 
     dag_id: str
-    from_date: datetime | None = None
-    to_date: datetime | None = None
-    partition_date_start: datetime | None = None
-    partition_date_end: datetime | None = None
+    from_date: datetime
+    to_date: datetime
     run_backwards: bool = False
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE

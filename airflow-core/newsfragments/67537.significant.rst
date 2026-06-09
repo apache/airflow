@@ -1,7 +1,0 @@
-``airflow dags backfill`` enforces mutually exclusive selectors based on Dag type.
-
-Partitioned Dags use ``--partition-date-start`` and ``--partition-date-end`` to scope
-the backfill window; ``--from-date`` and ``--to-date`` are reserved for non-partitioned Dags.
-Passing the wrong set of flags, or omitting the required flags, raises a dedicated exception:
-``DateFlagsOnPartitionedDag``, ``PartitionFlagsOnNonPartitionedDag``, or ``NoBackfillSelector``.
-Date comparisons use wall-clock dates in the timezone of the provided value.

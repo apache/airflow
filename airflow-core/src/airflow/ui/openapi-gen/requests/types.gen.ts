@@ -182,10 +182,8 @@ export type BackfillCollectionResponse = {
  */
 export type BackfillPostBody = {
     dag_id: string;
-    from_date?: string | null;
-    to_date?: string | null;
-    partition_date_start?: string | null;
-    partition_date_end?: string | null;
+    from_date: string;
+    to_date: string;
     run_backwards?: boolean;
     dag_run_conf?: {
     [key: string]: unknown;
@@ -4991,9 +4989,9 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Validation Error
                  */
-                422: HTTPExceptionResponse;
+                422: HTTPValidationError;
             };
         };
     };
@@ -5142,9 +5140,9 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Validation Error
                  */
-                422: HTTPExceptionResponse;
+                422: HTTPValidationError;
             };
         };
     };

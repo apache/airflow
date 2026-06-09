@@ -973,14 +973,12 @@ def test_iter_partition_dagrun_infos_full_sequence(
     )
     actual = [(info.partition_date, info.run_after, info.partition_key) for info in infos]
     assert actual == expected_triples
-    # Invariant: run_after == partition_date for every tick regardless of offset.
+    # Invariants for every tick: run_after == partition_date (all offsets) and data_interval is None.
     for info in infos:
         assert info.run_after == info.partition_date, (
             f"run_after {info.run_after!r} != partition_date {info.partition_date!r} "
             f"for run_offset={run_offset}"
         )
-    # Invariant: data_interval is None for every tick.
-    for info in infos:
         assert info.data_interval is None
 
 

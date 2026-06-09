@@ -1162,11 +1162,11 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/backfills/{backfill_id}:
     get:
       tags:
@@ -1421,11 +1421,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
-          description: Unprocessable Entity
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
+                $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -11795,29 +11795,13 @@ components:
           type: string
           title: Dag Id
         from_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
+          type: string
+          format: date-time
           title: From Date
         to_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
+          type: string
+          format: date-time
           title: To Date
-        partition_date_start:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Partition Date Start
-        partition_date_end:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Partition Date End
         run_backwards:
           type: boolean
           title: Run Backwards
@@ -11848,6 +11832,8 @@ components:
       type: object
       required:
       - dag_id
+      - from_date
+      - to_date
       title: BackfillPostBody
       description: Object used for create backfill request.
     BackfillResponse:
