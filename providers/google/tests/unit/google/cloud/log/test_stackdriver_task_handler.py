@@ -189,6 +189,7 @@ class TestStackdriverRemoteLogIO:
 
         mock_transport.flush.assert_called_once()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
     @mock.patch(
         "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO.transport",
         new_callable=PropertyMock,
