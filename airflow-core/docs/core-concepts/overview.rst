@@ -171,7 +171,7 @@ The *Dag processor*, and *workers* all need access to the *Dag bundles*. The *sc
 In a distributed deployment, the *workers* get a specific *Dag bundle* version defined by the *scheduler* when executing a task.
 Typical ways to
 configure DAG bundle backends are described in :doc:`/administration-and-deployment/dag-bundles`.
-
+Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 .. image:: ../img/diagram_distributed_airflow_architecture.png
 
 .. _overview-separate-dag-processing-airflow-architecture:
