@@ -82,17 +82,22 @@ def _reset_shared_app(app: FastAPI) -> None:
     Reset mutable state on the session-shared app before each test.
 
     The app object is reused for the whole session, so any per-test mutation of its ``state`` or
-    ``dependency_overrides`` would leak into later tests. Two such mutations exist today and were
+    ``dependency_overrides`` would leak into later tests. These mutations exist today and were
     harmless only because each test used to build its own app:
 
     * the auth endpoint tests swap ``app.state.auth_manager`` for a mock without restoring it;
     * several route tests (extra links, tasks, logs) install a ``dag_bag_from_app`` dependency
-      override in their per-test setup and never pop it.
+      override in their per-test setup and never pop it;
+    * ``app.state.dag_bag`` carries an LRU/TTL cache of deserialized Dags keyed by
+      ``dag_version_id``. A warm entry from an earlier test would let a later test skip the
+      serialized-Dag DB read, which silently breaks query-count assertions (e.g. the grid
+      ``ti_summaries`` stream tests) depending on execution order.
 
-    Restore the canonical auth manager and drop any leftover overrides (including on mounted
-    sub-apps) so each test starts from the pristine app and re-applies its own overrides.
+    Restore the canonical auth manager, drop leftover overrides (including on mounted sub-apps),
+    and empty the Dag cache so each test starts from the pristine app and re-applies its own state.
     """
     app.state.auth_manager = create_auth_manager()
+    app.state.dag_bag.clear_cache()
     app.dependency_overrides.clear()
     for route in app.routes:
         if isinstance(route, Mount) and isinstance(route.app, FastAPI):
