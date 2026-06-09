@@ -1,0 +1,1 @@
+Add ``SerializedDagModel.get_count()`` classmethod and a ``serialized_dag.count`` StatsD gauge (configurable via ``[scheduler] emit_serialized_dag_count_metric``, default enabled) to expose the total number of serialized DAGs in the metadata database; a ``serialized_dag.count_error`` counter is incremented if the DB query fails so dashboards can alert on missing samples.

@@ -2574,6 +2574,16 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    emit_serialized_dag_count_metric:
+      description: |
+        When enabled, the DAG processing manager emits a ``serialized_dag.count`` gauge
+        (the total number of rows in the ``serialized_dag`` table) once per parse loop.
+        Disable this on large deployments where the extra ``COUNT(*)`` query causes
+        noticeable metadata-database load.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
