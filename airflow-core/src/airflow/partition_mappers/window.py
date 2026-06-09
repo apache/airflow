@@ -22,7 +22,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 
 def _require_day_one(dt: datetime, window_cls: type) -> None:
@@ -64,6 +64,27 @@ class WindowDirection(str, Enum):
 
     FORWARD = "forward"
     """Default; yield the period starting at the upstream key (forward in time)."""
+
+
+def _build_directional_steps(
+    period_start: datetime,
+    count: int,
+    step: Callable[[datetime, int], datetime],
+    direction: WindowDirection,
+) -> Iterable[datetime]:
+    """
+    Enumerate *count* period-starts beginning at or ending at *period_start*.
+
+    *step* maps ``(base, i) -> base`` advanced by ``i`` units (e.g. ``i`` minutes
+    for an hour window, ``i`` months for a year window). For ``FORWARD`` the
+    sequence starts at *period_start*; for ``BACKWARD`` it is the trailing
+    sequence whose last member is *period_start* (the mirror of ``FORWARD``),
+    computed by stepping the base back ``count - 1`` units first. Callers that
+    need a day-1 precondition must enforce it before calling this — it is not
+    checked here.
+    """
+    base = step(period_start, -(count - 1)) if direction is WindowDirection.BACKWARD else period_start
+    return (step(base, i) for i in range(count))
 
 
 class Window(ABC):
@@ -120,9 +141,9 @@ class HourWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        if self.direction is WindowDirection.BACKWARD:
-            period_start = period_start - timedelta(minutes=59)
-        return (period_start + timedelta(minutes=i) for i in range(60))
+        return _build_directional_steps(
+            period_start, 60, lambda s, i: s + timedelta(minutes=i), self.direction
+        )
 
 
 class DayWindow(Window):
@@ -163,9 +184,7 @@ class DayWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        if self.direction is WindowDirection.BACKWARD:
-            period_start = period_start - timedelta(hours=23)
-        return (period_start + timedelta(hours=i) for i in range(24))
+        return _build_directional_steps(period_start, 24, lambda s, i: s + timedelta(hours=i), self.direction)
 
 
 class WeekWindow(Window):
@@ -174,9 +193,7 @@ class WeekWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        if self.direction is WindowDirection.BACKWARD:
-            period_start = period_start - timedelta(days=6)
-        return (period_start + timedelta(days=i) for i in range(7))
+        return _build_directional_steps(period_start, 7, lambda s, i: s + timedelta(days=i), self.direction)
 
 
 class MonthWindow(Window):
@@ -192,6 +209,9 @@ class MonthWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        # Not expressible via _build_directional_steps: the member count is not fixed (28-31)
+        # and BACKWARD is an open-closed (prev_month_start, anchor] generator, not a
+        # shift-then-forward mirror of FORWARD.
         _require_day_one(period_start, type(self))
         if self.direction is WindowDirection.BACKWARD:
             # Backward yields the trailing period ending at the anchor (period_start),
@@ -216,9 +236,7 @@ class QuarterWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
-        if self.direction is WindowDirection.BACKWARD:
-            period_start = _shift_months(period_start, -2)
-        return (_shift_months(period_start, i) for i in range(3))
+        return _build_directional_steps(period_start, 3, _shift_months, self.direction)
 
 
 class YearWindow(Window):
@@ -228,6 +246,4 @@ class YearWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
-        if self.direction is WindowDirection.BACKWARD:
-            period_start = _shift_months(period_start, -11)
-        return (_shift_months(period_start, i) for i in range(12))
+        return _build_directional_steps(period_start, 12, _shift_months, self.direction)
