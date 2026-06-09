@@ -26,6 +26,45 @@ layer, and surfaces ranked remediation candidates to the on-call engineer.
 A local-only execution mode ensures the plugin can run without sending log data
 to an external API, satisfying data-residency requirements.
 
+## Quick Start (Docker Compose)
+
+Bring up a full Airflow environment with the triage plugin pre-installed — identical on macOS and Linux.
+
+```bash
+cd team_project
+docker compose up
+```
+
+| What | URL |
+|------|-----|
+| Airflow UI | http://localhost:8080 (admin / admin) |
+| Triage Panel | http://localhost:8080/triage-panel/ |
+
+A **sample failing DAG** (`sample_failing_dag`) is included — trigger it manually from the UI, then open the Triage Panel to see how the plugin classifies each failure type.
+
+### Teardown
+
+```bash
+docker compose down          # stop services, keep data
+```
+
+### Full Reset (wipe database and volumes)
+
+```bash
+docker compose down -v       # stop and remove all volumes
+docker compose up --build    # rebuild from scratch
+```
+
+### Without Docker
+
+Run the standalone demo (no Airflow or Docker required):
+
+```bash
+python team_project/demo.py
+```
+
+See [`plugin/README.md`](plugin/README.md) for the REST API reference.
+
 ## Documentation
 
 | Document | Description |
