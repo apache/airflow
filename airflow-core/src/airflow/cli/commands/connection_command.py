@@ -49,7 +49,7 @@ def _mask_uri_credentials(uri: str) -> str:
 
     Examples::
 
-        postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
+        postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db  # noqa: SQL001
         mysql://host/db -> mysql://host/db  (no credentials to mask)
     """
     if not uri:
