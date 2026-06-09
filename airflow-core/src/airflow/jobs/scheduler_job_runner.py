@@ -1953,6 +1953,68 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             return False
 
+    def _resolve_partition_date(
+        self,
+        *,
+        timetable: PartitionedAssetTimetable,
+        asset_infos: Iterable[tuple[str, str]],
+        partition_key: str,
+        dag_id: str,
+    ) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *partition_key*.
+
+        Resolves the temporal anchor (period-start datetime) for *partition_key*
+        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
+        that contributed to it. Each upstream mapper resolves the key via
+        :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
+        temporal mappers decode the key, composite mappers delegate to their
+        child, and non-temporal mappers (e.g.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper`) return ``None``.
+
+        A partitioned consumer has a single partition identity, so every temporal
+        mapper feeding it must resolve the same key to the same instant. Anchors
+        are compared by instant (timezone-aware), so equivalent moments collapse
+        to one. When the temporal mappers agree, that anchor is returned; when
+        they disagree — a misconfiguration, e.g. assets mapping the same key under
+        different timezones — ``partition_date`` is left unset and a warning is
+        logged rather than silently picking one by scan order. Returns ``None`` if
+        no mapper is temporal.
+
+        A failure in any mapper aborts the whole resolution and returns ``None``
+        (logged) — anchors accumulated from earlier mappers are discarded rather
+        than used as a partial result, since a partial set could hide a conflict.
+        A broken mapper must not crash the scheduler tick.
+        """
+        anchors: set[datetime] = set()
+        try:
+            for name, uri in asset_infos:
+                mapper = timetable.get_partition_mapper(name=name, uri=uri)
+                anchor = mapper.to_partition_date(partition_key)
+                if anchor is not None:
+                    anchors.add(anchor)
+        except Exception:
+            self.log.exception(
+                "Failed to resolve partition_date for asset-triggered Dag run; partition_date will be None.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+            )
+            return None
+
+        if not anchors:
+            return None
+        if len(anchors) > 1:
+            self.log.warning(
+                "Upstream partition mappers resolved conflicting partition_date values for the same "
+                "key; leaving partition_date unset. The consumer's assets likely use inconsistent "
+                "partition mappers.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+                partition_dates=sorted(anchor.isoformat() for anchor in anchors),
+            )
+            return None
+        return anchors.pop()
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
@@ -2137,6 +2199,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
+            partition_date: datetime | None = None
+            if timetable.partitioned:
+                if TYPE_CHECKING:
+                    assert isinstance(timetable, PartitionedAssetTimetable)
+                partition_date = self._resolve_partition_date(
+                    timetable=timetable,
+                    asset_infos=asset_info_per_apdr[apdr.id].values(),
+                    partition_key=apdr.partition_key,
+                    dag_id=apdr.target_dag_id,
+                )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
@@ -2144,6 +2216,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date=None,
                 data_interval=None,
                 partition_key=apdr.partition_key,
+                partition_date=partition_date,
                 run_after=run_after,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
