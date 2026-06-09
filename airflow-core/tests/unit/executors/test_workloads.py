@@ -198,6 +198,7 @@ class TestExecuteTaskMakeVersionData:
         ti.executor_config = None
         ti.parent_context_carrier = None
         ti.context_carrier = None
+        ti.hostname = None
         ti.external_executor_id = None
 
         ti.dag_model.bundle_name = "test-bundle"
