@@ -3914,7 +3914,7 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].run_id == dr.run_id
 
     def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
-        """A historical TI with dag_version_id=None must not crash callback construction (issue #68248)."""
+        """A historical TI with dag_version_id=None must not crash callback construction."""
         with dag_maker("test_dag", session=session) as dag:
             BashOperator(task_id="test_task", bash_command="echo 1")
 
@@ -3933,7 +3933,7 @@ class TestDagRunHandleDagCallback:
         assert callback.context_from_server.last_ti is None
 
     def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
-        """The execute=True path must also tolerate a TI with dag_version_id=None (issue #68248)."""
+        """The execute=True path must also tolerate a TI with dag_version_id=None."""
         context_received = None
 
         def on_failure(context):
