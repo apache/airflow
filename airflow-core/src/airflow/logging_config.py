@@ -120,7 +120,7 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     ) or DEFAULT_LOGGING_CONFIG_PATH
 
 
-def _warn_if_missing_remote_task_log() -> None:
+def _warn_if_missing_remote_task_log(logging_class_path: str) -> None:
     """
     Warn if ``[logging] remote_logging`` is on but the user module exposes no remote IO.
 
@@ -129,11 +129,10 @@ def _warn_if_missing_remote_task_log() -> None:
     already had its chance to populate ``_ActiveLoggingConfig.remote_task_log``.
     Only fires for user-defined ``logging_config_class`` values; the stock
     fallback is exempt.
+
+    :param logging_class_path: the resolved ``[logging] logging_config_class``
+        dotted path (already defaulted to :data:`DEFAULT_LOGGING_CONFIG_PATH`).
     """
-    logging_class_path = (
-        conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
-        or DEFAULT_LOGGING_CONFIG_PATH
-    )
     user_defined = bool(logging_class_path) and logging_class_path != DEFAULT_LOGGING_CONFIG_PATH
     remote_logging_enabled = conf.getboolean("logging", "remote_logging", fallback=False)
     if not (user_defined and remote_logging_enabled):
@@ -207,7 +206,11 @@ def configure_logging():
 
     # Runs after dictConfig so deprecated handler self-registration (ES/OS) has
     # had its chance to populate _ActiveLoggingConfig.remote_task_log.
-    _warn_if_missing_remote_task_log()
+    logging_class_path = (
+        conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
+        or DEFAULT_LOGGING_CONFIG_PATH
+    )
+    _warn_if_missing_remote_task_log(logging_class_path)
 
     validate_logging_config()
 
