@@ -349,8 +349,10 @@ class IterableOperator(BaseOperator):
                         trigger=ExternalDateTimeTrigger(reschedule_date),
                         method_name=self.execute_failed_tasks.__name__,
                         kwargs={
-                            "failed_tasks": {failed_task.index for failed_task in failed_tasks},
-                            "try_number": next(iter(failed_tasks)).try_number,
+                            "failed_tasks": {
+                                failed_task.index: failed_task.try_number
+                                for failed_task in failed_tasks
+                            },
                         },
                     )
                 else:
@@ -457,16 +459,22 @@ class IterableOperator(BaseOperator):
     def execute_failed_tasks(
         self,
         context: Context,
-        try_number: int,
-        failed_tasks: set[int],
+        failed_tasks: dict[int, int],
         event: dict[Any, Any],
     ):
+        """
+        Execute failed tasks after resuming from deferred state.
+
+        :param context: The execution context.
+        :param failed_tasks: A dict mapping task index to its try_number.
+        :param event: The event that triggered the resume.
+        """
         jinja_env = self.get_template_env(dag=self.dag)
         tasks = (
             self._create_task(
                 context=context,
                 index=index,
-                try_number=try_number,
+                try_number=failed_tasks[index],
                 jinja_env=jinja_env,
                 mapped_kwargs=value,
             )
