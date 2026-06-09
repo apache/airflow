@@ -278,7 +278,7 @@ class TestStackdriverRemoteLogIO:
     def test_processors_sends_to_transport(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        mock_transport_type = mock.MagicMock()
+        mock_transport_type = mock.create_autospec(Transport)
         with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value="dag/task/1.log"):
             io = StackdriverRemoteLogIO(
                 base_log_folder=self.local_log_location,
@@ -311,7 +311,7 @@ class TestStackdriverRemoteLogIO:
     def test_processors_skips_non_task_logger(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        mock_transport_type = mock.MagicMock()
+        mock_transport_type = mock.create_autospec(Transport)
         with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value=None):
             io = StackdriverRemoteLogIO(
                 base_log_folder=self.local_log_location,
