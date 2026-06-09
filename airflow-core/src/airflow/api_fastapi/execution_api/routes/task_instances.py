@@ -519,7 +519,11 @@ def ti_update_state(
     # raising HTTP 500 here would be misleading because the task already succeeded and
     # would make the worker retry a state update that has already completed. Durable
     # retry/reconciliation for dropped asset events is out of scope for this hot-path fix.
-    if isinstance(ti_patch_payload, TISuccessStatePayload) and ti_patch_payload.task_outlets:
+    if (
+        updated_state == TaskInstanceState.SUCCESS
+        and isinstance(ti_patch_payload, TISuccessStatePayload)
+        and ti_patch_payload.task_outlets
+    ):
         try:
             ti_for_assets = session.get(TI, task_instance_id)
             if ti_for_assets is not None:

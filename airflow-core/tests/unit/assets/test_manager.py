@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import delete, event, func, insert, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -209,30 +209,27 @@ class TestAssetManager:
         asset_manager = AssetManager()
 
         lazy_load_selects: list[str] = []
-        real_execute = session.execute
 
-        def tracking_execute(stmt, *args, **kwargs):
-            try:
-                compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
-            except Exception:
-                compiled = str(stmt)
-            # Detect a lazy-load SELECT joining asset_alias_asset_event with asset_event
+        def track_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
             if (
-                "asset_alias_asset_event" in compiled.lower()
-                and "asset_event" in compiled.lower()
-                and compiled.strip().upper().startswith("SELECT")
+                "asset_alias_asset_event" in statement.lower()
+                and "asset_event" in statement.lower()
+                and statement.strip().upper().startswith("SELECT")
             ):
-                lazy_load_selects.append(compiled[:120])
-            return real_execute(stmt, *args, **kwargs)
+                lazy_load_selects.append(statement[:120])
 
-        with mock.patch.object(session, "execute", side_effect=tracking_execute):
+        assert session.bind is not None
+        event.listen(session.bind, "before_cursor_execute", track_sql)
+        try:
             asset_manager.register_asset_change(
                 task_instance=mock_task_instance,
                 asset=asset,
                 source_alias_names=["test_nolazy_alias"],
                 session=session,
             )
-        session.flush()
+            session.flush()
+        finally:
+            event.remove(session.bind, "before_cursor_execute", track_sql)
 
         # The new association row must exist
         new_events = session.scalars(
