@@ -217,3 +217,30 @@ Current Limitations Edge Executor
   - Multi-team isolation is logical only — all teams share a single authentication secret. A worker
     administrator could change the team name and access another team's jobs. See
     :ref:`edge_executor:multi_team` for details and planned improvements.
+
+
+Metrics Export Compatibility
+-----------------------------
+
+The Edge Worker integrates with Airflow's statsd metrics system to export runtime metrics. Compatibility
+between Edge provider versions and Airflow versions varies due to changes in the metrics initialization
+pipeline. The table below documents known compatibility issues and workarounds:
+
+.. list-table::
+     :header-rows: 1
+
+     * - Provider version
+         - Airflow 3.3
+         - Airflow 3.2
+         - Airflow 3.1
+     * - >= 3.6.0
+         - Working
+         - Broken: webserver statsd initialization is missing (DualStatsManager removed)
+         - Broken: statsd metric tags
+     * - <= 3.5.0
+         - Working
+         - Requires manual patch of ``metrics_template.yaml`` to match previous statsd export schema
+         - Working
+
+**For Airflow 3.2 users:** If upgrading to Edge provider >= 3.6.0 breaks metrics export, either
+(1) upgrade Airflow to 3.3+, or (2) downgrade to Edge provider <= 3.5.0 with the workaround above.
