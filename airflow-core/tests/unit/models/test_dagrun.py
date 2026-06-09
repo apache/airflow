@@ -918,7 +918,7 @@ class TestDagRun:
 
         def mutate_task_instance(task_instance, dag_run=None):
             observed_confs.append(None if dag_run is None else dag_run.conf)
-            if dag_run is not None and dag_run.conf.get("route") == "high":
+            if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
                 task_instance.queue = "high_queue"
 
         with mock.patch.object(
@@ -1689,7 +1689,7 @@ def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_make
     before_commit guard with RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!").
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         # Reads DagRun.conf the unsafe way -- opens a fresh @provide_session session that commits on exit.
         task_instance.get_dagrun()
 
@@ -1720,7 +1720,7 @@ def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commi
     Resolving via the attached session is the discipline a real conf-routing hook must follow.
     """
 
-    def safe_hook(task_instance):
+    def safe_hook(task_instance, dag_run=None):
         attached_session = sa_inspect(task_instance).session
         if attached_session is None:
             # Transient instance (pre-merge); it will be re-invoked once attached. Nothing safe to do.
@@ -1759,7 +1759,7 @@ def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion
     """
     call_counts: dict[int, int] = defaultdict(int)
 
-    def deterministic_hook(task_instance):
+    def deterministic_hook(task_instance, dag_run=None):
         call_counts[task_instance.map_index] += 1
         task_instance.queue = f"q_{task_instance.map_index}"
 
@@ -1843,7 +1843,7 @@ def test_naive_committing_hook_crashes_on_verify_integrity_under_guard(dag_maker
     session; create_session() commits on exit and trips the before_commit guard.
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         task_instance.get_dagrun()
 
     dr, dag_version_id = _make_literal_mapped_dagrun(
@@ -1872,7 +1872,7 @@ def test_resolve_dagrun_attribute_access_is_safe_on_verify_integrity_under_guard
     """
     seen_map_indices = []
 
-    def resolve_dagrun_like_hook(task_instance):
+    def resolve_dagrun_like_hook(task_instance, dag_run=None):
         state = sa_inspect(task_instance)
         if "dag_run" not in state.unloaded:
             _ = task_instance.dag_run  # eager-loaded: cheap attribute read
