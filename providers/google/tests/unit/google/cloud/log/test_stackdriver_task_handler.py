@@ -189,6 +189,50 @@ class TestStackdriverRemoteLogIO:
 
         mock_transport.flush.assert_called_once()
 
+    @mock.patch(
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO.transport",
+        new_callable=PropertyMock,
+    )
+    def test_processors_fallback_to_event_labels(self, mock_transport_prop):
+        mock_transport = mock.MagicMock()
+        mock_transport_prop.return_value = mock_transport
+
+        io = StackdriverRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            gcp_log_name="airflow",
+        )
+        logger = mock.MagicMock()
+        # Mock relative_path_from_logger to return something truthy
+        with mock.patch(
+            "airflow.sdk.log.relative_path_from_logger",
+            return_value="some/path.py",
+        ):
+            proc = io.processors[0]
+            event = {
+                "event": "Test message",
+                "dag_id": "test_dag_id",
+                "task_id": "test_task_id",
+                "run_id": "test_run_id",
+                "try_number": 2,
+                "map_index": -1,
+            }
+
+            result = proc(logger, "info", event)
+
+            assert result == event
+
+            mock_transport.send.assert_called_once()
+            _, kwargs = mock_transport.send.call_args
+
+            labels = kwargs.get("labels", {})
+            assert labels == {
+                "dag_id": "test_dag_id",
+                "task_id": "test_task_id",
+                "run_id": "test_run_id",
+                "try_number": "2",
+                "map_index": "-1",
+            }
+
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     def test_prepare_log_filter(self, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
