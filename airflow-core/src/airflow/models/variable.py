@@ -28,6 +28,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, 
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
+from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
@@ -479,7 +480,9 @@ class Variable(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                var_val = secrets_backend.get_variable(key=key, team_name=team_name)
+                var_val = call_secrets_backend_method(
+                    secrets_backend.get_variable, team_name=team_name, key=key
+                )
                 if var_val is not None:
                     break
             except AirflowSecretsBackendAccessDenied:
