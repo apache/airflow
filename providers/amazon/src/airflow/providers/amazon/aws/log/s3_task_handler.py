@@ -57,13 +57,11 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             remote_loc = os.path.join(self.remote_base, path)
 
         if local_loc.is_file():
-            # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()
-            has_uploaded = self.write(log, remote_loc)
+            append = conf.get("logging", "object_store_write_mode", fallback="append") != "replace"
+            has_uploaded = self.write(log, remote_loc, append=append)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
-            elif has_uploaded:
-                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -121,7 +119,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
-                if old_log:
+                if old_log and not log.startswith(old_log):
                     sep = "" if old_log.endswith("\n") else "\n"
                     log = f"{old_log}{sep}{log}"
         except Exception:
