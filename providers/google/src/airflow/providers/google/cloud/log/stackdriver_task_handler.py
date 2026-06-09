@@ -293,8 +293,9 @@ def _task_instance_to_labels(ti) -> dict[str, str]:
         else str(ti.execution_date.isoformat()),
         LABEL_TRY_NUMBER: str(ti.try_number),
     }
-    if getattr(ti, "id", None):
-        labels[LABEL_TASK_INSTANCE_ID] = str(ti.id)
+    ti_id = getattr(ti, "id", None)
+    if ti_id:
+        labels[LABEL_TASK_INSTANCE_ID] = str(ti_id)
     return labels
 
 
@@ -480,8 +481,9 @@ class StackdriverTaskHandler(logging.Handler):
             else str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
-        if getattr(ti, "id", None):
-            labels[cls.LABEL_TASK_INSTANCE_ID] = str(ti.id)
+        ti_id = getattr(ti, "id", None)
+        if ti_id:
+            labels[cls.LABEL_TASK_INSTANCE_ID] = str(ti_id)
         return labels
 
     @property
