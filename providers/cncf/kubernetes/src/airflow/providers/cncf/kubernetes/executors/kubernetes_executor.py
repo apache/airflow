@@ -886,7 +886,13 @@ class KubernetesExecutor(BaseExecutor):
         if not pod_identities:
             return
 
-        # Single batch query: all non-terminal TIs for KPO-managed operators.
+        # Scope the DB query to the DAGs that actually have live KPO pods.
+        # dag_id values in pod labels are safe-encoded by make_safe_label_value(),
+        # but dag_ids are almost always short alphanumeric strings where the
+        # encoding is a no-op — so this filter is correct in practice and
+        # drastically reduces the result set on large installations.
+        pod_dag_ids = {dag_id for _, dag_id, _, _, _, _ in pod_identities}
+
         # We match on notin_(finished) rather than in_(unfinished) because SQL
         # evaluates "NULL NOT IN (...)" as NULL, not TRUE — the explicit is_(None)
         # arm ensures we also capture TIs with no state set yet.
@@ -904,6 +910,7 @@ class KubernetesExecutor(BaseExecutor):
                     TaskInstance.state.is_(None),
                 ),
                 TaskInstance.operator.in_(self._KPO_OPERATORS),
+                TaskInstance.dag_id.in_(pod_dag_ids),
             )
         ).all()
 
