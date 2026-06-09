@@ -38,6 +38,125 @@ from airflow.utils.helpers import (
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
+from unittest.mock import MagicMock
+
+
+class TestLogFilenameTemplateRenderer:
+    """Tests for log_filename_template_renderer (issues #68079 and #68075)."""
+
+    @staticmethod
+    def _ti(
+        dag_id="d", task_id="t", run_id="r", map_index=-1, try_number=1,
+        logical_date=None, partition_key=None, partition_date=None,
+    ):
+        ti = MagicMock()
+        ti.dag_id = dag_id
+        ti.task_id = task_id
+        ti.run_id = run_id
+        ti.map_index = map_index
+        ti.try_number = try_number
+        ti.logical_date = logical_date
+        ti.partition_key = partition_key
+        ti.partition_date = partition_date
+        return ti
+
+    def test_ts_nodash_from_logical_date(self, conf_vars):
+        from datetime import datetime, timezone
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        ld = datetime(2024, 3, 20, 8, 15, 0, tzinfo=timezone.utc)
+        ti = self._ti(logical_date=ld)
+        with conf_vars({("logging", "log_filename_template"): "{{ ts_nodash }}.log"}):
+            log_filename_template_renderer.cache_clear()
+            assert log_filename_template_renderer()(ti=ti, try_number=1) == "20240320T081500.log"
+
+    def test_ts_nodash_falls_back_to_partition_date(self, conf_vars):
+        from datetime import datetime, timezone
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        pd = datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+        ti = self._ti(logical_date=None, partition_date=pd)
+        with conf_vars({("logging", "log_filename_template"): "{{ ts_nodash }}.log"}):
+            log_filename_template_renderer.cache_clear()
+            assert log_filename_template_renderer()(ti=ti, try_number=1) == "20240601T000000.log"
+
+    def test_ts_nodash_empty_when_both_dates_none(self, conf_vars):
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        ti = self._ti(logical_date=None, partition_date=None)
+        with conf_vars({("logging", "log_filename_template"): "{{ ts_nodash }}.log"}):
+            log_filename_template_renderer.cache_clear()
+            assert log_filename_template_renderer()(ti=ti, try_number=1) == ".log"
+
+    def test_partition_key_injected_into_template(self, conf_vars):
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        ti = self._ti(partition_key="2024-06-01T00:00:00+00:00")
+        with conf_vars({
+            ("logging", "log_filename_template"): "{{ partition_key }}/{{ ti.task_id }}.log",
+        }):
+            log_filename_template_renderer.cache_clear()
+            result = log_filename_template_renderer()(ti=ti, try_number=1)
+        assert result == "2024-06-01T00:00:00+00:00/t.log"
+
+    def test_partition_key_none_with_default_filter(self, conf_vars):
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        ti = self._ti(partition_key=None)
+        with conf_vars({
+            ("logging", "log_filename_template"): (
+                "{{ partition_key | default('no-partition') }}/{{ ti.task_id }}.log"
+            ),
+        }):
+            log_filename_template_renderer.cache_clear()
+            result = log_filename_template_renderer()(ti=ti, try_number=1)
+        assert result == "no-partition/t.log"
+
+    def test_partition_date_injected_into_template(self, conf_vars):
+        from datetime import datetime, timezone
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        pd = datetime(2024, 6, 15, 0, 0, 0, tzinfo=timezone.utc)
+        ti = self._ti(partition_date=pd)
+        with conf_vars({
+            ("logging", "log_filename_template"): (
+                "{{ partition_date.strftime('%Y%m%d') }}/{{ ti.task_id }}.log"
+            ),
+        }):
+            log_filename_template_renderer.cache_clear()
+            result = log_filename_template_renderer()(ti=ti, try_number=1)
+        assert result == "20240615/t.log"
+
+    def test_f_str_branch_does_not_crash_with_none_logical_date(self, conf_vars):
+        """f-string branch: logical_date=None falls back to partition_date."""
+        from datetime import datetime, timezone
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        pd = datetime(2024, 6, 15, 0, 0, 0, tzinfo=timezone.utc)
+        # Template has no {{ }} so takes the f-string branch
+        ti = self._ti(dag_id="dag", task_id="task", try_number=1, logical_date=None, partition_date=pd)
+        with conf_vars({
+            ("logging", "log_filename_template"): (
+                "dag_id={dag_id}/task_id={task_id}/logical_date={logical_date}/attempt={try_number}.log"
+            ),
+        }):
+            log_filename_template_renderer.cache_clear()
+            result = log_filename_template_renderer()(ti=ti, try_number=1)
+        assert "2024-06-15" in result
+
+    def test_f_str_branch_empty_string_when_both_dates_none(self, conf_vars):
+        from airflow.utils.helpers import log_filename_template_renderer
+
+        ti = self._ti(dag_id="dag", task_id="task", try_number=1, logical_date=None, partition_date=None)
+        with conf_vars({
+            ("logging", "log_filename_template"): (
+                "dag_id={dag_id}/logical_date={logical_date}/attempt={try_number}.log"
+            ),
+        }):
+            log_filename_template_renderer.cache_clear()
+            result = log_filename_template_renderer()(ti=ti, try_number=1)
+        assert result == "dag_id=dag/logical_date=/attempt=1.log"
+
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
 

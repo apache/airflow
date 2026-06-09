@@ -119,6 +119,81 @@ from tests_common.test_utils.taskinstance import (
 )
 from unit.models import DEFAULT_DATE
 
+class TestTaskInstancePartitionAttributes:
+    """Tests for partition_key proxy and partition_date property (issue #68079)."""
+
+    def test_partition_key_none_for_regular_dag_run(self, dag_maker, session):
+        with dag_maker("test_pk_none"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op", session=session)
+        assert ti.partition_key is None
+
+    def test_partition_date_none_when_partition_key_is_none(self, dag_maker, session):
+        with dag_maker("test_pd_none"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op", session=session)
+        assert ti.partition_date is None
+
+    def test_partition_key_proxies_dag_run_value(self, dag_maker, session):
+        with dag_maker("test_pk_proxy"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun(partition_key="2024-01-15T00:00:00+00:00")
+        ti = dr.get_task_instance(task_id="op", session=session)
+        assert ti.partition_key == "2024-01-15T00:00:00+00:00"
+
+    def test_partition_date_parsed_from_iso_key(self, dag_maker, session):
+        from datetime import datetime, timezone
+        with dag_maker("test_pd_iso"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun(partition_key="2024-01-15T00:00:00+00:00")
+        ti = dr.get_task_instance(task_id="op", session=session)
+        pd = ti.partition_date
+        assert pd is not None
+        assert isinstance(pd, datetime)
+        assert pd.year == 2024
+        assert pd.month == 1
+        assert pd.day == 15
+        assert pd.tzinfo is not None
+
+    def test_partition_date_none_for_non_datetime_partition_key(self, dag_maker, session):
+        with dag_maker("test_pd_non_dt"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun(partition_key="my-custom-non-datetime-key")
+        ti = dr.get_task_instance(task_id="op", session=session)
+        # Must not raise; returns None for unparseable keys
+        assert ti.partition_date is None
+
+    def test_partition_date_usable_in_jinja_template(self, dag_maker, session):
+        import jinja2
+        with dag_maker("test_pd_jinja"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun(partition_key="2024-06-15T10:30:00+00:00")
+        ti = dr.get_task_instance(task_id="op", session=session)
+        result = jinja2.Environment().from_string(
+            "{{ ti.partition_date.strftime('%Y%m%d') }}"
+        ).render(ti=ti)
+        assert result == "20240615"
+
+    def test_partition_key_usable_in_jinja_template(self, dag_maker, session):
+        import jinja2
+        with dag_maker("test_pk_jinja"):
+            from airflow.operators.empty import EmptyOperator
+            EmptyOperator(task_id="op")
+        dr = dag_maker.create_dagrun(partition_key="2024-06-15T00:00:00+00:00")
+        ti = dr.get_task_instance(task_id="op", session=session)
+        result = jinja2.Environment().from_string(
+            "{{ ti.partition_key }}"
+        ).render(ti=ti)
+        assert result == "2024-06-15T00:00:00+00:00"
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 

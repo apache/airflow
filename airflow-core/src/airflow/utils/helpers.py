@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import copy
 import itertools
 import re
@@ -150,13 +151,39 @@ def log_filename_template_renderer() -> Callable[..., str]:
     if "{{" in template:
         import jinja2
 
-        return jinja2.Template(template).render
+        _compiled = jinja2.Template(template)
+
+        def _jinja_render(ti: TaskInstance, try_number: int | None = None) -> str:
+            logical_date = getattr(ti, "logical_date", None)
+            partition_date = getattr(ti, "partition_date", None)
+            effective_date = logical_date if logical_date is not None else partition_date
+            if effective_date is not None:
+                ts: str = effective_date.isoformat()
+                ts_nodash: str = effective_date.strftime("%Y%m%dT%H%M%S")
+                ts_nodash_with_tz: str = effective_date.strftime("%Y%m%dT%H%M%S%z")
+            else:
+                ts = ""
+                ts_nodash = ""
+                ts_nodash_with_tz = ""
+            return _compiled.render(
+                ti=ti,
+                try_number=try_number if try_number is not None else ti.try_number,
+                ts=ts,
+                ts_nodash=ts_nodash,
+                ts_nodash_with_tz=ts_nodash_with_tz,
+                partition_key=getattr(ti, "partition_key", None),
+                partition_date=partition_date,
+            )
+
+        return _jinja_render
 
     def f_str_format(ti: TaskInstance, try_number: int | None = None):
         return template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
+            logical_date=(ti.logical_date or getattr(ti, "partition_date", None) or "").isoformat()
+            if (ti.logical_date or getattr(ti, "partition_date", None)) is not None
+            else "",
             try_number=try_number or ti.try_number,
         )
 

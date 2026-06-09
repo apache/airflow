@@ -670,6 +670,39 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
+    partition_key: str | None = association_proxy("dag_run", "partition_key")
+
+    @property
+    def partition_date(self) -> datetime | None:
+        """
+        Return the partition date parsed from :attr:`partition_key`.
+
+        For DAGs scheduled via
+        :class:`~airflow.timetables.simple.PartitionedAssetTimetable` or
+        :class:`~airflow.timetables.simple.CronPartitionTimetable`, the
+        ``partition_key`` on the associated
+        :class:`~airflow.models.dagrun.DagRun` is an ISO-8601 datetime string.
+        This property parses that string back to a timezone-aware
+        :class:`~datetime.datetime`, enabling convenient use in Jinja
+        templates::
+
+            {{ ti.partition_date.strftime('%Y%m%d') }}
+            {{ ti.partition_date.strftime('%Y%m%dT%H%M%S') }}
+
+        Returns ``None`` when:
+
+        * The DAG run has no ``partition_key`` (non-partitioned run).
+        * The ``partition_key`` cannot be parsed as a datetime (e.g. a custom
+          non-datetime partition key such as ``"my-custom-key"``).
+        """
+        pk = self.partition_key
+        if pk is None:
+            return None
+        try:
+            return timezone.parse(pk)
+        except Exception:
+            return None
+
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
