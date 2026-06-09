@@ -66,6 +66,20 @@ SDK_FILE = (
 )
 
 
+def _attr_value(stmt: ast.stmt) -> ast.expr | None:
+    """Return the value node of a statement that assigns ``ATTR_NAME``, or None."""
+    if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.target.id == ATTR_NAME:
+        return stmt.value
+    if (
+        isinstance(stmt, ast.Assign)
+        and len(stmt.targets) == 1
+        and isinstance(stmt.targets[0], ast.Name)
+        and stmt.targets[0].id == ATTR_NAME
+    ):
+        return stmt.value
+    return None
+
+
 def _find_attr_value(file_path: Path) -> ast.Dict:
     """Return the AST node assigned to ``FanOutMapper.default_downstream_mapper_by_window_name``."""
     tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
@@ -73,18 +87,8 @@ def _find_attr_value(file_path: Path) -> ast.Dict:
         if not (isinstance(node, ast.ClassDef) and node.name == CLASS_NAME):
             continue
         for stmt in node.body:
-            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-                if stmt.target.id != ATTR_NAME:
-                    continue
-                value = stmt.value
-            elif (
-                isinstance(stmt, ast.Assign)
-                and len(stmt.targets) == 1
-                and isinstance(stmt.targets[0], ast.Name)
-                and stmt.targets[0].id == ATTR_NAME
-            ):
-                value = stmt.value
-            else:
+            value = _attr_value(stmt)
+            if value is None:
                 continue
             if not isinstance(value, ast.Dict):
                 raise ValueError(

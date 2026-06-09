@@ -1193,7 +1193,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if AIRFLOW_V_3_3_PLUS:
                     ti.refresh_from_task(dag.get_task(ti.task_id), dag_run=self.dag_run)
                 elif AIRFLOW_V_3_0_PLUS:
-                    ti.refresh_from_task(self.dag.get_task(ti.task_id))
+                    ti.refresh_from_task(dag.get_task(ti.task_id))
             self.session.commit()
             return self.dag_run
 
