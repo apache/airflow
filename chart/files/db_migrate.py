@@ -64,7 +64,9 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
     wait_exponential,
+    wait_fixed,
 )
 
 from airflow.settings import engine
@@ -90,6 +92,23 @@ def _resolve_target_rev(target: str) -> str | None:
     return max(candidates, key=lambda pair: pair[0])[1]
 
 
+@retry(
+    # ``/entrypoint`` skips its DB-wait for non-airflow commands (we run as
+    # ``python3 -c ...``), so on a fresh install with a bundled postgres still
+    # starting, the first connect attempt races the DB. Wait up to
+    # ``DB_CONNECT_MAX_WAIT_SECONDS`` (default 120s, matching the entrypoint's
+    # ``CONNECTION_CHECK_MAX_COUNT`` * ``CONNECTION_CHECK_SLEEP_TIME``) before
+    # surfacing the failure as a real outage.
+    stop=stop_after_delay(int(os.environ.get("DB_CONNECT_MAX_WAIT_SECONDS", "120"))),
+    wait=wait_fixed(3),
+    retry=retry_if_exception_type(OperationalError),
+    reraise=True,
+)
+def _current_revision_with_db_wait() -> str | None:
+    with engine.connect() as conn:
+        return MigrationContext.configure(conn).get_current_revision()
+
+
 def decide_action(target: str) -> str:
     """Return one of ``noop``, ``forward``, ``downgrade``, ``fresh``."""
     target_rev = _resolve_target_rev(target)
@@ -98,11 +117,11 @@ def decide_action(target: str) -> str:
         return "forward"
 
     try:
-        with engine.connect() as conn:
-            current_rev = MigrationContext.configure(conn).get_current_revision()
+        current_rev = _current_revision_with_db_wait()
     except OperationalError:
-        # DB unreachable -> treat as fresh install; ``airflow db migrate`` will
-        # re-surface a real connectivity error with a clearer message.
+        # DB still unreachable after the wait window -> treat as fresh install;
+        # ``airflow db migrate`` will re-surface a real connectivity error
+        # with a clearer message.
         return "fresh"
 
     if current_rev is None:
