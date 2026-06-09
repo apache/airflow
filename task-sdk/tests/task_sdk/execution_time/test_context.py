@@ -851,6 +851,51 @@ class TestInletEventAccessor:
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
 
+    def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
+        asset_event_resp = AssetEventResult(
+            id=1,
+            created_dagruns=[],
+            timestamp=timezone.utcnow(),
+            asset=AssetResponse(name="test_uri", uri="test_uri", group="asset"),
+        )
+        events_result = AssetEventsResult(asset_events=[asset_event_resp])
+        mock_supervisor_comms.send.side_effect = [events_result] * 3
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us").extra("env", "prod"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us").extra("env", "prod").limit(5))
+
+        assert mock_supervisor_comms.send.call_count == 3
+
+        calls = mock_supervisor_comms.send.call_args_list
+        assert calls[0][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=None,
+            ascending=True,
+            extra={"region": "us"},
+        )
+        assert calls[1][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=None,
+            ascending=True,
+            extra={"region": "us", "env": "prod"},
+        )
+        assert calls[2][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=5,
+            ascending=True,
+            extra={"region": "us", "env": "prod"},
+        )
+
     @pytest.mark.parametrize(
         ("name", "uri", "expected_key"),
         (

@@ -2708,6 +2708,10 @@ export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
     assetId?: number | null;
+    /**
+     * Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
+     */
+    extra?: Array<(string)>;
     limit?: number;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
