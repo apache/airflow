@@ -5033,6 +5033,18 @@ paths:
           title: Filename
         description: Exact filename match. Returns only the import error for this
           specific file path.
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact bundle name match. Returns only import errors from this
+            specific bundle.
+          title: Bundle Name
+        description: Exact bundle name match. Returns only import errors from this
+          specific bundle.
       responses:
         '200':
           description: Successful Response

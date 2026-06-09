@@ -215,7 +215,7 @@ def get_import_errors(
 
     filtered_import_errors_stmt = apply_filters_to_select(
         statement=import_errors_stmt,
-        filters=[filename_pattern, filename_prefix_pattern],
+        filters=[filename_pattern, filename_prefix_pattern, filename, bundle_name],
     )
     import_error_ids_stmt = (
         filtered_import_errors_stmt.with_only_columns(
@@ -234,7 +234,7 @@ def get_import_errors(
     # import error objects, not to the joined Dag rows.
     paginated_import_error_ids_select, _ = paginated_select(
         statement=import_error_ids_stmt,
-        filters=[filename_pattern, filename_prefix_pattern, filename, bundle_name],
+        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,
