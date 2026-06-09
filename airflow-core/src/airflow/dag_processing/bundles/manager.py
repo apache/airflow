@@ -63,14 +63,13 @@ def _best_bundle_for_fileloc(
 
     Returns ``None`` when ``fileloc`` is not under any bundle's path.
 
-    The bundle paths in ``descending_bundle_paths`` are expected to already be
-    normalized (see ``_resolve_active_bundle_paths``); only ``fileloc`` is
-    normalized here. ``os.path.normpath`` is used rather than ``Path.resolve``
-    because it collapses ``.``/``..`` purely lexically: ``resolve`` would touch
-    the filesystem and follow symlinks, which is wrong for legacy rows whose
-    files may no longer exist on disk.
+    Uses the same plain ``Path.relative_to`` check as
+    ``BaseDagImporter.get_relative_path``, so the ``relative_fileloc`` written
+    here matches what the next parse computes for the same file. Filelocs are
+    produced by the Dag processor parsing admin-controlled bundle files, so they
+    are trusted and need no path-traversal normalization.
     """
-    file_path = Path(os.path.normpath(fileloc))
+    file_path = Path(fileloc)
     for name, path in descending_bundle_paths.items():
         try:
             relative = file_path.relative_to(path)
@@ -579,16 +578,12 @@ class DagBundlesManager(LoggingMixin):
 
     def _resolve_active_bundle_paths(self, *, session: Session) -> dict[str, Path]:
         """
-        Return normalized paths for configured-and-active bundles.
+        Return paths for configured-and-active bundles.
 
         A bundle is "configured-and-active" when it is both in the manager's
         config and persisted as ``active=True`` in ``dag_bundle`` -- bundles
         missing from ``dag_bundle`` are excluded so they can't trigger an FK
         violation if used as a reassignment target.
-
-        Paths are normalized with ``os.path.normpath`` so the prefix check in
-        ``_best_bundle_for_fileloc`` can use plain ``Path.relative_to`` and so
-        the length-based ordering below reflects the canonical path.
 
         The returned dict is ``{name: path}`` ordered by path length descending
         so the most specific bundle wins in ``_best_bundle_for_fileloc``.
@@ -601,7 +596,7 @@ class DagBundlesManager(LoggingMixin):
         for bundle in self.get_all_dag_bundles():
             if bundle.name not in active_db_names:
                 continue
-            active_bundle_paths[bundle.name] = Path(os.path.normpath(bundle.path))
+            active_bundle_paths[bundle.name] = bundle.path
 
         return dict(sorted(active_bundle_paths.items(), key=lambda item: len(str(item[1])), reverse=True))
 
