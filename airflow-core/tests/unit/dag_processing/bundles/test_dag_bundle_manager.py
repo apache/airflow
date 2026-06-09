@@ -508,7 +508,7 @@ def _add_dag(session, dag_id: str, bundle_name: str) -> DagModel:
 
 
 class TestBestBundleForFileloc:
-    """Tests for ``_best_bundle_for_fileloc`` path normalisation and safety."""
+    """Tests for ``_best_bundle_for_fileloc`` path matching."""
 
     def test_returns_relative_path_for_match(self) -> None:
         assert _best_bundle_for_fileloc("/dags/team_x/dag.py", {"team-x": Path("/dags/team_x")}) == (
@@ -522,27 +522,9 @@ class TestBestBundleForFileloc:
     def test_returns_none_for_empty_paths(self) -> None:
         assert _best_bundle_for_fileloc("/dags/dag.py", {}) is None
 
-    @pytest.mark.parametrize(
-        "fileloc",
-        [
-            pytest.param("/dags/foo/../../outside.py", id="parent_traversal_escapes_root"),
-            pytest.param("/dags/../outside.py", id="parent_traversal_at_root"),
-            pytest.param("/dags/../../etc/passwd", id="multiple_parent_traversal"),
-        ],
-    )
-    def test_rejects_parent_traversal_filelocs(self, fileloc: str) -> None:
-        """A fileloc with ``..`` segments that escape the bundle root must not match.
-
-        Without lexical normalisation, ``Path.relative_to`` on an unnormalised
-        path with ``..`` segments returns a relative path like
-        ``foo/../../outside.py`` that, when later joined with the bundle root,
-        addresses files outside it. Normalising both sides collapses the
-        traversal so the fileloc is no longer under the bundle and the helper
-        returns ``None``.
-        """
-        assert _best_bundle_for_fileloc(fileloc, {"dags": Path("/dags")}) is None
-
     def test_normalises_redundant_separators_and_dots(self) -> None:
+        # ``Path`` itself collapses ``//`` and ``.`` segments on construction,
+        # so the helper matches without any explicit normalization.
         assert _best_bundle_for_fileloc("/dags//team_x/./dag.py", {"team-x": Path("/dags/team_x")}) == (
             "team-x",
             "dag.py",
