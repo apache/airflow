@@ -27,7 +27,7 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import create_app, create_auth_manager
+from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import Connection
@@ -77,31 +77,45 @@ def _shared_api_app():
         return create_app()
 
 
-def _reset_shared_app(app: FastAPI) -> None:
-    """
-    Reset mutable state on the session-shared app before each test.
-
-    The app object is reused for the whole session, so any per-test mutation of its ``state`` or
-    ``dependency_overrides`` would leak into later tests. These mutations exist today and were
-    harmless only because each test used to build its own app:
-
-    * the auth endpoint tests swap ``app.state.auth_manager`` for a mock without restoring it;
-    * several route tests (extra links, tasks, logs) install a ``dag_bag_from_app`` dependency
-      override in their per-test setup and never pop it;
-    * ``app.state.dag_bag`` carries an LRU/TTL cache of deserialized Dags keyed by
-      ``dag_version_id``. A warm entry from an earlier test would let a later test skip the
-      serialized-Dag DB read, which silently breaks query-count assertions (e.g. the grid
-      ``ti_summaries`` stream tests) depending on execution order.
-
-    Restore the canonical auth manager, drop leftover overrides (including on mounted sub-apps),
-    and empty the Dag cache so each test starts from the pristine app and re-applies its own state.
-    """
-    app.state.auth_manager = create_auth_manager()
-    app.state.dag_bag.clear_cache()
-    app.dependency_overrides.clear()
+def _mounted_fastapi_apps(app: FastAPI) -> list[FastAPI]:
+    """Return ``app`` and every FastAPI app mounted under it, recursively (``/execution``, ``/auth``, ...)."""
+    apps = [app]
     for route in app.routes:
         if isinstance(route, Mount) and isinstance(route.app, FastAPI):
-            route.app.dependency_overrides.clear()
+            apps.extend(_mounted_fastapi_apps(route.app))
+    return apps
+
+
+@pytest.fixture
+def _isolated_shared_app(_shared_api_app):
+    """
+    Yield the session-shared app with its mutable state snapshotted and restored around each test.
+
+    The app is built once per session, so a test that rebinds something on ``app.state`` (the auth
+    endpoint tests swap ``auth_manager`` for a mock) or installs a ``dependency_overrides`` entry
+    (extra-links/tasks/logs install a ``dag_bag_from_app`` override) would leak into later tests.
+    Snapshotting ``state`` and ``dependency_overrides`` on the root app and every mounted sub-app on
+    entry and restoring them on exit keeps the reset resilient to future mutations without having to
+    enumerate them.
+
+    ``app.state.dag_bag`` is the exception: tests mutate the DagBag object *in place* (its cache of
+    deserialized Dags fills as requests resolve them), which a state snapshot can't undo, so its
+    cache is cleared explicitly. A leaked warm entry would otherwise let a later test skip a
+    serialized-Dag DB read and break query-count assertions (e.g. the grid ``ti_summaries`` stream
+    tests) depending on execution order.
+    """
+    apps = _mounted_fastapi_apps(_shared_api_app)
+    # ``app.state._state`` is Starlette's backing dict for ``State`` -- the only way to enumerate it.
+    saved = [(app, dict(app.state._state), dict(app.dependency_overrides)) for app in apps]
+    _shared_api_app.state.dag_bag.clear_cache()
+    try:
+        yield _shared_api_app
+    finally:
+        for app, state, overrides in saved:
+            app.state._state.clear()
+            app.state._state.update(state)
+            app.dependency_overrides.clear()
+            app.dependency_overrides.update(overrides)
 
 
 def _authed_test_client(app: FastAPI, request):
@@ -127,9 +141,8 @@ def _authed_test_client(app: FastAPI, request):
 
 
 @pytest.fixture
-def test_client(request, _shared_api_app):
-    _reset_shared_app(_shared_api_app)
-    yield from _authed_test_client(_shared_api_app, request)
+def test_client(request, _isolated_shared_app):
+    yield from _authed_test_client(_isolated_shared_app, request)
 
 
 @pytest.fixture
@@ -153,15 +166,13 @@ def fresh_test_client(request):
 
 
 @pytest.fixture
-def unauthenticated_test_client(request, _shared_api_app):
-    _reset_shared_app(_shared_api_app)
-    return TestClient(_shared_api_app, base_url=f"{BASE_URL}{get_api_path(request)}")
+def unauthenticated_test_client(request, _isolated_shared_app):
+    return TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}")
 
 
 @pytest.fixture
-def unauthorized_test_client(request, _shared_api_app):
-    app = _shared_api_app
-    _reset_shared_app(app)
+def unauthorized_test_client(request, _isolated_shared_app):
+    app = _isolated_shared_app
     auth_manager: SimpleAuthManager = app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
