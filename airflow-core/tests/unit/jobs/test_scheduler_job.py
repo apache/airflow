@@ -862,10 +862,7 @@ class TestSchedulerJob:
         self.job_runner.executor.callback_sink.send.assert_not_called()
         # Only the processed-events counter should have fired across all three sub-tests;
         # no killed_externally mismatch metric should appear.
-        assert all(
-            c.args[0] == "scheduler.executor_events.processed"
-            for c in mock_stats.incr.call_args_list
-        )
+        assert all(c.args[0] == "scheduler.executor_events.processed" for c in mock_stats.incr.call_args_list)
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
