@@ -153,5 +153,3 @@ To run the smoke test locally:
 .. note::
 
    ``--rebuild-base-image`` flag is only needed during the first run
-
-
