@@ -208,36 +208,22 @@ class TestLogging:
         warnings = [entry for entry in logs if entry["log_level"] == "warning"]
         assert any("crash recovery is disabled" in entry["event"] for entry in warnings)
 
-    def test_info_reconnect_with_structured_fields(self):
+    @pytest.mark.parametrize(
+        ("status", "event_fragment", "log_level", "extra_fields"),
+        [
+            ("RUNNING", "Reconnecting", "info", {"external_id_key": "test_job_id", "status": "RUNNING"}),
+            ("SUCCEEDED", "already completed", "info", {"external_id_key": "test_job_id"}),
+            ("FAILED", "terminal state", "warning", {"status": "FAILED"}),
+        ],
+    )
+    def test_log_fields_for_stored_job(self, status, event_fragment, log_level, extra_fields):
         op = ConcreteResumableOperator(task_id="test_task")
-        op._status_map["job-001"] = "RUNNING"
+        op._status_map["job-001"] = status
         with structlog.testing.capture_logs() as logs:
             op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
-        reconnect = next((entry for entry in logs if "Reconnecting" in entry["event"]), None)
-        assert reconnect is not None
-        assert reconnect["log_level"] == "info"
-        assert reconnect["external_id"] == "job-001"
-        assert reconnect["external_id_key"] == "test_job_id"
-        assert reconnect["status"] == "RUNNING"
-
-    def test_info_already_succeeded(self):
-        op = ConcreteResumableOperator(task_id="test_task")
-        op._status_map["job-001"] = "SUCCEEDED"
-        with structlog.testing.capture_logs() as logs:
-            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
-        succeeded = next((entry for entry in logs if "already completed" in entry["event"]), None)
-        assert succeeded is not None
-        assert succeeded["log_level"] == "info"
-        assert succeeded["external_id"] == "job-001"
-        assert succeeded["external_id_key"] == "test_job_id"
-
-    def test_warning_on_terminal_state_fallback(self):
-        op = ConcreteResumableOperator(task_id="test_task")
-        op._status_map["job-001"] = "FAILED"
-        with structlog.testing.capture_logs() as logs:
-            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
-        terminal = next((entry for entry in logs if "terminal state" in entry["event"]), None)
-        assert terminal is not None
-        assert terminal["log_level"] == "warning"
-        assert terminal["external_id"] == "job-001"
-        assert terminal["status"] == "FAILED"
+        entry = next((e for e in logs if event_fragment in e["event"]), None)
+        assert entry is not None
+        assert entry["log_level"] == log_level
+        assert entry["external_id"] == "job-001"
+        for key, val in extra_fields.items():
+            assert entry[key] == val
