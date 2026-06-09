@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+
+import { Checkbox } from "src/components/ui/Checkbox";
 
 type UseRowSelectionProps<T> = {
   data?: Array<T>;
@@ -24,14 +26,84 @@ type UseRowSelectionProps<T> = {
 };
 
 export type GetColumnsParams = {
-  allRowsSelected: boolean;
   multiTeam: boolean;
+};
+
+type SelectionContextValue = {
+  allRowsSelected: boolean;
   onRowSelect: (key: string, isChecked: boolean) => void;
   onSelectAll: (isChecked: boolean) => void;
   selectedRows: Map<string, boolean>;
 };
 
-export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T>) => {
+const SelectionContext = createContext<SelectionContextValue | undefined>(undefined);
+
+const useSelectionContext = () => {
+  const ctx = useContext(SelectionContext);
+
+  if (ctx === undefined) {
+    throw new Error("SelectionRowCheckbox / SelectionHeaderCheckbox must be used inside <SelectionProvider>");
+  }
+
+  return ctx;
+};
+
+type SelectionProviderProps = {
+  readonly allRowsSelected: boolean;
+  readonly children: ReactNode;
+  readonly onRowSelect: (key: string, isChecked: boolean) => void;
+  readonly onSelectAll: (isChecked: boolean) => void;
+  readonly selectedRows: Map<string, boolean>;
+};
+
+export const SelectionProvider = ({
+  allRowsSelected,
+  children,
+  onRowSelect,
+  onSelectAll,
+  selectedRows,
+}: SelectionProviderProps) => {
+  const value: SelectionContextValue = { allRowsSelected, onRowSelect, onSelectAll, selectedRows };
+
+  return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
+};
+
+type SelectionRowCheckboxProps = {
+  readonly colorPalette?: string;
+  readonly rowKey: string;
+};
+
+export const SelectionRowCheckbox = ({ colorPalette, rowKey }: SelectionRowCheckboxProps) => {
+  const { onRowSelect, selectedRows } = useSelectionContext();
+
+  return (
+    <Checkbox
+      borderWidth={1}
+      checked={selectedRows.has(rowKey)}
+      colorPalette={colorPalette}
+      onCheckedChange={(event) => onRowSelect(rowKey, Boolean(event.checked))}
+    />
+  );
+};
+
+type SelectionHeaderCheckboxProps = {
+  readonly colorPalette?: string;
+};
+
+export const SelectionHeaderCheckbox = ({ colorPalette }: SelectionHeaderCheckboxProps) => {
+  const { allRowsSelected, onSelectAll } = useSelectionContext();
+
+  return (
+    <Checkbox
+      borderWidth={1}
+      checked={allRowsSelected}
+      colorPalette={colorPalette}
+      onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+    />
+  );
+};
+
+export const useRowSelection = <T,>({ data = [], getKey }: UseRowSelectionProps<T>) => {
   const [selectedRows, setSelectedRows] = useState<Map<string, boolean>>(new Map());
 
   const handleRowSelect = (key: string, isChecked: boolean) => {

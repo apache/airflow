@@ -139,6 +139,13 @@ labels: {}
 # Whenever service links should be added to each pod.
 enableServiceLinks: false
 
+# Specify the ip family policy to configure dual-stack networking for all Services.
+# See https://kubernetes.io/docs/concepts/services-networking/dual-stack/
+ipFamilyPolicy: ~
+
+# List of IP families for all Services (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"]).
+ipFamilies: []
+
 # List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
 # registries. Items can be either strings or {name: secret} objects.
 imagePullSecrets: []

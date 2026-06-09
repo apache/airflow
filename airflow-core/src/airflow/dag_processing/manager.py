@@ -142,6 +142,11 @@ class DagFileInfo:
         """Return the stable file identity used for presence checks."""
         return self.bundle_name, self.rel_path
 
+    @property
+    def normalized_file_path_for_stats(self) -> str:
+        """Return the relative file path normalized for use in stats tags."""
+        return normalize_name_for_stats(str(self.rel_path))
+
 
 def _config_int_factory(section: str, key: str):
     return functools.partial(conf.getint, section, key)
@@ -1011,7 +1016,7 @@ class DagFileProcessorManager(LoggingMixin):
                 proc = self._processors.get(file)
                 num_dags = stat.num_dags
                 num_errors = stat.import_errors
-                file_name = Path(file.rel_path).stem
+                file_name = normalize_name_for_stats(Path(file.rel_path).stem)
                 processor_pid = proc.pid if proc else None
                 processor_start_time = proc.start_time if proc else None
                 runtime = (now - processor_start_time) if processor_start_time else None
@@ -1116,7 +1121,10 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
                 file_name = str(file.rel_path)
                 self.log.warning("Stopping processor for %s", file_name)
-                stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "stop"})
+                stats.decr(
+                    "dag_processing.processes",
+                    tags={"file_path": file.normalized_file_path_for_stats, "action": "stop"},
+                )
                 processor.kill(signal.SIGKILL)
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
@@ -1335,7 +1343,10 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             processor = self._create_process(file)
-            stats.incr("dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "start"})
+            stats.incr(
+                "dag_processing.processes",
+                tags={"file_path": file.normalized_file_path_for_stats, "action": "start"},
+            )
 
             self._processors[file] = processor
             stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
@@ -1510,9 +1521,9 @@ class DagFileProcessorManager(LoggingMixin):
                     duration,
                     self.processor_timeout,
                 )
-                file_name = str(file.rel_path)
-                stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "timeout"})
-                stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_name})
+                file_path_tag = file.normalized_file_path_for_stats
+                stats.decr("dag_processing.processes", tags={"file_path": file_path_tag, "action": "timeout"})
+                stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_path_tag})
                 processor.kill(signal.SIGKILL)
 
                 processors_to_remove.append(file)
@@ -1574,9 +1585,9 @@ class DagFileProcessorManager(LoggingMixin):
     def terminate(self):
         """Stop all running processors."""
         for file, processor in self._processors.items():
-            # todo: AIP-66 what to do about file_path tag? replace with bundle name and rel path?
             stats.decr(
-                "dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "terminate"}
+                "dag_processing.processes",
+                tags={"file_path": file.normalized_file_path_for_stats, "action": "terminate"},
             )
             # SIGTERM, wait 5s, SIGKILL if still alive
             processor.kill(signal.SIGTERM, escalation_delay=5.0)

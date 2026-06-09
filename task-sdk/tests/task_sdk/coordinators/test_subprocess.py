@@ -341,6 +341,38 @@ class TestConnectionFromProcess:
             client.close()
             server.close()
 
+    def test_matches_dual_stack_ipv4_mapped_connection(self):
+        """A dual-stack (AF_INET6) client connecting to the IPv4 server is accepted.
+
+        Regression test for the Java coordinator (#67781 / #68147): on an
+        IPv6-enabled host the JVM connects back over a dual-stack socket, so the
+        kernel records its loopback connection as the IPv4-mapped
+        ``::ffff:127.0.0.1`` in ``/proc/net/tcp6``. The AF_INET supervisor socket's
+        ``getpeername()`` reports plain ``127.0.0.1``, so the ownership check must
+        treat the mapped and plain forms as the same address -- otherwise every
+        Java task is rejected with "process exited with 1 before connecting".
+        """
+        server = _start_server()
+        _, port = server.getsockname()
+        try:
+            client = socket.socket(socket.AF_INET6)
+            client.connect(("::ffff:127.0.0.1", port))
+        except OSError as e:
+            server.close()
+            pytest.skip(f"IPv6 loopback unavailable: {e}")
+        conn, _ = server.accept()
+        # Sanity: the client really is using the IPv4-mapped form the JVM exhibits.
+        assert client.getsockname()[0] == "::ffff:127.0.0.1"
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
     def test_rejects_tcp_connection_not_owned_by_child_process(self):
         server = _start_server()
         _, port = server.getsockname()

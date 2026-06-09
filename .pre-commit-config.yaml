@@ -248,6 +248,16 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-partition-mapper-defaults-in-sync
+        name: Check FanOutMapper default mapper table stays in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/temporal\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
@@ -415,7 +425,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: ed088a72e7773e24b3ed72a2c4323f594736aa39  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -1229,3 +1239,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^java-sdk/.*$
+      - id: spotless
+        name: Run spotless apply
+        description: "Use spotless (via Gradle) to format Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk spotlessApply
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*\.java$
