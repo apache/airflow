@@ -187,7 +187,8 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
 def dagbag():
     from airflow.models.dagbag import DBDagBag
 
-    parse_and_sync_to_db(os.devnull, include_examples=True)
+    with conf_vars({("core", "load_examples"): "True"}):
+        parse_and_sync_to_db(os.devnull)
     return DBDagBag()
 
 
