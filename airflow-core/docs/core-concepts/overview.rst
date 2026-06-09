@@ -167,7 +167,7 @@ UI is read from the *metadata database*. The *API server* cannot execute any cod
 the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
 Dags and tasks, but cannot author Dags.
 
-The *Dag processor*, *triggerer* and *workers* all need access to the *Dag bundles*. The *scheduler* reads the serialized Dag from the *metadata database* and does not need direct access to the *Dag bundles*.
+The *Dag processor*, and *workers* all need access to the *Dag bundles*. The *scheduler* and *triggerer* read from the *metadata database* and do not require direct access to *Dag bundles*.
 In a distributed deployment, the *workers* get a specific *Dag bundle* version defined by the *scheduler* when executing a task.
 Typical ways to
 configure DAG bundle backends are described in :doc:`/administration-and-deployment/dag-bundles`.
