@@ -919,6 +919,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_0_PLUS,
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
+        AIRFLOW_V_3_3_PLUS,
         NOTSET,
     )
 
@@ -1189,9 +1190,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                if AIRFLOW_V_3_0_PLUS:
+                if AIRFLOW_V_3_3_PLUS:
                     ti.refresh_from_task(dag.get_task(ti.task_id), dag_run=self.dag_run)
-                else:
+                elif AIRFLOW_V_3_0_PLUS:
                     ti.refresh_from_task(self.dag.get_task(ti.task_id))
             self.session.commit()
             return self.dag_run

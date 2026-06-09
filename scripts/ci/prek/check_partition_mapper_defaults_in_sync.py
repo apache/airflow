@@ -73,23 +73,25 @@ def _find_attr_value(file_path: Path) -> ast.Dict:
         if not (isinstance(node, ast.ClassDef) and node.name == CLASS_NAME):
             continue
         for stmt in node.body:
-            target_name = None
             if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-                target_name = stmt.target.id
+                if stmt.target.id != ATTR_NAME:
+                    continue
+                value = stmt.value
             elif (
                 isinstance(stmt, ast.Assign)
                 and len(stmt.targets) == 1
                 and isinstance(stmt.targets[0], ast.Name)
+                and stmt.targets[0].id == ATTR_NAME
             ):
-                target_name = stmt.targets[0].id
-            if target_name != ATTR_NAME:
+                value = stmt.value
+            else:
                 continue
-            if not isinstance(stmt.value, ast.Dict):
+            if not isinstance(value, ast.Dict):
                 raise ValueError(
                     f"{file_path}: {CLASS_NAME}.{ATTR_NAME} is not a dict literal; "
                     f"this check parses a dict literal and must be updated."
                 )
-            return stmt.value
+            return value
         raise ValueError(f"{file_path}: {CLASS_NAME} has no {ATTR_NAME} attribute.")
     raise ValueError(f"{file_path}: no class {CLASS_NAME} found.")
 
