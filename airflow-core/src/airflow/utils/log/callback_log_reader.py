@@ -38,14 +38,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _get_callback_log_relative_path(dag_id: str, run_id: str, callback_id: str) -> str:
+def _get_callback_log_relative_paths(dag_id: str, run_id: str, callback_id: str) -> list[str]:
     """
-    Construct the relative log path for a callback execution.
+    Construct the relative log paths for a callback execution.
 
-    This must match the path format used in ExecuteCallback.make():
+    Returns paths for both executor callbacks (sync) and triggerer callbacks (async).
+    The executor path matches the format used in ExecuteCallback.make():
         executor_callbacks/{dag_id}/{run_id}/{callback_id}
+    The triggerer path matches what TriggerLoggingFactory writes for callback triggers:
+        triggerer_callbacks/{dag_id}/{run_id}/{callback_id}
     """
-    return f"executor_callbacks/{dag_id}/{run_id}/{callback_id}"
+    return [
+        f"executor_callbacks/{dag_id}/{run_id}/{callback_id}",
+        f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}",
+    ]
 
 
 def read_callback_log(
@@ -56,7 +62,8 @@ def read_callback_log(
     """
     Read callback logs from remote and/or local storage.
 
-    Tries remote storage first (if configured), then falls back to local filesystem.
+    Tries both executor_callbacks and triggerer_callbacks paths.
+    For each path, tries remote storage first (if configured), then falls back to local filesystem.
     Returns a generator of StructuredLogMessage objects suitable for the API response.
 
     :param dag_id: The Dag ID associated with the callback.
@@ -64,25 +71,30 @@ def read_callback_log(
     :param callback_id: The unique callback identifier.
     :return: Generator of StructuredLogMessage objects.
     """
-    relative_path = _get_callback_log_relative_path(dag_id, run_id, callback_id)
+    relative_paths = _get_callback_log_relative_paths(dag_id, run_id, callback_id)
 
     sources: LogSourceInfo = []
     remote_logs: list[RawLogStream] = []
     local_logs: list[RawLogStream] = []
 
-    # Try remote storage first
-    with suppress(Exception):
-        remote_sources, remote_log_streams = _read_callback_remote_logs(relative_path)
-        if remote_log_streams:
-            sources.extend(remote_sources)
-            remote_logs.extend(remote_log_streams)
+    for relative_path in relative_paths:
+        # Try remote storage first
+        with suppress(Exception):
+            remote_sources, remote_log_streams = _read_callback_remote_logs(relative_path)
+            if remote_log_streams:
+                sources.extend(remote_sources)
+                remote_logs.extend(remote_log_streams)
 
-    # Try local filesystem
-    if not remote_logs:
-        local_sources, local_log_streams = _read_callback_local_logs(relative_path)
-        if local_log_streams:
-            sources.extend(local_sources)
-            local_logs.extend(local_log_streams)
+        # Try local filesystem
+        if not remote_logs:
+            local_sources, local_log_streams = _read_callback_local_logs(relative_path)
+            if local_log_streams:
+                sources.extend(local_sources)
+                local_logs.extend(local_log_streams)
+
+        # If we found logs at this path, no need to check the next path
+        if remote_logs or local_logs:
+            break
 
     if not remote_logs and not local_logs:
         yield StructuredLogMessage(event="No callback logs found.", timestamp=None)
