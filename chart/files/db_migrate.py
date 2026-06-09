@@ -59,6 +59,7 @@ from alembic.migration import MigrationContext
 from kubernetes import client, config as k8s_config
 from kubernetes.stream import stream
 from packaging.version import Version
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from tenacity import (
     retry,
@@ -92,37 +93,51 @@ def _resolve_target_rev(target: str) -> str | None:
     return max(candidates, key=lambda pair: pair[0])[1]
 
 
+def _db_connect_stop(retry_state):
+    # Evaluate ``DB_CONNECT_MAX_WAIT_SECONDS`` at retry time (not import time)
+    # so that operators -- and unit tests -- can tune the wait window without
+    # reloading the module. ``/entrypoint`` skips its DB-wait for non-airflow
+    # commands (we run as ``python3 -c ...``), so on a fresh install with a
+    # bundled postgres still starting, the first connect attempt races the DB.
+    # Default 120s matches the entrypoint's
+    # ``CONNECTION_CHECK_MAX_COUNT`` * ``CONNECTION_CHECK_SLEEP_TIME``.
+    delay = int(os.environ.get("DB_CONNECT_MAX_WAIT_SECONDS", "120"))
+    return stop_after_delay(delay)(retry_state)
+
+
 @retry(
-    # ``/entrypoint`` skips its DB-wait for non-airflow commands (we run as
-    # ``python3 -c ...``), so on a fresh install with a bundled postgres still
-    # starting, the first connect attempt races the DB. Wait up to
-    # ``DB_CONNECT_MAX_WAIT_SECONDS`` (default 120s, matching the entrypoint's
-    # ``CONNECTION_CHECK_MAX_COUNT`` * ``CONNECTION_CHECK_SLEEP_TIME``) before
-    # surfacing the failure as a real outage.
-    stop=stop_after_delay(int(os.environ.get("DB_CONNECT_MAX_WAIT_SECONDS", "120"))),
+    stop=_db_connect_stop,
     wait=wait_fixed(3),
     retry=retry_if_exception_type(OperationalError),
     reraise=True,
 )
-def _current_revision_with_db_wait() -> str | None:
+def _wait_for_db_ready() -> None:
+    """Block until the metadata DB accepts a connection.
+
+    Called once at the top of :func:`main` so that *every* downstream step
+    (``decide_action``, ``airflow db migrate`` subprocess, ``kubernetes``
+    api-server pod exec) can assume the DB is reachable. Without this, the
+    subprocess branch had no DB-wait of its own and would fail immediately
+    on a fresh install where the bundled postgres was still initialising,
+    causing ``BackoffLimitExceeded`` on the Job.
+    """
     with engine.connect() as conn:
-        return MigrationContext.configure(conn).get_current_revision()
+        conn.execute(text("SELECT 1"))
 
 
 def decide_action(target: str) -> str:
-    """Return one of ``noop``, ``forward``, ``downgrade``, ``fresh``."""
+    """Return one of ``noop``, ``forward``, ``downgrade``, ``fresh``.
+
+    Assumes the DB is already reachable -- :func:`_wait_for_db_ready` must
+    have been called first.
+    """
     target_rev = _resolve_target_rev(target)
     if target_rev is None:
         # Unknown target version (e.g. dev build). Be conservative: forward only.
         return "forward"
 
-    try:
-        current_rev = _current_revision_with_db_wait()
-    except OperationalError:
-        # DB still unreachable after the wait window -> treat as fresh install;
-        # ``airflow db migrate`` will re-surface a real connectivity error
-        # with a clearer message.
-        return "fresh"
+    with engine.connect() as conn:
+        current_rev = MigrationContext.configure(conn).get_current_revision()
 
     if current_rev is None:
         return "fresh"
@@ -273,6 +288,16 @@ def main() -> int:
         raise SystemExit("AIRFLOW_TARGET_VERSION must be set")
     if not namespace:
         raise SystemExit("POD_NAMESPACE must be set")
+
+    # Block until the DB is reachable so that BOTH ``decide_action`` and the
+    # subsequent ``airflow db migrate`` subprocess (which does not go through
+    # ``/entrypoint`` and therefore has no DB-wait of its own) succeed on a
+    # fresh install where the bundled postgres may still be initialising.
+    try:
+        _wait_for_db_ready()
+    except OperationalError as exc:
+        print(f"[db_migrate] DB unreachable after wait window: {exc}", flush=True)
+        return 1
 
     action = decide_action(target)
     print(f"[db_migrate] target={target} action={action}", flush=True)

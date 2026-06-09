@@ -142,12 +142,22 @@ def test_decide_action_unknown_target_falls_back_to_forward(db_migrate, monkeypa
     assert db_migrate.decide_action("9.9.9") == "forward"
 
 
-def test_decide_action_fresh_when_db_unreachable(db_migrate, monkeypatch, patched_revision_map):
+def test_decide_action_propagates_db_error(db_migrate, monkeypatch, patched_revision_map):
+    """``decide_action`` assumes the DB is already reachable.
+
+    The wait is the responsibility of :func:`main` via
+    :func:`_wait_for_db_ready`; ``decide_action`` itself must surface a
+    connectivity failure rather than silently treating it as a fresh
+    install (which would then run ``airflow db migrate`` against a still-
+    unreachable DB and cause ``BackoffLimitExceeded``).
+    """
+
     def _raise(*_a, **_kw):
         raise OperationalError("SELECT 1", {}, Exception("unreachable"))
 
     monkeypatch.setattr(db_migrate.engine, "connect", _raise)
-    assert db_migrate.decide_action("3.1.0") == "fresh"
+    with pytest.raises(OperationalError):
+        db_migrate.decide_action("3.1.0")
 
 
 def test_decide_action_fresh_when_no_alembic_row(patched_revision_map, db_migrate, patch_engine_returning):
