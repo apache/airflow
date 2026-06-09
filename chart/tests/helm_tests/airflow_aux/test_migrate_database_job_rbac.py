@@ -93,3 +93,37 @@ class TestMigrateDatabaseJobRBAC:
         )
         for d in docs:
             assert jmespath.search("metadata.namespace", d) == "my-airflow-ns"
+
+    def test_rbac_runs_as_pre_install_pre_upgrade_hook_by_default(self):
+        # The migrate-database-job itself is a pre-install/pre-upgrade hook. Its
+        # ServiceAccount, Role and RoleBinding must therefore also be hooks
+        # (with a lower weight so they exist before the Job runs), otherwise on
+        # a fresh install or first downgrade adoption the Job would fail with
+        # no SA / no RBAC bound.
+        docs = render_chart(
+            show_only=[
+                ROLE_TEMPLATE,
+                ROLEBINDING_TEMPLATE,
+                "templates/jobs/migrate-database-job-serviceaccount.yaml",
+            ],
+        )
+        for d in docs:
+            annotations = jmespath.search("metadata.annotations", d) or {}
+            assert annotations.get("helm.sh/hook") == "pre-install,pre-upgrade", d["kind"]
+            assert annotations.get("helm.sh/hook-weight") == "-5", d["kind"]
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            ROLE_TEMPLATE,
+            ROLEBINDING_TEMPLATE,
+            "templates/jobs/migrate-database-job-serviceaccount.yaml",
+        ],
+    )
+    def test_rbac_hook_annotations_can_be_disabled(self, template):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"useHelmHooks": False}},
+            show_only=[template],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0]) or {}
+        assert "helm.sh/hook" not in annotations
