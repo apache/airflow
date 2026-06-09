@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Keep the following in sync with the core copy in
-# ``airflow-core/src/airflow/partition_mappers/window.py`` —
-# the SDK and core class hierarchies are independent (the SDK cannot import
-# core), so both sides carry the same definitions. Runtime logic lives in the
-# core copy; this file provides the author-facing classes used at Dag-parse time.
-# Synced items: all class names, ``WindowDirection``, ``direction`` kwarg, ``serialize``/``deserialize``.
+# The shared surface below is kept in sync with the core copy in
+# ``airflow-core/src/airflow/partition_mappers/window.py``, enforced by the
+# ``check-window-in-sync`` prek hook (``scripts/ci/prek/check_window_in_sync.py``).
+# The SDK and core class hierarchies are independent (the SDK cannot import core),
+# so both sides carry the same definitions. Runtime logic lives in the core copy;
+# this file provides the author-facing classes used at Dag-parse time.
+# Synced items: all class names, ``WindowDirection``, ``direction`` kwarg,
+# ``serialize``/``deserialize``, and each subclass ``expected_decoded_type``.
 from __future__ import annotations
 
 from datetime import datetime

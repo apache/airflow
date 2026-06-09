@@ -258,6 +258,16 @@ repos:
           ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-window-in-sync
+        name: Check Window definitions stay in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_window_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
