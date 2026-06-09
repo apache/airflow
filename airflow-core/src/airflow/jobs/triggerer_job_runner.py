@@ -507,6 +507,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     except Exception:
                         log.exception("Failed to upload trigger logs to remote", trigger_id=id)
                     finally:
+                        # Close the FD explicitly even if upload raised, otherwise the file
+                        # handle leaks for every failed upload.
                         factory.close()
             sync = messages.TriggerStateSync(to_create=[], to_cancel=set())
             sync.to_cancel = self.cancelling_triggers.copy()
