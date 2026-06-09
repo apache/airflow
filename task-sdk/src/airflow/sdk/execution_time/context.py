@@ -212,6 +212,7 @@ def _get_connection(conn_id: str) -> Connection:
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
+                exc_info=True,
             )
 
     # If no backend found the connection, raise an error
@@ -269,6 +270,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
+                exc_info=True,
             )
 
     # If no backend found the connection, raise an error
