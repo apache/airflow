@@ -773,3 +773,156 @@ class TestSparkSubmitOperatorK8sTracking:
 
         hook.submit.assert_called_once_with("test.jar")
         hook._poll_k8s_driver_via_api.assert_not_called()
+        
+
+class TestSparkSubmitOperatorDeferrable:
+    """Tests for SparkSubmitOperator deferrable=True mode."""
+
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_deferrable_dag", schedule=None, default_args=args)
+
+    def _make_operator(self, **kwargs):
+        return SparkSubmitOperator(
+            task_id="test_deferrable",
+            dag=self.dag,
+            application="test.jar",
+            deferrable=True,
+            **kwargs,
+        )
+
+    def _make_hook(self):
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = False
+        hook._connection = {"master": "spark://myhost:7077"}
+        hook.submit.return_value = "driver-001"
+        return hook
+
+    def test_deferrable_defaults_to_false(self):
+        """deferrable must default to False — existing behaviour unchanged."""
+        op = SparkSubmitOperator(task_id="t", dag=self.dag, application="app.jar")
+        assert op.deferrable is False
+
+    def test_deferrable_stored_on_operator(self):
+        """deferrable=True must be stored as self.deferrable."""
+        op = self._make_operator()
+        assert op.deferrable is True
+
+    def test_execute_calls_defer_when_deferrable_true(self):
+        """execute() must call self.defer() when deferrable=True."""
+        op = self._make_operator()
+        hook = self._make_hook()
+        op._hook = hook
+
+        with mock.patch.object(op, "submit_job", return_value="driver-001"), \
+             mock.patch.object(op, "_build_master_rest_urls", return_value=["http://myhost:6066"]), \
+             mock.patch.object(op, "defer") as mock_defer:
+            op.execute(context={})
+
+        mock_defer.assert_called_once()
+        call_kwargs = mock_defer.call_args.kwargs
+        assert call_kwargs["method_name"] == "execute_complete"
+
+    def test_execute_passes_correct_args_to_trigger(self):
+        """execute() must pass driver_id and master_urls to SparkDriverTrigger."""
+        from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
+
+        op = self._make_operator(status_poll_interval=15)
+        hook = self._make_hook()
+        op._hook = hook
+
+        with mock.patch.object(op, "submit_job", return_value="driver-xyz"), \
+             mock.patch.object(op, "_build_master_rest_urls", return_value=["http://m1:6066"]), \
+             mock.patch.object(op, "defer") as mock_defer:
+            op.execute(context={})
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert isinstance(trigger, SparkDriverTrigger)
+        assert trigger.driver_id == "driver-xyz"
+        assert trigger.master_urls == ["http://m1:6066"]
+        assert trigger.poll_interval == 15
+
+    def test_execute_does_not_call_hook_submit_directly(self):
+        """execute() in deferrable mode must use submit_job(), not hook.submit()."""
+        op = self._make_operator()
+        hook = self._make_hook()
+        op._hook = hook
+
+        with mock.patch.object(op, "submit_job", return_value="driver-001"), \
+             mock.patch.object(op, "_build_master_rest_urls", return_value=["http://myhost:6066"]), \
+             mock.patch.object(op, "defer"):
+            op.execute(context={})
+
+        hook.submit.assert_not_called()
+
+    def test_execute_complete_succeeds_on_success_event(self):
+        """execute_complete() must not raise when status=success."""
+        op = self._make_operator()
+        event = {
+            "status": "success",
+            "driver_id": "driver-001",
+            "driver_state": "FINISHED",
+            "message": "Driver reached FINISHED",
+        }
+        op.execute_complete(context={}, event=event)  # must not raise
+
+    def test_execute_complete_raises_on_error_event(self):
+        """execute_complete() must raise AirflowException when status=error."""
+        from airflow.providers.common.compat.sdk import AirflowException
+
+        op = self._make_operator()
+        event = {
+            "status": "error",
+            "driver_id": "driver-001",
+            "driver_state": "FAILED",
+            "message": "Driver reached FAILED",
+        }
+        with pytest.raises(AirflowException, match="driver-001"):
+            op.execute_complete(context={}, event=event)
+
+    def test_build_master_rest_urls_single_master(self):
+        """_build_master_rest_urls must return correct URL for a single master."""
+        op = self._make_operator()
+        hook = self._make_hook()
+        hook._connection = {
+            "master": "spark://myhost:7077",
+            "rest_scheme": "http",
+            "rest_port": 6066,
+        }
+        op._hook = hook
+
+        urls = op._build_master_rest_urls()
+
+        assert urls == ["http://myhost:6066"]
+
+    def test_build_master_rest_urls_ha_multiple_masters(self):
+        """_build_master_rest_urls must return a URL per master in HA mode."""
+        op = self._make_operator()
+        hook = self._make_hook()
+        hook._connection = {
+            "master": "spark://m1:7077,m2:7077",
+            "rest_scheme": "https",
+            "rest_port": 6066,
+        }
+        op._hook = hook
+
+        urls = op._build_master_rest_urls()
+
+        assert urls == ["https://m1:6066", "https://m2:6066"]
+
+    def test_deferrable_false_uses_sync_path(self):
+        """deferrable=False must fall through to the existing sync path (no defer call)."""
+        op = SparkSubmitOperator(
+            task_id="sync", dag=self.dag, application="app.jar", deferrable=False
+        )
+        hook = MagicMock()
+        hook._should_track_driver_status = False
+        hook._should_track_driver_via_k8s_api.return_value = False
+        op._hook = hook
+
+        with mock.patch.object(op, "defer") as mock_defer:
+            op.execute(context={})
+
+        mock_defer.assert_not_called()
+        hook.submit.assert_called_once_with("app.jar")

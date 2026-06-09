@@ -134,6 +134,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         omitted, Kerberos-enabled Spark connections with both ``keytab`` and
         ``principal`` configured use ``requests-kerberos`` automatically.
         Defaults to ``None`` (no auth for non-Kerberos connections).
+    :param deferrable: If ``True``, submits the job then defers to
+        ``SparkDriverTrigger``; the worker slot is freed while the trigger
+        polls the Spark REST API. On crash the trigger is re-created from
+        its serialised state (no reconnect needed). On user-clear, execute()
+        runs again and a fresh job is submitted.
+        If ``False`` (default), the sync ``ResumableJobMixin`` path is used.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -197,6 +203,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -244,6 +251,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
 
         self.reconnect_on_retry = reconnect_on_retry
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
+        self.deferrable = deferrable
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
@@ -261,6 +269,19 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         hook = self._hook
         if self._track_driver_via_k8s_api:
             hook._validate_track_driver_via_k8s_api_config()
+        if self.deferrable:
+            driver_id = self.submit_job(context)
+            master_urls = self._build_master_rest_urls()
+            from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
+            self.defer(
+                trigger=SparkDriverTrigger(
+                    driver_id=driver_id,
+                    master_urls=master_urls,
+                    poll_interval=self._status_poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return  # unreachable after defer(); keeps type checkers happy
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
@@ -275,6 +296,36 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             hook._poll_k8s_driver_via_api()
             return
         hook.submit(self.application)
+        
+    def execute_complete(self, context: Context, event: dict) -> None:
+        """
+        Handle the result emitted by SparkDriverTrigger.
+        Called by Airflow when the trigger fires after deferrable=True execution.
+        Raises AirflowException if the driver did not finish successfully.
+        """
+        from airflow.providers.common.compat.sdk import AirflowException
+        driver_state = event.get("driver_state", "UNKNOWN")
+        driver_id = event.get("driver_id", "unknown")
+        message = event.get("message", "")
+        if event.get("status") != "success":
+            raise AirflowException(
+                f"Spark driver {driver_id} did not finish successfully "
+                f"(state={driver_state}): {message}"
+            )
+        self.log.info("Spark driver %s finished successfully (state=%s)", driver_id, driver_state)
+    def _build_master_rest_urls(self) -> list[str]:
+        """
+        Build Spark master REST API base URLs for SparkDriverTrigger.
+        Supports HA (comma-separated master URL) and respects rest_scheme /
+        rest_port connection extras (same logic as get_job_status).
+        """
+        if self._hook is None:
+            self._hook = self._get_hook()
+        scheme = self._hook._connection.get("rest_scheme", "http")
+        rest_port = self._hook._connection.get("rest_port", 6066)
+        master_hosts = self._hook._connection["master"].replace("spark://", "").split(",")
+        return [f"{scheme}://{m.strip().split(':')[0]}:{rest_port}" for m in master_hosts]
+
 
     def submit_job(self, context: Context) -> str:
         if self._hook is None:

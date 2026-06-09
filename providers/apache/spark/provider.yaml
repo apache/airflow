@@ -241,3 +241,8 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
     name: pyspark
+
+triggers:
+  - integration-name: Apache Spark
+    python-modules:
+      - airflow.providers.apache.spark.triggers.spark_submit
