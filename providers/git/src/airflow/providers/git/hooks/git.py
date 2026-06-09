@@ -124,22 +124,15 @@ class GitHook(BaseHook):
         if (self.github_app_id is not None and self.github_installation_id is None) or (
             self.github_app_id is None and self.github_installation_id is not None
         ):
-            raise AirflowException(
+            raise ValueError(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
         if self.github_app_id is not None and self.github_installation_id is not None:
-            if not self.key_file and not self.private_key:
-                raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
-                try:
-                    with open(self.key_file, encoding="utf-8") as key_file:
-                        self.private_key = key_file.read()
-                except OSError as exc:
-                    raise AirflowException(
-                        f"Failed to read GitHub App private key file {self.key_file!r}: {exc}"
-                    ) from exc
+                with open(self.key_file, encoding="utf-8") as key_file:
+                    self.private_key = key_file.read()
             if not (self.repo_url or "").startswith(("https://", "http://")):
-                raise AirflowException(
+                raise ValueError(
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
             # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
