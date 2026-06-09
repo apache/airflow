@@ -508,6 +508,7 @@ class TestSparkSubmitOperatorResumable:
     def _make_hook(self, should_track=False, is_yarn=False, is_yarn_cluster=False, is_kubernetes=False):
         hook = MagicMock()
         hook._should_track_driver_status = should_track
+        hook._should_track_driver_via_k8s_api.return_value = False
         hook._is_yarn = is_yarn
         hook._is_yarn_cluster_mode = is_yarn_cluster
         hook._is_kubernetes = is_kubernetes
