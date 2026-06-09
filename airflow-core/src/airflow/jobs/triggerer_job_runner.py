@@ -104,7 +104,6 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
-    from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
@@ -480,34 +479,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc_id = job.id if job is not None else uuid4()
 
         from airflow.sdk.api.client import Client
+
         api = in_process_api_server()
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         client.base_url = "http://in-process.invalid./"
 
-        proc = super().start(id=proc_id, job=job, client=client,target=cls.run_in_process, logger=logger, **kwargs)
+        proc = super().start(
+            id=proc_id, job=job, client=client, target=cls.run_in_process, logger=logger, **kwargs
+        )
         proc.send_msg(messages.StartTriggerer(), request_id=0)
         return proc
-
-    # @functools.cached_property
-    # def client(self) -> Client:
-    #     return self.make_client()
-
-    # def make_client(self) -> Client:
-    #     """
-    #     Build the API client used to talk to the API server.
-
-    #     Subclasses may override this to substitute a different transport — e.g. a
-    #     real HTTP client pointing at a remote API server — instead of the default
-    #     in-process one. The returned client must have ``base_url`` set; downstream
-    #     request handling (``self.client.variables``, ``.xcoms``, etc.) reads it
-    #     when issuing requests.
-    #     """
-    #     from airflow.sdk.api.client import Client
-
-    #     client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
-    #     # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-    #     client.base_url = "http://in-process.invalid./"
-    #     return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         self._last_runner_comms = time.monotonic()

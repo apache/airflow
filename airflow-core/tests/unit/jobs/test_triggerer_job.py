@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-from airflow.sdk.api.client import Client
 import greenback
 import msgspec
 import pendulum
@@ -74,6 +73,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
+from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -233,7 +233,7 @@ def supervisor_builder(mocker, session):
             stdin=mock_stdin,
             process=process,
             capacity=10,
-            client = mocker.Mock(spec=Client),
+            client=mocker.Mock(spec=Client),
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -266,7 +266,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name="team_x",
-        client = mocker.Mock(spec=Client),
+        client=mocker.Mock(spec=Client),
     )
     assert proc.team_name == "team_x"
 
@@ -279,7 +279,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name=None,
-        client = mocker.Mock(spec=Client),
+        client=mocker.Mock(spec=Client),
     )
     assert proc_global.team_name is None
 
