@@ -126,7 +126,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.schema = schema
         self.role = role
         self.warehouse = warehouse
-        self.job_name = None
+        self.job_name: str | None = None
 
         if self.spec_text and (self.spec or self.spec_stage):
             raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
@@ -159,18 +159,19 @@ class SnowparkContainerJobOperator(BaseOperator):
             sql += f" FROM {self.spec_stage} SPEC = '{self.spec}'"
         return sql
 
+    def _run_one(self, sql: str, return_dictionaries: bool = False) -> Any:
+        """Run a single statement that returns one row via fetch_one_handler."""
+        return self._hook.run(sql, handler=fetch_one_handler, return_dictionaries=return_dictionaries)
+
     def _submit_job(self) -> None:
-        """Submit the job and set the job name."""
-        sql = self._build_sql()
-        response = self._hook.run(sql, handler=fetch_one_handler)[0]
-        self.job_name = response.split("'")[1]
+        """Submit the job and store the job name on the instance."""
+        response = self._run_one(self._build_sql())
+        self.job_name = response[0].split("'")[1]
 
     def _poll_for_status(self) -> str:
         """Poll until the job reaches a terminal state."""
         while True:
-            response = self._hook.run(
-                f"DESCRIBE SERVICE {self.job_name}", handler=fetch_one_handler, return_dictionaries=True
-            )
+            response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
             if status in ("DONE", "FAILED", "CANCELLED", "INTERNAL_ERROR"):
                 return status
@@ -182,7 +183,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         """Fetch and log container output for all replicas."""
         for instance_id in range(self.replicas):
             sql = f"SELECT SYSTEM$GET_SERVICE_LOGS('{self.job_name}', {instance_id}, '{self.container_name}')"
-            response = self._hook.run(sql, handler=fetch_one_handler)[0]
+            response = self._run_one(sql)[0]
             if status != "DONE":
                 self.log.error("Logs for instance_id %d:\n%s", instance_id, response)
             else:
@@ -199,6 +200,8 @@ class SnowparkContainerJobOperator(BaseOperator):
     def execute(self, context: Context) -> str:
         """Submit and optionally wait for a Snowpark Container Services job."""
         self._submit_job()
+        if not self.job_name:
+            raise RuntimeError("Job name was not returned")
         if not self.wait_for_completion:
             return self.job_name
         status = self._poll_for_status()
