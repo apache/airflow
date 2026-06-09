@@ -114,9 +114,9 @@ if TYPE_CHECKING:
     from inspect import Parameter
 
     from kubernetes.client import models as k8s  # noqa: TC004
+    from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.types import Operator as SdkOperator
@@ -494,7 +494,7 @@ class BaseSerialization:
             and _has_kubernetes(attempt_import=True)
             and isinstance(var, k8s.V1Pod)
         ):
-            json_pod = PodGenerator.serialize_pod(var)
+            json_pod = ApiClient().sanitize_for_serialization(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
@@ -650,9 +650,10 @@ class BaseSerialization:
             if not _has_kubernetes(attempt_import=True):
                 raise RuntimeError(
                     "Cannot deserialize POD objects without kubernetes libraries. "
-                    "Please install the cncf.kubernetes provider."
+                    "Please install the `kubernetes` package."
                 )
-            pod = PodGenerator.deserialize_model_dict(var)
+            # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
+            pod = ApiClient()._ApiClient__deserialize_model(var, k8s.V1Pod)
             return pod
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
@@ -918,14 +919,16 @@ class _DependencyDetector:
 
         for obj in task.outlets or []:
             if isinstance(obj, (Asset, SerializedAsset)):
-                serialized_asset = ensure_serialized_asset(obj)
+                # The unique key only needs ``name``/``uri``, and asset encode/decode
+                # copies both verbatim, so build the key directly and skip the full
+                # ensure_serialized_asset() encode→decode roundtrip on every outlet.
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
+                        dependency_id=SerializedAssetUniqueKey(name=obj.name, uri=obj.uri).to_str(),
                     )
                 )
             elif isinstance(obj, (AssetAlias, SerializedAssetAlias)):
@@ -2185,11 +2188,10 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
     # Loading kube modules is expensive, so delay it until the last moment
     try:
         from kubernetes.client import models as k8s
-
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         globals()["k8s"] = k8s
-        globals()["PodGenerator"] = PodGenerator
+        globals()["ApiClient"] = ApiClient
         return True
     except ImportError:
         return False

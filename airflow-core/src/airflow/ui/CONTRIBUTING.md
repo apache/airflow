@@ -40,27 +40,6 @@ Manually:
 - Run `pnpm install && pnpm dev`
 - Note: Make sure to access the UI via the Airflow localhost port (8080 or 28080) and not the vite port (5173)
 
-## Dependency upgrade caveats
-
-### `@chakra-ui/react` — held at `~3.34.0`
-
-Do not relax this pin or bump `@chakra-ui/react` above `3.34.x` without
-re-checking every dialog in this codebase that is mounted conditionally
-(`{open ? <Dialog ... /> : undefined}`), e.g. `ClearRunButton`,
-`MarkRunAsButton`, `ClearTaskInstanceButton`, `MarkTaskInstanceAsButton`.
-
-`@chakra-ui/react@3.35.0` pulls in `@ark-ui/react@>=5.36.0`, where dialog
-`pointer-events` cleanup moved from an inline style on the dialog DOM
-to the dismissable layer's close-transition completion. Conditionally
-mounted dialogs unmount before that transition runs, leaving the
-`pointer-events: none` lock stuck on `document` — the page then refuses
-every click (scroll still works) until a full refresh. See PR #67646
-for the original revert and the timeline.
-
-To bump safely, first rewrite the conditional-mount sites to always
-render the dialog (and gate any expensive dry-run queries with
-`enabled: open`) so the dialog can drive its own close transition.
-
 ## More
 
 See [node environment setup docs](/contributing-docs/15_node_environment_setup.rst)

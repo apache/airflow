@@ -179,12 +179,20 @@ class QueuedEventCollectionResponse(BaseModel):
     total_entries: int
 
 
+class AssetEventAccessControl(StrictBaseModel):
+    """Access control settings for asset event consumer team filtering."""
+
+    consumer_teams: list[str] | None = None
+    allow_global: bool = True
+
+
 class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
     partition_key: str | None = None
     extra: dict = Field(default_factory=dict)
+    access_control: AssetEventAccessControl | None = None
 
     @field_validator("extra", mode="after")
     def set_from_rest_api(cls, v: dict) -> dict:

@@ -320,6 +320,16 @@ metadata:
                             "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                             "kwargs": {},
                         },
+                        {
+                            "name": "team-bundle",
+                            "team_name": "team-a",
+                            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                            "kwargs": {
+                                "git_conn_id": "GITHUB__team_repo",
+                                "subdir": "team-dags",
+                                "tracking_ref": "main",
+                            },
+                        },
                     ],
                 },
             },
@@ -337,7 +347,7 @@ metadata:
         # Parse and validate JSON structure
         bundles = json.loads(json_str)
         assert isinstance(bundles, list), "dag_bundle_config_list should be a list"
-        assert len(bundles) == 3, f"Expected 3 bundles, got {len(bundles)}"
+        assert len(bundles) == 4, f"Expected 4 bundles, got {len(bundles)}"
 
         # Verify bundle1
         bundle1 = next((b for b in bundles if b["name"] == "bundle1"), None)
@@ -362,3 +372,12 @@ metadata:
         assert dags_folder is not None, "dags-folder not found"
         assert dags_folder["classpath"] == "airflow.dag_processing.bundles.local.LocalDagBundle"
         assert dags_folder["kwargs"] == {}
+
+        # Verify team-bundle
+        team_bundle = next((b for b in bundles if b["name"] == "team-bundle"), None)
+        assert team_bundle is not None, "team-bundle not found"
+        assert team_bundle["team_name"] == "team-a"
+        assert team_bundle["classpath"] == "airflow.providers.git.bundles.git.GitDagBundle"
+        assert team_bundle["kwargs"]["git_conn_id"] == "GITHUB__team_repo"
+        assert team_bundle["kwargs"]["subdir"] == "team-dags"
+        assert team_bundle["kwargs"]["tracking_ref"] == "main"

@@ -24,13 +24,20 @@ from airflow.sdk import (
     AllowedKeyMapper,
     Asset,
     CronPartitionTimetable,
+    DayWindow,
+    FanOutMapper,
     IdentityMapper,
+    MonthWindow,
     PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
+    RollupMapper,
     StartOfDayMapper,
     StartOfHourMapper,
+    StartOfMonthMapper,
+    StartOfWeekMapper,
     StartOfYearMapper,
+    WeekWindow,
     asset,
     task,
 )
@@ -278,3 +285,127 @@ def multi_region_player_stats(self, outlet_events):
     and duplicate keys collapse to a single event.
     """
     outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+
+daily_sales = Asset(uri="s3://sales/daily", name="daily_sales")
+daily_costs = Asset(uri="s3://costs/daily", name="daily_costs")
+# --- Chained rollup: hourly → daily → monthly --------------------------------
+# The hourly source asset already exists above (``team_a_player_stats``).
+# Each rollup Dag publishes its own asset so the next level can consume it.
+
+daily_team_a = Asset(uri="s3://team-a/daily", name="daily_team_a")
+monthly_team_a = Asset(uri="s3://team-a/monthly", name="monthly_team_a")
+
+
+with DAG(
+    dag_id="daily_team_a_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=team_a_player_stats,
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfDayMapper(),
+            window=DayWindow(),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup"],
+):
+    """
+    First rollup level: 24 hourly partitions of ``team_a_player_stats`` → one daily summary.
+
+    ``StartOfDayMapper`` normalizes each upstream hourly timestamp (``%Y-%m-%dT%H:%M:%S``)
+    to its day-start (``%Y-%m-%d``); ``DayWindow`` declares the downstream run needs
+    all 24 hourly partitions before firing. Publishes ``daily_team_a`` so the
+    monthly rollup below can consume it.
+    """
+
+    @task(outlets=[daily_team_a])
+    def summarise_team_a_day(dag_run=None):
+        """Produce the full-day rollup once every hour has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All 24 hourly partitions received. Day: {dag_run.partition_key}")
+
+    summarise_team_a_day()
+
+
+with DAG(
+    dag_id="monthly_team_a_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=daily_team_a,
+        # The upstream (``daily_team_a``) emits day-formatted partition keys
+        # (``%Y-%m-%d``), so the upstream mapper here must accept that format.
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=StartOfMonthMapper(input_format="%Y-%m-%d"),
+            window=MonthWindow(),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup"],
+):
+    """
+    Chained rollup: every day of ``daily_team_a`` (itself a rollup) → one monthly summary.
+
+    Demonstrates how a rollup output can feed another rollup. ``StartOfMonthMapper``
+    is configured with ``input_format="%Y-%m-%d"`` so it can parse the day keys
+    emitted by ``daily_team_a_rollup``; ``MonthWindow`` waits for every day of the
+    calendar month (28–31 depending on the month). The partition key is the month
+    identifier, e.g. ``2024-01``.
+    """
+
+    @task(outlets=[monthly_team_a])
+    def summarise_team_a_month(dag_run=None):
+        """Produce the full-month rollup once every day has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All daily partitions received. Month: {dag_run.partition_key}")
+
+    summarise_team_a_month()
+
+
+# --- Fan-out: one weekly upstream → seven daily downstream Dag runs ----------
+
+weekly_model_artifact = Asset(uri="file://artifacts/models/weekly.bin", name="weekly_model_artifact")
+
+
+with DAG(
+    dag_id="train_weekly_model",
+    schedule=CronPartitionTimetable("0 0 * * 1", timezone="UTC"),
+    catchup=False,
+    tags=["example", "model", "training"],
+):
+    """Train a weekly model artifact every Monday at 00:00 UTC."""
+
+    @task(outlets=[weekly_model_artifact])
+    def train_model():
+        """Materialize the model artifact for the current weekly partition."""
+        pass
+
+    train_model()
+
+
+with DAG(
+    dag_id="daily_inference",
+    schedule=PartitionedAssetTimetable(
+        assets=weekly_model_artifact,
+        # FanOutMapper composes upstream_mapper + window + (optional) downstream_mapper.
+        # WeekWindow.to_upstream() yields seven daily datetimes inside one week,
+        # and the default downstream_mapper for WeekWindow is StartOfDayMapper, so
+        # a weekly upstream key fans out to seven ``%Y-%m-%d`` downstream keys.
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "model", "inference"],
+):
+    """Run daily inference, fanning the weekly model artifact out to one Dag run per day."""
+
+    @task
+    def run_inference(dag_run=None):
+        """Run inference for one daily partition derived from the weekly model."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    run_inference()

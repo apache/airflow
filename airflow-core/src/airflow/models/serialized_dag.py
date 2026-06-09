@@ -599,6 +599,7 @@ class SerializedDagModel(Base):
         bundle_version: str | None = None,
         version_data: dict | None = None,
         min_update_interval: int | None = None,
+        *,
         session: Session = NEW_SESSION,
         _prefetched: DagWriteMetadata | None = None,
     ) -> bool:
@@ -807,7 +808,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
+    def read_all_dags(cls, *, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.
 
@@ -866,7 +867,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
+    def has_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> bool:
         """
         Check a DAG exist in serialized_dag table.
 
@@ -877,7 +878,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
+    def get_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:
             return row.dag
@@ -885,7 +886,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
+    def get(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
 
@@ -896,7 +897,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
+    def get_dag_dependencies(cls, *, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs.
 

@@ -65,6 +65,7 @@ Teams are associated with Dags through **Dag Bundles**. A Dag bundle can be owne
 - All Dags within that bundle belong to that team
 - Tasks in those Dags inherit the team association
 - All Callbacks associated with those Dags also inherit the team association
+- Triggers created by those Dags' tasks inherit the team association
 - The scheduler uses this relationship to determine which executor to use
 
 .. note::
@@ -230,6 +231,59 @@ Pools can be assigned to teams, providing resource isolation for task execution 
 - Tasks attempting to use a pool from another team will fail with an error
 
 Pools without a team assignment remain globally accessible to all teams.
+
+Creating Team-scoped Pools via CLI
+""""""""""""""""""""""""""""""""""
+
+Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a team:
+
+.. code-block:: bash
+
+    # Create a pool assigned to team_a
+    airflow pools set team_a_pool 10 "Pool for team A" --team-name team_a
+
+    # Create a global pool (no team assignment)
+    airflow pools set shared_pool 20 "Shared pool for all teams"
+
+    # Update an existing pool to assign it to a team
+    airflow pools set existing_pool 5 "Now team-scoped" --team-name team_b
+
+.. note::
+
+    The ``--team-name`` option is rejected when ``core.multi_team`` is disabled.
+    The specified team must exist in the database (create it first with ``airflow teams create``).
+
+Creating Team-scoped Pools via the REST API
+"""""""""""""""""""""""""""""""""""""""""""
+
+Use the ``POST /api/v2/pools`` endpoint with the ``team_name`` field in the request body:
+
+.. code-block:: bash
+
+    curl -X POST "http://localhost:8080/api/v2/pools" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "team_a_pool",
+        "slots": 10,
+        "description": "Pool for team A",
+        "include_deferred": false,
+        "team_name": "team_a"
+      }'
+
+To update an existing pool's team assignment, use ``PATCH /api/v2/pools/{pool_name}``:
+
+.. code-block:: bash
+
+    curl -X PATCH "http://localhost:8080/api/v2/pools/team_a_pool" \
+      -H "Content-Type: application/json" \
+      -d '{"team_name": "team_a"}'
+
+Omit ``team_name`` or set it to ``null`` to make a pool global.
+
+Creating Team-scoped Pools via the UI
+"""""""""""""""""""""""""""""""""""""
+
+In the Airflow UI, navigate to **Admin > Pools** and create or edit a pool. When Multi-Team mode is enabled, a **Team** dropdown is available to assign the pool to a team. Leave it empty for a global pool.
 
 Team-based Executor Configuration
 ---------------------------------
@@ -503,6 +557,49 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
     teams share the same metadata database and common Airflow infrastructure. For absolutely strict security
     requirements, consider separate Airflow deployments.
 
+.. _multi-team-triggerer:
+
+Team-scoped Triggerer
+---------------------
+
+When Multi-Team mode is enabled, a triggerer should be scoped to each specific team using the ``--team-name`` CLI argument. A team-scoped triggerer processes deferred tasks (triggers) belonging to that team's Dags. This allows teams to run isolated triggerer instances with independent capacity and failure domains.
+
+Configuration
+^^^^^^^^^^^^^
+
+Start a team-scoped triggerer by passing ``--team-name``:
+
+.. code-block:: bash
+
+    # Triggerer for team_a only
+    airflow triggerer --team-name team_a
+
+    # Triggerer for team_b only
+    airflow triggerer --team-name team_b
+
+    # Global triggerer — processes triggers from Dags with no team association
+    airflow triggerer
+
+Startup validation ensures that ``core.multi_team`` is enabled and the specified team exists in the database.
+
+Behavior
+^^^^^^^^
+
+- **Team-scoped triggerer** (``--team-name team_x``): Only picks up triggers whose originating Dag belongs to a bundle mapped to ``team_x``.
+- **Global triggerer** (no ``--team-name``): Only picks up triggers whose originating Dag belongs to a bundle with no team assignment.
+- **Multi-Team disabled** (``core.multi_team = False``): ``--team-name`` is rejected. No filtering occurs and all triggerers process all triggers (existing behavior).
+
+Interaction with ``--queues``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Team filtering and queue filtering are orthogonal — they combine as AND conditions. For example, a triggerer started with ``--team-name team_a --queues q1,q2`` only processes triggers that both belong to ``team_a`` and were deferred from tasks in queues ``q1`` or ``q2``.
+
+.. note::
+
+    Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
+    remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
+    combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
+
 .. _multi-team-asset-event-filtering:
 
 Team-Based Asset Event Filtering
@@ -673,7 +770,6 @@ Work in Progress
 Multi-Team mode is currently an experimental feature in preview. It is not yet fully complete and may be subject to changes without warning based on user feedback. Some missing functionality includes:
 
 - Dimensional metrics by team
-- Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
 - Some UI elements may not be fully team-aware
 - Full provider support for executors and secrets backends
 - Command and Secrets based lookup for team based configuration

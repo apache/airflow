@@ -49,13 +49,15 @@ to return structured data, and the model instance is pushed to XCom unchanged
 so downstream tasks can type-hint the class directly
 (``def downstream(result: MyModel)``) and use attribute access (``result.field``).
 
-The operator auto-registers ``output_type`` (and any ``BaseModel`` reachable from
-``Union``/``Optional``/``list`` shapes) for XCom deserialization in every
-process that parses the DAG. The Pydantic class must be defined at **module
-scope** and bound to an attribute matching its ``__name__`` -- classes nested
-inside a function or ``@dag``-decorated body, parameterized generics, and
-dynamically-built classes whose ``__name__`` does not match the attribute they
-are bound to are rejected at construction time with a ``ValueError``.
+The declared ``output_type`` (and any ``BaseModel`` reachable from
+``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
+the worker when it loads the DAG, before any task runs -- so no edit to
+``[core] allowed_deserialization_classes`` is needed. The Pydantic class must be
+defined at **module scope** and bound to an attribute matching its ``__name__``;
+classes nested inside a function or ``@dag``-decorated body, parameterized
+generics, and dynamically-built classes whose ``__name__`` does not match the
+attribute they are bound to cannot be re-imported, so they are skipped with a
+warning at worker startup and the value fails to deserialize at the consumer.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -67,9 +69,10 @@ are bound to are rejected at construction time with a ``ValueError``.
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
 
-Auto-registration covers downstream tasks in the **same DAG** -- their workers
-parse the DAG file when starting up, which re-runs the operator constructor and
-re-populates the per-process allow-list.
+Registration covers downstream tasks in the **same DAG**: every worker walks the
+loaded DAG's tasks at startup and registers each declared class, so it also works
+for mapped producers (``.expand(...)``) and for workers that load DAGs from a
+cache that bypasses operator construction.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like
