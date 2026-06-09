@@ -109,9 +109,8 @@ def _load_logging_config() -> None:
         conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
         or DEFAULT_LOGGING_CONFIG_PATH
     )
-    remote_logging_expected = (
-        logging_class_path != DEFAULT_LOGGING_CONFIG_PATH
-        or conf.getboolean("logging", "remote_logging", fallback=False)
+    remote_logging_expected = logging_class_path != DEFAULT_LOGGING_CONFIG_PATH or conf.getboolean(
+        "logging", "remote_logging", fallback=False
     )
 
     _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id, remote_logging_expected)
