@@ -99,10 +99,7 @@ def _reset_shared_app(app: FastAPI) -> None:
             route.app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def test_client(request, _shared_api_app):
-    app = _shared_api_app
-    _reset_shared_app(app)
+def _authed_test_client(app: FastAPI, request):
     auth_manager: SimpleAuthManager = app.state.auth_manager
     # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
     # to make the JWT token always valid for all test cases with time_machine
@@ -122,6 +119,32 @@ def test_client(request, _shared_api_app):
             headers={"Authorization": f"Bearer {token}"},
             base_url=f"{BASE_URL}{get_api_path(request)}",
         )
+
+
+@pytest.fixture
+def test_client(request, _shared_api_app):
+    _reset_shared_app(_shared_api_app)
+    yield from _authed_test_client(_shared_api_app, request)
+
+
+@pytest.fixture
+def fresh_test_client(request):
+    """
+    Like ``test_client`` but backed by a freshly built app instead of the session-shared one.
+
+    For the rare tests that patch app construction (e.g. counting ``DBDagBag`` instantiation) and
+    so need the app built *after* their patch is applied.
+    """
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+        }
+    ):
+        app = create_app()
+    yield from _authed_test_client(app, request)
 
 
 @pytest.fixture
