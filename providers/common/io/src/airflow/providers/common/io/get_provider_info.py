@@ -84,6 +84,27 @@ def get_provider_info():
                         "example": "gz",
                         "default": "",
                     },
+                    "store_objectstorage_path": {
+                        "description": "Base path on object storage for the task/asset store backend, in URL format.\nWhen set, StoreObjectStorageBackend will persist task and asset state under this\nprefix, organised as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and\nassets/<asset_ref>/<key> for assets.\n",
+                        "version_added": "1.8.0",
+                        "type": "string",
+                        "example": "s3://conn_id@bucket/task-state/",
+                        "default": "",
+                    },
+                    "store_objectstorage_threshold": {
+                        "description": "Threshold in bytes for offloading serialized store values to object storage. 0 means\nalways offload to object storage. Any positive number means values will be offloaded\nonly when their serialized size is at least that many bytes. Must be non-negative.\n",
+                        "version_added": "1.8.0",
+                        "type": "integer",
+                        "example": "1000000",
+                        "default": "0",
+                    },
+                    "store_objectstorage_compression": {
+                        "description": "Compression algorithm to use when writing task/asset store values to object storage.\nSupported algorithms are a.o.: snappy, zip, gzip, bz2, and lzma. If not specified,\nno compression will be used. The same algorithm must be available on all workers.\n",
+                        "version_added": "1.8.0",
+                        "type": "string",
+                        "example": "gz",
+                        "default": "",
+                    },
                 },
             }
         },
