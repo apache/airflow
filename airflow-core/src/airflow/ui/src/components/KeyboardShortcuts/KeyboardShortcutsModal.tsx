@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog } from "src/components/ui";
@@ -52,7 +52,7 @@ export const KeyboardShortcutsModal = () => {
   const [open, setOpen] = useState(false);
   const metaKey = getMetaKey();
 
-  const toggle = useCallback(() => setOpen((prev) => !prev), []);
+  const toggle = () => setOpen((prev) => !prev);
 
   useShortcut({
     callback: toggle,
@@ -61,7 +61,7 @@ export const KeyboardShortcutsModal = () => {
     keys: "shift+Slash",
   });
 
-  const groups = useMemo(() => buildGroups(shortcuts), [shortcuts]);
+  const groups = buildGroups(shortcuts);
 
   return (
     <Dialog.Root lazyMount onOpenChange={(event) => setOpen(event.open)} open={open} size="md">

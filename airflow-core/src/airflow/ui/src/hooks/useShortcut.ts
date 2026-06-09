@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type DependencyList, useEffect, useId, useMemo } from "react";
+import { type DependencyList, useEffect, useId } from "react";
 import { type HotkeyCallback, type Keys, type Options, useHotkeys } from "react-hotkeys-hook";
 
 import { type ShortcutCategory, useShortcutRegistry } from "src/context/keyboardShortcuts";
@@ -51,7 +51,7 @@ export const useShortcut = ({
 
   const ref = useHotkeys(keys, callback, options, dependencies);
 
-  const keyList = useMemo<Array<string>>(() => (typeof keys === "string" ? [keys] : [...keys]), [keys]);
+  const keyList: Array<string> = typeof keys === "string" ? [keys] : [...keys];
   // A `false` literal means the hotkey is not bound; a function trigger is evaluated
   // per event but the binding still exists, so we treat it as enabled here.
   const isEnabled = options?.enabled !== false;

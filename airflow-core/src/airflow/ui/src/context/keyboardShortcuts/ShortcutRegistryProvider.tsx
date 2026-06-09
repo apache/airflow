@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, useState, type PropsWithChildren } from "react";
+import { useState, type PropsWithChildren } from "react";
 
 import { ShortcutRegistryContext, type ShortcutEntry } from "./Context";
 
@@ -31,15 +31,15 @@ import { ShortcutRegistryContext, type ShortcutEntry } from "./Context";
 export const ShortcutRegistryProvider = ({ children }: PropsWithChildren) => {
   const [shortcuts, setShortcuts] = useState<ReadonlyArray<ShortcutEntry>>([]);
 
-  const register = useCallback((entry: ShortcutEntry) => {
+  const register = (entry: ShortcutEntry) => {
     setShortcuts((prev) => [...prev.filter((item) => item.id !== entry.id), entry]);
-  }, []);
+  };
 
-  const unregister = useCallback((id: string) => {
+  const unregister = (id: string) => {
     setShortcuts((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  };
 
-  const value = useMemo(() => ({ register, shortcuts, unregister }), [register, shortcuts, unregister]);
+  const value = { register, shortcuts, unregister };
 
   return <ShortcutRegistryContext.Provider value={value}>{children}</ShortcutRegistryContext.Provider>;
 };
