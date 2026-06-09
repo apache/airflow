@@ -88,44 +88,22 @@ between automatically:
      is refused.
    - **Adopter repo** (the structural markers are absent) →
      continue with the normal remote-snapshot flow below.
-4. Detect the adopter's existing skills-dir convention by
-   following [`conventions.md`](conventions.md). Pin the
-   result as `<adopter-skills-dir>` for the rest of this
-   flow.
+4. Compute the **active target set** per
+   [`agents.md`](agents.md): the always-on neutral targets
+   (`universal` = `.agents/skills/`, the canonical home; plus
+   the `claude-code` + `github` relay pair), any other registry
+   dir already present in the repo, and any `agents:<list>`
+   opt-in. **`.agents/skills/` is always canonical** — its
+   `magpie-*` entries are the links into the snapshot; every
+   other active target gets per-skill relay symlinks into it.
 
-   If detection returns *"ambiguous → propose Pattern D
-   consolidation"* (both `.claude/skills/` and
-   `.github/skills/` exist as regular directories with
-   independent, non-aliased content), run the
-   **Pre-Pattern-D consolidation** flow described under
-   [section D of `conventions.md`](conventions.md#d-single-directory-symlink--one-of-claudeskills--githubskills-is-a-symlink-to-the-other)
-   before continuing:
-
-   - List the skills in each directory with their content
-     fingerprint (real dir vs symlink, target if symlink,
-     SKILL.md presence).
-   - Flag any name collisions where the two sides have
-     different content for the same name.
-   - Use a structured prompt (`AskUserQuestion` when the
-     harness offers one) with three options: **D.1**
-     (consolidate under `.github/skills/`), **D.2**
-     (consolidate under `.claude/skills/`), or **decline**
-     (fall back to Pattern A treating `.claude/skills/` as
-     canonical and leaving `.github/skills/` alone).
-   - On D.1 / D.2 confirmation: move every skill from the
-     side that will become the symlink into the side that
-     will become the real directory (resolving any flagged
-     name collisions first — never auto-rename adopter
-     content), then replace the now-empty side with a
-     relative symlink to the other side, then re-run
-     detection to confirm the pattern is now D.
-   - If the user declines or unresolved name collisions
-     block consolidation, fall back to Pattern A and pin
-     `<adopter-skills-dir>` = `.claude/skills/` as usual.
-
-   The consolidation is a one-time, deliberate layout
-   change; the adopt flow surfaces every step before
-   writing.
+   There is **no skills-dir convention to detect**: regardless
+   of how the adopter previously organised `.claude/skills/` or
+   `.github/skills/`, the framework always wires the `magpie-*`
+   set the same way (canonical in `.agents/skills/`, relayed
+   elsewhere) and leaves the adopter's own native (non-`magpie-`)
+   skills in place. Pin `.agents/skills/` as the canonical dir
+   for the rest of this flow.
 
 ## Local self-adoption (`method:local`)
 
@@ -149,12 +127,14 @@ How it differs from a remote adoption:
 - **Symlinks are committed, not gitignored.** Each
   `magpie-<skill>` symlink targets `../../skills/<skill>/` — an
   in-repo path that always resolves on a fresh clone — so the
-  links are committed. They are written under **both**
-  `.claude/skills/` (Claude Code) and `.github/skills/` (GitHub's
-  skill loader), so the framework's own skills are discoverable
-  by either harness; `.gitignore` un-ignores `magpie-*` in both
-  dirs. Every contributor gets the skills active with no setup
-  step.
+  links are committed. They are written under **every active
+  target dir** ([`agents.md`](agents.md)) — `.agents/skills/`
+  (the universal path shared by Codex, Cursor, Gemini CLI,
+  Copilot, …), `.claude/skills/` (Claude Code), and
+  `.github/skills/` (GitHub's skill loader) — so the framework's
+  own skills are discoverable by any harness; `.gitignore`
+  un-ignores `magpie-*` in each. Every contributor gets the
+  skills active with no setup step, whatever agent they use.
 - **All skills, no family prompt.** Self-adoption links *every*
   skill under `skills/`, so the opt-in family prompt of
   [Step 5](#step-5--pick-the-skill-families) is skipped.
@@ -192,27 +172,44 @@ How it differs from a remote adoption:
    ```
 
 5. **`.gitignore`.** Ensure each skills dir glob is ignored with
-   the `magpie-*` set un-ignored, in **both** locations
-   (idempotent — add any missing line):
+   the `magpie-*` set un-ignored, in **every active target
+   location** ([`agents.md`](agents.md) — the always-on neutral
+   targets `.agents/skills/`, `.claude/skills/`, `.github/skills/`
+   plus any other registry dir already present). Idempotent — add
+   any missing line. For the default set:
 
    ```text
+   .agents/skills/*
+   !/.agents/skills/magpie-*
    .claude/skills/*
    !/.claude/skills/magpie-*
    .github/skills/*
    !/.github/skills/magpie-*
    ```
 
-6. **Create the symlinks.** For each enumerated skill `<n>`,
-   create the relative symlink `magpie-<n>` → `../../skills/<n>`
-   under **both** `<repo-root>/.claude/skills/` and
-   `<repo-root>/.github/skills/`. Idempotent: re-point a
-   pre-existing `magpie-<n>` symlink only if it targets something
-   else; never overwrite a non-symlink (surface the conflict and
-   stop). Show the full list and confirm before writing.
-7. **Verify + stage.** Confirm every `magpie-<n>` symlink (in
-   both dirs) resolves to a directory containing `SKILL.md`, then
-   suggest the user `git add` the symlinks, `.apache-magpie.lock`,
-   and `.gitignore`.
+   (Self-adoption symlinks are *committed*, not gitignored — see
+   the next step — so the `!…/magpie-*` negation here un-ignores
+   the whole set, not just `magpie-setup`.)
+
+6. **Create the symlinks** (canonical first, then relays). For
+   each enumerated skill `<n>`:
+   - **Canonical** — create `.agents/skills/magpie-<n>` →
+     `../../skills/<n>` (the in-repo source).
+   - **Relays** — for every *other* active target dir from
+     [`agents.md`](agents.md) (`.claude/skills/`, `.github/skills/`,
+     plus any present holdout), create `magpie-<n>` →
+     `../../.agents/skills/magpie-<n>` (pointing back at the
+     canonical entry).
+
+   Idempotent: re-point a pre-existing `magpie-<n>` symlink only
+   if it targets something else; never overwrite a non-symlink
+   (surface the conflict and stop). Show the full list and
+   confirm before writing.
+7. **Verify + stage.** Confirm every canonical `magpie-<n>`
+   symlink resolves to a directory containing `SKILL.md`, and
+   every relay resolves through `.agents/skills/magpie-<n>` to the
+   same, then suggest the user `git add` the symlinks,
+   `.apache-magpie.lock`, and `.gitignore`.
 
 Self-adoption skips the adopter-only steps entirely: no snapshot
 fetch (Step 3), no committed-`setup` reconcile (Step 3b), no
@@ -299,23 +296,23 @@ snapshot's version before the rest of this run executes —
 otherwise we finish adoption against the *old* bootstrap
 logic for a *new* framework version.
 
-1. Diff `<adopter-skills-dir>/magpie-setup/` against
+1. Diff the canonical committed copy
+   `.agents/skills/magpie-setup/` against
    `.apache-magpie/skills/setup/`.
 2. If they match — skip the rest of this step.
 3. If they differ and the adopter has **no** local
    modifications beyond what the snapshot ships — overwrite
-   the committed copy from the snapshot:
+   the canonical committed copy from the snapshot:
 
    ```bash
-   # Flat layout:
-   rm -rf <adopter-skills-dir>/magpie-setup
+   rm -rf .agents/skills/magpie-setup
    cp -r .apache-magpie/skills/setup \
-         <adopter-skills-dir>/magpie-setup
-
-   # Double-symlinked layout: copy into .github/skills/ —
-   # the .claude/skills/magpie-setup symlink already
-   # points at it.
+         .agents/skills/magpie-setup
    ```
+
+   The relay symlinks (`.claude/skills/magpie-setup`,
+   `.github/skills/magpie-setup`) point at
+   `../../.agents/skills/magpie-setup` and need no change.
 
 4. If the adopter **does** have local modifications,
    surface the diff and stop. The user either (a) confirms
@@ -325,10 +322,10 @@ logic for a *new* framework version.
    continues against the in-flight (older) version with a
    warning.
 5. **Reload in-flight.** Immediately after the copy lands,
-   re-read `<adopter-skills-dir>/magpie-setup/SKILL.md`
-   and `<adopter-skills-dir>/magpie-setup/adopt.md` (the
+   re-read `.agents/skills/magpie-setup/SKILL.md`
+   and `.agents/skills/magpie-setup/adopt.md` (the
    current sub-action file), plus any helper file already
-   open in this run (`conventions.md`, `overrides.md`),
+   open in this run (`agents.md`, `overrides.md`),
    before continuing to Step 4. The remaining steps run
    against the just-loaded content.
 
@@ -508,51 +505,30 @@ idempotent — re-add them if they're missing.
 /.claude/settings.local.json
 ```
 
-**Symlink-pattern entries — vary by adopter
-[skills-dir convention](conventions.md)**:
+**Symlink entries — one uniform block per active target
+([`agents.md`](agents.md)), no per-layout variation.** Every
+framework skill is symlinked under the `magpie-` prefix (see
+[`SKILL.md` Golden rule 6](SKILL.md#golden-rules)), so a single
+`magpie-*` glob covers them all in each target dir — no per-family
+lines. The canonical target (`.agents/skills/`) and every relay
+target (`.claude/skills/`, `.github/skills/`, any present holdout)
+get the **same** two-line block, keyed on the target's own dir:
 
-  Every framework skill is symlinked under the `magpie-`
-  prefix (see [`SKILL.md` Golden rule 6](SKILL.md#golden-rules)),
-  so a single `magpie-*` glob covers them all — no per-family
-  lines.
+```text
+/.agents/skills/magpie-*
+!/.agents/skills/magpie-setup
+/.claude/skills/magpie-*
+!/.claude/skills/magpie-setup
+/.github/skills/magpie-*
+!/.github/skills/magpie-setup
+```
 
-- **Pattern A (flat)** — only the `.claude/skills/...` lines:
-
-  ```text
-  /.claude/skills/magpie-*
-  !/.claude/skills/magpie-setup
-  ```
-
-- **Pattern B (double-symlinked)** — both `.claude/skills/...`
-  AND `.github/skills/...` lines, because each framework skill
-  has two physical symlinks (outer at `.claude/skills/magpie-<n>`,
-  inner at `.github/skills/magpie-<n>`):
-
-  ```text
-  /.claude/skills/magpie-*
-  !/.claude/skills/magpie-setup
-  /.github/skills/magpie-*
-  !/.github/skills/magpie-setup
-  ```
-
-- **Pattern D (single directory symlink)** — only the
-  *canonical-side* `.../skills/...` line. With D.1
-  (canonical = `.github/skills/`):
-
-  ```text
-  /.github/skills/magpie-*
-  !/.github/skills/magpie-setup
-  ```
-
-  With D.2 (canonical = `.claude/skills/`), use
-  `/.claude/skills/magpie-*` (plus `!/.claude/skills/magpie-setup`)
-  instead. Pattern D does not
-  need ignore lines on the *symlinked* side because that side
-  is itself a single tracked symlink — git does not descend
-  into it, so the symlinked-side paths match no tracked file.
-
-- **Pattern C (none yet)** — same as the pattern the user
-  picks during adopt (defaults to A).
+Add the analogous two lines for any present holdout
+(`.windsurf/skills/`, `.goose/skills/`, …). The relay symlinks are
+gitignored exactly like the canonical ones: a relay points at
+`../../.agents/skills/magpie-<n>`, which itself targets the
+gitignored snapshot, so it dangles on a fresh clone before
+`/magpie-setup` runs.
 
 The `magpie-*` glob covers both the opt-in families and the
 always-on families (`magpie-setup-*` and the `magpie-list-*`
@@ -577,11 +553,11 @@ adopt flow checks for the line and adds it if missing.
 
 ## Step 8 — Wire up the framework-skill symlinks
 
-The skill walks `<snapshot-dir>/skills/` and creates
-a gitignored symlink for every framework skill the adopter
-should have callable, at `<adopter-skills-dir>/magpie-<skill>` →
-relative path into
-`<snapshot-dir>/skills/<skill>/`.
+The skill walks `<snapshot-dir>/skills/` and, for every
+framework skill the adopter should have callable, creates a
+gitignored **canonical** symlink at `.agents/skills/magpie-<skill>`
+→ relative path into `<snapshot-dir>/skills/<skill>/`, plus a
+**relay** symlink in every other active target dir.
 
 The set of skills to link is the **union** of:
 
@@ -601,28 +577,28 @@ adoption path where the committed lock only records the
 opt-in pick. Compute the family glob fresh from the snapshot
 contents on disk — do not hard-code skill names.
 
-Per-pattern symlink wiring (see
-[`conventions.md`](conventions.md)):
+Symlink wiring (targets from [`agents.md`](agents.md)) — the
+**canonical-plus-relay** model, applied identically no matter
+what layout the adopter's `.claude/` / `.github/` were in before:
 
 Every symlink is named `magpie-<n>` (the `magpie-` prefix
-namespaces framework skills); its target keeps the snapshot's
-clean source name `skills/<n>/`.
+namespaces framework skills). Wire the **same set of skills**
+into **every active target dir**, canonical first:
 
-- **Pattern A (flat)** — one symlink per skill at
-  `.claude/skills/magpie-<n>` → snapshot. Gitignored.
-- **Pattern B (double-symlinked)** — two symlinks per skill:
-  the inner one in `.github/skills/magpie-<n>` → snapshot, the
-  outer `.claude/skills/magpie-<n>` →
-  `../../.github/skills/magpie-<n>/`. Both gitignored.
-- **Pattern D (single directory symlink)** — one symlink per
-  skill at the *canonical-side* `<canonical>/skills/magpie-<n>`
-  → snapshot. **Skip the symlinked side entirely** — one of
-  `.claude/skills` / `.github/skills` is itself a directory
-  symlink into the other, so the symlinked-side path is
-  automatically resolved. With D.1 the canonical side is
-  `.github/skills/`; with D.2 it is `.claude/skills/`.
-  Gitignored.
-- **Pattern C (none yet)** — same as A.
+- **Canonical target (`.agents/skills/`)** — one symlink per
+  skill at `.agents/skills/magpie-<n>` → relative path into the
+  snapshot (`../../.apache-magpie/skills/<n>/`). Gitignored. This
+  is the single placement that makes the framework discoverable to
+  Codex, Cursor, Gemini CLI, Copilot, OpenCode, and the rest of
+  the shared-path cluster, and the one source every relay points
+  at.
+
+- **Relay targets (`.claude/skills/`, `.github/skills/`, any
+  present holdout)** — one symlink per skill at
+  `<target>/skills/magpie-<n>` → `../../.agents/skills/magpie-<n>`
+  (pointing back at the canonical entry, **not** the snapshot).
+  Gitignored. The adopter's own native (non-`magpie-`) skills in
+  these dirs are left untouched.
 
 **Never overwrite an existing committed skill** of the same
 name. Surface conflicts and stop. The bootstrap `setup` skill
@@ -934,7 +910,7 @@ the user before writing:
 # apache-steward post-checkout hook (installed by /magpie-setup adopt).
 # Add the current worktree's working dir to the worktree's own
 # .claude/settings.local.json sandbox allowlists (per issue #197).
-# Chains into the helper if installed by /setup-isolated-setup-install;
+# Chains into the helper if installed by /magpie-setup-isolated-setup-install;
 # no-op when the helper is absent.
 set -u
 if [ -x "$HOME/.claude/scripts/sandbox-add-project-root.sh" ]; then
@@ -947,7 +923,7 @@ The `|| true` guard keeps the hook from failing the surrounding
 git operation (`git checkout`, `git worktree add`) — the hook is
 best-effort reconciliation, not a gate.
 
-If the operator has not yet run `/setup-isolated-setup-install`,
+If the operator has not yet run `/magpie-setup-isolated-setup-install`,
 the helper-script line is a no-op (the `-x` test fails). When
 they later install the secure setup, no hook re-write is needed:
 the next `post-checkout` fires the helper automatically.
@@ -1004,7 +980,7 @@ framework before they hit a "skill not found" error:
    [`.apache-magpie.lock`](.apache-magpie.lock). The only
    framework artefact committed to this repo is the
    `setup` skill at
-   [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
+   [`.agents/skills/magpie-setup/`](.agents/skills/magpie-setup/);
    everything else is a gitignored symlink the setup skill
    wires up.
 
@@ -1013,7 +989,7 @@ framework before they hit a "skill not found" error:
 
        /magpie-setup
 
-   (or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
+   (or follow [`.agents/skills/magpie-setup/`](.agents/skills/magpie-setup/))
    to fetch the snapshot per the committed lock, scaffold the
    gitignored symlinks, and install the post-checkout hook
    that re-creates them on each worktree checkout.
@@ -1027,10 +1003,8 @@ framework before they hit a "skill not found" error:
 
    Trim the skill-family list to what was actually picked in
    Step 5 (only mention `security-*` if the adopter installed
-   that family, etc.). Adjust the skill paths to the adopter's
-   convention (flat / double-symlinked / single-directory-symlink
-   — see [`conventions.md`](conventions.md)). Skip this sub-step
-   entirely if `README.md` does not exist.
+   that family, etc.). Skip this sub-step entirely if
+   `README.md` does not exist.
 
 2. **`AGENTS.md` (agent-facing detail, ONLY if the file
    already exists).** Agent harnesses load this file
@@ -1053,7 +1027,7 @@ framework before they hit a "skill not found" error:
 
    A fresh clone needs the snapshot populated before any
    framework skill is invocable. Run `/magpie-setup` (or
-   follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
+   follow [`.agents/skills/magpie-setup/`](.agents/skills/magpie-setup/))
    to fetch it per the committed
    [`.apache-magpie.lock`](.apache-magpie.lock). The
    contributor-facing summary of the adoption + setup flow
@@ -1110,7 +1084,7 @@ Four passes, in this order:
 2. **Propagate to every worktree (run `worktree-init`
    unconditionally).** The main is now adopted; any
    pre-existing linked worktree of this repo still lacks
-   the snapshot symlink and the `<adopter-skills-dir>`
+   the snapshot symlink and the per-target framework-skill
    symlinks. `worktree-init` is **always run on every
    worktree** at the end of adopt, even when none exist
    yet, even when the worktree appears wired, because
@@ -1133,8 +1107,8 @@ Four passes, in this order:
      the family set from `<main>/.apache-magpie.lock` plus
      the always-on families per
      [`SKILL.md` Golden rule 8](SKILL.md#golden-rules), and
-     reconciles both the snapshot symlink and the
-     `<adopter-skills-dir>` symlinks (see
+     reconciles both the snapshot symlink and the canonical +
+     relay framework-skill symlinks (see
      [`worktree-init.md` Step 1 + Step 1b](worktree-init.md)).
    - Collect each invocation's recap into a per-worktree
      row in the adopt summary's `Worktrees:` section.
@@ -1185,7 +1159,7 @@ Four passes, in this order:
 
    - **Helper absent** (`~/.claude/scripts/sandbox-add-project-root.sh`
      does not exist) → surface as ⚠ in the adopt summary with a
-     pointer at `/setup-isolated-setup-install`. Do not block
+     pointer at `/magpie-setup-isolated-setup-install`. Do not block
      adopt — many adopters set up secure-agent isolation later,
      and the framework-skill symlinks are usable without it (the
      adopter just runs Bash outside the sandbox until they wire
@@ -1231,16 +1205,18 @@ Committed (you'll see in `git status`):
   .gitignore
   .apache-magpie.lock
   .apache-magpie-overrides/README.md
-  <adopter-skills-dir>/magpie-setup/   (this skill itself)
+  .agents/skills/magpie-setup/         (this skill itself — canonical copy)
+  .claude/skills/magpie-setup          (relay symlink → ../../.agents/skills/magpie-setup)
+  .github/skills/magpie-setup          (relay symlink → ../../.agents/skills/magpie-setup)
   README.md (or CONTRIBUTING.md)
 
 Gitignored (do NOT commit):
   .apache-magpie/
   .apache-magpie.local.lock
-  <adopter-skills-dir>/magpie-*   (except magpie-setup, committed above)  # every framework skill: opt-in + always-on families
-  # Pattern A:  <adopter-skills-dir> = .claude/skills/
-  # Pattern B:  <adopter-skills-dir> = both .claude/skills/ AND .github/skills/
-  # Pattern D:  <adopter-skills-dir> = .github/skills/ only
+  .agents/skills/magpie-*   (except magpie-setup, committed above)  # canonical links into the snapshot: opt-in + always-on families
+  .claude/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*
+  .github/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*
+  # plus the same two lines for any present holdout (.windsurf/skills/, .goose/skills/, …)
 ```
 
 Then suggest the user `git add` the committed files and open

@@ -36,8 +36,8 @@ These established translations **must be used consistently**:
 - `Pool` / `Pools` → `מאגר משאבים`
 - `Provider` / `Providers` → `חבילות עזר`
 - `Trigger` / `Triggerer` → `מפעיל` (component noun)
-- `Executor` → `מבצע`
-- `Heartbeat` → `עדכון חיים` (e.g., "עדכון חיים אחרון" for "Latest Heartbeat")
+- `Executor` → `Executor`
+- `Heartbeat` → `אות חיים` (e.g., "אות חיים אחרון" for "Latest Heartbeat")
 
 ## 2. Standard Translations
 
@@ -132,9 +132,9 @@ Backfill       → "השלמה למפרע"
 Pool           → "מאגר משאבים"
 Plugin         → "תוסף"
 Provider       → "חבילות עזר"
-Executor       → "מבצע"
+Executor       → "Executor"
 Trigger        → "מפעיל"
-Heartbeat      → "עדכון חיים"
+Heartbeat      → "אות חיים"
 ```
 
 **Common translation patterns:**
@@ -177,7 +177,7 @@ triggerer.class           → "סוג מפעיל"
 triggerer.id              → "מזהה מפעיל"
 triggerer.createdAt       → "זמן יצירת מפעיל"
 triggerer.assigned        → "מפעיל מוקצה"
-triggerer.latestHeartbeat → "עדכון חיים אחרון"
+triggerer.latestHeartbeat → "אות חיים אחרון"
 triggerer.title           → "פרטי מפעיל"
 ```
 

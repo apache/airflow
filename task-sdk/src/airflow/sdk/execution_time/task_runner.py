@@ -1815,13 +1815,17 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(
-                    state=TaskInstanceState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                    rendered_map_index=ti.rendered_map_index,
+                # Mirror the deferrable path (DagStateTrigger -> execute_complete raises
+                # AirflowException), which flows through run()'s exception handler and
+                # therefore honours a configured retry_policy. Synthesize the same
+                # exception here so non-deferrable waits evaluate the policy too,
+                # falling back to the standard retry-count check when none is set.
+                return _apply_retry_policy_or_default(
+                    ti,
+                    AirflowException(f"{drte.trigger_dag_id} failed with failed state {comms_msg.state}"),
+                    log,
+                    context,
                 )
-                state = TaskInstanceState.FAILED
-                return msg, state
             if comms_msg.state in drte.allowed_states:
                 log.info(
                     "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state

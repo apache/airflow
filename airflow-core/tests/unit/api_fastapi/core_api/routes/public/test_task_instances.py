@@ -842,10 +842,13 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
             ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
-            ({"order_by": "rendered_map_index", "limit": 100}, sorted(range(110), key=str)[:100]),
+            # Compound sort (_rendered_map_index ASC, map_index ASC): all TIs have NULL
+            # _rendered_map_index in this fixture so they all tie on the first key and
+            # are ordered by map_index integer — 0, 1, 2, ..., 99 (not lexicographic).
+            ({"order_by": "rendered_map_index", "limit": 100}, list(range(100))),
             (
                 {"order_by": "-rendered_map_index", "limit": 100},
-                sorted(range(110), key=str, reverse=True)[:100],
+                list(range(109, 9, -1)),
             ),
         ],
     )
@@ -915,6 +918,101 @@ class TestGetMappedTaskInstances:
         body = response.json()
         assert body["total_entries"] == len(expected_map_indexes)
         assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
+
+    def test_rendered_map_index_order_without_template_numeric(self, test_client, session, dag_maker):
+        """map_index values beyond 9 must sort numerically, not lexicographically.
+
+        Without the compound sort the SQL expression falls back to
+        CAST(map_index AS String), producing "0","1","10","11","2"... instead
+        of 0, 1, 2, ..., 10, 11.
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"numeric_order_dag": {"success": 12, "failed": 0, "running": 0}},
+        )
+
+        response = test_client.get(
+            "/dags/numeric_order_dag/dagRuns/run_numeric_order_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 20},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Numeric order: 0, 1, 2, ..., 11.
+        # Lexicographic order would be: 0, 1, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9.
+        assert [ti["map_index"] for ti in body["task_instances"]] == list(range(12))
+
+    def test_rendered_map_index_order_with_template(self, test_client, session, one_task_with_mapped_tis):
+        """Custom map_index_template labels must be sorted alphabetically."""
+        # one_task_with_mapped_tis creates 3 TIs: map_index 0, 1, 2.
+        labels = {0: "zebra", 1: "apple", 2: "mango"}
+        for map_index, label in labels.items():
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+            )
+            ti._rendered_map_index = label
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Alphabetical order: "apple" (1), "mango" (2), "zebra" (0).
+        assert [ti["map_index"] for ti in body["task_instances"]] == [1, 2, 0]
+        assert [ti["rendered_map_index"] for ti in body["task_instances"]] == [
+            "apple",
+            "mango",
+            "zebra",
+        ]
+
+    def test_rendered_map_index_order_stable_regardless_of_uuid_order(self, test_client, session, dag_maker):
+        """
+        Results must be ordered by integer map_index regardless of UUID insertion order.
+
+        The compound sort ([_rendered_map_index, map_index]) makes the integer
+        map_index the effective tiebreaker when no map_index_template is set.
+        This verifies that even when UUIDs are assigned out of map_index order
+        (as happens during retries), the response is still sorted 0, 1, 2, ...
+        """
+        from sqlalchemy import update as sa_update
+
+        from airflow.models.taskinstance import uuid7
+
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"retry_dag": {"success": 5, "failed": 0, "running": 0}},
+        )
+
+        # Assign newer (larger) UUIDs to map_index 1 and 3, simulating retry
+        # ordering where some TIs received their UUIDs after others.  The sort
+        # result must still follow integer map_index order, not UUID order.
+        for map_index in [1, 3]:
+            session.execute(
+                sa_update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == "retry_dag",
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+                .values(id=uuid7())
+            )
+        session.commit()
+
+        response = test_client.get(
+            "/dags/retry_dag/dagRuns/run_retry_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 50},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # All 5 TIs must be on the first page in map_index order.
+        assert body["total_entries"] == 5
+        assert [ti["map_index"] for ti in body["task_instances"]] == [0, 1, 2, 3, 4]
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
@@ -1829,8 +1927,11 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         ("order_by", "expected_map_indexes"),
         [
-            ("rendered_map_index", [2, 3, 0, 1]),
-            ("-rendered_map_index", [1, 0, 3, 2]),
+            # All four TIs have explicit labels so alphabetical order is
+            # consistent across databases (no NULL ordering differences).
+            # Labels: "analytics"(3), "events"(2), "table_orders"(0), "table_users"(1)
+            ("rendered_map_index", [3, 2, 0, 1]),
+            ("-rendered_map_index", [1, 0, 2, 3]),
         ],
     )
     def test_should_respond_200_for_rendered_map_index_order(
@@ -1842,8 +1943,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=[
                 {"map_index": 0, "_rendered_map_index": "table_orders"},
                 {"map_index": 1, "_rendered_map_index": "table_users"},
-                {"map_index": 2, "_rendered_map_index": None},
-                {"map_index": 3, "_rendered_map_index": None},
+                {"map_index": 2, "_rendered_map_index": "events"},
+                {"map_index": 3, "_rendered_map_index": "analytics"},
             ],
         )
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by})

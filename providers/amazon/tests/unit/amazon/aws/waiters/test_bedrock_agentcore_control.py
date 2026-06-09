@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentCoreControlHo
 class TestBedrockAgentCoreControlCustomWaiters:
     def test_service_waiters(self):
         assert "agent_runtime_ready" in BedrockAgentCoreControlHook().list_waiters()
+        assert "agent_runtime_deleted" in BedrockAgentCoreControlHook().list_waiters()
 
 
 class TestBedrockAgentCoreControlCustomWaitersBase:
@@ -67,6 +68,42 @@ class TestAgentRuntimeReadyWaiter(TestBedrockAgentCoreControlCustomWaitersBase):
         wait = {"status": state}
         success = {"status": "READY"}
         mock_getter.side_effect = [wait, wait, success]
+
+        BedrockAgentCoreControlHook().get_waiter(self.WAITER_NAME).wait(
+            **self.WAITER_ARGS,
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+
+class TestAgentRuntimeDeletedWaiter(TestBedrockAgentCoreControlCustomWaitersBase):
+    WAITER_NAME = "agent_runtime_deleted"
+    WAITER_ARGS = {"agentRuntimeId": "runtime_id"}
+    FAILURE_STATES = ["CREATE_FAILED", "UPDATE_FAILED", "READY"]
+    NOT_FOUND_ERROR = botocore.exceptions.ClientError(
+        {"Error": {"Code": "ResourceNotFoundException"}},
+        "GetAgentRuntime",
+    )
+
+    @pytest.fixture
+    def mock_getter(self):
+        with mock.patch.object(self.client, "get_agent_runtime") as getter:
+            yield getter
+
+    def test_agent_runtime_deleted_complete(self, mock_getter):
+        mock_getter.side_effect = self.NOT_FOUND_ERROR
+
+        BedrockAgentCoreControlHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
+
+    @pytest.mark.parametrize("state", FAILURE_STATES)
+    def test_agent_runtime_deleted_failed(self, state, mock_getter):
+        mock_getter.return_value = {"status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockAgentCoreControlHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
+
+    def test_agent_runtime_deleted_wait(self, mock_getter):
+        wait = {"status": "DELETING"}
+        mock_getter.side_effect = [wait, wait, self.NOT_FOUND_ERROR]
 
         BedrockAgentCoreControlHook().get_waiter(self.WAITER_NAME).wait(
             **self.WAITER_ARGS,
