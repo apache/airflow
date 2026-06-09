@@ -275,12 +275,19 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             hook._poll_k8s_driver_via_api()
             return
         if hook._is_yarn_cluster_mode:
-            if self.reconnect_on_retry:
-                return self.execute_resumable(context)
-            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
-            driver_id = self.submit_job(context)
-            self.poll_until_complete(driver_id, context)
-            return self.get_job_result(driver_id, context)
+            if self.reconnect_on_retry and not hook._yarn_track_via_rm_api:
+                raise ValueError(
+                    "YARN cluster mode with reconnect_on_retry=True requires yarn_track_via_rm_api=True. "
+                    "The RM REST API is needed to check application status on retry."
+                )
+            if hook._yarn_track_via_rm_api:
+                hook._validate_yarn_track_via_rm_api_config()
+                if self.reconnect_on_retry:
+                    return self.execute_resumable(context)
+                # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+                driver_id = self.submit_job(context)
+                self.poll_until_complete(driver_id, context)
+                return self.get_job_result(driver_id, context)
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:

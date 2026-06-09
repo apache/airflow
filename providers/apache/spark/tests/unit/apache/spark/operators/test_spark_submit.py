@@ -858,6 +858,27 @@ class TestSparkSubmitOperatorResumable:
 
         hook._kill_yarn_application.assert_called_once_with("application_1234_0001")
 
+    def test_yarn_cluster_reconnect_without_rm_api_raises(self):
+        """reconnect_on_retry=True + yarn_track_via_rm_api=False must raise - RM API is required for resume."""
+        operator = self._make_operator(reconnect_on_retry=True)
+        hook = self._make_hook(is_yarn_cluster=True)
+        hook._yarn_track_via_rm_api = False
+        operator._hook = hook
+
+        with pytest.raises(ValueError, match="yarn_track_via_rm_api=True"):
+            operator.execute(context={})
+
+    def test_yarn_cluster_without_rm_api_reconnect_false_falls_through_to_hook_submit(self):
+        """reconnect_on_retry=False + yarn_track_via_rm_api=False falls through to hook.submit() - no RM polling."""
+        operator = self._make_operator(reconnect_on_retry=False)
+        hook = self._make_hook(is_yarn_cluster=True)
+        hook._yarn_track_via_rm_api = False
+        operator._hook = hook
+
+        operator.execute(context={})
+
+        hook.submit.assert_called_once_with("test.jar")
+
 
 class TestSparkSubmitOperatorK8sTracking:
     def setup_method(self):
