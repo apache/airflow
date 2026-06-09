@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
 import json
 import time
 from contextlib import AsyncExitStack
@@ -250,11 +250,12 @@ async def _extract_w3c_trace_context(
         yield
         return
     ctx = otel_propagate.extract(request.headers)
+    attached_in = asyncio.current_task()
     token = otel_context.attach(ctx)
     try:
         yield
     finally:
-        with contextlib.suppress(Exception):
+        if asyncio.current_task() is attached_in:
             otel_context.detach(token)
 
 

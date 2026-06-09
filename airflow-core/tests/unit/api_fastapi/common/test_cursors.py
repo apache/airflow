@@ -142,3 +142,23 @@ class TestCursorPagination:
 
         assert len(resolved) == 1
         assert resolved[0][0] == "id"
+
+    def test_apply_cursor_filter_null_value_does_not_raise(self):
+        """Cursor tokens with None values (nullable sort columns) must not crash.
+
+        When order_by=rendered_map_index and no map_index_template is set,
+        _rendered_map_index is NULL for all rows.  The cursor encodes None and
+        the next-page filter must use IS NULL / IS NOT NULL instead of >= None.
+        """
+        sp = SortParam(
+            ["_rendered_map_index", "map_index", "id"],
+            TaskInstance,
+        )
+        sp.set_value(["_rendered_map_index", "map_index"])
+        token = _msgpack_cursor_token([None, 49, "019462ab-1234-5678-9abc-def012345678"])
+
+        # Should not raise ArgumentError from SQLAlchemy.
+        stmt = apply_cursor_filter(select(TaskInstance), token, sp)
+        sql = str(stmt)
+        assert "IS NULL" in sql
+        assert "IS NOT NULL" in sql

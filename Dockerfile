@@ -71,9 +71,9 @@ ARG PYTHON_LTO="true"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.1
+ARG AIRFLOW_PIP_VERSION=26.1.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.17
+ARG AIRFLOW_UV_VERSION=0.11.19
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -256,7 +256,7 @@ function install_docker_cli() {
     apt-get update
     apt-get install ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL --retry 3 --retry-delay 5 https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     # shellcheck disable=SC1091
     echo \
@@ -361,7 +361,7 @@ function install_cosign() {
         echo "Unsupported architecture for cosign: ${arch}"
         exit 1
     fi
-    curl -fsSL \
+    curl -fsSL --retry 3 --retry-delay 5 \
         "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
         -o /tmp/cosign
     echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
@@ -390,7 +390,7 @@ function install_python() {
         echo "GOOD! System python is not installed - OK"
         echo
     fi
-    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
     local major minor
@@ -415,7 +415,7 @@ function install_python() {
             [3.13]="https://accounts.google.com"
             [3.14]="https://github.com/login/oauth"
         )
-        wget -O python.tar.xz.sigstore \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
         install_cosign
         local identity="${sigstore_identities[${major_minor_version}]}"
@@ -433,7 +433,7 @@ function install_python() {
             # https://peps.python.org/pep-0619/#release-manager-and-crew
             [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
         )
-        wget -O python.tar.xz.asc \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
@@ -491,7 +491,7 @@ function install_python() {
 }
 
 function install_golang() {
-    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
@@ -513,7 +513,7 @@ function install_rustup() {
         echo "Unsupported architecture for rustup: ${arch}"
         exit 1
     fi
-    curl --proto '=https' --tlsv1.2 -sSf \
+    curl --proto '=https' --tlsv1.2 -sSf --retry 3 --retry-delay 5 \
         "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check

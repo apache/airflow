@@ -34,6 +34,9 @@ This is where *Deferrable Operators* can be used. When it has nothing to do but 
 
    For guidance on when to use deferred operators versus async tasks,
    see `Deferred vs Async Operators <https://airflow.apache.org/docs/task-sdk/stable/deferred-vs-async-operators.html>`__.
+   For guidance on when to use deferrable operators versus resumable tasks
+   (crash-safe synchronous operators that use the task state store), see
+   :ref:`Resumable Tasks <concepts-resumable-tasks>`.
 
 An overview of how this process works:
 
@@ -53,6 +56,12 @@ If you want to use pre-written deferrable operators that come with Airflow, such
 * Use deferrable operators/sensors in your Dags
 
 Airflow automatically handles and implements the deferral processes for you.
+
+.. note::
+
+    :doc:`Human-in-the-loop <../tutorial/hitl>` operators do **not** use deferral or the triggerer.
+    They wait in the scheduler-managed ``awaiting_input`` task state, so a deployment that waits only
+    on human input rather than deferrable operators does not need a running triggerer.
 
 If you're upgrading existing Dags to use deferrable operators, Airflow contains API-compatible sensor variants. Add these variants into your Dag to use deferrable operators with no other changes required.
 
