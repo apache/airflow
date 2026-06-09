@@ -115,11 +115,11 @@ TEST_COMMANDS = [
     # Providers commands
     "providers list",
     # Variables commands
-    "variables create --key=test_key --value=test_value",
+    "variables create test_key --value=test_value",
     "variables list",
     "variables get test_key",
     "variables get test_key -o table",
-    "variables update --key=test_key --value=updated_value",
+    "variables update test_key --value=updated_value",
     "variables import tests/airflowctl_tests/fixtures/test_variables.json",
     "variables delete test_key",
     "variables delete test_import_var",
