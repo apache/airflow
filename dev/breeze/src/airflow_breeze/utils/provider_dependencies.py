@@ -178,7 +178,7 @@ def _calculate_provider_deps_hash():
 def get_provider_dependencies() -> dict:
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
         # We use regular print there as rich console might not be initialized yet here
         print("Regenerating provider dependencies file")
         regenerate_provider_dependencies_once()
