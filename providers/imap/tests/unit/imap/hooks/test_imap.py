@@ -405,10 +405,10 @@ class TestImapHook:
                 imap_hook.download_mail_attachments(
                     "test1.csv",
                     "test_directory",
-                    create_unique_filenames=True,
+                    overwrite=False,
                 )
 
-        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "xb")
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
     @patch(open_string, new_callable=mock_open)
@@ -422,10 +422,10 @@ class TestImapHook:
             imap_hook.download_mail_attachments(
                 "test1.csv",
                 "test_directory",
-                create_unique_filenames=True,
+                overwrite=False,
             )
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "xb")
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
     @patch(open_string, new_callable=mock_open)
@@ -441,10 +441,10 @@ class TestImapHook:
                 imap_hook.download_mail_attachments(
                     "report.xlsx",
                     "test_directory",
-                    create_unique_filenames=True,
+                    overwrite=False,
                 )
 
-        mock_open_method.assert_called_once_with("test_directory/report_1.xlsx", "wb")
+        mock_open_method.assert_called_once_with("test_directory/report_1.xlsx", "xb")
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
@@ -465,10 +465,10 @@ class TestImapHook:
                 imap_hook.download_mail_attachments(
                     "report.xlsx",
                     "test_directory",
-                    create_unique_filenames=True,
+                    overwrite=False,
                 )
 
-        mock_open_method.assert_called_once_with("test_directory/report_3.xlsx", "wb")
+        mock_open_method.assert_called_once_with("test_directory/report_3.xlsx", "xb")
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
