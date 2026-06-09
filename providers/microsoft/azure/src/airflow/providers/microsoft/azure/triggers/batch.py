@@ -66,14 +66,14 @@ class AzureBatchTrigger(BaseTrigger):
 
     def _get_incomplete_tasks(
         self,
-        tasks: list[batch_models.CloudTask],
-    ) -> list[batch_models.CloudTask]:
+        tasks: list[batch_models.BatchTask],
+    ) -> list[batch_models.BatchTask]:
         """Return tasks that have not yet completed."""
-        return [task for task in tasks if task.state != batch_models.TaskState.completed]
+        return [task for task in tasks if task.state != batch_models.BatchTaskState.COMPLETED]
 
     def _build_trigger_event(
         self,
-        tasks: list[batch_models.CloudTask],
+        tasks: list[batch_models.BatchTask],
     ) -> TriggerEvent | None:
         """
         Convert Batch task states to TriggerEvent.
@@ -95,7 +95,7 @@ class AzureBatchTrigger(BaseTrigger):
         failed_tasks = [
             task.id
             for task in tasks
-            if task.execution_info and task.execution_info.result == batch_models.TaskExecutionResult.failure
+            if task.execution_info and task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
         ]
 
         if failed_tasks:
