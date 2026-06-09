@@ -183,7 +183,10 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 if map_index := event.get("map_index"):
                     labels["map_index"] = str(map_index)
 
-            _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            try:
+                _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            except Exception:
+                _logger.warning("Failed to send log to Cloud Logging", exc_info=True)
             return event
 
         return (proc,)
