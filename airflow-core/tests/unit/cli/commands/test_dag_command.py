@@ -1846,6 +1846,62 @@ class TestCliDagsClear:
         assert clear_numbers["part_2026_03_14"] == 1
         assert clear_numbers["non_partitioned"] == 0
 
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):
+        """A run_id collision across DAGs must not clear the other DAG's task instances."""
+        other_dag_id = "test_dags_clear_other_dag"
+        with dag_maker(
+            other_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 3, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        # Same run_id and partition_date as a run cleared below, but a different DAG.
+        dag_maker.create_dagrun(
+            run_id="part_2026_03_08",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 3, 8, tzinfo=pendulum.UTC),
+            partition_key="2026-03-08T00:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+        # If dag_id is not filtered, clearing the other DAG would reset this TI to None.
+        with create_session() as session:
+            session.execute(
+                TaskInstance.__table__.update()
+                .where(TaskInstance.dag_id == other_dag_id)
+                .values(state=TaskInstanceState.SUCCESS)
+            )
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        # The target DAG's same-named run must be cleared.
+        assert self._get_run_states()["part_2026_03_08"] == DagRunState.QUEUED
+
+        # The other DAG's same-named run must be left untouched.
+        with create_session() as session:
+            other_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == other_dag_id, DagRun.run_id == "part_2026_03_08")
+            ).one()
+            assert other_run.state == DagRunState.SUCCESS
+            assert other_run.clear_number == 0
+            other_ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == other_dag_id)).one()
+            assert other_ti.state == TaskInstanceState.SUCCESS
+
 
 class TestDagDetailsIsBackfillable:
     """Tests for the is_backfillable computation in _get_dagbag_dag_details."""
