@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+22.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add idle/auto stop TTLs and master/worker instance flexibility … (#65653)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Harden Stackdriver handler against Cloud Logging failures (#67513)``
+* ``Fix Cloud Run deferrable trigger handling of transient 503 (#67219)``
+* ``Remove the leftover temporary report file in BidManager download (#67076)``
+* ``Fail closed in GCS log handler when existing-log read fails (#67511)``
+* ``Reject GCS blob names that escape the target directory on download (#67509)``
+* ``Warn when remote_log_conn_id is configured but not found (#67510)``
+* ``Write Cloud SQL keyfile_dict credentials with 0600 permissions (#67507)``
+
+Misc
+~~~~
+
+* ``Bump minimum google-api-core to 2.30.3 to fix Dag import timeout (#67774)``
+* ``Migrate Stackdriver logging config to RemoteLogIO pattern (#66513)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Rework StackdriverTaskHandler for the structlog era #65191 (#65198)``
+* ``Fixing mypy errors in google gen ai provider and tests (#67276)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix wrong changelog entry for BigQueryInsertJobOperator in google provider 22.0.0 (#67280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 22.0.0
 ......
 

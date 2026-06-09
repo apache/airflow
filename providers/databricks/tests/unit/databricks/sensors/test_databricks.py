@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
@@ -31,6 +32,13 @@ STATEMENT = "select * from test.test;"
 STATEMENT_ID = "statement_id"
 TASK_ID = "task_id"
 WAREHOUSE_ID = "warehouse_id"
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 
 
 class TestDatabricksSQLStatementsSensor:
@@ -38,6 +46,11 @@ class TestDatabricksSQLStatementsSensor:
     Validate and test the functionality of the DatabricksSQLStatementsSensor. This Sensor borrows heavily
     from the DatabricksSQLStatementOperator, meaning that much of the testing logic is also reused.
     """
+
+    @staticmethod
+    def _configure_running_deferrable_hook(db_mock):
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
 
     def test_init_statement(self):
         """Test initialization for traditional use-case (statement)."""
@@ -166,6 +179,22 @@ class TestDatabricksSQLStatementsSensor:
 
         assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
+
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+            databricks_retry_args=retry_args,
+        )
+        db_mock = db_mock_class.return_value
+        self._configure_running_deferrable_hook(db_mock)
+
+        with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+            op.execute(None)
 
     def test_execute_complete_success(self):
         """

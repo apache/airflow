@@ -34,7 +34,7 @@ from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateRespo
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.exceptions import DagRunAlreadyExists
+from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.models.taskinstance import TaskInstance
@@ -152,6 +152,11 @@ def trigger_dag_run(
                 "reason": "already_exists",
                 "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
             },
+        )
+    except DagNotPartitionedError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={"reason": "not_partitioned", "message": str(e)},
         )
 
 

@@ -21,6 +21,7 @@ import os
 import sys
 
 import rich
+from rich.console import Console
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -31,6 +32,10 @@ from airflowctl.api.datamodels.generated import (
 )
 
 
+def _print_file_error(message: str, file_path: str) -> None:
+    Console().print(f"[red]{message}: {file_path}", soft_wrap=True)
+
+
 @provide_api_client(kind=ClientKind.CLI)
 def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     """Import variables from a given file."""
@@ -38,14 +43,18 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     errors_message = "[red]Import failed! errors: {errors}[/red]"
 
     if not os.path.exists(args.file):
-        rich.print(f"[red]Missing variable file: {args.file}")
+        _print_file_error("Missing variable file", args.file)
         sys.exit(1)
     with open(args.file) as var_file:
         try:
             var_json = json.load(var_file)
         except json.JSONDecodeError:
-            rich.print(f"[red]Invalid variable file: {args.file}")
+            _print_file_error("Invalid variable file", args.file)
             sys.exit(1)
+
+    if not isinstance(var_json, dict):
+        _print_file_error("Invalid variable file", args.file)
+        sys.exit(1)
 
     action_on_existence = BulkActionOnExistence(args.action_on_existing_key)
     vars_to_update = []

@@ -1944,6 +1944,7 @@ class TestDagProcessingMessageTypes:
         dag_processor_types = get_type_names(ToDagProcessor)
 
         in_supervisor_but_not_in_manager = {
+            "AwaitInputTask",
             "DeferTask",
             "DeleteXCom",
             "GetAssetByName",
@@ -1973,19 +1974,19 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
-            # AIP-103 task/asset state — Dag processor has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — Dag processor has no task execution context.
+            "GetTaskStore",
+            "SetTaskStore",
+            "DeleteTaskStore",
+            "ClearTaskStore",
+            "GetAssetStoreByName",
+            "GetAssetStoreByUri",
+            "SetAssetStoreByName",
+            "SetAssetStoreByUri",
+            "DeleteAssetStoreByName",
+            "DeleteAssetStoreByUri",
+            "ClearAssetStoreByName",
+            "ClearAssetStoreByUri",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
@@ -2005,9 +2006,9 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStoreResult",
+            "AssetStoreResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager

@@ -435,6 +435,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``all_success`` (default): All upstream tasks have succeeded
 * ``all_failed``: All upstream tasks are in a ``failed`` or ``upstream_failed`` state
 * ``all_done``: All upstream tasks are done with their execution
+* ``all_done_setup_success``: Like ``all_done``, but if the task has upstream setup tasks, at least one of them must have succeeded. This is the default trigger rule for teardown tasks.
 * ``all_done_min_one_success``: All non-skipped upstream tasks are done with their execution and at least one upstream task has succeeded
 * ``all_skipped``: All upstream tasks are in a ``skipped`` state
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
@@ -442,8 +443,18 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``one_done``: At least one upstream task succeeded or failed
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
 * ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
-* ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
+* ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, ``upstream_failed``, or ``removed`` state
 * ``always``: No dependencies at all, run this task at any time
+
+.. note::
+
+    The ``removed`` :ref:`Task Instance state <concepts:task-states>` means a task has vanished from the
+    Dag since the run started. For trigger rules, ``removed`` is a terminal state: it counts toward
+    "done" for rules like ``all_done``, ``all_done_setup_success``, and ``all_done_min_one_success``,
+    but it does not count as ``success``, ``failed``, ``upstream_failed``, or ``skipped``. For
+    dynamically mapped tasks, ``removed`` upstream map indexes are also subtracted from the failure
+    counts of ``all_success``, ``all_failed``, ``none_failed``, ``none_failed_min_one_success``, and
+    ``all_done_min_one_success``.
 
 
 You can also combine this with the :ref:`concepts:depends-on-past` functionality if you wish.

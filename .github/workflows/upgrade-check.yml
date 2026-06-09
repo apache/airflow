@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     inputs:
       target-branch:
         description: >-
-          Branch to upgrade (e.g. 'main' or 'v3-2-test')
+          Branch to upgrade (e.g. 'main')
         required: true
         type: string
     secrets:

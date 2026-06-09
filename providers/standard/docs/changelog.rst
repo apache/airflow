@@ -35,6 +35,37 @@
 Changelog
 ---------
 
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Share one poll loop across sibling event triggers (#66584)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix TriggerDagRunOperator fail_when_dag_is_paused on Airflow 3.2+ (#67726)``
+
+Misc
+~~~~
+
+* ``Remove findings from positional session check in Core Dag Modules (#67789)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix typo "@tash.bash" -> "@task.bash (#67301)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename task_state/asset_state to task_store/asset_store across the codebase (#67833)``
+   * ``Remove findings from positional session check in Core TI Modules (#67809)``
+
+
 1.13.1
 ......
 

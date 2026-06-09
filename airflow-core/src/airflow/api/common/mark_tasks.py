@@ -301,6 +301,7 @@ def set_dag_run_state_to_failed(
         TaskInstanceState.RUNNING,
         TaskInstanceState.DEFERRED,
         TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.AWAITING_INPUT,
     )
 
     # Mark only RUNNING task instances.

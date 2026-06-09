@@ -196,7 +196,7 @@ function install_docker_cli() {
     apt-get update
     apt-get install ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL --retry 3 --retry-delay 5 https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     # shellcheck disable=SC1091
     echo \
@@ -301,7 +301,7 @@ function install_cosign() {
         echo "Unsupported architecture for cosign: ${arch}"
         exit 1
     fi
-    curl -fsSL \
+    curl -fsSL --retry 3 --retry-delay 5 \
         "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
         -o /tmp/cosign
     echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
@@ -330,7 +330,7 @@ function install_python() {
         echo "GOOD! System python is not installed - OK"
         echo
     fi
-    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
     local major minor
@@ -355,7 +355,7 @@ function install_python() {
             [3.13]="https://accounts.google.com"
             [3.14]="https://github.com/login/oauth"
         )
-        wget -O python.tar.xz.sigstore \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
         install_cosign
         local identity="${sigstore_identities[${major_minor_version}]}"
@@ -373,7 +373,7 @@ function install_python() {
             # https://peps.python.org/pep-0619/#release-manager-and-crew
             [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
         )
-        wget -O python.tar.xz.asc \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
@@ -431,7 +431,7 @@ function install_python() {
 }
 
 function install_golang() {
-    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
@@ -453,7 +453,7 @@ function install_rustup() {
         echo "Unsupported architecture for rustup: ${arch}"
         exit 1
     fi
-    curl --proto '=https' --tlsv1.2 -sSf \
+    curl --proto '=https' --tlsv1.2 -sSf --retry 3 --retry-delay 5 \
         "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
@@ -1222,6 +1222,10 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__GO_WORKER=True
     fi
 
+    if [[ ${INSTALL_SDK_JAVA=} == "true" ]]; then
+        "${AIRFLOW_SOURCES}/scripts/docker/install_jdk.sh"
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
@@ -1396,11 +1400,11 @@ function check_boto_upgrade() {
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
 
-    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
-    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Urllib 2.6.0 broke kubernetes client by removing getheaders() (restored in 2.6.1+).
+    # Exclude exactly 2.6.0; any other version is fine.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3" "botocore" "urllib3!=2.6.0"
 }
 
 function check_upgrade_sqlalchemy() {
@@ -1700,7 +1704,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 ARG AIRFLOW_PYTHON_VERSION="3.13.13"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.26.3"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.26.4"
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/usr/local/cargo"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
@@ -1756,17 +1760,21 @@ ARG HELM_VERSION="v3.19.0"
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
     && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-${PLATFORM}.tar.gz" \
-    && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
+    && curl --silent --location --fail --retry 3 --retry-delay 5 -o /tmp/helm.tar.gz "${HELM_URL}" \
+    && tar -xzf /tmp/helm.tar.gz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
+    && rm -f /tmp/helm.tar.gz \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.9.4"
+ARG MPROCS_VERSION="0.9.6"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
     && MPROCS_URL="https://github.com/pvolok/mprocs/releases/download/v${MPROCS_VERSION}/mprocs-${MPROCS_VERSION}-${SYSTEM}-${PLATFORM}-musl.tar.gz" \
     && echo "Downloading mprocs from ${MPROCS_URL}" \
-    && curl --silent --location "${MPROCS_URL}" | tar -xz -C /usr/local/bin/ mprocs \
+    && curl --silent --location --fail --retry 3 --retry-delay 5 -o /tmp/mprocs.tar.gz "${MPROCS_URL}" \
+    && tar -xzf /tmp/mprocs.tar.gz -C /usr/local/bin/ mprocs \
+    && rm -f /tmp/mprocs.tar.gz \
     && chmod +x /usr/local/bin/mprocs
 
 WORKDIR ${AIRFLOW_SOURCES}
@@ -1852,10 +1860,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.1
+ARG AIRFLOW_PIP_VERSION=26.1.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.16
-ARG AIRFLOW_PREK_VERSION="0.4.2"
+ARG AIRFLOW_UV_VERSION=0.11.19
+ARG AIRFLOW_PREK_VERSION="0.4.4"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
