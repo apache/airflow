@@ -57,11 +57,8 @@ A minimal Airflow installation consists of the following components:
   :doc:`/administration-and-deployment/dag-bundles`
 
 * An *API Server*, which serves the REST API and presents a user interface to inspect, trigger and debug the behaviour of
-  Dags and tasks. The API server is also used by *workers* to communicate state back to Airflow, without requiring direct access
+  Dags and tasks. The API server is also used by *tasks* using the *task SDK* to communicate state back to Airflow, without requiring direct access
   to the *metadata database*.
-
-* The *Task SDK*, which is an isolated runtime environment inside the *workers* that executes the user-defined Dag code.
-  This acts as a way to isolate execution of user code by routing all execution through the API server. This protects the *metadata database* and other Airflow components from direct access from user code, and allows for better security and stability of Airflow.  The worker process itself may have access depending on the deployment details. 
 
 * A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags and variables.
 
@@ -102,7 +99,7 @@ environment - where various components can run on different machines, with diffe
 and can be scaled by running multiple instances of the components above.
 
 The separation of components also allow for increased security, by isolating the components from each other
-and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler* 
+and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler*
 makes sure that the *scheduler* does not have access to the *Dag bundles* and cannot execute
 code provided by *Dag author*.
 
