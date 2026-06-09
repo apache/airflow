@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
+from airflow.providers.common.compat.sdk import Connection as SdkConnection
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 from tests_common.test_utils.config import conf_vars
@@ -576,7 +577,14 @@ class TestVaultSecrets:
             "renewable": False,
             "lease_duration": 0,
             "data": {
-                "data": {"conn_uri": "postgresql://airflow:airflow@host:5432/airflow"},
+                "data": {
+                    "conn_type": "postgres",
+                    "login": "airflow",
+                    "password": "airflow",
+                    "host": "host",
+                    "port": "5432",
+                    "schema": "airflow",
+                },
                 "metadata": {
                     "created_time": "2020-03-16T21:01:43.331126Z",
                     "deletion_time": "",
@@ -699,7 +707,14 @@ class TestVaultSecrets:
 
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
             "data": {
-                "data": {"conn_uri": "postgresql://user:pass@host:5432/db"},
+                "data": {
+                    "conn_type": "postgres",
+                    "login": "user",
+                    "password": "pass",
+                    "host": "host",
+                    "port": "5432",
+                    "schema": "db",
+                },
                 "metadata": {"version": 1},
             }
         }
@@ -759,3 +774,72 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_config("test") is None
         mock_hvac.Client.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_returns_sdk_connection_not_sqlalchemy_model(self, mock_hvac):
+        """get_connection must return the SDK (Pydantic) Connection, not the SQLAlchemy ORM model.
+
+        Using the SQLAlchemy model triggers lazy mapper initialisation for the entire Airflow model
+        registry, which fails in PythonVirtualenvOperator subprocesses where DagModel has not been
+        imported (raises sqlalchemy.exc.InvalidRequestError, silently swallowed in context.py).
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {
+                "data": {
+                    "conn_type": "postgres",
+                    "host": "db-host",
+                    "login": "user",
+                    "password": "pass",
+                    "port": "5432",
+                    "schema": "mydb",
+                },
+                "metadata": {"version": 1},
+            }
+        }
+
+        backend = VaultBackend(
+            connections_path="connections",
+            mount_point="airflow",
+            auth_type="token",
+            url="http://127.0.0.1:8200",
+            token="token",
+        )
+        conn = backend.get_connection("trino_default")
+
+        assert isinstance(conn, SdkConnection), (
+            f"Expected SDK Connection, got {type(conn)}. "
+            "Returning the SQLAlchemy model triggers mapper init and breaks PythonVirtualenvOperator."
+        )
+        assert conn.conn_id == "trino_default"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @pytest.mark.skipif(
+        not hasattr(SdkConnection, "from_uri"),
+        reason="conn_uri deserialization requires Connection.from_uri (Airflow 3.2+ / task-sdk 1.2.0+)",
+    )
+    def test_get_connection_via_uri_returns_sdk_connection(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {
+                "data": {"conn_uri": "postgresql://user:pass@host:5432/db"},
+                "metadata": {"version": 1},
+            }
+        }
+
+        backend = VaultBackend(
+            connections_path="connections",
+            mount_point="airflow",
+            auth_type="token",
+            url="http://127.0.0.1:8200",
+            token="token",
+        )
+        conn = backend.get_connection("my_conn")
+
+        assert isinstance(conn, SdkConnection), (
+            f"Expected SDK Connection, got {type(conn)}. "
+            "Returning the SQLAlchemy model triggers mapper init and breaks PythonVirtualenvOperator."
+        )
+        assert conn.conn_id == "my_conn"
