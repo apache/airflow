@@ -183,8 +183,6 @@ class TaskMap(TaskInstanceDependencies):
             if TYPE_CHECKING:
                 assert task.dag is None
 
-            dr = unmapped_ti.dag_run
-
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
@@ -202,6 +200,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
+                dr = unmapped_ti.dag_run
                 zero_index_ti_exists = exists_query(
                     TaskInstance.dag_id == task.dag_id,
                     TaskInstance.task_id == task.task_id,

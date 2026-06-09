@@ -219,23 +219,24 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
         local_sig = inspect.signature(policy)
         policy_sig = inspect.signature(globals()[name])
         # Decide whether the local settings function can be registered as-is or needs a shim. Pluggy
-        # passes a hookimpl only the parameters it declares *without a default*, by name. So we shim when:
+        # passes a hookimpl only the parameters it declares *without a default* (its `argnames`), by name.
+        # Parameters with defaults go into `kwargnames` and are never routed, so an impl that writes
+        # ``def hook(task_instance, dag_run=None)`` would silently never receive ``dag_run``. We shim when:
         #
         # * the function declares a name the hookspec does not have (a genuine mismatch, e.g. a renamed
         #   argument), or
-        # * the function gives a hookspec parameter a default value -- pluggy would silently drop that
-        #   argument and the function would never receive it.
+        # * the function gives a hookspec parameter a default value -- pluggy puts it in kwargnames and
+        #   the function would always see its own default rather than the real value.
         #
         # A function declaring a (default-free) subset of the hookspec parameters is registered as-is, so a
         # single-parameter hook keeps working unchanged after the hookspec gains new parameters. The shim
         # forwards positionally, so it transparently handles renames, defaulted parameters, and signatures
         # that declare fewer parameters than the hookspec.
-        names_are_subset = local_sig.parameters.keys() <= policy_sig.parameters.keys()
-        has_defaulted_spec_param = any(
+        needs_shim = not (local_sig.parameters.keys() <= policy_sig.parameters.keys()) or any(
             param.default is not inspect.Parameter.empty and param_name in policy_sig.parameters
             for param_name, param in local_sig.parameters.items()
         )
-        if not names_are_subset or has_defaulted_spec_param:
+        if needs_shim:
             policy = _make_shim_fn(name, policy_sig, target=policy)
 
         setattr(AirflowLocalSettingsPolicy, name, staticmethod(hookimpl(policy, specname=name)))
