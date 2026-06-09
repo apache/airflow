@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from google.cloud.logging import Resource
+from google.cloud.logging.handlers.transports import Transport
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
 from airflow.providers.google.cloud.log.stackdriver_task_handler import (
@@ -326,9 +327,10 @@ class TestStackdriverRemoteLogIO:
         mock_transport_type.return_value.send.assert_not_called()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler._logger")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
-    def test_processors_survives_transport_send_failure(self, mock_client, mock_get_creds_and_project_id, caplog):
+    def test_processors_survives_transport_send_failure(self, mock_client, mock_get_creds_and_project_id, mock_logger):
         """``proc()`` must not let a transport.send() failure crash the process.
 
         In AF3's supervisor model REMOTE_TASK_LOG applies to ALL supervised
@@ -339,7 +341,7 @@ class TestStackdriverRemoteLogIO:
         """
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        mock_transport_type = mock.MagicMock()
+        mock_transport_type = mock.create_autospec(Transport)
         mock_transport_type.return_value.send.side_effect = RuntimeError("IAM permission denied")
         with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value="dag/task/1.log"):
             io = StackdriverRemoteLogIO(
@@ -354,13 +356,13 @@ class TestStackdriverRemoteLogIO:
                 "logger_name": "airflow.task",
                 "timestamp": "2026-01-15T10:30:00+00:00",
             }
-            with caplog.at_level(logging.WARNING):
-                result = proc(mock.MagicMock(), "info", event)
+            result = proc(mock.MagicMock(), "info", event)
 
         # Must still return the event — crash would mean no return at all
         assert result is event
         # Must log the failure so the operator can see it
-        assert "Failed to send log to Cloud Logging" in caplog.text
+        mock_logger.warning.assert_called_once()
+        assert "Failed to send log to Cloud Logging" in mock_logger.warning.call_args[0][0]
 
 
 @pytest.mark.usefixtures("clean_stackdriver_handlers")
