@@ -13,7 +13,7 @@
   },
   "deadlines": {
     "columns": {
-      "alertName": "告警名称",
+      "alertName": "警告名称",
       "deadlineTime": "截止时间",
       "status": "状态"
     },
