@@ -609,9 +609,19 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
 
     def _create_log_forwarder(
-        self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
     ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (

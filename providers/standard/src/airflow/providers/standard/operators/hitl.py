@@ -21,7 +21,11 @@ import warnings
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_1_3_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -39,6 +43,11 @@ from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
+
+if AIRFLOW_V_3_3_PLUS:
+    # On Airflow 3.3+ the operator parks the task in the first-class AWAITING_INPUT state instead of
+    # deferring to a trigger. On older cores this name is absent and the defer() fallback is used.
+    from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -58,9 +67,10 @@ class HITLOperator(BaseOperator):
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
         and added to XCom of the task result.
-    :param response_timeout: Maximum time to wait for a human response after deferring to the trigger.
-        This is separate from ``execution_timeout`` which controls the pre-defer execution phase.
-        If not set, no timeout is applied to the human response wait.
+    :param response_timeout: Maximum time to wait for a human response. On Airflow 3.3+ this is
+        enforced by the scheduler's ``awaiting_input`` timeout sweep; on older versions it is passed
+        to the triggerer. This is separate from ``execution_timeout``, which controls the execution
+        phase before the task starts waiting. If not set, no timeout is applied to the human response wait.
     """
 
     template_fields: Collection[str] = ("subject", "body")
@@ -174,7 +184,13 @@ class HITLOperator(BaseOperator):
                 raise ValueError('More than one defaults given when "multiple" is set to False.')
 
     def execute(self, context: Context):
-        """Add a Human-in-the-loop Response and then defer to HITLTrigger and wait for user input."""
+        """
+        Write the Human-in-the-loop request, then wait for a user response.
+
+        On Airflow 3.3+ the task waits in the ``awaiting_input`` state with no trigger or triggerer
+        involved; on older versions it defers to :class:`HITLTrigger`. Either way it resumes in
+        ``execute_complete`` once a response (or timeout default) arrives.
+        """
         ti_id = context["task_instance"].id
         # Write Human-in-the-loop input request to DB
         upsert_hitl_detail(
@@ -200,7 +216,16 @@ class HITLOperator(BaseOperator):
         for notifier in self.notifiers:
             notifier(context)
 
-        # Defer the Human-in-the-loop response checking process to HITLTrigger
+        if AIRFLOW_V_3_3_PLUS:
+            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
+            # is resumed by the Core API response handler or the scheduler timeout sweep, so the
+            # triggerer no longer needs to run for Human-in-the-loop tasks to make progress.
+            raise TaskAwaitingInput(
+                method_name="execute_complete",
+                timeout=self.response_timeout,
+            )
+
+        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,

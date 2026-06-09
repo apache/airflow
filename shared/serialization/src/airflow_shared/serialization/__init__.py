@@ -47,4 +47,5 @@ OLD_TYPE_TO_FULL_QUALNAME: dict[str, str] = {
     "set": "builtins.set",
     "frozenset": "builtins.frozenset",
     "timedelta": "datetime.timedelta",
+    "datetime": "datetime.datetime",
 }

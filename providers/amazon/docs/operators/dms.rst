@@ -58,6 +58,23 @@ To create a replication task you can use
     :start-after: [START howto_operator_dms_create_task]
     :end-before: [END howto_operator_dms_create_task]
 
+.. _howto/operator:DmsModifyTaskOperator:
+
+Modify a replication task
+=========================
+
+To modify an existing replication task (e.g. to update table mappings for a backfill) you can use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsModifyTaskOperator`.
+The task must be stopped before modification — use :class:`~airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator`
+upstream in the Dag, and :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator`
+downstream to restart it afterwards if needed.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_modify_task]
+    :end-before: [END howto_operator_dms_modify_task]
+
 .. _howto/operator:DmsStartTaskOperator:
 
 Start a replication task

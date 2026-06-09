@@ -24,6 +24,20 @@ from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnaly
 from airflow.providers.common.compat.sdk import dag, task
 
 
+# [START howto_operator_llm_file_analysis_structured_output_class]
+# Pydantic output classes must be defined at module scope so they can be
+# imported by name when downstream tasks deserialize the XCom payload.
+class FileAnalysisSummary(BaseModel):
+    """Structured output schema for the file-analysis examples."""
+
+    findings: list[str]
+    highest_severity: str
+    truncated_inputs: bool
+
+
+# [END howto_operator_llm_file_analysis_structured_output_class]
+
+
 # [START howto_operator_llm_file_analysis_basic]
 @dag(tags=["example"])
 def example_llm_file_analysis_basic():
@@ -85,14 +99,6 @@ example_llm_file_analysis_multimodal()
 # [START howto_operator_llm_file_analysis_structured]
 @dag(tags=["example"])
 def example_llm_file_analysis_structured():
-
-    class FileAnalysisSummary(BaseModel):
-        """Structured output schema for the file-analysis examples."""
-
-        findings: list[str]
-        highest_severity: str
-        truncated_inputs: bool
-
     LLMFileAnalysisOperator(
         task_id="analyze_parquet_quality",
         prompt=(

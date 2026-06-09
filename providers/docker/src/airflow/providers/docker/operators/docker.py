@@ -534,6 +534,15 @@ class DockerOperator(BaseOperator):
                 self.log.info("Not attempting to kill container as it was not created")
                 return
             self.cli.stop(self.container["Id"])
+            if self.auto_remove == "force":
+                try:
+                    self.cli.remove_container(self.container["Id"], force=True)
+                except APIError as e:
+                    self.log.info(
+                        "Failed to remove docker container %s during on_kill; it may already be gone: %s",
+                        self.container["Id"],
+                        e,
+                    )
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:
