@@ -24,7 +24,13 @@ import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsUiKey 
 import type { CreateBackfillData } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
-export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
+export const useCreateBackfill = ({
+  isPartitioned,
+  onSuccessConfirm,
+}: {
+  isPartitioned: boolean;
+  onSuccessConfirm: () => void;
+}) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
   const [error, setError] = useState<unknown>(undefined);
   const queryClient = useQueryClient();
@@ -49,45 +55,88 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
   const { isPending, mutate } = useBackfillServiceCreateBackfill({ onError, onSuccess });
 
   const createBackfill = (data: CreateBackfillData) => {
-    if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
-      setDateValidationError({
-        body: {
-          detail: translate("backfill.validation.datesRequired"),
-        },
-      });
-
-      return;
-    }
-
-    const dataIntervalStart = new Date(data.requestBody.from_date);
-    const dataIntervalEnd = new Date(data.requestBody.to_date);
     const dagId = data.requestBody.dag_id;
 
-    if (dataIntervalStart > dataIntervalEnd) {
-      setDateValidationError({
-        body: {
-          detail: translate("backfill.validation.startBeforeEnd"),
+    if (isPartitioned) {
+      if (
+        data.requestBody.partition_date_start === "" ||
+        data.requestBody.partition_date_start === null ||
+        data.requestBody.partition_date_start === undefined ||
+        data.requestBody.partition_date_end === "" ||
+        data.requestBody.partition_date_end === null ||
+        data.requestBody.partition_date_end === undefined
+      ) {
+        setDateValidationError({
+          body: {
+            detail: translate("backfill.validation.partitionDatesRequired"),
+          },
+        });
+
+        return;
+      }
+
+      const partitionStart = new Date(data.requestBody.partition_date_start);
+      const partitionEnd = new Date(data.requestBody.partition_date_end);
+
+      if (partitionStart > partitionEnd) {
+        setDateValidationError({
+          body: {
+            detail: translate("backfill.validation.partitionStartBeforeEnd"),
+          },
+        });
+
+        return;
+      }
+
+      mutate({
+        requestBody: {
+          dag_id: dagId,
+          dag_run_conf: data.requestBody.dag_run_conf,
+          max_active_runs: data.requestBody.max_active_runs,
+          partition_date_end: partitionEnd.toISOString(),
+          partition_date_start: partitionStart.toISOString(),
+          reprocess_behavior: data.requestBody.reprocess_behavior,
+          run_backwards: data.requestBody.run_backwards,
+          run_on_latest_version: data.requestBody.run_on_latest_version,
         },
       });
+    } else {
+      if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
+        setDateValidationError({
+          body: {
+            detail: translate("backfill.validation.datesRequired"),
+          },
+        });
 
-      return;
+        return;
+      }
+
+      const dataIntervalStart = new Date(data.requestBody.from_date);
+      const dataIntervalEnd = new Date(data.requestBody.to_date);
+
+      if (dataIntervalStart > dataIntervalEnd) {
+        setDateValidationError({
+          body: {
+            detail: translate("backfill.validation.startBeforeEnd"),
+          },
+        });
+
+        return;
+      }
+
+      mutate({
+        requestBody: {
+          dag_id: dagId,
+          dag_run_conf: data.requestBody.dag_run_conf,
+          from_date: dataIntervalStart.toISOString(),
+          max_active_runs: data.requestBody.max_active_runs,
+          reprocess_behavior: data.requestBody.reprocess_behavior,
+          run_backwards: data.requestBody.run_backwards,
+          run_on_latest_version: data.requestBody.run_on_latest_version,
+          to_date: dataIntervalEnd.toISOString(),
+        },
+      });
     }
-
-    const formattedDataIntervalStart = dataIntervalStart.toISOString();
-    const formattedDataIntervalEnd = dataIntervalEnd.toISOString();
-
-    mutate({
-      requestBody: {
-        dag_id: dagId,
-        dag_run_conf: data.requestBody.dag_run_conf,
-        from_date: formattedDataIntervalStart,
-        max_active_runs: data.requestBody.max_active_runs,
-        reprocess_behavior: data.requestBody.reprocess_behavior,
-        run_backwards: data.requestBody.run_backwards,
-        run_on_latest_version: data.requestBody.run_on_latest_version,
-        to_date: formattedDataIntervalEnd,
-      },
-    });
   };
 
   return { createBackfill, dateValidationError, error, isPending };
