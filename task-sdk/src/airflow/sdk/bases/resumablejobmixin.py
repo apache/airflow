@@ -117,6 +117,9 @@ class ResumableJobMixin:
 
             if task_store is None:
                 span.set_attribute("resumable.decision", "no_task_store")
+                self.log.warning(
+                    "task_store not available in context, crash recovery is disabled for this run"
+                )
             else:
                 external_id = task_store.get(self.external_id_key)
                 if external_id:
@@ -130,37 +133,45 @@ class ResumableJobMixin:
                     if self.is_job_active(status):
                         span.set_attribute("resumable.decision", "reconnect")
                         incr("resumable_job.reconnect_success", tags=operator_tag)
-
                         self.log.info(
-                            "Reconnecting to existing job identified by: %s (status: %s)",
-                            external_id,
-                            status,
+                            "Reconnecting to existing job",
+                            external_id_key=self.external_id_key,
+                            external_id=external_id,
+                            status=status,
                         )
-
                         return self.poll_until_complete(external_id, context)
                     if self.is_job_succeeded(status):
                         span.set_attribute("resumable.decision", "already_succeeded")
-
                         self.log.info(
-                            "Job with identifier: %s already completed successfully, skipping resubmission",
-                            external_id,
+                            "Job already completed successfully, skipping resubmission",
+                            external_id_key=self.external_id_key,
+                            external_id=external_id,
                         )
                         return self.get_job_result(external_id, context)
                     span.set_attribute("resumable.decision", "terminal_resubmit")
-
-                    self.log.info(
-                        "Prior job with identifier: %s in terminal state %s, resubmitting fresh",
-                        external_id,
-                        status,
+                    self.log.warning(
+                        "Prior job in terminal state, resubmitting fresh",
+                        external_id_key=self.external_id_key,
+                        external_id=external_id,
+                        status=status,
                     )
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
+                    self.log.debug(
+                        "No stored external ID found; submitting fresh job",
+                        external_id_key=self.external_id_key,
+                    )
 
         incr("resumable_job.fresh_submit", tags=operator_tag)
         external_id = self.submit_job(context)
 
         if task_store is not None and external_id is not None:
             task_store.set(self.external_id_key, external_id)
+            self.log.debug(
+                "Persisted external ID to task store",
+                external_id_key=self.external_id_key,
+                external_id=external_id,
+            )
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)

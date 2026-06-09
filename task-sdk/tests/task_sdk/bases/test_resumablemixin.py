@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+import structlog.testing
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -296,3 +297,32 @@ class TestTracing:
         assert span.attributes["resumable.decision"] == expected_decision
         assert span.attributes["resumable.external_id"] == "job-001"
         assert span.attributes["resumable.prior_status"] == status
+
+
+class TestLogging:
+    def test_warning_when_task_store_unavailable(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        with structlog.testing.capture_logs() as logs:
+            op.execute_resumable(make_context(task_store=None))
+        warnings = [entry for entry in logs if entry["log_level"] == "warning"]
+        assert any("crash recovery is disabled" in entry["event"] for entry in warnings)
+
+    @pytest.mark.parametrize(
+        ("status", "event_fragment", "log_level", "extra_fields"),
+        [
+            ("RUNNING", "Reconnecting", "info", {"external_id_key": "test_job_id", "status": "RUNNING"}),
+            ("SUCCEEDED", "already completed", "info", {"external_id_key": "test_job_id"}),
+            ("FAILED", "terminal state", "warning", {"status": "FAILED"}),
+        ],
+    )
+    def test_log_fields_for_stored_job(self, status, event_fragment, log_level, extra_fields):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        with structlog.testing.capture_logs() as logs:
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        entry = next((e for e in logs if event_fragment in e["event"]), None)
+        assert entry is not None
+        assert entry["log_level"] == log_level
+        assert entry["external_id"] == "job-001"
+        for key, val in extra_fields.items():
+            assert entry[key] == val

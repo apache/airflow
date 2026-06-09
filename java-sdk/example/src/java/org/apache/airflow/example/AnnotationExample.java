@@ -19,11 +19,10 @@
 
 package org.apache.airflow.example;
 
+import java.util.Date;
 import org.apache.airflow.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Date;
 
 @SuppressWarnings("DuplicatedCode")
 @Builder.Dag(id = "java_annotation_example")

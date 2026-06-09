@@ -27,7 +27,6 @@ of submitting a duplicate.
 
 from __future__ import annotations
 
-import json
 import random
 import string
 import time
@@ -82,7 +81,7 @@ with DAG(
         task_store.set("status", "running")
         result = _poll_job(job_id)
         task_store.set("status", "complete")
-        task_store.set("result", json.dumps(result))
+        task_store.set("result", result)
 
         print(f"Try {try_number}: job complete — {result['rows_written']} rows written")
         return result["rows_written"]
