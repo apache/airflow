@@ -2156,3 +2156,48 @@ class TestTriggerRuleUpstreamCountMemo:
                 )
                 assert statuses == []
         assert counter["n"] == 2
+
+    def test_revise_growing_a_mapped_upstream_clears_memo_within_pass(self, dag_maker, session):
+        """
+        When a mapped upstream grows via ``_revise_map_indexes_if_mapped`` mid-pass, the upstream-count
+        memo must be dropped so a downstream evaluated later in the same pass recomputes the count
+        instead of reusing the pre-grow value.
+
+        Driving ``_get_ready_tis`` with a fixed order ``[d1, mapped-instance, d2]``: d1 populates the
+        memo over the pre-grow instances, the mapped instance is revised and grows, then d2 must
+        recompute, so the upstream-count query runs twice. Without the cache clear in
+        ``_get_ready_tis`` d2 reads the stale value and the query runs only once.
+        """
+
+        @task
+        def src(arg):
+            return arg
+
+        @task
+        def plain():
+            return 1
+
+        def _build(length):
+            with dag_maker(dag_id="trmemo_revise", session=session, serialized=True):
+                nums = src.expand(arg=list(range(length)))
+                nums >> plain.override(task_id="d1")()
+                nums >> plain.override(task_id="d2")()
+
+        _build(4)
+        dr = dag_maker.create_dagrun()
+        # Re-serialize the DAG with the mapped task one element longer; revise adds map_index 4.
+        _build(5)
+        dr.dag = dag_maker.serialized_dag
+        session.commit()
+
+        ser = dag_maker.serialized_dag
+        d1 = dr.get_task_instance("d1", session=session)
+        d2 = dr.get_task_instance("d2", session=session)
+        src0 = dr.get_task_instance("src", map_index=0, session=session)
+        d1.task = ser.get_task("d1")
+        d2.task = ser.get_task("d2")
+        src0.task = ser.get_task("src")
+
+        with _count_upstream_count_queries() as counter:
+            dr._get_ready_tis([d1, src0, d2], [], session)
+        assert counter["n"] == 2
