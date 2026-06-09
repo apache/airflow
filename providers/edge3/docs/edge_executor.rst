@@ -222,7 +222,7 @@ Current Limitations Edge Executor
 Metrics Export Compatibility
 -----------------------------
 
-The Edge Worker integrates with Airflow's statsd metrics system to export runtime metrics. Compatibility
+The Edge Worker integrates with Airflow's metrics system to export runtime metrics. Compatibility
 between Edge provider versions and Airflow versions varies due to changes in the metrics initialization
 pipeline. The table below documents known compatibility issues and workarounds:
 
