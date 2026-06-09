@@ -18,10 +18,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+import attrs
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.window import Window
 
 
+def _validate_max_downstream_keys(instance, attribute, value):
+    if value is not None and (not isinstance(value, int) or value < 1):
+        raise ValueError(f"max_downstream_keys must be a positive integer or None, got {value!r}")
+
+
+@attrs.define
 class PartitionMapper:
     """
     Base partition mapper class.
@@ -36,14 +44,7 @@ class PartitionMapper:
     #: Temporal mappers override to ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, *, max_downstream_keys: int | None = None) -> None:
-        if max_downstream_keys is not None and (
-            not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
-        ):
-            raise ValueError(
-                f"max_downstream_keys must be a positive integer or None, got {max_downstream_keys!r}"
-            )
-        self.max_downstream_keys = max_downstream_keys
+    max_downstream_keys: int | None = attrs.field(default=None, validator=_validate_max_downstream_keys)
 
 
 class RollupMapper(PartitionMapper):
