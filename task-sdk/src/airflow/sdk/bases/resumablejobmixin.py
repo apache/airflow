@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 
-from airflow.sdk.observability.stats import incr
+from airflow.sdk._shared.observability.metrics import stats
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -123,7 +123,7 @@ class ResumableJobMixin:
             else:
                 external_id = task_store.get(self.external_id_key)
                 if external_id:
-                    incr("resumable_job.reconnect_attempt", tags=operator_tag)
+                    stats.incr("resumable_job.reconnect_attempt", tags=operator_tag)
 
                     status = self.get_job_status(external_id, context)
 
@@ -132,7 +132,7 @@ class ResumableJobMixin:
 
                     if self.is_job_active(status):
                         span.set_attribute("resumable.decision", "reconnect")
-                        incr("resumable_job.reconnect_success", tags=operator_tag)
+                        stats.incr("resumable_job.reconnect_success", tags=operator_tag)
                         self.log.info(
                             "Reconnecting to existing job",
                             external_id_key=self.external_id_key,
@@ -162,7 +162,7 @@ class ResumableJobMixin:
                         external_id_key=self.external_id_key,
                     )
 
-        incr("resumable_job.fresh_submit", tags=operator_tag)
+        stats.incr("resumable_job.fresh_submit", tags=operator_tag)
         external_id = self.submit_job(context)
 
         if task_store is not None and external_id is not None:
