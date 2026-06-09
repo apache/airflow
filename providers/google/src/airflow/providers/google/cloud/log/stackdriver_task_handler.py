@@ -171,7 +171,10 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 labels.update(self.labels)
             if ti:
                 labels.update(_task_instance_to_labels(ti))
-            _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            try:
+                _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            except Exception:
+                _logger.warning("Failed to send log to Cloud Logging", exc_info=True)
             return event
 
         return (proc,)
