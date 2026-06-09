@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import attrs
+
+if TYPE_CHECKING:
+    from collections.abc import Set
 
 
 class WaitPolicy:
@@ -34,6 +37,10 @@ class WaitPolicy:
 
     def is_satisfied(self, matched: int, expected: int) -> bool:
         raise NotImplementedError
+
+    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> bool:
+        """Return ``True`` if the matched key set satisfies this policy; by default converts to counts and calls ``is_satisfied``."""
+        return self.is_satisfied(matched=len(matched & expected), expected=len(expected))
 
     def is_unreachable(self, expected: int) -> bool:
         raise NotImplementedError
@@ -56,6 +63,10 @@ class WaitForAll(WaitPolicy):
 
     def is_satisfied(self, matched: int, expected: int) -> bool:
         return matched == expected
+
+    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> bool:
+        # Short-circuits on the first missing key; avoids materializing the full intersection.
+        return expected <= matched
 
     def is_unreachable(self, expected: int) -> bool:
         return False

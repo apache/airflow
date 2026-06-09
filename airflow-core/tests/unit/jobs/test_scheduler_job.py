@@ -100,6 +100,7 @@ from airflow.partition_mappers.temporal import (
     StartOfHourMapper as CoreStartOfHourMapper,
     StartOfWeekMapper as CoreStartOfWeekMapper,
 )
+from airflow.partition_mappers.wait_policy import WaitPolicy
 from airflow.partition_mappers.window import (
     DayWindow as CoreDayWindow,
     HourWindow as CoreHourWindow,
@@ -10584,8 +10585,8 @@ def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
     )
 
     with mock.patch.object(
-        SchedulerJobRunner,
-        "_check_rollup_asset_status",
+        WaitPolicy,
+        "is_satisfied_by_keys",
         side_effect=RuntimeError("misconfigured rollup mapper"),
     ):
         partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)

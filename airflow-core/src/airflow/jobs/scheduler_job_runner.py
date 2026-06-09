@@ -110,7 +110,6 @@ from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
-from airflow.partition_mappers.wait_policy import WaitForAll
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
@@ -144,7 +143,6 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads.types import SchedulerWorkload
-    from airflow.partition_mappers.base import RollupMapper
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1932,15 +1930,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
-    def _check_rollup_asset_status(
-        self,
-        *,
-        mapper: RollupMapper,
-        expected_count: int,
-        matched_count: int,
-    ) -> bool:
-        return mapper.wait_policy.is_satisfied(matched=matched_count, expected=expected_count)
-
     def _resolve_asset_partition_status(
         self,
         *,
@@ -1958,8 +1947,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Non-rollup assets resolve to ``True`` because the caller only invokes
         this for assets that already have at least one logged event for *APDR*
         (see :class:`~airflow.models.asset.PartitionedAssetKeyLog`), which is
-        the non-rollup contract for "received". Rollup assets defer to
-        :meth:`_check_rollup_asset_status` for the upstream-window check.
+        the non-rollup contract for "received". Rollup assets delegate to
+        :meth:`~airflow.partition_mappers.wait_policy.WaitPolicy.is_satisfied_by_keys`
+        for the upstream-window check.
 
         A misconfigured mapper that raises returns ``False`` (treated as
         not-yet-satisfied); the exception is logged at ``ERROR`` level in the
@@ -1973,15 +1963,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 assert apdr.partition_key is not None
             expected = mapper.to_upstream(apdr.partition_key)
             actual = actual_by_asset.get(asset_id, set())
-
-            # ``WaitForAll`` fast path: ``set.issubset`` short-circuits on the
-            # first missing key, so a typical backfill / catch-up tick with even
-            # one upstream gap returns without materializing the full intersection.
-            # The general dispatcher below pays O(|expected|) per call to stay a
-            # pure function of counts; this branch keeps the common case bounded
-            # by the *first* missing key rather than window cardinality.
-            if isinstance(mapper.wait_policy, WaitForAll):
-                return expected.issubset(actual)
 
             # A policy where the threshold can never be met given the rollup
             # window's cardinality is permanently unreachable. Surface this as a
@@ -2004,11 +1985,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self._partition_unreachable_seen.add(unreachable_key)
                 return False
 
-            return self._check_rollup_asset_status(
-                mapper=mapper,
-                expected_count=len(expected),
-                matched_count=len(expected & actual),
-            )
+            return mapper.wait_policy.is_satisfied_by_keys(matched=actual, expected=expected)
         except Exception:
             self.log.exception(
                 "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "

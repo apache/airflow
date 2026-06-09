@@ -172,56 +172,159 @@ class TestSerializeRoundTrip:
         assert isinstance(restored.wait_policy, WaitForAll)
 
 
-class TestSchedulerDispatch:
-    """Drive _check_rollup_asset_status directly with synthetic counts."""
-
-    @pytest.fixture
-    def runner(self):
-        # ``__new__`` deliberately bypasses ``__init__``. The instance returned
-        # has *no* ``self.log``, ``self.executors``, ``self._partition_unreachable_seen``,
-        # or anything else ``SchedulerJobRunner.__init__`` would set. This
-        # enforces — structurally, not just by convention — that
-        # ``_check_rollup_asset_status`` stays a pure function of ``(mapper,
-        # expected_count, matched_count)``. The method runs in the scheduler
-        # hot path on every tick for every (apdr, asset) pair, so any
-        # ``self.X`` side effect (logging, db access, anything I/O) would
-        # degrade throughput silently. Audit logging and error visibility live
-        # one level up in ``_resolve_asset_partition_status``, deduped per
-        # ``(dag_id, name, uri)`` — that is the correct layer.
-        #
-        # DO NOT change this to a normal constructor to "fix" a future
-        # ``AttributeError``. If you need state inside the dispatcher,
-        # reconsider whether the side effect belongs in the dispatcher or in
-        # the caller.
-        return SchedulerJobRunner.__new__(SchedulerJobRunner)
+class TestWaitForAllKeySemantics:
+    """Verify WaitForAll.is_satisfied_by_keys short-circuits on the first missing key."""
 
     @pytest.mark.parametrize(
-        ("policy", "expected_count", "matched_count", "fires"),
+        ("matched", "expected", "fires"),
         [
-            # WaitForAll — only when every key arrived
-            pytest.param(WaitForAll(), 60, 60, True, id="wait-all-complete"),
-            pytest.param(WaitForAll(), 60, 59, False, id="wait-all-one-missing"),
-            # Empty window: 0 expected keys, 0 matched. WaitForAll treats
-            # ``matched == expected`` as satisfied even when both are zero.
-            pytest.param(WaitForAll(), 0, 0, True, id="wait-all-empty-window"),
-            # MinimumCount(5) — fire when >=5 keys arrived
-            pytest.param(MinimumCount(5), 60, 5, True, id="minimum-count-5-exactly"),
-            pytest.param(MinimumCount(5), 60, 4, False, id="minimum-count-5-short"),
-            # Empty window with MinimumCount(5): ``0 >= 5`` → does not fire.
-            pytest.param(MinimumCount(5), 0, 0, False, id="minimum-count-5-empty-window"),
-            # MinimumCount(-3) on window 60: fire when at most 3 missing
-            pytest.param(MinimumCount(-3), 60, 57, True, id="minimum-count-neg3-exactly"),
-            pytest.param(MinimumCount(-3), 60, 56, False, id="minimum-count-neg3-short"),
-            # Empty window with MinimumCount(-3): clamp max(0, 0-3)=0, 0>=0 → fires.
-            pytest.param(MinimumCount(-3), 0, 0, True, id="minimum-count-neg3-empty-window"),
+            # Full subset: all expected keys present.
+            ({"a", "b", "c"}, {"a", "b", "c"}, True),
+            # Missing one key.
+            ({"a"}, {"a", "b"}, False),
+            # Both sets empty (vacuously satisfied).
+            (set(), set(), True),
+            # matched is a strict superset (extra keys do not prevent firing).
+            ({"a", "b", "c"}, {"a", "b"}, True),
         ],
     )
-    def test_dispatch(self, runner, policy, expected_count, matched_count, fires):
-        result = runner._check_rollup_asset_status(
-            mapper=_mapper(wait_policy=policy),
-            expected_count=expected_count,
-            matched_count=matched_count,
+    def test_wait_for_all_key_semantics(self, matched, expected, fires):
+        assert WaitForAll().is_satisfied_by_keys(matched=matched, expected=expected) is fires
+
+    def test_minimum_count_uses_base_default(self):
+        """MinimumCount inherits the base default: set → count → is_satisfied."""
+        expected2 = {str(i) for i in range(60)}
+        assert (
+            MinimumCount(5).is_satisfied_by_keys(matched={str(i) for i in range(5)}, expected=expected2)
+            is True
         )
+        assert (
+            MinimumCount(5).is_satisfied_by_keys(matched={str(i) for i in range(4)}, expected=expected2)
+            is False
+        )
+
+
+class TestBaseDelegationEquivalence:
+    """
+    For every (matched, expected) pair: is_satisfied_by_keys must equal
+    is_satisfied(len(matched & expected), len(expected)) — the base-default contract.
+    WaitForAll overrides the method but must preserve the same observable result.
+    """
+
+    @pytest.mark.parametrize(
+        ("policy", "matched", "expected"),
+        [
+            # WaitForAll — full match, partial match, empty, superset.
+            pytest.param(WaitForAll(), {"a", "b"}, {"a", "b"}, id="wfa-full"),
+            pytest.param(WaitForAll(), {"a"}, {"a", "b"}, id="wfa-partial"),
+            pytest.param(WaitForAll(), set(), set(), id="wfa-empty"),
+            pytest.param(WaitForAll(), {"a", "b", "c"}, {"a", "b"}, id="wfa-superset"),
+            # MinimumCount(5): at-cap (5 matched out of 60 expected) and over-cap (4 matched).
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(5)},
+                {str(i) for i in range(60)},
+                id="mc5-at-cap",
+            ),
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(4)},
+                {str(i) for i in range(60)},
+                id="mc5-over-cap",
+            ),
+            # MinimumCount(-3): at-cap (57 matched out of 60 expected) and over-cap (56 matched).
+            pytest.param(
+                MinimumCount(-3),
+                {str(i) for i in range(57)},
+                {str(i) for i in range(60)},
+                id="mc-neg3-at-cap",
+            ),
+            pytest.param(
+                MinimumCount(-3),
+                {str(i) for i in range(56)},
+                {str(i) for i in range(60)},
+                id="mc-neg3-over-cap",
+            ),
+        ],
+    )
+    def test_key_method_equals_count_method(self, policy, matched, expected):
+        key_result = policy.is_satisfied_by_keys(matched=matched, expected=expected)
+        count_result = policy.is_satisfied(matched=len(matched & expected), expected=len(expected))
+        assert key_result is count_result
+
+
+class TestSchedulerDispatch:
+    """
+    Drive is_satisfied_by_keys directly with synthetic key sets.
+
+    Calling the method directly on the policy object — without constructing a
+    SchedulerJobRunner — enforces structurally that is_satisfied_by_keys is a
+    pure function of (matched, expected): if the implementation reaches for any
+    scheduler-side state it will raise AttributeError here. The method runs in
+    the scheduler hot path on every tick for every (apdr, asset) pair, so any
+    self.X side effect (logging, db access, anything I/O) would degrade
+    throughput silently. Audit logging and error visibility live one level up in
+    _resolve_asset_partition_status, deduped per (dag_id, name, uri).
+    """
+
+    @pytest.mark.parametrize(
+        ("policy", "expected_keys", "matched_keys", "fires"),
+        [
+            # WaitForAll — only when every key arrived.
+            pytest.param(
+                WaitForAll(),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(60)},
+                True,
+                id="wait-all-complete",
+            ),
+            pytest.param(
+                WaitForAll(),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(59)},
+                False,
+                id="wait-all-one-missing",
+            ),
+            # Empty window: 0 expected keys. WaitForAll vacuously satisfied.
+            pytest.param(WaitForAll(), set(), set(), True, id="wait-all-empty-window"),
+            # MinimumCount(5) — fire when >=5 expected keys are matched.
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(5)},
+                True,
+                id="minimum-count-5-exactly",
+            ),
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(4)},
+                False,
+                id="minimum-count-5-short",
+            ),
+            # Empty window with MinimumCount(5): 0 >= 5 → does not fire.
+            pytest.param(MinimumCount(5), set(), set(), False, id="minimum-count-5-empty-window"),
+            # MinimumCount(-3) on window 60: fire when at most 3 missing.
+            pytest.param(
+                MinimumCount(-3),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(57)},
+                True,
+                id="minimum-count-neg3-exactly",
+            ),
+            pytest.param(
+                MinimumCount(-3),
+                {str(i) for i in range(60)},
+                {str(i) for i in range(56)},
+                False,
+                id="minimum-count-neg3-short",
+            ),
+            # Empty window with MinimumCount(-3): clamp max(0, 0-3)=0, 0>=0 → fires.
+            pytest.param(MinimumCount(-3), set(), set(), True, id="minimum-count-neg3-empty-window"),
+        ],
+    )
+    def test_dispatch(self, policy, expected_keys, matched_keys, fires):
+        result = policy.is_satisfied_by_keys(matched=matched_keys, expected=expected_keys)
         assert result is fires
 
 
