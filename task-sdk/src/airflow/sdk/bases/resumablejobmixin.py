@@ -108,6 +108,8 @@ class ResumableJobMixin:
         an external system boundary.
         """
         operator_tag = {"operator": type(self).__name__}
+        reconnect_to: Any = None
+        already_succeeded_id: Any = None
 
         with tracer.start_as_current_span("resumable_job.resume_decision") as span:
             span.set_attribute("operator", type(self).__name__)
@@ -139,28 +141,34 @@ class ResumableJobMixin:
                             external_id=external_id,
                             status=status,
                         )
-                        return self.poll_until_complete(external_id, context)
-                    if self.is_job_succeeded(status):
+                        reconnect_to = external_id
+                    elif self.is_job_succeeded(status):
                         span.set_attribute("resumable.decision", "already_succeeded")
                         self.log.info(
                             "Job already completed successfully, skipping resubmission",
                             external_id_key=self.external_id_key,
                             external_id=external_id,
                         )
-                        return self.get_job_result(external_id, context)
-                    span.set_attribute("resumable.decision", "terminal_resubmit")
-                    self.log.warning(
-                        "Prior job in terminal state, resubmitting fresh",
-                        external_id_key=self.external_id_key,
-                        external_id=external_id,
-                        status=status,
-                    )
+                        already_succeeded_id = external_id
+                    else:
+                        span.set_attribute("resumable.decision", "terminal_resubmit")
+                        self.log.warning(
+                            "Prior job in terminal state, resubmitting fresh",
+                            external_id_key=self.external_id_key,
+                            external_id=external_id,
+                            status=status,
+                        )
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
                     self.log.debug(
                         "No stored external ID found; submitting fresh job",
                         external_id_key=self.external_id_key,
                     )
+
+        if reconnect_to is not None:
+            return self.poll_until_complete(reconnect_to, context)
+        if already_succeeded_id is not None:
+            return self.get_job_result(already_succeeded_id, context)
 
         stats.incr("resumable_job.fresh_submit", tags=operator_tag)
         external_id = self.submit_job(context)

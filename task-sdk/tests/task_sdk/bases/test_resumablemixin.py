@@ -206,7 +206,7 @@ class TestExternalIdKey:
 
 
 class TestMetrics:
-    _PATCH = "airflow.sdk.bases.resumablejobmixin.incr"
+    _PATCH = "airflow.sdk._shared.observability.metrics.stats.incr"
     _TAG = {"operator": "ConcreteResumableOperator"}
 
     def test_fresh_submit_fires_only_fresh_submit_counter(self):
