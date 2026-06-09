@@ -882,8 +882,6 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
 @pytest.mark.db_test
 class TestTaskStoreCleanup:
     def test_expired_rows_deleted(self):
-        from datetime import timezone as dt_timezone
-
         cfg = config_dict["task_store"]
         now = pendulum.now(tz="UTC")
         past = now.subtract(days=30)
@@ -916,8 +914,8 @@ class TestTaskStoreCleanup:
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
                 value="job-expired",
-                updated_at=past.in_timezone(dt_timezone.utc),
-                expires_at=past.subtract(days=1).in_timezone(dt_timezone.utc),
+                updated_at=past,
+                expires_at=past.subtract(days=1),
             )
             never_expire = TaskStoreModel(
                 dag_run_id=dag_run.id,
@@ -927,7 +925,7 @@ class TestTaskStoreCleanup:
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
                 value="job-never-expire",
-                updated_at=past.in_timezone(dt_timezone.utc),
+                updated_at=past,
                 expires_at=None,
             )
             not_yet_expired = TaskStoreModel(
@@ -938,22 +936,23 @@ class TestTaskStoreCleanup:
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
                 value="job-future",
-                updated_at=past.in_timezone(dt_timezone.utc),
-                expires_at=future.in_timezone(dt_timezone.utc),
+                updated_at=past,
+                expires_at=future,
             )
             session.add_all([expired, never_expire, not_yet_expired])
             session.commit()
 
         cutoff = now.subtract(hours=1)
-        _cleanup_table(
-            **cfg.__dict__,
-            clean_before_timestamp=cutoff,
-            dry_run=False,
-            verbose=False,
-            confirm=False,
-            skip_archive=True,
-            session=create_session().__enter__(),
-        )
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
 
         with create_session() as session:
             not_deleted = {
@@ -1007,15 +1006,16 @@ class TestConnectionTestRequestCleanup:
 
         # Run cleanup with a cutoff well past every seeded row.
         cutoff = pendulum.now(tz="UTC").subtract(days=1)
-        _cleanup_table(
-            **cfg.__dict__,
-            clean_before_timestamp=cutoff,
-            dry_run=False,
-            verbose=False,
-            confirm=False,
-            skip_archive=True,
-            session=create_session().__enter__(),
-        )
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
 
         with create_session() as s:
             survivors = {
