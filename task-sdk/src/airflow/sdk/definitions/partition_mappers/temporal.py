@@ -128,17 +128,18 @@ class FanOutMapper(PartitionMapper):
     downstream Dag runs).
 
     For forward fan-out (emit the *next* period's members instead of the current
-    one), pass ``direction=WindowDirection.FORWARD`` to the window:
+    one), pass ``direction=Window.Direction.FORWARD`` to the window:
 
     .. code-block:: python
 
-        from airflow.sdk import WindowDirection
+        from airflow.sdk import WeekWindow, Window
+        from airflow.sdk.definitions.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 
         # Weekly upstream → 7 daily downstream Dag runs (current week)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
 
         # Weekly upstream → 7 daily keys for the *following* week
-        forward_window = WeekWindow(direction=WindowDirection.FORWARD)
+        forward_window = WeekWindow(direction=Window.Direction.FORWARD)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=forward_window)
     """
 

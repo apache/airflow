@@ -444,18 +444,19 @@ class FanOutMapper(PartitionMapper):
     upstream event creates one downstream Dag run per member).
 
     For forward fan-out (emit the trailing period ending at the upstream key,
-    instead of the period it represents), pass ``direction=WindowDirection.FORWARD``
+    instead of the period it represents), pass ``direction=Window.Direction.FORWARD``
     to the window:
 
     .. code-block:: python
 
-        from airflow.partition_mappers import WindowDirection
+        from airflow.partition_mappers import WeekWindow, Window
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 
         # Weekly upstream → 7 daily downstream Dag runs (the 7 days the upstream Monday represents)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
 
         # Weekly upstream → the 7 days ending at the upstream Monday (trailing period)
-        forward_window = WeekWindow(direction=WindowDirection.FORWARD)
+        forward_window = WeekWindow(direction=Window.Direction.FORWARD)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=forward_window)
     """
 

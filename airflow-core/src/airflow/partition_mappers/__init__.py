@@ -36,7 +36,6 @@ from airflow.partition_mappers.window import (
     QuarterWindow,
     WeekWindow,
     Window,
-    WindowDirection,
     YearWindow,
 )
 
@@ -59,6 +58,5 @@ __all__ = [
     "StartOfYearMapper",
     "WeekWindow",
     "Window",
-    "WindowDirection",
     "YearWindow",
 ]

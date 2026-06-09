@@ -564,8 +564,8 @@ def test_ser_of_asset_event_accessor():
         Asset("hi")
     ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
     d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
-    set = BaseSerialization.serialize(var=d)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(ser)
     assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
@@ -588,11 +588,11 @@ def test_roundtrip_exceptions():
     """
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
-    set = BaseSerialization.serialize(resched_exc)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(resched_exc)
+    deser = BaseSerialization.deserialize(ser)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del set
+    del ser
     del deser
     exc = TaskDeferred(
         trigger=MyTrigger(hi="yo"),
@@ -600,8 +600,8 @@ def test_roundtrip_exceptions():
         kwargs={"have": "pie"},
         timeout=timedelta(seconds=30),
     )
-    set = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(exc)
+    deser = BaseSerialization.deserialize(ser)
     assert deser.trigger.hi == "yo"
     assert deser.method_name == "meth_name"
     assert deser.kwargs == {"have": "pie"}

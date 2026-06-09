@@ -33,8 +33,8 @@ direction semantics behave identically wherever the classes are instantiated.
 
 This check parses both files via AST and asserts the following are identical:
 
-- ``WindowDirection`` enum member values
-- The set of shared class names (WindowDirection, Window, HourWindow, DayWindow,
+- ``Window.Direction`` enum member values
+- The set of shared class names (Direction, Window, HourWindow, DayWindow,
   WeekWindow, MonthWindow, QuarterWindow, YearWindow)
 - ``Window.__init__`` ``direction`` kwarg default
 - ``Window.__init__`` body, ``Window.serialize`` body, ``Window.deserialize`` body
@@ -70,7 +70,7 @@ SDK_FILE = (
 )
 
 EXPECTED_CLASS_NAMES = [
-    "WindowDirection",
+    "Direction",
     "Window",
     "HourWindow",
     "DayWindow",
@@ -94,8 +94,8 @@ def _find_class(tree: ast.Module, name: str, file_path: Path) -> ast.ClassDef:
 
 
 def _extract_enum_members(tree: ast.Module, file_path: Path) -> dict[str, str]:
-    """Return the ``{member_name: value}`` dict for ``WindowDirection``."""
-    cls = _find_class(tree, "WindowDirection", file_path)
+    """Return the ``{member_name: value}`` dict for ``Direction``."""
+    cls = _find_class(tree, "Direction", file_path)
     members: dict[str, str] = {}
     for stmt in cls.body:
         if (
@@ -135,7 +135,7 @@ def _extract_direction_default(class_def: ast.ClassDef, file_path: Path) -> str:
             if default is None:
                 raise ValueError(
                     f"{file_path}: Window.__init__ 'direction' kwarg has no default — "
-                    "expected WindowDirection.FORWARD."
+                    "expected Direction.FORWARD."
                 )
             return ast.unparse(default)
     raise ValueError(f"{file_path}: Window.__init__ has no 'direction' kwonly parameter.")

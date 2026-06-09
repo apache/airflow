@@ -56,21 +56,11 @@ def _shift_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=dt.year + total // 12, month=total % 12 + 1)
 
 
-class WindowDirection(str, Enum):
-    """Direction of a :class:`Window` fan-out relative to the upstream key."""
-
-    BACKWARD = "backward"
-    """Yield the trailing period ending at the upstream key (the mirror of FORWARD)."""
-
-    FORWARD = "forward"
-    """Default; yield the period starting at the upstream key (forward in time)."""
-
-
 def _build_directional_steps(
     period_start: datetime,
     count: int,
     step: Callable[[datetime, int], datetime],
-    direction: WindowDirection,
+    direction: Window.Direction,
 ) -> Iterable[datetime]:
     """
     Enumerate *count* period-starts beginning at or ending at *period_start*.
@@ -83,7 +73,7 @@ def _build_directional_steps(
     need a day-1 precondition must enforce it before calling this — it is not
     checked here.
     """
-    base = step(period_start, -(count - 1)) if direction is WindowDirection.BACKWARD else period_start
+    base = step(period_start, -(count - 1)) if direction is Window.Direction.BACKWARD else period_start
     return (step(base, i) for i in range(count))
 
 
@@ -114,14 +104,23 @@ class Window(ABC):
     mapper.to_downstream(upstream_key)`` holds.
     """
 
+    class Direction(str, Enum):
+        """Direction of a :class:`Window` fan-out relative to the upstream key."""
+
+        BACKWARD = "backward"
+        """Yield the trailing period ending at the upstream key (the mirror of FORWARD)."""
+
+        FORWARD = "forward"
+        """Default; yield the period starting at the upstream key (forward in time)."""
+
     #: Type that ``to_upstream`` expects as its ``decoded_downstream`` argument.
     #: ``RollupMapper.__init__`` uses this to reject pairings where the upstream
     #: mapper's ``decode_downstream`` leaves the value as ``str`` (base identity)
     #: but the window needs a different type. Temporal windows declare ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, *, direction: WindowDirection = WindowDirection.FORWARD) -> None:
-        self.direction = WindowDirection(direction)
+    def __init__(self, *, direction: Window.Direction = Direction.FORWARD) -> None:
+        self.direction = self.Direction(direction)
 
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
@@ -132,7 +131,7 @@ class Window(ABC):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Window:
-        return cls(direction=WindowDirection(data["direction"]))
+        return cls(direction=cls.Direction(data["direction"]))
 
 
 class HourWindow(Window):
@@ -176,7 +175,7 @@ class DayWindow(Window):
         ensure upstream producers emit UTC partition keys so local-clock
         ambiguity never arises.
 
-        The same 24-hour-stride assumption applies to ``DayWindow(direction=WindowDirection.BACKWARD)``:
+        The same 24-hour-stride assumption applies to ``DayWindow(direction=Window.Direction.BACKWARD)``:
         the 24 members are enumerated as naive hourly steps ending at the anchor, not as
         a step back to the "previous calendar day" in local time.
     """
@@ -213,7 +212,7 @@ class MonthWindow(Window):
         # and BACKWARD is an open-closed (prev_month_start, anchor] generator, not a
         # shift-then-forward mirror of FORWARD.
         _require_day_one(period_start, type(self))
-        if self.direction is WindowDirection.BACKWARD:
+        if self.direction is Window.Direction.BACKWARD:
             # Backward yields the trailing period ending at the anchor (period_start),
             # analogous to WeekWindow BACKWARD which yields the 7 days ending at the
             # anchor rather than a calendar week.  The members are the open-closed

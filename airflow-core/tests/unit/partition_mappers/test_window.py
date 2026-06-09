@@ -36,7 +36,6 @@ from airflow.partition_mappers.window import (
     QuarterWindow,
     WeekWindow,
     Window,
-    WindowDirection,
     YearWindow,
 )
 from airflow.serialization.decoders import decode_partition_mapper, decode_window
@@ -152,46 +151,46 @@ class TestYearWindow:
             list(YearWindow().to_upstream(datetime(2024, 1, 31)))
 
 
-class TestWindowDirection:
+class TestDirection:
     def test_default_direction_is_forward(self):
-        assert WeekWindow().direction is WindowDirection.FORWARD
+        assert WeekWindow().direction is Window.Direction.FORWARD
 
     @pytest.mark.parametrize(
         ("window", "anchor", "expected"),
         [
             pytest.param(
-                HourWindow(direction=WindowDirection.BACKWARD),
+                HourWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 3, 4, 0),
                 [datetime(2024, 3, 4, 0) - timedelta(minutes=59) + timedelta(minutes=i) for i in range(60)],
                 id="hour",
             ),
             pytest.param(
-                DayWindow(direction=WindowDirection.BACKWARD),
+                DayWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 3, 4),
                 [datetime(2024, 3, 4) - timedelta(hours=23) + timedelta(hours=i) for i in range(24)],
                 id="day",
             ),
             pytest.param(
-                WeekWindow(direction=WindowDirection.BACKWARD),
+                WeekWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 3, 4),  # Monday
                 [datetime(2024, 2, 27) + timedelta(days=i) for i in range(7)],
                 id="week",
             ),
             pytest.param(
-                MonthWindow(direction=WindowDirection.BACKWARD),
+                MonthWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 3, 1),
                 # 2024-02 has 29 days (leap year); trailing period = Feb 2 … Mar 1 (29 members)
                 [datetime(2024, 2, d) for d in range(2, 30)] + [datetime(2024, 3, 1)],
                 id="month_backward_trailing",
             ),
             pytest.param(
-                QuarterWindow(direction=WindowDirection.BACKWARD),
+                QuarterWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 1, 1),
                 [datetime(2023, 11, 1), datetime(2023, 12, 1), datetime(2024, 1, 1)],
                 id="quarter_backward_trailing",
             ),
             pytest.param(
-                YearWindow(direction=WindowDirection.BACKWARD),
+                YearWindow(direction=Window.Direction.BACKWARD),
                 datetime(2024, 1, 1),
                 [datetime(2023, m, 1) for m in range(2, 13)] + [datetime(2024, 1, 1)],
                 id="year_backward_trailing",
@@ -206,7 +205,7 @@ class TestWindowDirection:
     def test_month_backward_trailing_not_calendar_month(self):
         """Month backward yields the trailing period (prev_month_start, anchor], not a calendar month."""
         anchor = datetime(2024, 3, 1)
-        result = list(MonthWindow(direction=WindowDirection.BACKWARD).to_upstream(anchor))
+        result = list(MonthWindow(direction=Window.Direction.BACKWARD).to_upstream(anchor))
         # Must include anchor (Mar 1) and must NOT include prev_month_start (Feb 1)
         assert datetime(2024, 3, 1) in result
         assert datetime(2024, 2, 1) not in result
@@ -214,9 +213,9 @@ class TestWindowDirection:
     @pytest.mark.parametrize(
         "window",
         [
-            pytest.param(MonthWindow(direction=WindowDirection.BACKWARD), id="month"),
-            pytest.param(QuarterWindow(direction=WindowDirection.BACKWARD), id="quarter"),
-            pytest.param(YearWindow(direction=WindowDirection.BACKWARD), id="year"),
+            pytest.param(MonthWindow(direction=Window.Direction.BACKWARD), id="month"),
+            pytest.param(QuarterWindow(direction=Window.Direction.BACKWARD), id="quarter"),
+            pytest.param(YearWindow(direction=Window.Direction.BACKWARD), id="year"),
         ],
     )
     def test_backward_on_non_day_one_raises(self, window):
@@ -227,18 +226,18 @@ class TestWindowDirection:
     @pytest.mark.parametrize(
         "window",
         [
-            pytest.param(HourWindow(direction=WindowDirection.FORWARD), id="hour"),
-            pytest.param(DayWindow(direction=WindowDirection.FORWARD), id="day"),
-            pytest.param(WeekWindow(direction=WindowDirection.FORWARD), id="week"),
-            pytest.param(MonthWindow(direction=WindowDirection.FORWARD), id="month"),
-            pytest.param(QuarterWindow(direction=WindowDirection.FORWARD), id="quarter"),
-            pytest.param(YearWindow(direction=WindowDirection.FORWARD), id="year"),
+            pytest.param(HourWindow(direction=Window.Direction.FORWARD), id="hour"),
+            pytest.param(DayWindow(direction=Window.Direction.FORWARD), id="day"),
+            pytest.param(WeekWindow(direction=Window.Direction.FORWARD), id="week"),
+            pytest.param(MonthWindow(direction=Window.Direction.FORWARD), id="month"),
+            pytest.param(QuarterWindow(direction=Window.Direction.FORWARD), id="quarter"),
+            pytest.param(YearWindow(direction=Window.Direction.FORWARD), id="year"),
         ],
     )
     def test_serialize_roundtrip_with_forward(self, window):
-        """WindowDirection.FORWARD survives serialize → deserialize; behaviour is identical."""
+        """Window.Direction.FORWARD survives serialize → deserialize; behaviour is identical."""
         restored = decode_window(encode_window(window))
-        assert restored.direction is WindowDirection.FORWARD
+        assert restored.direction is Window.Direction.FORWARD
         assert type(restored) is type(window)
         if isinstance(window, WeekWindow):
             anchor = datetime(2024, 3, 4)
@@ -249,9 +248,9 @@ class TestWindowDirection:
         [HourWindow, DayWindow, WeekWindow, MonthWindow, QuarterWindow, YearWindow],
     )
     def test_serialize_roundtrip_backward(self, window_cls):
-        window = window_cls(direction=WindowDirection.BACKWARD)
+        window = window_cls(direction=Window.Direction.BACKWARD)
         restored = decode_window(encode_window(window))
-        assert restored.direction is WindowDirection.BACKWARD
+        assert restored.direction is Window.Direction.BACKWARD
         assert type(restored) is window_cls
         if window_cls is WeekWindow:
             anchor = datetime(2024, 3, 4)
@@ -267,7 +266,7 @@ class TestWindowDirection:
         ids=["hour", "day", "week"],
     )
     def test_backward_non_day_one_does_not_raise(self, window_cls, anchor, expected_count):
-        window = window_cls(direction=WindowDirection.BACKWARD)
+        window = window_cls(direction=Window.Direction.BACKWARD)
         result = list(window.to_upstream(anchor))
         assert len(result) == expected_count
 
@@ -436,16 +435,16 @@ class TestRollupMapperComposition:
         assert restored.to_upstream(downstream_key) == mapper.to_upstream(downstream_key)
 
 
-class TestWindowDirectionValidation:
+class TestDirectionValidation:
     """Window.__init__ must coerce valid strings and reject invalid ones at construction time."""
 
     @pytest.mark.parametrize(
         ("direction_input", "expected_member"),
         [
-            pytest.param(WindowDirection.FORWARD, WindowDirection.FORWARD, id="enum_forward"),
-            pytest.param(WindowDirection.BACKWARD, WindowDirection.BACKWARD, id="enum_backward"),
-            pytest.param("forward", WindowDirection.FORWARD, id="str_forward"),
-            pytest.param("backward", WindowDirection.BACKWARD, id="str_backward"),
+            pytest.param(Window.Direction.FORWARD, Window.Direction.FORWARD, id="enum_forward"),
+            pytest.param(Window.Direction.BACKWARD, Window.Direction.BACKWARD, id="enum_backward"),
+            pytest.param("forward", Window.Direction.FORWARD, id="str_forward"),
+            pytest.param("backward", Window.Direction.BACKWARD, id="str_backward"),
         ],
     )
     def test_valid_direction_coerced_to_enum(self, direction_input, expected_member):
@@ -455,14 +454,14 @@ class TestWindowDirectionValidation:
     @pytest.mark.parametrize(
         "bad_value",
         [
-            pytest.param("foward", id="typo_foward"),
+            pytest.param("forwrd", id="typo_forwrd"),
             pytest.param("backwards", id="typo_backwards"),
             pytest.param("FORWARD", id="wrong_case"),
             pytest.param("", id="empty_string"),
         ],
     )
     def test_invalid_direction_raises_value_error(self, bad_value):
-        with pytest.raises(ValueError, match="is not a valid WindowDirection"):
+        with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
             WeekWindow(direction=bad_value)
 
 

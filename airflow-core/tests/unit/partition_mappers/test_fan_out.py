@@ -36,7 +36,7 @@ from airflow.partition_mappers.window import (
     MonthWindow,
     QuarterWindow,
     WeekWindow,
-    WindowDirection,
+    Window,
     YearWindow,
 )
 
@@ -239,7 +239,7 @@ class TestFanOutMapper:
         ("direction", "expected"),
         [
             pytest.param(
-                WindowDirection.FORWARD,
+                Window.Direction.FORWARD,
                 [
                     "2024-03-04",
                     "2024-03-05",
@@ -252,7 +252,7 @@ class TestFanOutMapper:
                 id="forward",
             ),
             pytest.param(
-                WindowDirection.BACKWARD,
+                Window.Direction.BACKWARD,
                 [
                     "2024-02-27",
                     "2024-02-28",
@@ -284,7 +284,7 @@ class TestFanOutMapper:
 
     @pytest.mark.parametrize(
         "direction",
-        [WindowDirection.FORWARD, WindowDirection.BACKWARD],
+        [Window.Direction.FORWARD, Window.Direction.BACKWARD],
     )
     def test_fan_out_with_directional_window_resolves_default_downstream_mapper(self, direction):
         """A directional WeekWindow is still a WeekWindow — default downstream lookup works unchanged."""
@@ -296,7 +296,7 @@ class TestFanOutMapper:
 
     @pytest.mark.parametrize(
         "direction",
-        [WindowDirection.FORWARD, WindowDirection.BACKWARD],
+        [Window.Direction.FORWARD, Window.Direction.BACKWARD],
     )
     def test_fan_out_with_directional_window_serialize_roundtrip(self, direction):
         """A directional WeekWindow survives serialize → deserialize (direction and output preserved)."""
