@@ -686,6 +686,11 @@ class PostgresHook(DbApiHook):
         """
         # psycopg3's executemany already uses pipelining, so use default implementation
         # Only override for psycopg2 with fast_executemany to use execute_values
+        if USE_PSYCOPG3 and fast_executemany:
+            self.log.warning(
+                "fast_executemany=True has no effect when using psycopg3. "
+                "psycopg3's executemany already uses pipelining for optimal performance."
+            )
         if USE_PSYCOPG3 or not fast_executemany:
             # Reset to default format in case a previous fast_executemany call failed
             self._insert_statement_format = "INSERT INTO {} {} VALUES ({})"

@@ -1225,3 +1225,17 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
             mock_logger.info.assert_any_call("Message from db: 42")
         finally:
             hook.run(sql=f"DROP PROCEDURE {proc_name} (s text)")
+
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_insert_rows_fast_executemany_psycopg3_logs_warning(self, mocker):
+        mock_logger = mocker.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.log")
+
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, fast_executemany=True)
+
+        mock_logger.warning.assert_called_once_with(
+            "fast_executemany=True has no effect when using psycopg3. "
+            "psycopg3's executemany already uses pipelining for optimal performance."
+        )
