@@ -174,16 +174,19 @@ if REMOTE_LOGGING:
         from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
 
         _default_conn_name_from("airflow.providers.amazon.aws.hooks.s3", "S3Hook")
-        REMOTE_TASK_LOG = S3RemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
-                    "delete_local_copy": delete_local_copy,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            S3RemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": remote_base_log_folder,
+                        "delete_local_copy": delete_local_copy,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("cloudwatch://"):
@@ -191,17 +194,20 @@ if REMOTE_LOGGING:
 
         _default_conn_name_from("airflow.providers.amazon.aws.hooks.logs", "AwsLogsHook")
         url_parts = urlsplit(remote_base_log_folder)
-        REMOTE_TASK_LOG = CloudWatchRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
-                    "delete_local_copy": delete_local_copy,
-                    "log_group_arn": url_parts.netloc + url_parts.path,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            CloudWatchRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": remote_base_log_folder,
+                        "delete_local_copy": delete_local_copy,
+                        "log_group_arn": url_parts.netloc + url_parts.path,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("gs://"):
@@ -210,17 +216,20 @@ if REMOTE_LOGGING:
         _default_conn_name_from("airflow.providers.google.cloud.hooks.gcs", "GCSHook")
         key_path = conf.get_mandatory_value("logging", "google_key_path", fallback=None)
 
-        REMOTE_TASK_LOG = GCSRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
-                    "delete_local_copy": delete_local_copy,
-                    "gcp_key_path": key_path,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            GCSRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": remote_base_log_folder,
+                        "delete_local_copy": delete_local_copy,
+                        "gcp_key_path": key_path,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("wasb"):
@@ -234,17 +243,20 @@ if REMOTE_LOGGING:
         # Handle both URI format (wasb://logs) and plain path (e.g., wasb-logs)
         wasb_remote_base = remote_base_log_folder.removeprefix("wasb://")
 
-        REMOTE_TASK_LOG = WasbRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": wasb_remote_base,
-                    "delete_local_copy": delete_local_copy,
-                    "wasb_container": wasb_log_container,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            WasbRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": wasb_remote_base,
+                        "delete_local_copy": delete_local_copy,
+                        "wasb_container": wasb_log_container,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("stackdriver://"):
@@ -254,17 +266,20 @@ if REMOTE_LOGGING:
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlsplit(remote_base_log_folder).path[1:]
 
-        REMOTE_TASK_LOG = StackdriverRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "gcp_log_name": log_name,
-                    "gcp_key_path": key_path,
-                    "delete_local_copy": delete_local_copy,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            StackdriverRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "gcp_log_name": log_name,
+                        "gcp_key_path": key_path,
+                        "delete_local_copy": delete_local_copy,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("oss://"):
@@ -272,16 +287,19 @@ if REMOTE_LOGGING:
 
         _default_conn_name_from("airflow.providers.alibaba.cloud.hooks.oss", "OSSHook")
 
-        REMOTE_TASK_LOG = OSSRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
-                    "delete_local_copy": delete_local_copy,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            OSSRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": remote_base_log_folder,
+                        "delete_local_copy": delete_local_copy,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif remote_base_log_folder.startswith("hdfs://"):
@@ -289,16 +307,19 @@ if REMOTE_LOGGING:
 
         _default_conn_name_from("airflow.providers.apache.hdfs.hooks.webhdfs", "WebHDFSHook")
 
-        REMOTE_TASK_LOG = HdfsRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": urlsplit(remote_base_log_folder).path,
-                    "delete_local_copy": delete_local_copy,
-                }
-                | _io_kwargs,
-            )
+        REMOTE_TASK_LOG = cast(
+            "RemoteLogIO | RemoteLogStreamIO",
+            HdfsRemoteLogIO(
+                **cast(
+                    "dict[str, Any]",
+                    {
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "remote_base": urlsplit(remote_base_log_folder).path,
+                        "delete_local_copy": delete_local_copy,
+                    }
+                    | _io_kwargs,
+                )
+            ),
         )
 
     elif ELASTICSEARCH_HOST:

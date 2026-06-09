@@ -1460,6 +1460,62 @@ class TestTIUpdateState:
         assert ti_db.state == TaskInstanceState.SUCCESS
         mock_incr.assert_any_call("asset.registration_failures")
 
+    def test_ti_update_state_forced_failure_skips_asset_registration(
+        self, client, session, create_task_instance
+    ):
+        """A forced failure from the state-update path must not register success assets."""
+        asset = AssetModel(
+            id=45,
+            name="forced-failure-asset",
+            uri="s3://bucket/forced-failure-asset",
+            group="asset",
+            extra={},
+        )
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_forced_failure_skips_asset_registration",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances."
+                "_create_ti_state_update_query_and_update_state",
+                side_effect=RuntimeError("simulated state-update failure"),
+            ),
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db"
+            ) as mock_register_asset_changes,
+            mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats.incr") as mock_incr,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [
+                        {
+                            "name": "forced-failure-asset",
+                            "uri": "s3://bucket/forced-failure-asset",
+                            "type": "Asset",
+                        }
+                    ],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}: {response.text}"
+        session.expire_all()
+        ti_db = session.get(TaskInstance, ti.id)
+        assert ti_db is not None
+        assert ti_db.state == TaskInstanceState.FAILED
+        assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
+        mock_register_asset_changes.assert_not_called()
+        mock_incr.assert_not_called()
+
     def test_ti_update_state_rolls_back_partial_asset_registration_on_failure(
         self, client, session, create_task_instance
     ):
