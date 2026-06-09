@@ -21,6 +21,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import attrs
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
@@ -248,6 +250,31 @@ class YearWindow(Window):
         return _build_directional_steps(period_start, 12, _shift_months, self.direction)
 
 
+def _convert_segments(segments: Iterable[str]) -> frozenset[str]:
+    """
+    Validate and convert *segments* to a ``frozenset[str]``.
+
+    Validates each element for type and non-emptiness (with index reporting)
+    before collapsing into a frozenset, then checks the result is non-empty.
+    """
+    validated: list[str] = []
+    for i, item in enumerate(segments):
+        if not isinstance(item, str):
+            raise ValueError(
+                f"SegmentWindow segment keys must be str; got {type(item).__name__!r} at index {i}: {item!r}"
+            )
+        if not item:
+            raise ValueError(
+                f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
+            )
+        validated.append(item)
+    result = frozenset(validated)
+    if not result:
+        raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    return result
+
+
+@attrs.define
 class SegmentWindow(Window):
     """
     A fixed categorical set of string keys that constitute one downstream period.
@@ -269,22 +296,7 @@ class SegmentWindow(Window):
 
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, segments: Iterable[str]) -> None:
-        def _check_one(i: int, item: str) -> str:
-            if not isinstance(item, str):
-                raise ValueError(
-                    f"SegmentWindow segment keys must be str; "
-                    f"got {type(item).__name__!r} at index {i}: {item!r}"
-                )
-            if not item:
-                raise ValueError(
-                    f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
-                )
-            return item
-
-        self._segments: frozenset[str] = frozenset(_check_one(i, item) for i, item in enumerate(segments))
-        if not self._segments:
-            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    _segments: frozenset[str] = attrs.field(converter=_convert_segments)
 
     def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
         """Return the full declared segment set, ignoring the downstream anchor."""

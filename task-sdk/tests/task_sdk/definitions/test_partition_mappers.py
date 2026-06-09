@@ -110,11 +110,9 @@ class TestSdkWindowExpectedDecodedType:
 class TestSdkFixedKeyMapper:
     """SDK-side FixedKeyMapper construction and validation."""
 
-    def test_to_downstream_returns_constant_for_any_key(self):
-        m = FixedKeyMapper("all_regions")
-        assert m.to_downstream("us") == "all_regions"
-        assert m.to_downstream("eu") == "all_regions"
-        assert m.to_downstream("apac") == "all_regions"
+    @pytest.mark.parametrize("key", ["us", "eu", "apac"])
+    def test_to_downstream_returns_constant_for_any_key(self, key):
+        assert FixedKeyMapper("all_regions").to_downstream(key) == "all_regions"
 
     def test_is_rollup_false(self):
         assert FixedKeyMapper("all").is_rollup is False
@@ -151,7 +149,7 @@ class TestSdkSegmentWindow:
         [
             pytest.param([], "at least one segment key", id="empty-list"),
             pytest.param([1, "b"], "must be str", id="int-element"),
-            pytest.param(["", "b"], "non-empty strings", id="empty-string"),
+            pytest.param(["", "b"], "non-empty", id="empty-string"),
         ],
     )
     def test_rejects_invalid_segments(self, segments, match):

@@ -31,12 +31,9 @@ from airflow.serialization.encoders import encode_partition_mapper
 
 
 class TestFixedKeyMapper:
-    def test_to_downstream_returns_constant_for_any_key(self):
-        m = FixedKeyMapper("all")
-        assert m.to_downstream("us") == "all"
-        assert m.to_downstream("eu") == "all"
-        assert m.to_downstream("apac") == "all"
-        assert m.to_downstream("anything-else") == "all"
+    @pytest.mark.parametrize("key", ["us", "eu", "apac", "anything-else"])
+    def test_to_downstream_returns_constant_for_any_key(self, key):
+        assert FixedKeyMapper("all").to_downstream(key) == "all"
 
     def test_is_rollup_false(self):
         # A bare FixedKeyMapper is not a rollup; rollup-ness comes from RollupMapper.
@@ -86,9 +83,9 @@ class TestCategoricalRollupEquivalence:
         # Full-sequence equality: every declared segment key maps to the constant key.
         assert [self.m.to_downstream(s) for s in ("us", "eu", "apac")] == ["all", "all", "all"]
 
-    def test_to_upstream_returns_full_set_ignoring_anchor(self):
-        assert self.m.to_upstream("all") == frozenset({"us", "eu", "apac"})
-        assert self.m.to_upstream("anything") == frozenset({"us", "eu", "apac"})
+    @pytest.mark.parametrize("anchor", ["all", "anything"])
+    def test_to_upstream_returns_full_set_ignoring_anchor(self, anchor):
+        assert self.m.to_upstream(anchor) == frozenset({"us", "eu", "apac"})
 
     def test_core_encode_decode_round_trip(self):
         restored = decode_partition_mapper(encode_partition_mapper(self.m))

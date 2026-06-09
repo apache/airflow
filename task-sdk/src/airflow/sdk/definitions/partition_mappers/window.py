@@ -24,6 +24,8 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import attrs
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -119,6 +121,31 @@ class YearWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
 
+def _convert_segments(segments: Iterable[str]) -> frozenset[str]:
+    """
+    Validate and convert *segments* to a ``frozenset[str]``.
+
+    Validates each element for type and non-emptiness (with index reporting)
+    before collapsing into a frozenset, then checks the result is non-empty.
+    """
+    validated: list[str] = []
+    for i, item in enumerate(segments):
+        if not isinstance(item, str):
+            raise ValueError(
+                f"SegmentWindow segment keys must be str; got {type(item).__name__!r} at index {i}: {item!r}"
+            )
+        if not item:
+            raise ValueError(
+                f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
+            )
+        validated.append(item)
+    result = frozenset(validated)
+    if not result:
+        raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    return result
+
+
+@attrs.define
 class SegmentWindow(Window):
     """
     A fixed categorical set of string keys that constitute one downstream period.
@@ -140,18 +167,4 @@ class SegmentWindow(Window):
 
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, segments: Iterable[str]) -> None:
-        collected: list[str] = list(segments)
-        if not collected:
-            raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
-        for i, item in enumerate(collected):
-            if not isinstance(item, str):
-                raise ValueError(
-                    f"SegmentWindow segment keys must be str; "
-                    f"got {type(item).__name__!r} at index {i}: {item!r}"
-                )
-            if item == "":
-                raise ValueError(
-                    f"SegmentWindow segment keys must be non-empty strings; got an empty string at index {i}."
-                )
-        self._segments: frozenset[str] = frozenset(collected)
+    _segments: frozenset[str] = attrs.field(converter=_convert_segments)

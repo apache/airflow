@@ -18,9 +18,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import attrs
+
 from airflow.partition_mappers.base import PartitionMapper
 
 
+@attrs.define
 class FixedKeyMapper(PartitionMapper):
     """
     Collapse every upstream partition key onto one fixed downstream key.
@@ -43,12 +46,12 @@ class FixedKeyMapper(PartitionMapper):
     :raises ValueError: if *downstream_key* is not a non-empty ``str``.
     """
 
-    def __init__(self, downstream_key: str) -> None:
-        if not isinstance(downstream_key, str) or downstream_key == "":
-            raise ValueError(
-                f"FixedKeyMapper downstream_key must be a non-empty str; got {downstream_key!r}."
-            )
-        self.downstream_key = downstream_key
+    downstream_key: str = attrs.field()
+
+    @downstream_key.validator
+    def _validate_downstream_key(self, attribute: attrs.Attribute, value: str) -> None:
+        if not isinstance(value, str) or value == "":
+            raise ValueError(f"FixedKeyMapper downstream_key must be a non-empty str; got {value!r}.")
 
     def to_downstream(self, key: str) -> str:
         """Return the fixed downstream key regardless of *key*."""
