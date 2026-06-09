@@ -1,0 +1,5 @@
+include README.md
+include RELEASE_NOTES.md
+include LICENSE
+recursive-include data *.yaml
+recursive-include src *.py
