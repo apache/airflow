@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import imaplib
 import json
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, call, mock_open, patch
 
 import pytest
 
@@ -315,6 +315,56 @@ class TestImapHook:
 
         mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(open_string, new_callable=mock_open)
+    def test_download_mail_attachments_overwrites_duplicate_names_by_default(self, mock_open_method):
+        with patch.object(
+            ImapHook,
+            "_retrieve_mails_attachments_by_name",
+            return_value=[("test1.csv", b"first"), ("test1.csv", b"second")],
+        ):
+            ImapHook().download_mail_attachments("test1.csv", "test_directory")
+
+        assert mock_open_method.call_args_list == [
+            call("test_directory/test1.csv", "wb"),
+            call("test_directory/test1.csv", "wb"),
+        ]
+        assert mock_open_method.return_value.write.call_args_list == [call(b"first"), call(b"second")]
+
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists", return_value=False)
+    @patch(open_string, new_callable=mock_open)
+    def test_download_mail_attachments_preserves_duplicate_names(self, mock_open_method, mock_path_exists):
+        with patch.object(
+            ImapHook,
+            "_retrieve_mails_attachments_by_name",
+            return_value=[("test1.csv", b"first"), ("test1.csv", b"second")],
+        ):
+            ImapHook().download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        assert mock_path_exists.call_args_list == [
+            call("test_directory/test1.csv"),
+            call("test_directory/test1_1.csv"),
+        ]
+        assert mock_open_method.call_args_list == [
+            call("test_directory/test1.csv", "wb"),
+            call("test_directory/test1_1.csv", "wb"),
+        ]
+        assert mock_open_method.return_value.write.call_args_list == [call(b"first"), call(b"second")]
+
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists")
+    @patch(open_string, new_callable=mock_open)
+    def test_download_mail_attachments_avoids_existing_file(self, mock_open_method, mock_path_exists):
+        mock_path_exists.side_effect = lambda file_path: file_path == "test_directory/test1.csv"
+
+        with patch.object(
+            ImapHook,
+            "_retrieve_mails_attachments_by_name",
+            return_value=[("test1.csv", b"payload")],
+        ):
+            ImapHook().download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        assert mock_open_method.call_args_list == [call("test_directory/test1_1.csv", "wb")]
+        assert mock_open_method.return_value.write.call_args_list == [call(b"payload")]
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
