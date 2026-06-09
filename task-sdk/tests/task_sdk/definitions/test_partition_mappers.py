@@ -30,6 +30,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     QuarterWindow,
     WeekWindow,
     Window,
+    WindowDirection,
     YearWindow,
 )
 
@@ -62,6 +63,36 @@ class TestSdkRollupMapperInit:
 
         # Should not raise.
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
+
+
+class TestSdkWindowDirectionValidation:
+    """SDK Window.__init__ must coerce valid strings and reject invalid ones at construction time."""
+
+    @pytest.mark.parametrize(
+        ("direction_input", "expected_member"),
+        [
+            pytest.param(WindowDirection.FORWARD, WindowDirection.FORWARD, id="enum_forward"),
+            pytest.param(WindowDirection.BACKWARD, WindowDirection.BACKWARD, id="enum_backward"),
+            pytest.param("forward", WindowDirection.FORWARD, id="str_forward"),
+            pytest.param("backward", WindowDirection.BACKWARD, id="str_backward"),
+        ],
+    )
+    def test_valid_direction_coerced_to_enum(self, direction_input, expected_member):
+        window = WeekWindow(direction=direction_input)
+        assert window.direction is expected_member
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param("foward", id="typo_foward"),
+            pytest.param("backwards", id="typo_backwards"),
+            pytest.param("FORWARD", id="wrong_case"),
+            pytest.param("", id="empty_string"),
+        ],
+    )
+    def test_invalid_direction_raises_value_error(self, bad_value):
+        with pytest.raises(ValueError, match="is not a valid WindowDirection"):
+            WeekWindow(direction=bad_value)
 
 
 class TestSdkWindowExpectedDecodedType:

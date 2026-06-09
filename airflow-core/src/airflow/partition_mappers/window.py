@@ -100,7 +100,7 @@ class Window(ABC):
     expected_decoded_type: ClassVar[type] = str
 
     def __init__(self, *, direction: WindowDirection = WindowDirection.FORWARD) -> None:
-        self.direction = direction
+        self.direction = WindowDirection(direction)
 
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
