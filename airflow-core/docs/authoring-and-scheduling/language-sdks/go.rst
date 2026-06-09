@@ -54,7 +54,7 @@ A packed bundle can run in two ways. The same binary works in both, and you pick
 * **Coordinator (recommended).** A Python task runner launches the Go bundle directly, with no separate Go
   worker process on the host. This is the same coordinator mechanism the Java SDK uses. Because the mature
   Python supervisor handles the Airflow-facing concerns, this path inherits remote task logs (S3/GCS), the
-  full range of task states, and alternate XCom backends, rather than reimplementing them in Go. Those are
+  full range of task states, and alternate XCom backends, rather than implementing them again in Go. Those are
   exactly the features the Edge Worker path is still missing.
 * **Edge Worker.** A long-running Go process (``airflow-go-edge-worker``) polls Airflow for work and runs
   your bundle, with no Python in the data path. It runs end-to-end today but is missing the features listed
@@ -218,7 +218,7 @@ parameters your task actually needs:
    * - Parameter type
      - Injected value
    * - ``context.Context``
-     - Cancellation/deadline context for the task. Honour it for long-running work.
+     - Cancellation/deadline context for the task. Respect it for long-running work.
    * - ``*slog.Logger``
      - A logger whose output is routed back to the Airflow task log.
    * - ``sdk.Client`` (or a narrower interface)
@@ -295,7 +295,7 @@ surface as Go values when read back via ``GetXCom``.
   deserialization layer yet. The concrete type of a *numeric* value therefore depends on the deployment
   mode. Over the Execution API (the Edge Worker path) numbers are decoded with ``encoding/json``, so every
   number - integer or not - arrives as ``float64``. In coordinator mode the Python supervisor re-encodes the
-  value as msgpack, so a whole number arrives as a Go integer type (whose width depends on the value) and
+  value as ``msgpack``, so a whole number arrives as a Go integer type (whose width depends on the value) and
   only a non-integer as ``float64``. Do not assume a fixed numeric type: type-switch over the numeric types
   you expect, or round-trip the value through ``json.Marshal`` / ``json.Unmarshal`` into a typed Go value.
 

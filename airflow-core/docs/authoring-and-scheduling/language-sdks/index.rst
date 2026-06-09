@@ -171,7 +171,7 @@ Both settings can be supplied as environment variables using the standard Airflo
 Implementing a new compiled language SDK
 ----------------------------------------
 
-:class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator` runs a task by exec-ing the
+:class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator` runs a task by executing the
 bundle file directly. It therefore fits **only compiled languages whose build artifact is a standalone
 binary the worker can execute with no additional runtime dependency** - that is, no language runtime,
 virtual machine, or interpreter has to be installed on the worker for the binary to run (Go, Rust, C, C++,
