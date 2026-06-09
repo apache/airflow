@@ -1170,13 +1170,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         break
                     if len(pod.spec.containers) == 1:
                         driver_container = container
-
+                container_completed = False
                 if driver_container:
                     for status in pod.status.container_statuses or []:
                         if status.name == driver_container.name:
                             if status.state and status.state.terminated:
                                 driver_exit_code = status.state.terminated.exit_code
                                 if driver_exit_code == 0:
+                                    container_completed = True
                                     break
                                 raise RuntimeError(
                                     f"Spark application {app_id} failed.\nThe driver container exited with a non-zero status code.\nExit code: {driver_exit_code}\nReason: {status.state.terminated.reason}"
@@ -1229,6 +1230,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                             )
                     else:
                         consecutive_unknown = 0
+                if container_completed:
+                    break
                 time.sleep(poll_interval)
             self._delete_driver_pod()
         finally:
