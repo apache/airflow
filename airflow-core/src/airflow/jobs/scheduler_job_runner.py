@@ -1874,7 +1874,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 break
 
-
     def _do_scheduling(self, session: Session) -> int:
         """
         Make the main scheduling decisions.
