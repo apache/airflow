@@ -17,16 +17,40 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from azure.identity import ClientSecretCredential
 
 from airflow.providers.common.compat.sdk import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field, parse_blob_account_url
+from airflow.providers.microsoft.azure.utils import get_field
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 schemes = ["abfs", "abfss", "adl"]
+
+
+def _account_name_from_host(host: str | None) -> str | None:
+    if not host:
+        return None
+
+    parsed_url = urlparse(host if "://" in host else f"//{host}")
+    hostname = parsed_url.hostname
+    if not hostname:
+        return None
+
+    return hostname.split(".", 1)[0]
+
+
+def _get_default_account_name(conn_type: str, host: str | None, login: str | None) -> str | None:
+    account_name = _account_name_from_host(host)
+    if conn_type == "adls":
+        return account_name or login
+
+    if account_name and "." in (host or ""):
+        return account_name
+
+    return login or account_name
 
 
 def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
@@ -47,9 +71,10 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     if connection_string:
         return AzureBlobFileSystem(connection_string=connection_string)
 
-    options: dict[str, Any] = {
-        "account_url": parse_blob_account_url(conn.host, conn.login),
-    }
+    options: dict[str, Any] = {}
+    account_name = _get_default_account_name(conn_type, conn.host, conn.login)
+    if account_name:
+        options["account_name"] = account_name
 
     # mirror handling of custom field "client_secret_auth_config" from extras. Ignore if missing as AzureBlobFileSystem can handle.
     tenant_id = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="tenant_id")

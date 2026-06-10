@@ -49,7 +49,7 @@ def mocked_blob_file_system():
                 host="testaccountname.blob.core.windows.net",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net",
+                "account_name": "testaccountname",
             },
         ),
         (
@@ -59,7 +59,7 @@ def mocked_blob_file_system():
                 login="testaccountname",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
             },
         ),
         (
@@ -96,11 +96,9 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
-                # "account_url": "https://testaccountid.blob.core.windows.net/",
+                "account_name": "account_name",
                 "client_id": "testaccountname",
                 "client_secret": "password",
-                "account_name": "account_name",
                 "account_key": "account_key",
                 "sas_token": "sas_token",
                 "tenant_id": "tenant_id",
@@ -119,8 +117,7 @@ def mocked_blob_file_system():
                 extra={},
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
-                # "account_url": "https://testaccountid.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_key": "password",
             },
         ),
@@ -136,9 +133,45 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_host": "mystorageaccount.blob.core.mydomain.io",
                 "account_key": "password",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname.dfs.core.windows.net",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
             },
         ),
     ],
