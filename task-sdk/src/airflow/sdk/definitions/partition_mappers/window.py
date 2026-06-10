@@ -22,7 +22,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+import attrs
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class Window:
@@ -114,3 +119,52 @@ class YearWindow(Window):
     """Twelve consecutive monthly keys making up one calendar year."""
 
     expected_decoded_type: ClassVar[type] = datetime
+
+
+def _convert_segments(segments: Iterable[str]) -> frozenset[str]:
+    """
+    Validate and convert *segments* to a ``frozenset[str]``.
+
+    Validates each element for type and non-emptiness (with index reporting)
+    before collapsing into a frozenset, then checks the result is non-empty.
+    """
+    validated: list[str] = []
+    for i, item in enumerate(segments):
+        if not isinstance(item, str):
+            raise ValueError(
+                f"SegmentWindow segment keys must be str; got {type(item).__name__!r} at index {i}: {item!r}"
+            )
+        if not item:
+            raise ValueError(
+                f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
+            )
+        validated.append(item)
+    result = frozenset(validated)
+    if not result:
+        raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    return result
+
+
+@attrs.define
+class SegmentWindow(Window):
+    """
+    A fixed categorical set of string keys that constitute one downstream period.
+
+    Authoring marker for the scheduler-side
+    :class:`airflow.partition_mappers.window.SegmentWindow`. Paired with
+    :class:`~airflow.sdk.definitions.partition_mappers.fixed_key.FixedKeyMapper` inside a
+    :class:`~airflow.sdk.definitions.partition_mappers.base.RollupMapper` to express a
+    categorical rollup.
+
+    Construction validates the segment list so Dag parse errors surface
+    immediately rather than deferring to scheduler deserialization.
+
+    :param segments: Non-empty iterable of non-empty string segment keys. Duplicates
+        are silently de-duplicated.
+    :raises ValueError: if *segments* is empty, contains a non-``str`` element, or
+        contains an empty-string element.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    _segments: frozenset[str] = attrs.field(converter=_convert_segments)

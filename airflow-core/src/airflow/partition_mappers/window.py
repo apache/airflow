@@ -21,6 +21,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import attrs
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
@@ -246,3 +248,63 @@ class YearWindow(Window):
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
         return _build_directional_steps(period_start, 12, _shift_months, self.direction)
+
+
+def _convert_segments(segments: Iterable[str]) -> frozenset[str]:
+    """
+    Validate and convert *segments* to a ``frozenset[str]``.
+
+    Validates each element for type and non-emptiness (with index reporting)
+    before collapsing into a frozenset, then checks the result is non-empty.
+    """
+    validated: list[str] = []
+    for i, item in enumerate(segments):
+        if not isinstance(item, str):
+            raise ValueError(
+                f"SegmentWindow segment keys must be str; got {type(item).__name__!r} at index {i}: {item!r}"
+            )
+        if not item:
+            raise ValueError(
+                f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
+            )
+        validated.append(item)
+    result = frozenset(validated)
+    if not result:
+        raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    return result
+
+
+@attrs.define
+class SegmentWindow(Window):
+    """
+    A fixed categorical set of string keys that constitute one downstream period.
+
+    Paired with :class:`~airflow.partition_mappers.fixed_key.FixedKeyMapper` inside a
+    :class:`~airflow.partition_mappers.base.RollupMapper` to express a categorical
+    rollup: the scheduler holds the downstream run until every declared segment key
+    has arrived from the upstream producer, then fires once.
+
+    ``to_upstream`` returns the complete segment set regardless of the downstream
+    anchor value — the anchor is intentionally ignored because all segments map onto
+    a single downstream partition key, not a time-based period.
+
+    :param segments: Non-empty iterable of non-empty string segment keys. Duplicates
+        are silently de-duplicated.
+    :raises ValueError: if *segments* is empty, contains a non-``str`` element, or
+        contains an empty-string element.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    _segments: frozenset[str] = attrs.field(converter=_convert_segments)
+
+    def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
+        """Return the full declared segment set, ignoring the downstream anchor."""
+        return self._segments
+
+    def serialize(self) -> dict[str, Any]:
+        return {"segments": sorted(self._segments)}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> SegmentWindow:
+        return cls(data["segments"])

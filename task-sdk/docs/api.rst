@@ -247,6 +247,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.FanOutMapper
 
+.. autoapiclass:: airflow.sdk.FixedKeyMapper
+
 Rollup Windows
 ~~~~~~~~~~~~~~
 
@@ -263,6 +265,8 @@ Rollup Windows
 .. autoapiclass:: airflow.sdk.QuarterWindow
 
 .. autoapiclass:: airflow.sdk.YearWindow
+
+.. autoapiclass:: airflow.sdk.SegmentWindow
 
 I/O Helpers
 -----------

@@ -249,13 +249,17 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
-        name: Check FanOutMapper default mapper table stays in sync (core/SDK)
+        name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
         entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
         language: python
         files: >
           (?x)
           ^airflow-core/src/airflow/partition_mappers/temporal\.py$|
-          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^airflow-core/src/airflow/partition_mappers/fixed_key\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/fixed_key\.py$
         pass_filenames: false
         require_serial: true
       - id: check-window-in-sync
