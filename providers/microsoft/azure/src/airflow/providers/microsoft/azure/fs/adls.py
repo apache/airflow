@@ -45,7 +45,7 @@ def _account_name_from_host(host: str | None) -> str | None:
 def _get_default_account_name(conn_type: str, host: str | None, login: str | None) -> str | None:
     account_name = _account_name_from_host(host)
     if conn_type == "adls":
-        return account_name or login
+        return account_name
 
     if account_name and "." in (host or ""):
         return account_name
