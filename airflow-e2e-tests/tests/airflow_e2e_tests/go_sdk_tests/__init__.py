@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: "[v3-2-test] Scheduled CI upgrade check"
-on:  # yamllint disable-line rule:truthy
-  schedule:
-    # Tue, Thu at 06:00 UTC
-    - cron: '0 6 * * 2,4'
-  workflow_dispatch:
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  upgrade-v3-2-test:
-    name: "[v3-2-test] Upgrade"
-    uses: ./.github/workflows/upgrade-check.yml
-    with:
-      target-branch: v3-2-test
-    secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

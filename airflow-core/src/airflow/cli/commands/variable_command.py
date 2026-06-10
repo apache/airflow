@@ -155,7 +155,7 @@ def variables_import(args, *, session: Session = NEW_SESSION):
         try:
             value = v
             description = None
-            if isinstance(v, dict) and v.get("value"):  # verify that var configuration has value
+            if isinstance(v, dict) and "value" in v:  # verify that var configuration has value
                 value, description = v["value"], v.get("description")
             Variable.set(k, value, description, serialize_json=not isinstance(value, str))
         except Exception as e:
