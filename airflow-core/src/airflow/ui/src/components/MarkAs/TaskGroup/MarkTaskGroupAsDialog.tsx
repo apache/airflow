@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -51,11 +51,22 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
 
   const [note, setNote] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (open) {
+      setNote(null);
+    }
+  }, [open]);
+
+  const handleClose = () => {
+    setNote(null);
+    onClose();
+  };
+
   const { isPending, mutate } = usePatchTaskGroup({
     dagId,
     dagRunId: runId,
     groupId,
-    onSuccess: onClose,
+    onSuccess: handleClose,
   });
   const { data, isPending: isPendingDryRun } = usePatchTaskGroupDryRun({
     dagId,
@@ -81,7 +92,15 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root
+      lazyMount
+      onOpenChange={(details) => {
+        if (!details.open) {
+          handleClose();
+        }
+      }}
+      open={open}
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -130,7 +149,6 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({

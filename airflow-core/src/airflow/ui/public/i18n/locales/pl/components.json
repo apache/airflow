@@ -12,6 +12,7 @@
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",
     "missingRuns": "Brakujące wykonania",
+    "overrideExistingParams": "Nadpisz parametry istniejących wykonań",
     "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
@@ -104,7 +105,8 @@
     "taskCount_many": "{{count}} Zadań",
     "taskCount_one": "{{count}} Zadanie",
     "taskCount_other": "{{count}} Zadań",
-    "taskGroup": "Grupa zadań"
+    "taskGroup": "Grupa zadań",
+    "zoomToTask": "Powiększ do wybranego zadania"
   },
   "limitedList": "+{{count}} więcej",
   "limitedList.allItems": "Wszystkie {{count}} elementy:",

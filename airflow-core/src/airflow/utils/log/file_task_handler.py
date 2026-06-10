@@ -521,7 +521,7 @@ class FileTaskHandler(logging.Handler):
 
     @provide_session
     def _render_filename(
-        self, ti: TaskInstance | TaskInstanceHistory, try_number: int, session=NEW_SESSION
+        self, ti: TaskInstance | TaskInstanceHistory, try_number: int, *, session=NEW_SESSION
     ) -> str:
         """Return the worker log filename."""
         dag_run = ti.get_dagrun(session=session)
@@ -855,7 +855,7 @@ class FileTaskHandler(logging.Handler):
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logger.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. %s", e)
 
         return full_path
 

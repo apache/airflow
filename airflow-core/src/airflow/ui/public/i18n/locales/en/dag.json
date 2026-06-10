@@ -230,12 +230,34 @@
     "renderedTemplates": "Rendered Templates",
     "requiredActions": "Required Actions",
     "runs": "Runs",
+    "storage": "Storage",
     "taskInstances": "Task Instances",
+    "taskStore": "Task Store",
     "tasks": "Tasks",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "taskStore": {
+    "add": "Add Task Store",
+    "clearAll": {
+      "resource": "all task store",
+      "title": "Clear All Task Store",
+      "warning": "All task store will be wiped. Tasks that use this store to track external work will not be able to resume without re-running from scratch."
+    },
+    "delete": "Delete Task Store",
+    "deleteWarning": "The task will lose this persisted memory. If the task is using this key to track external work (e.g. an external job ID), it will not be able to resume it.",
+    "edit": "Edit Task Store",
+    "emptyStore": "Task store stores values that persist across retries. Workers can write task store via the Task SDK.",
+    "expiresAt": {
+      "column": "Expires At",
+      "custom": "Custom",
+      "default": "Default ({{interval}})",
+      "label": "Expiration",
+      "never": "Never"
+    },
+    "title": "Task Store"
   }
 }

@@ -289,4 +289,5 @@ New PMC Member Onboarding steps
 3.  Ask another PMC member to add you to ``#pmc-private`` channel on slack
 4.  Make a PR in https://github.com/apache/airflow-site to move your data from the ``landing-pages/site/data/committers.json``
     to the ``landing-pages/site/data/pmc.json``. if more than one PMC member was added, coordinate with the others
-    to make a single PR for everyone.
+    to make a single PR for everyone. In the same PR, post an entry in
+    `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.

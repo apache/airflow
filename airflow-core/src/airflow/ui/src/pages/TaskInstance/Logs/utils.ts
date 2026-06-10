@@ -67,14 +67,14 @@ export const getDownloadText = ({
   );
 
   if (tiContext !== undefined) {
-    const firstEndGroup = lines.findIndex((line) => {
+    const preExecuteGroup = lines.findIndex((line) => {
       const text = typeof line === "string" ? line : line.event;
 
-      return text.includes("::endgroup::");
+      return text.includes("::group::Pre Execute");
     });
 
     rendered.splice(
-      firstEndGroup === -1 ? 0 : firstEndGroup + 1,
+      preExecuteGroup === -1 ? 0 : preExecuteGroup + 1,
       0,
       renderTIContextPreamble(tiContext, "text", "Task Identity") as string,
     );

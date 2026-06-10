@@ -173,16 +173,15 @@ def init_log_file(local_relative_path: str) -> Path:
 
 def _load_logging_config() -> None:
     """Load and cache the remote logging configuration from SDK config."""
-    from airflow.sdk._shared.logging.remote import discover_remote_log_handler
+    from airflow.sdk._shared.logging.factory import resolve_remote_task_log
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.configuration import conf
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
-    logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
-
-    # Load remote logging configuration using shared discovery logic
-    remote_task_log, default_remote_conn_id = discover_remote_log_handler(
-        logging_class_path, fallback, import_string
+    remote_task_log, default_remote_conn_id = resolve_remote_task_log(
+        conf=conf,
+        providers_manager=ProvidersManagerTaskRuntime(),
+        import_string=import_string,
     )
     _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 
@@ -224,22 +223,46 @@ def relative_path_from_logger(logger) -> Path | None:
     return Path(fname).relative_to(base_log_folder)
 
 
-def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
+def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
     raw_logger = getattr(logger, "_logger")
+    # Dedicated logger for remote-upload visibility — operators relying on
+    # remote log handlers need a way to see when those handlers fail to load
+    # or fail to upload.
+    upload_log = structlog.get_logger("airflow.logging.remote")
+
+    ti_id = str(ti.id) if ti else None
 
     handler = load_remote_log_handler()
     if not handler:
+        upload_log.warning(
+            "remote_log_handler_unavailable",
+            ti_id=ti_id,
+            note="Remote log handler could not be loaded; logs will be available locally only.",
+        )
         return
 
     try:
         relative_path = relative_path_from_logger(raw_logger)
-    except Exception:
+    except Exception as exc:
+        upload_log.warning(
+            "remote_log_path_resolution_failed",
+            ti_id=ti_id,
+            exc_info=exc,
+        )
         return
     if not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()
-    handler.upload(log_relative_path, ti)
+    try:
+        handler.upload(log_relative_path, ti)
+    except Exception as exc:
+        upload_log.warning(
+            "remote_log_upload_failed",
+            ti_id=ti_id,
+            log_relative_path=log_relative_path,
+            exc_info=exc,
+        )
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:

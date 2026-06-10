@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
     expand_env_var,
 )
+from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -161,6 +162,47 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
+    def mask_secrets(self) -> None:
+        """Mask sensitive config values in the secrets masker."""
+        from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
+        from airflow.sdk._shared.configuration.parser import _build_kwarg_env_prefix, _collect_kwarg_env_vars
+        from airflow.sdk._shared.secrets_masker import mask_secret
+
+        core_mask_secret: Any | None = None
+        try:
+            import importlib
+
+            core_mask_secret = importlib.import_module("airflow._shared.secrets_masker").mask_secret
+        except ImportError:
+            pass
+
+        for section, key in self.sensitive_config_values:
+            try:
+                with self.suppress_future_warnings():
+                    value = self.get(section, key, suppress_warnings=True)
+            except AirflowConfigException:
+                log.debug(
+                    "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                    section,
+                    key,
+                )
+                continue
+            mask_secret(value)
+            if core_mask_secret:
+                core_mask_secret(value)
+
+        # Mask per-key backend kwarg env vars (AIRFLOW__SECRETS__BACKEND_KWARG__* etc.).
+        # These are not in sensitive_config_values but may contain sensitive values.
+        for _section, _kwargs_key in [
+            ("secrets", "backend_kwargs"),
+            ("workers", "secrets_backend_kwargs"),
+        ]:
+            _prefix = _build_kwarg_env_prefix(_section, _kwargs_key)
+            for _value in _collect_kwarg_env_vars(_prefix).values():
+                mask_secret(_value)
+                if core_mask_secret:
+                    core_mask_secret(_value)
+
     def _get_custom_secret_backend(self, worker_mode: bool | None = None) -> Any | None:
         return super()._get_custom_secret_backend(
             worker_mode=worker_mode if worker_mode is not None else True
@@ -236,8 +278,6 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.sdk._shared.module_loading import import_string
-
     backend_list = []
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode

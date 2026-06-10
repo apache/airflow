@@ -10,9 +10,12 @@
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
+    "overrideExistingParams": "覆盖现有执行的参数",
     "permissionDenied": "预演失败：用户没有权限创建回填作业。",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
+    "scheduleNotBackfillable": "此 Dag 的调度不支持回填",
+    "schedulerPriorityHint": "在每个调度周期中，回填 Dag 执行的排序位于非回填 Dag 执行之后。如果存在其他非回填执行，回填执行可能会排队更久。",
     "selectDescription": "为指定的日期范围补上 Dag 执行",
     "selectLabel": "回填",
     "title": "执行回填",
@@ -70,6 +73,7 @@
     "files_other": "{{count}} 个文件"
   },
   "flexibleForm": {
+    "durationPlaceholder": "请输入 ISO 8601 格式的持续时间",
     "placeholder": "请选择一个值",
     "placeholderArray": "请逐行输入，每行输入一个字符串",
     "placeholderExamples": "开始输入以查看选项",
@@ -77,6 +81,7 @@
     "validationErrorArrayNotArray": "值必须是数组格式。",
     "validationErrorArrayNotNumbers": "数组中的所有元素都必须是数字。",
     "validationErrorArrayNotObject": "数组中的所有元素都必须是对象。",
+    "validationErrorDuration": "无效的 ISO 8601 持续时间格式",
     "validationErrorRequired": "此为必填字段"
   },
   "graph": {
@@ -90,7 +95,8 @@
     "otherDagRuns": "+ 其他 Dag 执行",
     "taskCount_one": "1 个任务",
     "taskCount_other": "{{count}} 个任务",
-    "taskGroup": "任务分组"
+    "taskGroup": "任务分组",
+    "zoomToTask": "缩放至选定任务"
   },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",

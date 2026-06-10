@@ -33,6 +33,7 @@ from airflow._shared.timezones import timezone as tz
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleUsageTrackingManager,
+    BundleVersion,
     BundleVersionLock,
     get_bundle_storage_root_path,
 )
@@ -294,3 +295,31 @@ class TestBundleUsageTrackingManager:
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())
                 assert len(bundle_folders) == expected_remaining
+
+
+class TestBundleVersion:
+    def test_bundle_version_with_version_only(self):
+        bv = BundleVersion(version="abc123")
+        assert bv.version == "abc123"
+        assert bv.data is None
+
+    def test_bundle_version_with_data(self):
+        data = {"schema_version": 1, "files": {"dag.py": "v1"}}
+        bv = BundleVersion(version="sha256hex", data=data)
+        assert bv.version == "sha256hex"
+        assert bv.data == data
+
+    def test_bundle_version_is_frozen(self):
+        bv = BundleVersion(version="abc")
+        with pytest.raises(AttributeError):
+            bv.version = "xyz"
+
+    def test_bundle_version_equality(self):
+        bv1 = BundleVersion(version="abc", data={"key": "val"})
+        bv2 = BundleVersion(version="abc", data={"key": "val"})
+        assert bv1 == bv2
+
+    def test_bundle_version_inequality(self):
+        bv1 = BundleVersion(version="abc", data={"key": "val"})
+        bv2 = BundleVersion(version="abc", data={"key": "other"})
+        assert bv1 != bv2

@@ -29,6 +29,7 @@ from gcloud.aio.bigquery import Table
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryTableAsyncHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -51,6 +52,7 @@ TEST_DATASET_ID = "bq_dataset"
 TEST_TABLE_ID = "bq_table"
 TEST_LOCATION = "US"
 POLLING_PERIOD_SECONDS = 4.0
+INTERVAL_CHECK_POLLING_PERIOD_SECONDS = 9.0
 TEST_SQL_QUERY = "SELECT count(*) from Any"
 TEST_PASS_VALUE = 2
 TEST_TOLERANCE = 1
@@ -125,7 +127,7 @@ def interval_check_trigger():
         ignore_zero=TEST_IGNORE_ZERO,
         dataset_id=TEST_DATASET_ID,
         table_id=TEST_TABLE_ID,
-        poll_interval=POLLING_PERIOD_SECONDS,
+        poll_interval=INTERVAL_CHECK_POLLING_PERIOD_SECONDS,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
@@ -613,12 +615,27 @@ class TestBigQueryIntervalCheckTrigger:
             "project_id": TEST_GCP_PROJECT_ID,
             "table": TEST_TABLE_ID,
             "location": None,
+            "dataset_id": TEST_DATASET_ID,
+            "table_id": TEST_TABLE_ID,
+            "poll_interval": INTERVAL_CHECK_POLLING_PERIOD_SECONDS,
             "metrics_thresholds": TEST_METRIC_THRESHOLDS,
             "date_filter_column": TEST_DATE_FILTER_COLUMN,
             "days_back": TEST_DAYS_BACK,
             "ratio_formula": TEST_RATIO_FORMULA,
             "ignore_zero": TEST_IGNORE_ZERO,
         }
+
+    def test_interval_check_trigger_round_trip(self, interval_check_trigger):
+        """Assert explicit interval check parameters survive triggerer re-instantiation."""
+        classpath, kwargs = interval_check_trigger.serialize()
+
+        trigger_cls = import_string(classpath)
+        reconstructed_trigger = trigger_cls(**kwargs)
+
+        assert reconstructed_trigger.serialize() == (classpath, kwargs)
+        assert reconstructed_trigger.dataset_id == TEST_DATASET_ID
+        assert reconstructed_trigger.table_id == TEST_TABLE_ID
+        assert reconstructed_trigger.poll_interval == INTERVAL_CHECK_POLLING_PERIOD_SECONDS
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
@@ -714,7 +731,7 @@ class TestBigQueryIntervalCheckTrigger:
         assert task.done() is False
 
         assert "Query is still running..." in caplog.text
-        assert f"Sleeping for {POLLING_PERIOD_SECONDS} seconds." in caplog.text
+        assert f"Sleeping for {INTERVAL_CHECK_POLLING_PERIOD_SECONDS} seconds." in caplog.text
 
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()

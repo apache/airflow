@@ -77,7 +77,7 @@ apache-airflow-providers-mysql package
 `MySQL <https://www.mysql.com/>`__
 
 
-Release: 6.5.3
+Release: 6.6.1
 
 Provider package
 ----------------
@@ -107,6 +107,7 @@ PIP package                                 Version required
 ``mysql-connector-python``                  ``>=9.1.0; python_version < "3.12"``
 ``mysql-connector-python``                  ``>=9.1.0,!=9.7.0; python_version >= "3.12"``
 ``aiomysql``                                ``>=0.2.0``
+``pymysql``                                 ``>=1.0.3,<1.2``
 ==========================================  =============================================
 
 Cross provider package dependencies
@@ -140,5 +141,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 6.5.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 6.5.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.5.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 6.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 6.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.6.1-py3-none-any.whl.sha512>`__)

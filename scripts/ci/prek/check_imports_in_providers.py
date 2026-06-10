@@ -19,20 +19,20 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
-#   "ruff==0.15.12",
+#   "ruff==0.15.15",
 # ]
 # ///
 from __future__ import annotations
 
 from common_prek_utils import (
     initialize_breeze_prek,
-    run_command_via_breeze_shell,
+    run_command_via_breeze_run,
     validate_cmd_result,
 )
 
 initialize_breeze_prek(__name__, __file__)
 
-cmd_result = run_command_via_breeze_shell(
+cmd_result = run_command_via_breeze_run(
     ["python3", "/opt/airflow/scripts/in_container/run_check_imports_in_providers.py"],
     backend="sqlite",
     skip_environment_initialization=False,

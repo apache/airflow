@@ -105,6 +105,7 @@ SEED_VALUES: dict[str, dict[str, str]] = {
         "timetable_type": "'cron'",
         "timetable_partitioned": "0",
         "timetable_periodic": "0",
+        "partition_mapper_info": "'[]'",
     },
     "dag_version": {
         "id": f"'{SEED_DAG_VERSION_ID}'",

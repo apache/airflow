@@ -22,6 +22,8 @@ type (
 	apiClientContextKey struct{}
 	workerContextKey    struct{}
 	runtimeTIContextKey struct{}
+	runtimeContextKey   struct{}
+	sdkClientContextKey struct{}
 )
 
 var (
@@ -32,4 +34,19 @@ var (
 	RuntimeTIContextKey = runtimeTIContextKey{}
 	ApiClientContextKey = apiClientContextKey{}
 	WorkerContextKey    = workerContextKey{}
+
+	// RuntimeContextKey stores the public, task-facing runtime context
+	// (task instance identifiers and the Dag run's scheduling timestamps).
+	// The coordinator-mode runtime populates it from StartupDetails; task
+	// functions read it through sdk.CurrentContext rather than
+	// touching this key directly. Its value type is sdk.RuntimeContext, but
+	// this package does not import sdk to avoid an import cycle.
+	RuntimeContextKey = runtimeContextKey{}
+
+	// SdkClientContextKey, when present, holds an sdk.Client implementation
+	// that should be injected into task functions instead of constructing a
+	// default HTTP-backed client. The coordinator-mode runtime uses this to
+	// route task SDK calls (GetVariable, GetConnection, ...) over the
+	// supervisor comm socket rather than to the Execution API.
+	SdkClientContextKey = sdkClientContextKey{}
 )

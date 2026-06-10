@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -92,7 +93,8 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.timetables.simple import NullTimetable, OnceTimetable, PartitionAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.types import DagRunType
 
@@ -114,6 +116,7 @@ from tests_common.test_utils.timetables import (
     cron_timetable,
     delta_timetable,
 )
+from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -333,6 +336,13 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "params": [],
+        # These fields have no schema default; they are always emitted on the wire
+        # because their real default comes from airflow.cfg at parse time.
+        "catchup": False,
+        "disable_bundle_versioning": False,
+        "max_active_runs": 16,
+        "max_active_tasks": 16,
+        "max_consecutive_failed_dag_runs": 0,
     },
 }
 
@@ -474,7 +484,7 @@ def collect_dags(dag_folder=None):
             for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
                 if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                     continue
-                dagbag = DagBag(directory, include_examples=False)
+                dagbag = DagBag(directory)
                 dags.update(dagbag.dags)
                 import_errors.update(dagbag.import_errors)
     return dags, import_errors
@@ -704,6 +714,43 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self):
+        dagbag1 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result1 = LazyDeserializedDAG.from_dag(next(iter(dagbag1.dags.values()))).hash
+
+        dagbag2 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result2 = LazyDeserializedDAG.from_dag(next(iter(dagbag2.dags.values()))).hash
+
+        assert hash_result1 == hash_result2
+
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_hash_succeeds_for_dag_with_mixed_primitive_key_template_field(self):
+        """SerializedDagModel.hash() must not raise on a template field whose dict has mixed-type primitive keys.
+
+        Building the Dag twice via ``create_dag()`` produces independent Dag and
+        operator instances, so the hashes must also be equal across calls —
+        otherwise the serialization path is leaking non-deterministic state
+        (memory addresses, dict ordering, etc.) into the hash.
+        """
+        from airflow.providers.standard.operators.python import PythonOperator
+
+        def create_dag():
+            with DAG(dag_id="dag_mixed_keys", schedule=None, start_date=datetime(2024, 1, 1)) as dag:
+                PythonOperator(
+                    task_id="op",
+                    python_callable=empty_function,
+                    op_kwargs={"data": {1: "a", "b": "c", None: "z", 2: "d"}, empty_function: "t"},
+                )
+            return dag
+
+        first_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+        second_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+
+        assert first_hash == second_hash
+
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
@@ -896,9 +943,9 @@ class TestStringifiedDAGs:
         if isinstance(task, MappedOperator):
             # MappedOperator.operator_class now stores only minimal type information
             # for memory efficiency (task_type and _operator_name).
-            serialized_task.operator_class["task_type"] == type(task).__name__
+            assert serialized_task.operator_class["task_type"] == task.operator_class.__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
-                serialized_task.operator_class["_operator_name"] == task._operator_name
+                assert serialized_task.operator_class["_operator_name"] == task._operator_name
 
             # Serialization cleans up default values in partial_kwargs, this
             # adds them back to both sides.
@@ -1708,7 +1755,7 @@ class TestStringifiedDAGs:
         logical_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
             task1 = EmptyOperator(task_id="task1")
-            with TaskGroup("group234") as group234:
+            with TaskGroup("group234", doc_md="### TaskGroup Documentation") as group234:
                 _ = EmptyOperator(task_id="task2")
 
                 with TaskGroup("group34") as group34:
@@ -1728,6 +1775,7 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.task_group.children
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
+        assert serialized_dag.task_group.children["group234"].doc_md == "### TaskGroup Documentation"
 
         def check_task_group(node):
             assert node.dag is serialized_dag
@@ -1840,9 +1888,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     def test_basic_mapped_dag(self, dag_maker):
-        dagbag = DagBag(
-            "airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py", include_examples=False
-        )
+        dagbag = DagBag("airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py")
         assert not dagbag.import_errors
         dag = dagbag.dags["example_dynamic_task_mapping"]
         ser_dag = DagSerialization.to_dict(dag)
@@ -2386,6 +2432,29 @@ class TestStringifiedDAGs:
             assert deserialized_dag.disable_bundle_versioning is expected
 
     @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (True, True),
+            (False, False),
+            (None, None),
+        ],
+    )
+    def test_dag_rerun_with_latest_version_roundtrip(self, value, expected):
+        """Test that rerun_with_latest_version survives serialization roundtrip."""
+        kwargs = {}
+        if value is not None:
+            kwargs["rerun_with_latest_version"] = value
+        dag = DAG(
+            dag_id="test_dag_rerun_with_latest_version_roundtrip",
+            schedule=None,
+            **kwargs,
+        )
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+        serialized_dag = DagSerialization.to_dict(dag)
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
+        assert deserialized_dag.rerun_with_latest_version is expected
+
+    @pytest.mark.parametrize(
         ("object_to_serialized", "expected_output"),
         [
             (
@@ -2681,6 +2750,41 @@ class TestStringifiedDAGs:
             "__type": "dict",
             "__var": {"resume_after": {"__type": "timedelta", "__var": 5.0}},
         }
+
+    @pytest.mark.db_test
+    def test_create_dagrun_rejects_partition_key_for_non_partitioned_dag(self, dag_maker):
+        """create_dagrun raises ValueError when partition_key is passed to a non-partitioned Dag."""
+        with dag_maker(dag_id="test_non_partitioned", serialized=True):
+            pass
+
+        with pytest.raises(ValueError, match="not a partitioned Dag"):
+            dag_maker.create_dagrun(partition_key="some-key")
+
+    @pytest.mark.db_test
+    def test_create_dagrun_accepts_partition_key_for_partitioned_dag(self, dag_maker):
+        """create_dagrun does not raise when partition_key is passed to a partitioned Dag."""
+        with dag_maker(
+            dag_id="test_partitioned",
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            serialized=True,
+        ):
+            pass
+
+        dr = dag_maker.create_dagrun(partition_key="2025-01-01T00:00:00")
+        assert dr.partition_key == "2025-01-01T00:00:00"
+
+    @pytest.mark.db_test
+    def test_create_dagrun_accepts_partition_key_for_partition_at_runtime_dag(self, dag_maker):
+        """create_dagrun does not raise when partition_key is passed to a PartitionAtRuntime Dag."""
+        with dag_maker(
+            dag_id="test_partition_at_runtime",
+            schedule=PartitionAtRuntime(),
+            serialized=True,
+        ):
+            pass
+
+        dr = dag_maker.create_dagrun(partition_key="runtime-key")
+        assert dr.partition_key == "runtime-key"
 
 
 def test_kubernetes_optional():
@@ -3805,13 +3909,14 @@ def test_dag_schema_defaults_optimization():
     dag_with_defaults = DAG(
         dag_id="test_defaults_dag",
         start_date=datetime(2023, 1, 1),
-        # These should match schema defaults and be excluded
-        catchup=False,
+        # These match remaining schema defaults and should be excluded
         fail_fast=False,
+        render_template_as_native_obj=False,
+        # These are config-driven: no schema default, always emitted on the wire
+        catchup=False,
         max_active_runs=16,
         max_active_tasks=16,
         max_consecutive_failed_dag_runs=0,
-        render_template_as_native_obj=False,
         disable_bundle_versioning=False,
         # These should be excluded as None
         description=None,
@@ -3826,6 +3931,16 @@ def test_dag_schema_defaults_optimization():
     for field in DagSerialization.get_schema_defaults("dag").keys():
         assert field not in dag_data, f"Schema default field '{field}' should be excluded"
 
+    # Config-driven fields have no schema default and are always present on the wire
+    for field in (
+        "catchup",
+        "max_active_runs",
+        "max_active_tasks",
+        "max_consecutive_failed_dag_runs",
+        "disable_bundle_versioning",
+    ):
+        assert field in dag_data, f"Config-driven field '{field}' must always be serialised"
+
     # None fields should also be excluded
     none_fields = ["description", "doc_md"]
     for field in none_fields:
@@ -3834,7 +3949,8 @@ def test_dag_schema_defaults_optimization():
     # Test deserialization restores defaults correctly
     deserialized_dag = DagSerialization.from_dict(serialized)
 
-    # Verify schema defaults are restored
+    # Verify values round-trip correctly: schema-default fields are restored from the schema,
+    # config-driven fields are read directly from the wire.
     assert deserialized_dag.catchup is False
     assert deserialized_dag.fail_fast is False
     assert deserialized_dag.max_active_runs == 16
@@ -3862,6 +3978,72 @@ def test_dag_schema_defaults_optimization():
     assert dag_non_defaults_data["max_active_runs"] == 32
     assert "description" in dag_non_defaults_data
     assert dag_non_defaults_data["description"] == "Test description"
+
+
+@pytest.mark.parametrize(
+    ("cfg_overrides", "dag_kwargs", "expected_wire"),
+    [
+        pytest.param(
+            {
+                ("core", "max_active_runs_per_dag"): "1",
+                ("core", "max_active_tasks_per_dag"): "1",
+                ("core", "max_consecutive_failed_dag_runs_per_dag"): "1",
+            },
+            {
+                "dag_id": "test_dag_fields_cfg_ne_user",
+                "max_active_runs": 16,
+                "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
+            },
+            {"max_active_runs": 16, "max_active_tasks": 16, "max_consecutive_failed_dag_runs": 0},
+            id="user_value_differs_from_cfg",
+        ),
+        pytest.param(
+            {
+                ("core", "max_active_runs_per_dag"): "16",
+                ("core", "max_active_tasks_per_dag"): "16",
+                ("core", "max_consecutive_failed_dag_runs_per_dag"): "0",
+            },
+            {
+                "dag_id": "test_dag_fields_cfg_eq_user",
+                "max_active_runs": 16,
+                "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
+            },
+            {"max_active_runs": 16, "max_active_tasks": 16, "max_consecutive_failed_dag_runs": 0},
+            id="user_value_equals_cfg",
+        ),
+        pytest.param(
+            {("scheduler", "catchup_by_default"): "True"},
+            {"dag_id": "test_dag_catchup_override", "catchup": False},
+            {"catchup": False},
+            id="catchup_false_with_catchup_by_default_true",
+        ),
+        pytest.param(
+            {("dag_processor", "disable_bundle_versioning"): "False"},
+            {"dag_id": "test_dag_disable_bundle_versioning", "disable_bundle_versioning": True},
+            {"disable_bundle_versioning": True},
+            id="disable_bundle_versioning_true_with_cfg_false",
+        ),
+    ],
+)
+def test_dag_config_driven_fields_always_serialized(cfg_overrides, dag_kwargs, expected_wire):
+    """Config-driven DAG fields are always present on the wire regardless of the airflow.cfg value.
+
+    Fields like max_active_runs and other config-driven fields were silently dropped during
+    serialisation when their value matched the schema default, regardless of what airflow.cfg
+    was set to. #55849 excluded any field whose value matched the schema default.
+    """
+    with conf_vars(cfg_overrides):
+        dag = DAG(start_date=datetime(2023, 1, 1), **dag_kwargs)
+        serialized = DagSerialization.to_dict(dag)
+
+    for field, value in expected_wire.items():
+        assert serialized["dag"][field] == value
+
+    lazy_dag = LazyDeserializedDAG(data=serialized)
+    for field, value in expected_wire.items():
+        assert getattr(lazy_dag, field) == value
 
 
 def test_email_optimization_removes_email_attrs_when_email_empty():

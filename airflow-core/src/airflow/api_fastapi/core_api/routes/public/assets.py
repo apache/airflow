@@ -73,6 +73,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import ParamValidationError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -374,8 +375,13 @@ def create_asset_event(
     timestamp = timezone.utcnow()
 
     api_user_teams: set[str] = set()
+    api_allow_consumer_teams: list[str] | None = None
+    api_allow_global_consumers: bool = True
     if conf.getboolean("core", "multi_team"):
         api_user_teams = get_auth_manager().get_authorized_teams(user=user)
+        if body.access_control:
+            api_allow_consumer_teams = body.access_control.consumer_teams
+            api_allow_global_consumers = body.access_control.allow_global
 
     assets_event = asset_manager.register_asset_change(
         asset=asset_model,
@@ -384,6 +390,8 @@ def create_asset_event(
         partition_key=body.partition_key,
         source_is_api=True,
         api_user_teams=api_user_teams,
+        api_allow_consumer_teams=api_allow_consumer_teams,
+        api_allow_global_consumers=api_allow_global_consumers,
         session=session,
     )
 
@@ -443,21 +451,24 @@ def materialize_asset(
             f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
-    params = (body or MaterializeAssetBody()).validate_context(dag)
-    return dag.create_dagrun(
-        run_id=params["run_id"],
-        logical_date=params["logical_date"],
-        data_interval=params["data_interval"],
-        run_after=params["run_after"],
-        conf=params["conf"],
-        run_type=DagRunType.ASSET_MATERIALIZATION,
-        triggered_by=DagRunTriggeredByType.REST_API,
-        triggering_user_name=user.get_name(),
-        state=DagRunState.QUEUED,
-        partition_key=params["partition_key"],
-        note=params["note"],
-        session=session,
-    )
+    try:
+        params = (body or MaterializeAssetBody()).validate_context(dag)
+        return dag.create_dagrun(
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
+            run_type=DagRunType.ASSET_MATERIALIZATION,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            triggering_user_name=user.get_name(),
+            state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
+            note=params["note"],
+            session=session,
+        )
+    except (ParamValidationError, ValueError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @assets_router.get(

@@ -534,7 +534,7 @@ To check that the BigQuery streaming buffer of a table is empty you can use
 This sensor is useful in ETL pipelines to ensure that recent streamed data has been fully
 processed before continuing downstream tasks.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_streaming_buffer_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_streaming_buffer_empty]
@@ -542,7 +542,7 @@ processed before continuing downstream tasks.
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_streaming_buffer_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_streaming_buffer_empty_deferred]

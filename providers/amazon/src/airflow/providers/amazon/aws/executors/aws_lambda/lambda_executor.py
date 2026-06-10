@@ -345,8 +345,9 @@ class AwsLambdaExecutor(BaseExecutor):
             try:
                 ser_workload_key = json.dumps(workload_key._asdict())
             except AttributeError:
-                # Callback workloads use string id.
-                ser_workload_key = workload_key
+                # Callback workloads use CallbackKey (or legacy string id); both have a
+                # str() representation that round-trips through JSON.
+                ser_workload_key = str(workload_key)
 
             payload = {
                 "task_key": ser_workload_key,

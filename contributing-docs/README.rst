@@ -24,7 +24,7 @@ and credit will always be given.
 This page aims to explain the basic concept of contributions. It contains links
 to detailed documents for the different aspects of contribution. We encourage both
 Open Source first timers as well as more experienced contributors to read and
-learn about this community's contribution guidelines as it support easy and efficient collaboration.
+learn about this community's contribution guidelines as it supports easy and efficient collaboration.
 
 Getting Started
 ----------------
@@ -47,7 +47,7 @@ community - mostly Airflow committers (maintainers). Mentoring new members of th
 maintainers job so do not be afraid to ask them to help you. You can do it
 via comments in your PR, asking on a devlist or via Slack. We also have a dedicated ``#new-contributors`` Slack channel where you can ask any questions
 about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
-where it is expected that people asking questions do not know a lot Airflow (yet!).
+where it is expected that people asking questions do not know a lot about Airflow (yet!).
 If you need help with Airflow see the Slack channel ``#user-troubleshooting``.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
@@ -63,6 +63,14 @@ To learn about various roles and communication channels in the Airflow project:
 
 * `How to communicate <02_how_to_communicate.rst>`__
   describes how to communicate with the community and how to get help.
+
+* `Code of Conduct <../CODE_OF_CONDUCT.md>`__ states the behaviour
+  the project expects from everyone, and the
+  `Community escalation process <../COMMUNITY_ESCALATION.md>`__
+  describes what happens when Code of Conduct breaches, spamming, or
+  other sustained disruptive behaviour cannot be resolved through
+  normal review and mentoring — and how to appeal a decision via
+  ``private@airflow.apache.org``.
 
 * `How to contribute <04_how_to_contribute.rst>`__ describes the various ways of how you can contribute to Airflow.
 
@@ -101,6 +109,18 @@ and how to contribute to the providers:
 
 * `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they
   are used in Airflow.
+
+
+Developing Charts
+..................
+
+If you are working on the Airflow Helm chart, this guide explains where a
+change belongs (chart, Kustomize overlay, or out entirely) and the conventions
+that govern the chart's parameter surface:
+
+* `Developing the Helm Chart <29_helm_chart_development.rst>`__ — decision tree
+  for chart vs Kustomize routing, component reference, authoring conventions,
+  and the quality bar for overlays.
 
 
 Airflow Deep Dive
