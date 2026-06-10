@@ -600,24 +600,30 @@ class TestSerializedDagModel:
             LazyDeserializedDAG.from_dag(dag),
             bundle_name="bundleA",
             bundle_version="commit_A",
+            version_data={"manifest": "A"},
             session=session,
         )
         assert did_write is True
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
-        assert DagVersion.get_latest_version(dag.dag_id, session=session).bundle_version == "commit_A"
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_A"
+        assert latest.version_data == {"manifest": "A"}
 
         # Same content, same bundle_name, but the bundle moved to a new commit.
         did_write = SDM.write_dag(
             LazyDeserializedDAG.from_dag(dag),
             bundle_name="bundleA",
             bundle_version="commit_B",
+            version_data={"manifest": "B"},
             session=session,
         )
 
         # No new version was created, but the latest version's bundle pointer advanced.
         assert did_write is True
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
-        assert DagVersion.get_latest_version(dag.dag_id, session=session).bundle_version == "commit_B"
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_B"
+        assert latest.version_data == {"manifest": "B"}
 
     def test_write_dag_unchanged_with_same_bundle_version_skips_write(self, dag_maker, session):
         """A re-parse with identical content and identical bundle metadata is a no-op."""
