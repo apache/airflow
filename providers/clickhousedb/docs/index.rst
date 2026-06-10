@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example Dags <https://github.com/apache/airflow/tree/providers-clickhouse/|version|/providers/clickhouse/tests/system/clickhouse>
+    Example Dags <https://github.com/apache/airflow/tree/providers-clickhousedb/|version|/providers/clickhousedb/tests/system/clickhouse>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-clickhousedb/>
     Installing from sources <installing-providers-from-sources>
 
