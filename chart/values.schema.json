@@ -760,14 +760,6 @@
             "x-docsSection": "Ingress",
             "additionalProperties": false,
             "properties": {
-                "enabled": {
-                    "description": "Enable all HTTPRoute resources. Reserved for future expansion.",
-                    "type": [
-                        "boolean",
-                        "null"
-                    ],
-                    "default": null
-                },
                 "apiServer": {
                     "description": "Configuration for the HTTPRoute of the API server.",
                     "type": "object",

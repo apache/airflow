@@ -153,21 +153,15 @@ class TestHTTPRouteAPIServer:
         assert jmespath.search("spec.rules[0].backendRefs[0].port", docs[0]) == 8443
 
     @pytest.mark.parametrize(
-        ("global_value", "api_server_value", "expected"),
+        ("api_server_value", "expected"),
         [
-            (None, None, False),
-            (None, False, False),
-            (None, True, True),
-            (True, None, True),
-            (True, False, False),
-            (False, True, True),
-            (True, True, True),
+            (None, False),
+            (False, False),
+            (True, True),
         ],
     )
-    def test_httproute_created(self, global_value, api_server_value, expected):
+    def test_httproute_created(self, api_server_value, expected):
         values = {"httpRoute": {}}
-        if global_value is not None:
-            values["httpRoute"]["enabled"] = global_value
         if api_server_value is not None:
             values["httpRoute"]["apiServer"] = {"enabled": api_server_value}
         docs = render_chart(values=values, show_only=SHOW_ONLY)
@@ -208,6 +202,6 @@ class TestHTTPRouteAPIServer:
         )
         assert "tier" in jmespath.search("metadata.labels", docs[0])
         assert "release" in jmespath.search("metadata.labels", docs[0])
-        assert "value1" == jmespath.search('metadata.labels."label1"', docs[0])
-        assert "test_label_value" == jmespath.search('metadata.labels."test_label"', docs[0])
-        assert "route_value" == jmespath.search('metadata.labels."route_label"', docs[0])
+        assert jmespath.search('metadata.labels."label1"', docs[0]) == "value1"
+        assert jmespath.search('metadata.labels."test_label"', docs[0]) == "test_label_value"
+        assert jmespath.search('metadata.labels."route_label"', docs[0]) == "route_value"

@@ -336,11 +336,6 @@ ingress:
 # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
 # The HTTPRoute resources reference an externally managed Gateway via `parentRefs`.
 httpRoute:
-  # Enable all HTTPRoute resources (deprecated, use
-  #   `httpRoute.apiServer.enabled`,
-  # instead). Reserved for future expansion to flower/statsd/pgbouncer.
-  enabled: ~
-
   # Configs for the HTTPRoute of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server HTTPRoute resource

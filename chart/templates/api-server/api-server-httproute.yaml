@@ -20,7 +20,7 @@
 ##################################
 ## Airflow API Server HTTPRoute
 ##################################
-{{- if and .Values.apiServer.enabled (or .Values.httpRoute.apiServer.enabled .Values.httpRoute.enabled) }}
+{{- if and .Values.apiServer.enabled .Values.httpRoute.apiServer.enabled }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
