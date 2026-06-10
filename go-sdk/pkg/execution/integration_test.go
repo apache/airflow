@@ -188,11 +188,11 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	start := logical
 	end := logical.Add(time.Hour)
 
-	var got sdk.RuntimeContext
+	var got sdk.TIRunContext
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx context.Context) error {
-				got = sdk.CurrentContext(ctx)
+			func(ctx sdk.TIRunContext) error {
+				got = ctx
 				return nil
 			})
 	})
@@ -220,6 +220,11 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	require.Equal(t, "SucceedTask", result["type"])
 
+	assert.NotNil(
+		t,
+		got.Context,
+		"the live task context must be embedded for use as a context.Context",
+	)
 	assert.Equal(t, "test_dag", got.TI.DagID)
 	assert.Equal(t, "run1", got.TI.RunID)
 	assert.Equal(t, "ctxgrab", got.TI.TaskID)
@@ -237,11 +242,11 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
-	var got sdk.RuntimeContext
+	var got sdk.TIRunContext
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx context.Context) error {
-				got = sdk.CurrentContext(ctx)
+			func(ctx sdk.TIRunContext) error {
+				got = ctx
 				return nil
 			})
 	})

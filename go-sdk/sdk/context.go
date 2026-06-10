@@ -20,28 +20,47 @@ package sdk
 import (
 	"context"
 	"time"
-
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
-// RuntimeContext carries the identifiers and scheduling timestamps of the task
-// instance that is currently executing, along with the Dag run it belongs to.
-// It is the Go equivalent of the execution context the Python and Java SDKs
-// expose to task authors.
+// TIRunContext is the execution context handed to a task. It embeds the
+// standard context.Context (cancellation, deadline, request-scoped values) and
+// additionally carries the identifiers and scheduling timestamps of the task
+// instance that is executing, along with the Dag run it belongs to. It is the
+// Go equivalent of the execution context the Python and Java SDKs expose to
+// task authors.
 //
-// Retrieve it inside a task function with CurrentContext:
+// The runtime injects it into a task function by parameter type, so declare it
+// as the task's context argument and read the fields directly:
 //
-//	func myTask(ctx context.Context, log *slog.Logger) error {
-//		rc := sdk.CurrentContext(ctx)
-//		log.Info("running", "task_id", rc.TI.TaskID, "run_id", rc.DagRun.RunID)
+//	func myTask(ctx sdk.TIRunContext, log *slog.Logger) error {
+//		log.Info("running", "task_id", ctx.TI.TaskID, "run_id", ctx.DagRun.RunID)
 //		return nil
 //	}
-type RuntimeContext struct {
+//
+// Because it embeds context.Context it is itself a context.Context: pass it
+// straight to client calls, select on ctx.Done(), or hand it to downstream
+// helpers that take a context.Context.
+//
+// Embedding a context.Context in a struct is normally discouraged, but it is a
+// deliberate exception here: the runtime needs a concrete type to bind by
+// parameter, and the value lives only for the duration of a single task
+// execution. The runtime always sets the embedded Context before invoking the
+// task. When constructing one yourself (for example in a unit test) set the
+// Context field, otherwise the context.Context methods dereference a nil
+// interface and panic:
+//
+//	ctx := sdk.TIRunContext{Context: context.Background()}
+type TIRunContext struct {
+	context.Context
+
 	// TI identifies the task instance that is executing.
 	TI TaskInstance
 	// DagRun identifies the Dag run the task instance belongs to.
 	DagRun DagRun
 }
+
+// TIRunContext is always usable wherever a context.Context is expected.
+var _ context.Context = TIRunContext{}
 
 // TaskInstance identifies the currently executing task instance.
 type TaskInstance struct {
@@ -64,16 +83,4 @@ type DagRun struct {
 	LogicalDate       *time.Time
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
-}
-
-// CurrentContext returns the RuntimeContext the runtime stored on ctx for the
-// executing task. When ctx carries no RuntimeContext (for example when called
-// outside of a running task) it returns the zero value.
-//
-// It takes ctx explicitly rather than reading task-local state like Python's
-// get_current_context, because Go has no goroutine-local storage and the
-// worker path runs multiple tasks concurrently in one process.
-func CurrentContext(ctx context.Context) RuntimeContext {
-	rc, _ := ctx.Value(sdkcontext.RuntimeContextKey).(RuntimeContext)
-	return rc
 }

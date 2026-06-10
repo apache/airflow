@@ -89,7 +89,10 @@ func RunTask(
 		},
 	}
 
-	runtimeContext := sdk.RuntimeContext{
+	// Carries the task runtime context for sdk.TIRunContext injection. The
+	// embedded context.Context is left nil here; bundlev1.Execute fills it with
+	// the live task context when binding the parameter.
+	runtimeContext := sdk.TIRunContext{
 		TI: sdk.TaskInstance{
 			DagID:     details.TI.DagID,
 			RunID:     details.TI.RunID,

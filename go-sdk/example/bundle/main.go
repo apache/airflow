@@ -18,7 +18,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -60,29 +59,30 @@ func main() {
 	}
 }
 
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
 
-	// Log every field the runtime context exposes. The fields are namespaced
-	// under a "context" group (so they serialise as context.ti.* /
-	// context.dag_run.* dotted keys) to avoid colliding with the reserved
-	// task_id/run_id/etc. keys the supervisor strips from its log view.
-	rc := sdk.CurrentContext(ctx)
+	// ctx embeds context.Context and also carries the task instance identifiers
+	// and the Dag run's scheduling timestamps. Log every field the runtime
+	// context exposes. The fields are namespaced under a "context" group (so
+	// they serialise as context.ti.* / context.dag_run.* dotted keys) to avoid
+	// colliding with the reserved task_id/run_id/etc. keys the supervisor
+	// strips from its log view.
 	log.InfoContext(ctx, "task runtime context",
 		slog.Group("context",
 			slog.Group("ti",
-				"dag_id", rc.TI.DagID,
-				"run_id", rc.TI.RunID,
-				"task_id", rc.TI.TaskID,
-				"map_index", rc.TI.MapIndex,
-				"try_number", rc.TI.TryNumber,
+				"dag_id", ctx.TI.DagID,
+				"run_id", ctx.TI.RunID,
+				"task_id", ctx.TI.TaskID,
+				"map_index", ctx.TI.MapIndex,
+				"try_number", ctx.TI.TryNumber,
 			),
 			slog.Group("dag_run",
-				"dag_id", rc.DagRun.DagID,
-				"run_id", rc.DagRun.RunID,
-				"logical_date", rc.DagRun.LogicalDate,
-				"data_interval_start", rc.DagRun.DataIntervalStart,
-				"data_interval_end", rc.DagRun.DataIntervalEnd,
+				"dag_id", ctx.DagRun.DagID,
+				"run_id", ctx.DagRun.RunID,
+				"logical_date", ctx.DagRun.LogicalDate,
+				"data_interval_start", ctx.DagRun.DataIntervalStart,
+				"data_interval_end", ctx.DagRun.DataIntervalEnd,
 			),
 		),
 	)
@@ -121,7 +121,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 	return ret, nil
 }
 
-func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
 	// This function takes a VariableClient and not a Client to make unit testing it easier. See
 	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
 	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
