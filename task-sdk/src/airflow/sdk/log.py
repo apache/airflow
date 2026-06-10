@@ -253,7 +253,7 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
         if _ActiveLoggingConfig.remote_logging_expected:
             upload_log.warning(
                 "remote_log_handler_unavailable",
-                ti_id=str(ti.id),
+                ti_id=ti_id,
                 note="Remote log handler could not be loaded; logs will be available locally only.",
             )
         return
