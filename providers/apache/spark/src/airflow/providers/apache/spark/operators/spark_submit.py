@@ -29,6 +29,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.common.compat.sdk import BaseOperator, conf
+from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
 
 try:
     from airflow.sdk import ResumableJobMixin
@@ -134,12 +135,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         omitted, Kerberos-enabled Spark connections with both ``keytab`` and
         ``principal`` configured use ``requests-kerberos`` automatically.
         Defaults to ``None`` (no auth for non-Kerberos connections).
-    :param deferrable: If ``True``, submits the job then defers to
-        ``SparkDriverTrigger``; the worker slot is freed while the trigger
-        polls the Spark REST API. On crash the trigger is re-created from
-        its serialised state (no reconnect needed). On user-clear, execute()
-        runs again and a fresh job is submitted.
-        If ``False`` (default), the sync ``ResumableJobMixin`` path is used.
+    :param deferrable: Run operator in deferrable mode.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -272,7 +268,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self.deferrable:
             driver_id = self.submit_job(context)
             master_urls = self._build_master_rest_urls()
-            from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
             self.defer(
                 trigger=SparkDriverTrigger(
                     driver_id=driver_id,
@@ -312,21 +307,22 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         hook.submit(self.application)
         
     def execute_complete(self, context: Context, event: dict) -> None:
-        """
-        Handle the result emitted by SparkDriverTrigger.
-        Called by Airflow when the trigger fires after deferrable=True execution.
-        Raises AirflowException if the driver did not finish successfully.
-        """
-        from airflow.providers.common.compat.sdk import AirflowException
-        driver_state = event.get("driver_state", "UNKNOWN")
-        driver_id = event.get("driver_id", "unknown")
-        message = event.get("message", "")
-        if event.get("status") != "success":
-            raise AirflowException(
+        """Handle the result emitted by SparkDriverTrigger."""
+        status = event.get("status")
+        driver_id = event.get("driver_id")
+        if status is None:
+            raise RuntimeError(f"Malformed trigger event: {event}")
+        if driver_id is None:
+            raise RuntimeError(f"Malformed trigger event: {event}")
+        if status != "success":
+            driver_state = event.get("driver_state", "")
+            message = event.get("message", "")
+            raise RuntimeError(
                 f"Spark driver {driver_id} did not finish successfully "
                 f"(state={driver_state}): {message}"
             )
-        self.log.info("Spark driver %s finished successfully (state=%s)", driver_id, driver_state)
+        self.log.info("Spark driver %s finished successfully", driver_id)
+        
     def _build_master_rest_urls(self) -> list[str]:
         """
         Build Spark master REST API base URLs for SparkDriverTrigger.
@@ -338,7 +334,11 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         scheme = self._hook._connection.get("rest_scheme", "http")
         rest_port = self._hook._connection.get("rest_port", 6066)
         master_hosts = self._hook._connection["master"].replace("spark://", "").split(",")
-        return [f"{scheme}://{m.strip().split(':')[0]}:{rest_port}" for m in master_hosts]
+        urls = []
+        for host in master_hosts:
+            hostname = host.strip().split(":")[0]
+            urls.append(f"{scheme}://{hostname}:{rest_port}")
+        return urls
 
 
     def submit_job(self, context: Context) -> str:
