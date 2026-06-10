@@ -146,6 +146,7 @@
     "startTime": "Startzeitpunkt"
   },
   "generateToken": "Zugriffstoken erzeugen",
+  "key": "Schlüssel",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -262,7 +263,8 @@
       "any": "Einer"
     },
     "tagPlaceholder": "Dags nach Markierung filtern",
-    "to": "Zu"
+    "to": "Zu",
+    "updatedAt": "Aktualisiert um"
   },
   "task": {
     "documentation": "Task Dokumentation",
@@ -393,6 +395,7 @@
     "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
     "mustBeValidNumber": "Muss eine gültige Zahl sein."
   },
+  "value": "Wert",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
