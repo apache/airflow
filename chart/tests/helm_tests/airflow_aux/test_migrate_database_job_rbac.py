@@ -56,9 +56,9 @@ class TestMigrateDatabaseJobRBAC:
         assert ("pods",) in resources_to_verbs
         assert {"get", "list"}.issubset(resources_to_verbs[("pods",)])
         assert ("pods/exec",) in resources_to_verbs
-        # The python client execs via an HTTP GET on the exec subresource, so
-        # ``get`` (not ``create``) is the verb the API server authorizes.
-        assert resources_to_verbs[("pods/exec",)] == {"get"}
+        # Exec is authorized under ``create`` or ``get`` depending on the
+        # apiserver/client path, so the role grants both for compatibility.
+        assert resources_to_verbs[("pods/exec",)] == {"create", "get"}
 
     def test_role_rules_grant_deployments_and_statefulsets_scale(self):
         # The downgrade branch scales every DB-touching workload to 0 after

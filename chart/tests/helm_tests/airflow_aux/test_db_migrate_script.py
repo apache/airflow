@@ -142,6 +142,16 @@ def test_decide_action_unknown_target_falls_back_to_forward(db_migrate, monkeypa
     assert db_migrate.decide_action("9.9.9") == "forward"
 
 
+def test_decide_action_unparseable_target_falls_back_to_forward(db_migrate, patched_revision_map):
+    """A non-PEP-440 ``airflowVersion`` (e.g. a dev build) must not crash the job.
+
+    ``_resolve_target_rev`` catches ``InvalidVersion`` and reports the target as
+    unknown, so ``decide_action`` chooses a conservative forward migrate rather
+    than letting ``InvalidVersion`` propagate and fail the Job.
+    """
+    assert db_migrate.decide_action("not-a-version") == "forward"
+
+
 def test_decide_action_propagates_db_error(db_migrate, monkeypatch, patched_revision_map):
     """``decide_action`` assumes the DB is already reachable.
 
@@ -223,11 +233,6 @@ def test_decide_action_resolves_patch_version_via_nearest_lower(
 # --------------------------------------------------------------------------
 # discover_api_server_pod
 # --------------------------------------------------------------------------
-
-
-def _call_discover_no_retry(db_migrate, namespace):
-    """Invoke the underlying function, bypassing the @retry wrapper backoff."""
-    return db_migrate.discover_api_server_pod.retry_with(stop=lambda _r: True)(namespace)
 
 
 def test_discover_api_server_pod_prefers_ready(db_migrate, monkeypatch, make_pod):

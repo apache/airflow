@@ -6731,7 +6731,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running migrate database job (templated). When unset, the chart embeds a script that reconciles the metadata DB bidirectionally (forward migrate, no-op, or downgrade via the still-running api-server pod).",
+                    "description": "Args to use when running migrate database job (templated). When unset, the chart embeds a script that reconciles the metadata DB bidirectionally, picking one of: fresh install (no alembic row), forward migrate, no-op, or downgrade via the still-running api-server pod. Set to an explicit list -- including `[]` -- to override and disable the embedded reconciler.",
                     "type": [
                         "array",
                         "null"

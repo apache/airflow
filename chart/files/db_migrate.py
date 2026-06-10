@@ -56,7 +56,7 @@ import sys
 import time
 
 from alembic.migration import MigrationContext
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from tenacity import (
@@ -99,7 +99,14 @@ def _resolve_target_rev(target: str) -> str | None:
     """
     if target in _REVISION_HEADS_MAP:
         return _REVISION_HEADS_MAP[target]
-    target_v = Version(target)
+    try:
+        target_v = Version(target)
+    except InvalidVersion:
+        # ``AIRFLOW_TARGET_VERSION`` comes from chart config; a nonstandard or
+        # misconfigured ``airflowVersion`` (e.g. a dev build) is not PEP 440
+        # parseable. Treat it as an unknown target so :func:`decide_action`
+        # falls back to a conservative forward migrate instead of crashing.
+        return None
     candidates = [(Version(v), rev) for v, rev in _REVISION_HEADS_MAP.items() if Version(v) <= target_v]
     if not candidates:
         return None
