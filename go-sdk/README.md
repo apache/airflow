@@ -102,8 +102,9 @@ func main() {
 
 A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
 `context.Context`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
-`sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
-the task failed.
+`sdk.VariableClient`). A parameter can also be an *XCom-input struct* whose fields are pulled from upstream
+tasks (see [Receiving upstream XComs as typed parameters](#receiving-upstream-xcoms-as-typed-parameters)). A
+return value becomes the task's XCom; an `error` return marks the task failed.
 
 ```go
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
@@ -125,6 +126,39 @@ func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger)
 Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
+
+### Receiving upstream XComs as typed parameters
+
+Instead of pulling XComs by hand with `client.GetXCom`, a task can declare an **XCom-input struct**
+parameter. Each exported field carries an `xcom:"<task_id>"` tag (or `xcom:"<task_id>,key=<key>"` to pull a
+key other than the default `return_value`); the runtime pulls that upstream task's XCom and decodes it into
+the field before your task runs:
+
+```go
+type TransformInput struct {
+    Extracted  ExtractResult `xcom:"extract"`       // extract's return_value
+    FromPython string        `xcom:"python_task_1"` // an upstream Python task's output
+}
+
+func transform(ctx context.Context, log *slog.Logger, in TransformInput) (TransformResult, error) {
+    // in.Extracted and in.FromPython are already populated.
+    return TransformResult{Variable: in.FromPython, Extracted: in.Extracted}, nil
+}
+```
+
+Decoding into a struct is strict: an unknown or renamed key fails the task rather than silently leaving
+fields zero. To decode loosely instead (for example, when the producer is an evolving or cross-language
+task), type the field as `map[string]any` (or `any`), which accepts any shape and keeps unknown keys:
+
+```go
+type TransformInput struct {
+    Extracted map[string]any `xcom:"extract"` // any shape; read it with in.Extracted["go_version"]
+}
+```
+
+A typed return value (here `TransformResult`) is published as the task's `return_value` XCom for a
+downstream task to pull. The upstream dependency must still be declared in the Python stub Dag so the tasks
+run in order.
 
 ## Deployment modes
 
