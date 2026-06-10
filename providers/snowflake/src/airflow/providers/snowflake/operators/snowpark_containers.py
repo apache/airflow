@@ -184,6 +184,8 @@ class SnowparkContainerJobOperator(BaseOperator):
         for instance_id in range(self.replicas):
             sql = f"SELECT SYSTEM$GET_SERVICE_LOGS('{self.job_name}', {instance_id}, '{self.container_name}')"
             response = self._run_one(sql)[0]
+            if not response:
+                continue
             if status != "DONE":
                 self.log.error("Logs for instance_id %d:\n%s", instance_id, response)
             else:
