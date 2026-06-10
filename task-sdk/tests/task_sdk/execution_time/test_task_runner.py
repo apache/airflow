@@ -4987,6 +4987,8 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.send.side_effect = [
             # Set RTIF
             None,
+            # Account for the extra link XCom message sent by TriggerDagRunLink
+            None,
             # Successful Dag Run trigger
             OKResponse(ok=True),
             # Set XCOM,
@@ -5005,6 +5007,16 @@ class TestTriggerDagRunOperator:
         assert msg.state == expected_task_state
 
         expected_calls = [
+            mock.call.send(
+                msg=SetXCom(
+                    key="_link_TriggerDagRunLink",
+                    value="/dags/test_dag/runs/test_run_id",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
             mock.call.send(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
