@@ -25,9 +25,9 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import NoteAccordion from "src/components/NoteAccordion";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { getDuration, renderDuration } from "src/utils";
@@ -68,7 +68,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     },
   ];
 
-  const { isPending, mutate } = usePatchTaskInstance({
+  const { mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
     mapIndex,
@@ -77,18 +77,17 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
 
   const onConfirm = () => {
     if (note !== taskInstance.note) {
-      mutate({
-        dagId,
-        dagRunId,
-        mapIndex,
-        requestBody: { note },
-        taskId,
-      });
+      mutate(
+        {
+          dagId,
+          dagRunId,
+          mapIndex,
+          requestBody: { note },
+          taskId,
+        },
+        { onError: () => setNote(taskInstance.note ?? null) },
+      );
     }
-  };
-
-  const onOpen = () => {
-    setNote(taskInstance.note ?? "");
   };
 
   // Stable dialog state at header/page level
@@ -99,15 +98,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header={translate("note.taskInstance")}
-              isPending={isPending}
-              mdContent={taskInstance.note}
-              onConfirm={onConfirm}
-              onOpen={onOpen}
-              placeholder={translate("note.placeholder")}
-              setMdContent={setNote}
-            />
             <ClearTaskInstanceButton
               isHotkeyEnabled
               onOpen={() => setClearOpen(true)}
@@ -121,6 +111,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      <NoteAccordion note={note} onSave={onConfirm} setNote={setNote} />
       <ClearTaskInstanceDialog
         onClose={() => setClearOpen(false)}
         open={clearOpen}
