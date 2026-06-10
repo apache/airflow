@@ -57,8 +57,10 @@ rules:
       - ""
     resources:
       - "pods/exec"
+    # The reconciler execs via ``connect_get_namespaced_pod_exec`` (an HTTP GET
+    # to the exec subresource), so the API server authorizes it under the
+    # ``get`` verb -- not ``create`` (which is what a POST-based exec needs).
     verbs:
-      - "create"
       - "get"
   # The downgrade branch scales every DB-touching workload to 0 after running
   # ``airflow db downgrade`` so no OLD code keeps querying the now-downgraded
@@ -76,7 +78,8 @@ rules:
     resources:
       - "deployments/scale"
       - "statefulsets/scale"
+    # Only ``patch`` is needed: the reconciler patches the scale subresource to
+    # 0 replicas and never reads it back.
     verbs:
-      - "get"
       - "patch"
 {{- end }}

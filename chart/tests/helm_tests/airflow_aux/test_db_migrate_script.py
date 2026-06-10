@@ -387,3 +387,125 @@ def test_scale_release_workloads_honors_drain_timeout_env_var(db_migrate, monkey
 
     with pytest.raises(TimeoutError, match=r"did not drain within 7200s"):
         db_migrate.scale_release_workloads_to_zero("airflow", "rel")
+
+
+# --------------------------------------------------------------------------
+# main
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def main_env(monkeypatch):
+    """Set the env vars ``main`` requires and stub out the DB-wait."""
+
+    def _setup(target="3.1.0", namespace="airflow", release_name="my-release"):
+        for key, value in (
+            ("AIRFLOW_TARGET_VERSION", target),
+            ("POD_NAMESPACE", namespace),
+            ("RELEASE_NAME", release_name),
+        ):
+            if value is None:
+                monkeypatch.delenv(key, raising=False)
+            else:
+                monkeypatch.setenv(key, value)
+
+    return _setup
+
+
+def test_main_requires_target_version(db_migrate, monkeypatch, main_env):
+    main_env(target=None)
+    with pytest.raises(SystemExit, match="AIRFLOW_TARGET_VERSION must be set"):
+        db_migrate.main()
+
+
+def test_main_requires_namespace(db_migrate, monkeypatch, main_env):
+    main_env(namespace=None)
+    with pytest.raises(SystemExit, match="POD_NAMESPACE must be set"):
+        db_migrate.main()
+
+
+def test_main_returns_one_when_db_unreachable(db_migrate, monkeypatch, main_env):
+    main_env()
+
+    def _raise():
+        raise OperationalError("SELECT 1", {}, Exception("unreachable"))
+
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", _raise)
+    assert db_migrate.main() == 1
+
+
+def test_main_noop_returns_zero(db_migrate, monkeypatch, main_env):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "noop")
+    called = mock.MagicMock()
+    monkeypatch.setattr(db_migrate.subprocess, "run", called)
+    assert db_migrate.main() == 0
+    called.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["fresh", "forward"])
+def test_main_forward_and_fresh_run_db_migrate(db_migrate, monkeypatch, main_env, action):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: action)
+    fake_run = mock.MagicMock(return_value=types.SimpleNamespace(returncode=0))
+    monkeypatch.setattr(db_migrate.subprocess, "run", fake_run)
+    assert db_migrate.main() == 0
+    fake_run.assert_called_once_with(["airflow", "db", "migrate"], check=False)
+
+
+def test_main_forward_propagates_migrate_returncode(db_migrate, monkeypatch, main_env):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "forward")
+    monkeypatch.setattr(db_migrate.subprocess, "run", lambda *_a, **_kw: types.SimpleNamespace(returncode=3))
+    assert db_migrate.main() == 3
+
+
+def test_main_downgrade_requires_release_name(db_migrate, monkeypatch, main_env):
+    main_env(release_name=None)
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
+    with pytest.raises(SystemExit, match="RELEASE_NAME must be set"):
+        db_migrate.main()
+
+
+def test_main_downgrade_orchestrates_exec_then_scale(db_migrate, monkeypatch, main_env):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
+    monkeypatch.setattr(db_migrate, "_require_kubernetes_client", lambda: None)
+    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns: "api-server-1")
+    run_downgrade = mock.MagicMock(return_value=0)
+    scale = mock.MagicMock()
+    monkeypatch.setattr(db_migrate, "run_downgrade_in_api_server", run_downgrade)
+    monkeypatch.setattr(db_migrate, "scale_release_workloads_to_zero", scale)
+
+    assert db_migrate.main() == 0
+    run_downgrade.assert_called_once_with("api-server-1", "airflow", "3.1.0")
+    scale.assert_called_once_with("airflow", "my-release")
+
+
+def test_main_downgrade_short_circuits_on_nonzero_rc(db_migrate, monkeypatch, main_env):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
+    monkeypatch.setattr(db_migrate, "_require_kubernetes_client", lambda: None)
+    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns: "api-server-1")
+    monkeypatch.setattr(db_migrate, "run_downgrade_in_api_server", lambda *_a: 2)
+    scale = mock.MagicMock()
+    monkeypatch.setattr(db_migrate, "scale_release_workloads_to_zero", scale)
+
+    # A failed downgrade must NOT proceed to drain the workloads.
+    assert db_migrate.main() == 2
+    scale.assert_not_called()
+
+
+def test_main_downgrade_fails_without_kubernetes_client(db_migrate, monkeypatch, main_env):
+    main_env()
+    monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
+    monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
+    monkeypatch.setattr(db_migrate, "KUBERNETES_IMPORT_ERROR", ImportError("no kubernetes"))
+    with pytest.raises(SystemExit, match="needs the 'kubernetes' python client"):
+        db_migrate.main()

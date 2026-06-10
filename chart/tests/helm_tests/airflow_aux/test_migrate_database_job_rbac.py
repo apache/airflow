@@ -56,7 +56,9 @@ class TestMigrateDatabaseJobRBAC:
         assert ("pods",) in resources_to_verbs
         assert {"get", "list"}.issubset(resources_to_verbs[("pods",)])
         assert ("pods/exec",) in resources_to_verbs
-        assert {"create", "get"}.issubset(resources_to_verbs[("pods/exec",)])
+        # The python client execs via an HTTP GET on the exec subresource, so
+        # ``get`` (not ``create``) is the verb the API server authorizes.
+        assert resources_to_verbs[("pods/exec",)] == {"get"}
 
     def test_role_rules_grant_deployments_and_statefulsets_scale(self):
         # The downgrade branch scales every DB-touching workload to 0 after
@@ -68,7 +70,8 @@ class TestMigrateDatabaseJobRBAC:
         assert ("deployments", "statefulsets") in resources_to_verbs
         assert {"get", "list"}.issubset(resources_to_verbs[("deployments", "statefulsets")])
         assert ("deployments/scale", "statefulsets/scale") in resources_to_verbs
-        assert {"get", "patch"}.issubset(resources_to_verbs[("deployments/scale", "statefulsets/scale")])
+        # Only ``patch`` is needed -- the reconciler never reads the scale back.
+        assert resources_to_verbs[("deployments/scale", "statefulsets/scale")] == {"patch"}
 
     def test_rolebinding_subject_is_migrate_db_job_sa(self):
         docs = render_chart(show_only=[ROLEBINDING_TEMPLATE])

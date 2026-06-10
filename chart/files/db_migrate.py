@@ -56,8 +56,6 @@ import sys
 import time
 
 from alembic.migration import MigrationContext
-from kubernetes import client, config as k8s_config
-from kubernetes.stream import stream
 from packaging.version import Version
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
@@ -71,6 +69,21 @@ from tenacity import (
 )
 
 from airflow.settings import engine
+
+# The kubernetes client is only used by the downgrade branch (exec ``airflow db
+# downgrade`` in the api-server pod, then scale DB-touching workloads to zero).
+# The base Airflow image does not ship the kubernetes client unless the
+# cncf.kubernetes provider is installed, so importing it unconditionally would
+# break the far more common forward / no-op / fresh paths. Import it lazily and
+# only fail when a downgrade is actually selected.
+try:
+    from kubernetes import client, config as k8s_config
+    from kubernetes.stream import stream
+
+    KUBERNETES_IMPORT_ERROR: ImportError | None = None
+except ImportError as exc:  # pragma: no cover - only on images without the k8s client
+    client = k8s_config = stream = None  # type: ignore[assignment]
+    KUBERNETES_IMPORT_ERROR = exc
 
 # ``_REVISION_HEADS_MAP`` is private today; a public accessor is being tracked
 # upstream so the chart can drop the leading underscore in a future release.
@@ -280,6 +293,21 @@ def scale_release_workloads_to_zero(
     raise TimeoutError(f"DB-touching pods did not drain within {timeout_seconds}s after scale-to-zero")
 
 
+def _require_kubernetes_client() -> None:
+    """Fail clearly if the downgrade branch runs on an image without the k8s client.
+
+    The forward / no-op / fresh paths never import kubernetes, so only the
+    downgrade branch needs to assert it is available (see the guarded import
+    at the top of this module).
+    """
+    if KUBERNETES_IMPORT_ERROR is not None:
+        raise SystemExit(
+            "the chart downgrade path needs the 'kubernetes' python client, which is not "
+            "installed in this image. Install the cncf.kubernetes provider, or set "
+            "migrateDatabaseJob.args explicitly to supply your own migration command."
+        )
+
+
 def main() -> int:
     target = os.environ.get("AIRFLOW_TARGET_VERSION")
     namespace = os.environ.get("POD_NAMESPACE")
@@ -310,6 +338,7 @@ def main() -> int:
     if action == "downgrade":
         if not release_name:
             raise SystemExit("RELEASE_NAME must be set for the downgrade branch")
+        _require_kubernetes_client()
         pod = discover_api_server_pod(namespace)
         print(f"[db_migrate] downgrading via api-server pod {pod}", flush=True)
         rc = run_downgrade_in_api_server(pod, namespace, target)
