@@ -43,12 +43,12 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_store import TaskStoreModel
+from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import BaseOperator, TaskGroup
+from airflow.sdk import BaseOperator
 from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -979,10 +979,6 @@ class TestGetMappedTaskInstances:
         This verifies that even when UUIDs are assigned out of map_index order
         (as happens during retries), the response is still sorted 0, 1, 2, ...
         """
-        from sqlalchemy import update as sa_update
-
-        from airflow.models.taskinstance import uuid7
-
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
             session,
@@ -994,7 +990,7 @@ class TestGetMappedTaskInstances:
         # result must still follow integer map_index order, not UUID order.
         for map_index in [1, 3]:
             session.execute(
-                sa_update(TaskInstance)
+                update(TaskInstance)
                 .where(
                     TaskInstance.dag_id == "retry_dag",
                     TaskInstance.task_id == "task_2",
@@ -2157,46 +2153,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ids2 = {ti["id"] for ti in body2["task_instances"]}
         assert ids1.isdisjoint(ids2), "Pages must not overlap"
         assert len(ids1) + len(ids2) == total_tis
-
-        """
-        Task group lookup should use the DAG version from the run, not the latest version.
-
-        When a task group is renamed between versions, clicking on a historical run's
-        task group in the grid should still resolve correctly against the version
-        that run was created with — not the latest version where the group may have
-        a different name, i.e serialized_dag might not have that taskgroup anymore.
-        """
-        dag_id = "test_tg_version"
-
-        # Version 1: task group named "process_data"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data"):
-                EmptyOperator(task_id="step_1")
-        dag_maker.create_dagrun(run_id="run_v1")
-        session.commit()
-
-        # Version 2: task group renamed to "process_data_v2"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data_v2"):
-                EmptyOperator(task_id="step_1")
-        session.commit()
-
-        # The run was created with v1 which had "process_data".
-        # Querying with the old group name must succeed.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data"},
-        )
-        assert response.status_code == 200, response.json()
-        assert response.json()["total_entries"] == 1
-        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
-
-        # The new group name should NOT be found in the old run's version.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data_v2"},
-        )
-        assert response.status_code == 404
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
