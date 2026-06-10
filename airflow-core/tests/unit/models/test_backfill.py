@@ -249,12 +249,20 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
+    # Map each partition_key label to the partition_date (UTC instant) the timetable computes.
+    partition_date_by_key = {
+        info.partition_key: info.partition_date
+        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-14"), pendulum.parse("2026-02-25"))
+    }
+    # Existing runs stand in for historical scheduled runs: they carry partition_date, which is
+    # what deduplication keys on (see _get_latest_dag_run_row_query).
     for date in existing:
         dag_maker.create_dagrun(
             start_date=start_date,
             run_id=f"scheduled_{date}",
             logical_date=None,
             partition_key=date,
+            partition_date=partition_date_by_key[date],
             session=session,
         )
         session.commit()
@@ -291,16 +299,9 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     # path must populate it alongside partition_key. Verify that backfill copies
     # info.partition_date faithfully — i.e. the stored value matches what the
     # timetable computed for each partition_key.
-    # Window start is 2026-02-14 (not 02-15) because Asia/Taipei partitions have
-    # partition_date (UTC instant) one day earlier than the calendar label:
-    # label "2026-02-15" → partition_date 2026-02-14T16:00:00Z.
-    expected_partition_date_by_key = {
-        info.partition_key: info.partition_date
-        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-14"), pendulum.parse("2026-02-25"))
-    }
-    assert [x.partition_date for x in dag_runs] == [
-        expected_partition_date_by_key[x.partition_key] for x in dag_runs
-    ]
+    # Asia/Taipei partitions have partition_date (UTC instant) one day earlier than the
+    # calendar label: label "2026-02-15" → partition_date 2026-02-14T16:00:00Z.
+    assert [x.partition_date for x in dag_runs] == [partition_date_by_key[x.partition_key] for x in dag_runs]
 
 
 def test_create_backfill_partitioned_key_uses_timetable_timezone(dag_maker, session):
@@ -328,6 +329,53 @@ def test_create_backfill_partitioned_key_uses_timetable_timezone(dag_maker, sess
 
     assert [x.partition_key for x in dag_runs] == ["2026-02-18T00:00:00"]
     assert [x.partition_date for x in dag_runs] == [pendulum.datetime(2026, 2, 17, 16, tz="UTC")]
+
+
+def test_backfill_partitioned_does_not_duplicate_legacy_utc_keyed_run(dag_maker, session):
+    """A backfill must not duplicate a run that was keyed with the old UTC-instant label.
+
+    CronPartitionTimetable shipped in 3.2.0/3.2.1 formatting partition_key off the UTC
+    instant; it now labels the key in the timetable timezone. Deduplication keys on
+    partition_date (the UTC instant), so a backfill over a window that already has a run
+    skips it regardless of the key-string format — no duplicate partition run is created.
+    """
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    # Asia/Taipei midnight 2026-02-18 is the UTC instant 2026-02-17T16:00:00Z. The historical
+    # run carries the *old* UTC-instant key, not today's local label.
+    partition_date = pendulum.datetime(2026, 2, 17, 16, tz="UTC")
+    dag_maker.create_dagrun(
+        run_id="scheduled_legacy",
+        logical_date=None,
+        run_type="scheduled",
+        state=DagRunState.SUCCESS,
+        partition_key="2026-02-17T16:00:00",
+        partition_date=partition_date,
+        session=session,
+    )
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2026-02-18"),
+        to_date=pendulum.parse("2026-02-18"),
+        max_active_runs=1,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+
+    # No new run created for this partition: still exactly one DagRun at that partition_date.
+    runs_at_partition = session.scalars(
+        select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.partition_date == partition_date)
+    ).all()
+    assert [x.run_id for x in runs_at_partition] == ["scheduled_legacy"]
+    # The backfill recorded the partition as already existing instead of creating a duplicate.
+    bdr = session.scalars(select(BackfillDagRun).where(BackfillDagRun.backfill_id == b.id)).all()
+    assert len(bdr) == 1
+    assert bdr[0].dag_run_id is None
+    assert bdr[0].exception_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
 
 
 @pytest.mark.parametrize(
@@ -789,30 +837,41 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
 
 
 def test_get_latest_dag_run_row_partitioned(session: Session):
-    partition_key = "2026-02-22T16:00:00"
+    """Deduplication matches on partition_date, independent of the partition_key string.
+
+    The seeded runs stand in for historical scheduled runs keyed with the UTC-instant label
+    that CronPartitionTimetable shipped in 3.2.0/3.2.1; the incoming info carries the same
+    instant relabelled in the timetable timezone. The query must still find the existing run
+    on partition_date so a backfill does not duplicate an already-scheduled partition run.
+    """
+    partition_date = timezone.parse("2026-02-22T16:00:00Z")
+    legacy_utc_key = "2026-02-22T16:00:00"
     for start_date in [timezone.parse("2025-05-12"), None, timezone.parse("2026-02-23")]:
         session.add(
             DagRun(
                 dag_id="test_dag_id",
                 run_id=f"test_run_id_{get_random_string()}",
                 start_date=start_date,
-                run_type="manual",
+                run_type="scheduled",
                 state=DagRunState.SUCCESS,
-                partition_key=partition_key,
+                partition_key=legacy_utc_key,
+                partition_date=partition_date,
             )
         )
         session.commit()
     info = DagRunInfo(
         run_after=pendulum.now(),
         data_interval=None,
-        partition_date=pendulum.DateTime.fromisoformat(partition_key),
-        partition_key=partition_key,
+        partition_date=partition_date,
+        partition_key="2026-02-23T00:00:00",  # same instant, relabelled in the timetable tz
     )
     stmt = _get_latest_dag_run_row_query(dag_id="test_dag_id", info=info)
 
     dr = session.scalar(stmt)
     assert dr is not None
     assert dr.start_date == timezone.parse("2026-02-23")
+    # Matched despite the differing key string — deduplication is on partition_date.
+    assert dr.partition_key == legacy_utc_key
 
 
 @pytest.mark.parametrize(

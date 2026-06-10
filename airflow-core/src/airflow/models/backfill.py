@@ -246,8 +246,14 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
     from airflow.models import DagRun
 
     stmt = select(DagRun).where(DagRun.dag_id == dag_id)
-    if info.partition_key is not None:
-        stmt = stmt.where(DagRun.partition_key == info.partition_key)
+    if info.partition_date is not None:
+        # Deduplicate partitioned runs on partition_date (the UTC instant of the partition
+        # tick), not on the partition_key string. partition_date is the canonical, format-
+        # independent identity of a partition: a scheduled run and a backfill run for the
+        # same tick always agree on it, even if partition_key is later formatted differently
+        # (e.g. relabelled in the timetable timezone). Keying on the string would let a
+        # backfill duplicate already-scheduled runs whenever the key format changed.
+        stmt = stmt.where(DagRun.partition_date == info.partition_date)
     if info.logical_date is not None:
         stmt = stmt.where(DagRun.logical_date == info.logical_date)
     stmt = stmt.order_by(DagRun.start_date.is_(None), DagRun.start_date.desc())
