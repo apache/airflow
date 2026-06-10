@@ -64,6 +64,12 @@ def get_event_log(
     session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
         select(Log)
         .where(Log.id == event_log_id, Log.dttm.is_not(None))
         .options(joinedload(Log.task_instance))
@@ -158,6 +164,12 @@ def get_event_logs(
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     query = (
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
         select(Log)
         .where(Log.dttm.is_not(None))
         .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
