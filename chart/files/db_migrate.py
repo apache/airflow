@@ -90,6 +90,22 @@ except ImportError as exc:  # pragma: no cover - only on images without the k8s 
 from airflow.utils.db import _REVISION_HEADS_MAP
 
 
+def _int_env(name: str, default: int) -> int:
+    """Return integer env var *name*, or *default* when unset.
+
+    These knobs come from chart config; a typo (e.g. ``"5m"``) should fail with
+    an actionable message rather than an opaque ``ValueError`` traceback deep in
+    the job logs.
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        raise SystemExit(f"{name} must be an integer number of seconds, got {raw!r}")
+
+
 def _resolve_target_rev(target: str) -> str | None:
     """Return the alembic head for *target*, falling back to the nearest lower mapped version.
 
@@ -121,7 +137,7 @@ def _db_connect_stop(retry_state):
     # bundled postgres still starting, the first connect attempt races the DB.
     # Default 120s matches the entrypoint's
     # ``CONNECTION_CHECK_MAX_COUNT`` * ``CONNECTION_CHECK_SLEEP_TIME``.
-    delay = int(os.environ.get("DB_CONNECT_MAX_WAIT_SECONDS", "120"))
+    delay = _int_env("DB_CONNECT_MAX_WAIT_SECONDS", 120)
     return stop_after_delay(delay)(retry_state)
 
 
@@ -268,7 +284,7 @@ def scale_release_workloads_to_zero(
     via the ``migrateDatabaseJob.drainTimeoutSeconds`` chart value.
     """
     if timeout_seconds is None:
-        timeout_seconds = int(os.environ.get("MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS", "300"))
+        timeout_seconds = _int_env("MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS", 300)
     k8s_config.load_incluster_config()
     apps = client.AppsV1Api()
     core = client.CoreV1Api()

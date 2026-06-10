@@ -28,8 +28,18 @@ import types
 from unittest import mock
 
 import pytest
-from kubernetes import client as k8s_client
 from sqlalchemy.exc import OperationalError
+
+# The embedded reconciler imports the kubernetes client lazily so the
+# forward/no-op/fresh paths run on images without it. Mirror that here: only the
+# downgrade-branch tests need the client (for ``spec=``), so skip them rather
+# than make the whole module unimportable where kubernetes is not installed.
+try:
+    from kubernetes import client as k8s_client
+except ImportError:
+    k8s_client = None
+
+requires_kubernetes = pytest.mark.skipif(k8s_client is None, reason="kubernetes client not installed")
 
 DB_MIGRATE_PATH = pathlib.Path(__file__).resolve().parents[3] / "files" / "db_migrate.py"
 
@@ -129,6 +139,27 @@ def make_workload():
         return types.SimpleNamespace(metadata=types.SimpleNamespace(name=name))
 
     return _build
+
+
+# --------------------------------------------------------------------------
+# _int_env
+# --------------------------------------------------------------------------
+
+
+def test_int_env_returns_default_when_unset(db_migrate, monkeypatch):
+    monkeypatch.delenv("DB_CONNECT_MAX_WAIT_SECONDS", raising=False)
+    assert db_migrate._int_env("DB_CONNECT_MAX_WAIT_SECONDS", 120) == 120
+
+
+def test_int_env_parses_integer(db_migrate, monkeypatch):
+    monkeypatch.setenv("DB_CONNECT_MAX_WAIT_SECONDS", "45")
+    assert db_migrate._int_env("DB_CONNECT_MAX_WAIT_SECONDS", 120) == 45
+
+
+def test_int_env_exits_clearly_on_non_integer(db_migrate, monkeypatch):
+    monkeypatch.setenv("DB_CONNECT_MAX_WAIT_SECONDS", "5m")
+    with pytest.raises(SystemExit, match="must be an integer"):
+        db_migrate._int_env("DB_CONNECT_MAX_WAIT_SECONDS", 120)
 
 
 # --------------------------------------------------------------------------
@@ -235,6 +266,7 @@ def test_decide_action_resolves_patch_version_via_nearest_lower(
 # --------------------------------------------------------------------------
 
 
+@requires_kubernetes
 def test_discover_api_server_pod_prefers_ready(db_migrate, monkeypatch, make_pod):
     fake_api = mock.MagicMock(spec=k8s_client.CoreV1Api)
     fake_api.list_namespaced_pod.return_value.items = [
@@ -251,6 +283,7 @@ def test_discover_api_server_pod_prefers_ready(db_migrate, monkeypatch, make_pod
     )
 
 
+@requires_kubernetes
 def test_discover_api_server_pod_falls_back_to_non_ready(db_migrate, monkeypatch, make_pod):
     fake_api = mock.MagicMock(spec=k8s_client.CoreV1Api)
     fake_api.list_namespaced_pod.return_value.items = [make_pod("api-server-old", ready=False)]
@@ -259,6 +292,7 @@ def test_discover_api_server_pod_falls_back_to_non_ready(db_migrate, monkeypatch
     assert db_migrate.discover_api_server_pod("airflow") == "api-server-old"
 
 
+@requires_kubernetes
 def test_discover_api_server_pod_raises_when_none(db_migrate, monkeypatch):
     fake_api = mock.MagicMock(spec=k8s_client.CoreV1Api)
     fake_api.list_namespaced_pod.return_value.items = []
@@ -270,6 +304,7 @@ def test_discover_api_server_pod_raises_when_none(db_migrate, monkeypatch):
         db_migrate.discover_api_server_pod("airflow")
 
 
+@requires_kubernetes
 def test_discover_api_server_pod_retry_recovers_after_transient_empty(db_migrate, monkeypatch, make_pod):
     """An api-server rollover (one empty poll followed by a Ready pod) must not fail the job."""
     fake_api = mock.MagicMock(spec=k8s_client.CoreV1Api)
@@ -323,6 +358,7 @@ def test_run_downgrade_treats_missing_returncode_as_failure(db_migrate, monkeypa
 # --------------------------------------------------------------------------
 
 
+@requires_kubernetes
 def test_scale_release_workloads_patches_all_and_returns_when_drained(db_migrate, monkeypatch, make_workload):
     apps = mock.MagicMock(spec=k8s_client.AppsV1Api)
     core = mock.MagicMock(spec=k8s_client.CoreV1Api)
@@ -356,6 +392,7 @@ def test_scale_release_workloads_patches_all_and_returns_when_drained(db_migrate
         assert c.args[2] == {"spec": {"replicas": 0}}
 
 
+@requires_kubernetes
 def test_scale_release_workloads_raises_on_timeout(db_migrate, monkeypatch):
     apps = mock.MagicMock(spec=k8s_client.AppsV1Api)
     core = mock.MagicMock(spec=k8s_client.CoreV1Api)
@@ -374,6 +411,7 @@ def test_scale_release_workloads_raises_on_timeout(db_migrate, monkeypatch):
         db_migrate.scale_release_workloads_to_zero("airflow", "rel", timeout_seconds=1)
 
 
+@requires_kubernetes
 def test_scale_release_workloads_honors_drain_timeout_env_var(db_migrate, monkeypatch):
     """Operators can raise the drain timeout via ``MIGRATE_JOB_DRAIN_TIMEOUT_SECONDS``."""
     apps = mock.MagicMock(spec=k8s_client.AppsV1Api)
