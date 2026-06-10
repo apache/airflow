@@ -183,6 +183,47 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     assert expected_key in fp
 
 
+# ---------------------------------------------------------------------------
+# DagRunInfo backward compatibility
+# ---------------------------------------------------------------------------
+
+
+def test_dagruninfo_partition_fields_default_to_none():
+    """Custom timetables written for 3.1.x construct ``DagRunInfo`` with only
+    ``run_after`` and ``data_interval``; the partition fields added in 3.2
+    (AIP-76) must default to *None* so those timetables keep scheduling."""
+    from airflow.timetables.base import DagRunInfo, DataInterval
+
+    start = pendulum.datetime(2026, 1, 1, tz="UTC")
+    end = pendulum.datetime(2026, 1, 2, tz="UTC")
+
+    info = DagRunInfo(run_after=end, data_interval=DataInterval(start=start, end=end))
+
+    assert info.partition_date is None
+    assert info.partition_key is None
+    assert info.run_after == end
+    assert info.data_interval == DataInterval(start=start, end=end)
+
+
+def test_dagruninfo_partition_fields_can_be_set_explicitly():
+    """Partitioned timetables still set the partition fields explicitly."""
+    from airflow.timetables.base import DagRunInfo, DataInterval
+
+    start = pendulum.datetime(2026, 1, 1, tz="UTC")
+    end = pendulum.datetime(2026, 1, 2, tz="UTC")
+    partition_date = pendulum.datetime(2026, 1, 1, tz="UTC")
+
+    info = DagRunInfo(
+        run_after=end,
+        data_interval=DataInterval(start=start, end=end),
+        partition_date=partition_date,
+        partition_key="2026-01-01",
+    )
+
+    assert info.partition_date == partition_date
+    assert info.partition_key == "2026-01-01"
+
+
 def test_base_resolve_day_bound_returns_midnight_utc():
     """Base default returns midnight UTC as a pendulum DateTime for any calendar day."""
     tt = NullTimetable()
