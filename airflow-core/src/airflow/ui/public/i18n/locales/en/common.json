@@ -248,6 +248,7 @@
       "scrollBottom": "Scroll to bottom",
       "scrollTop": "Scroll to top",
       "searchDags": "Search Dags",
+      "showHelp": "Show keyboard shortcuts",
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
@@ -257,7 +258,6 @@
       "toggleWrap": "Toggle wrap"
     },
     "empty": "No keyboard shortcuts are available on this page.",
-    "showHelp": "Show keyboard shortcuts",
     "title": "Keyboard Shortcuts"
   },
   "showDetailsPanel": "Show Details Panel",
