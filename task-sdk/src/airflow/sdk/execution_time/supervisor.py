@@ -63,6 +63,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
     ErrorResponse,
+    MaskSecret,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -1606,6 +1607,11 @@ class ActivitySubprocess(WatchedSubprocess):
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
+        if isinstance(msg, MaskSecret):
+            log.debug("Received message from task runner (body omitted)", msg=type(msg))
+        else:
+            log.debug("Received message from task runner", msg=msg)
+            
         if isinstance(msg, TaskState):
             # No direct API call here — the recovery path in
             # `update_task_state_if_needed` will call `finish()` for
