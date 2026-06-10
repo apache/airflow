@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
+import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
+import { useHITLReviewRouteModalSync } from "src/components/HITLReview/useHITLReviewModal";
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
 
-export const NeedsReviewButton = ({
+const usePendingHitl = ({
   dagId,
   runId,
   taskId,
@@ -36,10 +39,11 @@ export const NeedsReviewButton = ({
 }) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
-  const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
+  const { data: pendingHitlData, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
+      orderBy: ["dag_id", "run_after", "created_at", "task_display_name"],
       responseReceived: false,
       state: ["deferred", "awaiting_input"],
       taskId,
@@ -50,7 +54,46 @@ export const NeedsReviewButton = ({
     },
   );
 
-  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
+  return {
+    isLoading,
+    pendingHitlData,
+  };
+};
+
+const useCompletedHitl = ({
+  dagId,
+  enabled,
+  runId,
+}: {
+  readonly dagId?: string;
+  readonly enabled: boolean;
+  readonly runId?: string;
+}) => {
+  const { data: completedHitlData } = useTaskInstanceServiceGetHitlDetails(
+    {
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
+      orderBy: ["dag_id", "run_after", "created_at", "task_display_name"],
+      responseReceived: true,
+    },
+    undefined,
+    {
+      enabled,
+    },
+  );
+
+  return { completedHitlData };
+};
+
+const NeedsReviewButtonCard = ({
+  hitlTIsCount,
+  isLoading,
+  onClick,
+}: {
+  readonly hitlTIsCount: number;
+  readonly isLoading: boolean;
+  readonly onClick?: () => void;
+}) => {
   const { i18n, t: translate } = useTranslation("hitl");
 
   const isRTL = i18n.dir() === "rtl";
@@ -64,8 +107,72 @@ export const NeedsReviewButton = ({
         isLoading={isLoading}
         isRTL={isRTL}
         label={translate("requiredAction_other")}
-        link="required_actions?response_received=false"
+        onClick={onClick}
       />
     </Box>
   ) : undefined;
+};
+
+const ViewAllHITLReviewsButton = ({ onClick }: { readonly onClick: () => void }) => {
+  const { t: translate } = useTranslation("hitl");
+
+  return (
+    <Button asChild size="sm" variant="outline">
+      <Link onClick={onClick} to="/required_actions?response_received=false">
+        {translate("review.viewAll")}
+      </Link>
+    </Button>
+  );
+};
+
+export const NeedsReviewButton = ({
+  dagId,
+  runId,
+  taskId,
+}: {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly taskId?: string;
+}) => {
+  const { isLoading, pendingHitlData } = usePendingHitl({ dagId, runId, taskId });
+  const hitlTIsCount = pendingHitlData?.hitl_details.length ?? 0;
+
+  return <NeedsReviewButtonCard hitlTIsCount={hitlTIsCount} isLoading={isLoading} />;
+};
+
+export const NeedsReviewButtonWithModal = ({
+  dagId,
+  includeCompletedHitl = false,
+  runId,
+}: {
+  readonly dagId?: string;
+  readonly includeCompletedHitl?: boolean;
+  readonly runId?: string;
+}) => {
+  const { onClose, onOpen, open } = useDisclosure();
+  const { onCloseHITLReview } = useHITLReviewRouteModalSync({
+    onClose,
+    onOpen,
+  });
+  const { isLoading, pendingHitlData } = usePendingHitl({ dagId, runId });
+  const { completedHitlData } = useCompletedHitl({
+    dagId,
+    enabled: open && includeCompletedHitl,
+    runId,
+  });
+  const hitlTIsCount = pendingHitlData?.hitl_details.length ?? 0;
+
+  return (
+    <>
+      <NeedsReviewButtonCard hitlTIsCount={hitlTIsCount} isLoading={isLoading} onClick={onOpen} />
+      <HITLReviewModal
+        headerAction={
+          dagId === undefined ? <ViewAllHITLReviewsButton onClick={onCloseHITLReview} /> : undefined
+        }
+        hitlDetails={[...(pendingHitlData?.hitl_details ?? []), ...(completedHitlData?.hitl_details ?? [])]}
+        onClose={onCloseHITLReview}
+        open={open}
+      />
+    </>
+  );
 };

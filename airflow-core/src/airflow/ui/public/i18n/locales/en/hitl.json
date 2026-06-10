@@ -24,6 +24,24 @@
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"
   },
+  "review": {
+    "completedHitl": "Completed HITL",
+    "filter": {
+      "all": "All",
+      "pending": "Pending"
+    },
+    "loadError": "Unable to load HITL actions",
+    "loadingActions": "Loading HITL actions...",
+    "loadingResponseForm": "Loading response form...",
+    "navigation": {
+      "next": "Next",
+      "previous": "Previous"
+    },
+    "openTask": "Open task",
+    "pendingHitl": "Pending HITL",
+    "selectRequiredAction": "Select a required action to see details",
+    "viewAll": "View all required actions"
+  },
   "state": {
     "approvalReceived": "Approval Received",
     "approvalRequired": "Approval Required",

@@ -19,6 +19,7 @@
 import { VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -27,6 +28,7 @@ import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
@@ -75,7 +77,11 @@ const taskInstanceColumns = ({
   {
     accessorKey: "subject",
     cell: ({ row: { original } }: HITLRow) => (
-      <RouterLink fontWeight="bold" to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+      <RouterLink
+        fontWeight="bold"
+        onClick={(event) => event.stopPropagation()}
+        to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+      >
         <TruncatedText text={original.subject} />
       </RouterLink>
     ),
@@ -87,7 +93,10 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+            <RouterLink
+              onClick={(event) => event.stopPropagation()}
+              to={`/dags/${original.task_instance.dag_id}`}
+            >
               <TruncatedText text={original.task_instance.dag_display_name} />
             </RouterLink>
           ),
@@ -102,6 +111,7 @@ const taskInstanceColumns = ({
           accessorKey: "run_id",
           cell: ({ row: { original } }: HITLRow) => (
             <RouterLink
+              onClick={(event) => event.stopPropagation()}
               to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
             >
               <TruncatedText text={original.task_instance.dag_run_id} />
@@ -127,6 +137,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: HITLRow) => (
             <RouterLink
               fontWeight="bold"
+              onClick={(event) => event.stopPropagation()}
               to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
             >
               <TruncatedText text={original.task_instance.task_display_name} />
@@ -162,9 +173,14 @@ const taskInstanceColumns = ({
   },
 ];
 
-export const HITLTaskInstances = () => {
+export const HITLTaskInstances = ({
+  enableHITLReviewDrawer = false,
+}: {
+  readonly enableHITLReviewDrawer?: boolean;
+}) => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
+  const [selectedDetail, setSelectedDetail] = useState<HITLDetail | undefined>(undefined);
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -263,9 +279,17 @@ export const HITLTaskInstances = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="hitl:requiredAction"
+        onRowClick={enableHITLReviewDrawer ? (row) => setSelectedDetail(row.original) : undefined}
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      {enableHITLReviewDrawer ? (
+        <HITLReviewDrawer
+          detail={selectedDetail}
+          onClose={() => setSelectedDetail(undefined)}
+          open={selectedDetail !== undefined}
+        />
+      ) : null}
     </VStack>
   );
 };
