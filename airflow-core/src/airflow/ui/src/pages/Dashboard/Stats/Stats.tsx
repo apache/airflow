@@ -25,9 +25,8 @@ import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
-import { DAGImportErrors } from "./DAGImportErrors";
-import { MissedDeadlines } from "./MissedDeadlines";
 import { DagImportErrors } from "./DagImportErrors";
+import { MissedDeadlines } from "./MissedDeadlines";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 type StatsProps = {
