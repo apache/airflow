@@ -24,15 +24,15 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.apache.spark.triggers.spark_submit import SparkDriverTrigger
 
 try:
-    from airflow.sdk import ResumableJobMixin
+    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
 except ImportError:
     # Airflow 2 compat.
     # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
@@ -339,7 +339,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             hostname = host.strip().split(":")[0]
             urls.append(f"{scheme}://{hostname}:{rest_port}")
         return urls
-
 
     def submit_job(self, context: Context) -> str:
         if self._hook is None:
