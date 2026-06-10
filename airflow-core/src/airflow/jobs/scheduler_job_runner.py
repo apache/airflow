@@ -113,8 +113,8 @@ from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1916,7 +1916,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         name: str,
         uri: str,
         apdr: AssetPartitionDagRun,
-        timetable: PartitionedAssetTimetable,
+        timetable: Timetable,
         actual_by_asset: dict[int, set[str]],
     ) -> bool:
         """
@@ -1956,7 +1956,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _resolve_partition_date(
         self,
         *,
-        timetable: PartitionedAssetTimetable,
+        timetable: Timetable,
         asset_infos: Iterable[tuple[str, str]],
         partition_key: str,
         dag_id: str,
@@ -2181,8 +2181,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
                 key = SerializedAssetUniqueKey(name=name, uri=uri)
                 if timetable.partitioned:
-                    if TYPE_CHECKING:
-                        assert isinstance(timetable, PartitionedAssetTimetable)
                     statuses[key] = self._resolve_asset_partition_status(
                         session=session,
                         asset_id=asset_id,
@@ -2201,8 +2199,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             run_after = timezone.utcnow()
             partition_date: datetime | None = None
             if timetable.partitioned:
-                if TYPE_CHECKING:
-                    assert isinstance(timetable, PartitionedAssetTimetable)
                 partition_date = self._resolve_partition_date(
                     timetable=timetable,
                     asset_infos=asset_info_per_apdr[apdr.id].values(),
