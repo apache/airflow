@@ -334,7 +334,7 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
         result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
 
-        assert result == bucket
+        assert result == (bucket, f"dzd_x/{PROJECT_ID}/dev")
         self.mock_client.list_environment_blueprints.assert_any_call(
             domainIdentifier=DOMAIN_ID,
             managed=True,
@@ -368,7 +368,7 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
         result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
 
-        assert result == bucket
+        assert result == (bucket, "p")
         self.mock_client.get_environment.assert_called_once_with(
             domainIdentifier=DOMAIN_ID,
             identifier=env_id,
@@ -389,7 +389,7 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
         result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
 
-        assert result == bucket
+        assert result == (bucket, "p")
         # Both blueprint lookups happened.
         assert self.mock_client.list_environment_blueprints.call_count == 2
         self.mock_client.get_environment.assert_called_once_with(
@@ -414,7 +414,7 @@ class TestSageMakerUnifiedStudioNotebookHook:
 
         result = self.hook.get_project_s3_path(DOMAIN_ID, PROJECT_ID)
 
-        assert result == bucket
+        assert result == (bucket, "p")
         self.mock_client.get_environment.assert_called_once_with(
             domainIdentifier=DOMAIN_ID,
             identifier=env_id,
@@ -509,7 +509,33 @@ class TestSageMakerUnifiedStudioNotebookHook:
             )
 
         assert result == outputs
-        expected_key = f"sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
+        expected_key = f"dzd_x/{PROJECT_ID}/dev/.sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
+        mock_s3_hook_cls.return_value.read_key.assert_called_once_with(key=expected_key, bucket_name=bucket)
+
+    def test_get_notebook_outputs_iam_mode_no_prefix(self):
+        """IAM-mode projects (s3BucketPath is bucket-only) read from the bucket root."""
+        outputs = {"name": "Alice"}
+        bucket = "iam-mode-bucket"
+        # Tooling env returns s3BucketPath without a path component.
+        self._stub_tooling_blueprint_lookup(
+            environments=[{"id": "env-1", "name": "Tooling", "deploymentOrder": 1}]
+        )
+        self.mock_client.get_environment.return_value = {
+            "id": "env-1",
+            "provisionedResources": [{"name": "s3BucketPath", "value": f"s3://{bucket}"}],
+        }
+
+        with patch(f"{HOOK_MODULE}.S3Hook") as mock_s3_hook_cls:
+            mock_s3_hook_cls.return_value.read_key.return_value = json.dumps(outputs)
+            result = self.hook.get_notebook_outputs(
+                notebook_identifier=NOTEBOOK_ID,
+                notebook_run_id=NOTEBOOK_RUN_ID,
+                domain_identifier=DOMAIN_ID,
+                owning_project_identifier=PROJECT_ID,
+            )
+
+        assert result == outputs
+        expected_key = f".sys/notebooks/{NOTEBOOK_ID}/runs/{NOTEBOOK_RUN_ID}/notebook_outputs.json"
         mock_s3_hook_cls.return_value.read_key.assert_called_once_with(key=expected_key, bucket_name=bucket)
 
     def test_get_notebook_outputs_no_such_key(self):

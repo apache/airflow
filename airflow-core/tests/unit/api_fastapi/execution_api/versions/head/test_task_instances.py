@@ -1529,6 +1529,69 @@ class TestTIUpdateState:
             else:
                 assert t[0].queue is None
 
+    @staticmethod
+    def _defer_ti_in_team_bundle(client, session, create_task_instance):
+        """Map the TI's Dag to a bundle/team, then defer it via the Execution API."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        ti = create_task_instance(
+            task_id="test_ti_deferred_team",
+            state=State.RUNNING,
+            session=session,
+        )
+
+        bundle_name = "bundle_deferred_team_test"
+        team_name = "team_deferred_test"
+        bundle = session.get(DagBundleModel, bundle_name) or DagBundleModel(name=bundle_name)
+        team = session.get(Team, team_name) or Team(name=team_name)
+        if team not in bundle.teams:
+            bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+        }
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        return team_name
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_ti_update_state_to_deferred_populates_trigger_team_name(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Trigger created on deferral gets team_name from the TI's bundle."""
+        from airflow.models.trigger import Trigger
+
+        time_machine.move_to(timezone.datetime(2024, 11, 22), tick=False)
+
+        team_name = self._defer_ti_in_team_bundle(client, session, create_task_instance)
+
+        session.expire_all()
+        trigger = session.scalars(select(Trigger)).one()
+        assert trigger.team_name == team_name
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_ti_update_state_to_deferred_skips_trigger_team_name_when_multi_team_disabled(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """When multi_team is disabled, the trigger team_name stays NULL."""
+        from airflow.models.trigger import Trigger
+
+        time_machine.move_to(timezone.datetime(2024, 11, 22), tick=False)
+
+        self._defer_ti_in_team_bundle(client, session, create_task_instance)
+
+        session.expire_all()
+        trigger = session.scalars(select(Trigger)).one()
+        assert trigger.team_name is None
+
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
         """
         Test that tests if the transition to reschedule state is handled correctly.

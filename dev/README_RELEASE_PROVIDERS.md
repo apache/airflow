@@ -220,14 +220,14 @@ options:
 Other MCP-compatible agentic clients should work as long as the GitHub MCP server is wired up and
 the framework loads `SKILL.md` files from the `.claude/skills/` discovery path.
 
-The skill source of truth lives in [`.github/skills/prepare-providers-documentation/SKILL.md`](../.github/skills/prepare-providers-documentation/SKILL.md).
+The skill source of truth lives in [`.agents/skills/prepare-providers-documentation/SKILL.md`](../.agents/skills/prepare-providers-documentation/SKILL.md).
 Both Claude Code and OpenAI Codex CLI discover project-local skills via a symlink at
 `.claude/skills/prepare-providers-documentation`. If your local checkout doesn't have that symlink
 (the `.claude/` directory is gitignored), set it up once:
 
 ```shell script
 mkdir -p .claude/skills
-ln -s ../../.github/skills/prepare-providers-documentation .claude/skills/prepare-providers-documentation
+ln -s ../../.agents/skills/prepare-providers-documentation .claude/skills/prepare-providers-documentation
 ```
 
 Before invoking the skill, set the environment variable ``RELEASE_DATE`` to the date of the release,

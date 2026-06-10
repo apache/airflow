@@ -187,6 +187,7 @@ Task Instance Events
 - ``queued``: Task instance is queued for execution
 - ``scheduled``: Task instance is scheduled
 - ``deferred``: Task instance is deferred (waiting for trigger)
+- ``awaiting_input``: Task instance is waiting for human input (Human-in-the-loop)
 - ``restarting``: Task instance is restarting
 - ``removed``: Task instance was removed
 
