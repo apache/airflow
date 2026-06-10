@@ -2086,10 +2086,9 @@ class TestDagFileProcessorProcess:
             password="super-secret-password",
             extra='{"api_key":"super-secret-extra"}',
         )
-        mock_masker = MagicMock()
 
         with (
-            patch("airflow.sdk._shared.secrets_masker._secrets_masker", return_value=mock_masker),
+            patch("airflow.sdk.execution_time.request_handlers.mask_secret") as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2099,9 +2098,9 @@ class TestDagFileProcessorProcess:
             )
 
         proc.client.connections.get.assert_called_once_with("test_conn")
-        mock_masker.add_mask.assert_any_call("super-secret-password", None)
-        mock_masker.add_mask.assert_any_call('{"api_key":"super-secret-extra"}', None)
-        assert mock_masker.add_mask.call_count == 2
+        mock_mask_secret.assert_any_call("super-secret-password")
+        mock_mask_secret.assert_any_call('{"api_key":"super-secret-extra"}')
+        assert mock_mask_secret.call_count == 2
 
         mock_send_msg.assert_called_once()
         _, args, kwargs = mock_send_msg.mock_calls[0]
@@ -2124,10 +2123,9 @@ class TestDagFileProcessorProcess:
             key="test_key",
             value="super-secret-value",
         )
-        mock_masker = MagicMock()
 
         with (
-            patch("airflow.sdk._shared.secrets_masker._secrets_masker", return_value=mock_masker),
+            patch("airflow.sdk.execution_time.request_handlers.mask_secret") as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2137,7 +2135,7 @@ class TestDagFileProcessorProcess:
             )
 
         proc.client.variables.get.assert_called_once_with("test_key")
-        mock_masker.add_mask.assert_called_once_with("super-secret-value", "test_key")
+        mock_mask_secret.assert_called_once_with("super-secret-value", "test_key")
 
         mock_send_msg.assert_called_once()
         _, args, kwargs = mock_send_msg.mock_calls[0]
