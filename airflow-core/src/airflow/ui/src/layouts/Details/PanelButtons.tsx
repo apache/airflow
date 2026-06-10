@@ -45,6 +45,7 @@ import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/But
 import type { DagView } from "src/constants/dagView";
 import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
@@ -188,16 +189,14 @@ export const PanelButtons = ({
   };
 
   useShortcut({
+    ...SHORTCUTS.dagView.toggleGraphGrid,
     callback: () => {
       const newView = dagView === "graph" ? "grid" : "graph";
 
       setDagView(newView);
       handleFocus(newView);
     },
-    category: "dagView",
     dependencies: [dagView],
-    description: translate("common:shortcuts.descriptions.toggleGraphGrid"),
-    keys: "g",
     options: { preventDefault: true },
   });
 

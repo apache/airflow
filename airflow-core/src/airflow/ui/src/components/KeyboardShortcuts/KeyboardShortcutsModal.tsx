@@ -21,7 +21,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog } from "src/components/ui";
-import { SHORTCUT_CATEGORIES, type ShortcutEntry, useShortcutRegistry } from "src/context/keyboardShortcuts";
+import {
+  SHORTCUT_CATEGORIES,
+  SHORTCUTS,
+  type ShortcutEntry,
+  useShortcutRegistry,
+} from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
 
@@ -55,10 +60,8 @@ export const KeyboardShortcutsModal = () => {
   const toggle = () => setOpen((prev) => !prev);
 
   useShortcut({
+    ...SHORTCUTS.global.showHelp,
     callback: toggle,
-    category: "global",
-    description: translate("shortcuts.showHelp"),
-    keys: "shift+Slash",
   });
 
   const groups = buildGroups(shortcuts);

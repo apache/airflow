@@ -22,6 +22,7 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 import ClearRunDialog from "./ClearRunDialog";
@@ -36,12 +37,10 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { t: translate } = useTranslation();
 
   useShortcut({
+    ...SHORTCUTS.runActions.clearRun,
     callback: () => {
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.clearRun"),
-    keys: "shift+c",
     options: { enabled: isHotkeyEnabled },
   });
 

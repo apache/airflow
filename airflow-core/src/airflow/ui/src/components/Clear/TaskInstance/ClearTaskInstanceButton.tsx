@@ -23,6 +23,7 @@ import { CgRedo } from "react-icons/cg";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
 import { IconButton } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
@@ -59,6 +60,7 @@ const ClearTaskInstanceButton = ({
   const selectedInstance = taskInstance ?? groupTaskInstance;
 
   useShortcut({
+    ...SHORTCUTS.runActions.clearTaskInstance,
     callback: () => {
       if (onOpen && selectedInstance) {
         onOpen(selectedInstance);
@@ -66,9 +68,6 @@ const ClearTaskInstanceButton = ({
         onOpenInternal();
       }
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.clearTaskInstance"),
-    keys: "shift+c",
     options: { enabled: isHotkeyEnabled },
   });
 

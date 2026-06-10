@@ -25,6 +25,7 @@ import { LuCheck } from "react-icons/lu";
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { IconButton, Menu, Tooltip } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
@@ -42,24 +43,20 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
   const [state, setState] = useState<TaskInstanceState>("success");
 
   useShortcut({
+    ...SHORTCUTS.runActions.markTaskFailed,
     callback: () => {
       setState("failed");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markTaskFailed"),
-    keys: "shift+f",
     options: { enabled: isHotkeyEnabled },
   });
 
   useShortcut({
+    ...SHORTCUTS.runActions.markTaskSuccess,
     callback: () => {
       setState("success");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markTaskSuccess"),
-    keys: "shift+s",
     options: { enabled: isHotkeyEnabled },
   });
 

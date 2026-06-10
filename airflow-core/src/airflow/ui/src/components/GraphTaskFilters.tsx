@@ -38,6 +38,7 @@ import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 export const GraphTaskFilters = () => {
@@ -141,10 +142,8 @@ export const GraphTaskFilters = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useShortcut({
+    ...SHORTCUTS.filters.openGraphFilters,
     callback: () => setIsOpen(true),
-    category: "filters",
-    description: translate("common:shortcuts.descriptions.openGraphFilters"),
-    keys: "mod+shift+f",
     options: { preventDefault: true },
   });
 

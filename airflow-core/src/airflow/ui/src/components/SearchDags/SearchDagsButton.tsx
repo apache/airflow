@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdSearch } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
 
@@ -37,13 +38,11 @@ export const SearchDagsButton = () => {
   };
 
   useShortcut({
+    ...SHORTCUTS.search.searchDags,
     callback: () => {
       setIsOpen(true);
     },
-    category: "search",
     dependencies: [isOpen],
-    description: translate("common:shortcuts.descriptions.searchDags"),
-    keys: "mod+k",
     options: { preventDefault: true },
   });
 

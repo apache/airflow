@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 
@@ -41,10 +42,8 @@ const FailedLogs = ({
   const toggleWrap = () => setWrap(!wrap);
 
   useShortcut({
+    ...SHORTCUTS.logs.toggleWrap,
     callback: toggleWrap,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleWrap"),
-    keys: "w",
   });
 
   if (taskLogs === undefined || taskLogs.length <= 0) {

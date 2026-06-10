@@ -28,6 +28,22 @@ import {
 
 import { useShortcut } from "./useShortcut";
 
+const mockTranslate = vi.fn((key: string) => {
+  const translations: Record<string, string> = {
+    "shortcuts.descriptions.toggleWrap": "Toggle Wrap",
+  };
+
+  return translations[key] ?? key;
+});
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: mockTranslate,
+  }),
+}));
+
 const wrapper = ({ children }: PropsWithChildren) => (
   <ShortcutRegistryProvider>{children}</ShortcutRegistryProvider>
 );
@@ -38,7 +54,7 @@ const renderShortcut = (initialEnabled = true) =>
       useShortcut({
         callback: vi.fn(),
         category: "logs",
-        description: "Toggle wrap",
+        descriptionKey: "shortcuts.descriptions.toggleWrap",
         keys: "w",
         options: { enabled },
       });
@@ -55,7 +71,7 @@ describe("useShortcut", () => {
     expect(result.current).toHaveLength(1);
     expect(result.current[0]).toMatchObject({
       category: "logs",
-      description: "Toggle wrap",
+      description: "Toggle Wrap",
       keys: ["w"],
     });
   });
@@ -80,7 +96,7 @@ describe("useShortcut", () => {
         useShortcut({
           callback: vi.fn(),
           category: "navigation",
-          description: "Navigate tasks",
+          descriptionKey: "shortcuts.descriptions.navigateTasks",
           keys: ["shift+ArrowUp", "shift+ArrowDown"],
         });
 
