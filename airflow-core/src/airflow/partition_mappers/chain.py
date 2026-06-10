@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ChainMapper(PartitionMapper):
@@ -59,6 +62,10 @@ class ChainMapper(PartitionMapper):
                         next_keys.append(mapped_key)
             keys = next_keys
         return keys[0] if len(keys) == 1 else keys
+
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # The last mapper in the chain formats the final downstream key, so it owns the anchor.
+        return self.mappers[-1].to_partition_date(downstream_key)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
