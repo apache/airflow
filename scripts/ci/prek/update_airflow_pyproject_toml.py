@@ -37,7 +37,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, insert_documentation
+from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
+    EXCLUDED_PLATFORM_MACHINES,
+    console,
+    get_all_provider_ids,
+    insert_documentation,
+)
 from packaging.version import Version, parse as parse_version
 
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
@@ -228,23 +234,28 @@ def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
 PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
 
 
-def get_python_exclusion(provider_dependencies: dict[str, Any]) -> str:
+def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
     """
-    Return a Python version exclusion marker string based on provider metadata.
+    Return an environment marker string excluding Python versions and platforms.
 
-    If there are excluded Python versions in the metadata, this function returns a
-    marker string like: '; python_version != "3.8" and python_version != "3.11"'
+    Combines ``excluded-python-versions`` and ``excluded-platforms`` from the provider
+    metadata into a single PEP 508 marker, e.g.:
+    '; python_version != "3.14" and platform_machine != "aarch64" and platform_machine != "arm64"'
 
-    If none are found, it returns an empty str.
+    If neither is set, it returns an empty str.
     """
     if not provider_dependencies:
         return ""
-    python_exclusions = provider_dependencies.get("excluded-python-versions", [])
-    if python_exclusions:
-        python_exclusions_str = "and ".join(
-            f'python_version !=\\"{version}\\"' for version in python_exclusions
+    conditions = [
+        f'python_version !=\\"{version}\\"'
+        for version in provider_dependencies.get("excluded-python-versions", [])
+    ]
+    for platform in provider_dependencies.get("excluded-platforms", []):
+        conditions.extend(
+            f'platform_machine !=\\"{machine}\\"' for machine in EXCLUDED_PLATFORM_MACHINES.get(platform, [])
         )
-        return f"; {python_exclusions_str}"
+    if conditions:
+        return f"; {' and '.join(conditions)}"
     return ""
 
 
@@ -263,14 +274,14 @@ if __name__ == "__main__":
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)
         min_provider_version, comment = find_min_provider_version(provider_id)
-        python_exclusion = get_python_exclusion(all_providers_dependencies.get(provider_id, {}))
+        exclusion_marker = get_exclusion_marker(all_providers_dependencies.get(provider_id, {}))
 
         if min_provider_version:
             all_provider_lines.append(
-                f'    "{distribution_name}>={min_provider_version}{python_exclusion}",{comment}\n'
+                f'    "{distribution_name}>={min_provider_version}{exclusion_marker}",{comment}\n'
             )
             all_optional_dependencies.append(
-                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}{python_exclusion}"{comment}\n]\n'
+                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}{exclusion_marker}"{comment}\n]\n'
             )
         else:
             all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')

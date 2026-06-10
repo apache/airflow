@@ -88,7 +88,6 @@ def _clear_db():
 
 @provide_session
 def _create_hitl_session(
-    session=None,
     *,
     dag_id=TEST_DAG_ID,
     run_id=TEST_RUN_ID,
@@ -98,6 +97,7 @@ def _create_hitl_session(
     iteration=1,
     prompt="Summarize",
     current_output="Initial output",
+    session=None,
 ):
     """Create HITL session and output XCom entries in the database."""
     sess = AgentSessionData(
@@ -730,11 +730,11 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=status,
             iteration=iteration,
             prompt=prompt,
             current_output=current_output,
+            session=session,
         )
         session.commit()
 
@@ -757,11 +757,11 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             prompt="Summarize",
             current_output="First output",
+            session=session,
         )
         session.commit()
 
@@ -785,11 +785,11 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             prompt="p",
             current_output="Initial",
+            session=session,
         )
         XComModel.set(
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
@@ -986,11 +986,11 @@ class TestFindSessionEndpoint:
     def test_returns_max_iterations_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns max_iterations_exceeded when session has that status."""
         _create_hitl_session(
-            session=session,
             status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
             iteration=5,
             prompt="p",
             current_output="output",
+            session=session,
         )
         session.commit()
 
@@ -1012,11 +1012,11 @@ class TestFindSessionEndpoint:
     def test_returns_timeout_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns timeout_exceeded when session has that status."""
         _create_hitl_session(
-            session=session,
             status=SessionStatus.TIMEOUT_EXCEEDED,
             iteration=2,
             prompt="p",
             current_output="output",
+            session=session,
         )
         session.commit()
 

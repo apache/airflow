@@ -22,6 +22,13 @@ import (
 	"time"
 )
 
+// SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
+// this SDK's coordinator protocol is compiled against, in YYYY-MM-DD form. It
+// is reported in a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version so the supervisor can downgrade outbound
+// messages / upgrade inbound messages to a shape the bundle understands.
+const SupervisorSchemaVersion = "2026-06-16"
+
 // Inbound messages (Supervisor -> Runtime).
 
 // TaskInstanceInfo holds task instance details from StartupDetails.
@@ -103,6 +110,14 @@ func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 	if m == nil {
 		return TIRunContext{}, nil
 	}
+	// The scheduling timestamps live on the nested dag_run object in the
+	// supervisor's TIRunContext schema (ti_context.dag_run.logical_date, ...),
+	// not at the top level of ti_context. See task-sdk's
+	// airflow.sdk.api.datamodels._generated.{TIRunContext,DagRun}.
+	dagRun := mapMap(m, "dag_run")
+	if dagRun == nil {
+		return TIRunContext{}, nil
+	}
 	ctx := TIRunContext{}
 	for _, f := range []struct {
 		key string
@@ -112,13 +127,13 @@ func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 		{"data_interval_start", &ctx.DataIntervalStart},
 		{"data_interval_end", &ctx.DataIntervalEnd},
 	} {
-		raw, present := m[f.key]
+		raw, present := dagRun[f.key]
 		if !present || raw == nil {
 			continue
 		}
 		t, err := asTime(raw)
 		if err != nil {
-			return TIRunContext{}, fmt.Errorf("ti_context.%s: %w", f.key, err)
+			return TIRunContext{}, fmt.Errorf("ti_context.dag_run.%s: %w", f.key, err)
 		}
 		*f.dst = &t
 	}
@@ -171,14 +186,16 @@ func decodeStartupDetails(m map[string]any) (*StartupDetails, error) {
 
 // Response types (for runtime-initiated requests).
 
-// ConnectionResult is the response to GetConnection.
+// ConnectionResult is the response to GetConnection. Login and Password are
+// nullable in the supervisor schema (None vs "" are distinct), so they are
+// decoded as *string to preserve that distinction.
 type ConnectionResult struct {
 	ConnID   string
 	ConnType string
 	Host     string
 	Schema   string
-	Login    string
-	Password string
+	Login    *string
+	Password *string
 	Port     int
 	Extra    string
 }
@@ -189,8 +206,8 @@ func decodeConnectionResult(m map[string]any) (*ConnectionResult, error) {
 		ConnType: mapStringOr(m, "conn_type", ""),
 		Host:     mapStringOr(m, "host", ""),
 		Schema:   mapStringOr(m, "schema", ""),
-		Login:    mapStringOr(m, "login", ""),
-		Password: mapStringOr(m, "password", ""),
+		Login:    mapStringPtr(m, "login"),
+		Password: mapStringPtr(m, "password"),
 		Port:     mapIntOr(m, "port", 0),
 		Extra:    mapStringOr(m, "extra", ""),
 	}, nil

@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+13.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode support to AzureBatchOperator (#66815)``
+
+Misc
+~~~~
+
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky AzureDataFactory operator test by mocking time (#67427)``
+
+
 13.3.0
 ......
 

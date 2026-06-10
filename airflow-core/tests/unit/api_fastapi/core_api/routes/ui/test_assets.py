@@ -17,18 +17,23 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pendulum
 import pytest
 from sqlalchemy import select
 
 from airflow.models.asset import (
+    AssetActive,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
     PartitionedAssetKeyLog,
 )
+from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.temporal import StartOfHourMapper
+from airflow.partition_mappers.window import HourWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
@@ -77,8 +82,21 @@ class TestNextRunAssets:
                 ]
             },
             "events": [
-                {"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "name": "asset1", "lastUpdate": None}
+                {
+                    "id": mock.ANY,
+                    "uri": "s3://bucket/next-run-asset/1",
+                    "name": "asset1",
+                    "last_update": None,
+                    "received_count": 0,
+                    "required_count": 1,
+                    "received_keys": [],
+                    "required_keys": [],
+                    "is_rollup": False,
+                    "mapper_error": False,
+                    "asset_inactive": False,
+                }
             ],
+            "pending_partition_count": None,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -141,9 +159,34 @@ class TestNextRunAssets:
             },
             # events are ordered by uri
             "events": [
-                {"id": mock.ANY, "uri": "s3://bucket/A", "name": "A", "lastUpdate": mock.ANY},
-                {"id": mock.ANY, "uri": "s3://bucket/B", "name": "B", "lastUpdate": None},
+                {
+                    "id": mock.ANY,
+                    "uri": "s3://bucket/A",
+                    "name": "A",
+                    "last_update": mock.ANY,
+                    "received_count": 0,
+                    "required_count": 1,
+                    "received_keys": [],
+                    "required_keys": [],
+                    "is_rollup": False,
+                    "mapper_error": False,
+                    "asset_inactive": False,
+                },
+                {
+                    "id": mock.ANY,
+                    "uri": "s3://bucket/B",
+                    "name": "B",
+                    "last_update": None,
+                    "received_count": 0,
+                    "required_count": 1,
+                    "received_keys": [],
+                    "required_keys": [],
+                    "is_rollup": False,
+                    "mapper_error": False,
+                    "asset_inactive": False,
+                },
             ],
+            "pending_partition_count": None,
         }
 
     def test_last_update_respects_latest_run_filter(self, test_client, dag_maker, session):
@@ -169,7 +212,7 @@ class TestNextRunAssets:
         resp = test_client.get("/next_run_assets/filter_run")
         assert resp.status_code == 200
         ev = resp.json()["events"][0]
-        assert ev["lastUpdate"] is not None
+        assert ev["last_update"] is not None
         assert "queued" not in ev
 
     @pytest.mark.parametrize(
@@ -221,4 +264,210 @@ class TestNextRunAssets:
         resp = test_client.get("/next_run_assets/part_dag")
         assert resp.status_code == 200
         ev = resp.json()["events"][0]
-        assert (ev["lastUpdate"] is not None) == expect_last_update
+        assert (ev["last_update"] is not None) == expect_last_update
+
+    def test_pending_apdr_uses_fifo_order(self, test_client, dag_maker, session):
+        """
+        The next-run view must surface the oldest pending APDR so it matches the
+        one the scheduler will fire next (``_create_dagruns_for_partitioned_asset_dags``
+        is strict FIFO over ``created_at``). When multiple partitions are
+        backlogged, showing the newest would confuse the operator about which
+        run is actually queued.
+        """
+        asset = Asset(uri="s3://bucket/fifo", name="fifo")
+        with dag_maker(
+            dag_id="fifo_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        base = pendulum.datetime(2024, 1, 1)
+        # Insert the newer APDR first so the natural row order disagrees with
+        # the intended ``created_at`` order — this catches a regression that
+        # would otherwise silently pass because rows happen to come back in
+        # insertion order on SQLite.
+        for offset_days, key in [(1, "2024-01-02"), (0, "2024-01-01")]:
+            apdr = AssetPartitionDagRun(
+                target_dag_id="fifo_dag",
+                partition_key=key,
+            )
+            apdr.created_at = base.add(days=offset_days)
+            session.add(apdr)
+        session.commit()
+
+        resp = test_client.get("/next_run_assets/fifo_dag")
+        assert resp.status_code == 200
+        body = resp.json()
+        ev = body["events"][0]
+        assert ev["required_keys"] == ["2024-01-01"]
+        assert body["pending_partition_count"] == 2
+
+    def test_rollup_mapper_failure_treats_asset_as_not_satisfied(self, test_client, dag_maker, session):
+        """
+        When the rollup mapper raises during ``to_upstream`` evaluation the
+        route must mirror the scheduler's not-yet-satisfied verdict: zero
+        ``received_count``, ``last_update`` cleared, no upstream keys surfaced.
+        Without this, an event already logged would make the UI display
+        ``1/1 received`` and ``last_update`` set, while the scheduler holds
+        the run because its own ``_resolve_asset_partition_status`` raises.
+        """
+        asset = Asset(uri="s3://bucket/rollup_warn", name="rollup_warn")
+        with dag_maker(
+            dag_id="rollup_warn_dag",
+            schedule=PartitionedAssetTimetable(
+                assets=asset,
+                default_partition_mapper=RollupMapper(
+                    upstream_mapper=StartOfHourMapper(),
+                    window=HourWindow(),
+                ),
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == "s3://bucket/rollup_warn"))
+        apdr = AssetPartitionDagRun(target_dag_id="rollup_warn_dag", partition_key="2024-01-01T00")
+        session.add(apdr)
+        session.flush()
+        # Log a received event so the broken-mapper path would otherwise credit
+        # it as 1/1 ready — the test asserts the new behaviour leaves received
+        # at 0 regardless of logged events.
+        event = AssetEvent(asset_id=asset_model.id, timestamp=pendulum.now())
+        session.add(event)
+        session.flush()
+        session.add(
+            PartitionedAssetKeyLog(
+                asset_id=asset_model.id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=apdr.id,
+                source_partition_key="2024-01-01T00",
+                target_dag_id="rollup_warn_dag",
+                target_partition_key="2024-01-01T00",
+            )
+        )
+        session.commit()
+
+        broken_timetable = MagicMock()
+        broken_timetable.get_partition_mapper.side_effect = RuntimeError("mapper exploded")
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.ui.assets.load_partitioned_timetable",
+                return_value=broken_timetable,
+            ),
+            mock.patch("airflow.api_fastapi.core_api.routes.ui.assets.log") as mock_log,
+        ):
+            resp = test_client.get("/next_run_assets/rollup_warn_dag")
+
+        assert resp.status_code == 200
+        ev = resp.json()["events"][0]
+        # Scheduler-aligned fallback: not-yet-satisfied, no keys to claim.
+        assert ev["received_count"] == 0
+        assert ev["required_count"] == 1
+        assert ev["received_keys"] == []
+        assert ev["required_keys"] == []
+        assert ev["last_update"] is None
+        assert ev["mapper_error"] is True
+        assert mock_log.warning.mock_calls == [
+            mock.call(
+                "Failed to evaluate rollup mapper; treating asset as not-yet-satisfied",
+                dag_id="rollup_warn_dag",
+                asset_name="rollup_warn",
+                asset_uri="s3://bucket/rollup_warn",
+                partition_key="2024-01-01T00",
+                exc_info=True,
+            )
+        ]
+
+    def test_pending_partition_count_includes_inactive_asset_apdrs(self, test_client, dag_maker, session):
+        """
+        ``pending_partition_count`` must include APDRs even when the upstream
+        asset is inactive (orphaned / no declaring Dag). The freeze is surfaced
+        via ``asset_inactive`` on each event instead of hiding the count.
+        """
+        asset = Asset(uri="s3://bucket/count_active", name="count_active")
+        with dag_maker(
+            dag_id="count_active_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        # One pending APDR while asset is active.
+        session.add(AssetPartitionDagRun(target_dag_id="count_active_dag", partition_key="2024-01-01"))
+        session.commit()
+
+        resp_active = test_client.get("/next_run_assets/count_active_dag")
+        assert resp_active.status_code == 200
+        assert resp_active.json()["pending_partition_count"] == 1
+
+        # Deactivate the asset (simulate orphan / no declaring Dag).
+        asset_active_row = session.scalar(
+            select(AssetActive).where(
+                AssetActive.name == "count_active",
+                AssetActive.uri == "s3://bucket/count_active",
+            )
+        )
+        assert asset_active_row is not None
+        session.delete(asset_active_row)
+        session.commit()
+
+        resp_inactive = test_client.get("/next_run_assets/count_active_dag")
+        assert resp_inactive.status_code == 200
+        # pending_partition_count still 1 — the APDR is pending regardless of asset active state
+        assert resp_inactive.json()["pending_partition_count"] == 1
+        # asset_inactive flag signals the frozen state to the UI
+        events = resp_inactive.json()["events"]
+        assert len(events) == 1
+        assert events[0]["asset_inactive"] is True
+
+    def test_asset_inactive_false_for_active_asset(self, test_client, dag_maker, session):
+        """``asset_inactive`` must be False when the upstream asset is still active."""
+        asset = Asset(uri="s3://bucket/count_active2", name="count_active2")
+        with dag_maker(
+            dag_id="count_active_dag2",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(AssetPartitionDagRun(target_dag_id="count_active_dag2", partition_key="2024-01-01"))
+        session.commit()
+
+        resp = test_client.get("/next_run_assets/count_active_dag2")
+        assert resp.status_code == 200
+        events = resp.json()["events"]
+        assert len(events) == 1
+        assert events[0]["asset_inactive"] is False
+
+    def test_non_partitioned_asset_inactive_true_when_deactivated(self, test_client, dag_maker, session):
+        """Non-partitioned Dag also surfaces asset_inactive when upstream is deactivated."""
+        asset = Asset(name="np_inactive", uri="s3://bucket/np_inactive")
+        with dag_maker(dag_id="np_inactive_dag", schedule=[asset], serialized=True):
+            EmptyOperator(task_id="op")
+        dag_maker.sync_dagbag_to_db()
+
+        asset_active_row = session.scalar(
+            select(AssetActive).where(
+                AssetActive.name == "np_inactive",
+                AssetActive.uri == "s3://bucket/np_inactive",
+            )
+        )
+        assert asset_active_row is not None
+        session.delete(asset_active_row)
+        session.commit()
+
+        response = test_client.get("/next_run_assets/np_inactive_dag")
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["events"]) == 1
+        assert body["events"][0]["asset_inactive"] is True

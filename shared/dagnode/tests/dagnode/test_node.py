@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from unittest import mock
 
-import attrs
 import pytest
 
 from airflow_shared.dagnode.node import GenericDAGNode
@@ -29,12 +29,12 @@ class Task:
     """Task type for tests."""
 
 
-@attrs.define
+@dataclass
 class TaskGroup:
     """Task group type for tests."""
 
-    node_id: str = attrs.field(init=False, default="test_group_id")
     prefix_group_id: bool
+    node_id: str = field(init=False, default="test_group_id")
 
 
 class Dag:
