@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
@@ -40,12 +40,6 @@ const isJsonString = (string: string) => {
   }
 
   return true;
-};
-
-const shouldValidateAsJson = (value: string) => {
-  const trimmed = value.trimStart();
-
-  return trimmed.startsWith("{") || trimmed.startsWith("[");
 };
 
 type VariableFormProps = {
@@ -101,19 +95,34 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
       <Controller
         control={control}
         name="value"
-        render={({ field, fieldState }) => (
-          <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
-            <Field.Label fontSize="md">
-              {translate("columns.value")} <Field.RequiredIndicator />
-            </Field.Label>
-            <Textarea {...field} size="sm" />
-            {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
-          </Field.Root>
-        )}
+        render={({ field, fieldState }) => {
+          const showJsonWarning =
+            field.value.startsWith("{") || field.value.startsWith("[") ? !isJsonString(field.value) : false;
+
+          return (
+            <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+              <Field.Label fontSize="md">
+                {translate("columns.value")} <Field.RequiredIndicator />
+              </Field.Label>
+              <Textarea
+                {...field}
+                borderColor={showJsonWarning ? "fg.warning" : undefined}
+                borderWidth={showJsonWarning ? "2px" : undefined}
+                size="sm"
+              />
+              {showJsonWarning ? (
+                <Box bg="bg.warning" borderColor="fg.warning" borderRadius="md" borderWidth="1px" mt={2} px={3} py={2}>
+                  <Text color="fg.warning" fontSize="sm" fontWeight="medium">
+                    {translate("variables.form.invalidJson")}
+                  </Text>
+                </Box>
+              ) : undefined}
+              {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
+            </Field.Root>
+          );
+        }}
         rules={{
           required: translate("variables.form.valueRequired"),
-          validate: (value) =>
-            !shouldValidateAsJson(value) || isJsonString(value) || translate("variables.form.invalidJson"),
         }}
       />
 
