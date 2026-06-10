@@ -127,10 +127,20 @@ class FanOutMapper(PartitionMapper):
     waits for all members), fan-out is 1→N (one upstream event creates many
     downstream Dag runs).
 
+    For forward fan-out (emit the *next* period's members instead of the current
+    one), pass ``direction=Window.Direction.FORWARD`` to the window:
+
     .. code-block:: python
 
-        # Weekly upstream → 7 daily downstream Dag runs
+        from airflow.sdk import WeekWindow, Window
+        from airflow.sdk.definitions.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+
+        # Weekly upstream → 7 daily downstream Dag runs (current week)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+
+        # Weekly upstream → 7 daily keys for the *following* week
+        forward_window = WeekWindow(direction=Window.Direction.FORWARD)
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=forward_window)
     """
 
     # Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
@@ -160,8 +170,7 @@ class FanOutMapper(PartitionMapper):
         the SDK ``Window`` classes (used in Dag-author code) and the core
         ``Window`` classes (used after deserialization) both resolve to the
         same default. Subclasses can extend or override the defaults by
-        setting :attr:`default_downstream_mapper_by_window_name` on the
-        subclass.
+        setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
         """
         mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
         if mapper_cls is None:

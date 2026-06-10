@@ -104,9 +104,11 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
+    FixedKeyMapper,
     HourWindow,
     IdentityMapper,
     RollupMapper,
+    SegmentWindow,
     StartOfHourMapper,
     task,
 )
@@ -10271,6 +10273,74 @@ def test_partitioned_dag_run_rollup_holds_until_window_complete(
     session.refresh(apdr)
     assert apdr.created_dag_run_id is not None
     assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    A categorical (segment) rollup fires once every declared segment has arrived.
+
+    ``RollupMapper(FixedKeyMapper("all_regions"), SegmentWindow([...]))`` collapses
+    each region key onto a single ``all_regions`` partition, so all three events
+    accumulate into one APDR, and holds the downstream run until ``us``, ``eu``,
+    and ``apac`` are all present.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="segment-rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # First region arrives — only 1 / 3 segments, so the APDR must not fire.
+    # Every region collapses onto the single ``all_regions`` partition.
+    apdr = _produce_and_register_asset_event(
+        dag_id="segment-producer-us",
+        asset=asset_1,
+        partition_key="us",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="all_regions",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # The remaining two regions arrive — once all three segments are present the
+    # rollup is satisfied and the APDR creates its Dag run on the next tick. All
+    # three events share the one ``all_regions`` APDR.
+    for region in ("eu", "apac"):
+        sibling = _produce_and_register_asset_event(
+            dag_id=f"segment-producer-{region}",
+            asset=asset_1,
+            partition_key=region,
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="all_regions",
+        )
+        assert sibling.id == apdr.id
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert apdr.partition_key == "all_regions"
+    assert partition_dags == {"segment-rollup-consumer"}
 
 
 @pytest.mark.need_serialized_dag

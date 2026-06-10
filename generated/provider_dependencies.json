@@ -1013,6 +1013,7 @@
       "http",
       "microsoft.azure",
       "microsoft.mssql",
+      "mongo",
       "mysql",
       "openlineage",
       "oracle",
@@ -1254,6 +1255,8 @@
       "amazon",
       "common.compat",
       "common.messaging",
+      "google",
+      "openlineage",
       "oracle",
       "sftp"
     ],
