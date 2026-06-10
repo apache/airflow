@@ -386,7 +386,7 @@ def clear_task_instances(
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
-                ti.refresh_from_task(task)
+                ti.refresh_from_task(task, dag_run=dr)
                 if TYPE_CHECKING:
                     assert ti.task
                 ti.max_tries = ti.try_number + task.retries
@@ -930,12 +930,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         else:
             self.state = None
 
-    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
+    def refresh_from_task(
+        self, task: Operator, pool_override: str | None = None, *, dag_run: DagRun | None = None
+    ) -> None:
         """
         Copy common attributes from the given task.
 
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
+        :param dag_run: the DagRun this task instance belongs to, forwarded to the mutation hook so a
+            cluster policy can route on ``dag_run.conf``; ``None`` when no run is available yet
         """
         self.task = task
         self.queue = task.queue
@@ -954,7 +958,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
         # Re-apply cluster policy here so that task default do not overload previous data
-        task_instance_mutation_hook(self)
+        task_instance_mutation_hook(self, dag_run=dag_run)
 
     @property
     def key(self) -> TaskInstanceKey:
