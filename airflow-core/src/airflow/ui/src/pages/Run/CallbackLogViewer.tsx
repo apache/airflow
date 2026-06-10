@@ -16,14 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, Code, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { Badge, Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiFileText } from "react-icons/fi";
+import innerText from "react-innertext";
 
 import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
+import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
+import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
+import type { ParsedLogEntry } from "src/queries/useLogs";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 type CallbackLogViewerProps = {
@@ -39,8 +44,85 @@ const stateColorMap: Record<string, string> = {
   success: "green",
 };
 
+/**
+ * Parse callback log data using the same structured log rendering pipeline
+ * as the task instance logs, providing consistent formatting, grouping, and display.
+ */
+const parseCallbackLogs = (
+  data: TaskInstancesLogResponse["content"],
+  translate: TFunction,
+): Array<ParsedLogEntry> => {
+  let lineNumber = 0;
+  const lineNumbers = data.map((datum) => {
+    const text = typeof datum === "string" ? datum : (datum as StructuredLogMessage).event;
+
+    if (text.includes("::group::") || text.includes("::endgroup::")) {
+      return undefined;
+    }
+    const current = lineNumber;
+
+    lineNumber += 1;
+
+    return current;
+  });
+
+  const parsedLines = data
+    .map((datum, index) =>
+      renderStructuredLog({
+        index: lineNumbers[index] ?? index,
+        logLink: "",
+        logMessage: datum,
+        renderingMode: "jsx",
+        showSource: false,
+        showTimestamp: true,
+        translate,
+      }),
+    )
+    .filter((parsedLine) => parsedLine !== "");
+
+  // Process group markers (::group:: / ::endgroup::) into structured entries
+  type Group = { id: number; level: number; name: string };
+  const groupStack: Array<Group> = [];
+  const result: Array<ParsedLogEntry> = [];
+  let nextGroupId = 0;
+
+  for (const line of parsedLines) {
+    const text = innerText(line);
+
+    if (text.includes("::group::")) {
+      const groupName = text.split("::group::")[1] as string;
+      const id = nextGroupId;
+
+      nextGroupId += 1;
+      const level = groupStack.length;
+      const parentGroup = groupStack[groupStack.length - 1];
+
+      groupStack.push({ id, level, name: groupName });
+      result.push({
+        element: groupName,
+        group: { id, level, parentId: parentGroup?.id, type: "header" },
+      });
+    } else if (text.includes("::endgroup::")) {
+      groupStack.pop();
+    } else {
+      const currentGroup = groupStack[groupStack.length - 1];
+
+      if (groupStack.length > 0 && currentGroup) {
+        result.push({
+          element: line,
+          group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
+        });
+      } else {
+        result.push({ element: line });
+      }
+    }
+  }
+
+  return result;
+};
+
 export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }: CallbackLogViewerProps) => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "common"]);
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, error, isLoading } = useDeadlinesServiceGetCallbackLogs(
@@ -53,20 +135,27 @@ export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }
     { enabled: isOpen },
   );
 
-  const logContent = parseStreamingLogContent(data);
-  const logLines = logContent.map((entry) => (typeof entry === "string" ? entry : entry.event));
+  const parsedLogs = useMemo(() => {
+    const content = parseStreamingLogContent(data);
+
+    if (content.length === 0) {
+      return [];
+    }
+
+    return parseCallbackLogs(content, translate);
+  }, [data, translate]);
 
   return (
     <>
       <Button onClick={() => setIsOpen(true)} size="xs" variant="outline">
         <FiFileText />
-        {translate("callbackLogs.viewLogs")}
+        {translate("dag:callbackLogs.viewLogs")}
       </Button>
-      <Dialog.Root onOpenChange={() => setIsOpen(false)} open={isOpen} scrollBehavior="inside" size="lg">
+      <Dialog.Root onOpenChange={() => setIsOpen(false)} open={isOpen} scrollBehavior="inside" size="xl">
         <Dialog.Content backdrop p={4}>
           <Dialog.Header>
             <HStack gap={2}>
-              <Heading size="sm">{translate("callbackLogs.title")}</Heading>
+              <Heading size="sm">{translate("dag:callbackLogs.title")}</Heading>
               {callbackState !== undefined && callbackState !== null ? (
                 <Badge colorPalette={stateColorMap[callbackState] ?? "gray"} size="sm" variant="solid">
                   {callbackState}
@@ -75,24 +164,21 @@ export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }
             </HStack>
           </Dialog.Header>
           <Dialog.CloseTrigger />
-          <Dialog.Body pb={2}>
-            <ErrorAlert error={error} />
-            {isLoading ? (
-              <VStack>
-                {Array.from({ length: 5 }).map((_, idx) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <Skeleton height="20px" key={idx} width="100%" />
-                ))}
-              </VStack>
-            ) : logLines.length === 0 ? (
+          <Dialog.Body display="flex" flexDirection="column" minHeight="300px" pb={2}>
+            {!isLoading && parsedLogs.length === 0 && error === undefined ? (
               <Text color="fg.muted" fontSize="sm">
-                {translate("callbackLogs.noLogs")}
+                {translate("dag:callbackLogs.noLogs")}
               </Text>
             ) : (
-              <Box bg="bg.subtle" borderRadius="md" maxHeight="400px" overflow="auto" p={3} width="100%">
-                <Code display="block" fontSize="xs" whiteSpace="pre-wrap" width="100%">
-                  {logLines.join("\n")}
-                </Code>
+              <Box display="flex" flexDirection="column" flexGrow={1} minHeight={0}>
+                <TaskLogContent
+                  error={error}
+                  expanded
+                  isLoading={isLoading}
+                  logError={error}
+                  parsedLogs={parsedLogs}
+                  wrap
+                />
               </Box>
             )}
           </Dialog.Body>
