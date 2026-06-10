@@ -200,7 +200,9 @@ class SafeOtelLogger:
         the OTel SDK, which raises and crashes the emitting process. Keeping the check in one place
         stops a new recording method from silently omitting it.
         """
-        return bool(stat) and self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat)
+        if not stat:
+            return False
+        return self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat)
 
     def incr(
         self,
