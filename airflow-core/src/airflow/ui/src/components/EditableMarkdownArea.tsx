@@ -18,7 +18,7 @@
  */
 import { Box, VStack, Editable, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef } from "react";
 import type { Components } from "react-markdown";
 
 import ReactMarkdown from "./ReactMarkdown";
@@ -46,25 +46,20 @@ const EditableMarkdownArea = ({
   const prevMdContentRef = useRef(mdContent);
   const textareaRef = useRef<HTMLInputElement>(null);
 
-  // Sync local state with prop changes
+  // Sync local state with prop changes (e.g. revert-on-error from parent)
   if (mdContent !== prevMdContentRef.current) {
     setCurrentValue(mdContent ?? "");
     prevMdContentRef.current = mdContent;
   }
 
-  const resizeTextarea = useCallback(() => {
+  const resizeTextarea = () => {
     const el = textareaRef.current;
 
     if (autoSize && el !== null) {
       el.style.height = "auto";
       el.style.height = `${el.scrollHeight}px`;
     }
-  }, [autoSize]);
-
-  // Resize whenever value changes
-  useEffect(() => {
-    resizeTextarea();
-  }, [currentValue, resizeTextarea]);
+  };
 
   return (
     <Box height={autoSize ? undefined : "100%"} p={padding} width="100%">
@@ -76,6 +71,7 @@ const EditableMarkdownArea = ({
 
           setCurrentValue(value);
           setMdContent(value);
+          resizeTextarea();
         }}
         value={currentValue}
       >
@@ -102,6 +98,7 @@ const EditableMarkdownArea = ({
           data-testid="markdown-input"
           height={autoSize ? undefined : "100%"}
           onFocus={() => {
+            // Resize on focus so the textarea fits existing content when first opened
             resizeTextarea();
             onFocus?.();
           }}
