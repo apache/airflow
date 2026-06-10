@@ -220,8 +220,8 @@ class TestDag:
         assert dr is not None
 
         # Serialized DAG should now exist and DagRun would be created
-        ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
-        assert ser is not None
+        set = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
+        assert set is not None
         assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
     @conf_vars({("core", "load_examples"): "false"})
@@ -3409,9 +3409,10 @@ def test_iter_dagrun_infos_between_partitioned_timetable():
     - to_date's calendar date is inclusive (half-open +1day upper bound makes it so).
     - to_date+1 is exclusive (partition tick for the day after to_date is absent).
     """
-    timetable = CronPartitionTimetable("0 0 * * *", timezone="UTC")
     dag = DAG(
-        dag_id="test_iter_dagrun_infos_between_partitioned", start_date=DEFAULT_DATE, schedule=timetable
+        dag_id="test_iter_dagrun_infos_between_partitioned",
+        start_date=DEFAULT_DATE,
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
     )
     EmptyOperator(task_id="dummy", dag=dag)
     scheduler_dag = create_scheduler_dag(dag)
