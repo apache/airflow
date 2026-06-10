@@ -1611,7 +1611,7 @@ class ActivitySubprocess(WatchedSubprocess):
             log.debug("Received message from task runner (body omitted)", msg=type(msg))
         else:
             log.debug("Received message from task runner", msg=msg)
-            
+
         if isinstance(msg, TaskState):
             # No direct API call here — the recovery path in
             # `update_task_state_if_needed` will call `finish()` for

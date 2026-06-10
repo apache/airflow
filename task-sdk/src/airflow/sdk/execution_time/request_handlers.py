@@ -373,6 +373,7 @@ def handle_get_assets_by_alias(
     asset_resp = client.assets.get_by_alias(alias_name=msg.alias_name)
     return asset_resp, {}
 
+
 @handles(GetAssetEventByAsset)
 def handle_get_asset_event_by_asset(
     client: Client, msg: GetAssetEventByAsset

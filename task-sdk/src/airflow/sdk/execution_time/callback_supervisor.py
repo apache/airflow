@@ -33,7 +33,6 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
-from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
