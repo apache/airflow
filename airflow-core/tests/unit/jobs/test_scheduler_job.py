@@ -93,8 +93,18 @@ from airflow.partition_mappers.base import (
     PartitionMapper as CorePartitionMapper,
     RollupMapper as CoreRollupMapper,
 )
-from airflow.partition_mappers.temporal import StartOfHourMapper as CoreStartOfHourMapper
-from airflow.partition_mappers.window import DayWindow as CoreDayWindow, HourWindow as CoreHourWindow
+from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
+from airflow.partition_mappers.temporal import (
+    FanOutMapper as CoreFanOutMapper,
+    StartOfDayMapper as CoreStartOfDayMapper,
+    StartOfHourMapper as CoreStartOfHourMapper,
+    StartOfWeekMapper as CoreStartOfWeekMapper,
+)
+from airflow.partition_mappers.window import (
+    DayWindow as CoreDayWindow,
+    HourWindow as CoreHourWindow,
+    WeekWindow as CoreWeekWindow,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -109,6 +119,7 @@ from airflow.sdk import (
     IdentityMapper,
     RollupMapper,
     SegmentWindow,
+    StartOfDayMapper,
     StartOfHourMapper,
     task,
 )
@@ -11712,3 +11723,155 @@ class TestReapStaleConnectionTests:
         session.expire_all()
         assert session.get(ConnectionTestRequest, ct_success.id).state == ConnectionTestState.SUCCESS
         assert session.get(ConnectionTestRequest, ct_failed.id).state == ConnectionTestState.FAILED
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    ("sdk_mapper", "upstream_partition_key", "expected_downstream_key", "expected_partition_date"),
+    [
+        (
+            StartOfDayMapper(),
+            "2024-03-15T10:30:00",
+            "2024-03-15",
+            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.timezone.utc),
+        ),
+        (
+            RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow()),
+            "2024-01-01T00:00:00",
+            "2024-01-01T00",
+            datetime.datetime(2024, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc),
+        ),
+        (
+            IdentityMapper(),
+            "key-abc",
+            "key-abc",
+            None,
+        ),
+    ],
+)
+def test_partition_date_populated_on_dagrun(
+    dag_maker: DagMaker,
+    session: Session,
+    sdk_mapper,
+    upstream_partition_key,
+    expected_downstream_key,
+    expected_partition_date,
+):
+    """DagRun.partition_date is set correctly for temporal / rollup-of-temporal mappers."""
+    asset_1 = Asset(name="asset-pd-test")
+
+    with dag_maker(
+        dag_id="partition-date-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=sdk_mapper,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="partition-date-producer",
+        asset=asset_1,
+        partition_key=upstream_partition_key,
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key=expected_downstream_key,
+    )
+
+    # For the rollup case, send all 60 minute keys so the window is complete.
+    if isinstance(sdk_mapper, RollupMapper):
+        for minute in range(1, 60):
+            _produce_and_register_asset_event(
+                dag_id=f"partition-date-producer-{minute}",
+                asset=asset_1,
+                partition_key=f"2024-01-01T00:{minute:02d}:00",
+                session=session,
+                dag_maker=dag_maker,
+                expected_partition_key=expected_downstream_key,
+            )
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+
+    assert apdr.created_dag_run_id is not None
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_date == expected_partition_date
+
+
+def _make_runner() -> SchedulerJobRunner:
+    return SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+
+@pytest.mark.parametrize(
+    ("mappers", "partition_key", "expected"),
+    [
+        # Non-temporal mapper → no anchor.
+        pytest.param([CoreIdentityMapper()], "some-key", None, id="non-temporal-none"),
+        # StartOfDayMapper(NY): "2024-03-15" → NY midnight = 04:00 UTC (EDT, DST since 2024-03-10),
+        # localised with the mapper's own timezone rather than the global default.
+        pytest.param(
+            [CoreStartOfDayMapper(timezone="America/New_York")],
+            "2024-03-15",
+            datetime.datetime(2024, 3, 15, 4, 0, 0, tzinfo=datetime.timezone.utc),
+            id="non-utc-uses-mapper-timezone",
+        ),
+        # Key cannot be decoded by the mapper's format → caught → None (no raise).
+        pytest.param([CoreStartOfDayMapper()], "not-a-date", None, id="decode-failure-none"),
+        # FanOutMapper unwraps to its downstream_mapper (daily), which owns the per-day key.
+        pytest.param(
+            [CoreFanOutMapper(upstream_mapper=CoreStartOfWeekMapper(), window=CoreWeekWindow())],
+            "2024-01-16",
+            datetime.datetime(2024, 1, 16, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            id="fanout-uses-downstream-mapper",
+        ),
+        # Two temporal mappers resolving the same instant → that single anchor.
+        pytest.param(
+            [CoreStartOfDayMapper(), CoreStartOfDayMapper()],
+            "2024-03-15",
+            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            id="agreeing-mappers-anchor",
+        ),
+        # Same key, UTC midnight (00:00Z) vs NY midnight (04:00Z) — distinct instants → None.
+        pytest.param(
+            [CoreStartOfDayMapper(timezone="UTC"), CoreStartOfDayMapper(timezone="America/New_York")],
+            "2024-03-15",
+            None,
+            id="conflicting-mappers-none",
+        ),
+        # Second mapper (hour format) raises on the day key → whole resolution aborts → None
+        # (the first mapper's anchor is discarded; all-or-nothing).
+        pytest.param(
+            [CoreStartOfDayMapper(), CoreStartOfHourMapper()],
+            "2024-03-15",
+            None,
+            id="one-failing-mapper-aborts",
+        ),
+    ],
+)
+def test_resolve_partition_date(mappers, partition_key, expected):
+    """_resolve_partition_date over mapper compositions: temporal / fan-out / agree / conflict / failure.
+
+    The mappers are consumed one per upstream asset, so ``asset_infos`` is sized to ``mappers``.
+    """
+    runner = _make_runner()
+    timetable = mock.MagicMock()
+    timetable.get_partition_mapper.side_effect = mappers
+    asset_infos = [(f"asset-{i}-name", f"asset-{i}-uri") for i in range(len(mappers))]
+
+    result = runner._resolve_partition_date(
+        timetable=timetable,
+        asset_infos=asset_infos,
+        partition_key=partition_key,
+        dag_id="test-dag",
+    )
+    assert result == expected
