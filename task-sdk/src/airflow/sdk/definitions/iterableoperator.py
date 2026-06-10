@@ -350,8 +350,7 @@ class IterableOperator(BaseOperator):
                         method_name=self.execute_failed_tasks.__name__,
                         kwargs={
                             "failed_tasks": {
-                                failed_task.index: failed_task.try_number
-                                for failed_task in failed_tasks
+                                failed_task.index: failed_task.try_number for failed_task in failed_tasks
                             },
                         },
                     )
