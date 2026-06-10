@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import attrs
+
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
+@attrs.define(init=False)
 class ProductMapper(PartitionMapper):
     """Partition mapper that combines multiple mappers into a multi-dimensional key."""
+
+    mappers: list[PartitionMapper]
+    delimiter: str
 
     def __init__(
         self,
@@ -31,6 +37,8 @@ class ProductMapper(PartitionMapper):
         delimiter: str = "|",
         max_downstream_keys: int | None = None,
     ) -> None:
-        super().__init__(max_downstream_keys=max_downstream_keys)
-        self.mappers = [mapper0, mapper1, *mappers]
-        self.delimiter = delimiter
+        self.__attrs_init__(
+            mappers=[mapper0, mapper1, *mappers],
+            delimiter=delimiter,
+            max_downstream_keys=max_downstream_keys,
+        )
