@@ -133,3 +133,98 @@ class TestBaseSecretsBackend:
         assert isinstance(conn, MockConnection)
         assert conn.conn_id == "test_conn"
         assert conn.uri == sample_conn_uri
+
+
+class _LegacyConnValueBackend(BaseSecretsBackend):
+    """Backend overriding ``get_conn_value`` with the pre-3.2 ``(self, conn_id)`` signature."""
+
+    def __init__(self, conn_values: dict[str, str]):
+        self.conn_values = conn_values
+        self._set_connection_class(MockConnection)
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        return self.conn_values.get(conn_id)
+
+
+class _TeamAwareConnValueBackend(BaseSecretsBackend):
+    """Backend whose ``get_conn_value`` accepts ``team_name`` (3.2+ signature)."""
+
+    def __init__(self, conn_values: dict[str, str]):
+        self.conn_values = conn_values
+        self.received_team_name: str | None = None
+        self._set_connection_class(MockConnection)
+
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
+        self.received_team_name = team_name
+        return self.conn_values.get(conn_id)
+
+
+class _KwargsConnValueBackend(BaseSecretsBackend):
+    """Backend whose ``get_conn_value`` swallows extra kwargs via ``**kwargs``."""
+
+    def __init__(self, conn_values: dict[str, str]):
+        self.conn_values = conn_values
+        self.received_kwargs: dict = {}
+        self._set_connection_class(MockConnection)
+
+    def get_conn_value(self, conn_id: str, **kwargs) -> str | None:
+        self.received_kwargs = kwargs
+        return self.conn_values.get(conn_id)
+
+
+class _TeamAwareRaisingBackend(BaseSecretsBackend):
+    """``get_conn_value`` declares ``team_name`` but its body raises ``TypeError``."""
+
+    def __init__(self):
+        self.call_count = 0
+        self._set_connection_class(MockConnection)
+
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
+        self.call_count += 1
+        raise TypeError("boom from inside the backend body")
+
+
+class TestTeamNameBackwardCompat:
+    """``get_connection`` must not forward ``team_name`` to overrides that predate it (issue #1333)."""
+
+    @pytest.mark.parametrize("team_name", [None, "team_a"])
+    def test_legacy_get_conn_value_signature_does_not_break(self, sample_conn_uri, team_name):
+        backend = _LegacyConnValueBackend(conn_values={"test_conn": sample_conn_uri})
+
+        conn = backend.get_connection(conn_id="test_conn", team_name=team_name)
+
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+
+    def test_team_name_forwarded_when_override_accepts_it(self, sample_conn_uri):
+        backend = _TeamAwareConnValueBackend(conn_values={"test_conn": sample_conn_uri})
+
+        conn = backend.get_connection(conn_id="test_conn", team_name="team_a")
+
+        assert isinstance(conn, MockConnection)
+        assert backend.received_team_name == "team_a"
+
+    def test_team_name_forwarded_to_kwargs_override(self, sample_conn_uri):
+        backend = _KwargsConnValueBackend(conn_values={"test_conn": sample_conn_uri})
+
+        conn = backend.get_connection(conn_id="test_conn", team_name="team_a")
+
+        assert isinstance(conn, MockConnection)
+        assert backend.received_kwargs == {"team_name": "team_a"}
+
+    def test_team_aware_backend_typeerror_not_masked(self):
+        # A TypeError from inside a team_name-aware backend must propagate, not be
+        # retried without team_name (which would hide the error and could resolve the
+        # lookup against the global scope instead of the requested team).
+        backend = _TeamAwareRaisingBackend()
+
+        with pytest.raises(TypeError, match="boom from inside the backend body"):
+            backend.get_connection(conn_id="test_conn", team_name="team_a")
+
+        assert backend.call_count == 1
+
+    @pytest.mark.parametrize("team_name", [None, "team_a"])
+    def test_legacy_backend_missing_conn_returns_none(self, team_name):
+        backend = _LegacyConnValueBackend(conn_values={})
+
+        assert backend.get_connection(conn_id="missing", team_name=team_name) is None

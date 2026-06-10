@@ -42,6 +42,8 @@ from airflow.sdk import (
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
+    FanOutMapper,
+    FixedKeyMapper,
     HourWindow,
     IdentityMapper,
     MonthWindow,
@@ -50,6 +52,7 @@ from airflow.sdk import (
     ProductMapper,
     QuarterWindow,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -209,12 +212,14 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
                     d["access_control"] = ac
             else:
                 # Asset stores access_control as an AssetAccessControl instance.
-                if ac.producer_teams or ac.consumer_teams or not ac.allow_global:
-                    d["access_control"] = {
+                if ac.producer_teams or ac.consumer_teams is not None or not ac.allow_global:
+                    ac_dict: dict[str, Any] = {
                         "producer_teams": ac.producer_teams,
-                        "consumer_teams": ac.consumer_teams,
                         "allow_global": ac.allow_global,
                     }
+                    if ac.consumer_teams is not None:
+                        ac_dict["consumer_teams"] = ac.consumer_teams
+                    d["access_control"] = ac_dict
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
@@ -433,6 +438,8 @@ class _Serializer:
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
         ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        FanOutMapper: "airflow.partition_mappers.temporal.FanOutMapper",
+        FixedKeyMapper: "airflow.partition_mappers.fixed_key.FixedKeyMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         RollupMapper: "airflow.partition_mappers.base.RollupMapper",
@@ -459,6 +466,10 @@ class _Serializer:
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
+        return {"downstream_key": partition_mapper.downstream_key}
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)
@@ -499,12 +510,21 @@ class _Serializer:
             "window": encode_window(partition_mapper.window),
         }
 
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FanOutMapper) -> dict[str, Any]:
+        return {
+            "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
+            "window": encode_window(partition_mapper.window),
+            "downstream_mapper": encode_partition_mapper(partition_mapper.downstream_mapper),
+        }
+
     BUILTIN_WINDOWS: dict[type, str] = {
         HourWindow: "airflow.partition_mappers.window.HourWindow",
         DayWindow: "airflow.partition_mappers.window.DayWindow",
         WeekWindow: "airflow.partition_mappers.window.WeekWindow",
         MonthWindow: "airflow.partition_mappers.window.MonthWindow",
         QuarterWindow: "airflow.partition_mappers.window.QuarterWindow",
+        SegmentWindow: "airflow.partition_mappers.window.SegmentWindow",
         YearWindow: "airflow.partition_mappers.window.YearWindow",
     }
 
@@ -524,7 +544,11 @@ class _Serializer:
         self,
         window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
     ) -> dict[str, Any]:
-        return {}
+        return window.serialize()
+
+    @serialize_window.register
+    def _(self, window: SegmentWindow) -> dict[str, Any]:
+        return {"segments": sorted(window._segments)}
 
 
 _serializer = _Serializer()

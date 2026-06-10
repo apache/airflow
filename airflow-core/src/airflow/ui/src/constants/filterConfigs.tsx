@@ -78,7 +78,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.BUNDLE_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
-      label: translate("common:bundleVersion"),
+      label: translate("components:versionDetails.bundleVersion"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.CONF_CONTAINS]: {

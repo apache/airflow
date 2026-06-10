@@ -101,6 +101,25 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "trino",
     "ydb",
 ]
+# Maps each testable provider integration to the provider distribution (dotted id)
+# that "owns" it. Used by selective checks to only run a provider integration when
+# its owning provider is among the affected providers of a change.
+TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
+    "celery": "celery",
+    "cassandra": "apache.cassandra",
+    "drill": "apache.drill",
+    "elasticsearch": "elasticsearch",
+    "tinkerpop": "apache.tinkerpop",
+    "kafka": "apache.kafka",
+    "localstack": "amazon",
+    "mongo": "mongo",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qdrant": "qdrant",
+    "redis": "redis",
+    "trino": "trino",
+    "ydb": "ydb",
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -265,8 +284,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.17"
+PIP_VERSION = "26.1.2"
+UV_VERSION = "0.11.19"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
