@@ -50,17 +50,40 @@ const renderVariableForm = (manageMutate = vi.fn()) => {
 };
 
 describe("VariableForm", () => {
-  it("blocks saving malformed JSON object values", async () => {
+  it("shows a prominent warning for malformed JSON object values without blocking save", async () => {
     const manageMutate = renderVariableForm();
 
     fireEvent.change(screen.getByLabelText(/value/i), { target: { value: '{"enabled": true,' } });
 
     await waitFor(() => expect(screen.getByText("Invalid JSON")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
-    expect(manageMutate).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(manageMutate).toHaveBeenCalledWith({
+        ...initialVariable,
+        value: '{"enabled": true,',
+      }),
+    );
+  });
+
+  it("allows saving non-JSON string values that start with a bracket", async () => {
+    const manageMutate = renderVariableForm();
+
+    fireEvent.change(screen.getByLabelText(/value/i), { target: { value: "[DRAFT] plain string value" } });
+
+    await waitFor(() => expect(screen.getByText("Invalid JSON")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() =>
+      expect(manageMutate).toHaveBeenCalledWith({
+        ...initialVariable,
+        value: "[DRAFT] plain string value",
+      }),
+    );
   });
 
   it("allows saving plain string values", async () => {
