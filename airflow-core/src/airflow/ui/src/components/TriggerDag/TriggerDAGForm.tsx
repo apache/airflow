@@ -18,7 +18,7 @@
  */
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
@@ -75,18 +75,21 @@ const TriggerDAGForm = ({
   const [unpause, setUnpause] = useState(true);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const defaultValues = {
-    conf: "",
-    dagRunId: "",
-    dataIntervalEnd: "",
-    dataIntervalMode: "auto",
-    dataIntervalStart: "",
-    // Default logical date to now, show it in the selected timezone.
-    // For partitioned Dags, logical date is not applicable.
-    logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
-    note: "",
-    partitionKey: undefined,
-  };
+  const defaultValues = useMemo(
+    () => ({
+      conf: "",
+      dagRunId: "",
+      dataIntervalEnd: "",
+      dataIntervalMode: "auto",
+      dataIntervalStart: "",
+      // Default logical date to now, show it in the selected timezone.
+      // For partitioned Dags, logical date is not applicable.
+      logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
+      note: "",
+      partitionKey: undefined,
+    }),
+    [isPartitioned],
+  );
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues,
