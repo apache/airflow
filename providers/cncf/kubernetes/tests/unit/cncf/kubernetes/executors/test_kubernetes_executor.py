@@ -1507,6 +1507,72 @@ class TestKubernetesExecutor:
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
         )
 
+    @staticmethod
+    def _completed_result(name):
+        """Build a KubernetesResults entry as ``_adopt_completed_pods`` would add to ``self.completed``."""
+        return KubernetesResults(
+            key=TaskInstanceKey("dag", name, "run_id", 1, -1),
+            state="completed",
+            pod_name=name,
+            namespace="somens",
+            resource_version="0",
+            failure_details=None,
+        )
+
+    def _make_sync_ready_executor(self):
+        """An executor whose ``sync()`` exercises only the ``self.completed`` drain.
+
+        Both queues are mocked so their ``get_nowait`` raises ``Empty`` immediately (as an
+        empty queue would), and ``kube_scheduler`` is mocked, so the only behavior under test
+        is how ``sync()`` processes ``self.completed``.
+        """
+        from queue import Empty
+
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock.MagicMock()
+        executor.kube_scheduler = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        executor.result_queue.get_nowait.side_effect = Empty
+        executor.task_queue = mock.MagicMock()
+        executor.task_queue.get_nowait.side_effect = Empty
+        executor.create_pods_after = None
+        executor.kube_config.worker_pods_creation_batch_size = 1
+        return executor
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state")
+    def test_sync_drains_and_clears_completed(self, mock_change_state):
+        """``sync()`` processes every entry in ``self.completed`` exactly once and clears the set."""
+        executor = self._make_sync_ready_executor()
+        results = {self._completed_result(name) for name in ("one", "two", "three")}
+        executor.completed = set(results)
+
+        executor.sync()
+
+        assert {call.args[0] for call in mock_change_state.call_args_list} == results
+        assert mock_change_state.call_count == len(results)
+        assert executor.completed == set()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state")
+    def test_sync_retains_completed_entry_on_change_state_failure(self, mock_change_state):
+        """A ``self.completed`` entry whose ``_change_state`` raises is retained; the rest still drain."""
+        executor = self._make_sync_ready_executor()
+        good_one = self._completed_result("good-one")
+        good_two = self._completed_result("good-two")
+        bad = self._completed_result("bad")
+        executor.completed = {good_one, good_two, bad}
+
+        def fail_only_bad(result):
+            if result is bad:
+                raise RuntimeError("boom")
+
+        mock_change_state.side_effect = fail_only_bad
+
+        executor.sync()
+
+        assert mock_change_state.call_count == 3
+        assert executor.completed == {bad}
+
     @pytest.mark.db_test
     def test_alive_other_scheduler_job_ids_does_not_detach_caller_session(self, session):
         """``_alive_other_scheduler_job_ids`` must use an independent (non-scoped) session.
