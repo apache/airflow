@@ -598,6 +598,8 @@ class TaskStoreAccessor:
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             stored = _wrap_external_ref(ref)
 
+        msg = SetTaskStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
+
         limit = conf.getint("state_store", "max_value_storage_bytes")
         if limit > 0:
             serialized_size = len(json.dumps(stored))
@@ -610,7 +612,7 @@ class TaskStoreAccessor:
                     limit,
                 )
 
-        SUPERVISOR_COMMS.send(SetTaskStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
+        SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
