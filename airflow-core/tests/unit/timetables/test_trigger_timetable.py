@@ -834,3 +834,18 @@ def test_generate_run_id_without_partition_key() -> None:
         data_interval=None,
     )
     assert run_id.startswith("manual__2025-06-07T08:09:00+00:00__")
+def test_dagruninfo_backward_compatibility():
+    start = pendulum.datetime(2025, 1, 1, tz="UTC")
+    end = pendulum.datetime(2025, 1, 2, tz="UTC")
+
+    info = DagRunInfo(
+        run_after=end,
+        data_interval=DataInterval(
+            start=start,
+            end=end,
+        ),
+    )
+
+    assert info.partition_date is None
+    assert info.partition_key is None   
+ 
