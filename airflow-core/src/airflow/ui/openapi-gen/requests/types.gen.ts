@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -326,11 +334,13 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
- * Request body for bulk delete operations on Dag Runs.
+ * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
     dag_run_id: string;
     dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
 };
 
 /**
@@ -691,6 +701,7 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
@@ -1709,7 +1720,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -2564,6 +2575,7 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+    awaiting_input: number;
 };
 
 /**
@@ -3503,7 +3515,7 @@ export type GetMappedTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3659,7 +3671,7 @@ export type GetTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;

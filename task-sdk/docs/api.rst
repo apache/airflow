@@ -245,6 +245,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
+.. autoapiclass:: airflow.sdk.FanOutMapper
+
 Rollup Windows
 ~~~~~~~~~~~~~~
 
@@ -282,6 +284,10 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: JVM
 
 .. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
+
+.. rubric:: Native executable (e.g. Go)
+
+.. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
 
 Execution Time Components
 -------------------------

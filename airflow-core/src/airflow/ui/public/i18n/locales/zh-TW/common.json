@@ -25,6 +25,7 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "稽核日誌",
+    "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
@@ -228,6 +229,7 @@
   "startDate": "開始日期",
   "state": "狀態",
   "states": {
+    "awaiting_input": "等待輸入",
     "deferred": "已延後",
     "failed": "失敗",
     "no_status": "無狀態",
@@ -270,6 +272,9 @@
   },
   "task_one": "任務",
   "task_other": "任務",
+  "taskGroup": {
+    "documentation": "任務群組文件"
+  },
   "taskGroup_one": "任務群組",
   "taskGroup_other": "任務群組",
   "taskId": "任務 ID",

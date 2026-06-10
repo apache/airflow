@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+
+import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.timetables.simple import NullTimetable
 
 
 def test_builtin_timetable_type_name_returns_class_name():
@@ -177,3 +181,21 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     )
     fp = compute_rollup_fingerprint(tt)
     assert expected_key in fp
+
+
+def test_base_resolve_day_bound_returns_midnight_utc():
+    """Base default returns midnight UTC as a pendulum DateTime for any calendar day."""
+    tt = NullTimetable()
+    result = tt.resolve_day_bound(datetime.date(2026, 4, 10))
+
+    expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
+    assert result == expected
+    assert result.timezone_name == "UTC"
+
+
+def test_base_resolve_day_bound_is_pendulum_datetime():
+    """Return value from the base default is a pendulum DateTime, not stdlib datetime."""
+    tt = NullTimetable()
+    result = tt.resolve_day_bound(datetime.date(2026, 1, 1))
+
+    assert isinstance(result, pendulum.DateTime)

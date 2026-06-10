@@ -168,6 +168,7 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$|
@@ -186,13 +187,14 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -253,6 +255,16 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-partition-mapper-defaults-in-sync
+        name: Check FanOutMapper default mapper table stays in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/temporal\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
@@ -306,7 +318,7 @@ repos:
          - 'black==26.1.0'
         exclude: >
           (?x)
-          ^\.github/skills/aip-user-stories
+          ^\.agents/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -403,8 +415,8 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/|
-          ^\.github/skills/magpie-setup/|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -420,7 +432,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: ed088a72e7773e24b3ed72a2c4323f594736aa39  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -449,7 +461,7 @@ repos:
           ^\.build/|
           ^generated/|
           ^\.apache-magpie-overrides/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -687,6 +699,8 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
@@ -894,7 +908,7 @@ repos:
         files: >
           (?x)
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.agents/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
@@ -966,7 +980,7 @@ repos:
         exclude: |
           (?x)
           ^\.apache-magpie-overrides/|
-          ^\.github/skills/magpie-setup/
+          ^\.agents/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1232,3 +1246,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^java-sdk/.*$
+      - id: spotless
+        name: Run spotless apply
+        description: "Use spotless (via Gradle) to format Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk spotlessApply
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*\.java$

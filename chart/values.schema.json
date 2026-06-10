@@ -232,6 +232,34 @@
             "default": false,
             "x-docsSection": "Kubernetes"
         },
+        "ipFamilyPolicy": {
+            "description": "Specify the ip family policy to configure dual-stack networking for all Services. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                "SingleStack",
+                "PreferDualStack",
+                "RequireDualStack",
+                null
+            ],
+            "default": null,
+            "x-docsSection": "Kubernetes"
+        },
+        "ipFamilies": {
+            "description": "List of IP families for all Services (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "IPv4",
+                    "IPv6"
+                ]
+            },
+            "default": [],
+            "x-docsSection": "Kubernetes"
+        },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
             "type": "array",
