@@ -320,6 +320,8 @@ Downgrading Airflow
 .. note::
 
     It's recommended that you backup your database before running ``db downgrade`` or any other database operation.
+    ``airflow db downgrade`` only downgrades the database schema managed by Alembic migrations.
+    It does not rewrite metadata database rows that were serialized by a newer Airflow version.
 
 You can downgrade to a particular Airflow version with the ``db downgrade`` command.  Alternatively you may provide an Alembic revision id to downgrade to.
 
@@ -333,6 +335,17 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
     It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
     This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
+
+.. warning::
+
+    Downgrading the database schema is not a complete rollback after a newer Airflow version has run
+    against the metadata database. For example, Airflow 3.2.x can write SDK-serialized metadata
+    rows that Airflow 3.1.x cannot deserialize, such as trigger kwargs, Dag run configuration,
+    deferred task payloads, or other serialized values. In that case, components such as the
+    scheduler or triggerer may fail even though ``airflow db downgrade`` completed successfully.
+    Restore a metadata database backup from before the upgrade when you need a reliable rollback.
+    Manual cleanup of incompatible rows can unblock some environments, but it is deployment-specific
+    and can cause data loss.
 
 .. _cli-export-connections:
 
