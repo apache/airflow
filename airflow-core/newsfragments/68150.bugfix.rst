@@ -1,0 +1,1 @@
+Make ``RollupMapper`` calendar windows DST-aware so a local-timezone calendar-day rollup is no longer held forever on a spring-forward day; ``DayWindow`` now enumerates the real local hours of the day (23 on a spring-forward day, 25 on a fall-back day) instead of a fixed 24, while a UTC or naive upstream mapper is unchanged.

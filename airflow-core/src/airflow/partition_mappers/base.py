@@ -133,9 +133,13 @@ class RollupMapper(PartitionMapper):
     def to_upstream(self, downstream_key: str) -> frozenset[str]:
         """Return the complete set of upstream partition keys required for *downstream_key*."""
         decoded = self.upstream_mapper.decode_downstream(downstream_key)
+        # Hand the upstream mapper's timezone to the window so calendar windows (DayWindow) can
+        # enumerate the real local hours across DST. Non-temporal mappers have no tzinfo -> None,
+        # in which case the window falls back to its fixed-count (UTC) behaviour.
+        tz = getattr(self.upstream_mapper, "tzinfo", None)
         return frozenset(
             self.upstream_mapper.encode_upstream(expected_upstream)
-            for expected_upstream in self.window.to_upstream(decoded)
+            for expected_upstream in self.window.to_upstream(decoded, tz)
         )
 
     def serialize(self) -> dict[str, Any]:
