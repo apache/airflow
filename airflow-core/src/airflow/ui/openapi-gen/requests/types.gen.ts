@@ -1147,6 +1147,7 @@ export type EventLogResponse = {
     event: string;
     logical_date: string | null;
     owner: string | null;
+    owner_display_name?: string | null;
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;

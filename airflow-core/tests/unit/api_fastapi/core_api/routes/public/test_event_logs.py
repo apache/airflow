@@ -128,6 +128,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                 {
                     "event": EVENT_WITH_OWNER,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                 },
             ),
             (
@@ -153,6 +154,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": EVENT_WITH_OWNER_AND_TASK_INSTANCE,
                     "map_index": -1,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -185,6 +187,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
+            "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
         }
 
