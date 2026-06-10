@@ -64,6 +64,36 @@ class TestSdkRollupMapperInit:
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
 
 
+class TestSdkDirectionValidation:
+    """SDK Window.__init__ must coerce valid strings and reject invalid ones at construction time."""
+
+    @pytest.mark.parametrize(
+        ("direction_input", "expected_member"),
+        [
+            pytest.param(Window.Direction.FORWARD, Window.Direction.FORWARD, id="enum_forward"),
+            pytest.param(Window.Direction.BACKWARD, Window.Direction.BACKWARD, id="enum_backward"),
+            pytest.param("forward", Window.Direction.FORWARD, id="str_forward"),
+            pytest.param("backward", Window.Direction.BACKWARD, id="str_backward"),
+        ],
+    )
+    def test_valid_direction_coerced_to_enum(self, direction_input, expected_member):
+        window = WeekWindow(direction=direction_input)
+        assert window.direction is expected_member
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param("forwrd", id="typo_forwrd"),
+            pytest.param("backwards", id="typo_backwards"),
+            pytest.param("FORWARD", id="wrong_case"),
+            pytest.param("", id="empty_string"),
+        ],
+    )
+    def test_invalid_direction_raises_value_error(self, bad_value):
+        with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
+            WeekWindow(direction=bad_value)
+
+
 class TestSdkWindowExpectedDecodedType:
     """Each SDK temporal window must declare ``datetime`` so the validation lines up with core."""
 
