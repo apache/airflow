@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from contextlib import AbstractAsyncContextManager
 from json import JSONDecodeError
 from os.path import dirname
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -52,31 +53,8 @@ from unit.microsoft.azure.test_utils import (
     patch_hook_and_request_adapter,
 )
 
-if TYPE_CHECKING:
-    from azure.identity._internal.msal_credentials import MsalCredential
-    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
-    from kiota_abstractions.request_adapter import RequestAdapter
-    from kiota_authentication_azure.azure_identity_access_token_provider import (
-        AzureIdentityAccessTokenProvider,
-    )
-
 
 class TestKiotaRequestAdapterHook:
-    @staticmethod
-    def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
-        adapter: HttpxRequestAdapter = cast("HttpxRequestAdapter", request_adapter)
-        auth_provider: BaseBearerTokenAuthenticationProvider = cast(
-            "BaseBearerTokenAuthenticationProvider",
-            adapter._authentication_provider,
-        )
-        access_token_provider: AzureIdentityAccessTokenProvider = cast(
-            "AzureIdentityAccessTokenProvider",
-            auth_provider.access_token_provider,
-        )
-        credentials: MsalCredential = cast("MsalCredential", access_token_provider._credentials)
-        tenant_id = credentials._tenant_id
-        assert tenant_id == expected_tenant_id
-
     def test_get_conn(self):
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -276,10 +254,15 @@ class TestKiotaRequestAdapterHook:
     @pytest.mark.asyncio
     async def test_tenant_id(self):
         with patch_hook():
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-            actual = await hook.get_async_conn()
+            with patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.ClientSecretCredential",
+                autospec=True,
+            ) as mock_credential_cls:
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
 
-            self.assert_tenant_id(actual, "tenant-id")
+                mock_credential_cls.assert_called_once()
+                assert mock_credential_cls.call_args.kwargs.get("tenant_id") == "tenant-id"
 
     @pytest.mark.asyncio
     async def test_azure_tenant_id(self):
@@ -289,10 +272,15 @@ class TestKiotaRequestAdapterHook:
                 azure_tenant_id="azure-tenant-id",
             )
         ):
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-            actual = await hook.get_async_conn()
+            with patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.ClientSecretCredential",
+                autospec=True,
+            ) as mock_credential_cls:
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
 
-            self.assert_tenant_id(actual, "azure-tenant-id")
+                mock_credential_cls.assert_called_once()
+                assert mock_credential_cls.call_args.kwargs.get("tenant_id") == "azure-tenant-id"
 
     @pytest.mark.asyncio
     async def test_proxies(self):
@@ -471,6 +459,80 @@ class TestKiotaRequestAdapterHook:
         result = hook.to_msal_proxies(authority, proxies)
 
         assert result == proxies
+
+    def test_get_credentials_returns_async_client_secret_credential(self):
+        """get_credentials must return an async context manager (azure.identity.aio credential)."""
+        hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+        config = {"tenant_id": "tenant-id"}
+
+        credentials = hook.get_credentials(
+            login="client_id",
+            password="client_secret",
+            config=config,
+            authority=None,
+            verify=True,
+            proxies=None,
+        )
+
+        assert isinstance(credentials, AbstractAsyncContextManager)
+
+    def test_get_credentials_returns_async_certificate_credential(self):
+        """get_credentials must return an async context manager when certificate_data is set."""
+        import datetime
+
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test")])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+            .sign(private_key, hashes.SHA256())
+        )
+        pem = private_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.TraditionalOpenSSL,
+            serialization.NoEncryption(),
+        ) + cert.public_bytes(serialization.Encoding.PEM)
+
+        hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+        config = {
+            "tenant_id": "tenant-id",
+            "certificate_data": pem.decode(),
+        }
+
+        credentials = hook.get_credentials(
+            login="client_id",
+            password=None,
+            config=config,
+            authority=None,
+            verify=True,
+            proxies=None,
+        )
+
+        assert isinstance(credentials, AbstractAsyncContextManager)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_uses_async_credentials(self):
+        """get_async_conn must build a request adapter backed by async credentials."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request_adapter = await hook.get_async_conn()
+
+            adapter: HttpxRequestAdapter = cast("HttpxRequestAdapter", request_adapter)
+            # Reach into the auth provider chain to retrieve the underlying credential object.
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credentials = access_token_provider._credentials
+
+            assert isinstance(credentials, AbstractAsyncContextManager)
 
 
 class TestKiotaRequestAdapterHookProtocol:
