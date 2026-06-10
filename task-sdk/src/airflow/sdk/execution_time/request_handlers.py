@@ -371,11 +371,7 @@ def handle_get_assets_by_alias(
     client: Client, msg: GetAssetsByAlias
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     asset_resp = client.assets.get_by_alias(alias_name=msg.alias_name)
-    if isinstance(asset_resp, AssetResponse):
-        asset_result = AssetResult.from_asset_response(asset_resp)
-        return asset_result, {"exclude_unset": True}
     return asset_resp, {}
-
 
 @handles(GetAssetEventByAsset)
 def handle_get_asset_event_by_asset(
