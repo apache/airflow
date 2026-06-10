@@ -300,8 +300,20 @@ class KubernetesExecutor(BaseExecutor):
                 finally:
                     self.result_queue.task_done()
 
-                for result in self.completed:
-                    self._change_state(result)
+        failed = set()
+        while self.completed:
+            result = self.completed.pop()
+            try:
+                self._change_state(result)
+            except Exception as e:
+                self.log.exception(
+                    "Exception: %s when attempting to change state of %s to %s, re-queueing.",
+                    e,
+                    result,
+                    result.state,
+                )
+                failed.add(result)
+        self.completed = failed
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
