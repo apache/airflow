@@ -157,7 +157,7 @@ spec:
               {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
@@ -242,7 +242,7 @@ spec:
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
@@ -299,7 +299,7 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
@@ -326,7 +326,7 @@ spec:
         {{- end }}
         {{- end }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraVolumes }}
           {{- tpl (toYaml .Values.scheduler.extraVolumes) . | nindent 8 }}

@@ -50,6 +50,7 @@ from airflow._shared.observability.traces import (
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import (
     DAG,
     BaseOperator,
@@ -61,7 +62,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow.sdk._shared.state import TaskScope
+from airflow.sdk._shared.state import AssetScope, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -76,6 +77,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
+from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -4904,6 +4906,43 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        When an ``except`` handler in ``run()`` raises before binding ``state``,
+        the original exception must propagate
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        class _TriggerSendError(Exception):
+            pass
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="missing_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_reraises_original_error",
+            run_id="test_run",
+            task=task,
+        )
+
+        def _send(msg=None, **kwargs):
+            # Fail only the TriggerDagRun comms (the call that would 404 for a
+            # missing DAG); let every earlier send behave as the default mock.
+            if isinstance(msg, TriggerDagRun):
+                raise _TriggerSendError("simulated 404 for missing target DAG")
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        log = mock.MagicMock()
+
+        # The original error must surface, not UnboundLocalError on ``state``.
+        with pytest.raises(_TriggerSendError):
+            run(ti, ti.get_template_context(), log)
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
@@ -4997,6 +5036,146 @@ class TestTriggerDagRunOperator:
             ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retries(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When triggered DAG reaches a failed state, task should honor retry eligibility."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retries",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_fail(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A retry_policy returning FAIL fails the task even when retries are still available.
+
+        This mirrors the deferrable path, where DagStateTrigger -> execute_complete raises
+        AirflowException and the configured retry_policy is consulted via run()'s handler.
+        """
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+            retry_policy=ExceptionRetryPolicy(
+                rules=[
+                    RetryRule(exception=AirflowException, action=RetryAction.FAIL, reason="not retryable")
+                ],
+            ),
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_fail",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.FAILED
+
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_delay(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A retry_policy returning RETRY forwards its custom delay and reason on the RetryTask."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+            retry_policy=ExceptionRetryPolicy(
+                rules=[
+                    RetryRule(
+                        exception=AirflowException,
+                        action=RetryAction.RETRY,
+                        retry_delay=timedelta(minutes=7),
+                        reason="backing off",
+                    ),
+                ],
+            ),
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_delay",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        assert msg.retry_delay_seconds == timedelta(minutes=7).total_seconds()
+        assert msg.retry_reason == "backing off"
 
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
@@ -5325,6 +5504,24 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(GetTaskStore(ti_id=runtime_ti.id, key="job_id"))
 
+    def test_task_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        captured = {}
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["task_store"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "watermark"}
+        )
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
+
     def test_task_state_set_sends_typed_values(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         """set() accepts any JsonValue — dict, int, list — not just strings."""
 
@@ -5440,6 +5637,27 @@ class TestTaskInstanceStateOperations:
             SetAssetStoreByName(name="my_asset", key="watermark", value="2026-04-30")
         )
         mock_supervisor_comms.send.assert_any_call(GetAssetStoreByName(name="my_asset", key="watermark"))
+
+    def test_asset_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+        watched = Asset(name="my_asset", uri="s3://bucket/data")
+        captured = {}
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                captured["result"] = context["asset_store"].get(
+                    "watermark", default="2026-01-01T00:00:00+00:00"
+                )
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = lambda msg: (
+            ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"})
+            if isinstance(msg, GetAssetStoreByName)
+            else TestTaskInstanceStateOperations._watcher_side_effect(msg)
+        )
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert captured["result"] == "2026-01-01T00:00:00+00:00"
 
     def test_asset_state_delete(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
@@ -5594,12 +5812,12 @@ class TestTaskInstanceStateOperations:
         mock_backend.serialize_asset_store_to_ref.return_value = "mem://my_asset/watermark"
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_backend.serialize_asset_store_to_ref.assert_called_once_with(
-            value="2026-05-01", key="watermark", asset_ref="my_asset"
+            value="2026-05-01", key="watermark", scope=AssetScope(name="my_asset", uri=None)
         )
         mock_supervisor_comms.send.assert_any_call(
             SetAssetStoreByName(
@@ -5625,16 +5843,22 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         mock_backend = mock.MagicMock()
-        ref = f"mem://{runtime_ti.id}/job_id"
+        scope = TaskScope(
+            dag_id=runtime_ti.dag_id,
+            run_id=runtime_ti.run_id,
+            task_id=runtime_ti.task_id,
+            map_index=runtime_ti.map_index,
+        )
+        ref = f"mem://{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/job_id"
         mock_backend.serialize_task_store_to_ref.return_value = ref
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_backend.serialize_task_store_to_ref.assert_called_once_with(
-            value="app_001", key="job_id", ti_id=str(runtime_ti.id)
+            value="app_001", key="job_id", scope=scope
         )
         mock_supervisor_comms.send.assert_any_call(
             SetTaskStore(
@@ -5660,7 +5884,7 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 

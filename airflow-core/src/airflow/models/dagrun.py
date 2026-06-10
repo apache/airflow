@@ -250,6 +250,7 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "logical_date", name="dag_run_dag_id_logical_date_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index("idx_dag_run_run_after", run_after),
+        Index("idx_dag_run_created_dag_version_id", created_dag_version_id),
         Index(
             "idx_dag_run_running_dags",
             "state",
@@ -1137,7 +1138,10 @@ class DagRun(Base, LoggingMixin):
                     and all(
                         getattr(t.task, "max_active_tis_per_dagrun", None) is None for t in self.tis if t.task
                     )
-                    and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
+                    and all(
+                        t.state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
+                        for t in self.tis
+                    )
                 )
 
             def recalculate(self) -> _UnfinishedStates:
@@ -1223,7 +1227,7 @@ class DagRun(Base, LoggingMixin):
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
                 deadline_alerts = [
-                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
+                    DeadlineAlertModel.get_by_id(alert_id, session=session) for alert_id in dag.deadline
                 ]
 
                 if any(
@@ -1372,6 +1376,18 @@ class DagRun(Base, LoggingMixin):
         execute: bool = False,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        # Historical task instances created before the dag_version table existed (migration
+        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
+        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
+        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
+        # fires with a minimal context (dag, run_id, reason).
+        if relevant_ti is not None and relevant_ti.dag_version_id is None:
+            self.log.warning(
+                "Task instance %s has no dag_version_id (pre-versioning record); "
+                "omitting last_ti from the dag callback context.",
+                relevant_ti,
+            )
+            relevant_ti = None
         if not execute:
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,

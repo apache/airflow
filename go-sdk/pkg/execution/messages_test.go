@@ -44,10 +44,16 @@ func TestDecodeStartupDetails(t *testing.T) {
 		},
 		"start_date":         "2024-01-15T10:30:00Z",
 		"sentry_integration": "",
+		// The supervisor nests the scheduling timestamps under dag_run, matching
+		// task-sdk's TIRunContext / DagRun schema.
 		"ti_context": map[string]any{
-			"logical_date":        "2024-01-15T00:00:00Z",
-			"data_interval_start": "2024-01-14T00:00:00Z",
-			"data_interval_end":   "2024-01-15T00:00:00Z",
+			"dag_run": map[string]any{
+				"dag_id":              "tutorial_dag",
+				"run_id":              "manual__2024-01-15",
+				"logical_date":        "2024-01-15T00:00:00Z",
+				"data_interval_start": "2024-01-14T00:00:00Z",
+				"data_interval_end":   "2024-01-15T00:00:00Z",
+			},
 		},
 	}
 
@@ -63,7 +69,20 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "dags/tutorial.go", details.DagRelPath)
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", details.BundleInfo.Version)
-	assert.NotNil(t, details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.LogicalDate)
+	assert.Equal(t, time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), *details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.DataIntervalStart)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 14, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalStart,
+	)
+	require.NotNil(t, details.TIContext.DataIntervalEnd)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalEnd,
+	)
 }
 
 func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
@@ -93,7 +112,9 @@ func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
 			"try_number": int64(1),
 		},
 		"ti_context": map[string]any{
-			"logical_date": "garbage",
+			"dag_run": map[string]any{
+				"logical_date": "garbage",
+			},
 		},
 	}
 	_, err := decodeStartupDetails(m)

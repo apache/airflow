@@ -69,7 +69,8 @@ dependencies = [
     "pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'",
     "pyarrow>=22.0.0; python_version >= '3.14'",
     # TODO(potiuk): We should bump the snowflake-connector-python to >=4.0.0 when sqlalchemy>=2.0 is required
-    "snowflake-connector-python>=3.16.0",
+    # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
+    "snowflake-connector-python>=3.17.0",
     "snowflake-sqlalchemy>=1.7.0",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved

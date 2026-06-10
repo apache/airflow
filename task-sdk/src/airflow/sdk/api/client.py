@@ -50,6 +50,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetStorePutBody,
     AssetStoreResponse,
     ConnectionResponse,
+    ConnectionTestConnectionResponse,
+    ConnectionTestResultBody,
+    ConnectionTestState,
     DagResponse,
     DagRun,
     DagRunStateResponse,
@@ -59,12 +62,14 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    ResultMessage,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatesResponse,
     TaskStorePutBody,
     TaskStoreResponse,
     TerminalStateNonSuccess,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -301,6 +306,11 @@ class TaskInstanceOperations:
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def await_input(self, id: uuid.UUID, msg):
+        """Tell the API server that this TI is parked awaiting human input (Human-in-the-loop)."""
+        body = TIAwaitingInputStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
@@ -1047,6 +1057,30 @@ class HITLOperations:
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
+class ConnectionTestOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get_connection(self, connection_test_id: uuid.UUID) -> ConnectionTestConnectionResponse:
+        """Fetch connection data for a test request from the API server."""
+        resp = self.client.get(f"connection-tests/{connection_test_id}/connection")
+        return ConnectionTestConnectionResponse.model_validate_json(resp.read())
+
+    def update_state(
+        self, id: uuid.UUID, state: ConnectionTestState, result_message: str | None = None
+    ) -> None:
+        """Report the state of a connection test to the API server."""
+        if result_message is not None:
+            result_message = result_message[:2000]
+        body = ConnectionTestResultBody(
+            state=state,
+            result_message=ResultMessage(result_message) if result_message is not None else None,
+        )
+        self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1247,6 +1281,12 @@ class Client(httpx.Client):
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def connection_tests(self) -> ConnectionTestOperations:
+        """Operations related to Connection Tests."""
+        return ConnectionTestOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

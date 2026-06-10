@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"runtime"
 	"time"
@@ -54,16 +55,50 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 }
 
 func main() {
-	bundlev1server.Serve(&myBundle{})
+	if err := bundlev1server.Serve(&myBundle{}); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
+
+	// Log every field the runtime context exposes. The fields are namespaced
+	// under a "context" group (so they serialise as context.ti.* /
+	// context.dag_run.* dotted keys) to avoid colliding with the reserved
+	// task_id/run_id/etc. keys the supervisor strips from its log view.
+	rc := sdk.CurrentContext(ctx)
+	log.InfoContext(ctx, "task runtime context",
+		slog.Group("context",
+			slog.Group("ti",
+				"dag_id", rc.TI.DagID,
+				"run_id", rc.TI.RunID,
+				"task_id", rc.TI.TaskID,
+				"map_index", rc.TI.MapIndex,
+				"try_number", rc.TI.TryNumber,
+			),
+			slog.Group("dag_run",
+				"dag_id", rc.DagRun.DagID,
+				"run_id", rc.DagRun.RunID,
+				"logical_date", rc.DagRun.LogicalDate,
+				"data_interval_start", rc.DagRun.DataIntervalStart,
+				"data_interval_end", rc.DagRun.DataIntervalEnd,
+			),
+		),
+	)
+
 	conn, err := client.GetConnection(ctx, "test_http")
 	if err != nil {
 		log.ErrorContext(ctx, "unable to get conn", "error", err)
 	} else {
-		log.InfoContext(ctx, "got conn", "conn", conn)
+		// Log only non-sensitive fields; conn.Password and any secrets in
+		// conn.Extra must never reach the log stream.
+		log.InfoContext(ctx, "got conn",
+			"conn_id", conn.ID,
+			"conn_type", conn.Type,
+			"host", conn.Host,
+			"port", conn.Port,
+		)
 	}
 	for range 10 {
 
@@ -80,6 +115,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 
 	ret := map[string]any{
 		"go_version": runtime.Version(),
+		"timestamp":  time.Now().UnixNano(),
 	}
 
 	return ret, nil

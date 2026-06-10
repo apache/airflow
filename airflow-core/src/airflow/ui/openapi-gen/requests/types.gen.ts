@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -112,13 +120,34 @@ export type AssetStoreCollectionResponse = {
 };
 
 /**
+ * Writer info for the last write to an asset store entry.
+ */
+export type AssetStoreLastUpdatedBy = {
+    kind: AssetStoreWriterKind;
+    dag_id?: string | null;
+    run_id?: string | null;
+    task_id?: string | null;
+    map_index?: number | null;
+};
+
+/**
  * A single asset store key/value pair with metadata.
  */
 export type AssetStoreResponse = {
     key: string;
     value: JsonValue;
     updated_at: string;
+    last_updated_by?: AssetStoreLastUpdatedBy | null;
 };
+
+/**
+ * Identifies what kind of writer last updated an asset store entry.
+ *
+ * ``TASK`` — written by a task via the execution API.
+ * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+ * ``API`` — written directly through the Core API (e.g. manual admin write).
+ */
+export type AssetStoreWriterKind = 'task' | 'watcher' | 'api';
 
 /**
  * Asset watcher serializer for responses.
@@ -127,6 +156,17 @@ export type AssetWatcherResponse = {
     name: string;
     trigger_id: number;
     created_date: string;
+};
+
+/**
+ * Response returned when polling for the status of an enqueued connection test.
+ */
+export type AsyncConnectionTestResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_message?: string | null;
+    created_at: string;
 };
 
 /**
@@ -294,11 +334,13 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
- * Request body for bulk delete operations on Dag Runs.
+ * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
     dag_run_id: string;
     dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
 };
 
 /**
@@ -606,7 +648,48 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned when a connection test has been enqueued for worker execution.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for enqueueing a connection test on a worker.
+ *
+ * Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+ * ``team_name`` handling from ``ConnectionBody`` so tested connections share
+ * the same input contract as persisted ones.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+    conn_type: string;
+    description?: string | null;
+    host?: string | null;
+    login?: string | null;
+    schema?: string | null;
+    port?: number | null;
+    password?: string | null;
+    extra?: string | null;
+    team_name?: string | null;
+    /**
+     * If True, save or update the connection in the connection table when the test succeeds.
+     */
+    commit_on_success?: boolean;
+    /**
+     * Executor name to dispatch the connection test to.
+     */
+    executor?: string | null;
+    /**
+     * Worker queue to route the connection test to (executor-dependent).
+     */
+    queue?: string | null;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
@@ -622,6 +705,7 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
@@ -1640,7 +1724,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -2341,7 +2425,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2349,6 +2433,34 @@ export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 
 export type MenuItemCollectionResponse = {
     authorized_menu_items: Array<MenuItem>;
     extra_menu_items: Array<ExtraMenuItem>;
+};
+
+/**
+ * One asset event in the ``next_run_assets`` payload.
+ */
+export type NextRunAssetEventResponse = {
+    id: number;
+    name: string | null;
+    uri: string;
+    last_update?: string | null;
+    received_count?: number;
+    required_count?: number;
+    received_keys?: Array<(string)>;
+    required_keys?: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
+};
+
+/**
+ * Response for the ``next_run_assets`` endpoint.
+ */
+export type NextRunAssetsResponse = {
+    asset_expression?: {
+    [key: string]: unknown;
+} | null;
+    events: Array<NextRunAssetEventResponse>;
+    pending_partition_count?: number | null;
 };
 
 /**
@@ -2376,6 +2488,13 @@ export type PartitionedDagRunAssetResponse = {
     asset_name: string;
     asset_uri: string;
     received: boolean;
+    received_count: number;
+    required_count: number;
+    received_keys: Array<(string)>;
+    required_keys: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
 };
 
 /**
@@ -2460,6 +2579,7 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+    awaiting_input: number;
 };
 
 /**
@@ -2687,9 +2807,7 @@ export type NextRunAssetsData = {
     dagId: string;
 };
 
-export type NextRunAssetsResponse = {
-    [key: string]: unknown;
-};
+export type NextRunAssetsResponse2 = NextRunAssetsResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -2771,6 +2889,18 @@ export type PatchConnectionData = {
 };
 
 export type PatchConnectionResponse = ConnectionResponse;
+
+export type GetConnectionTestData = {
+    airflowConnectionTestToken: string;
+};
+
+export type GetConnectionTestResponse = AsyncConnectionTestResponse;
+
+export type EnqueueConnectionTestData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
 
 export type GetConnectionsData = {
     /**
@@ -3389,7 +3519,7 @@ export type GetMappedTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3545,7 +3675,7 @@ export type GetTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3822,6 +3952,14 @@ export type GetImportErrorData = {
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+    /**
+     * Exact bundle name match. Returns only import errors from this specific bundle.
+     */
+    bundleName?: string | null;
+    /**
+     * Exact filename match. Returns only the import error for this specific file path.
+     */
+    filename?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -4792,9 +4930,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: {
-                    [key: string]: unknown;
-                };
+                200: NextRunAssetsResponse;
                 /**
                  * Validation Error
                  */
@@ -5106,6 +5242,58 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/enqueue-test': {
+        get: {
+            req: GetConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AsyncConnectionTestResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        post: {
+            req: EnqueueConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
             };
         };
     };
