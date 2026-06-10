@@ -39,13 +39,7 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title }: Pro
   const { t: translate } = useTranslation();
 
   return (
-    <Box
-      borderColor="border.emphasized"
-      borderRadius={8}
-      borderWidth={1}
-      data-testid="header-card"
-      overflow="hidden"
-    >
+    <Box data-testid="header-card" overflow="hidden">
       <DagDeactivatedBanner />
       <Box p={2}>
         <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>

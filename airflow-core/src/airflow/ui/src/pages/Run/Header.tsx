@@ -25,10 +25,10 @@ import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import NoteAccordion from "src/components/NoteAccordion";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
@@ -49,23 +49,22 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
   const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
 
-  const { isPending, mutate } = usePatchDagRun({
+  const { mutate } = usePatchDagRun({
     dagId,
     dagRunId,
   });
 
   const onConfirm = () => {
     if (note !== dagRun.note) {
-      mutate({
-        dagId,
-        dagRunId,
-        requestBody: { note },
-      });
+      mutate(
+        {
+          dagId,
+          dagRunId,
+          requestBody: { note },
+        },
+        { onError: () => setNote(dagRun.note ?? null) },
+      );
     }
-  };
-
-  const onOpen = () => {
-    setNote(dagRun.note ?? "");
   };
 
   return (
@@ -73,15 +72,6 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header={translate("note.dagRun")}
-              isPending={isPending}
-              mdContent={dagRun.note}
-              onConfirm={onConfirm}
-              onOpen={onOpen}
-              placeholder={translate("note.placeholder")}
-              setMdContent={setNote}
-            />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
             <DeleteRunButton dagRun={dagRun} />
@@ -154,6 +144,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
         ]}
         title={dagRun.dag_run_id}
       />
+      <NoteAccordion note={note} onSave={onConfirm} setNote={setNote} />
     </Box>
   );
 };
