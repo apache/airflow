@@ -1,2 +1,0 @@
-*_invalid_*  # Skip invalid files
-subdir3      # Skip the nested subdir3 directory

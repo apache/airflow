@@ -1,5 +1,0 @@
-The example text that will be processed by dataflow tasks.
-Flourish
-Flourish
-stomach
-Flourish

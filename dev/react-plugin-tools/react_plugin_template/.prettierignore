@@ -1,5 +1,0 @@
-dist/
-*.md
-*.yaml
-coverage/*
-node_modules/

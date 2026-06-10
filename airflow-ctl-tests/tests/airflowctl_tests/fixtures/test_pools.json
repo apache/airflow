@@ -1,8 +1,0 @@
-[
-  {
-    "name": "test_import_pool",
-    "slots": 10,
-    "description": "Test pool for import",
-    "include_deferred": false
-  }
-]

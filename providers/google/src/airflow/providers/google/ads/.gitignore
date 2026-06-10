@@ -1,3 +1,0 @@
-# Ignore vendored directory, just in case if directory structure exists in some dev machines
-# as result __init__.py could be added again by pre-commit hook.
-_vendor/
