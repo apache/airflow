@@ -24,10 +24,9 @@ from typing import Any
 
 from dateutil.parser import parse as parse_date
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.timezone import convert_to_utc
 
 
 class SFTPTrigger(BaseTrigger):
@@ -87,7 +86,7 @@ class SFTPTrigger(BaseTrigger):
 
         if isinstance(self.newer_than, str):
             self.newer_than = parse_date(self.newer_than)
-        _newer_than = convert_to_utc(self.newer_than) if self.newer_than else None
+        _newer_than = timezone.convert_to_utc(self.newer_than) if self.newer_than else None
         while True:
             try:
                 if self.file_pattern:
@@ -102,7 +101,9 @@ class SFTPTrigger(BaseTrigger):
                             mod_time = datetime.fromtimestamp(float(file.attrs.mtime)).strftime(
                                 "%Y%m%d%H%M%S"
                             )
-                            mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                            mod_time_utc = timezone.convert_to_utc(
+                                datetime.strptime(mod_time, "%Y%m%d%H%M%S")
+                            )
                             if _newer_than <= mod_time_utc:
                                 files_sensed.append(file.filename)
                         else:
@@ -118,7 +119,7 @@ class SFTPTrigger(BaseTrigger):
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
-                        mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                        mod_time_utc = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
                             yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
                             return

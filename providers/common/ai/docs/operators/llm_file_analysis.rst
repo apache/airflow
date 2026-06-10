@@ -78,12 +78,13 @@ Structured Output
 Set ``output_type`` to a Pydantic ``BaseModel`` when you want a typed response
 back from the LLM instead of a plain string. The model instance is pushed to
 XCom unchanged so downstream tasks can type-hint the class directly. The
-operator auto-registers ``output_type`` (and any ``BaseModel`` reachable from
-``Union``/``Optional``/``list`` shapes) for deserialization in every process
-that parses the DAG. Define the class at **module scope** and bind it to an
-attribute matching its ``__name__``: nested-in-function classes and
-dynamically-built classes are rejected at construction time. Same-DAG
-downstream tasks need no configuration; the UI XCom viewer renders the value
+declared ``output_type`` (and any ``BaseModel`` reachable from
+``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
+worker when it loads the DAG. Define the class at **module scope** and bind it to
+an attribute matching its ``__name__``: nested-in-function and dynamically-built
+classes cannot be re-imported, so they are skipped at worker startup and fail to
+deserialize at the consumer. Same-DAG downstream tasks need no configuration; the
+UI XCom viewer renders the value
 via the ``stringify`` path (no configuration needed). Cross-DAG ``xcom_pull``
 consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes`` (see the ``LLMOperator`` guide for

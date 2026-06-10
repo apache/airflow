@@ -3263,6 +3263,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Deadlines
       - Docs
       - Jobs
       - Plugins
@@ -3295,26 +3296,57 @@ components:
         id:
           type: integer
           title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
         uri:
           type: string
           title: Uri
-        name:
-          type: string
-          title: Name
-        lastUpdate:
+        last_update:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Lastupdate
+          title: Last Update
+        received_count:
+          type: integer
+          title: Received Count
+          default: 0
+        required_count:
+          type: integer
+          title: Required Count
+          default: 1
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
       type: object
       required:
       - id
-      - uri
       - name
+      - uri
       title: NextRunAssetEventResponse
-      description: An asset, and the time of its latest event, that a DAG's next run
-        is waiting on.
+      description: One asset event in the ``next_run_assets`` payload.
     NextRunAssetsResponse:
       properties:
         asset_expression:
@@ -3341,8 +3373,7 @@ components:
       required:
       - events
       title: NextRunAssetsResponse
-      description: Assets feeding a DAG's next run, with the scheduling expression
-        that combines them.
+      description: Response for the ``next_run_assets`` endpoint.
     NodeResponse:
       properties:
         id:
@@ -3426,12 +3457,44 @@ components:
         received:
           type: boolean
           title: Received
+        received_count:
+          type: integer
+          title: Received Count
+        required_count:
+          type: integer
+          title: Required Count
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - received
+      - received_count
+      - required_count
+      - received_keys
+      - required_keys
       title: PartitionedDagRunAssetResponse
       description: Asset info within a partitioned Dag run detail.
     PartitionedDagRunCollectionResponse:
@@ -3828,6 +3891,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -3874,6 +3938,9 @@ components:
         deferred:
           type: integer
           title: Deferred
+        awaiting_input:
+          type: integer
+          title: Awaiting Input
       type: object
       required:
       - no_status
@@ -3889,6 +3956,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
     TeamCollectionResponse:

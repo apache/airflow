@@ -25,7 +25,7 @@ class TestAssetAccessControl:
     def test_defaults(self):
         ac = AssetAccessControl()
         assert ac.producer_teams == []
-        assert ac.consumer_teams == []
+        assert ac.consumer_teams is None
         assert ac.allow_global is True
 
     def test_explicit_values(self):
