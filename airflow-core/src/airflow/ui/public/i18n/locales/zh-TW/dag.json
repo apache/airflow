@@ -250,7 +250,7 @@
     "delete": "刪除任務儲存區",
     "deleteWarning": "此任務將失去這筆持久化的記憶資料。若任務使用此鍵追蹤外部工作（例如外部工作 ID），將無法恢復該工作。",
     "edit": "編輯任務儲存區",
-    "emptyStore": "任務儲存區會儲存在重試之間持久保留的值。Worker 可透過 Task SDK 寫入任務儲存區。",
+    "emptyStore": "任務儲存區會儲存在重試之間持久保留的值。工作節點可透過 Task SDK 寫入任務儲存區。",
     "expiresAt": {
       "column": "到期時間",
       "custom": "自訂",
