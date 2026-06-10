@@ -157,12 +157,12 @@ Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBacke
 
 * ``serialize_task_store_to_ref``: called by ``TaskStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
 * ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
-* ``serialize_asset_store_to_ref``: same as the task variant but for asset store; receives the asset name or URI as ``asset_ref``.
+* ``serialize_asset_store_to_ref``: same as the task variant but for asset store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
 * ``deserialize_asset_store_from_ref``: called by ``AssetStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
 .. important::
 
-   **References must be deterministic.**  Given the same inputs (``ti_id`` + ``key`` for task store; ``asset_ref`` + ``key`` for asset store), the serialization method must always return the same reference string. Do not embed timestamps, random UUIDs, or any other non-deterministic component in the reference path.
+   **References must be deterministic.**  Given the same inputs (``scope`` + ``key``), the serialization method must always return the same reference string. Do not embed timestamps, random UUIDs, or any other non-deterministic component in the reference path.
 
    When a key is deleted or cleared, Airflow clears the database reference *first*, then calls the backend's ``delete()`` or ``clear()`` method. If backend cleanup fails after the DB row is gone, the external object is orphaned. Because the reference is deterministic, a subsequent ``set()`` for the same key will overwrite the orphaned object, making the failure recoverable. A non-deterministic reference would leave the external object permanently orphaned with no way to locate it.
 
@@ -178,17 +178,18 @@ Example skeleton:
 
     class S3StateBackend(BaseStoreBackend):
 
-        def _task_ref(self, ti_id: str, key: str) -> str:
-            return f"airflow/task-store/{ti_id}/{key}"
+        def _task_ref(self, scope: TaskScope, key: str) -> str:
+            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
 
-        def _asset_ref(self, asset_ref: str, key: str) -> str:
+        def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib
 
-            safe = hashlib.sha256(asset_ref.encode()).hexdigest()[:16]
+            asset_identifier = scope.name or scope.uri or ""
+            safe = hashlib.sha256(asset_identifier.encode()).hexdigest()[:16]
             return f"airflow/asset-store/{safe}/{key}"
 
-        def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
-            s3_key = self._task_ref(ti_id, key)
+        def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+            s3_key = self._task_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
@@ -196,8 +197,8 @@ Example skeleton:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
-        def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
-            s3_key = self._asset_ref(asset_ref, key)
+        def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+            s3_key = self._asset_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 

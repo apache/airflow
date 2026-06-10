@@ -22,12 +22,14 @@ from typing import ClassVar
 import pytest
 
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
     HourWindow,
     MonthWindow,
     QuarterWindow,
+    SegmentWindow,
     WeekWindow,
     Window,
     YearWindow,
@@ -64,6 +66,36 @@ class TestSdkRollupMapperInit:
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
 
 
+class TestSdkDirectionValidation:
+    """SDK Window.__init__ must coerce valid strings and reject invalid ones at construction time."""
+
+    @pytest.mark.parametrize(
+        ("direction_input", "expected_member"),
+        [
+            pytest.param(Window.Direction.FORWARD, Window.Direction.FORWARD, id="enum_forward"),
+            pytest.param(Window.Direction.BACKWARD, Window.Direction.BACKWARD, id="enum_backward"),
+            pytest.param("forward", Window.Direction.FORWARD, id="str_forward"),
+            pytest.param("backward", Window.Direction.BACKWARD, id="str_backward"),
+        ],
+    )
+    def test_valid_direction_coerced_to_enum(self, direction_input, expected_member):
+        window = WeekWindow(direction=direction_input)
+        assert window.direction is expected_member
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param("forwrd", id="typo_forwrd"),
+            pytest.param("backwards", id="typo_backwards"),
+            pytest.param("FORWARD", id="wrong_case"),
+            pytest.param("", id="empty_string"),
+        ],
+    )
+    def test_invalid_direction_raises_value_error(self, bad_value):
+        with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
+            WeekWindow(direction=bad_value)
+
+
 class TestSdkWindowExpectedDecodedType:
     """Each SDK temporal window must declare ``datetime`` so the validation lines up with core."""
 
@@ -73,3 +105,67 @@ class TestSdkWindowExpectedDecodedType:
     )
     def test_temporal_windows_declare_datetime(self, window_cls):
         assert window_cls.expected_decoded_type is datetime
+
+
+class TestSdkFixedKeyMapper:
+    """SDK-side FixedKeyMapper construction and validation."""
+
+    @pytest.mark.parametrize("key", ["us", "eu", "apac"])
+    def test_to_downstream_returns_constant_for_any_key(self, key):
+        assert FixedKeyMapper("all_regions").to_downstream(key) == "all_regions"
+
+    def test_is_rollup_false(self):
+        assert FixedKeyMapper("all").is_rollup is False
+
+    @pytest.mark.parametrize(
+        ("downstream_key", "match"),
+        [
+            pytest.param("", "non-empty str", id="empty-string"),
+            pytest.param(None, "non-empty str", id="none"),
+            pytest.param(1, "non-empty str", id="int"),
+        ],
+    )
+    def test_rejects_invalid_downstream_key(self, downstream_key, match):
+        with pytest.raises(ValueError, match=match):
+            FixedKeyMapper(downstream_key)
+
+    def test_requires_downstream_key(self):
+        with pytest.raises(TypeError):
+            FixedKeyMapper()
+
+
+class TestSdkSegmentWindow:
+    """SDK-side SegmentWindow construction and validation mirrors the core implementation."""
+
+    def test_expected_decoded_type_is_str(self):
+        assert SegmentWindow.expected_decoded_type is str
+
+    def test_deduplication(self):
+        w = SegmentWindow(["a", "b", "a"])
+        assert w._segments == frozenset({"a", "b"})
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([], "at least one segment key", id="empty-list"),
+            pytest.param([1, "b"], "must be str", id="int-element"),
+            pytest.param(["", "b"], "non-empty", id="empty-string"),
+        ],
+    )
+    def test_rejects_invalid_segments(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+
+class TestSdkCategoricalRollupGuard:
+    """SDK-side RollupMapper guard mirrors core: str mapper + str window passes."""
+
+    def test_fixed_key_with_segment_window_does_not_raise(self):
+        # SDK guard: FixedKeyMapper.expected_decoded_type is str,
+        # SegmentWindow.expected_decoded_type is str -> guard passes.
+        RollupMapper(upstream_mapper=FixedKeyMapper("all"), window=SegmentWindow(["us", "eu"]))
+
+    def test_str_mapper_with_datetime_window_raises(self):
+        # SDK guard: FixedKeyMapper (str) + DayWindow (datetime) -> raise.
+        with pytest.raises(TypeError, match="DayWindow expects decoded values of type 'datetime'"):
+            RollupMapper(upstream_mapper=FixedKeyMapper("all"), window=DayWindow())

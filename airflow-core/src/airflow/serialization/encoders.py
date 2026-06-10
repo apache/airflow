@@ -43,6 +43,7 @@ from airflow.sdk import (
     DeltaTriggerTimetable,
     EventsTimetable,
     FanOutMapper,
+    FixedKeyMapper,
     HourWindow,
     IdentityMapper,
     MonthWindow,
@@ -51,6 +52,7 @@ from airflow.sdk import (
     ProductMapper,
     QuarterWindow,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -437,6 +439,7 @@ class _Serializer:
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
         ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
         FanOutMapper: "airflow.partition_mappers.temporal.FanOutMapper",
+        FixedKeyMapper: "airflow.partition_mappers.fixed_key.FixedKeyMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         RollupMapper: "airflow.partition_mappers.base.RollupMapper",
@@ -463,6 +466,10 @@ class _Serializer:
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
+        return {"downstream_key": partition_mapper.downstream_key}
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)
@@ -517,6 +524,7 @@ class _Serializer:
         WeekWindow: "airflow.partition_mappers.window.WeekWindow",
         MonthWindow: "airflow.partition_mappers.window.MonthWindow",
         QuarterWindow: "airflow.partition_mappers.window.QuarterWindow",
+        SegmentWindow: "airflow.partition_mappers.window.SegmentWindow",
         YearWindow: "airflow.partition_mappers.window.YearWindow",
     }
 
@@ -536,7 +544,11 @@ class _Serializer:
         self,
         window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
     ) -> dict[str, Any]:
-        return {}
+        return window.serialize()
+
+    @serialize_window.register
+    def _(self, window: SegmentWindow) -> dict[str, Any]:
+        return {"segments": sorted(window._segments)}
 
 
 _serializer = _Serializer()
