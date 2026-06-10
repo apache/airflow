@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "Slotlarda sayılmayan ertelenenler: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Çubukta gösterilen ertelenmiş görevler havuz slotlarına dahil edilir. Çubuğun altında gösterilen ertelenmiş görevler, ertelenmiş görevleri slotlara saymayan havuzlardandır.",
   "favorite": {
     "favoriteDags_one": "İlk {{count}} favori Dag(lar)",
     "favoriteDags_other": "İlk {{count}} favori Dag(lar)",
