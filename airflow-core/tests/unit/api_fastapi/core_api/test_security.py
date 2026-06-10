@@ -62,7 +62,7 @@ from tests_common.test_utils.config import conf_vars
 
 @pytest.mark.db_test
 def test_build_dag_run_access_requests_batches_team_lookup():
-    """The bulk dag-run team resolution must be a single query regardless of dag count (no N+1)."""
+    """The bulk dag-run team resolution must be a single query regardless of Dag count (no N+1)."""
     entity_methods = [(f"dag_{i}", "GET") for i in range(25)]
     with assert_queries_count(1):
         requests = _build_dag_run_access_requests(entity_methods)
