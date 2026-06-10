@@ -45,7 +45,11 @@ data:
     {{-  if and $config.api $config.api.base_url -}}
       {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
     {{- end -}}
-    {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
+    {{- $executionApiServerName := printf "%s-api-server" (include "airflow.fullname" .) -}}
+    {{- if .Values.splitApiServersIntoCoreAndExecution -}}
+      {{- $executionApiServerName = printf "%s-execution-api-server" (include "airflow.fullname" .) -}}
+    {{- end -}}
+    {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s:%d%s/execution/" $executionApiServerName (int .Values.ports.apiServer) $basePath)  -}}
   {{- end -}}
   # These are system-specified config overrides.
   airflow.cfg: |-

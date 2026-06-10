@@ -150,6 +150,16 @@ class TestBaseChartTest:
         actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
         assert actual == OBJECTS_STD_NAMING
 
+    def test_basic_deployments_with_split_api_servers(self):
+        k8s_objects = render_chart(
+            "test-basic",
+            values={"splitApiServersIntoCoreAndExecution": True},
+        )
+        kind_names = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
+
+        assert ("Deployment", "test-basic-execution-api-server") in kind_names
+        assert ("Service", "test-basic-execution-api-server") in kind_names
+
     def test_basic_deployment_without_statsd(self):
         k8s_objects = render_chart(
             "test-basic",
