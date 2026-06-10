@@ -142,12 +142,7 @@ class TestSnowparkContainerJobOperator:
 
     @pytest.mark.parametrize(
         "status",
-        (
-            pytest.param("DONE", id="done"),
-            pytest.param("FAILED", id="failed"),
-            pytest.param("CANCELLED", id="cancelled"),
-            pytest.param("INTERNAL_ERROR", id="internal_error"),
-        ),
+        ("DONE", "FAILED", "CANCELLED", "INTERNAL_ERROR"),
     )
     @mock.patch(MOCK_HOOK_PATH)
     def test_poll_returns_terminal_status(self, mock_hook_cls, status):
@@ -220,6 +215,13 @@ class TestSnowparkContainerJobOperator:
         with mock.patch.object(op.log, "info") as mock_info:
             op._log_container_output("DONE")
         assert mock_info.call_count == 3
+
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_on_kill_no_job_name(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        op = _make_operator()
+        op.on_kill()
+        mock_hook.run.assert_not_called()
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_on_kill_drops_service(self, mock_hook_cls):

@@ -41,40 +41,40 @@ class SnowparkContainerJobOperator(BaseOperator):
     .. seealso::
         `Snowpark Container Services <https://docs.snowflake.com/en/developer-guide/snowpark-container-services/overview>`_
 
-    :param compute_pool: name of the compute pool to run the job on.
+    :param compute_pool: name of the compute pool to run the job on
     :param container_name: container name as defined in the service specification file,
-        used for retrieving logs via ``SYSTEM$GET_SERVICE_LOGS``.
+        used for retrieving container logs
     :param spec: spec filename on the stage (e.g. ``'spec.yaml'``).
-        Must be provided together with ``spec_stage``.
+        Must be provided together with ``spec_stage``
     :param spec_stage: stage where the spec file is stored (e.g. ``'@my_stage'``).
-        Must be provided together with ``spec``.
+        Must be provided together with ``spec``
     :param spec_text: inline YAML spec text, as an alternative to ``spec``/``spec_stage``.
-        The text is wrapped in ``$$`` delimiters automatically.
+        The text is wrapped in ``$$`` delimiters automatically
     :param name: (Optional) job service name. If not provided, Snowflake
-        auto-generates a name.
+        auto-generates a name
     :param query_warehouse: (Optional) warehouse for SQL queries run inside the container.
-        This is passed to ``EXECUTE JOB SERVICE`` and is separate from the ``warehouse``
-        parameter used by the operator's own SQL commands.
+        This is separate from the ``warehouse`` parameter used by the operator's
+        own SQL commands
     :param replicas: (Optional) number of job replicas to run. (default value: 1)
     :param wait_for_completion: poll until the job reaches a terminal state.
         When disabled, the job is submitted and the operator returns
         immediately. (default value: True)
-    :param drop_on_completion: drop the job service via ``DROP SERVICE``
-        after the job finishes successfully. Failed jobs are not dropped,
-        allowing inspection via ``DESCRIBE SERVICE``. (default value: True)
+    :param drop_on_completion: drop the job service after the job finishes
+        successfully. Failed jobs are not dropped, allowing inspection
+        in Snowflake. (default value: True)
     :param poll_interval: the interval in seconds to poll the query status.
         (default value: 10)
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param database: name of database (will overwrite database defined
-        in connection).
+        in connection)
     :param schema: name of schema (will overwrite schema defined in
-        connection).
+        connection)
     :param role: name of role (will overwrite any role defined in
-        connection's extra JSON).
+        connection's extra JSON)
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON). Used for the operator's
-        own SQL commands, not for the container's queries.
+        own SQL commands, not for the container's queries
     """
 
     template_fields: Sequence[str] = (
