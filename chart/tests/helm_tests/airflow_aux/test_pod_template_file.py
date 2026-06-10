@@ -847,9 +847,7 @@ class TestPodTemplateFile:
     @pytest.mark.parametrize(
         "values",
         [
-            {"securityContext": {"runAsUser": 10}},
             {"securityContexts": {"pod": {"runAsUser": 10}}},
-            {"workers": {"securityContext": {"runAsUser": 10}}},
             {"workers": {"securityContexts": {"pod": {"runAsUser": 10}}}},
             {"workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}}},
         ],
@@ -889,7 +887,6 @@ class TestPodTemplateFile:
     @pytest.mark.parametrize(
         "values",
         [
-            {"securityContext": {"runAsUser": 5}, "workers": {"securityContext": {"runAsUser": 10}}},
             {
                 "securityContexts": {"pod": {"runAsUser": 5}},
                 "workers": {"securityContexts": {"pod": {"runAsUser": 10}}},
@@ -903,19 +900,6 @@ class TestPodTemplateFile:
                     "securityContexts": {"pod": {"runAsUser": 5}},
                     "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
                 },
-            },
-            {"securityContext": {"runAsUser": 5}, "securityContexts": {"pod": {"runAsUser": 10}}},
-            {
-                "workers": {
-                    "securityContext": {"runAsUser": 5},
-                    "securityContexts": {"pod": {"runAsUser": 10}},
-                }
-            },
-            {
-                "workers": {
-                    "securityContext": {"runAsUser": 5},
-                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
-                }
             },
         ],
     )
