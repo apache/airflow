@@ -24,7 +24,7 @@ import { FiFileText } from "react-icons/fi";
 import innerText from "react-innertext";
 
 import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
-import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
 import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
@@ -54,7 +54,7 @@ const parseCallbackLogs = (
 ): Array<ParsedLogEntry> => {
   let lineNumber = 0;
   const lineNumbers = data.map((datum) => {
-    const text = typeof datum === "string" ? datum : (datum as StructuredLogMessage).event;
+    const text = typeof datum === "string" ? datum : datum.event;
 
     if (text.includes("::group::") || text.includes("::endgroup::")) {
       return undefined;
