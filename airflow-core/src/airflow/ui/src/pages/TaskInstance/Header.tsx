@@ -29,18 +29,12 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NoteAccordion from "src/components/NoteAccordion";
 import Time from "src/components/Time";
-import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
-
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+  const { note, onSave, setNote } = useTaskInstanceNote(taskInstance);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -68,28 +62,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     },
   ];
 
-  const { mutate } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  });
-
-  const onConfirm = () => {
-    if (note !== taskInstance.note) {
-      mutate(
-        {
-          dagId,
-          dagRunId,
-          mapIndex,
-          requestBody: { note },
-          taskId,
-        },
-        { onError: () => setNote(taskInstance.note ?? null) },
-      );
-    }
-  };
-
   // Stable dialog state at header/page level
   const [clearOpen, setClearOpen] = useState(false);
 
@@ -111,7 +83,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      <NoteAccordion note={note} onSave={onConfirm} setNote={setNote} />
+      <NoteAccordion note={note} onSave={onSave} setNote={setNote} />
       <ClearTaskInstanceDialog
         onClose={() => setClearOpen(false)}
         open={clearOpen}

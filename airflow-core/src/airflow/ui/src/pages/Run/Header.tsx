@@ -17,7 +17,6 @@
  * under the License.
  */
 import { HStack, Text, Box } from "@chakra-ui/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 
@@ -34,38 +33,20 @@ import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
-import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import { useDagRunNote } from "src/queries/useDagRunNote";
 import { getDuration } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
-  const [note, setNote] = useState<string | null>(dagRun.note);
+  const { note, onSave, setNote } = useDagRunNote(dagRun);
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
   const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
-
-  const { mutate } = usePatchDagRun({
-    dagId,
-    dagRunId,
-  });
-
-  const onConfirm = () => {
-    if (note !== dagRun.note) {
-      mutate(
-        {
-          dagId,
-          dagRunId,
-          requestBody: { note },
-        },
-        { onError: () => setNote(dagRun.note ?? null) },
-      );
-    }
-  };
 
   return (
     <Box>
@@ -144,7 +125,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
         ]}
         title={dagRun.dag_run_id}
       />
-      <NoteAccordion note={note} onSave={onConfirm} setNote={setNote} />
+      <NoteAccordion note={note} onSave={onSave} setNote={setNote} />
     </Box>
   );
 };

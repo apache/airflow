@@ -16,42 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
-import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import { useDagRunNote } from "src/queries/useDagRunNote";
 
 const RunNoteButton = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
-  const [note, setNote] = useState<string | null>(dagRun.note);
-
-  const { isPending, mutate } = usePatchDagRun({
-    dagId: dagRun.dag_id,
-    dagRunId: dagRun.dag_run_id,
-  });
-
-  const onConfirm = () => {
-    if (note !== dagRun.note) {
-      mutate({
-        dagId: dagRun.dag_id,
-        dagRunId: dagRun.dag_run_id,
-        requestBody: { note },
-      });
-    }
-  };
-
-  const onOpen = () => {
-    setNote(dagRun.note ?? "");
-  };
+  const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
 
   return (
     <EditableMarkdownButton
       header={translate("note.dagRun")}
       isPending={isPending}
-      mdContent={dagRun.note}
-      onConfirm={onConfirm}
+      mdContent={note}
+      onConfirm={onSave}
       onOpen={onOpen}
       placeholder={translate("note.placeholder")}
       setMdContent={setNote}
