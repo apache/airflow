@@ -1773,8 +1773,6 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
-        elif isinstance(msg, GetXComCount):
-            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
                 msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
