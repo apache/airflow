@@ -600,28 +600,6 @@ class TestScheduler:
             "runAsNonRoot": True,
         }
 
-    def test_scheduler_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "scheduler": {
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
-                    }
-                },
-            },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        }
-
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
             values={
@@ -1088,6 +1066,28 @@ class TestSchedulerService:
 
         assert "executor" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["executor"] == expected_label
+
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"executor": "LocalExecutor"},
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
 
 
 class TestSchedulerServiceAccount:

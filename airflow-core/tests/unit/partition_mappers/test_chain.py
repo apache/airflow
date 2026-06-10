@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from airflow.partition_mappers.base import PartitionMapper
@@ -39,6 +41,22 @@ class TestChainMapper:
     def test_to_downstream(self):
         sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
         assert sm.to_downstream("2024-01-15T10:30:00") == "2024-01-15"
+
+    @pytest.mark.parametrize(
+        ("chain", "downstream_key", "expected"),
+        [
+            # Last mapper temporal → it owns the final downstream key, so it owns the anchor.
+            (
+                ChainMapper(IdentityMapper(), StartOfDayMapper()),
+                "2024-03-15",
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=timezone.utc),
+            ),
+            # Last mapper non-temporal → no anchor.
+            (ChainMapper(StartOfDayMapper(), IdentityMapper()), "anything", None),
+        ],
+    )
+    def test_to_partition_date_delegates_to_last_mapper(self, chain, downstream_key, expected):
+        assert chain.to_partition_date(downstream_key) == expected
 
     def test_to_downstream_invalid_non_iterable_return(self):
         sm = ChainMapper(IdentityMapper(), _InvalidReturnMapper())

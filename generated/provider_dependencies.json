@@ -555,7 +555,7 @@
       "apache-airflow-providers-common-compat>=1.14.1",
       "apache-airflow-providers-standard>=1.12.1",
       "apache-airflow>=3.0.0",
-      "pydantic-ai-slim>=1.71.0"
+      "pydantic-ai-slim>=1.99.0"
     ],
     "devel-deps": [
       "langchain>=1.0.0",
@@ -1013,6 +1013,7 @@
       "http",
       "microsoft.azure",
       "microsoft.mssql",
+      "mongo",
       "mysql",
       "openlineage",
       "oracle",
@@ -1253,6 +1254,8 @@
       "amazon",
       "common.compat",
       "common.messaging",
+      "google",
+      "openlineage",
       "oracle",
       "sftp"
     ],
