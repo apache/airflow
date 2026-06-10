@@ -102,6 +102,13 @@ export const HITLReviewList = ({
                   cursor="pointer"
                   key={detail.task_instance.id}
                   onClick={() => onSelect(detail)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect(detail);
+                    }
+                  }}
+                  tabIndex={0}
                 >
                   <Table.Cell
                     borderLeftColor={getHitlGroupColor(details, index)}

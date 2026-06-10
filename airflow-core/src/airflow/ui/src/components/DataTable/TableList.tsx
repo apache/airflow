@@ -97,6 +97,13 @@ export const TableList = <TData,>({
               _hover={onRowClick === undefined ? undefined : { bg: "bg.subtle" }}
               cursor={onRowClick === undefined ? undefined : "pointer"}
               onClick={onRowClick === undefined ? undefined : () => onRowClick(row)}
+              onKeyDown={(event) => {
+                if ((event.key === "Enter" || event.key === " ") && onRowClick !== undefined) {
+                  event.preventDefault();
+                  onRowClick(row);
+                }
+              }}
+              tabIndex={onRowClick === undefined ? undefined : 0}
             >
               {/* first row is a normal row */}
               {row.getVisibleCells().map((cell) => (
