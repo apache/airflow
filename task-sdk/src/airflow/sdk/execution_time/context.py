@@ -212,6 +212,7 @@ def _get_connection(conn_id: str) -> Connection:
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
+                exc_info=True,
             )
 
     # If no backend found the connection, raise an error
@@ -269,6 +270,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
+                exc_info=True,
             )
 
     # If no backend found the connection, raise an error
@@ -486,9 +488,9 @@ class VariableAccessor:
 
 
 @cache
-def _get_worker_state_backend() -> BaseStoreBackend | None:
+def _get_worker_state_store_backend() -> BaseStoreBackend | None:
     """Return the configured worker-side state backend, instantiated once and cached."""
-    class_name = conf.get("workers", "state_backend", fallback="")
+    class_name = conf.get("workers", "state_store_backend", fallback="")
     if not class_name:
         return None
     from airflow.sdk._shared.module_loading import import_string
@@ -541,7 +543,7 @@ class TaskStoreAccessor:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStoreResult):
             stored = resp.value
-            backend = _get_worker_state_backend()
+            backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
                 return backend.deserialize_task_store_from_ref(ref)
@@ -590,7 +592,7 @@ class TaskStoreAccessor:
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         stored: JsonValue = value
         if backend is not None:
             ref: str = backend.serialize_task_store_to_ref(value=value, key=key, ti_id=str(self._ti_id))
@@ -607,7 +609,7 @@ class TaskStoreAccessor:
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(DeleteTaskStore(ti_id=self._ti_id, key=key))
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.delete(self._scope, key)
 
@@ -625,7 +627,7 @@ class TaskStoreAccessor:
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(ClearTaskStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.clear(self._scope, all_map_indices=all_map_indices)
 
@@ -636,7 +638,7 @@ class TaskStoreAccessor:
         Used by clear_on_success: the server already clears DB rows as part of SucceedTask,
         so the comms round-trip is redundant.
         """
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.clear(self._scope)
 
@@ -689,7 +691,7 @@ class AssetStoreAccessor:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStoreResult):
             stored = resp.value
-            backend = _get_worker_state_backend()
+            backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
                 return backend.deserialize_asset_store_from_ref(ref)
@@ -714,7 +716,7 @@ class AssetStoreAccessor:
 
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         asset_ref = self._name or self._uri or ""
         stored: JsonValue = value
         if backend is not None:
@@ -746,7 +748,7 @@ class AssetStoreAccessor:
         # DB ref first: if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.delete(AssetScope(name=self._name, uri=self._uri), key)
 
@@ -766,7 +768,7 @@ class AssetStoreAccessor:
         elif self._uri:
             msg = ClearAssetStoreByUri(uri=self._uri)
         SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_backend()
+        backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.clear(AssetScope(name=self._name, uri=self._uri))
 

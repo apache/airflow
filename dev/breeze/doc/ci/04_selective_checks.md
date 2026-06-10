@@ -464,6 +464,9 @@ when some files are not changed. Those are the rules implemented:
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
+  * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
+    wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
+    not touch `java-sdk/`)
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 

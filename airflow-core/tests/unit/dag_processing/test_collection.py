@@ -283,7 +283,7 @@ class TestAssetModelOperation:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_task_outlet_asset_references_defaults_when_no_access_control(self, dag_maker, session):
-        """Outlet references default to empty consumer_teams and allow_global_consumers=True."""
+        """Outlet references default to None consumer_teams and allow_global_consumers=True."""
         from airflow.models.asset import TaskOutletAssetReference
 
         asset = Asset("plain_asset")
@@ -303,7 +303,7 @@ class TestAssetModelOperation:
             select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "plain_producer_dag")
         )
         assert ref is not None
-        assert ref.allow_consumer_teams == []
+        assert ref.allow_consumer_teams is None
         assert ref.allow_global_consumers is True
 
     @pytest.mark.parametrize(

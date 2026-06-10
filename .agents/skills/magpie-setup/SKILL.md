@@ -3,25 +3,15 @@ name: magpie-setup
 description: |
   Adopt and maintain the apache-steward framework in a project
   repo via the snapshot-based adoption mechanism. The only
-  framework skill committed in an adopter's repo — every other
+  framework skill committed in an adopter's repo; every other
   skill is a symlink the adopt sub-action wires up.
   Sub-actions:
-    `/magpie-setup`         — first-time adoption (default;
-                                main-checkout only)
-    `/magpie-setup upgrade` — refresh the gitignored snapshot
-                                per the committed lock
-                                (main-checkout only)
-    `/magpie-setup worktree-init` — symlink a worktree's
-                                snapshot to the main's
-    `/magpie-setup verify`  — health check + drift detection
-    `/magpie-setup override <skill>` — open or scaffold an
-                                agentic override in
-                                `.apache-magpie-overrides/`
-    `/magpie-setup unadopt` — reverse the adoption (snapshot,
-                               locks, symlinks, hook, doc
-                               sections); preserves
-                               `.apache-magpie-overrides/` by
-                               default (main-checkout only)
+    `/magpie-setup` - first-time adoption (default; main-checkout only)
+    `/magpie-setup upgrade` - refresh the gitignored snapshot per the committed lock (main-checkout only)
+    `/magpie-setup worktree-init` - symlink a worktree's snapshot to the main's
+    `/magpie-setup verify` - health check + drift detection
+    `/magpie-setup override <skill>` - open or scaffold an agentic override in `.apache-magpie-overrides/`
+    `/magpie-setup unadopt` - reverse the adoption (snapshot, locks, symlinks, hook, doc sections); preserves `.apache-magpie-overrides/` by default (main-checkout only)
 when_to_use: |
   Invoke when the user says "adopt apache-steward", "adopt
   apache/airflow-steward", "set up steward in this repo",

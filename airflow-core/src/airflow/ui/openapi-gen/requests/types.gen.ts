@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -326,11 +334,13 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
- * Request body for bulk delete operations on Dag Runs.
+ * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
     dag_run_id: string;
     dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
 };
 
 /**
@@ -691,6 +701,7 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
