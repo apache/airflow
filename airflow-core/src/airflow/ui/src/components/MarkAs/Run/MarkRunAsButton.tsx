@@ -25,6 +25,7 @@ import { LuCheck } from "react-icons/lu";
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { IconButton, Menu, Tooltip } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
@@ -41,24 +42,20 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { t: translate } = useTranslation();
 
   useShortcut({
+    ...SHORTCUTS.runActions.markRunFailed,
     callback: () => {
       setState("failed");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markRunFailed"),
-    keys: "shift+f",
     options: { enabled: isHotkeyEnabled },
   });
 
   useShortcut({
+    ...SHORTCUTS.runActions.markRunSuccess,
     callback: () => {
       setState("success");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markRunSuccess"),
-    keys: "shift+s",
     options: { enabled: isHotkeyEnabled },
   });
 

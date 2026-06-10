@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
 
 import { IconButton } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 export type LogSearchInputProps = {
@@ -45,13 +46,11 @@ export const LogSearchInput = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useShortcut({
+    ...SHORTCUTS.logs.focusLogSearch,
     callback: (event) => {
       event.preventDefault();
       searchInputRef.current?.focus();
     },
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.focusLogSearch"),
-    keys: "/",
     options: { enableOnFormTags: false },
   });
 

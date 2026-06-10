@@ -25,6 +25,7 @@ import { LuCheck } from "react-icons/lu";
 import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { IconButton, Menu, Tooltip } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
@@ -41,24 +42,20 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
   const [state, setState] = useState<TaskInstanceState>("success");
 
   useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupFailed,
     callback: () => {
       setState("failed");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markTaskGroupFailed"),
-    keys: "shift+f",
     options: { enabled: isHotkeyEnabled },
   });
 
   useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupSuccess,
     callback: () => {
       setState("success");
       onOpen();
     },
-    category: "runActions",
-    description: translate("common:shortcuts.descriptions.markTaskGroupSuccess"),
-    keys: "shift+s",
     options: { enabled: isHotkeyEnabled },
   });
 

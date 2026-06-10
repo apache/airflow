@@ -19,10 +19,10 @@
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
@@ -57,7 +57,6 @@ export const TaskLogContent = ({
   searchQuery,
   wrap,
 }: TaskLogContentProps) => {
-  const { t: translate } = useTranslation("common");
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -151,17 +150,13 @@ export const TaskLogContent = ({
   };
 
   useShortcut({
+    ...SHORTCUTS.logs.scrollBottom,
     callback: () => handleScrollTo("bottom"),
-    category: "logs",
-    description: translate("shortcuts.descriptions.scrollBottom"),
-    keys: "mod+ArrowDown",
     options: { enabled: !isLoading },
   });
   useShortcut({
+    ...SHORTCUTS.logs.scrollTop,
     callback: () => handleScrollTo("top"),
-    category: "logs",
-    description: translate("shortcuts.descriptions.scrollTop"),
-    keys: "mod+ArrowUp",
     options: { enabled: !isLoading },
   });
 

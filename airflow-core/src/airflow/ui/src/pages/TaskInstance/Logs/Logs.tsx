@@ -26,6 +26,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
@@ -161,40 +162,28 @@ export const Logs = () => {
   const toggleExpanded = () => setExpanded((act) => !act);
 
   useShortcut({
+    ...SHORTCUTS.logs.toggleWrap,
     callback: toggleWrap,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleWrap"),
-    keys: "w",
   });
   useShortcut({
+    ...SHORTCUTS.logs.toggleFullscreen,
     callback: toggleFullscreen,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleFullscreen"),
-    keys: "f",
   });
   useShortcut({
+    ...SHORTCUTS.logs.toggleExpand,
     callback: toggleExpanded,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleExpand"),
-    keys: "e",
   });
   useShortcut({
+    ...SHORTCUTS.logs.toggleTimestamp,
     callback: toggleTimestamp,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleTimestamp"),
-    keys: "t",
   });
   useShortcut({
+    ...SHORTCUTS.logs.toggleSource,
     callback: toggleSource,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.toggleSource"),
-    keys: "s",
   });
   useShortcut({
+    ...SHORTCUTS.logs.downloadLogs,
     callback: downloadLogs,
-    category: "logs",
-    description: translate("common:shortcuts.descriptions.downloadLogs"),
-    keys: "d",
   });
 
   const onOpenChange = () => {

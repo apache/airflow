@@ -17,39 +17,42 @@
  * under the License.
  */
 import { type DependencyList, useEffect, useId } from "react";
-import { type HotkeyCallback, type Keys, type Options, useHotkeys } from "react-hotkeys-hook";
+import { type HotkeyCallback, type Options, useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 
-import { type ShortcutCategory, useShortcutRegistry } from "src/context/keyboardShortcuts";
+import { type ShortcutDefinition, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
 type UseShortcutParams = {
   readonly callback: HotkeyCallback;
-  readonly category: ShortcutCategory;
   readonly dependencies?: DependencyList;
-  readonly description: string;
-  readonly keys: Keys;
   readonly options?: Options;
-};
+} & ShortcutDefinition;
 
 /**
  * Thin wrapper around `react-hotkeys-hook`'s `useHotkeys` that also publishes the
  * shortcut to the keyboard-shortcut registry so it shows up in the help modal.
  *
- * Behaviour of the underlying hotkey is unchanged: `keys`, `callback`, `options`
- * and `dependencies` are forwarded verbatim. The shortcut is registered only
- * while it is enabled, matching when the hotkey is actually bound.
+ * The static `category`, `descriptionKey` and `keys` come from a `SHORTCUTS`
+ * definition (spread in at the call site); `callback`, `options` and
+ * `dependencies` stay at the call site since they depend on component state. The
+ * shortcut is registered only while it is enabled, matching when the hotkey is
+ * actually bound.
  */
 export const useShortcut = ({
   callback,
   category,
   dependencies,
-  description,
+  descriptionKey,
   keys,
   options,
 }: UseShortcutParams) => {
   const id = useId();
+  const { t: translate } = useTranslation("common");
   const { register, unregister } = useShortcutRegistry();
 
   const ref = useHotkeys(keys, callback, options, dependencies);
+
+  const description = translate(descriptionKey);
 
   const keyList: Array<string> = typeof keys === "string" ? [keys] : [...keys];
   // A `false` literal means the hotkey is not bound; a function trigger is evaluated

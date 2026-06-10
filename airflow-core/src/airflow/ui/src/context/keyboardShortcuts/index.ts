@@ -17,5 +17,6 @@
  * under the License.
  */
 export { SHORTCUT_CATEGORIES, type ShortcutCategory, type ShortcutEntry } from "./Context";
+export { SHORTCUTS, type ShortcutDefinition } from "./shortcuts";
 export { ShortcutRegistryProvider } from "./ShortcutRegistryProvider";
 export { useShortcutRegistry } from "./useShortcutRegistry";

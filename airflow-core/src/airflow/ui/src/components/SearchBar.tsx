@@ -23,6 +23,7 @@ import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
 import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
 
@@ -75,12 +76,10 @@ export const SearchBar = ({
   };
 
   useShortcut({
+    ...SHORTCUTS.search.focusSearch,
     callback: () => {
       searchRef.current?.focus();
     },
-    category: "search",
-    description: translate("common:shortcuts.descriptions.focusSearch"),
-    keys: "mod+k",
     options: { enabled: !hotkeyDisabled, preventDefault: true },
   });
 
