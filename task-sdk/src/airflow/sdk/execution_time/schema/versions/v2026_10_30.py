@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
+from airflow.callbacks.callback_requests import DagSkippedIntervalsCallbackRequest  # noqa: SDK002
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstance, TIRunContext
 from airflow.sdk.execution_time.comms import (
@@ -110,4 +111,15 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddDagSkippedIntervalsCallbackRequest(VersionChange):
+    """Introduce ``DagSkippedIntervalsCallbackRequest`` in the ``CallbackRequest`` union."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagSkippedIntervalsCallbackRequest).field("dag_id").didnt_exist,
+        schema(DagSkippedIntervalsCallbackRequest).field("skipped_intervals").didnt_exist,
     )
