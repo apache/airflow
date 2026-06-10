@@ -27,6 +27,7 @@ import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
 import { MissedDeadlines } from "./MissedDeadlines";
+import { DagImportErrors } from "./DagImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 type StatsProps = {
@@ -70,7 +71,7 @@ export const Stats = ({ endDate, startDate }: StatsProps) => {
           state="failed"
         />
 
-        <DAGImportErrors />
+        <DagImportErrors />
 
         <PluginImportErrors />
 

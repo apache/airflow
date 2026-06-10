@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     from airflow.partition_mappers.window import Window
 
@@ -92,6 +93,19 @@ class PartitionMapper(ABC):
         """
         return decoded
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *downstream_key*.
+
+        The scheduler stamps this on the asset-triggered Dag run as its
+        ``partition_date``. The base implementation returns ``None`` — a plain
+        partition key carries no temporal meaning. Temporal mappers override to
+        decode the key into its window anchor; composite mappers
+        (:class:`RollupMapper`, :class:`~airflow.partition_mappers.temporal.FanOutMapper`)
+        delegate to whichever child owns the downstream key's identity.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
         return {}
 
@@ -137,6 +151,11 @@ class RollupMapper(PartitionMapper):
             self.upstream_mapper.encode_upstream(expected_upstream)
             for expected_upstream in self.window.to_upstream(decoded)
         )
+
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # The downstream key is in upstream_mapper's format (to_downstream delegates
+        # to it), so the anchor is the upstream_mapper's to resolve.
+        return self.upstream_mapper.to_partition_date(downstream_key)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper, encode_window
