@@ -82,6 +82,7 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -103,9 +104,11 @@ from airflow.sdk import (
     AssetAlias,
     AssetWatcher,
     CronPartitionTimetable,
+    FixedKeyMapper,
     HourWindow,
     IdentityMapper,
     RollupMapper,
+    SegmentWindow,
     StartOfHourMapper,
     task,
 )
@@ -4292,7 +4295,7 @@ class TestSchedulerJob:
 
         Noted: the DagRun state could be still in running state during CI.
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         sync_bag_to_db(dagbag, "testing", None)
         dag_id = "test_dagrun_states_root_future"
 
@@ -4310,7 +4313,7 @@ class TestSchedulerJob:
         """
         Test that the scheduler respects start_dates, even when DAGs have run
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         with create_session() as session:
             dag_id = "test_start_date_scheduling"
             dag = dagbag.get_dag(dag_id)
@@ -4367,7 +4370,6 @@ class TestSchedulerJob:
         """
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
-            include_examples=False,
         )
         dag_id = "test_task_start_date_scheduling"
         dag = dagbag.get_dag(dag_id)
@@ -4408,7 +4410,6 @@ class TestSchedulerJob:
         """
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
-            include_examples=False,
         )
         dag_id = "test_task_start_date_scheduling"
         dag = dagbag.get_dag(dag_id)
@@ -4452,7 +4453,7 @@ class TestSchedulerJob:
         """
         Test that the scheduler can successfully queue multiple dags in parallel
         """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag = DagBag(TEST_DAG_FOLDER)
         dag_ids = [
             "test_start_date_scheduling",
             "test_task_start_date_scheduling",
@@ -7312,6 +7313,97 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
+        """
+        A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by
+        the scheduler sweep (the default applied as the response), while a not-yet-expired one is
+        left untouched. This proves HITL timeout liveness with no triggerer running.
+        """
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_defaults",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr_past = dag_maker.create_dagrun()
+        dr_future = dag_maker.create_dagrun(
+            run_id="future", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+        )
+        ti_past = dr_past.get_task_instance("dummy1", session=session)
+        ti_future = dr_future.get_task_instance("dummy1", session=session)
+        for ti, offset in ((ti_past, -60), (ti_future, 60)):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=offset)
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+            session.add(
+                HITLDetail(
+                    ti_id=ti.id,
+                    options=["Approve", "Reject"],
+                    subject="approve?",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                )
+            )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti_past)
+        session.refresh(ti_future)
+        # Past-deadline task resumed with the default applied; the future one is left parked.
+        assert ti_past.state == State.SCHEDULED
+        assert ti_past.next_method == "execute_complete"
+        assert ti_past.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        assert ti_past.next_kwargs["event"]["timedout"] is True
+        assert ti_future.state == State.AWAITING_INPUT
+        hitl_detail = session.get(HITLDetail, ti_past.id)
+        assert hitl_detail.chosen_options == ["Approve"]
+        assert hitl_detail.responded_by is None
+        assert hitl_detail.responded_at is not None
+
+    def test_awaiting_input_timeout_without_defaults_fails(self, dag_maker):
+        """A parked ``awaiting_input`` task past its deadline with no defaults is failed by the sweep."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_nodefaults",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        ti.state = State.AWAITING_INPUT
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                defaults=None,
+                multiple=False,
+                params={},
+            )
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti)
+        # Resumed into execute_complete with a timeout failure event (raises HITLTimeoutError on
+        # resume), rather than the generic __fail__ deferral-timeout path.
+        assert ti.state == State.SCHEDULED
+        assert ti.next_method == "execute_complete"
+        assert ti.next_kwargs["event"]["error_type"] == "timeout"
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
@@ -7601,7 +7693,7 @@ class TestSchedulerJob:
     def test_mapped_dag(self, dag_id, session, testing_dag_bundle):
         """End-to-end test of a simple mapped dag"""
 
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER)
         sync_bag_to_db(dagbag, "testing", None)
         dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
         dag = dagbag.get_dag(dag_id)
@@ -7634,7 +7726,7 @@ class TestSchedulerJob:
         dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file)
         sync_bag_to_db(dagbag, "testing", None)
 
         scheduler_job = Job()
@@ -9362,7 +9454,7 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagruns = []
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE)
             sync_bag_to_db(dagbag, "testing", None)
 
             for i, dag in enumerate(dagbag.dags.values()):
@@ -9454,7 +9546,7 @@ class TestSchedulerJobQueriesCount:
                 }
             ),
         ):
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE)
             sync_bag_to_db(dagbag, "testing", None)
 
             scheduler_job = Job(job_type=SchedulerJobRunner.job_type)
@@ -10181,6 +10273,74 @@ def test_partitioned_dag_run_rollup_holds_until_window_complete(
     session.refresh(apdr)
     assert apdr.created_dag_run_id is not None
     assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    A categorical (segment) rollup fires once every declared segment has arrived.
+
+    ``RollupMapper(FixedKeyMapper("all_regions"), SegmentWindow([...]))`` collapses
+    each region key onto a single ``all_regions`` partition, so all three events
+    accumulate into one APDR, and holds the downstream run until ``us``, ``eu``,
+    and ``apac`` are all present.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="segment-rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # First region arrives — only 1 / 3 segments, so the APDR must not fire.
+    # Every region collapses onto the single ``all_regions`` partition.
+    apdr = _produce_and_register_asset_event(
+        dag_id="segment-producer-us",
+        asset=asset_1,
+        partition_key="us",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="all_regions",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # The remaining two regions arrive — once all three segments are present the
+    # rollup is satisfied and the APDR creates its Dag run on the next tick. All
+    # three events share the one ``all_regions`` APDR.
+    for region in ("eu", "apac"):
+        sibling = _produce_and_register_asset_event(
+            dag_id=f"segment-producer-{region}",
+            asset=asset_1,
+            partition_key=region,
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="all_regions",
+        )
+        assert sibling.id == apdr.id
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert apdr.partition_key == "all_regions"
+    assert partition_dags == {"segment-rollup-consumer"}
 
 
 @pytest.mark.need_serialized_dag

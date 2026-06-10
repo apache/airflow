@@ -1929,6 +1929,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Ensure python-ldap is installed
         try:
             import ldap
+            import ldap.filter
         except ImportError:
             log.error("python-ldap library is not installed")
             return None

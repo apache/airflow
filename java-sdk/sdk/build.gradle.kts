@@ -155,8 +155,9 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
                 appendLine("// Maps every wire `type` discriminator string to its generated model class.")
                 appendLine("// Generated from the Supervisor Schema; do not edit by hand.")
                 appendLine("internal object Discriminator {")
-                appendLine("    val types: Map<String, Class<*>> = mapOf(")
-                entries.forEach { appendLine("        \"${it.wireType}\" to ${it.className}::class.java,") }
+                appendLine("  val types: Map<String, Class<*>> =")
+                appendLine("    mapOf(")
+                entries.forEach { appendLine("      \"${it.wireType}\" to ${it.className}::class.java,") }
                 appendLine("    )")
                 appendLine("}")
             },
@@ -241,7 +242,7 @@ tasks.named("compileKotlin") {
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
-    dependsOn("generateJsonSchema2Pojo")
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
@@ -302,19 +303,22 @@ publishing {
     repositories {
         maven {
             name = "mavenRepo"
-            url =
-                uri(
-                    getProperty("mavenUrl")
-                        ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
-                            "https://repository.apache.org/content/repositories/snapshots/"
-                        } else {
-                            "https://repository.apache.org/service/local/staging/deploy/maven2/"
-                        },
-                )
-            getProperty("mavenUsername", "ASF_NEXUS_USERNAME").let { user ->
-                credentials {
-                    username = user
-                    password = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+            val repoPath =
+                getProperty("mavenUrl")
+                    ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
+                        "https://repository.apache.org/content/repositories/snapshots/"
+                    } else {
+                        "https://repository.apache.org/service/local/staging/deploy/maven2/"
+                    }
+            url = uri(repoPath)
+            if (!repoPath.startsWith("file:")) {
+                val user = getProperty("mavenUsername", "ASF_NEXUS_USERNAME")
+                val pass = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+                if (user != null && pass != null) {
+                    credentials {
+                        username = user
+                        password = pass
+                    }
                 }
             }
         }
@@ -322,9 +326,10 @@ publishing {
 }
 
 signing {
-    getProperty("signing.key", "SIGNING_KEY").let { secretKey ->
-        val password = getProperty("signing.password", "SIGNING_PASSWORD")
-        useInMemoryPgpKeys(secretKey, password)
+    if (!providers.gradleProperty("skipSigning").map { it.toBoolean() }.getOrElse(false)) {
+        val signingKey = getProperty("signing.key", "SIGNING_KEY")
+        val signingPassword = getProperty("signing.password", "SIGNING_PASSWORD")
+        useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications["mavenJava"])
     }
 }

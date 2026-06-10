@@ -23,6 +23,17 @@ HITLOperator (Human-in-the-loop)
 Human-in-the-Loop (HITL) functionality allows you to incorporate human decision-making directly into your workflows.
 This powerful feature enables workflows to pause and wait for human input, making it perfect for approval processes, manual quality checks, and scenarios where human judgment is essential.
 
+.. versionchanged:: 3.3
+
+   A HITL task waiting for input now uses a dedicated, scheduler-managed ``awaiting_input`` task state
+   instead of deferring onto the triggerer. While waiting, the task holds neither a worker slot nor the
+   triggerer, so the triggerer can scale to zero even while tasks await a response; tasks resume on a human
+   response or on the scheduler's response-timeout sweep. On Airflow 3.1 and 3.2, HITL tasks use the older
+   trigger-based deferral.
+
+   A waiting ``awaiting_input`` task does not occupy a pool slot. This differs from the older deferral
+   path, where a deferred HITL task counted against a pool that had ``include_deferred`` enabled.
+
 In this tutorial, we will explore how to use the HITL operators in workflows and demonstrate how it would look like in Airflow UI.
 
 An HITL Example Dag
