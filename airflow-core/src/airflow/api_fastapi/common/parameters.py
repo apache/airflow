@@ -1756,3 +1756,25 @@ QueryParseImportErrorFilenamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
     Depends(prefix_search_param_factory(ParseImportError.filename, "filename_prefix_pattern")),
 ]
+QueryParseImportErrorFilenameFilter = Annotated[
+    FilterParam,
+    Depends(
+        filter_param_factory(
+            ParseImportError.filename,
+            str | None,
+            filter_name="filename",
+            description="Exact filename match. Returns only the import error for this specific file path.",
+        )
+    ),
+]
+QueryParseImportErrorBundleNameFilter = Annotated[
+    FilterParam,
+    Depends(
+        filter_param_factory(
+            ParseImportError.bundle_name,
+            str | None,
+            filter_name="bundle_name",
+            description="Exact bundle name match. Returns only import errors from this specific bundle.",
+        )
+    ),
+]
