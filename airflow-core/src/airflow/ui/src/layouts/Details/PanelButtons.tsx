@@ -323,17 +323,6 @@ export const PanelButtons = ({
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
             <RunTypeLegend />
-            <Tooltip
-              content={
-                <Box>
-                  <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
-                  <Text>{translate("dag:navigation.toggleGroup")}</Text>
-                </Box>
-              }
-              portalled
-            >
-              <LuKeyboard />
-            </Tooltip>
           </Flex>
         </Flex>
       )}
