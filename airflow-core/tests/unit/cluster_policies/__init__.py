@@ -28,6 +28,7 @@ from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -109,9 +110,14 @@ def task_policy(task: TimedOperator):
 
 
 # [START example_task_mutation_hook]
-def task_instance_mutation_hook(task_instance: TaskInstance):
+def task_instance_mutation_hook(task_instance: TaskInstance, dag_run: DagRun | None = None):
+    # Route retries to a dedicated queue.
     if task_instance.try_number >= 1:
         task_instance.queue = "retry_queue"
+    # Route on the run configuration. ``dag_run`` may be None during early task-instance construction,
+    # so guard for it; read ``dag_run.conf`` directly rather than opening a new database session.
+    if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+        task_instance.queue = "high_priority_queue"
 
 
 # [END example_task_mutation_hook]
