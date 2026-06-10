@@ -14366,6 +14366,7 @@ components:
       - event
       - logical_date
       - owner
+      - owner_display_name
       - extra
       title: EventLogResponse
       description: Event Log Response.
