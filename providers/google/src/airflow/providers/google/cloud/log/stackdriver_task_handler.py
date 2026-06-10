@@ -176,7 +176,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
 
         return (proc,)
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI) -> None:
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Flush the transport and optionally delete local log files."""
         self.transport.flush()
         if self.delete_local_copy:
