@@ -64,7 +64,9 @@ def get_event_log(
     session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(
-        select(Log).where(Log.id == event_log_id).options(joinedload(Log.task_instance))
+        select(Log)
+        .where(Log.id == event_log_id, Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance))
     )
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
@@ -155,7 +157,11 @@ def get_event_logs(
     readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    query = select(Log).options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    query = (
+        select(Log)
+        .where(Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    )
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
