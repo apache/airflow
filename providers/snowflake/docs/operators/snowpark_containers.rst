@@ -28,8 +28,8 @@ submit and monitor container jobs on
 The operator wraps the Snowflake
 `EXECUTE JOB SERVICE <https://docs.snowflake.com/en/sql-reference/sql/execute-job-service>`__
 SQL command. It submits the job asynchronously, optionally polls until the job
-reaches a terminal state, retrieves container logs, and drops the service on
-task kill.
+reaches a terminal state, retrieves container logs, and can drop the service on
+completion.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
