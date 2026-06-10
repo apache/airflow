@@ -464,6 +464,36 @@ metrics:
     legacy_name: "pool.starving_tasks.{pool_name}"
     name_variables: ["pool_name"]
 
+  - name: "pool.open_slots_histogram"
+    description: "Histogram of open slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.open_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.queued_slots_histogram"
+    description: "Histogram of queued slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.queued_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.running_slots_histogram"
+    description: "Histogram of running slots in the pool, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.running_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.deferred_slots_histogram"
+    description: "Histogram of deferred slots, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.deferred_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.scheduled_slots_histogram"
+    description: "Histogram of scheduled slots, sampled at each scheduler pool-metrics emission."
+    type: "timer"
+    legacy_name: "pool.scheduled_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
   - name: "triggers.running"
     description: "Number of triggers currently running for a triggerer (described by hostname)."
     type: "gauge"

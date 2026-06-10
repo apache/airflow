@@ -3024,8 +3024,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 slot_stats["open"],
                 tags={"pool_name": normalized_pool_name},
             )
+            stats.timing(
+                "pool.open_slots_histogram",
+                slot_stats["open"],
+                tags={"pool_name": normalized_pool_name},
+            )
             stats.gauge(
                 "pool.queued_slots",
+                slot_stats["queued"],
+                tags={"pool_name": normalized_pool_name},
+            )
+            stats.timing(
+                "pool.queued_slots_histogram",
                 slot_stats["queued"],
                 tags={"pool_name": normalized_pool_name},
             )
@@ -3034,13 +3044,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 slot_stats["running"],
                 tags={"pool_name": normalized_pool_name},
             )
+            stats.timing(
+                "pool.running_slots_histogram",
+                slot_stats["running"],
+                tags={"pool_name": normalized_pool_name},
+            )
             stats.gauge(
                 "pool.deferred_slots",
                 slot_stats["deferred"],
                 tags={"pool_name": normalized_pool_name},
             )
+            stats.timing(
+                "pool.deferred_slots_histogram",
+                slot_stats["deferred"],
+                tags={"pool_name": normalized_pool_name},
+            )
             stats.gauge(
                 "pool.scheduled_slots",
+                slot_stats["scheduled"],
+                tags={"pool_name": normalized_pool_name},
+            )
+            stats.timing(
+                "pool.scheduled_slots_histogram",
                 slot_stats["scheduled"],
                 tags={"pool_name": normalized_pool_name},
             )
