@@ -847,6 +847,7 @@
             "discriminator": {
               "mapping": {
                 "DagCallbackRequest": "#/$defs/DagCallbackRequest",
+                "DagSkippedIntervalsCallbackRequest": "#/$defs/DagSkippedIntervalsCallbackRequest",
                 "EmailRequest": "#/$defs/EmailRequest",
                 "TaskCallbackRequest": "#/$defs/TaskCallbackRequest"
               },
@@ -855,6 +856,9 @@
             "oneOf": [
               {
                 "$ref": "#/$defs/DagCallbackRequest"
+              },
+              {
+                "$ref": "#/$defs/DagSkippedIntervalsCallbackRequest"
               },
               {
                 "$ref": "#/$defs/TaskCallbackRequest"
@@ -1394,6 +1398,80 @@
       ],
       "title": "DagRunType",
       "type": "string"
+    },
+    "DagSkippedIntervalsCallbackRequest": {
+      "description": "A Class with information about the skipped intervals DAG callback to be executed.",
+      "properties": {
+        "filepath": {
+          "title": "Filepath",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bundle Version"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Msg"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "skipped_intervals": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Skipped Intervals",
+          "type": "array"
+        },
+        "type": {
+          "const": "DagSkippedIntervalsCallbackRequest",
+          "default": "DagSkippedIntervalsCallbackRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filepath",
+        "bundle_name",
+        "bundle_version",
+        "dag_id",
+        "skipped_intervals"
+      ],
+      "title": "DagSkippedIntervalsCallbackRequest",
+      "type": "object"
     },
     "DeferTask": {
       "additionalProperties": false,
