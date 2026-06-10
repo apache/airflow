@@ -517,6 +517,7 @@ class DAG:
     )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
+    on_skipped_intervals_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
     params: ParamsDict = attrs.field(
         # mypy doesn't really like passing the Converter object
@@ -556,6 +557,7 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
+    has_on_skipped_intervals_callback: bool = attrs.field(init=False)
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
     )
@@ -703,6 +705,10 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @has_on_skipped_intervals_callback.default
+    def _has_on_skipped_intervals_callback(self) -> bool:
+        return self.on_skipped_intervals_callback is not None
 
     @sla_miss_callback.validator
     def _validate_sla_miss_callback(self, _, value):
@@ -1588,11 +1594,13 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "sla_miss_callback",
     "on_success_callback",
     "on_failure_callback",
+    "on_skipped_intervals_callback",
     "template_undefined",
     "jinja_environment_kwargs",
     # has_on_*_callback are only stored if the value is True, as the default is False
     "has_on_success_callback",
     "has_on_failure_callback",
+    "has_on_skipped_intervals_callback",
     "auto_register",
     "schedule",
 }
@@ -1620,6 +1628,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_skipped_intervals_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,

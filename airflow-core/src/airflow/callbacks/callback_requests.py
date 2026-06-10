@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 import structlog
@@ -172,8 +173,17 @@ class DagCallbackRequest(BaseCallbackRequest):
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
 
 
+class DagSkippedIntervalsCallbackRequest(BaseCallbackRequest):
+    """A Class with information about the skipped intervals DAG callback to be executed."""
+
+    dag_id: str
+    skipped_intervals: list[tuple[datetime, datetime]]
+    """List of (start, end) pairs for intervals skipped due to catchup=False."""
+    type: Literal["DagSkippedIntervalsCallbackRequest"] = "DagSkippedIntervalsCallbackRequest"
+
+
 CallbackRequest = Annotated[
-    DagCallbackRequest | TaskCallbackRequest | EmailRequest,
+    DagCallbackRequest | DagSkippedIntervalsCallbackRequest | TaskCallbackRequest | EmailRequest,
     Field(discriminator="type"),
 ]
 
