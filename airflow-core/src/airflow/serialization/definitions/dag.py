@@ -112,6 +112,7 @@ class SerializedDAG:
     fail_fast: bool = False
     has_on_failure_callback: bool = False
     has_on_success_callback: bool = False
+    has_on_skipped_intervals_callback: bool = False
     is_paused_upon_creation: bool | None = None
     max_active_runs: int = 16
     max_active_tasks: int = 16

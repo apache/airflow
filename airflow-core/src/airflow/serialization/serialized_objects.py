@@ -1736,6 +1736,8 @@ class DagSerialization(BaseSerialization):
                 serialized_dag["has_on_success_callback"] = True
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
+            if dag.has_on_skipped_intervals_callback:
+                serialized_dag["has_on_skipped_intervals_callback"] = True
 
             # TODO: Move this logic to a better place -- ideally before serializing contents of default_args.
             #   There is some duplication with this and SerializedBaseOperator.partial_kwargs serialization.
@@ -1862,6 +1864,8 @@ class DagSerialization(BaseSerialization):
             dag.has_on_success_callback = True
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
+        if "has_on_skipped_intervals_callback" in encoded_dag:
+            dag.has_on_skipped_intervals_callback = True
 
         dag.deadline = encoded_dag.get("deadline")
 
@@ -2218,6 +2222,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "dag_display_name",
         "has_on_success_callback",
         "has_on_failure_callback",
+        "has_on_skipped_intervals_callback",
         "tags",
         # Attr properties that are nullable, or have a default that loads from config
         "description",

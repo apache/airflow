@@ -14,15 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from typing import TYPE_CHECKING
 
-from airflow.sdk.execution_time.schema.versions.v2026_06_16 import AddDagSkippedIntervalsCallbackRequest
+from pluggy import HookspecMarker
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2026-06-16", AddDagSkippedIntervalsCallbackRequest),
-    Version("2026-05-23"),
-)
+if TYPE_CHECKING:
+    from airflow.timetables.base import DataInterval
+
+hookspec = HookspecMarker("airflow")
+
+
+@hookspec
+def on_intervals_skipped(dag_id: str, skipped_intervals: list[DataInterval]):
+    """Execute when a DAG with catchup=False skips one or more scheduled intervals."""

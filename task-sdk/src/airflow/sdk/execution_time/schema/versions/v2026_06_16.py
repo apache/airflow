@@ -14,15 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from cadwyn import VersionChange, schema
 
-from airflow.sdk.execution_time.schema.versions.v2026_06_16 import AddDagSkippedIntervalsCallbackRequest
+from airflow.callbacks.callback_requests import DagSkippedIntervalsCallbackRequest  # noqa: SDK002
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2026-06-16", AddDagSkippedIntervalsCallbackRequest),
-    Version("2026-05-23"),
-)
+
+class AddDagSkippedIntervalsCallbackRequest(VersionChange):
+    """Introduce ``DagSkippedIntervalsCallbackRequest`` in the ``CallbackRequest`` union."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagSkippedIntervalsCallbackRequest).field("dag_id").didnt_exist,
+        schema(DagSkippedIntervalsCallbackRequest).field("skipped_intervals").didnt_exist,
+    )
