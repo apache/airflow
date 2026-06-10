@@ -149,6 +149,9 @@ class SnowflakeHook(DbApiHook):
             "private_key_content": PasswordField(
                 lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
             ),
+            "workload_identity_provider": StringField(
+                lazy_gettext("Workload Identity Provider"), widget=BS3TextFieldWidget()
+            ),
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
@@ -173,7 +176,7 @@ class SnowflakeHook(DbApiHook):
             "placeholders": {
                 "extra": json.dumps(
                     {
-                        "authenticator": "snowflake oauth",
+                        "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
                         "client_request_mfa_token": "client request mfa token",
@@ -199,6 +202,7 @@ class SnowflakeHook(DbApiHook):
                 "role": "snowflake role",
                 "private_key_file": "Path of snowflake private key (PEM Format)",
                 "private_key_content": "Content to snowflake private key (PEM format)",
+                "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
                 "insecure_mode": "insecure mode",
                 "proxy_host": "Proxy server hostname",
                 "proxy_port": "Proxy server port",
@@ -380,6 +384,7 @@ class SnowflakeHook(DbApiHook):
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
         session_parameters = extra_dict.get("session_parameters")
+        workload_identity_provider = self._get_field(extra_dict, "workload_identity_provider")
 
         conn_config = {
             "user": conn.login,
@@ -406,6 +411,22 @@ class SnowflakeHook(DbApiHook):
 
         if client_store_temporary_credential:
             conn_config["client_store_temporary_credential"] = client_store_temporary_credential
+
+        # Workload Identity Federation (keyless auth): when the connection sets
+        # ``authenticator=WORKLOAD_IDENTITY``, the connector also needs to know which
+        # cloud the workload runs on. One value (AWS, AZURE, GCP or OIDC) covers all
+        # providers. See https://docs.snowflake.com/en/user-guide/workload-identity-federation.
+        if workload_identity_provider:
+            conn_config["workload_identity_provider"] = workload_identity_provider
+            # AWS, AZURE and GCP fetch the identity token from the cloud's metadata
+            # service. OIDC instead requires the caller to supply the token, either
+            # inline (``token``) or from a file (``token_file_path``).
+            token = self._get_field(extra_dict, "token")
+            token_file_path = self._get_field(extra_dict, "token_file_path")
+            if token:
+                conn_config["token"] = token
+            if token_file_path:
+                conn_config["token_file_path"] = token_file_path
 
         p_key = self.get_private_key()
 

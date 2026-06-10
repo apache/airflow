@@ -54,6 +54,7 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "FanOutMapper",
     "HourWindow",
     "IdentityMapper",
     "Label",
@@ -126,7 +127,7 @@ if TYPE_CHECKING:
         cross_downstream,
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
-    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+    from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
@@ -156,6 +157,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
+        FanOutMapper,
         StartOfDayMapper,
         StartOfHourMapper,
         StartOfMonthMapper,
@@ -241,6 +243,7 @@ __lazy_imports: dict[str, str] = {
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
     "ExceptionRetryPolicy": ".definitions.retry_policy",
+    "FanOutMapper": ".definitions.partition_mappers.temporal",
     "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
@@ -256,7 +259,7 @@ __lazy_imports: dict[str, str] = {
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
     "QuarterWindow": ".definitions.partition_mappers.window",
-    "ResumableJobMixin": ".bases.resumablemixin",
+    "ResumableJobMixin": ".bases.resumablejobmixin",
     "RetryAction": ".definitions.retry_policy",
     "RetryDecision": ".definitions.retry_policy",
     "RetryPolicy": ".definitions.retry_policy",

@@ -189,6 +189,12 @@ class PartitionAtRuntime(NullTimetable):
     Timetable that never schedules anything; partition keys are set at runtime.
 
     This corresponds to ``schedule=PartitionAtRuntime()``.
+
+    A run's ``partition_key`` (run-level provenance) must be supplied at trigger
+    time — for example via the REST API's ``partition_key`` field. Partition keys
+    discovered at task runtime populate the emitted :class:`~airflow.sdk.AssetEvent`
+    records but do **not** back-fill ``DagRun.partition_key`` after the run has
+    been created.
     """
 
     description: str = "Never, partition key(s) set at runtime"

@@ -126,7 +126,16 @@ def dag_delete(args) -> None:
 @providers_configuration_loaded
 @provide_session
 def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
-    """Clear Dag runs selected by run_id, partition_key, or a partition_date window."""
+    """
+    Clear Dag runs selected by run_id, partition_key, or a partition_date window.
+
+    When a partition_date window is given, both bounds are **day-granular** and
+    anchored in the timetable's timezone for tz-aware partitioned timetables.
+    --partition-date-start is the inclusive start local calendar day;
+    --partition-date-end is the inclusive end local calendar day (any
+    time-of-day or timezone-offset component in either value is ignored; only
+    the calendar date is used).
+    """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
     if selectors_used == 0:
@@ -158,9 +167,13 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     else:
         query = query.where(DagRun.partition_date.is_not(None))
         if args.partition_date_start is not None:
-            query = query.where(DagRun.partition_date >= args.partition_date_start)
+            lower = dag.timetable.resolve_day_bound(args.partition_date_start.date())
+            query = query.where(DagRun.partition_date >= lower)
         if args.partition_date_end is not None:
-            query = query.where(DagRun.partition_date <= args.partition_date_end)
+            upper = dag.timetable.resolve_day_bound(
+                args.partition_date_end.date() + datetime.timedelta(days=1)
+            )
+            query = query.where(DagRun.partition_date < upper)
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
     runs = list(session.execute(query).all())

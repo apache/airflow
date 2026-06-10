@@ -47,6 +47,7 @@ SHARED_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "shared_state.png").as_pos
 TERMINAL_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "terminal_state.png").as_posix()
 SENSOR_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "sensor_state.png").as_posix()
 DEFERRABLE_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "deferrable_state.png").as_posix()
+AWAITING_INPUT_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "awaiting_input_state.png").as_posix()
 
 STATE_NODE_ATTRS = {"width": "4.16", "height": "1", "fontname": "Monospace", "fontsize": "20"}
 COMPONENT_NODE_ATTRS = {
@@ -107,6 +108,7 @@ def generate_task_lifecycle_diagram():
         state_scheduled = Custom("scheduled", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_queued = Custom("queued", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_deferred = Custom("deferred", DEFERRABLE_STATE_IMG, **STATE_NODE_ATTRS)
+        state_awaiting_input = Custom("awaiting_input", AWAITING_INPUT_STATE_IMG, **STATE_NODE_ATTRS)
         state_running = Custom("running", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_up_for_reschedule = Custom("up_for_reschedule", SENSOR_STATE_IMG, **STATE_NODE_ATTRS)
         state_restarting = Custom("restarting", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
@@ -150,6 +152,11 @@ def generate_task_lifecycle_diagram():
             CONDITION_IMG,
             **CONDITION_NODE_ATTRS,
         )
+        cond_hitl_requested = Custom(
+            "\n\n\n\n\nHuman-in-the-loop task,\nand human input is requested?",
+            CONDITION_IMG,
+            **CONDITION_NODE_ATTRS,
+        )
         cond_skip_signal = Custom("\n\n\n\n\nSkip signal is raised?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_sensor_reschedule = Custom(
             "\n\n\n\n\nTask is a sensor in reschedule mode,\nand result is undetermined?",
@@ -183,7 +190,14 @@ def generate_task_lifecycle_diagram():
         cond_trigger_task_2 >> Edge(label="YES") >> cond_task_complete_1
         cond_task_complete_1 >> Edge(label="NO") >> state_deferred
         cond_task_complete_1 >> Edge(label="YES") >> cond_defer_signal_raised
-        component_worker >> state_running >> cond_defer_signal_raised
+        component_worker >> state_running >> cond_hitl_requested
+        cond_hitl_requested >> Edge(label="YES") >> state_awaiting_input
+        cond_hitl_requested >> Edge(label="NO") >> cond_defer_signal_raised
+        (
+            state_awaiting_input
+            >> Edge(label="response received,\nor timeout default applied")
+            >> component_scheduler
+        )
         cond_defer_signal_raised >> Edge(label="NO") >> cond_skip_signal
         cond_defer_signal_raised >> Edge(label="YES") >> component_triggerer
         cond_skip_signal >> Edge(label="NO") >> cond_sensor_reschedule
@@ -214,6 +228,13 @@ def generate_task_lifecycle_diagram():
             Custom(
                 "\n\nState for Sensors",
                 SENSOR_STATE_IMG,
+                width="3.2",
+                height="0.77",
+                **LEGEND_NODE_ATTRS,
+            )
+            Custom(
+                "\n\nState for Human-in-the-loop Tasks",
+                AWAITING_INPUT_STATE_IMG,
                 width="3.2",
                 height="0.77",
                 **LEGEND_NODE_ATTRS,

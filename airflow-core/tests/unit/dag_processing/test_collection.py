@@ -64,6 +64,7 @@ from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.timetables.simple import PartitionAtRuntime
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
@@ -135,7 +136,7 @@ def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
 
 @pytest.mark.db_test
 def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
-    with dag_maker("fake-dag", schedule=None):
+    with dag_maker("fake-dag", schedule=PartitionAtRuntime()):
         pass
     dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
@@ -282,7 +283,7 @@ class TestAssetModelOperation:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_task_outlet_asset_references_defaults_when_no_access_control(self, dag_maker, session):
-        """Outlet references default to empty consumer_teams and allow_global_consumers=True."""
+        """Outlet references default to None consumer_teams and allow_global_consumers=True."""
         from airflow.models.asset import TaskOutletAssetReference
 
         asset = Asset("plain_asset")
@@ -302,7 +303,7 @@ class TestAssetModelOperation:
             select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "plain_producer_dag")
         )
         assert ref is not None
-        assert ref.allow_consumer_teams == []
+        assert ref.allow_consumer_teams is None
         assert ref.allow_global_consumers is True
 
     @pytest.mark.parametrize(

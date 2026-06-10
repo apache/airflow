@@ -635,6 +635,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_trigger_id", trigger_id),
         Index("ti_heartbeat", last_heartbeat_at),
+        Index("ti_dag_version_id", dag_version_id),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
@@ -1525,7 +1526,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         )
 
         payloads_by_asset: dict[SerializedAssetUniqueKey, list[OutletEventPayload]] = defaultdict(list)
-        runtime_pks: set[str] = set()
         for outlet_event in outlet_events:
             # Alias-emitted events are handled separately further down via
             # register_asset_change_for_alias, which uses the DagRun-level
@@ -1539,16 +1539,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             payloads_by_asset[asset_key].append(
                 OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
-            if partition_key is not None:
-                runtime_pks.add(partition_key)
-
-        # Back-fill DagRun.partition_key from the task emission when the task
-        # emitted exactly one distinct partition_key across all outlet events
-        # and the DagRun did not already have one set. This lets a task that
-        # discovers the partition at runtime (rather than via params) act as
-        # the source of truth for the DagRun-level key.
-        if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
-            ti.dag_run.partition_key = next(iter(runtime_pks))
         dag_run_partition_key = ti.dag_run.partition_key
 
         asset_keys = {
@@ -1589,11 +1579,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 return
             for payload in payloads_for_asset:
+                effective_pk = (
+                    payload.partition_key if payload.partition_key is not None else dag_run_partition_key
+                )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
-                    partition_key=payload.partition_key,
+                    partition_key=effective_pk,
                     session=session,
                 )
 
@@ -2048,15 +2041,19 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     def get_num_active_task_instances(self, *, same_dagrun: bool = False, session: Session) -> int:
         """
-        Count active (running or deferred) TIs for this task from the DB.
+        Count active (running, deferred, or awaiting-input) TIs for this task from the DB.
 
-        Deferred TIs are included because they are still logically in-flight
-        and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
+        Deferred and awaiting-input TIs are included because they are still logically
+        in-flight and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
 
         :meta private:
         """
         return self._get_num_task_instances_of_state(
-            [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED],
+            [
+                TaskInstanceState.RUNNING,
+                TaskInstanceState.DEFERRED,
+                TaskInstanceState.AWAITING_INPUT,
+            ],
             same_dagrun=same_dagrun,
             session=session,
         )

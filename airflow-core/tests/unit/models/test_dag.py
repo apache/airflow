@@ -41,7 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagNotPartitionedError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -53,6 +53,7 @@ from airflow.models.dag import (
     DagModel,
     DagOwnerAttributes,
     DagTag,
+    clear_team_name_cache,
     get_asset_triggered_next_run_info,
     get_next_data_interval,
     get_run_data_interval,
@@ -70,6 +71,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
+    PartitionAtRuntime,
     TaskGroup,
     setup,
     task as task_decorator,
@@ -207,7 +209,7 @@ class TestDag:
 
         dag_id = "test_example_bash_operator"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         dag = dagbag.dags.get(dag_id)
 
         # Ensure not serialized yet
@@ -235,7 +237,7 @@ class TestDag:
         parent_id = "test_dag_test_trigger_parent"
         target_id = "test_dag_test_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -268,7 +270,7 @@ class TestDag:
         parent_id = "test_dag_test_dynamic_trigger_parent"
         target_id = "test_dag_test_dynamic_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -295,7 +297,7 @@ class TestDag:
         parent_id = "test_dag_test_trigger_parent"
         target_id = "test_dag_test_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -323,7 +325,7 @@ class TestDag:
         """
         parent_id = "test_dag_test_trigger_parent"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -1508,14 +1510,24 @@ class TestDag:
         )
         assert dr.note == note
 
-    @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
-    def test_create_dagrun_partition_key(self, partition_key, dag_maker):
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_cm"),
+        [
+            (None, nullcontext()),
+            (
+                "my-key",
+                pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"),
+            ),
+            (
+                123,
+                pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"),
+            ),
+        ],
+    )
+    def test_create_dagrun_partition_key(self, partition_key, expected_cm, dag_maker):
         with dag_maker("test_create_dagrun_partition_key"):
             ...
-        cm = nullcontext()
-        if isinstance(partition_key, int):
-            cm = pytest.raises(ValueError, match="Expected partition_key to be `str` | `None` but got `int`")
-        with cm:
+        with expected_cm:
             dr = dag_maker.create_dagrun(
                 run_id="test_create_dagrun_partition_key",
                 run_after=DEFAULT_DATE,
@@ -1525,6 +1537,70 @@ class TestDag:
                 partition_key=partition_key,
             )
             assert dr.partition_key == partition_key
+
+    def test_create_dagrun_partition_key_accepted_for_partitioned_dag(self, dag_maker):
+        """create_dagrun accepts a str partition_key when the Dag uses a partitioned timetable."""
+        with dag_maker(
+            "test_create_dagrun_partitioned",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        dr = dag_maker.create_dagrun(
+            run_id="test_create_dagrun_partitioned",
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            partition_key="my-key",
+        )
+        assert dr.partition_key == "my-key"
+
+    def test_create_dagrun_int_partition_key_rejected_for_partitioned_dag(self, dag_maker):
+        """DagRun-level type check rejects int partition_key even for partitioned Dags."""
+        with dag_maker(
+            "test_create_dagrun_partitioned_int_key",
+            schedule=PartitionAtRuntime(),
+        ):
+            ...
+        with pytest.raises(
+            ValueError,
+            match=r"Expected partition_key to be a `str` or `None` but got `int`",
+        ):
+            dag_maker.create_dagrun(
+                run_id="test_create_dagrun_partitioned_int_key",
+                run_after=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+                state=State.NONE,
+                triggered_by=DagRunTriggeredByType.TEST,
+                partition_key=123,
+            )
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("partition_key", "schedule", "should_raise"),
+        [
+            ("my-key", None, True),
+            (None, None, False),
+            ("my-key", CronPartitionTimetable("@daily", timezone="UTC"), False),
+            ("my-key", PartitionAtRuntime(), False),
+        ],
+    )
+    def test_serialized_dag_validate_partition_key(
+        self,
+        partition_key,
+        schedule,
+        should_raise,
+        dag_maker,
+    ):
+        """SerializedDAG.validate_partition_key raises for non-partitioned Dags and accepts for partitioned."""
+        with dag_maker("test_validate_partition_key", schedule=schedule):
+            ...
+        sdag = dag_maker.serialized_dag
+        if should_raise:
+            with pytest.raises(DagNotPartitionedError, match="not a partitioned Dag"):
+                sdag.validate_partition_key(partition_key)
+        else:
+            sdag.validate_partition_key(partition_key)  # must not raise
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
@@ -2931,6 +3007,33 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
         assert DagModel.get_dagmodel(dag_id) is not None
+        assert DagModel.get_team_name(dag_id, session=session) is None
+
+    def test_get_team_name_is_cached(self, testing_team):
+        session = settings.Session()
+        team_bundle = DagBundleModel(name="cache-team-bundle")
+        team_bundle.teams.append(testing_team)
+        no_team_bundle = DagBundleModel(name="cache-no-team-bundle")
+        session.add_all([team_bundle, no_team_bundle])
+        session.flush()
+
+        dag_id = "test_get_team_name_is_cached"
+        orm_dag = DagModel(dag_id=dag_id, bundle_name="cache-team-bundle", is_stale=False)
+        session.add(orm_dag)
+        session.flush()
+
+        clear_team_name_cache()
+        # First lookup resolves and caches the team.
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
+
+        # Reassign the Dag to a team-less bundle: the cached value is still returned,
+        # proving the lookup is served from cache rather than re-querying.
+        orm_dag.bundle_name = "cache-no-team-bundle"
+        session.flush()
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
+
+        # After clearing the cache the fresh (now team-less) value is returned.
+        clear_team_name_cache()
         assert DagModel.get_team_name(dag_id, session=session) is None
 
     def test_get_dag_id_to_team_name_mapping(self, testing_team):
