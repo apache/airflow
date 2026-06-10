@@ -96,20 +96,6 @@
             "default": "3.2.2",
             "x-docsSection": "Common"
         },
-        "securityContext": {
-            "description": "Default pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
-            "type": "object",
-            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-            "default": {},
-            "x-docsSection": "Kubernetes",
-            "examples": [
-                {
-                    "runAsUser": 50000,
-                    "runAsGroup": 0,
-                    "fsGroup": 0
-                }
-            ]
-        },
         "securityContexts": {
             "description": "Default security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
@@ -2607,19 +2593,6 @@
                         }
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.containerLifecycleHooks`` and/or ``workers.kubernetes.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -4923,19 +4896,6 @@
                     "$ref": "#/definitions/logGroomerConfigType",
                     "description": "Configuration for the schedulers log groomer sidecar."
                 },
-                "securityContext": {
-                    "description": "Security context for the scheduler pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the scheduler. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -5487,19 +5447,6 @@
                     "additionalProperties": {
                         "type": "string"
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the triggerer pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the triggerer. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -6094,19 +6041,6 @@
                         "type": "string"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the dag processor pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the dag processor. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -6525,19 +6459,6 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the create user job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the create user job. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -6891,19 +6812,6 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the migrate database job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the migrate database job. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -8209,19 +8117,6 @@
                         "type": "string"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the flower pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the network policy. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -8531,19 +8426,6 @@
                     "description": "Override mappings for StatsD exporter.If set, will ignore setting item in default and `extraMappings`. So, If you use it, ensure all mapping item contains in it.",
                     "type": "array",
                     "default": []
-                },
-                "securityContext": {
-                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead).",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the statsd. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -9819,19 +9701,6 @@
                         }
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the redis. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -10401,19 +10270,6 @@
                             }
                         }
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -11142,18 +10998,6 @@
                             "description": "Git sync container name.",
                             "type": "string",
                             "default": "git-sync"
-                        },
-                        "securityContext": {
-                            "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "runAsUser": 50000,
-                                    "runAsGroup": 0
-                                }
-                            ]
                         },
                         "httpPort": {
                             "description": "Git-Sync liveness service http bind port.",
