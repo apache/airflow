@@ -716,6 +716,11 @@ class TestOpensearchRemoteLogIO:
         mock_callable.assert_called_once_with({})
         assert result == "callable_index_pattern"
 
+    def test_upload_returns_early_when_ti_is_none(self, tmp_path):
+        log_file = tmp_path / "1.log"
+        log_file.write_text('{"message": "test"}\n')
+        self.opensearch_io.upload(log_file, ti=None)
+
 
 class TestFormatErrorDetail:
     def test_returns_none_for_empty(self):
