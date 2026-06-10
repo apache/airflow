@@ -106,7 +106,7 @@ class RemoteKernelManager(AsyncKernelManager):
     async def _async_is_alive(self) -> bool:
         return True
 
-    async def shutdown_kernel(self, now: bool = False, restart: bool = False) -> None:
+    def shutdown_kernel(self, now: bool = False, restart: bool = False):
         pass
 
     def client(self, **kwargs: typing.Any):
