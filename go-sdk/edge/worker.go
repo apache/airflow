@@ -64,6 +64,27 @@ type worker struct {
 	sysInfo map[string]edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
 }
 
+func buildFetchedJobLogAttrs(job edgeapi.EdgeJobFetched) []slog.Attr {
+	attrs := []slog.Attr{
+		slog.String("dag_id", job.DagId),
+		slog.String("task_id", job.TaskId),
+		slog.String("run_id", job.RunId),
+		slog.Int("try_number", job.TryNumber),
+		slog.Int("map_index", job.MapIndex),
+		slog.Int("concurrency_slots", job.ConcurrencySlots),
+		slog.String("bundle_name", job.Command.BundleInfo.Name),
+	}
+
+	if job.Command.BundleInfo.Version != nil {
+		attrs = append(attrs, slog.String("bundle_version", *job.Command.BundleInfo.Version))
+	}
+	if job.Command.Ti.Queue != "" {
+		attrs = append(attrs, slog.String("queue", job.Command.Ti.Queue))
+	}
+
+	return attrs
+}
+
 var (
 	HeartbeatInterval = 30 * time.Second
 	DeregisterTimeout = 5 * time.Second
@@ -361,7 +382,15 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		return nil, 0, nil
 	}
 
-	w.logger.Info("fetchJob", "resp", fmt.Sprintf("%#v\n", resp))
+	w.logger.LogAttrs(ctx, slog.LevelInfo, "Fetched job", buildFetchedJobLogAttrs(edgeapi.EdgeJobFetched{
+		Command:          resp.Command,
+		ConcurrencySlots: resp.ConcurrencySlots,
+		DagId:            resp.DagId,
+		MapIndex:         resp.MapIndex,
+		RunId:            resp.RunId,
+		TaskId:           resp.TaskId,
+		TryNumber:        resp.TryNumber,
+	})...)
 
 	// Round trip via json. Inefficient, but easy to code
 	asJSON, err := json.Marshal(resp.Command)
@@ -376,7 +405,6 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		// TODO: Report this to API server
 		return nil, 0, fmt.Errorf("unable to unmarshal into workload %w", err)
 	}
-	w.logger.Info("fetchJob", "out", fmt.Sprintf("%#v\n", out))
 
 	return &out, int32(resp.ConcurrencySlots), nil
 }
