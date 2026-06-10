@@ -902,13 +902,6 @@ class TestSparkSubmitOperatorK8sTracking:
         hook._conf = {}
         return hook
 
-    def _make_k8s_resumable_hook(self):
-        hook = self._make_k8s_hook()
-        hook._is_kubernetes = True
-        hook._is_yarn = False
-        hook._conf = {}
-        return hook
-
     def test_execute_calls_submit_then_poll_when_flag_set(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()
@@ -937,7 +930,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_submit_job_returns_encoded_external_id(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
@@ -950,7 +943,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_submit_job_warns_when_pod_name_missing(self, caplog):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = None
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
@@ -963,7 +956,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_get_job_status_returns_k8s_driver_status(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
         task_store = FakeTaskState({"k8s_driver_status": "Succeeded"})
 
         with mock.patch("airflow.providers.apache.spark.operators.spark_submit.kube_client") as mock_kube:
@@ -974,7 +967,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_get_job_status_queries_k8s_api_when_no_k8s_driver_status(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
         task_store = FakeTaskState()
 
         mock_pod = MagicMock()
@@ -988,7 +981,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_get_job_status_returns_not_found_on_404(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
 
         class FakeApiException(Exception):
             def __init__(self, status):
@@ -1003,7 +996,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_get_job_status_reraises_non_404_api_exception(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
 
         class FakeApiException(Exception):
             def __init__(self, status):
@@ -1017,7 +1010,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_poll_until_complete_sets_pod_name_and_calls_poll_api(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         operator._hook = hook
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {})
@@ -1027,7 +1020,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_poll_until_complete_writes_succeeded_to_task_store(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
         task_store = FakeTaskState()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
@@ -1036,7 +1029,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_poll_until_complete_does_not_cache_and_reraises_on_failure(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.side_effect = RuntimeError("Spark application failed (phase=Failed)")
         operator._hook = hook
         task_store = FakeTaskState()
@@ -1048,7 +1041,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_poll_until_complete_tolerates_absent_task_store(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_resumable_hook()
+        operator._hook = self._make_k8s_hook()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {})
 
@@ -1059,7 +1052,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_execute_persists_pod_id_to_task_store_when_reconnect_on_retry(self):
         """execute() with reconnect_on_retry=True stores the pod ID in task_store before polling."""
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=True)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
@@ -1082,7 +1075,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_execute_reconnect_on_retry_false_does_not_persist_pod_id(self):
         """execute() with reconnect_on_retry=False does not write spark_job_id to task_store."""
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
-        hook = self._make_k8s_resumable_hook()
+        hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
