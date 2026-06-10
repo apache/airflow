@@ -738,8 +738,8 @@ def _build_dag_run_access_requests(
 
     ``entity_methods`` is a list of ``(dag_id, method)`` pairs with unresolvable
     entries (no dag_id or the ``~`` wildcard) already filtered out by the caller.
-    Teams for all dags are resolved in a single batched query and shared across each
-    dag's requests.
+    Teams for all Dags are resolved in a single batched query and shared across each
+    Dag's requests.
     """
     if not entity_methods:
         return []
