@@ -298,7 +298,7 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
         args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
-        assert args[:2] == ["python3", "-c"]
+        assert args[:2] == ["python", "-c"]
         # Confirm the embedded script is the bidirectional reconciler.
         assert "AIRFLOW_TARGET_VERSION" in args[2]
         assert "airflow db downgrade" in args[2]
@@ -432,7 +432,7 @@ class TestMigrateDatabaseJob:
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
-        assert args[:2] == ["python3", "-c"]
+        assert args[:2] == ["python", "-c"]
         assert "airflow db migrate" in args[2]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
@@ -448,7 +448,7 @@ class TestMigrateDatabaseJob:
             # When args is unset, the chart's bidirectional default kicks in
             # (covered in detail by other tests in this class).
             rendered_args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
-            assert rendered_args[:2] == ["python3", "-c"]
+            assert rendered_args[:2] == ["python", "-c"]
         else:
             assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 

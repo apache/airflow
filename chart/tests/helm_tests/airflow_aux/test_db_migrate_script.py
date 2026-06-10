@@ -38,7 +38,7 @@ DB_MIGRATE_PATH = pathlib.Path(__file__).resolve().parents[3] / "files" / "db_mi
 def db_migrate():
     """Load ``chart/files/db_migrate.py`` as a module.
 
-    The file is normally fed to ``python3 -c`` by the helm job rather than
+    The file is normally fed to ``python -c`` by the helm job rather than
     imported, so it lives outside the chart's Python package tree.
     """
     spec = importlib.util.spec_from_file_location("chart_db_migrate", DB_MIGRATE_PATH)

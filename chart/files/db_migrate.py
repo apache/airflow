@@ -97,7 +97,7 @@ def _db_connect_stop(retry_state):
     # Evaluate ``DB_CONNECT_MAX_WAIT_SECONDS`` at retry time (not import time)
     # so that operators -- and unit tests -- can tune the wait window without
     # reloading the module. ``/entrypoint`` skips its DB-wait for non-airflow
-    # commands (we run as ``python3 -c ...``), so on a fresh install with a
+    # commands (we run as ``python -c ...``), so on a fresh install with a
     # bundled postgres still starting, the first connect attempt races the DB.
     # Default 120s matches the entrypoint's
     # ``CONNECTION_CHECK_MAX_COUNT`` * ``CONNECTION_CHECK_SLEEP_TIME``.

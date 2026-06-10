@@ -111,7 +111,7 @@ spec:
           # pod depending on the relationship between the chart's target
           # version and the DB's current alembic head.
           args:
-            - "python3"
+            - "python"
             - "-c"
             - |-
               {{- .Files.Get "files/db_migrate.py" | nindent 14 }}
