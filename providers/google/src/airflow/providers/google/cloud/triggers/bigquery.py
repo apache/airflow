@@ -119,7 +119,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
             task_instance = session.scalar(
                 select(TaskInstance).where(
                     TaskInstance.dag_id == self.task_instance.dag_id,

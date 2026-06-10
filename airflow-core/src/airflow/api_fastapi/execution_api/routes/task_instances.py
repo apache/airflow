@@ -55,6 +55,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -68,20 +69,27 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    CurrentTIToken,
+    ExecutionAPIRoute,
+    get_team_name_for_ti,
+    require_auth,
+)
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -287,8 +295,6 @@ def ti_run(
             )
             or 0
         )
-
-        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
 
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
@@ -578,7 +584,7 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
-                ti.prepare_db_for_next_try(session)
+                ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(
@@ -591,7 +597,7 @@ def _create_ti_state_update_query_and_update_state(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
-                    session,
+                    session=session,
                 )
         try:
             _emit_task_span(ti, state=updated_state)
@@ -613,6 +619,7 @@ def _create_ti_state_update_query_and_update_state(
             classpath=ti_patch_payload.classpath,
             kwargs={},
             queue=ti_patch_payload.queue,
+            team_name=get_team_name_for_ti(task_instance_id, session),
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -632,6 +639,48 @@ def _create_ti_state_update_query_and_update_state(
             trigger_timeout=timeout,
         )
         updated_state = TaskInstanceState.DEFERRED
+    elif isinstance(ti_patch_payload, TIAwaitingInputStatePayload):
+        # Park the task waiting for human input (Human-in-the-loop). No trigger / triggerer is
+        # created: the task is resumed by the Core API response handler or the scheduler timeout
+        # sweep. The optional response deadline is stored on the existing trigger_timeout column.
+        #
+        # Fixed lock order (TaskInstance -> HITLDetail), matching the Core API response path, so a
+        # human response racing this park transition cannot deadlock.
+        ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
+        # Lock only the hitl_detail row (of=...): HITLDetail eager-joins task_instance (lazy="joined"),
+        # and Postgres rejects FOR UPDATE against the nullable side of that outer join.
+        hitl_detail = session.scalar(
+            select(HITLDetail).where(HITLDetail.ti_id == task_instance_id).with_for_update(of=HITLDetail)
+        )
+        if ti is not None and hitl_detail is not None and hitl_detail.response_received:
+            # The human responded in the window between the operator writing the HITL request and
+            # the worker parking the task. Resume straight to execute_complete instead of parking,
+            # which would otherwise strand an already-responded task (no trigger/sweep would fire).
+            # Carry next_method/next_kwargs onto the TI first so the resume dispatches correctly;
+            # handle_event_submit then injects the response event into next_kwargs.
+            ti.next_method = ti_patch_payload.next_method
+            ti.next_kwargs = ti_patch_payload.next_kwargs
+            handle_event_submit(
+                TriggerEvent(hitl_detail.as_resume_event_payload()),
+                task_instance=ti,
+                session=session,
+            )
+            query = update(TI).where(TI.id == task_instance_id).values(state=TaskInstanceState.SCHEDULED)
+            updated_state = TaskInstanceState.SCHEDULED
+        else:
+            timeout = None
+            if ti_patch_payload.timeout is not None:
+                timeout = timezone.utcnow() + ti_patch_payload.timeout
+
+            query = update(TI).where(TI.id == task_instance_id)
+            query = query.values(
+                state=TaskInstanceState.AWAITING_INPUT,
+                trigger_id=None,
+                next_method=ti_patch_payload.next_method,
+                next_kwargs=ti_patch_payload.next_kwargs,
+                trigger_timeout=timeout,
+            )
+            updated_state = TaskInstanceState.AWAITING_INPUT
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
         # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
@@ -894,7 +943,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    task_instance.update_rtif(put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}

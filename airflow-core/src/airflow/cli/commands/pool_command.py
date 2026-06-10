@@ -40,6 +40,7 @@ def _show_pools(pools, output):
             "slots": x[1],
             "description": x[2],
             "include_deferred": x[3],
+            "team_name": x[4],
         },
     )
 
@@ -72,7 +73,11 @@ def pool_set(args):
     """Create new pool with a given name and slots."""
     api_client = get_current_api_client()
     api_client.create_pool(
-        name=args.pool, slots=args.slots, description=args.description, include_deferred=args.include_deferred
+        name=args.pool,
+        slots=args.slots,
+        description=args.description,
+        include_deferred=args.include_deferred,
+        team_name=args.team_name,
     )
     print(f"Pool {args.pool} created")
 
@@ -130,6 +135,7 @@ def pool_import_helper(filepath):
                     slots=v["slots"],
                     description=v["description"],
                     include_deferred=v.get("include_deferred", False),
+                    team_name=v.get("team_name"),
                 )
             )
         else:
@@ -143,7 +149,14 @@ def pool_export_helper(filepath):
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
+        entry = {
+            "slots": pool[1],
+            "description": pool[2],
+            "include_deferred": pool[3],
+        }
+        if pool[4] is not None:
+            entry["team_name"] = pool[4]
+        pool_dict[pool[0]] = entry
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools
