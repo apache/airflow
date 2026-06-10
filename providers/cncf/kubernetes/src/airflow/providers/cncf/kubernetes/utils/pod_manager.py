@@ -182,6 +182,7 @@ async def await_pod_start(
 
         if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
             pod_manager.stop_watching_events = True
+            pod_manager.log.info("Pod has reached %s phase before launch timeout", pod_status.phase)
             pod_manager.log.info("::endgroup::")
             break
 
