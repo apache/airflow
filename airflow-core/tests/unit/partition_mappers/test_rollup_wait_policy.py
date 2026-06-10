@@ -23,7 +23,7 @@ import pytest
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import StartOfHourMapper
-from airflow.partition_mappers.wait_policy import MinimumCount, WaitForAll, WaitPolicy
+from airflow.partition_mappers.wait_policy import MinimumCount, PartitionSatisfaction, WaitForAll, WaitPolicy
 from airflow.partition_mappers.window import HourWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper, encode_wait_policy
@@ -31,9 +31,14 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.helpers import WaitPolicyNotSupported
 
 
-def _mapper(**kwargs):
+@pytest.fixture
+def make_mapper():
     """Build a RollupMapper with a fixed upstream/window so tests focus on wait_policy."""
-    return RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow(), **kwargs)
+
+    def _make(**kwargs):
+        return RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow(), **kwargs)
+
+    return _make
 
 
 class TestPolicyConstruction:
@@ -41,11 +46,9 @@ class TestPolicyConstruction:
         with pytest.raises(ValueError, match="MinimumCount\\(0\\) is degenerate"):
             MinimumCount(0)
 
-    def test_minimum_count_positive(self):
-        assert MinimumCount(5).n == 5
-
-    def test_minimum_count_negative(self):
-        assert MinimumCount(-3).n == -3
+    @pytest.mark.parametrize("n", [5, -3])
+    def test_minimum_count_stores_n(self, n):
+        assert MinimumCount(n).n == n
 
     def test_wait_for_all_is_stateless(self):
         a = WaitForAll()
@@ -55,8 +58,8 @@ class TestPolicyConstruction:
         assert a == b
         assert hash(a) == hash(b)
 
-    def test_default_wait_policy_is_wait_for_all_instance(self):
-        mapper = _mapper()
+    def test_default_wait_policy_is_wait_for_all_instance(self, make_mapper):
+        mapper = make_mapper()
         assert isinstance(mapper.wait_policy, WaitForAll)
 
 
@@ -128,31 +131,31 @@ class TestSerializeRoundTrip:
             pytest.param(MinimumCount(-3), id="minimum-count-negative-3"),
         ],
     )
-    def test_round_trip(self, policy):
-        mapper = _mapper(wait_policy=policy)
+    def test_round_trip(self, policy, make_mapper):
+        mapper = make_mapper(wait_policy=policy)
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
         assert restored.wait_policy == policy
 
-    def test_default_policy_wire_shape(self):
-        encoded = encode_partition_mapper(_mapper())[Encoding.VAR]
+    def test_default_policy_wire_shape(self, make_mapper):
+        encoded = encode_partition_mapper(make_mapper())[Encoding.VAR]
         wp = encoded["wait_policy"]
         assert wp[Encoding.TYPE].endswith("WaitForAll")
         assert wp[Encoding.VAR] == {}
         assert "allow_missing" not in encoded
         assert "minimum_count" not in encoded
 
-    def test_non_builtin_wait_policy_rejected(self):
+    def test_non_builtin_wait_policy_rejected(self, make_mapper):
         class Custom(WaitPolicy):
             pass
 
-        mapper = _mapper(wait_policy=Custom())
+        mapper = make_mapper(wait_policy=Custom())
         with pytest.raises(WaitPolicyNotSupported):
             encode_partition_mapper(mapper)
 
-    # Regression: before the singledispatch default delegated to policy.serialize(),
-    # re-encoding a core-class instance (what decode_wait_policy produces) would hit
-    # the bare `return {}` fallback and silently drop the payload (e.g. MinimumCount.n).
+    # Guard: the singledispatch default must delegate to policy.serialize(). An earlier
+    # draft returned a bare `{}` here, so re-encoding a core-class instance (what
+    # decode_wait_policy produces) silently dropped the payload (e.g. MinimumCount.n).
     @pytest.mark.parametrize(
         ("policy", "expected_var"),
         [
@@ -164,9 +167,9 @@ class TestSerializeRoundTrip:
     def test_core_wait_policy_re_encode_preserves_wire_shape(self, policy, expected_var):
         assert encode_wait_policy(policy)[Encoding.VAR] == expected_var
 
-    def test_round_trip_fast_path_uses_core_wait_for_all(self):
+    def test_round_trip_fast_path_uses_core_wait_for_all(self, make_mapper):
         """After deserialization the wait_policy is a core-side WaitForAll."""
-        mapper = _mapper(wait_policy=WaitForAll())
+        mapper = make_mapper(wait_policy=WaitForAll())
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
         assert isinstance(restored.wait_policy, WaitForAll)
@@ -189,17 +192,21 @@ class TestWaitForAllKeySemantics:
         ],
     )
     def test_wait_for_all_key_semantics(self, matched, expected, fires):
-        assert WaitForAll().is_satisfied_by_keys(matched=matched, expected=expected) is fires
+        assert WaitForAll().is_satisfied_by_keys(matched=matched, expected=expected).satisfied is fires
 
     def test_minimum_count_uses_base_default(self):
         """MinimumCount inherits the base default: set → count → is_satisfied."""
         expected2 = {str(i) for i in range(60)}
         assert (
-            MinimumCount(5).is_satisfied_by_keys(matched={str(i) for i in range(5)}, expected=expected2)
+            MinimumCount(5)
+            .is_satisfied_by_keys(matched={str(i) for i in range(5)}, expected=expected2)
+            .satisfied
             is True
         )
         assert (
-            MinimumCount(5).is_satisfied_by_keys(matched={str(i) for i in range(4)}, expected=expected2)
+            MinimumCount(5)
+            .is_satisfied_by_keys(matched={str(i) for i in range(4)}, expected=expected2)
+            .satisfied
             is False
         )
 
@@ -250,7 +257,7 @@ class TestBaseDelegationEquivalence:
     def test_key_method_equals_count_method(self, policy, matched, expected):
         key_result = policy.is_satisfied_by_keys(matched=matched, expected=expected)
         count_result = policy.is_satisfied(matched=len(matched & expected), expected=len(expected))
-        assert key_result is count_result
+        assert key_result.satisfied is count_result
 
 
 class TestSchedulerDispatch:
@@ -325,7 +332,114 @@ class TestSchedulerDispatch:
     )
     def test_dispatch(self, policy, expected_keys, matched_keys, fires):
         result = policy.is_satisfied_by_keys(matched=matched_keys, expected=expected_keys)
-        assert result is fires
+        assert result.satisfied is fires
+
+
+class TestPartitionSatisfactionStructure:
+    """
+    Pin the PartitionSatisfaction return structure of is_satisfied_by_keys.
+
+    Covers three states (success / partial / unreachable) for both WaitForAll
+    and MinimumCount, verifying both satisfied and unreachable fields together.
+    """
+
+    @pytest.mark.parametrize(
+        ("policy", "matched_keys", "expected_keys", "satisfied", "unreachable"),
+        [
+            # WaitForAll — all expected keys present.
+            pytest.param(
+                WaitForAll(),
+                {"a", "b", "c"},
+                {"a", "b", "c"},
+                True,
+                False,
+                id="wfa-success",
+            ),
+            # WaitForAll — one key missing (partial).
+            pytest.param(
+                WaitForAll(),
+                {"a"},
+                {"a", "b"},
+                False,
+                False,
+                id="wfa-partial",
+            ),
+            # WaitForAll — unreachable is always False.
+            pytest.param(
+                WaitForAll(),
+                set(),
+                {str(i) for i in range(5)},
+                False,
+                False,
+                id="wfa-unreachable-always-false",
+            ),
+            # MinimumCount — threshold met (success).
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(5)},
+                {str(i) for i in range(60)},
+                True,
+                False,
+                id="mc5-success",
+            ),
+            # MinimumCount — threshold not met, still reachable (partial).
+            pytest.param(
+                MinimumCount(5),
+                {str(i) for i in range(4)},
+                {str(i) for i in range(60)},
+                False,
+                False,
+                id="mc5-partial",
+            ),
+            # MinimumCount — n > expected → permanently unreachable.
+            pytest.param(
+                MinimumCount(5),
+                set(),
+                {str(i) for i in range(4)},
+                False,
+                True,
+                id="mc5-unreachable",
+            ),
+        ],
+    )
+    def test_is_satisfied_by_keys_structure(
+        self, policy, matched_keys, expected_keys, satisfied, unreachable
+    ):
+        result = policy.is_satisfied_by_keys(matched=matched_keys, expected=expected_keys)
+        assert result.satisfied is satisfied
+        assert result.unreachable is unreachable
+        if unreachable:
+            assert result.unreachable_reason is not None
+            assert str(len(expected_keys)) in result.unreachable_reason
+            assert repr(policy) in result.unreachable_reason
+        else:
+            assert result.unreachable_reason is None
+
+
+class TestPartitionSatisfactionInvariant:
+    """
+    PartitionSatisfaction enforces the cross-field invariant at construction:
+    unreachable_reason is non-None if and only if unreachable is True.
+    """
+
+    @pytest.mark.parametrize(
+        ("satisfied", "unreachable", "unreachable_reason", "match"),
+        [
+            pytest.param(
+                False, True, None, "unreachable_reason must be set", id="unreachable-true-reason-none"
+            ),
+            pytest.param(
+                True, False, "x", "unreachable_reason must be None", id="unreachable-false-reason-set"
+            ),
+        ],
+    )
+    def test_invalid_cross_field_combinations_raise(self, satisfied, unreachable, unreachable_reason, match):
+        with pytest.raises(ValueError, match=match):
+            PartitionSatisfaction(
+                satisfied=satisfied,
+                unreachable=unreachable,
+                unreachable_reason=unreachable_reason,
+            )
 
 
 class TestUnreachableWarning:
@@ -393,14 +507,11 @@ class TestUnreachableWarning:
         assert result is False
 
         expected_warning_call = unittest.mock.call(
-            "Wait policy %r is unreachable for asset (name=%r, uri=%r) on Dag %r "
-            "given the window's cardinality %d; downstream Dag run is permanently "
-            "unreachable.",
-            MinimumCount(61),
+            "Rollup asset (name=%r, uri=%r) on Dag %r is permanently unreachable: %s",
             self._NAME,
             self._URI,
             self._TARGET_DAG_ID,
-            60,
+            f"wait policy {MinimumCount(61)!r} can never be satisfied given the window's cardinality 60",
         )
         assert runner._log.warning.mock_calls == [expected_warning_call]
         assert (self._TARGET_DAG_ID, self._NAME, self._URI) in runner._partition_unreachable_seen
@@ -413,3 +524,18 @@ class TestUnreachableWarning:
         assert result2 is False
         # Warning fired exactly once — second call was suppressed by dedup set.
         assert len(runner._log.warning.mock_calls) == 1
+
+    def test_warn_unreachable_asset_partition_dedup(self, runner):
+        """_warn_unreachable_asset_partition called twice with the same key logs only once."""
+        apdr = unittest.mock.MagicMock()
+        apdr.target_dag_id = self._TARGET_DAG_ID
+
+        runner._warn_unreachable_asset_partition(
+            apdr=apdr, name=self._NAME, uri=self._URI, reason="some reason"
+        )
+        runner._warn_unreachable_asset_partition(
+            apdr=apdr, name=self._NAME, uri=self._URI, reason="some reason"
+        )
+
+        assert len(runner._log.warning.mock_calls) == 1
+        assert (self._TARGET_DAG_ID, self._NAME, self._URI) in runner._partition_unreachable_seen

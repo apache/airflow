@@ -1930,6 +1930,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
+    def _warn_unreachable_asset_partition(
+        self,
+        *,
+        apdr: AssetPartitionDagRun,
+        name: str,
+        uri: str,
+        reason: str | None,
+    ) -> None:
+        """
+        Emit a warning that a rollup asset partition can never satisfy its wait policy.
+
+        The warning is deduplicated per ``(target_dag_id, name, uri)`` so a stuck APDR
+        is surfaced once rather than on every scheduler tick.
+        """
+        unreachable_key = (apdr.target_dag_id, name, uri)
+        if unreachable_key in self._partition_unreachable_seen:
+            return
+        self.log.warning(
+            "Rollup asset (name=%r, uri=%r) on Dag %r is permanently unreachable: %s",
+            name,
+            uri,
+            apdr.target_dag_id,
+            reason,
+        )
+        self._partition_unreachable_seen.add(unreachable_key)
+
     def _resolve_asset_partition_status(
         self,
         *,
@@ -1964,28 +1990,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             expected = mapper.to_upstream(apdr.partition_key)
             actual = actual_by_asset.get(asset_id, set())
 
-            # A policy where the threshold can never be met given the rollup
-            # window's cardinality is permanently unreachable. Surface this as a
-            # deduplicated warning so the operator can spot a stuck APDR in
-            # scheduler logs instead of seeing it silently never fire. Return
-            # ``False`` directly to skip the intersection that cannot succeed.
-            if mapper.wait_policy.is_unreachable(len(expected)):
-                unreachable_key = (apdr.target_dag_id, name, uri)
-                if unreachable_key not in self._partition_unreachable_seen:
-                    self.log.warning(
-                        "Wait policy %r is unreachable for asset (name=%r, uri=%r) on Dag %r "
-                        "given the window's cardinality %d; downstream Dag run is permanently "
-                        "unreachable.",
-                        mapper.wait_policy,
-                        name,
-                        uri,
-                        apdr.target_dag_id,
-                        len(expected),
-                    )
-                    self._partition_unreachable_seen.add(unreachable_key)
+            # The policy returns both the satisfaction result and, when permanently
+            # unreachable, a ready-made reason string. Dedup and forwarding are the
+            # scheduler's responsibility; the policy owns the message content.
+            result = mapper.wait_policy.is_satisfied_by_keys(matched=actual, expected=expected)
+            if result.unreachable:
+                self._warn_unreachable_asset_partition(
+                    apdr=apdr, name=name, uri=uri, reason=result.unreachable_reason
+                )
                 return False
-
-            return mapper.wait_policy.is_satisfied_by_keys(matched=actual, expected=expected)
+            return result.satisfied
         except Exception:
             self.log.exception(
                 "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "

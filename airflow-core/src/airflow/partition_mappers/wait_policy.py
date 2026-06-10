@@ -24,13 +24,41 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 
+@attrs.define(frozen=True)
+class PartitionSatisfaction:
+    """
+    Structured result returned by :meth:`WaitPolicy.is_satisfied_by_keys`.
+
+    :param satisfied: ``True`` if the matched key set meets the policy's firing threshold.
+    :param unreachable: ``True`` if the policy threshold can never be met given the window's
+        cardinality, regardless of how many upstream events arrive.
+    :param unreachable_reason: Human-readable explanation of why the policy is unreachable,
+        constructed atomically by the policy from its own repr and the window's cardinality.
+        Non-``None`` if and only if ``unreachable`` is ``True``; the scheduler may forward
+        this string directly to :meth:`~logging.Logger.warning` without further formatting.
+    """
+
+    satisfied: bool
+    unreachable: bool
+    unreachable_reason: str | None
+
+    def __attrs_post_init__(self) -> None:
+        if self.unreachable and self.unreachable_reason is None:
+            raise ValueError("unreachable_reason must be set when unreachable is True")
+        if not self.unreachable and self.unreachable_reason is not None:
+            raise ValueError("unreachable_reason must be None when unreachable is False")
+
+
 class WaitPolicy:
     """
     An object the scheduler asks whether a partitioned Dag run should fire.
 
-    Concrete policies are ``WaitForAll`` and ``MinimumCount``. Each implements
-    ``is_satisfied(matched, expected)`` and ``is_unreachable(expected)``; the
-    scheduler calls these methods directly in the hot path on every tick.
+    Concrete policies are ``WaitForAll`` and ``MinimumCount``. The scheduler
+    calls only :meth:`is_satisfied_by_keys`, which returns a :class:`PartitionSatisfaction`
+    carrying both the satisfaction result and the unreachability flag.
+    :meth:`is_satisfied` and :meth:`is_unreachable` are internal collaboration
+    points used by policy implementations; they are not called directly by the
+    scheduler.
 
     :meta private:
     """
@@ -38,9 +66,25 @@ class WaitPolicy:
     def is_satisfied(self, matched: int, expected: int) -> bool:
         raise NotImplementedError
 
-    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> bool:
-        """Return ``True`` if the matched key set satisfies this policy; by default converts to counts and calls ``is_satisfied``."""
-        return self.is_satisfied(matched=len(matched & expected), expected=len(expected))
+    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> PartitionSatisfaction:
+        """
+        Return a :class:`PartitionSatisfaction` for the given key sets.
+
+        The base default converts sets to counts, then calls :meth:`is_satisfied`
+        and :meth:`is_unreachable` — both using ``len(expected)`` as the cardinality.
+        Override to avoid materialising the full intersection (see ``WaitForAll``).
+        """
+        cardinality = len(expected)
+        unreachable = self.is_unreachable(cardinality)
+        return PartitionSatisfaction(
+            satisfied=self.is_satisfied(matched=len(matched & expected), expected=cardinality),
+            unreachable=unreachable,
+            unreachable_reason=(
+                f"wait policy {self!r} can never be satisfied given the window's cardinality {cardinality}"
+                if unreachable
+                else None
+            ),
+        )
 
     def is_unreachable(self, expected: int) -> bool:
         raise NotImplementedError
@@ -64,9 +108,11 @@ class WaitForAll(WaitPolicy):
     def is_satisfied(self, matched: int, expected: int) -> bool:
         return matched == expected
 
-    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> bool:
+    def is_satisfied_by_keys(self, *, matched: Set[str], expected: Set[str]) -> PartitionSatisfaction:
         # Short-circuits on the first missing key; avoids materializing the full intersection.
-        return expected <= matched
+        return PartitionSatisfaction(
+            satisfied=(expected <= matched), unreachable=False, unreachable_reason=None
+        )
 
     def is_unreachable(self, expected: int) -> bool:
         return False
