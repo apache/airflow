@@ -253,9 +253,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             # On Airflow 3.0/3.1 the attrs-based Connection has neither from_uri nor a uri=
             # constructor arg; return None so the secrets-backend loop tries the next backend.
             if hasattr(Connection, "from_uri"):
-                return Connection.from_uri(uri, conn_id=conn_id)  # type: ignore[attr-defined]
+                return Connection.from_uri(uri, conn_id=conn_id)
             try:
-                return Connection(conn_id=conn_id, uri=uri)  # type: ignore[call-arg]
+                return Connection(conn_id=conn_id, uri=uri)
             except TypeError:
                 self.log.warning(
                     "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
