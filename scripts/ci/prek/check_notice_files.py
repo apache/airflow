@@ -20,12 +20,11 @@
 # dependencies = []
 # ///
 """
-Check that NOTICE files contain the Apache Software Foundation reference.
+Check that NOTICE files contain the current year and Apache Software Foundation reference.
 
-This script validates NOTICE files to ensure they reference the Apache Software Foundation.
-The copyright year is intentionally not checked here to avoid CI failures at the start of
-a new year. Year updates should be performed manually by the release manager using
-``prek run update-notice-year --all-files`` before the first release of each new year.
+This script validates NOTICE files to ensure they:
+- Include the current year in copyright statements
+- Reference the Apache Software Foundation
 
 Usage: check_notice_files.py <notice_file_paths...>
 """
@@ -33,17 +32,25 @@ Usage: check_notice_files.py <notice_file_paths...>
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
-ASF_DECLARATION = "The Apache Software Foundation"
+CURRENT_YEAR = str(datetime.now().year)
 
 errors = 0
 
 for notice_file in sys.argv[1:]:
     content = Path(notice_file).read_text()
 
-    if ASF_DECLARATION not in content:
-        print(f"❌ {notice_file}: Missing expected string: {ASF_DECLARATION!r}")
+    expected = f"Copyright 2016-{CURRENT_YEAR} The Apache Software Foundation"
+    if "Copyright" in content and expected not in content:
+        print(f"❌ {notice_file}: Missing expected string: {expected!r}")
         errors += 1
 
-sys.exit(1 if errors else 0)
+if errors:
+    print()
+    print("To fix, run: prek run update-notice-year --all-files")
+    print("Then commit the changes.")
+    sys.exit(1)
+
+sys.exit(0)
