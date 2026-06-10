@@ -366,7 +366,10 @@ class TestGetEventLogs(TestEventLogsEndpoint):
 
     @provide_session
     def test_get_event_logs_excludes_logs_without_dttm(
-        self, test_client, *, session: Session = NEW_SESSION  # noqa: PT028
+        self,
+        test_client,
+        *,
+        session: Session = NEW_SESSION,  # noqa: PT028
     ):
         event_log = Log(event=EVENT_WITHOUT_DTTM)
         session.add(event_log)
