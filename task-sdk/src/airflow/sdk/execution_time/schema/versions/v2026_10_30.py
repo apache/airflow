@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
+from airflow.callbacks.callback_requests import DagSkippedIntervalsCallbackRequest  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
 from airflow.sdk.execution_time.comms import TaskState
 
@@ -52,3 +53,14 @@ class AddRetryReasonToTaskState(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TaskState).field("retry_reason").didnt_exist,)
+
+
+class AddDagSkippedIntervalsCallbackRequest(VersionChange):
+    """Introduce ``DagSkippedIntervalsCallbackRequest`` in the ``CallbackRequest`` union."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagSkippedIntervalsCallbackRequest).field("dag_id").didnt_exist,
+        schema(DagSkippedIntervalsCallbackRequest).field("skipped_intervals").didnt_exist,
+    )
