@@ -21,12 +21,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
       "src/*": ["./src/*"],
       "openapi/*": ["./openapi-gen/*"],
-      "tests/*": ["./tests/*"]
+      "tests/*": ["./tests/*"],
+      "*": ["./*"]
     },
     "types": ["node"]
   },
