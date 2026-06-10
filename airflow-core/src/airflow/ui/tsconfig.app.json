@@ -21,7 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "ignoreDeprecations": "6.0",
     "paths": {
       "src/*": ["./src/*"],
       "openapi/*": ["./openapi-gen/*"],
