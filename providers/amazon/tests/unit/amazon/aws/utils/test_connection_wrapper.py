@@ -404,9 +404,13 @@ class TestAwsConnectionWrapper:
             conn_id="foo-bar",
             extra={
                 "endpoint_url": "https://spam.egg",
+                "use_https": False,
                 "service_config": {
                     "sns": {"endpoint_url": "https://foo.bar"},
                     "ec2": {"endpoint_url": None},  # Enforce to boto3
+                    "s3": {"endpoint_url": "bar.baz", "use_https":True}, # Coerce HTTPS scheme
+                    "eks": {"endpoint_url": "baz.bip"},  # Coerce HTTP scheme (global use_https)
+                    "athena": {"endpoint_url": "ftp://foo.bar"},  # Invalid endpoint_url
                 },
             },
         )
@@ -414,6 +418,10 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.get_service_endpoint_url("sns") == "https://foo.bar"
         assert wrap_conn.get_service_endpoint_url("sts") == "https://spam.egg"
         assert wrap_conn.get_service_endpoint_url("ec2") is None
+        assert wrap_conn.get_service_endpoint_url("s3") == "https://bar.baz"
+        assert wrap_conn.get_service_endpoint_url("eks") == "http://baz.bip"
+        with pytest.raises(ValueError, match=r"Invalid endpoint_url: ftp://foo\.bar"):
+            wrap_conn.get_service_endpoint_url("athena")
 
     @pytest.mark.parametrize(
         ("global_endpoint_url", "sts_service_endpoint_url", "expected_endpoint_url"),
