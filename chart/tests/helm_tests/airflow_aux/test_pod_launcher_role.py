@@ -320,7 +320,7 @@ class TestPodLauncher:
             namespace="airflow",
             values={
                 "rbac": {"create": True},
-                "allowJobLaunching": True,
+                "allowPodLaunching": True,
                 "executor": executor,
                 "workers": {"celery": {"serviceAccount": {"create": create}}},
             },
@@ -339,7 +339,7 @@ class TestPodLauncher:
             name="prod",
             values={
                 "rbac": {"create": True},
-                "allowJobLaunching": True,
+                "allowPodLaunching": True,
                 "executor": executor,
                 "workers": {"celery": {"serviceAccount": {"create": False}}},
             },
@@ -370,7 +370,7 @@ class TestPodLauncher:
             namespace="airflow",
             values={
                 "rbac": {"create": True},
-                "allowJobLaunching": True,
+                "allowPodLaunching": True,
                 "executor": executor,
                 "workers": {"celery": {"serviceAccount": service_account_values}},
             },
