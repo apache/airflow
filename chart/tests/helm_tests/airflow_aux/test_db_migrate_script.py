@@ -275,10 +275,10 @@ def test_discover_api_server_pod_prefers_ready(db_migrate, monkeypatch, make_pod
     ]
     monkeypatch.setattr(db_migrate.k8s_config, "load_incluster_config", lambda: None)
     monkeypatch.setattr(db_migrate.client, "CoreV1Api", lambda: fake_api)
-    assert db_migrate.discover_api_server_pod("airflow") == "api-server-new"
+    assert db_migrate.discover_api_server_pod("airflow", "my-release") == "api-server-new"
     fake_api.list_namespaced_pod.assert_called_once_with(
         namespace="airflow",
-        label_selector="component=api-server",
+        label_selector="release=my-release,component=api-server",
         field_selector="status.phase=Running",
     )
 
@@ -289,7 +289,7 @@ def test_discover_api_server_pod_falls_back_to_non_ready(db_migrate, monkeypatch
     fake_api.list_namespaced_pod.return_value.items = [make_pod("api-server-old", ready=False)]
     monkeypatch.setattr(db_migrate.k8s_config, "load_incluster_config", lambda: None)
     monkeypatch.setattr(db_migrate.client, "CoreV1Api", lambda: fake_api)
-    assert db_migrate.discover_api_server_pod("airflow") == "api-server-old"
+    assert db_migrate.discover_api_server_pod("airflow", "my-release") == "api-server-old"
 
 
 @requires_kubernetes
@@ -301,7 +301,7 @@ def test_discover_api_server_pod_raises_when_none(db_migrate, monkeypatch):
     # Bypass the retry's exponential backoff so the test runs instantly.
     monkeypatch.setattr(db_migrate.discover_api_server_pod.retry, "sleep", lambda _s: None)
     with pytest.raises(RuntimeError, match="no Running api-server pod"):
-        db_migrate.discover_api_server_pod("airflow")
+        db_migrate.discover_api_server_pod("airflow", "my-release")
 
 
 @requires_kubernetes
@@ -318,7 +318,7 @@ def test_discover_api_server_pod_retry_recovers_after_transient_empty(db_migrate
     monkeypatch.setattr(db_migrate.client, "CoreV1Api", lambda: fake_api)
     monkeypatch.setattr(db_migrate.discover_api_server_pod.retry, "sleep", lambda _s: None)
 
-    assert db_migrate.discover_api_server_pod("airflow") == "api-server-new"
+    assert db_migrate.discover_api_server_pod("airflow", "my-release") == "api-server-new"
     assert fake_api.list_namespaced_pod.call_count == 2
 
 
@@ -519,7 +519,7 @@ def test_main_downgrade_orchestrates_exec_then_scale(db_migrate, monkeypatch, ma
     monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
     monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
     monkeypatch.setattr(db_migrate, "_require_kubernetes_client", lambda: None)
-    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns: "api-server-1")
+    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns, _rel: "api-server-1")
     run_downgrade = mock.MagicMock(return_value=0)
     scale = mock.MagicMock()
     monkeypatch.setattr(db_migrate, "run_downgrade_in_api_server", run_downgrade)
@@ -535,7 +535,7 @@ def test_main_downgrade_short_circuits_on_nonzero_rc(db_migrate, monkeypatch, ma
     monkeypatch.setattr(db_migrate, "_wait_for_db_ready", lambda: None)
     monkeypatch.setattr(db_migrate, "decide_action", lambda _t: "downgrade")
     monkeypatch.setattr(db_migrate, "_require_kubernetes_client", lambda: None)
-    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns: "api-server-1")
+    monkeypatch.setattr(db_migrate, "discover_api_server_pod", lambda _ns, _rel: "api-server-1")
     monkeypatch.setattr(db_migrate, "run_downgrade_in_api_server", lambda *_a: 2)
     scale = mock.MagicMock()
     monkeypatch.setattr(db_migrate, "scale_release_workloads_to_zero", scale)

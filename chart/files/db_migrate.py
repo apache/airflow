@@ -199,8 +199,12 @@ def decide_action(target: str) -> str:
     retry=retry_if_exception_type(RuntimeError),
     reraise=True,
 )
-def discover_api_server_pod(namespace: str) -> str:
-    """Return the name of a Running api-server pod in *namespace*.
+def discover_api_server_pod(namespace: str, release_name: str) -> str:
+    """Return the name of a Running api-server pod for *release_name* in *namespace*.
+
+    Scoped to the release via the ``release`` label so that, when several
+    Airflow releases share a namespace, the downgrade is exec'd strictly in the
+    current release's api-server pod and never another release's.
 
     Retries on ``RuntimeError`` so a rolling restart of the api-server
     deployment (no Running pod for a few seconds) does not fail the job.
@@ -209,11 +213,13 @@ def discover_api_server_pod(namespace: str) -> str:
     api = client.CoreV1Api()
     pods = api.list_namespaced_pod(
         namespace=namespace,
-        label_selector="component=api-server",
+        label_selector=f"release={release_name},component=api-server",
         field_selector="status.phase=Running",
     ).items
     if not pods:
-        raise RuntimeError(f"no Running api-server pod found in namespace {namespace}")
+        raise RuntimeError(
+            f"no Running api-server pod found for release {release_name} in namespace {namespace}"
+        )
 
     # Prefer Ready pods so we don't pick one mid-rollout.
     ready = [
@@ -362,7 +368,7 @@ def main() -> int:
         if not release_name:
             raise SystemExit("RELEASE_NAME must be set for the downgrade branch")
         _require_kubernetes_client()
-        pod = discover_api_server_pod(namespace)
+        pod = discover_api_server_pod(namespace, release_name)
         print(f"[db_migrate] downgrading via api-server pod {pod}", flush=True)
         rc = run_downgrade_in_api_server(pod, namespace, target)
         if rc != 0:
