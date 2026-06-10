@@ -16,59 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 
-import { DeadlinesService } from "openapi/requests/services.gen";
+import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 
 export const DASHBOARD_DEADLINE_LIMIT = 5;
 
-type DashboardDeadlinesQueryOptions = {
+type DashboardPendingDeadlinesQueryOptions = {
   readonly refetchInterval: number | false;
 };
 
-export const getDeadlineWindow = () => {
-  const currentMinute = dayjs().startOf("minute");
-
-  return {
-    lastDay: currentMinute.subtract(24, "hour").toISOString(),
-    now: currentMinute.toISOString(),
-  };
+type DashboardMissedDeadlinesQueryOptions = {
+  readonly endDate: string;
+  readonly refetchInterval: number | false;
+  readonly startDate: string;
 };
 
-export const useDashboardPendingDeadlines = ({ refetchInterval }: DashboardDeadlinesQueryOptions) =>
-  useQuery({
-    queryFn: () => {
-      const { now } = getDeadlineWindow();
+export const useDashboardPendingDeadlines = ({ refetchInterval }: DashboardPendingDeadlinesQueryOptions) => {
+  const now = dayjs().startOf("minute").toISOString();
 
-      return DeadlinesService.getDeadlines({
-        dagId: "~",
-        dagRunId: "~",
-        deadlineTimeGt: now,
-        limit: DASHBOARD_DEADLINE_LIMIT,
-        missed: false,
-        orderBy: ["deadline_time"],
-      });
+  return useDeadlinesServiceGetDeadlines(
+    {
+      dagId: "~",
+      dagRunId: "~",
+      deadlineTimeGt: now,
+      limit: DASHBOARD_DEADLINE_LIMIT,
+      missed: false,
+      orderBy: ["deadline_time"],
     },
-    queryKey: ["dashboard", "deadlines", "pending"],
-    refetchInterval,
-  });
+    undefined,
+    { refetchInterval },
+  );
+};
 
-export const useDashboardMissedDeadlines = ({ refetchInterval }: DashboardDeadlinesQueryOptions) =>
-  useQuery({
-    queryFn: () => {
-      const { lastDay, now } = getDeadlineWindow();
-
-      return DeadlinesService.getDeadlines({
-        dagId: "~",
-        dagRunId: "~",
-        deadlineTimeGte: lastDay,
-        deadlineTimeLt: now,
-        limit: DASHBOARD_DEADLINE_LIMIT,
-        missed: true,
-        orderBy: ["-deadline_time"],
-      });
+export const useDashboardMissedDeadlines = ({
+  endDate,
+  refetchInterval,
+  startDate,
+}: DashboardMissedDeadlinesQueryOptions) =>
+  useDeadlinesServiceGetDeadlines(
+    {
+      dagId: "~",
+      dagRunId: "~",
+      deadlineTimeGte: startDate,
+      deadlineTimeLt: endDate,
+      limit: DASHBOARD_DEADLINE_LIMIT,
+      missed: true,
+      orderBy: ["-deadline_time"],
     },
-    queryKey: ["dashboard", "deadlines", "missed"],
-    refetchInterval,
-  });
+    undefined,
+    { refetchInterval },
+  );

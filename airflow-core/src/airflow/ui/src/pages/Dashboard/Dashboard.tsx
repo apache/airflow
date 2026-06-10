@@ -17,11 +17,14 @@
  * under the License.
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
+import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { Accordion, Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
@@ -33,10 +36,16 @@ import { HistoricalMetrics } from "./HistoricalMetrics";
 import { PoolSummary } from "./PoolSummary";
 import { Stats } from "./Stats";
 
+const defaultHour = "24";
+
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
   const { t: translate } = useTranslation("dashboard");
   const instanceName = useConfig("instance_name");
+
+  const now = dayjs();
+  const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
+  const [endDate, setEndDate] = useState(now.toISOString());
 
   const { data: pluginData } = usePluginServiceGetPlugins();
 
@@ -77,20 +86,29 @@ export const Dashboard = () => {
             : translate("welcome")}
         </Heading>
         <Box order={3}>
-          <Stats />
+          <TimeRangeSelector
+            defaultValue={defaultHour}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            setStartDate={setStartDate}
+            startDate={startDate}
+          />
         </Box>
         <Box order={4}>
+          <Stats endDate={endDate} startDate={startDate} />
+        </Box>
+        <Box order={5}>
           <FavoriteDags />
         </Box>
-        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={6}>
           <Health />
           <PoolSummary />
         </Box>
-        <Box order={6}>
-          <DashboardDeadlines />
-        </Box>
         <Box order={7}>
-          <HistoricalMetrics />
+          <DashboardDeadlines endDate={endDate} startDate={startDate} />
+        </Box>
+        <Box order={8}>
+          <HistoricalMetrics endDate={endDate} startDate={startDate} />
         </Box>
         {dashboardReactPlugins.map((plugin) => (
           <ReactPlugin key={plugin.name} reactApp={plugin} />

@@ -5,9 +5,8 @@
       "title": "Upcoming"
     },
     "recentlyMissed": {
-      "empty": "No missed deadlines in the last 24 hours",
-      "subtitle": "Last 24 hours",
-      "title": "Recently missed"
+      "empty": "No missed deadlines",
+      "title": "$t(stats.missedDeadlines)"
     },
     "showMore": "Show more",
     "title": "Deadlines"

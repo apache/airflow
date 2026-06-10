@@ -25,13 +25,15 @@ import { StatsCard } from "src/components/StatsCard";
 import { useDashboardMissedDeadlines } from "../useDashboardDeadlines";
 
 type MissedDeadlinesProps = {
+  readonly endDate: string;
   readonly refetchInterval: number | false;
+  readonly startDate: string;
 };
 
-export const MissedDeadlines = ({ refetchInterval }: MissedDeadlinesProps) => {
+export const MissedDeadlines = ({ endDate, refetchInterval, startDate }: MissedDeadlinesProps) => {
   const { i18n, t: translate } = useTranslation("dashboard");
   const isRTL = i18n.dir() === "rtl";
-  const { data, isLoading } = useDashboardMissedDeadlines({ refetchInterval });
+  const { data, isLoading } = useDashboardMissedDeadlines({ endDate, refetchInterval, startDate });
 
   const count = data?.total_entries ?? 0;
 

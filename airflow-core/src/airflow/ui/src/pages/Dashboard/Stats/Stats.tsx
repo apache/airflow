@@ -29,7 +29,12 @@ import { DAGImportErrors } from "./DAGImportErrors";
 import { MissedDeadlines } from "./MissedDeadlines";
 import { PluginImportErrors } from "./PluginImportErrors";
 
-export const Stats = () => {
+type StatsProps = {
+  readonly endDate: string;
+  readonly startDate: string;
+};
+
+export const Stats = ({ endDate, startDate }: StatsProps) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
     refetchInterval,
@@ -69,7 +74,7 @@ export const Stats = () => {
 
         <PluginImportErrors />
 
-        <MissedDeadlines refetchInterval={refetchInterval} />
+        <MissedDeadlines endDate={endDate} refetchInterval={refetchInterval} startDate={startDate} />
 
         {queuedDagsCount > 0 ? (
           <StatsCard
