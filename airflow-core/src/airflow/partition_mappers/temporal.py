@@ -198,6 +198,14 @@ class _BaseTemporalMapper(PartitionMapper):
         """
         return datetime.strptime(downstream_key, self.output_format)
 
+    def to_partition_date(self, downstream_key: str) -> datetime:
+        anchor = self.normalize(self.decode_downstream(downstream_key))
+        # decode_downstream returns a naive datetime; localise it with the mapper's
+        # own timezone, mirroring to_downstream, so the stored instant is correct.
+        if anchor.tzinfo is None:
+            anchor = make_aware(anchor, self._timezone)
+        return anchor
+
     def encode_upstream(self, dt: datetime) -> str:
         """
         Format *dt* as an upstream partition key string.
@@ -521,6 +529,10 @@ class FanOutMapper(PartitionMapper):
             )
         coarse = self.upstream_mapper.decode_downstream(formatted)
         return [_format_with(self.downstream_mapper, item) for item in self.window.to_upstream(coarse)]
+
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # Fan-out keys are formatted by downstream_mapper, so it owns the anchor.
+        return self.downstream_mapper.to_partition_date(downstream_key)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper, encode_window
