@@ -5358,6 +5358,55 @@ class TestTaskInstanceMetrics:
             )
             backend.incr.assert_any_call("ti_failures", tags=stats_tags)
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags_extra"),
+        [
+            pytest.param("my_team", {"team_name": "my_team"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    def test_ti_start_metric_respects_team_name(
+        self, team_name, expected_tags_extra, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = PythonOperator(task_id="test", python_callable=lambda: "success")
+        ti = create_runtime_ti(task=task)
+        if team_name:
+            ti._ti_context_from_server.dag_run.team_name = team_name
+
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
+            backend = mock.MagicMock(spec=StatsLogger)
+            mock_get_backend.return_value = backend
+            run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+            expected = {"dag_id": ti.dag_id, "task_id": ti.task_id, **expected_tags_extra}
+            backend.incr.assert_any_call("ti.start", tags=expected)
+
+    @pytest.mark.parametrize(
+        ("task_callable", "operator_metric", "ti_metric"),
+        [
+            pytest.param(lambda: "success", "operator_successes", "ti_successes", id="success"),
+            pytest.param(lambda: 1 / 0, "operator_failures", "ti_failures", id="failure"),
+        ],
+    )
+    def test_operator_metrics_respect_team_name(
+        self, task_callable, operator_metric, ti_metric, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = PythonOperator(task_id="test", python_callable=task_callable)
+        ti = create_runtime_ti(task=task)
+        ti._ti_context_from_server.dag_run.team_name = "team_a"
+
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
+            backend = mock.MagicMock(spec=StatsLogger)
+            mock_get_backend.return_value = backend
+            run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": "team_a"}
+            backend.incr.assert_any_call(
+                operator_metric,
+                tags={**stats_tags, "operator_name": "PythonOperator"},
+            )
+            backend.incr.assert_any_call(ti_metric, tags=stats_tags)
+
 
 class TestDetailSpan:
     """Tests for the detail_span decorator / context manager."""
