@@ -64,9 +64,7 @@ EXCLUDE_DIRS = {"node_modules", ".git", ".venv", "__pycache__"}
 
 def main() -> int:
     repo_root = Path(__file__).parents[3]
-    notice_files = sorted(
-        f for f in repo_root.rglob("NOTICE") if not any(part in EXCLUDE_DIRS for part in f.parts)
-    )
+    notice_files = [f for f in repo_root.rglob("NOTICE") if not any(part in EXCLUDE_DIRS for part in f.parts)]
     updated = sum(update_file(f) for f in notice_files)
     print(f"\n{updated} file(s) updated, {len(notice_files) - updated} already current.")
     return 0
