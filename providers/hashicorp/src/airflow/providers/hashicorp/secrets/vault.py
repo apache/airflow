@@ -256,7 +256,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
                 return Connection.from_uri(uri, conn_id=conn_id)
             try:
                 return Connection(conn_id=conn_id, uri=uri)
-            except TypeError:
+            except (TypeError, ValueError):
                 self.log.warning(
                     "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
                     "or store the connection using individual fields (conn_type, host, login, "
