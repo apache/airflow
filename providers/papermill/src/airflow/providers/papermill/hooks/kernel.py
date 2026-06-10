@@ -19,7 +19,7 @@ from __future__ import annotations
 import typing
 from typing import cast
 
-from jupyter_client import AsyncKernelManager
+from jupyter_client import AsyncKernelManager, KernelConnectionInfo
 from papermill.clientwrap import PapermillNotebookClient
 from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
@@ -106,14 +106,14 @@ class RemoteKernelManager(AsyncKernelManager):
     async def _async_is_alive(self) -> bool:
         return True
 
-    def shutdown_kernel(self, now: bool = False, restart: bool = False):
+    async def shutdown_kernel(self, now: bool = False, restart: bool = False) -> None:
         pass
 
     def client(self, **kwargs: typing.Any):
         """Create a client configured to connect to our kernel."""
         kernel_client = super().client(**kwargs)
         # load connection info to set session_key
-        config: dict[str, int | str | bytes] = dict(
+        config = KernelConnectionInfo(
             ip=self.ip,
             shell_port=self.shell_port,
             iopub_port=self.iopub_port,
