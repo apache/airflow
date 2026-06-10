@@ -60,7 +60,48 @@ func main() {
 	}
 }
 
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+// ExtractResult is extract's return value. Returning it from the task pushes it
+// as the task's return_value XCom, ready for a downstream task to pull.
+type ExtractResult struct {
+	GoVersion string `json:"go_version"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+// ExtractInput declares extract's XCom inputs. The `xcom:"python_task_1"` tag
+// binds this field to the return_value of the upstream Python task
+// `python_task_1`, so the Go task receives a Python task's output without
+// calling client.GetXCom itself. The runtime pulls and decodes it before
+// extract runs.
+type ExtractInput struct {
+	FromPython string `xcom:"python_task_1"`
+}
+
+// TransformInput binds transform's only XCom input to extract's return_value.
+// Because the field is a dedicated struct, decoding is strict: a renamed or
+// unexpected key fails the task instead of silently leaving fields zero. To
+// decode loosely (e.g. for an evolving or cross-language producer), type the
+// field map[string]any instead.
+type TransformInput struct {
+	Extracted ExtractResult `xcom:"extract"`
+}
+
+// TransformResult is transform's return value.
+type TransformResult struct {
+	Variable  string        `json:"variable"`
+	Extracted ExtractResult `json:"extracted"`
+}
+
+// LoadInput binds load's parameter to transform's return_value.
+type LoadInput struct {
+	Transformed TransformResult `xcom:"transform"`
+}
+
+func extract(
+	ctx context.Context,
+	client sdk.Client,
+	log *slog.Logger,
+	in ExtractInput,
+) (ExtractResult, error) {
 	log.Info("Hello from task")
 
 	// Log every field the runtime context exposes. The fields are namespaced
@@ -105,7 +146,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 		// Once per loop,.check if we've been asked to cancel!
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ExtractResult{}, ctx.Err()
 		default:
 		}
 		log.Info("After the beep the time will be", "time", time.Now())
@@ -113,29 +154,48 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 	}
 	log.Info("Goodbye from task")
 
-	ret := map[string]any{
-		"go_version": runtime.Version(),
-		"timestamp":  time.Now().UnixNano(),
-	}
-
-	return ret, nil
+	return ExtractResult{
+		GoVersion: runtime.Version(),
+		Timestamp: time.Now().UnixNano(),
+	}, nil
 }
 
-func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
-	// This function takes a VariableClient and not a Client to make unit testing it easier. See
-	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
-	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
-	//
-	// It also gives a better indication of what features the tasks use
+func transform(
+	ctx context.Context,
+	client sdk.VariableClient,
+	log *slog.Logger,
+	in TransformInput,
+) (TransformResult, error) {
+	// `in.Extracted` is the Taskflow-injected return value of the upstream
+	// `extract` task. The explicit client-pull pattern still works alongside
+	// it: here we also read a Variable directly. transform takes a
+	// VariableClient (not the full sdk.Client) to make unit testing easier --
+	// see `./main_test.go`.
+	// Note: avoid an attribute literally named "timestamp" — it is a reserved
+	// field in the structured log records the coordinator sends to the
+	// supervisor (which parses it as an RFC3339 datetime).
+	log.Info("Got upstream XCom from 'extract'",
+		"go_version", in.Extracted.GoVersion,
+		"extracted_timestamp", in.Extracted.Timestamp,
+	)
+
 	key := "my_variable"
 	val, err := client.GetVariable(ctx, key)
 	if err != nil {
-		return err
+		return TransformResult{}, err
 	}
 	log.Info("Obtained variable", key, val)
-	return nil
+
+	return TransformResult{Variable: val, Extracted: in.Extracted}, nil
 }
 
-func load() error {
+func load(log *slog.Logger, in LoadInput) error {
+	log.Info(
+		"Got upstream XCom from 'transform'",
+		"variable",
+		in.Transformed.Variable,
+		"extracted",
+		in.Transformed.Extracted,
+	)
 	return fmt.Errorf("Please fail")
 }

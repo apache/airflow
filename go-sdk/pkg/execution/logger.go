@@ -110,13 +110,6 @@ func (h *SocketLogHandler) Enabled(_ context.Context, level slog.Level) bool {
 func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 	entry := make(map[string]any)
 
-	// Set standard fields.
-	entry["event"] = r.Message
-	entry["level"] = strings.ToLower(r.Level.String())
-	if !r.Time.IsZero() {
-		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
-	}
-
 	// Apply pre-configured attrs. Keys are already qualified with the groups
 	// active at the WithAttrs call site, so the current h.groups is NOT
 	// applied here — only to record-level attrs below. The stored key already
@@ -133,6 +126,16 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 		appendAttr(entry, prefix, a)
 		return true
 	})
+
+	// Set the reserved protocol fields last so they are authoritative: a user
+	// attribute named "timestamp", "event", or "level" must not overwrite them.
+	// In particular a non-RFC3339 "timestamp" (e.g. an int) would crash the
+	// supervisor's log reader, which decodes this field as an RFC3339 datetime.
+	entry["event"] = r.Message
+	entry["level"] = strings.ToLower(r.Level.String())
+	if !r.Time.IsZero() {
+		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
+	}
 
 	line, err := json.Marshal(entry)
 	if err != nil {

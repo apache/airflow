@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -199,6 +200,32 @@ func TestSocketLogHandlerKeyMapping(t *testing.T) {
 	assert.False(t, hasMsg)
 	_, hasTime := entry["time"]
 	assert.False(t, hasTime)
+}
+
+// TestSocketLogHandlerReservedKeysAuthoritative verifies that a user attribute
+// named like a reserved protocol field (timestamp/event/level) cannot overwrite
+// it. A non-RFC3339 "timestamp" (e.g. an int) would otherwise crash the
+// supervisor's log reader, which decodes that field as an RFC3339 datetime.
+func TestSocketLogHandlerReservedKeysAuthoritative(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler)
+
+	logger.Info("real message",
+		"timestamp", int64(1717000000000000000),
+		"event", "user event",
+		"level", "user level",
+	)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+
+	assert.Equal(t, "real message", entry["event"])
+	assert.Equal(t, "info", entry["level"])
+	ts, ok := entry["timestamp"].(string)
+	require.True(t, ok, "timestamp must remain an RFC3339 string, got %T", entry["timestamp"])
+	_, err := time.Parse(time.RFC3339Nano, ts)
+	assert.NoError(t, err, "reserved timestamp must stay RFC3339 despite a user timestamp attr")
 }
 
 // TestSocketLogHandlerStringifiesErrorAttr verifies that an attribute whose

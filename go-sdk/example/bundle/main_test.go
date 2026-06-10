@@ -52,6 +52,10 @@ var _ sdk.VariableClient = (*mockVars)(nil)
 func Test_transform(t *testing.T) {
 	log := slog.Default()
 	// This is not the best test, but it is a good proof of concept -- you can just call the function.
-	err := transform(context.Background(), &mockVars{}, log)
+	// The Taskflow-injected input is supplied directly, so no XCom client is needed in the unit test.
+	in := TransformInput{Extracted: ExtractResult{GoVersion: "go1.24", Timestamp: 1}}
+	res, err := transform(context.Background(), &mockVars{}, log, in)
 	assert.NoError(t, err)
+	assert.Equal(t, "value1", res.Variable)
+	assert.Equal(t, "go1.24", res.Extracted.GoVersion)
 }

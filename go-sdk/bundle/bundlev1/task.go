@@ -25,6 +25,7 @@ import (
 	"runtime"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -32,23 +33,29 @@ import (
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string
+	// plan describes how each parameter is filled at execution (injected
+	// runtime value or XCom pull). It is built once at registration by
+	// validateFn via the binding package.
+	plan *binding.Plan
 }
 
 var _ Task = (*taskFunction)(nil)
 
-// NewTaskFunction wraps a plain Go function as a Task, validating its signature
-// (injectable parameters, and a return of error or (result, error)). Bundle
-// authors normally use Dag.AddTask, which calls this for them; use it directly
-// only when building a Task outside the registry.
+// NewTaskFunction wraps a plain Go function as a Task, validating its signature:
+// each parameter must be an injectable runtime value (context.Context,
+// *slog.Logger, sdk.Client / VariableClient / ConnectionClient) or an
+// XCom-input struct whose exported fields carry `xcom:"<task_id>"` tags, and the
+// function must return error or (result, error). Bundle authors normally use
+// Dag.AddTask, which calls this for them; use it directly only when building a
+// Task outside the registry.
 func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
-	f := &taskFunction{v, fullName}
+	f := &taskFunction{fn: v, fullName: fullName}
 	return f, f.validateFn(v.Type())
 }
 
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
-	fnType := f.fn.Type()
 	var sdkClient sdk.Client
 	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
 		sdkClient = injected
@@ -56,26 +63,14 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		sdkClient = sdk.NewClient()
 	}
 
-	reflectArgs := make([]reflect.Value, fnType.NumIn())
-	for i := range reflectArgs {
-		in := fnType.In(i)
-
-		switch {
-		case isContext(in):
-			reflectArgs[i] = reflect.ValueOf(ctx)
-		case isLogger(in):
-			reflectArgs[i] = reflect.ValueOf(logger)
-		case isClient(in):
-			reflectArgs[i] = reflect.ValueOf(sdkClient)
-		default:
-			// TODO: deal with other value types. For now they will all be Zero values unless it's a context
-			reflectArgs[i] = reflect.Zero(in)
-		}
+	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient)
+	if err != nil {
+		return err
 	}
+
 	slog.Debug("Attempting to call fn", "fn", f.fn, "args", reflectArgs)
 	retValues := f.fn.Call(reflectArgs)
 
-	var err error
 	if errResult := retValues[len(retValues)-1].Interface(); errResult != nil {
 		var ok bool
 		if err, ok = errResult.(error); !ok {
@@ -86,7 +81,7 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		}
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
-	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
+	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Pointer || !retValues[0].IsNil()) {
 		res := retValues[0].Interface()
 		f.sendXcom(ctx, res, sdkClient, logger)
 	}
@@ -134,6 +129,15 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 			fnType.Out(fnType.NumOut()-1).Kind(),
 		)
 	}
+
+	// Parameters: build the injection / XCom-binding plan once, so any wiring
+	// mistake (an unrecognised parameter type, an untagged input-struct field,
+	// a malformed tag) fails at registration rather than at execution.
+	plan, err := binding.Analyze(fnType, f.fullName)
+	if err != nil {
+		return err
+	}
+	f.plan = plan
 	return nil
 }
 
@@ -147,30 +151,8 @@ func isValidResultType(inType reflect.Type) bool {
 	return true
 }
 
-var (
-	errorType      = reflect.TypeFor[error]()
-	contextType    = reflect.TypeFor[context.Context]()
-	slogLoggerType = reflect.TypeFor[*slog.Logger]()
-
-	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
-	varClientType  = reflect.TypeFor[sdk.VariableClient]()
-	clientType     = reflect.TypeFor[sdk.Client]()
-)
+var errorType = reflect.TypeFor[error]()
 
 func isError(inType reflect.Type) bool {
 	return inType != nil && inType.Implements(errorType)
-}
-
-func isContext(inType reflect.Type) bool {
-	return inType != nil && inType.Implements(contextType)
-}
-
-func isLogger(inType reflect.Type) bool {
-	return inType != nil && inType.AssignableTo(slogLoggerType)
-}
-
-func isClient(inType reflect.Type) bool {
-	return inType != nil && (inType.AssignableTo(clientType) ||
-		inType.AssignableTo(connClientType) ||
-		inType.AssignableTo(varClientType))
 }

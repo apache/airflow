@@ -269,6 +269,68 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	}
 }
 
+// TestCoordinatorClientGetXComNullIsNotFound verifies that a successful
+// response carrying a null value (how the supervisor reports an absent XCom,
+// mirroring xcom_pull returning None) is surfaced as sdk.XComNotFound rather
+// than handed back as a nil value.
+func TestCoordinatorClientGetXComNullIsNotFound(t *testing.T) {
+	responsePayload, err := encodeRequest(0, map[string]any{
+		"type":  "XComResult",
+		"key":   "return_value",
+		"value": nil,
+	})
+	require.NoError(t, err)
+
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm)
+
+	_, err = client.GetXCom(context.Background(), "d", "r", "extract", nil, "return_value", nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sdk.XComNotFound)
+}
+
+// TestCoordinatorClientPushXComStructUsesJSONTags verifies that a struct value
+// crosses the wire using its `json` field tags, not Go field names, so a typed
+// XCom round-trips into a json-tagged struct on the consuming side. It also
+// confirms a large int64 (e.g. a UnixNano timestamp) is preserved exactly
+// rather than coerced through a lossy float.
+func TestCoordinatorClientPushXComStructUsesJSONTags(t *testing.T) {
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm)
+
+	type pushable struct {
+		GoVersion string `json:"go_version"`
+		Timestamp int64  `json:"timestamp"`
+	}
+	ti := api.TaskInstance{DagId: "d", RunId: "r", TaskId: "t"}
+	require.NoError(t, client.PushXCom(
+		context.Background(), ti, "return_value",
+		pushable{GoVersion: "go1.24", Timestamp: 6767000000000000000},
+	))
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+
+	value, ok := sent.Body["value"].(map[string]any)
+	require.True(t, ok, "value should be encoded as a map, got %T", sent.Body["value"])
+	assert.Contains(t, value, "go_version")
+	assert.Contains(t, value, "timestamp")
+	assert.NotContains(t, value, "GoVersion")
+	assert.EqualValues(t, "go1.24", value["go_version"])
+	assert.EqualValues(t, 6767000000000000000, value["timestamp"])
+}
+
 // assertNoReadReader fails the test on any Read call.
 type assertNoReadReader struct{ t *testing.T }
 
