@@ -26,7 +26,7 @@ from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
-TIMESTAMP_STR = "2024-09-30T12:00:00Z"
+TIMESTAMP_STR = "2026-01-01T00:00:00Z"
 TIMESTAMP = timezone.parse(TIMESTAMP_STR)
 
 RUN_PATCH_BODY = {
@@ -73,7 +73,7 @@ class TestQueuedDttmFieldBackwardCompat:
         assert "queued_dttm" not in response.json()
 
     def test_head_version_includes_queued_dttm_when_set(self, client, session, create_task_instance):
-        queued_at = timezone.parse("2024-09-30T11:55:00Z")
+        queued_at = timezone.parse("2026-01-01T00:05:00Z")
         ti = create_task_instance(
             task_id="test_queued_dttm_head",
             state=State.QUEUED,
@@ -87,7 +87,7 @@ class TestQueuedDttmFieldBackwardCompat:
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
 
         assert response.status_code == 200
-        assert response.json()["queued_dttm"] == "2024-09-30T11:55:00Z"
+        assert response.json()["queued_dttm"] == "2026-01-01T00:05:00Z"
 
     def test_head_version_omits_queued_dttm_when_not_set(self, client, session, create_task_instance):
         ti = create_task_instance(

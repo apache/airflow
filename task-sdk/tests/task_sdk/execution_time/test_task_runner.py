@@ -251,21 +251,30 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 @pytest.mark.parametrize(
     "queued_dttm",
     [
-        pytest.param(timezone.datetime(2024, 12, 1, 0, 55), id="with_queued_dttm"),
+        pytest.param(timezone.datetime(2026, 1, 1, 0, 0), id="with_queued_dttm"),
         pytest.param(None, id="without_queued_dttm"),
     ],
 )
 def test_parse_propagates_queued_dttm(mock_dagbag, mock_bundle_manager, make_ti_context, queued_dttm):
     """queued_dttm from TIRunContext must land on RuntimeTaskInstance."""
+    # Mock the bundle
     mock_bundle = mock.Mock()
     mock_bundle.path = Path("/tmp")
     mock_bundle_manager.return_value.get_bundle.return_value = mock_bundle
-    mock_bag_instance = mock.Mock()
-    mock_dagbag.return_value = mock_bag_instance
-    mock_dag = mock.Mock(spec=DAG)
+
+    # Mock the task to "assign" to the DAG
     mock_task = mock.Mock(spec=BaseOperator)
-    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_task.deserialization_allowed_class_fields = ()
+
+    # Mock the DAG
+    mock_dag = mock.Mock(spec=DAG)
     mock_dag.task_dict = {"a": mock_task}
+    mock_dag.tasks = [mock_task]
+
+    # Mock the DagBag
+    mock_bag_instance = mock.Mock()
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dagbag.return_value = mock_bag_instance
 
     what = StartupDetails(
         ti=TaskInstanceDTO(
