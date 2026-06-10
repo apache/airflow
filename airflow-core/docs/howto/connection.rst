@@ -278,6 +278,43 @@ will be disabled (if you are testing in the UI).
     Airflow CLI) have different libs or providers installed, test results *might* differ.
 
 
+Asynchronous (worker-dispatched) connection testing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The test described above runs on the API server. Airflow can also run the test on a worker instead, so
+that connection credentials are only ever used on a worker -- the same place your tasks use them -- rather
+than on the API server. This is useful when a connection is only reachable from workers, or when you would
+rather not have credentials exercised on the API server.
+
+This uses the same ``[core] test_connection`` enablement flag as the synchronous test and is driven through
+the :doc:`Connections REST API </stable-rest-api-ref/>`: submit a test with ``POST /connections/enqueue-test``
+(which returns a token), then poll for the result with ``GET /connections/enqueue-test``, passing the token
+in the ``Airflow-Connection-Test-Token`` header. A result can only be read back with that token, and only by
+users authorized for the connection; in multi-team deployments a test for a connection owned by another team
+is not visible to you.
+
+The worker that runs the test is authorized separately from the polling token above. The scheduler issues the
+worker a short-lived JWT for that single request, whose subject is the connection-test request id and whose
+scope is ``workload``. The Execution API endpoints the worker calls enforce a ``ct:self`` check -- the token
+subject must match the connection-test id in the request path -- so the worker's token can only fetch the
+connection for, and report the result of, the one request it was issued for; it cannot reach other connection
+tests, task instances, or connections.
+
+The behaviour is tuned under the :ref:`[connection_test] <config:connection_test>` section:
+
+* :ref:`connection_test.timeout <config:connection_test__timeout>` -- how long a test may run before it is
+  reported as timed out (default ``60`` seconds).
+* :ref:`connection_test.max_concurrency <config:connection_test__max_concurrency>` -- how many tests may run
+  at once; further requests wait until a slot is free (default ``4``).
+* :ref:`connection_test.reaper_interval <config:connection_test__reaper_interval>` -- how often Airflow
+  checks for and fails tests that exceeded their timeout (default ``30.0`` seconds).
+
+.. note::
+
+    Because the test runs on a worker, its result reflects the libraries, providers and network access
+    available to that worker, which may differ from the API server.
+
+
 Custom connection types
 ^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -23,6 +23,7 @@ from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
+from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -55,6 +56,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
@@ -151,6 +155,9 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksSQLStatementExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.statement_id = statement_id
         self.databricks_conn_id = databricks_conn_id
         self.end_time = end_time

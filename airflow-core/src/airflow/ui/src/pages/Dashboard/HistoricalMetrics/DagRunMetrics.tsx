@@ -35,6 +35,10 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success"
 export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimit }: DagRunMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(dagRunStates).reduce((sum, count) => sum + count, 0);
+  // When any state hit the API's STATE_COUNT_CAP, the summed total is only a
+  // lower bound, so per-state percentages computed from it are wrong (#67336).
+  // Suppress percentages for the whole group in that case.
+  const isTotalTruncated = Object.values(dagRunStates).some((count) => count >= stateCountLimit);
 
   return (
     <Box borderRadius={5} borderWidth={1} p={4}>
@@ -48,6 +52,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimi
           <MetricSection
             capped={dagRunStates[state] >= stateCountLimit}
             endDate={endDate}
+            isTotalTruncated={isTotalTruncated}
             key={state}
             kind="dag_runs"
             runs={dagRunStates[state]}

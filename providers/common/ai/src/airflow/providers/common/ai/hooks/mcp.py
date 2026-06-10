@@ -16,9 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseHook
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from airflow.sdk.execution_time.secrets_masker import mask_secret
+else:
+    try:
+        from airflow.sdk.log import mask_secret
+    except ImportError:
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
 
 
 class MCPHook(BaseHook):
@@ -36,9 +49,22 @@ class MCPHook(BaseHook):
         - **Extra.args**: Command arguments for stdio transport (e.g. ``["mcp-run-python"]``)
         - **Extra.timeout**: Connection timeout in seconds for stdio (default: 10)
 
+    For HTTP/SSE transports the ``Authorization`` header is, by default, a static
+    ``Bearer`` token taken from the connection ``password``. Endpoints that require
+    a freshly minted or short-lived token (e.g. a Snowflake managed MCP server
+    authenticated with a key-pair JWT, OAuth/refresh tokens, Workload Identity
+    Federation, or GitHub App installation tokens) can pass a ``token_provider``
+    callable instead. It is invoked each time the server connection is established
+    and its return value is used as the bearer token, so a fresh token is minted
+    without storing a long-lived secret in the connection.
+
     :param mcp_conn_id: Airflow connection ID for the MCP server.
     :param tool_prefix: Optional prefix prepended to tool names
         (e.g. ``"weather"`` → ``"weather_get_forecast"``).
+    :param token_provider: Optional zero-argument callable returning a bearer
+        token string. When set, it overrides the connection ``password`` for the
+        ``Authorization`` header on HTTP/SSE transports and is called each time the
+        server connection is established. Ignored for the ``stdio`` transport.
     """
 
     conn_name_attr = "mcp_conn_id"
@@ -50,11 +76,14 @@ class MCPHook(BaseHook):
         self,
         mcp_conn_id: str = default_conn_name,
         tool_prefix: str | None = None,
+        *,
+        token_provider: Callable[[], str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.mcp_conn_id = mcp_conn_id
         self.tool_prefix = tool_prefix
+        self.token_provider = token_provider
         self._server: Any = None
 
     @staticmethod
@@ -67,6 +96,28 @@ class MCPHook(BaseHook):
                 "host": "http://localhost:3001/mcp (for HTTP/SSE transport)",
             },
         }
+
+    def _auth_headers(self, conn: Any) -> dict[str, str] | None:
+        """
+        Build the ``Authorization`` header for HTTP/SSE transports.
+
+        Prefers ``token_provider`` (minted per connection) over the static
+        connection ``password``. Returns ``None`` when neither yields a token.
+        """
+        if self.token_provider is not None:
+            token = self.token_provider()
+            if not isinstance(token, str) or not token:
+                raise ValueError(
+                    f"token_provider for connection {self.mcp_conn_id!r} must return a non-empty "
+                    f"string token, got {type(token).__name__}."
+                )
+            # The static connection password is masked when the connection is
+            # fetched; mask the minted token too so it never leaks into task logs.
+            mask_secret(token)
+            return {"Authorization": f"Bearer {token}"}
+        if conn.password:
+            return {"Authorization": f"Bearer {conn.password}"}
+        return None
 
     def get_conn(self) -> Any:
         """
@@ -94,16 +145,19 @@ class MCPHook(BaseHook):
         conn = self.get_connection(self.mcp_conn_id)
         extra = conn.extra_dejson
         transport = extra.get("transport", "http")
-        headers = {"Authorization": f"Bearer {conn.password}"} if conn.password else None
 
         if transport == "http":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for HTTP transport.")
-            self._server = MCPServerStreamableHTTP(conn.host, headers=headers, tool_prefix=self.tool_prefix)
+            self._server = MCPServerStreamableHTTP(
+                conn.host, headers=self._auth_headers(conn), tool_prefix=self.tool_prefix
+            )
         elif transport == "sse":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for SSE transport.")
-            self._server = MCPServerSSE(conn.host, headers=headers, tool_prefix=self.tool_prefix)
+            self._server = MCPServerSSE(
+                conn.host, headers=self._auth_headers(conn), tool_prefix=self.tool_prefix
+            )
         elif transport == "stdio":
             command = extra.get("command")
             if not command:

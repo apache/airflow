@@ -18,6 +18,8 @@
  */
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -32,6 +34,8 @@ import type {
 } from "./types";
 
 dayjs.extend(isSameOrBefore);
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
@@ -58,11 +62,11 @@ const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
 
 const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
 
-const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const dateStr = run.date.slice(0, 10); // "YYYY-MM-DD"
+    const dateStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DD");
     const dailyRuns = dailyDataMap.get(dateStr);
 
     if (dailyRuns) {
@@ -75,11 +79,11 @@ const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   return dailyDataMap;
 };
 
-const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const hourlyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const hourStr = run.date.slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DDTHH");
     const hourlyRuns = hourlyDataMap.get(hourStr);
 
     if (hourlyRuns) {
@@ -117,12 +121,13 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 export const generateDailyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
   selectedYear: number,
+  timezone: string,
 ): DailyCalendarData => {
-  const dailyDataMap = createDailyDataMap(data);
+  const dailyDataMap = createDailyDataMap(data, timezone);
 
   const weeks = [];
-  const startOfYear = dayjs().year(selectedYear).startOf("year");
-  const endOfYear = dayjs().year(selectedYear).endOf("year");
+  const startOfYear = dayjs().tz(timezone).year(selectedYear).startOf("year");
+  const endOfYear = dayjs().tz(timezone).year(selectedYear).endOf("year");
 
   let currentDate = startOfYear.startOf("week");
   const endDate = endOfYear.endOf("week");
@@ -144,15 +149,21 @@ export const generateDailyCalendarData = (
   return weeks;
 };
 
+type HourlyOptions = {
+  selectedMonth: number;
+  selectedYear: number;
+  timezone: string;
+};
+
 export const generateHourlyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  selectedMonth: number,
+  options: HourlyOptions,
 ): HourlyCalendarData => {
-  const hourlyDataMap = createHourlyDataMap(data);
+  const { selectedMonth, selectedYear, timezone } = options;
+  const hourlyDataMap = createHourlyDataMap(data, timezone);
 
-  const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
-  const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
+  const monthStart = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).startOf("month");
+  const monthEnd = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).endOf("month");
   const monthData = [];
 
   let currentDate = monthStart;
@@ -174,11 +185,18 @@ export const generateHourlyCalendarData = (
   return { days: monthData, month: monthStart.format("MMM YYYY") };
 };
 
+type BoundsOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const calculateDataBounds = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: BoundsOptions,
 ): { maxCount: number; minCount: number } => {
+  const { granularity, timezone, viewMode } = options;
+
   if (data.length === 0) {
     return { maxCount: 0, minCount: 0 };
   }
@@ -186,7 +204,7 @@ export const calculateDataBounds = (
   const counts: Array<number> = [];
   const pendingCounts: Array<number> = [];
   const mapCreator = granularity === "daily" ? createDailyDataMap : createHourlyDataMap;
-  const dataMap = mapCreator(data);
+  const dataMap = mapCreator(data, timezone);
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
@@ -220,12 +238,18 @@ export const calculateDataBounds = (
   };
 };
 
+type ScaleOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const createCalendarScale = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: ScaleOptions,
 ): CalendarScale => {
-  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity);
+  const { granularity, timezone, viewMode } = options;
+  const { maxCount, minCount } = calculateDataBounds(data, { granularity, timezone, viewMode });
 
   // Handle empty data case
   if (maxCount === 0) {

@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 2.0.0
 .....
 

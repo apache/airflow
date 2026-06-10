@@ -44,6 +44,7 @@ from airflow.sdk.serde import (
     _match_regexp,
     allow_class,
     deserialize,
+    iter_pydantic_models,
     serialize,
 )
 
@@ -196,6 +197,27 @@ class T:
 class C:
     def __call__(self):
         return None
+
+
+class NestedLeaf(BaseModel):
+    value: int
+
+
+class NestedMid(BaseModel):
+    leaves: list[NestedLeaf]
+
+
+class NestedRoot(BaseModel):
+    mid: NestedMid
+    maybe: NestedLeaf | None
+
+
+class SelfRefNode(BaseModel):
+    name: str
+    children: list[SelfRefNode] = []
+
+
+SelfRefNode.model_rebuild()
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -454,6 +476,35 @@ class TestSerDe:
 
         with pytest.raises(ValueError, match="cannot be re-imported|does not resolve"):
             allow_class(Mismatched)
+
+    def test_iter_pydantic_models_shapes(self):
+        """iter_pydantic_models finds models in bare, optional/union, and container annotations."""
+
+        class M1(BaseModel):
+            a: int
+
+        class M2(BaseModel):
+            b: int
+
+        assert set(iter_pydantic_models(M1)) == {M1}
+        assert set(iter_pydantic_models(M1 | None)) == {M1}
+        assert set(iter_pydantic_models(M1 | M2)) == {M1, M2}
+        assert set(iter_pydantic_models(list[M1])) == {M1}
+        assert set(iter_pydantic_models(dict[str, M2])) == {M2}
+        assert set(iter_pydantic_models(list[M1 | M2 | None])) == {M1, M2}
+        # Non-model annotations yield nothing.
+        assert set(iter_pydantic_models(str)) == set()
+        assert set(iter_pydantic_models(list[int])) == set()
+
+    def test_iter_pydantic_models_recurses_into_fields(self):
+        """Models nested inside a model's fields are yielded, not just the top-level type."""
+        assert set(iter_pydantic_models(NestedRoot)) == {NestedRoot, NestedMid, NestedLeaf}
+        # Holds when the declared type is a container of the root model.
+        assert set(iter_pydantic_models(list[NestedRoot])) == {NestedRoot, NestedMid, NestedLeaf}
+
+    def test_iter_pydantic_models_terminates_on_self_reference(self):
+        """A self-referential model must not loop forever."""
+        assert set(iter_pydantic_models(SelfRefNode)) == {SelfRefNode}
 
     def test_incompatible_version(self):
         data = dict(

@@ -77,7 +77,8 @@ performance in your Airflow:
 
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
-  found in :doc:`/authoring-and-scheduling/deferring`.
+  found in :doc:`/authoring-and-scheduling/deferring`. Note that :doc:`Human-in-the-loop </tutorial/hitl>`
+  tasks wait in the scheduler-managed ``awaiting_input`` state and do not use the triggerer.
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
   packages). Plugins are read by the *scheduler*, *Dag processor*, *triggerer* and *webserver*. More about

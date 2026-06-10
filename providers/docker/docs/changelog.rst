@@ -28,6 +28,18 @@ Changelog
 ---------
 
 
+4.5.7
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DockerOperator on_kill to respect auto_remove='force' and remove orphaned containers (#56149) (#67225)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 4.5.6
 .....
 

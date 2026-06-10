@@ -310,6 +310,25 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "connection_test.success"
+    description: "Number of worker-dispatched connection tests that completed successfully."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.failed"
+    description: "Number of worker-dispatched connection tests that completed with a failure."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.reaped"
+    description: "Number of stale connection tests marked failed by the scheduler reaper.
+    Metric with prior_state tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
@@ -321,6 +340,20 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.active"
+    description: "Number of connection tests currently in flight (``queued`` + ``running``), sampled by the
+    scheduler each tick."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.pending"
+    description: "Number of connection tests waiting in the ``pending`` backlog (queue depth), sampled by the
+    scheduler each tick."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -725,6 +758,20 @@ metrics:
 
   - name: "serde.load_serializers"
     description: "Milliseconds taken to load all serializer modules"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.dispatch_duration"
+    description: "Milliseconds the scheduler spends dispatching pending connection tests to executors
+    in a single tick."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "connection_test.hook_duration"
+    description: "Milliseconds a worker spends running the hook's ``test_connection`` for a
+    worker-dispatched connection test."
     type: "timer"
     legacy_name: "-"
     name_variables: []

@@ -24,6 +24,14 @@ lifecycle: incubation
 source-date-epoch: 1758787200
 description: |
   `IBM MQ  <https://www.ibm.com/products/mq/>`__
+# IBM MQ ships its native C client library only for Linux x86_64, Windows x64 and Java
+# (https://www.ibm.com/support/pages/downloading-ibm-mq-94 — Redist clients). The
+# `ibmmq` Python bindings link against that C client at build time, so `uv sync
+# --resolution lowest-direct --all-extras` fails to build the sdist on aarch64.
+# Exclude the provider from the linux/arm64 test matrix until IBM publishes an aarch64
+# redistributable.
+excluded-platforms:
+  - linux/arm64
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have

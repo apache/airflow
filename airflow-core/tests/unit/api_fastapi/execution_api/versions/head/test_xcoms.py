@@ -17,11 +17,9 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import urllib.parse
 
-import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
 from sqlalchemy import delete, select
@@ -467,21 +465,15 @@ class TestXComsSetEndpoint:
         assert task_map.length == 3
 
     @pytest.mark.parametrize(
-        ("length", "err_context"),
+        ("length", "expected_status"),
         [
-            pytest.param(
-                20,
-                contextlib.nullcontext(),
-                id="20-success",
-            ),
-            pytest.param(
-                2000,
-                pytest.raises(httpx.HTTPStatusError),
-                id="2000-too-long",
-            ),
+            pytest.param(20, 201, id="20-success"),
+            pytest.param(2000, 400, id="2000-too-long"),
         ],
     )
-    def test_xcom_set_downstream_of_mapped(self, client, create_task_instance, session, length, err_context):
+    def test_xcom_set_downstream_of_mapped(
+        self, client, create_task_instance, session, length, expected_status
+    ):
         """
         Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
         XCom.set then uses json.dumps to serialize it and store the value in the database.
@@ -490,14 +482,14 @@ class TestXComsSetEndpoint:
         ti = create_task_instance()
         session.commit()
 
-        with err_context:
-            response = client.post(
-                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-                json='"valid json"',
-                params={"mapped_length": length},
-            )
-            response.raise_for_status()
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json='"valid json"',
+            params={"mapped_length": length},
+        )
+        assert response.status_code == expected_status
 
+        if expected_status < 400:
             task_map = session.scalars(
                 select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
             ).one_or_none()

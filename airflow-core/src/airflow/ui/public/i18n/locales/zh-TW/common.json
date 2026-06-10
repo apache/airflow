@@ -18,10 +18,14 @@
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
   "assetEvent_other": "資源事件",
+  "assetInactive": {
+    "tooltip": "上游資源已停用；排程器會暫停分區評估，直到資源重新啟用。"
+  },
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
     "auditLog": "稽核日誌",
+    "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
@@ -225,6 +229,7 @@
   "startDate": "開始日期",
   "state": "狀態",
   "states": {
+    "awaiting_input": "等待輸入",
     "deferred": "已延後",
     "failed": "失敗",
     "no_status": "無狀態",
@@ -268,7 +273,7 @@
   "task_one": "任務",
   "task_other": "任務",
   "taskGroup": {
-    "documentation": "Task Group Documentation"
+    "documentation": "任務群組文件"
   },
   "taskGroup_one": "任務群組",
   "taskGroup_other": "任務群組",

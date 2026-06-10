@@ -32,14 +32,16 @@ import (
 const MaxFrameSize = 1<<32 - 1
 
 // IncomingFrame represents a decoded frame received from the comm socket.
+// ID is int64 to match the wire encoding and CoordinatorComm.nextID; narrowing
+// to int would reintroduce wraparound on 32-bit GOARCH.
 type IncomingFrame struct {
-	ID   int
+	ID   int64
 	Body map[string]any
 	Err  map[string]any // non-nil only for response frames (3-element arrays)
 }
 
 // encodeRequest encodes a request frame (2-element msgpack array: [id, body]).
-func encodeRequest(id int, body map[string]any) ([]byte, error) {
+func encodeRequest(id int64, body map[string]any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
@@ -47,7 +49,7 @@ func encodeRequest(id int, body map[string]any) ([]byte, error) {
 	if err := enc.EncodeArrayLen(2); err != nil {
 		return nil, err
 	}
-	if err := enc.EncodeInt(int64(id)); err != nil {
+	if err := enc.EncodeInt(id); err != nil {
 		return nil, err
 	}
 	if err := enc.Encode(body); err != nil {
@@ -156,7 +158,7 @@ func decodeFrame(data []byte) (IncomingFrame, error) {
 	}
 
 	return IncomingFrame{
-		ID:   int(id64),
+		ID:   id64,
 		Body: body,
 		Err:  errMap,
 	}, nil
@@ -238,6 +240,23 @@ func mapStringOr(m map[string]any, key string, def string) string {
 		return def
 	}
 	return s
+}
+
+// mapStringPtr extracts a nullable string value from a map. It returns nil
+// when the key is missing or the value is nil (i.e. JSON null / Python None),
+// and a pointer to the string when a value is present. Use this for fields
+// where presence-with-empty must be distinguished from absence (e.g. a
+// connection password explicitly set to "").
+func mapStringPtr(m map[string]any, key string) *string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return nil
+	}
+	s, ok := v.(string)
+	if !ok {
+		return nil
+	}
+	return &s
 }
 
 // mapMap extracts a nested map from a map.
