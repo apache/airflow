@@ -18,7 +18,7 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineTask } from "react-icons/md";
+import { MdDetails, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -41,11 +41,12 @@ export const MappedTaskInstance = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: `${translate("tabs.taskInstances")} [${taskCount}]`, value: "" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
   ];
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
+      <DetailsLayout outletContext={taskInstance} tabs={tabs}>
         {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
       </DetailsLayout>
     </ReactFlowProvider>
