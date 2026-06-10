@@ -32,7 +32,8 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the distributions to PyPI (release candidates)](#publish-the-distributions-to-pypi-release-candidates)
   - [Prepare voting email](#prepare-voting-email)
-  - [Verify the release candidate](#verify-the-release-candidate)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting](#summarize-the-voting)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -90,13 +91,19 @@ Review and edit the generated release notes as needed.
 
 ## Build apache-airflow-mypy distributions for SVN apache upload
 
-The Release Manager can use the `breeze` tool to build the package:
+The distributions uploaded to the ASF dist SVN repo might get promoted to "final" packages by just
+renaming the files, so internally they should keep the final version number **without** the rc suffix,
+even if they are rc1/rc2/... candidates. Build them without a version suffix:
 
 ```bash
 breeze release-management prepare-mypy-distributions \
     --distribution-format both \
-    --version-suffix rc1
+    --version-suffix ""
 ```
+
+This produces `apache_airflow_mypy-<VERSION>-py3-none-any.whl` and `apache_airflow_mypy-<VERSION>.tar.gz`
+(no `rc` in the file names or internal metadata). The rc-suffixed packages are built separately for PyPI
+(see [Publish the distributions to PyPI](#publish-the-distributions-to-pypi-release-candidates)).
 
 ## Build and sign the source and convenience packages
 
@@ -121,15 +128,43 @@ git push origin apache-airflow-mypy-<VERSION>rc<RC>
 
 ## Commit the source packages to Apache SVN repo
 
-Follow the standard Apache release process for committing to the SVN repository.
+Upload the (non-suffixed) artifacts to the ASF dev dist repo under the
+`apache-airflow-mypy/<VERSION>rc<RC>/` directory (the project has its own
+group directory, the version-rc string is the folder name):
+
+```bash
+# Check out the dev dist area (shallow) if you do not have it yet
+svn checkout --depth=immediates https://dist.apache.org/repos/dist/dev/airflow asf-dist-dev-airflow
+cd asf-dist-dev-airflow
+
+# Create the group/version-rc folder and move the signed artifacts in
+mkdir -p apache-airflow-mypy/<VERSION>rc<RC>
+mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_mypy-<VERSION>* apache-airflow-mypy/<VERSION>rc<RC>/
+
+# Remove any previous release candidate folders for this version
+svn rm apache-airflow-mypy/<old-rc-folders>   # if applicable
+
+svn add apache-airflow-mypy
+svn commit -m "Add artifacts for Apache Airflow Mypy <VERSION>rc<RC>"
+```
+
+Verify the files appear at
+https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC>/
 
 ## Publish the distributions to PyPI (release candidates)
 
-Release candidates should be published to TestPyPI first:
+Release candidates are published to PyPI as pre-releases (not TestPyPI), so voters can install them
+directly with `pip install --pre`. These are **different** packages than the ones uploaded to SVN: they
+carry the `rc` suffix, so build them with `--version-suffix rc<RC>`:
 
 ```bash
-twine upload --repository testpypi dist/apache_airflow_mypy-<VERSION>rc<RC>*
+breeze release-management prepare-mypy-distributions \
+    --distribution-format both \
+    --version-suffix rc<RC>
+twine upload dist/apache_airflow_mypy-<VERSION>rc<RC>*
 ```
+
+Use a short-lived (throw-away) PyPI API token for the upload and delete it afterwards.
 
 ## Prepare voting email
 
@@ -143,10 +178,17 @@ Hello Apache Airflow Community,
 This is a call for the vote to release Apache Airflow Mypy version <VERSION>.
 
 The release candidate is available at:
-https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy-<VERSION>rc<RC>/
+https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC>/
 
-The packages are available at TestPyPI:
-https://test.pypi.org/project/apache-airflow-mypy/<VERSION>rc<RC>/
+The packages are available at PyPI:
+https://pypi.org/project/apache-airflow-mypy/<VERSION>rc<RC>/
+
+You can install the release candidate with:
+
+    pip install --pre apache-airflow-mypy==<VERSION>rc<RC>
+
+Public keys are available at:
+https://dist.apache.org/repos/dist/release/airflow/KEYS
 
 The vote will be open for at least 72 hours.
 
@@ -160,24 +202,92 @@ Best regards,
 <YOUR NAME>
 ```
 
-## Verify the release candidate
+## Verify the release candidate by PMC members
 
-Verify the release by:
+PMC members should verify the integrity and provenance of the SVN artifacts before casting a binding
+vote. The files live at
+https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC>/
+and are versioned without the `rc` suffix (`apache_airflow_mypy-<VERSION>-*`).
 
-1. Installing from TestPyPI:
+### SVN check
 
-   ```bash
-   pip install --index-url https://test.pypi.org/simple/ apache-airflow-mypy==<VERSION>rc<RC>
-   ```
+Check out the candidate and confirm the expected 6 files are present (`.tar.gz` and
+`-py3-none-any.whl`, each with `.asc` + `.sha512`):
 
-2. Testing the plugins in a mypy configuration:
+```shell script
+svn co https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC> mypy-rc
+cd mypy-rc
+ls -1
+```
 
-   ```ini
-   [mypy]
-   plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
-   ```
+### Signature check
 
-3. Running the test suite if available
+Import the Airflow KEYS file (it must contain the Release Manager's key) and verify each signature:
+
+```shell script
+curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | gpg --import
+for i in *.asc; do echo "Checking $i"; gpg --verify "$i"; done
+```
+
+You should see `Good signature from ...` for each file.
+
+### SHA512 check
+
+```shell script
+for i in *.sha512; do echo "Checking $i"; shasum -a 512 "$(basename "$i" .sha512)" | diff - "$i"; done
+```
+
+### Version check
+
+Confirm the version embedded in the artifacts is the final version, with no `rc` suffix:
+
+```shell script
+unzip -p apache_airflow_mypy-<VERSION>-py3-none-any.whl '*.dist-info/METADATA' | grep '^Version:'
+tar -xzOf apache_airflow_mypy-<VERSION>.tar.gz '*/PKG-INFO' | grep '^Version:'
+```
+
+### Reproducible package builds check
+
+Rebuild the packages from the tagged source and confirm they are byte-identical to the SVN ones:
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+git fetch apache --tags --force
+git checkout apache-airflow-mypy-<VERSION>rc<RC>
+rm -rf dist/*
+breeze release-management prepare-mypy-distributions --distribution-format both --version-suffix ""
+for i in apache_airflow_mypy-<VERSION>*.tar.gz apache_airflow_mypy-<VERSION>*.whl; do
+    echo -n "$i: "; diff "${PATH_TO_MYPY_RC}/$i" "dist/$i" && echo "No diff found"
+done
+```
+
+### Licence check
+
+Run the Apache RAT tool against the unpacked sdist (download the jar from
+https://creadur.apache.org/rat/download_rat.cgi). There should be no files reported as Unknown or
+Unapproved.
+
+## Verify the release candidate by Contributors
+
+Contributors (and especially actual users) are encouraged to test the release candidate functionally.
+Each candidate is published to PyPI as a pre-release, so anyone can install it:
+
+### Installing in your local virtualenv
+
+```shell script
+pip install --pre apache-airflow-mypy==<VERSION>rc<RC>
+```
+
+### Testing the plugins
+
+Add the plugins to your mypy configuration and run mypy against your code base:
+
+```ini
+[mypy]
+plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
+```
+
+Run the test suite if available, and perform any additional verification you see as necessary.
 
 # Publish release
 
@@ -187,11 +297,12 @@ Once the vote passes, summarize the results in a reply to the voting thread.
 
 ## Publish release to SVN
 
-Move the release from dev to release in SVN:
+Move the release from dev to release in SVN. Because the artifacts are already versioned without the
+`rc` suffix, promotion is a simple move of the version-rc folder to the final version folder:
 
 ```bash
-svn mv https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy-<VERSION>rc<RC> \
-       https://dist.apache.org/repos/dist/release/airflow/apache-airflow-mypy-<VERSION> \
+svn mv https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC> \
+       https://dist.apache.org/repos/dist/release/airflow/apache-airflow-mypy/<VERSION> \
        -m "Release Apache Airflow Mypy <VERSION>"
 ```
 
