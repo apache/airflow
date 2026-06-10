@@ -49,13 +49,13 @@ def update_file(path: Path) -> bool:
     content = path.read_text()
     match = COPYRIGHT_RE.search(content)
     if not match:
-        print(f"⚠️  {path}: no standard ASF copyright line found, skipping")
+        print(f"{path}: no standard ASF copyright line found, skipping")
         return False
     if match.group(2) == CURRENT_YEAR:
         return False
     new_content = COPYRIGHT_RE.sub(rf"\g<1>{CURRENT_YEAR}\3", content)
     path.write_text(new_content)
-    print(f"✅  {path}: updated {match.group(2)} → {CURRENT_YEAR}")
+    print(f"{path}: updated {match.group(2)} → {CURRENT_YEAR}")
     return True
 
 
