@@ -131,8 +131,9 @@ task declares only the parameters it needs.
 .. note::
 
   As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). The value must still be read explicitly in Go via ``client.GetXCom``, and produced either by the
-  task's ``(any, error)`` return value or by ``client.PushXCom``.
+  order). A task reads an upstream value either explicitly via ``client.GetXCom`` or by declaring an
+  :ref:`XCom-input struct parameter <go-sdk/xcom-inputs>`, and produces one via its return value or
+  ``client.PushXCom``.
 
 Go entry point
 ~~~~~~~~~~~~~~~
@@ -223,6 +224,9 @@ parameters your task actually needs:
      - A logger whose output is routed back to the Airflow task log.
    * - ``sdk.Client`` (or a narrower interface)
      - A client for Airflow Variables, Connections, and XCom.
+   * - An ``xcom``-tagged struct
+     - Upstream task XComs, pulled and decoded into the struct's fields before the task runs. See
+       :ref:`go-sdk/xcom-inputs`.
 
 An optional ``(any, error)`` return value becomes the task's ``return_value`` XCom. A non-nil ``error`` (or a
 panic, which the runtime recovers) marks the task instance failed in Airflow, triggering retries if
@@ -251,6 +255,40 @@ Go types.
 
 Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
 so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
+
+.. _go-sdk/xcom-inputs:
+
+Receiving upstream XComs as parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Instead of pulling XComs by hand with ``GetXCom``, a task can declare an **XCom-input struct** parameter.
+Each exported field carries an ``xcom:"<task_id>"`` tag (or ``xcom:"<task_id>,key=<key>"`` to pull a key
+other than the default ``return_value``); the runtime pulls that upstream task's XCom and decodes it into the
+field before the task runs:
+
+.. code-block:: go
+
+    type TransformInput struct {
+        Extracted  ExtractResult `xcom:"extract"`       // extract's return_value
+        FromPython string        `xcom:"python_task_1"` // an upstream Python task's output
+    }
+
+    func transform(ctx context.Context, log *slog.Logger, in TransformInput) (TransformResult, error) {
+        // in.Extracted and in.FromPython are already populated.
+        return TransformResult{Variable: in.FromPython, Extracted: in.Extracted}, nil
+    }
+
+Decoding into a struct is strict: an unknown or renamed key fails the task rather than silently leaving
+fields zero. To decode loosely instead (for example, when the producer is an evolving or cross-language
+task), type the field as ``map[string]any`` (or ``any``), which accepts any shape and keeps unknown keys:
+
+.. code-block:: go
+
+    type TransformInput struct {
+        Extracted map[string]any `xcom:"extract"` // any shape; read it with in.Extracted["go_version"]
+    }
+
+The upstream dependency must still be declared in the Python stub Dag so the tasks run in order.
 
 .. _go-sdk/types:
 
