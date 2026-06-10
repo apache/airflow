@@ -386,7 +386,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, dag_ids: Collection[str], session: Session
     ) -> dict[str, str | None]:
         """
-        Resolve team names for DAG IDs via the DAG → Bundle → Team relationship.
+        Resolve team names for DAG IDs via the DAG > Bundle > Team relationship.
 
         Results are cached for the current scheduler loop iteration. The cache is cleared
         at the start of each loop so all injection points within one heartbeat share
@@ -719,6 +719,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     list(unique_dag_ids),
                 )
                 for ti in task_instances_to_examine:
+                    # Set team as a transient attribute; team lives on the Bundle, not
+                    # on the TI/DagRun schema, so we resolve it at scheduling time.
                     if team := dag_id_to_team_name.get(ti.dag_id):
                         ti._team_name = team
 
@@ -1729,6 +1731,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
+            # Reset per-loop team name cache so changes to bundle-team assignments
+            # are picked up each iteration without requiring a scheduler restart.
             self._dag_id_to_team_name = {}
             with stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
