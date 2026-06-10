@@ -58,7 +58,8 @@ Password (optional)
     It can be left out to fall back on DefaultAzureCredential_.
 
 Host (optional)
-    Specify the account url for anonymous public read, Active Directory, shared access key authentication.
+    Specify the storage account name or account URL for anonymous public read, Active Directory,
+    shared access key authentication.
     It can be left out to fall back on DefaultAzureCredential_.
 
 Extra (optional)
