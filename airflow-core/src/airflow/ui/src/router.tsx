@@ -24,6 +24,8 @@ import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
+import { AssetEvents } from "src/pages/Asset/AssetEvents";
+import { AssetStore } from "src/pages/Asset/AssetStore";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
@@ -60,9 +62,11 @@ import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
+import { TaskStore } from "src/pages/TaskStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
+import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
 
 const pluginRoute = {
@@ -73,7 +77,13 @@ const pluginRoute = {
 export const taskInstanceRoutes = [
   { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
-  { element: <XCom />, path: "xcom" },
+  {
+    children: [
+      { element: <TaskStore />, path: "task-store" },
+      { element: <XCom />, path: "xcom" },
+    ],
+    element: <StorageLayout />,
+  },
   { element: <Code />, path: "code" },
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
@@ -123,6 +133,10 @@ export const routerConfig = [
         path: "configs",
       },
       {
+        children: [
+          { element: <AssetEvents />, index: true },
+          { element: <AssetStore />, path: "asset-store" },
+        ],
         element: <Asset />,
         path: "assets/:assetId",
       },

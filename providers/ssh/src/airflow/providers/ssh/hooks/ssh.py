@@ -82,6 +82,9 @@ class SSHHook(BaseHook):
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
     :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
+    :param conn_retry_attempts: number of times to attempt the initial SSH connection before
+        giving up (default 3). Raising this helps when many tasks target the same SSH server at
+        once and some connections are transiently refused (e.g. ``sshd`` ``MaxStartups`` throttling).
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -130,9 +133,11 @@ class SSHHook(BaseHook):
         ciphers: list[str] | None = None,
         auth_timeout: int | None = None,
         host_proxy_cmd: str | None = None,
+        conn_retry_attempts: int = 3,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
+        self.conn_retry_attempts = max(1, conn_retry_attempts)
         self.remote_host = remote_host
         self.username = username
         self.password = password
@@ -344,7 +349,7 @@ class SSHHook(BaseHook):
         for attempt in Retrying(
             reraise=True,
             wait=wait_fixed(3) + wait_random(0, 2),
-            stop=stop_after_attempt(3),
+            stop=stop_after_attempt(self.conn_retry_attempts),
             before_sleep=log_before_sleep,
         ):
             with attempt:
@@ -553,6 +558,7 @@ class SSHHookAsync(BaseHook):
         key_file: str = "",
         passphrase: str = "",
         private_key: str = "",
+        keepalive_interval: int = 30,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -564,6 +570,7 @@ class SSHHookAsync(BaseHook):
         self.key_file = key_file
         self.passphrase = passphrase
         self.private_key = private_key
+        self.keepalive_interval = keepalive_interval
 
     def _parse_extras(self, conn: Any) -> None:
         """Parse extra fields from the connection into instance fields."""
@@ -631,9 +638,25 @@ class SSHHookAsync(BaseHook):
             conn_config["client_keys"] = [_private_key]
         if self.passphrase:
             conn_config["passphrase"] = self.passphrase
+        if self.keepalive_interval:
+            # The trigger holds one connection for the whole job; a keepalive stops idle
+            # NAT/firewall timeouts from silently dropping it between long poll intervals.
+            conn_config["keepalive_interval"] = self.keepalive_interval
 
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
+
+    async def get_conn(self):
+        """
+        Open an asyncssh connection that can be reused for multiple commands.
+
+        Unlike :meth:`run_command`, the returned connection is **not** closed
+        automatically; the caller owns its lifecycle (e.g.
+        ``async with await hook.get_conn() as conn: ...`` or an explicit
+        ``conn.close()``). Reusing one connection avoids a new TCP/SSH handshake
+        per command, which matters when many tasks poll the same SSH server.
+        """
+        return await self._get_conn()
 
     async def run_command(self, command: str, timeout: float | None = None) -> tuple[int, str, str]:
         """

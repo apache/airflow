@@ -911,6 +911,7 @@ js
 Json
 json
 jsonl
+JsonValue
 juli
 Jupyter
 jupyter
@@ -1140,6 +1141,7 @@ observability
 od
 odbc
 odps
+OIDC
 ok
 oklch
 Okta

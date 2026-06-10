@@ -77,11 +77,13 @@ from airflow.sdk.exceptions import (
     AirflowRuntimeError,
     AirflowTaskTimeout,
     ErrorType,
+    TaskAwaitingInput,
     TaskDeferred,
 )
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
+    AwaitInputTask,
     CommsDecoder,
     DagResult,
     DagRunStateResult,
@@ -1368,6 +1370,29 @@ def _defer_task(
     return msg, state
 
 
+def _await_input_task(
+    awaiting: TaskAwaitingInput, ti: RuntimeTaskInstance, log: Logger
+) -> tuple[ToSupervisor, TaskInstanceState]:
+    """Build the message that parks a task in AWAITING_INPUT (HITL), with no trigger."""
+    log.info("Pausing task as AWAITING_INPUT.", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
+
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    next_kwargs = serde_serialize(awaiting.kwargs or {})
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+
+    msg = AwaitInputTask(
+        timeout=awaiting.timeout,
+        next_method=awaiting.method_name,
+        next_kwargs=next_kwargs,
+    )
+    state = TaskInstanceState.AWAITING_INPUT
+
+    return msg, state
+
+
 @Sentry.enrich_errors
 @detail_span("run")
 def run(
@@ -1386,6 +1411,7 @@ def run(
         AirflowTaskTerminated,
         DagRunTriggerException,
         DownstreamTasksSkipped,
+        TaskAwaitingInput,
         TaskDeferred,
     )
 
@@ -1470,6 +1496,9 @@ def run(
     except TaskDeferred as defer:
         log.info("::group::Post Execute")
         msg, state = _defer_task(defer, ti, log)
+    except TaskAwaitingInput as awaiting:
+        log.info("::group::Post Execute")
+        msg, state = _await_input_task(awaiting, ti, log)
     except AirflowSkipException as e:
         log.info("::group::Post Execute")
         if e.args:
@@ -1504,7 +1533,7 @@ def run(
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1524,12 +1553,12 @@ def run(
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     finally:
         # `state` may still be unset if an exception handler above raised before
@@ -1638,20 +1667,20 @@ def _evaluate_retry_policy(
         return None
 
 
-def _apply_retry_policy_or_default(
+def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
     context: Context | None = None,
 ) -> tuple[RetryTask | TaskState, TaskInstanceState]:
     """
-    Evaluate the retry policy (if any) and decide the task's next state.
+    Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
-    When the policy returns FAIL the task is marked as failed immediately,
-    bypassing the normal retry-count check.  When it returns RETRY with
-    a custom delay, that delay is forwarded in the ``RetryTask`` message.
-    For DEFAULT (or when no policy is configured), the standard
-    ``_handle_current_task_failed`` logic runs.
+    This is the entry point every failure path routes through. When the policy
+    returns FAIL the task is marked as failed immediately, bypassing the normal
+    retry-count check.  When it returns RETRY with a custom delay, that delay is
+    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
+    configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
@@ -1667,17 +1696,25 @@ def _apply_retry_policy_or_default(
             TaskInstanceState.FAILED,
         )
     if decision is not None and decision.action == RetryAction.RETRY:
-        return _handle_current_task_failed(
+        return _finalize_task_failure(
             ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
-    return _handle_current_task_failed(ti)
+    return _finalize_task_failure(ti)
 
 
-def _handle_current_task_failed(
+def _finalize_task_failure(
     ti: RuntimeTaskInstance,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
+    """
+    Record failure metrics and build the standard retry-or-fail outcome.
+
+    Returns an ``UP_FOR_RETRY`` ``RetryTask`` when the server marked the task
+    retry-eligible (optionally carrying a policy-supplied delay/reason), else a
+    ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
+    are decided in :func:`_handle_current_task_failed` before this is called.
+    """
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
@@ -1786,13 +1823,17 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(
-                    state=TaskInstanceState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                    rendered_map_index=ti.rendered_map_index,
+                # Mirror the deferrable path (DagStateTrigger -> execute_complete raises
+                # AirflowException), which flows through run()'s exception handler and
+                # therefore honours a configured retry_policy. Synthesize the same
+                # exception here so non-deferrable waits evaluate the policy too,
+                # falling back to the standard retry-count check when none is set.
+                return _handle_current_task_failed(
+                    ti,
+                    AirflowException(f"{drte.trigger_dag_id} failed with failed state {comms_msg.state}"),
+                    log,
+                    context,
                 )
-                state = TaskInstanceState.FAILED
-                return msg, state
             if comms_msg.state in drte.allowed_states:
                 log.info(
                     "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state

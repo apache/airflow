@@ -52,6 +52,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockRaGOperator,
     BedrockUpdateGuardrailOperator,
 )
+from airflow.providers.amazon.aws.triggers.bedrock import BedrockAgentRuntimeDeletedTrigger
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -308,19 +309,82 @@ class TestBedrockInvokeAgentRuntimeOperator:
 class TestBedrockDeleteAgentRuntimeOperator:
     AGENT_RUNTIME_ID = "runtime_id"
 
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer_takes_precedence"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentCoreControlHook, "get_waiter")
     @mock.patch.object(BedrockAgentCoreControlHook, "conn", new_callable=mock.PropertyMock)
-    def test_delete_agent_runtime(self, mock_conn):
+    def test_delete_agent_runtime_wait_combinations(
+        self,
+        mock_conn,
+        mock_get_waiter,
+        wait_for_completion,
+        deferrable,
+    ):
         mock_client = mock.MagicMock()
         mock_conn.return_value = mock_client
         mock_client.delete_agent_runtime.return_value = {}
         operator = BedrockDeleteAgentRuntimeOperator(
             task_id="delete_agent_runtime",
             agent_runtime_id=self.AGENT_RUNTIME_ID,
+            wait_for_completion=wait_for_completion,
+            deferrable=deferrable,
         )
+        operator.defer = mock.MagicMock()
 
         operator.execute({})
 
         mock_client.delete_agent_runtime.assert_called_once_with(agentRuntimeId=self.AGENT_RUNTIME_ID)
+        assert operator.defer.call_count == deferrable
+
+        if wait_for_completion and not deferrable:
+            mock_get_waiter.assert_called_once_with("agent_runtime_deleted")
+            mock_get_waiter.return_value.wait.assert_called_once_with(
+                agentRuntimeId=self.AGENT_RUNTIME_ID,
+                WaiterConfig={"Delay": 60, "MaxAttempts": 20},
+            )
+        else:
+            mock_get_waiter.assert_not_called()
+
+        if deferrable:
+            trigger = operator.defer.call_args.kwargs["trigger"]
+            assert isinstance(trigger, BedrockAgentRuntimeDeletedTrigger)
+            assert operator.defer.call_args.kwargs["method_name"] == "execute_complete"
+            _, trigger_kwargs = trigger.serialize()
+            assert trigger_kwargs["agent_runtime_id"] == self.AGENT_RUNTIME_ID
+            assert trigger_kwargs["waiter_delay"] == 60
+            assert trigger_kwargs["waiter_max_attempts"] == 20
+
+    def test_execute_complete_success(self):
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+        )
+
+        result = operator.execute_complete(
+            {},
+            {"status": "success", "agent_runtime_id": self.AGENT_RUNTIME_ID},
+        )
+
+        assert result is None
+
+    def test_execute_complete_error(self):
+        operator = BedrockDeleteAgentRuntimeOperator(
+            task_id="delete_agent_runtime",
+            agent_runtime_id=self.AGENT_RUNTIME_ID,
+        )
+
+        with pytest.raises(RuntimeError):
+            operator.execute_complete(
+                {},
+                {"status": "error", "message": "failed", "agent_runtime_id": self.AGENT_RUNTIME_ID},
+            )
 
     def test_template_fields(self):
         validate_template_fields(

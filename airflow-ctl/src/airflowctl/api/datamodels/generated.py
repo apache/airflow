@@ -49,6 +49,18 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetEventAccessControl(BaseModel):
+    """
+    Access control settings for asset event consumer team filtering.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    consumer_teams: Annotated[list[str] | None, Field(title="Consumer Teams")] = None
+    allow_global: Annotated[bool | None, Field(title="Allow Global")] = True
+
+
 class AssetStoreWriterKind(str, Enum):
     """
     Identifies what kind of writer last updated an asset store entry.
@@ -134,62 +146,8 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
-class BulkDAGRunBody(BaseModel):
-    """
-    Request body for bulk delete operations on Dag Runs.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
-    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
-
-
 class Note(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title="Note")]
-
-
-class BulkDAGRunClearBody(BaseModel):
-    """
-    Request body for the bulk clear Dag Runs endpoint.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
-    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
-    only_new: Annotated[
-        bool | None,
-        Field(
-            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
-            title="Only New",
-        ),
-    ] = False
-    run_on_latest_version: Annotated[
-        bool | None,
-        Field(
-            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
-            title="Run On Latest Version",
-        ),
-    ] = None
-    note: Annotated[Note | None, Field(title="Note")] = None
-    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
-
-
-class BulkDeleteActionBulkDAGRunBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str | BulkDAGRunBody],
-        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkResponse(BaseModel):
@@ -213,26 +171,6 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
-
-
-class BulkUpdateActionBulkDAGRunBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[BulkDAGRunBody], Field(description="A list of entities to be updated.", title="Entities")
-    ]
-    update_mask: Annotated[
-        list[str] | None,
-        Field(
-            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
-            title="Update Mask",
-        ),
-    ] = None
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class TaskIds(RootModel[list]):
@@ -415,6 +353,7 @@ class CreateAssetEventsBody(BaseModel):
     asset_id: Annotated[int, Field(title="Asset Id")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    access_control: AssetEventAccessControl | None = None
 
 
 class DAGPatchBody(BaseModel):
@@ -994,6 +933,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class TaskInstancesBatchBody(BaseModel):
@@ -1406,19 +1346,6 @@ class BackfillResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
-class BulkCreateActionBulkDAGRunBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[BulkDAGRunBody], Field(description="A list of entities to be created.", title="Entities")
-    ]
-    action_on_existence: BulkActionOnExistence | None = "fail"
-
-
 class BulkCreateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1456,6 +1383,62 @@ class BulkCreateActionVariableBody(BaseModel):
         list[VariableBody], Field(description="A list of entities to be created.", title="Entities")
     ]
     action_on_existence: BulkActionOnExistence | None = "fail"
+
+
+class BulkDAGRunBody(BaseModel):
+    """
+    Request body for bulk operations on Dag Runs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    state: DagRunMutableStates | None = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
+class BulkDAGRunClearBody(BaseModel):
+    """
+    Request body for the bulk clear Dag Runs endpoint.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
+            title="Run On Latest Version",
+        ),
+    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
+
+
+class BulkDeleteActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkDAGRunBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionConnectionBody(BaseModel):
@@ -1518,6 +1501,26 @@ class BulkTaskInstanceBody(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+
+
+class BulkUpdateActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGRunBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
@@ -2164,18 +2167,6 @@ class BackfillCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class BulkBodyBulkDAGRunBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[
-            BulkCreateActionBulkDAGRunBody | BulkUpdateActionBulkDAGRunBody | BulkDeleteActionBulkDAGRunBody
-        ],
-        Field(title="Actions"),
-    ]
-
-
 class BulkBodyConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2206,6 +2197,19 @@ class BulkBodyVariableBody(BaseModel):
         list[BulkCreateActionVariableBody | BulkUpdateActionVariableBody | BulkDeleteActionVariableBody],
         Field(title="Actions"),
     ]
+
+
+class BulkCreateActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGRunBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
 
 
 class BulkCreateActionBulkTaskInstanceBody(BaseModel):
@@ -2419,6 +2423,18 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BulkBodyBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionBulkDAGRunBody | BulkUpdateActionBulkDAGRunBody | BulkDeleteActionBulkDAGRunBody
+        ],
+        Field(title="Actions"),
+    ]
 
 
 class BulkBodyBulkTaskInstanceBody(BaseModel):

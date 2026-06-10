@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "משימות בהשהיה שלא נספרו במכסות: {{count}}",
+  "deferredSlotsNotCountedTooltip": "משימות בהשהיה המוצגות בסרגל נספרות מול מכסות המאגר. משימות בהשהיה המוצגות מתחת לסרגל מגיעות ממאגרים שאינם סופרים משימות בהשהיה מול המכסות.",
   "favorite": {
     "favoriteDags_one": "ה-Dag המועדף הראשון",
     "favoriteDags_other": "{{ count }} ה-Dags המועדפים הראשונים",

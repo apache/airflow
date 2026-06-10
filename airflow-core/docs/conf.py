@@ -350,7 +350,11 @@ redirects_file = "redirects.txt"
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
 spelling_word_list_filename = [SPELLING_WORDLIST_PATH.as_posix()]
-spelling_exclude_patterns = ["project.rst", "changelog.rst"]
+# ``stable-rest-api-ref.rst`` renders the OpenAPI spec via the ``swagger-plugin``
+# directive. Its content is machine-generated (camelCase URL path segments,
+# operationIds, JSON-Schema keywords such as ``oneOf``), not prose, so spell-checking
+# it only produces false positives that re-break the build on every new endpoint.
+spelling_exclude_patterns = ["project.rst", "changelog.rst", "stable-rest-api-ref.rst"]
 
 spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
 
 from typing_extensions import NotRequired
@@ -256,6 +257,21 @@ class Timetable(Protocol):
             f"partition mapper (asset name={name!r}, uri={uri!r})."
         )
         raise NotImplementedError(msg)
+
+    def resolve_day_bound(self, day: datetime.date) -> DateTime:
+        """
+        Return the UTC instant of *day*'s start (midnight).
+
+        By default a calendar day starts at midnight UTC. Timetables with a local
+        timezone (e.g. :class:`~airflow.timetables._cron.CronMixin` subclasses)
+        override this to anchor at local midnight in their timezone, converted to
+        UTC. Callers pass *day* for an inclusive lower bound and
+        ``day + timedelta(days=1)`` for a half-open upper bound (e.g. ``dag_clear``
+        uses it to bound ``partition_date`` queries).
+        """
+        return timezone.coerce_datetime(
+            datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
+        )
 
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:
