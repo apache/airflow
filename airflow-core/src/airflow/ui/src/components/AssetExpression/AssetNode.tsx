@@ -20,16 +20,17 @@ import { Box, Text, HStack } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
 import { PiRectangleDashed } from "react-icons/pi";
 
+import type { AssetExpressionAlias, AssetExpressionAsset } from "openapi/requests/types.gen";
 import { RouterLink } from "src/components/ui";
 
 import Time from "../Time";
-import type { AssetSummary, NextRunEvent } from "./types";
+import type { NextRunEvent } from "./types";
 
 export const AssetNode = ({
   asset,
   event,
 }: {
-  readonly asset: AssetSummary;
+  readonly asset: AssetExpressionAlias | AssetExpressionAsset;
   readonly event?: NextRunEvent;
 }) => (
   <Box

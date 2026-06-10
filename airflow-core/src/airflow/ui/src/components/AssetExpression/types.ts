@@ -16,25 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type {
-  AssetExpressionAlias,
-  AssetExpressionAll,
-  AssetExpressionAny,
-  AssetExpressionAsset,
-  AssetExpressionRef,
-} from "openapi/requests/types.gen";
-
-// `asset_expression` is now typed on the API side (see the AssetExpression* models in the Python
-// `datamodels/common.py`), so these aliases are derived from the generated client instead of being
-// hand-maintained here. The previous local union could drift from the server shape with no runtime check.
+import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 
 export type NextRunEvent = { id: number; lastUpdate?: string | null; name: string | null; uri: string };
 
-export type AssetSummary = AssetExpressionAlias | AssetExpressionAsset;
-
-export type ExpressionType =
-  | AssetExpressionAlias
-  | AssetExpressionAll
-  | AssetExpressionAny
-  | AssetExpressionAsset
-  | AssetExpressionRef;
+export type ExpressionType = NonNullable<DAGDetailsResponse["asset_expression"]>;
