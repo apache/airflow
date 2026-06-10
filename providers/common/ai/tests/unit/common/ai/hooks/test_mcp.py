@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -246,3 +246,103 @@ class TestMCPHookUIFieldBehaviour:
     def test_relabeling(self):
         behaviour = MCPHook.get_ui_field_behaviour()
         assert behaviour["relabeling"]["password"] == "Auth Token"
+
+
+class TestMCPHookTokenProvider:
+    @patch(_MCP_HTTP)
+    def test_http_uses_token_provider(self, mock_server_cls):
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted-jwt")
+        conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_server_cls.assert_called_once_with(
+            "http://localhost:3001/mcp",
+            headers={"Authorization": "Bearer minted-jwt"},
+            tool_prefix=None,
+        )
+
+    @patch(_MCP_HTTP)
+    def test_token_provider_overrides_static_password(self, mock_server_cls):
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "fresh")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            host="http://localhost:3001/mcp",
+            password="static-pat",
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_server_cls.assert_called_once_with(
+            "http://localhost:3001/mcp",
+            headers={"Authorization": "Bearer fresh"},
+            tool_prefix=None,
+        )
+
+    @patch(_MCP_HTTP)
+    def test_token_provider_called_when_establishing_connection(self, mock_server_cls):
+        provider = MagicMock(return_value="tok")
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=provider)
+        conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        provider.assert_called_once_with()
+
+    @patch(_MCP_HTTP)
+    def test_masks_minted_token(self, mock_server_cls):
+        """The minted token must be registered with secret masking, like conn.password."""
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted-jwt")
+        conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            patch("airflow.providers.common.ai.hooks.mcp.mask_secret") as mock_mask,
+        ):
+            hook.get_conn()
+
+        mock_mask.assert_called_once_with("minted-jwt")
+
+    @pytest.mark.parametrize("bad_token", ["", None], ids=["empty", "non_string"])
+    @patch(_MCP_HTTP)
+    def test_invalid_token_raises(self, mock_server_cls, bad_token):
+        """A token_provider returning a non-string or empty value fails loud."""
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: bad_token)
+        conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must return a non-empty string token"):
+                hook.get_conn()
+
+    @patch(_MCP_SSE)
+    def test_sse_uses_token_provider(self, mock_server_cls):
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            host="http://localhost:3001/sse",
+            extra=json.dumps({"transport": "sse"}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_server_cls.assert_called_once_with(
+            "http://localhost:3001/sse",
+            headers={"Authorization": "Bearer minted"},
+            tool_prefix=None,
+        )
+
+    @patch(_MCP_STDIO)
+    def test_stdio_does_not_invoke_token_provider(self, mock_server_cls):
+        """stdio has no HTTP headers, so the token provider must not be called."""
+        provider = MagicMock(return_value="tok")
+        hook = MCPHook(mcp_conn_id="test_conn", token_provider=provider)
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": ["mcp-run-python"]}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        provider.assert_not_called()
+        mock_server_cls.assert_called_once_with("uvx", args=["mcp-run-python"], timeout=10, tool_prefix=None)

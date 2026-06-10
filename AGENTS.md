@@ -31,6 +31,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 `<PROJECT>` is folder where pyproject.toml of the package you want to test is located. For example, `airflow-core` or `providers/amazon`.
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be `v3-1-test` when creating a PR for the 3.1 branch.
 
+<!-- START generated-commands, please keep comment here to allow auto update -->
 - **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
 - **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`
 - **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`
@@ -54,6 +55,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+<!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
@@ -141,6 +143,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
+- **Keep selective-checks behaviour and its documentation in sync.** The CI optimisation logic lives in `dev/breeze/src/airflow_breeze/utils/selective_checks.py` (run-mode decisions, file-group matching, test-type selection, prek-hook skipping). Whenever you change a rule there — add/rename a file group, change what forces `full_tests_needed`/`all_versions`, alter how providers or test types are selected, or change which prek hooks are skipped — update [`dev/breeze/doc/ci/04_selective_checks.md`](dev/breeze/doc/ci/04_selective_checks.md) in the same PR (the decision-rules list, the diagrams, the outputs table, and the worked examples as applicable) and add/adjust tests in `dev/breeze/tests/test_selective_checks.py`. The doc is the human-facing explanation of that file; letting them drift makes CI behaviour impossible to reason about.
 - Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes. **Golden rule: never create a newsfragment unless you are certain the change is user-facing.** If you are not sure the change is visible to users — build/release tooling, CI, packaging, internal refactors with no behavior change, dev-only scripts, and test-only changes are *not* user-facing — do **not** add one. Default to omitting it; a maintainer will ask for a newsfragment during review if the change warrants one. Adding a spurious newsfragment for a non-user-facing change is a defect, not a safe default. **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 
 ## Testing Standards

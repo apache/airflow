@@ -22,6 +22,13 @@ import (
 	"time"
 )
 
+// SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
+// this SDK's coordinator protocol is compiled against, in YYYY-MM-DD form. It
+// is reported in a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version so the supervisor can downgrade outbound
+// messages / upgrade inbound messages to a shape the bundle understands.
+const SupervisorSchemaVersion = "2026-06-16"
+
 // Inbound messages (Supervisor -> Runtime).
 
 // TaskInstanceInfo holds task instance details from StartupDetails.
@@ -103,6 +110,14 @@ func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 	if m == nil {
 		return TIRunContext{}, nil
 	}
+	// The scheduling timestamps live on the nested dag_run object in the
+	// supervisor's TIRunContext schema (ti_context.dag_run.logical_date, ...),
+	// not at the top level of ti_context. See task-sdk's
+	// airflow.sdk.api.datamodels._generated.{TIRunContext,DagRun}.
+	dagRun := mapMap(m, "dag_run")
+	if dagRun == nil {
+		return TIRunContext{}, nil
+	}
 	ctx := TIRunContext{}
 	for _, f := range []struct {
 		key string
@@ -112,13 +127,13 @@ func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 		{"data_interval_start", &ctx.DataIntervalStart},
 		{"data_interval_end", &ctx.DataIntervalEnd},
 	} {
-		raw, present := m[f.key]
+		raw, present := dagRun[f.key]
 		if !present || raw == nil {
 			continue
 		}
 		t, err := asTime(raw)
 		if err != nil {
-			return TIRunContext{}, fmt.Errorf("ti_context.%s: %w", f.key, err)
+			return TIRunContext{}, fmt.Errorf("ti_context.dag_run.%s: %w", f.key, err)
 		}
 		*f.dst = &t
 	}

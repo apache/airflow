@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
@@ -29,6 +30,8 @@ OutputT = TypeVar("OutputT")
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
+
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class PydanticAIHook(BaseHook):
@@ -71,6 +74,8 @@ class PydanticAIHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
+        self._conn: Connection | None = None
+        self._conn_extra_dejson: dict[str, Any] | None = None
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -134,9 +139,11 @@ class PydanticAIHook(BaseHook):
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id)
+        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
+        extra: dict[str, Any] = (
+            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
+        )
 
-        extra: dict[str, Any] = conn.extra_dejson
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
@@ -172,6 +179,20 @@ class PydanticAIHook(BaseHook):
         self._model = infer_model(model_name)
         return self._model
 
+    def _get_conn_if_model_configured(self) -> Model | None:
+        """Return the hook model only when the hook or connection explicitly configures one."""
+        if self.model_id:
+            return self.get_conn()
+
+        conn = self.get_connection(self.llm_conn_id)
+        self._conn = conn
+        self._conn_extra_dejson = conn.extra_dejson
+
+        if self._conn_extra_dejson.get("model"):
+            return self.get_conn()
+
+        return None
+
     @overload
     def create_agent(
         self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
@@ -180,8 +201,32 @@ class PydanticAIHook(BaseHook):
     @overload
     def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
 
+    @overload
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[None, OutputT]: ...
+
+    @overload
+    def create_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[None, str]: ...
+
+    def create_agent(
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
     ) -> Agent[None, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
@@ -193,9 +238,32 @@ class PydanticAIHook(BaseHook):
 
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
+            Required when *spec_file* is not given. When *spec_file* is given,
+            this value is merged with the instructions in the file; omit it to
+            use only the file value.
+        :param spec_file: Path to a YAML or JSON ``AgentSpec`` file.  When supplied,
+            delegates to ``Agent.from_file``. If ``model_id`` or the connection's
+            ``model`` extra is set, that model is passed to pydantic-ai; otherwise
+            the spec file's ``model`` is used.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
-        agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        if spec_file is not None:
+            from_file_kwargs = dict(agent_kwargs)
+            model = self._get_conn_if_model_configured()
+            if model is not None:
+                from_file_kwargs["model"] = model
+            if instructions is not None:
+                from_file_kwargs["instructions"] = instructions
+
+            agent = Agent.from_file(
+                spec_file,
+                output_type=output_type,
+                **from_file_kwargs,
+            )
+        else:
+            if instructions is None:
+                raise ValueError("instructions is required when spec_file is not provided.")
+            agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
         if "instrument" not in agent_kwargs:
             # Set the public ``agent.instrument`` surface rather than the
             # ``Agent(instrument=...)`` constructor kwarg, which is deprecated in

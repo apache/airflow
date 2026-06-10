@@ -107,14 +107,15 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -249,9 +250,10 @@ class ConcurrencyMap:
             # max_active_tis_per_dagrun), including DEFERRED.
             self.task_concurrency_map[(dag_id, task_id)] += count
             self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
-            # Only count non-deferred states towards DAG-run active tasks
-            # (max_active_tasks / worker slot accounting).
-            if state != TaskInstanceState.DEFERRED:
+            # Only count states that hold a worker slot towards DAG-run active tasks
+            # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
+            # are in-flight but parked, holding no worker slot.
+            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
                 self.dag_run_active_tasks_map[dag_id, run_id] += count
 
 
@@ -1645,6 +1647,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
+            self.check_awaiting_input_timeouts,
+        )
+
+        timers.call_regular_interval(
             30,
             self._mark_backfills_complete,
         )
@@ -1909,7 +1916,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         name: str,
         uri: str,
         apdr: AssetPartitionDagRun,
-        timetable: PartitionedAssetTimetable,
+        timetable: Timetable,
         actual_by_asset: dict[int, set[str]],
     ) -> bool:
         """
@@ -1945,6 +1952,68 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 asset_uri=uri,
             )
             return False
+
+    def _resolve_partition_date(
+        self,
+        *,
+        timetable: Timetable,
+        asset_infos: Iterable[tuple[str, str]],
+        partition_key: str,
+        dag_id: str,
+    ) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *partition_key*.
+
+        Resolves the temporal anchor (period-start datetime) for *partition_key*
+        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
+        that contributed to it. Each upstream mapper resolves the key via
+        :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
+        temporal mappers decode the key, composite mappers delegate to their
+        child, and non-temporal mappers (e.g.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper`) return ``None``.
+
+        A partitioned consumer has a single partition identity, so every temporal
+        mapper feeding it must resolve the same key to the same instant. Anchors
+        are compared by instant (timezone-aware), so equivalent moments collapse
+        to one. When the temporal mappers agree, that anchor is returned; when
+        they disagree — a misconfiguration, e.g. assets mapping the same key under
+        different timezones — ``partition_date`` is left unset and a warning is
+        logged rather than silently picking one by scan order. Returns ``None`` if
+        no mapper is temporal.
+
+        A failure in any mapper aborts the whole resolution and returns ``None``
+        (logged) — anchors accumulated from earlier mappers are discarded rather
+        than used as a partial result, since a partial set could hide a conflict.
+        A broken mapper must not crash the scheduler tick.
+        """
+        anchors: set[datetime] = set()
+        try:
+            for name, uri in asset_infos:
+                mapper = timetable.get_partition_mapper(name=name, uri=uri)
+                anchor = mapper.to_partition_date(partition_key)
+                if anchor is not None:
+                    anchors.add(anchor)
+        except Exception:
+            self.log.exception(
+                "Failed to resolve partition_date for asset-triggered Dag run; partition_date will be None.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+            )
+            return None
+
+        if not anchors:
+            return None
+        if len(anchors) > 1:
+            self.log.warning(
+                "Upstream partition mappers resolved conflicting partition_date values for the same "
+                "key; leaving partition_date unset. The consumer's assets likely use inconsistent "
+                "partition mappers.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+                partition_dates=sorted(anchor.isoformat() for anchor in anchors),
+            )
+            return None
+        return anchors.pop()
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
@@ -2112,8 +2181,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
                 key = SerializedAssetUniqueKey(name=name, uri=uri)
                 if timetable.partitioned:
-                    if TYPE_CHECKING:
-                        assert isinstance(timetable, PartitionedAssetTimetable)
                     statuses[key] = self._resolve_asset_partition_status(
                         session=session,
                         asset_id=asset_id,
@@ -2130,6 +2197,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
+            partition_date: datetime | None = None
+            if timetable.partitioned:
+                partition_date = self._resolve_partition_date(
+                    timetable=timetable,
+                    asset_infos=asset_info_per_apdr[apdr.id].values(),
+                    partition_key=apdr.partition_key,
+                    dag_id=apdr.target_dag_id,
+                )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
@@ -2137,6 +2212,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date=None,
                 data_interval=None,
                 partition_key=apdr.partition_key,
+                partition_date=partition_date,
                 run_after=run_after,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
@@ -2956,7 +3032,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
-        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
         stmt = (
             select(
                 TaskInstance.state,
@@ -3173,6 +3249,95 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 num_timed_out_tasks = getattr(result, "rowcount", 0)
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def check_awaiting_input_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Resolve Human-in-the-loop tasks parked in AWAITING_INPUT whose response deadline has passed.
+
+        This is the scheduler-side liveness guarantee for HITL and runs independently of the
+        triggerer. For each timed-out task instance: if a response arrived just before the deadline,
+        resume with it; otherwise, if the request defines defaults, write the defaults as the
+        response and resume to success; otherwise fail the task (mirroring ``check_trigger_timeouts``).
+        """
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                now = timezone.utcnow()
+                query = (
+                    select(TI)
+                    .where(
+                        TI.state == TaskInstanceState.AWAITING_INPUT,
+                        TI.trigger_timeout < now,
+                    )
+                    .options(joinedload(TI.hitl_detail))
+                    # Bound the batch so a single scheduler tick cannot lock/process an unbounded
+                    # backlog of timed-out tasks (which would block concurrent responses/clears);
+                    # any remaining rows are handled on subsequent ticks.
+                    .limit(100)
+                )
+                # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
+                # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_tis = session.scalars(query).all()
+                if not timed_out_tis:
+                    return
+
+                num_resolved = 0
+                num_failed = 0
+                for ti in timed_out_tis:
+                    hitl_detail = ti.hitl_detail
+                    if hitl_detail is not None and hitl_detail.responded_at is not None:
+                        # A response landed just before the deadline; resume with it.
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    elif hitl_detail is not None and hitl_detail.defaults is not None:
+                        # Apply the configured defaults as the response, then resume to success.
+                        hitl_detail.chosen_options = list(hitl_detail.defaults)
+                        hitl_detail.params_input = {
+                            key: value["value"] if isinstance(value, dict) and "value" in value else value
+                            for key, value in (hitl_detail.params or {}).items()
+                        }
+                        hitl_detail.responded_by = None
+                        hitl_detail.responded_at = now
+                        session.add(hitl_detail)
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    else:
+                        # No defaults and no response: resume into execute_complete with a timeout
+                        # failure event so the operator raises HITLTimeoutError (matching the old
+                        # trigger path), rather than a generic deferral-timeout failure.
+                        handle_event_submit(
+                            TriggerEvent(
+                                {
+                                    "error": "The Human-in-the-loop response timeout has passed "
+                                    "without a response.",
+                                    "error_type": "timeout",
+                                }
+                            ),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_failed += 1
+
+                # Flush within the retry block so both branches persist consistently (the defaults
+                # branch already flushes via handle_event_submit; the fail branch relies on this).
+                session.flush()
+                if num_resolved or num_failed:
+                    self.log.info(
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        num_resolved,
+                        num_failed,
+                    )
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:

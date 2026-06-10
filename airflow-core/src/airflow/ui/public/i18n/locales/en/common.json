@@ -146,6 +146,7 @@
     "startTime": "Start Time"
   },
   "generateToken": "Generate Token",
+  "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -229,6 +230,7 @@
   "startDate": "Start Date",
   "state": "State",
   "states": {
+    "awaiting_input": "Awaiting Input",
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
@@ -261,7 +263,8 @@
       "any": "Any"
     },
     "tagPlaceholder": "Filter by tag",
-    "to": "To"
+    "to": "To",
+    "updatedAt": "Updated at"
   },
   "task": {
     "documentation": "Task Documentation",
@@ -392,6 +395,7 @@
     "mustBeAtLeast": "Must be at least {{min}}.",
     "mustBeValidNumber": "Must be a valid number."
   },
+  "value": "Value",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
