@@ -18,6 +18,4 @@
  */
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 
-export type NextRunEvent = { id: number; lastUpdate?: string | null; name: string | null; uri: string };
-
 export type ExpressionType = NonNullable<DAGDetailsResponse["asset_expression"]>;
