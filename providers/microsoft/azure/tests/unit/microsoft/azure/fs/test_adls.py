@@ -174,6 +174,40 @@ def mocked_blob_file_system():
                 "tenant_id": "tenant_id",
             },
         ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "account_name": "testaccountname",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
     ],
     indirect=["mocked_connection"],
 )

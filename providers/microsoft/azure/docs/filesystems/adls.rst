@@ -23,9 +23,9 @@ through Airflow's ObjectStoragePath interface.
 
 Supported URL formats:
 
-* ``abfs://connection_id/container/path/to/file``
-* ``abfss://connection_id/container/path/to/file``
-* ``adl://connection_id/container/path/to/file``
+* ``abfs://connection_id@container/path/to/file``
+* ``abfss://connection_id@container/path/to/file``
+* ``adl://connection_id@container/path/to/file``
 
 Connection Configuration
 ------------------------
@@ -51,18 +51,18 @@ Read from ADLS Gen2 with ObjectStoragePath:
 
 .. code-block:: python
 
-    from airflow.sdk.io.path import ObjectStoragePath
+    from airflow.sdk import ObjectStoragePath
 
-    path = ObjectStoragePath("abfs://adls_default/raw/events.json")
+    path = ObjectStoragePath("abfs://adls_default@raw/events.json")
     content = path.read_text()
 
 Write to ADLS Gen2:
 
 .. code-block:: python
 
-    from airflow.sdk.io.path import ObjectStoragePath
+    from airflow.sdk import ObjectStoragePath
 
-    output_path = ObjectStoragePath("abfss://adls_default/processed/events.json")
+    output_path = ObjectStoragePath("abfss://adls_default@processed/events.json")
     output_path.write_text('{"status": "ok"}')
 
 Requirements
